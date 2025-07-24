@@ -8,35 +8,61 @@ All colors MUST be HSL.
 
 @layer base {
   :root {
-    --background: 0 0% 100%;
-    --foreground: 222.2 84% 4.9%;
+    /* Studio Magnate Hollywood Theme */
+    --background: 40 8% 5%;
+    --foreground: 45 15% 85%;
 
-    --card: 0 0% 100%;
-    --card-foreground: 222.2 84% 4.9%;
+    --card: 40 12% 8%;
+    --card-foreground: 45 15% 85%;
 
-    --popover: 0 0% 100%;
-    --popover-foreground: 222.2 84% 4.9%;
+    --popover: 40 15% 10%;
+    --popover-foreground: 45 15% 85%;
 
-    --primary: 222.2 47.4% 11.2%;
-    --primary-foreground: 210 40% 98%;
+    /* Golden Hollywood Primary */
+    --primary: 45 85% 65%;
+    --primary-foreground: 40 8% 5%;
 
-    --secondary: 210 40% 96.1%;
-    --secondary-foreground: 222.2 47.4% 11.2%;
+    /* Silver Screen Secondary */
+    --secondary: 220 8% 25%;
+    --secondary-foreground: 45 15% 85%;
 
-    --muted: 210 40% 96.1%;
-    --muted-foreground: 215.4 16.3% 46.9%;
+    --muted: 40 10% 15%;
+    --muted-foreground: 45 8% 55%;
 
-    --accent: 210 40% 96.1%;
-    --accent-foreground: 222.2 47.4% 11.2%;
+    /* Spotlight Accent */
+    --accent: 45 95% 70%;
+    --accent-foreground: 40 8% 5%;
 
-    --destructive: 0 84.2% 60.2%;
-    --destructive-foreground: 210 40% 98%;
+    /* Box Office Bomb */
+    --destructive: 0 84% 55%;
+    --destructive-foreground: 45 15% 85%;
 
-    --border: 214.3 31.8% 91.4%;
-    --input: 214.3 31.8% 91.4%;
-    --ring: 222.2 84% 4.9%;
+    --border: 40 15% 20%;
+    --input: 40 15% 12%;
+    --ring: 45 85% 65%;
 
-    --radius: 0.5rem;
+    /* Art Deco Gradients */
+    --gradient-golden: linear-gradient(135deg, hsl(45 85% 65%), hsl(35 75% 55%));
+    --gradient-silver: linear-gradient(135deg, hsl(220 8% 35%), hsl(220 8% 25%));
+    --gradient-spotlight: linear-gradient(135deg, hsl(45 95% 70%), hsl(45 85% 65%));
+    
+    /* Studio Shadows */
+    --shadow-studio: 0 10px 30px -10px hsl(40 8% 5% / 0.8);
+    --shadow-golden: 0 0 40px hsl(45 85% 65% / 0.3);
+    
+    /* Success Colors */
+    --success: 120 60% 50%;
+    --success-foreground: 45 15% 85%;
+    
+    /* Blockbuster Blue */
+    --blockbuster: 220 85% 55%;
+    --blockbuster-foreground: 45 15% 85%;
+    
+    /* Indie Purple */
+    --indie: 280 65% 60%;
+    --indie-foreground: 45 15% 85%;
+
+    --radius: 0.75rem;
 
     --sidebar-background: 0 0% 98%;
 

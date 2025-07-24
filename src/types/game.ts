@@ -1,0 +1,336 @@
+// Studio Magnate Core Game Types
+
+export interface Studio {
+  id: string;
+  name: string;
+  reputation: number;
+  budget: number;
+  founded: number;
+  specialties: Genre[];
+}
+
+export interface Script {
+  id: string;
+  title: string;
+  genre: Genre;
+  logline: string;
+  writer: string;
+  pages: number;
+  quality: number;
+  budget: number;
+  developmentStage: 'concept' | 'treatment' | 'first-draft' | 'polish' | 'final';
+  themes: string[];
+  targetAudience: 'general' | 'mature' | 'teen' | 'family';
+  estimatedRuntime: number;
+  characteristics: ScriptCharacteristics;
+}
+
+export interface ScriptCharacteristics {
+  tone: 'dark' | 'light' | 'balanced' | 'satirical' | 'dramatic';
+  pacing: 'slow-burn' | 'fast-paced' | 'episodic' | 'steady';
+  dialogue: 'naturalistic' | 'stylized' | 'witty' | 'philosophical';
+  visualStyle: 'realistic' | 'stylized' | 'minimal' | 'epic';
+  commercialAppeal: number; // 1-10
+  criticalPotential: number; // 1-10
+  cgiIntensity: 'practical' | 'minimal' | 'moderate' | 'heavy';
+}
+
+export interface TalentPerson {
+  id: string;
+  name: string;
+  age: number;
+  gender: string;
+  reputation: number;
+  traits: TalentTrait[];
+  specialties: Genre[];
+  contractStatus: 'available' | 'contracted' | 'exclusive' | 'retired';
+  salary: number;
+  awards: Award[];
+  careerStage: 'unknown' | 'rising' | 'established' | 'veteran' | 'legend';
+  personality: PersonalityTrait[];
+  relationships: { [personId: string]: RelationshipType };
+  availabilityCalendar: DateRange[];
+}
+
+export interface TalentTrait {
+  id: string;
+  name: string;
+  description: string;
+  type: 'positive' | 'negative' | 'neutral';
+  impact: TraitImpact;
+}
+
+export interface TraitImpact {
+  budgetModifier?: number;
+  qualityModifier?: number;
+  timeModifier?: number;
+  genreBonus?: Genre[];
+  audienceAppeal?: number;
+  criticalReception?: number;
+}
+
+export interface PersonalityTrait {
+  name: string;
+  intensity: number; // 1-5
+  description: string;
+}
+
+export interface ProductionRole {
+  id: string;
+  personId: string;
+  role: 'director' | 'producer' | 'actor' | 'writer' | 'cinematographer' | 'editor' | 'composer' | 'costumes' | 'production-designer';
+  billingOrder?: number;
+  compensation: number;
+  contractTerms: ContractTerms;
+}
+
+export interface ContractTerms {
+  duration: number; // in months
+  exclusivity: boolean;
+  backendPoints?: number;
+  bonusClause?: string;
+  creativeControl?: number; // 1-10 scale
+}
+
+export interface Project {
+  id: string;
+  title: string;
+  script: Script;
+  type: 'feature' | 'series' | 'limited-series' | 'documentary';
+  currentPhase: ProductionPhase;
+  budget: ProjectBudget;
+  cast: ProductionRole[];
+  crew: ProductionRole[];
+  timeline: ProjectTimeline;
+  locations: Location[];
+  distributionStrategy: DistributionStrategy;
+  status: 'development' | 'pre-production' | 'production' | 'post-production' | 'distribution' | 'archived';
+  metrics: ProjectMetrics;
+}
+
+export interface ProjectBudget {
+  total: number;
+  allocated: BudgetAllocation;
+  spent: BudgetAllocation;
+  overages: BudgetAllocation;
+}
+
+export interface BudgetAllocation {
+  aboveTheLine: number; // talent, director, producer
+  belowTheLine: number; // crew, equipment
+  postProduction: number;
+  marketing: number;
+  distribution: number;
+  contingency: number;
+}
+
+export interface ProjectTimeline {
+  preProduction: DateRange;
+  principalPhotography: DateRange;
+  postProduction: DateRange;
+  release: Date;
+  milestones: Milestone[];
+}
+
+export interface Milestone {
+  name: string;
+  date: Date;
+  completed: boolean;
+  dependencies: string[];
+}
+
+export interface Location {
+  id: string;
+  name: string;
+  type: 'studio' | 'practical' | 'backlot' | 'international';
+  cost: number;
+  availability: DateRange[];
+  logistics: LocationLogistics;
+}
+
+export interface LocationLogistics {
+  crewAccommodation: boolean;
+  equipmentRental: boolean;
+  permits: string[];
+  weatherRisk: number; // 1-10
+  accessibilityRating: number; // 1-10
+}
+
+export interface DistributionStrategy {
+  primary: DistributionChannel;
+  international: DistributionChannel[];
+  windows: ReleaseWindow[];
+  marketingBudget: number;
+  targetOpeningWeekend?: number;
+  expectedStreams?: number;
+}
+
+export interface DistributionChannel {
+  platform: string;
+  type: 'theatrical' | 'streaming' | 'vod' | 'television' | 'festival';
+  revenue: RevenueModel;
+  exclusivityPeriod?: number;
+}
+
+export interface RevenueModel {
+  type: 'box-office' | 'licensing' | 'subscription-share' | 'per-view';
+  studioShare: number; // percentage
+  minimumGuarantee?: number;
+}
+
+export interface ReleaseWindow {
+  platform: string;
+  startDate: Date;
+  exclusivityDays: number;
+}
+
+export interface ProjectMetrics {
+  boxOffice?: BoxOfficeMetrics;
+  streaming?: StreamingMetrics;
+  critical?: CriticalMetrics;
+  awards?: Award[];
+  culturalImpact?: number;
+}
+
+export interface BoxOfficeMetrics {
+  openingWeekend: number;
+  domesticTotal: number;
+  internationalTotal: number;
+  production: number;
+  marketing: number;
+  profit: number;
+  theaters: number;
+  weeks: number;
+}
+
+export interface StreamingMetrics {
+  viewsFirstWeek: number;
+  totalViews: number;
+  completionRate: number;
+  audienceShare: number;
+  watchTimeHours: number;
+  subscriberGrowth: number;
+}
+
+export interface CriticalMetrics {
+  metaCriticScore?: number;
+  audienceScore?: number;
+  criticsConsensus: string;
+  controversies?: string[];
+  culturalMoments?: string[];
+}
+
+export interface Award {
+  name: string;
+  category: string;
+  year: number;
+  won: boolean;
+  ceremony: string;
+  prestige: number; // 1-10
+}
+
+export interface DateRange {
+  start: Date;
+  end: Date;
+}
+
+export interface Producer extends TalentPerson {
+  producerType: 'executive' | 'line' | 'creative' | 'associate';
+  specialTraits: ProducerTrait[];
+}
+
+export interface ProducerTrait {
+  name: string;
+  description: string;
+  effect: ProducerEffect;
+}
+
+export interface ProducerEffect {
+  scoutingBonus?: number;
+  budgetEfficiency?: number;
+  talentAttraction?: number;
+  crisisManagement?: number;
+  genreSpecialty?: Genre[];
+}
+
+export type Genre = 
+  | 'action' | 'adventure' | 'comedy' | 'drama' | 'horror' | 'thriller'
+  | 'romance' | 'sci-fi' | 'fantasy' | 'documentary' | 'animation'
+  | 'musical' | 'western' | 'war' | 'biography' | 'crime' | 'mystery'
+  | 'superhero' | 'family' | 'sports' | 'historical';
+
+export type ProductionPhase = 
+  | 'development' | 'pre-production' | 'production' | 'post-production' | 'distribution';
+
+export type RelationshipType = 
+  | 'professional' | 'friendly' | 'romantic' | 'rivals' | 'mentor-mentee' | 'hostile';
+
+export interface GameState {
+  studio: Studio;
+  currentYear: number;
+  currentQuarter: number;
+  projects: Project[];
+  talent: TalentPerson[];
+  scripts: Script[];
+  competitorStudios: Studio[];
+  marketConditions: MarketConditions;
+  eventQueue: GameEvent[];
+}
+
+export interface MarketConditions {
+  trendingGenres: Genre[];
+  audiencePreferences: AudiencePreference[];
+  economicClimate: 'boom' | 'stable' | 'recession';
+  technologicalAdvances: TechAdvancement[];
+  regulatoryChanges: RegulatoryChange[];
+}
+
+export interface AudiencePreference {
+  demographic: string;
+  preferredGenres: Genre[];
+  platformPreference: string[];
+  spendingPower: number;
+}
+
+export interface TechAdvancement {
+  name: string;
+  description: string;
+  costImpact: number;
+  qualityImpact: number;
+  adoptionYear: number;
+}
+
+export interface RegulatoryChange {
+  name: string;
+  description: string;
+  impact: 'positive' | 'negative' | 'neutral';
+  affectedAreas: string[];
+}
+
+export interface GameEvent {
+  id: string;
+  title: string;
+  description: string;
+  type: 'market' | 'talent' | 'technology' | 'regulatory' | 'crisis' | 'opportunity';
+  triggerDate: Date;
+  choices?: EventChoice[];
+  autoResolve?: boolean;
+}
+
+export interface EventChoice {
+  text: string;
+  consequences: EventConsequence[];
+  requirements?: EventRequirement[];
+}
+
+export interface EventConsequence {
+  type: 'budget' | 'reputation' | 'talent-relationship' | 'market-share' | 'technology-access';
+  impact: number;
+  description: string;
+}
+
+export interface EventRequirement {
+  type: 'budget' | 'reputation' | 'talent' | 'technology';
+  threshold: number;
+  description: string;
+}
