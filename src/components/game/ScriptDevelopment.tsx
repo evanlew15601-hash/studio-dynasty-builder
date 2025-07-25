@@ -9,6 +9,7 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@
 import { Slider } from '@/components/ui/slider';
 import { Badge } from '@/components/ui/badge';
 import { useToast } from '@/hooks/use-toast';
+import { ScriptIcon, BudgetIcon, AwardIcon } from '@/components/ui/icons';
 
 interface ScriptDevelopmentProps {
   gameState: GameState;
@@ -114,26 +115,30 @@ export const ScriptDevelopment: React.FC<ScriptDevelopmentProps> = ({
   return (
     <div className="space-y-6">
       {/* Header */}
-      <div className="flex items-center justify-between">
+      <div className="flex items-center justify-between animate-slide-up">
         <div>
-          <h2 className="text-2xl font-bold">Script Development</h2>
-          <p className="text-muted-foreground">Create, refine, and greenlight your next productions</p>
+          <h2 className="text-3xl font-bold studio-title bg-gradient-to-r from-primary to-accent bg-clip-text text-transparent">
+            Script Development
+          </h2>
+          <p className="text-muted-foreground mt-2">Create, refine, and greenlight your next productions</p>
         </div>
         <Button 
           onClick={() => setIsCreating(true)}
-          className="bg-gradient-golden hover:opacity-90"
+          className="btn-studio animate-glow"
         >
-          <span className="mr-2">✏️</span>
+          <ScriptIcon className="mr-2" size={18} />
           New Script
         </Button>
       </div>
 
       {/* Script Creation Modal */}
       {isCreating && (
-        <Card className="border-primary/20 shadow-studio">
+        <Card className="card-golden animate-slide-up">
           <CardHeader>
-            <CardTitle className="flex items-center">
-              <span className="mr-2">📝</span>
+            <CardTitle className="flex items-center font-studio">
+              <div className="p-2 rounded-lg bg-gradient-to-r from-primary/20 to-accent/20 mr-3">
+                <ScriptIcon className="text-primary" size={20} />
+              </div>
               Script Development Workshop
             </CardTitle>
           </CardHeader>
@@ -290,8 +295,9 @@ export const ScriptDevelopment: React.FC<ScriptDevelopmentProps> = ({
               </Button>
               <Button 
                 onClick={handleCreateScript}
-                className="bg-gradient-golden hover:opacity-90"
+                className="btn-studio animate-glow"
               >
+                <ScriptIcon className="mr-2" size={16} />
                 Create Script
               </Button>
             </div>

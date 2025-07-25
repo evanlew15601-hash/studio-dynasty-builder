@@ -8,61 +8,76 @@ All colors MUST be HSL.
 
 @layer base {
   :root {
-    /* Studio Magnate Hollywood Theme */
-    --background: 40 8% 5%;
-    --foreground: 45 15% 85%;
+    /* Premium Studio Magnate Theme - Dark Charcoal Base */
+    --background: 220 15% 8%;
+    --foreground: 45 12% 88%;
 
-    --card: 40 12% 8%;
-    --card-foreground: 45 15% 85%;
+    --card: 220 18% 10%;
+    --card-foreground: 45 12% 88%;
 
-    --popover: 40 15% 10%;
-    --popover-foreground: 45 15% 85%;
+    --popover: 220 20% 12%;
+    --popover-foreground: 45 12% 88%;
 
-    /* Golden Hollywood Primary */
-    --primary: 45 85% 65%;
-    --primary-foreground: 40 8% 5%;
+    /* Champagne Gold Primary */
+    --primary: 42 88% 68%;
+    --primary-foreground: 220 15% 8%;
 
-    /* Silver Screen Secondary */
-    --secondary: 220 8% 25%;
-    --secondary-foreground: 45 15% 85%;
+    /* Deep Navy Secondary */
+    --secondary: 230 25% 18%;
+    --secondary-foreground: 45 12% 88%;
 
-    --muted: 40 10% 15%;
-    --muted-foreground: 45 8% 55%;
+    --muted: 220 15% 15%;
+    --muted-foreground: 45 8% 58%;
 
-    /* Spotlight Accent */
-    --accent: 45 95% 70%;
-    --accent-foreground: 40 8% 5%;
+    /* Luminous Accent */
+    --accent: 42 95% 72%;
+    --accent-foreground: 220 15% 8%;
 
-    /* Box Office Bomb */
-    --destructive: 0 84% 55%;
-    --destructive-foreground: 45 15% 85%;
+    /* Muted Crimson Destructive */
+    --destructive: 0 65% 48%;
+    --destructive-foreground: 45 12% 88%;
 
-    --border: 40 15% 20%;
-    --input: 40 15% 12%;
-    --ring: 45 85% 65%;
+    --border: 220 20% 22%;
+    --input: 220 18% 14%;
+    --ring: 42 88% 68%;
 
-    /* Art Deco Gradients */
-    --gradient-golden: linear-gradient(135deg, hsl(45 85% 65%), hsl(35 75% 55%));
-    --gradient-silver: linear-gradient(135deg, hsl(220 8% 35%), hsl(220 8% 25%));
-    --gradient-spotlight: linear-gradient(135deg, hsl(45 95% 70%), hsl(45 85% 65%));
+    /* Premium Gradients */
+    --gradient-golden: linear-gradient(135deg, hsl(42 88% 68%), hsl(38 82% 58%), hsl(35 75% 45%));
+    --gradient-silver: linear-gradient(135deg, hsl(220 12% 45%), hsl(220 15% 35%), hsl(220 18% 25%));
+    --gradient-spotlight: linear-gradient(135deg, hsl(42 95% 72%), hsl(42 88% 68%), hsl(38 82% 58%));
+    --gradient-navy: linear-gradient(135deg, hsl(230 25% 18%), hsl(225 22% 15%), hsl(220 20% 12%));
+    --gradient-crimson: linear-gradient(135deg, hsl(0 65% 48%), hsl(355 60% 42%), hsl(350 55% 35%));
     
-    /* Studio Shadows */
-    --shadow-studio: 0 10px 30px -10px hsl(40 8% 5% / 0.8);
-    --shadow-golden: 0 0 40px hsl(45 85% 65% / 0.3);
+    /* Premium Shadows & Effects */
+    --shadow-studio: 0 25px 50px -15px hsl(220 15% 5% / 0.9), 0 0 0 1px hsl(220 20% 22% / 0.5);
+    --shadow-golden: 0 0 60px hsl(42 88% 68% / 0.25), 0 8px 32px hsl(42 88% 68% / 0.15);
+    --shadow-crimson: 0 0 40px hsl(0 65% 48% / 0.3), 0 4px 24px hsl(0 65% 48% / 0.2);
+    --shadow-navy: 0 12px 24px hsl(230 25% 12% / 0.8), 0 0 0 1px hsl(230 25% 18% / 0.8);
     
-    /* Success Colors */
-    --success: 120 60% 50%;
-    --success-foreground: 45 15% 85%;
+    /* Success & Status Colors */
+    --success: 142 71% 45%;
+    --success-foreground: 45 12% 88%;
     
-    /* Blockbuster Blue */
-    --blockbuster: 220 85% 55%;
-    --blockbuster-foreground: 45 15% 85%;
+    /* Genre-Specific Colors */
+    --blockbuster: 210 85% 58%;
+    --blockbuster-foreground: 45 12% 88%;
     
-    /* Indie Purple */
-    --indie: 280 65% 60%;
-    --indie-foreground: 45 15% 85%;
+    --indie: 285 68% 62%;
+    --indie-foreground: 45 12% 88%;
 
-    --radius: 0.75rem;
+    --horror: 0 65% 48%;
+    --horror-foreground: 45 12% 88%;
+
+    --comedy: 55 85% 58%;
+    --comedy-foreground: 220 15% 8%;
+
+    --drama: 260 15% 45%;
+    --drama-foreground: 45 12% 88%;
+
+    --action: 15 85% 55%;
+    --action-foreground: 45 12% 88%;
+
+    --radius: 0.625rem;
 
     --sidebar-background: 0 0% 98%;
 
@@ -126,6 +141,152 @@ All colors MUST be HSL.
   }
 
   body {
-    @apply bg-background text-foreground;
+    @apply bg-background text-foreground font-sans antialiased;
+    background-image: 
+      radial-gradient(ellipse at top left, hsl(220 15% 12% / 0.3) 0%, transparent 50%),
+      radial-gradient(ellipse at bottom right, hsl(42 88% 68% / 0.05) 0%, transparent 50%);
+  }
+
+  /* Premium Typography */
+  .studio-title {
+    font-family: 'Inter', system-ui, -apple-system, sans-serif;
+    font-weight: 700;
+    letter-spacing: -0.02em;
+  }
+
+  .studio-mono {
+    font-family: 'JetBrains Mono', 'Fira Code', 'Consolas', monospace;
+    font-variant-numeric: tabular-nums;
+  }
+
+  /* Custom Icons */
+  .icon-clapperboard::before {
+    content: '';
+    display: inline-block;
+    width: 1em;
+    height: 1em;
+    background: linear-gradient(45deg, currentColor 25%, transparent 25%, transparent 75%, currentColor 75%),
+                linear-gradient(45deg, currentColor 25%, transparent 25%, transparent 75%, currentColor 75%);
+    background-size: 0.25em 0.25em;
+    background-position: 0 0, 0.125em 0.125em;
+    mask: polygon(0 20%, 100% 20%, 100% 80%, 80% 100%, 0 100%);
+  }
+
+  .icon-reel::before {
+    content: '';
+    display: inline-block;
+    width: 1em;
+    height: 1em;
+    background: radial-gradient(circle at center, transparent 30%, currentColor 30%, currentColor 50%, transparent 50%),
+                radial-gradient(circle at 25% 25%, currentColor 15%, transparent 15%),
+                radial-gradient(circle at 75% 25%, currentColor 15%, transparent 15%),
+                radial-gradient(circle at 25% 75%, currentColor 15%, transparent 15%),
+                radial-gradient(circle at 75% 75%, currentColor 15%, transparent 15%);
+  }
+
+  .icon-script::before {
+    content: '';
+    display: inline-block;
+    width: 1em;
+    height: 1em;
+    background: linear-gradient(to right, currentColor 10%, transparent 10%, transparent 90%, currentColor 90%),
+                linear-gradient(to bottom, transparent 20%, currentColor 20%, currentColor 25%, transparent 25%),
+                linear-gradient(to bottom, transparent 40%, currentColor 40%, currentColor 45%, transparent 45%),
+                linear-gradient(to bottom, transparent 60%, currentColor 60%, currentColor 65%, transparent 65%);
+    clip-path: polygon(0 0, 85% 0, 100% 15%, 100% 100%, 0 100%);
+  }
+
+  .icon-award::before {
+    content: '';
+    display: inline-block;
+    width: 1em;
+    height: 1em;
+    background: 
+      radial-gradient(circle at center, currentColor 25%, transparent 25%),
+      linear-gradient(30deg, currentColor 2px, transparent 2px),
+      linear-gradient(150deg, currentColor 2px, transparent 2px),
+      linear-gradient(270deg, currentColor 2px, transparent 2px);
+    transform: translateY(-10%);
+  }
+
+  .icon-trending::before {
+    content: '';
+    display: inline-block;
+    width: 1em;
+    height: 1em;
+    background: 
+      linear-gradient(45deg, transparent 45%, currentColor 45%, currentColor 55%, transparent 55%),
+      linear-gradient(to right, currentColor 2px, transparent 2px),
+      linear-gradient(to bottom, transparent 80%, currentColor 80%);
+  }
+
+  /* Premium Animations */
+  @keyframes shimmer {
+    0% { background-position: -200% 0; }
+    100% { background-position: 200% 0; }
+  }
+
+  @keyframes glow-pulse {
+    0%, 100% { box-shadow: 0 0 20px hsl(42 88% 68% / 0.3); }
+    50% { box-shadow: 0 0 40px hsl(42 88% 68% / 0.5), 0 0 60px hsl(42 88% 68% / 0.2); }
+  }
+
+  @keyframes slide-up {
+    from {
+      opacity: 0;
+      transform: translateY(20px);
+    }
+    to {
+      opacity: 1;
+      transform: translateY(0);
+    }
+  }
+
+  .animate-shimmer {
+    background: linear-gradient(90deg, transparent, hsl(42 88% 68% / 0.1), transparent);
+    background-size: 200% 100%;
+    animation: shimmer 2s infinite;
+  }
+
+  .animate-glow {
+    animation: glow-pulse 3s ease-in-out infinite;
+  }
+
+  .animate-slide-up {
+    animation: slide-up 0.4s ease-out;
+  }
+
+  /* Premium Card Styles */
+  .card-premium {
+    @apply bg-card border border-border/50 shadow-studio backdrop-blur-sm;
+    background-image: linear-gradient(135deg, hsl(220 18% 10% / 0.9), hsl(220 15% 8% / 0.95));
+  }
+
+  .card-golden {
+    @apply border-primary/30 shadow-golden;
+    background: linear-gradient(135deg, hsl(220 18% 10%), hsl(42 88% 68% / 0.05));
+  }
+
+  .card-navy {
+    @apply border-secondary/40 shadow-navy;
+    background: var(--gradient-navy);
+  }
+
+  /* Button Variants */
+  .btn-studio {
+    @apply bg-gradient-to-r from-primary/90 to-primary text-primary-foreground 
+           shadow-lg hover:shadow-xl hover:from-primary hover:to-primary/90
+           border border-primary/20 backdrop-blur-sm transition-all duration-300;
+  }
+
+  .btn-ghost-premium {
+    @apply border border-border/40 hover:border-primary/40 hover:bg-primary/5
+           backdrop-blur-sm transition-all duration-300 hover:shadow-lg;
+  }
+
+  /* Tooltip Styles */
+  .tooltip-premium {
+    @apply bg-popover/95 border border-border/50 shadow-xl backdrop-blur-md
+           text-sm px-3 py-2 rounded-lg animate-slide-up;
   }
 }

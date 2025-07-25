@@ -8,6 +8,16 @@ import { StudioDashboard } from './StudioDashboard';
 import { Button } from '@/components/ui/button';
 import { Card } from '@/components/ui/card';
 import { useToast } from '@/hooks/use-toast';
+import { 
+  StudioIcon, 
+  ScriptIcon, 
+  CastingIcon, 
+  ProductionIcon, 
+  DistributionIcon,
+  BudgetIcon,
+  ReputationIcon,
+  ClapperboardIcon
+} from '@/components/ui/icons';
 
 interface StudioMagnateGameProps {
   onPhaseChange?: (phase: string) => void;
@@ -165,38 +175,54 @@ export const StudioMagnateGame: React.FC<StudioMagnateGameProps> = ({ onPhaseCha
   };
 
   return (
-    <div className="min-h-screen bg-background">
+    <div className="min-h-screen bg-background font-studio">
       {/* Studio Header */}
-      <div className="border-b border-border bg-card">
-        <div className="container mx-auto px-6 py-4">
+      <div className="border-b border-border/50 card-premium backdrop-blur-lg">
+        <div className="container mx-auto px-6 py-6">
           <div className="flex items-center justify-between">
-            <div className="flex items-center space-x-4">
-              <div className="text-2xl font-bold bg-gradient-golden bg-clip-text text-transparent">
-                🎬 {gameState.studio.name}
-              </div>
-              <div className="text-sm text-muted-foreground">
-                Q{gameState.currentQuarter} {gameState.currentYear}
+            <div className="flex items-center space-x-6">
+              <div className="flex items-center space-x-3">
+                <div className="p-2 rounded-lg bg-gradient-golden shadow-golden animate-glow">
+                  <ClapperboardIcon className="text-primary-foreground" size={24} />
+                </div>
+                <div>
+                  <div className="text-2xl font-bold studio-title bg-gradient-to-r from-primary to-accent bg-clip-text text-transparent">
+                    {gameState.studio.name}
+                  </div>
+                  <div className="text-sm text-muted-foreground studio-mono">
+                    Q{gameState.currentQuarter} {gameState.currentYear} • Est. {gameState.studio.founded}
+                  </div>
+                </div>
               </div>
             </div>
-            <div className="flex items-center space-x-6">
-              <div className="text-sm">
-                <span className="text-muted-foreground">Budget:</span>{' '}
-                <span className="font-mono text-primary">
-                  ${(gameState.studio.budget / 1000000).toFixed(1)}M
-                </span>
+            
+            <div className="flex items-center space-x-8">
+              <div className="flex items-center space-x-2 px-4 py-2 rounded-lg bg-gradient-to-r from-primary/10 to-accent/10 border border-primary/20">
+                <BudgetIcon className="text-primary" size={16} />
+                <div className="text-sm">
+                  <span className="text-muted-foreground">Budget:</span>{' '}
+                  <span className="studio-mono font-semibold text-primary">
+                    ${(gameState.studio.budget / 1000000).toFixed(1)}M
+                  </span>
+                </div>
               </div>
-              <div className="text-sm">
-                <span className="text-muted-foreground">Reputation:</span>{' '}
-                <span className="font-mono text-accent">
-                  {gameState.studio.reputation}/100
-                </span>
+              
+              <div className="flex items-center space-x-2 px-4 py-2 rounded-lg bg-gradient-to-r from-accent/10 to-primary/10 border border-accent/20">
+                <ReputationIcon className="text-accent" size={16} />
+                <div className="text-sm">
+                  <span className="text-muted-foreground">Reputation:</span>{' '}
+                  <span className="studio-mono font-semibold text-accent">
+                    {gameState.studio.reputation}/100
+                  </span>
+                </div>
               </div>
+              
               <Button 
-                variant="outline" 
                 size="sm" 
                 onClick={handleAdvanceQuarter}
-                className="border-primary/20 hover:border-primary/40"
+                className="btn-studio shadow-golden hover:animate-glow transition-all duration-300"
               >
+                <BudgetIcon className="mr-2" size={16} />
                 Advance Quarter
               </Button>
             </div>
@@ -205,27 +231,27 @@ export const StudioMagnateGame: React.FC<StudioMagnateGameProps> = ({ onPhaseCha
       </div>
 
       {/* Navigation */}
-      <div className="border-b border-border bg-card/50">
+      <div className="border-b border-border/30 bg-gradient-to-r from-card/80 to-card/60 backdrop-blur-sm">
         <div className="container mx-auto px-6">
           <div className="flex space-x-1">
             {[
-              { id: 'dashboard', label: 'Studio Dashboard', icon: '🏢' },
-              { id: 'scripts', label: 'Script Development', icon: '📝' },
-              { id: 'casting', label: 'Casting Board', icon: '🎭' },
-              { id: 'production', label: 'Production', icon: '🎬' },
-              { id: 'distribution', label: 'Distribution', icon: '📺' },
+              { id: 'dashboard', label: 'Studio Dashboard', IconComponent: StudioIcon },
+              { id: 'scripts', label: 'Script Development', IconComponent: ScriptIcon },
+              { id: 'casting', label: 'Casting Board', IconComponent: CastingIcon },
+              { id: 'production', label: 'Production', IconComponent: ProductionIcon },
+              { id: 'distribution', label: 'Distribution', IconComponent: DistributionIcon },
             ].map((tab) => (
               <Button
                 key={tab.id}
-                variant={currentPhase === tab.id ? 'default' : 'ghost'}
-                className={`rounded-none border-b-2 ${
+                variant="ghost"
+                className={`rounded-none border-b-2 px-6 py-4 font-medium transition-all duration-300 ${
                   currentPhase === tab.id 
-                    ? 'border-primary bg-primary/10' 
-                    : 'border-transparent hover:border-primary/30'
+                    ? 'border-primary bg-gradient-to-t from-primary/20 to-primary/10 text-primary shadow-lg' 
+                    : 'border-transparent hover:border-primary/40 hover:bg-primary/5 btn-ghost-premium'
                 }`}
                 onClick={() => handlePhaseChange(tab.id as typeof currentPhase)}
               >
-                <span className="mr-2">{tab.icon}</span>
+                <tab.IconComponent className="mr-3" size={18} />
                 {tab.label}
               </Button>
             ))}
@@ -234,7 +260,7 @@ export const StudioMagnateGame: React.FC<StudioMagnateGameProps> = ({ onPhaseCha
       </div>
 
       {/* Main Content */}
-      <div className="container mx-auto px-6 py-8">
+      <div className="container mx-auto px-6 py-8 animate-slide-up">
         {currentPhase === 'dashboard' && (
           <StudioDashboard 
             gameState={gameState}

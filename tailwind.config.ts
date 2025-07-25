@@ -78,11 +78,19 @@ export default {
 			backgroundImage: {
 				'gradient-golden': 'var(--gradient-golden)',
 				'gradient-silver': 'var(--gradient-silver)',
-				'gradient-spotlight': 'var(--gradient-spotlight)'
+				'gradient-spotlight': 'var(--gradient-spotlight)',
+				'gradient-navy': 'var(--gradient-navy)',
+				'gradient-crimson': 'var(--gradient-crimson)'
 			},
 			boxShadow: {
 				'studio': 'var(--shadow-studio)',
-				'golden': 'var(--shadow-golden)'
+				'golden': 'var(--shadow-golden)',
+				'crimson': 'var(--shadow-crimson)',
+				'navy': 'var(--shadow-navy)'
+			},
+			fontFamily: {
+				'studio': ['Inter', 'system-ui', 'sans-serif'],
+				'mono': ['JetBrains Mono', 'Fira Code', 'Consolas', 'monospace']
 			},
 			borderRadius: {
 				lg: 'var(--radius)',
