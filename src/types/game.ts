@@ -38,18 +38,24 @@ export interface ScriptCharacteristics {
 export interface TalentPerson {
   id: string;
   name: string;
+  type: 'actor' | 'director' | 'writer' | 'producer' | 'cinematographer' | 'editor' | 'composer';
   age: number;
-  gender: string;
+  gender?: string;
+  experience: number;
   reputation: number;
-  traits: TalentTrait[];
-  specialties: Genre[];
+  marketValue: number;
+  traits?: string[];
+  specialties?: Genre[];
+  genres: Genre[];
   contractStatus: 'available' | 'contracted' | 'exclusive' | 'retired';
-  salary: number;
-  awards: Award[];
-  careerStage: 'unknown' | 'rising' | 'established' | 'veteran' | 'legend';
-  personality: PersonalityTrait[];
-  relationships: { [personId: string]: RelationshipType };
-  availabilityCalendar: DateRange[];
+  salary?: number;
+  awards?: string[];
+  careerStage?: 'unknown' | 'rising' | 'established' | 'veteran' | 'legend';
+  personality?: PersonalityTrait[];
+  relationships?: { [personId: string]: RelationshipType };
+  availabilityCalendar?: DateRange[];
+  availability: DateRange;
+  agent?: string;
 }
 
 export interface TalentTrait {
@@ -76,12 +82,16 @@ export interface PersonalityTrait {
 }
 
 export interface ProductionRole {
-  id: string;
-  personId: string;
-  role: 'director' | 'producer' | 'actor' | 'writer' | 'cinematographer' | 'editor' | 'composer' | 'costumes' | 'production-designer';
-  billingOrder?: number;
-  compensation: number;
-  contractTerms: ContractTerms;
+  talentId: string;
+  role: string;
+  salary: number;
+  points?: number;
+  contractTerms: {
+    duration: Date;
+    exclusivity: boolean;
+    merchandising: boolean;
+    sequelOptions: number;
+  };
 }
 
 export interface ContractTerms {
@@ -104,7 +114,7 @@ export interface Project {
   timeline: ProjectTimeline;
   locations: Location[];
   distributionStrategy: DistributionStrategy;
-  status: 'development' | 'pre-production' | 'production' | 'post-production' | 'distribution' | 'archived';
+  status: 'development' | 'pre-production' | 'production' | 'post-production' | 'distribution' | 'archived' | 'released' | 'filming' | 'completed';
   metrics: ProjectMetrics;
 }
 
@@ -185,10 +195,16 @@ export interface ReleaseWindow {
 }
 
 export interface ProjectMetrics {
+  boxOfficeTotal?: number;
+  streamingViews?: number;
+  criticsScore?: number;
+  audienceScore?: number;
+  awards?: string[];
+  socialMediaMentions?: number;
+  internationalSales?: number;
   boxOffice?: BoxOfficeMetrics;
   streaming?: StreamingMetrics;
   critical?: CriticalMetrics;
-  awards?: Award[];
   culturalImpact?: number;
 }
 
@@ -268,6 +284,7 @@ export type RelationshipType =
 export interface GameState {
   studio: Studio;
   currentYear: number;
+  currentWeek: number;
   currentQuarter: number;
   projects: Project[];
   talent: TalentPerson[];

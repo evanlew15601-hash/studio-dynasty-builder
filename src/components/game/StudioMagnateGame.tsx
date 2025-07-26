@@ -36,9 +36,57 @@ export const StudioMagnateGame: React.FC<StudioMagnateGameProps> = ({ onPhaseCha
       specialties: ['drama']
     },
     currentYear: new Date().getFullYear(),
+    currentWeek: 1,
     currentQuarter: 1,
     projects: [],
-    talent: [],
+    talent: [
+      // Sample talent pool
+      {
+        id: 'talent-1',
+        name: 'Alexandra Sterling',
+        type: 'actor',
+        age: 28,
+        experience: 5,
+        reputation: 75,
+        marketValue: 2500000,
+        contractStatus: 'available',
+        genres: ['drama', 'thriller'],
+        awards: ['Golden Globe'],
+        traits: ['Method Actor', 'Media Darling'],
+        agent: 'CAA',
+        availability: { start: new Date(), end: new Date(Date.now() + 365 * 24 * 60 * 60 * 1000) }
+      },
+      {
+        id: 'talent-2',
+        name: 'Marcus Chen',
+        type: 'director',
+        age: 45,
+        experience: 15,
+        reputation: 85,
+        marketValue: 5000000,
+        contractStatus: 'available',
+        genres: ['action', 'sci-fi'],
+        awards: ['Emmy', 'Directors Guild'],
+        traits: ['Visionary', 'Budget Conscious'],
+        agent: 'WME',
+        availability: { start: new Date(), end: new Date(Date.now() + 365 * 24 * 60 * 60 * 1000) }
+      },
+      {
+        id: 'talent-3',
+        name: 'Isabella Rodriguez',
+        type: 'actor',
+        age: 35,
+        experience: 12,
+        reputation: 80,
+        marketValue: 4000000,
+        contractStatus: 'available',
+        genres: ['comedy', 'drama'],
+        awards: ['SAG Award', 'Critics Choice'],
+        traits: ['Versatile', 'Box Office Draw'],
+        agent: 'UTA',
+        availability: { start: new Date(), end: new Date(Date.now() + 365 * 24 * 60 * 60 * 1000) }
+      }
+    ],
     scripts: [],
     competitorStudios: [],
     marketConditions: {
@@ -152,25 +200,30 @@ export const StudioMagnateGame: React.FC<StudioMagnateGameProps> = ({ onPhaseCha
     }));
   };
 
-  const handleAdvanceQuarter = () => {
+  const handleAdvanceWeek = () => {
     setGameState(prev => {
-      const newQuarter = prev.currentQuarter === 4 ? 1 : prev.currentQuarter + 1;
-      const newYear = prev.currentQuarter === 4 ? prev.currentYear + 1 : prev.currentYear;
+      const newWeek = prev.currentWeek === 52 ? 1 : prev.currentWeek + 1;
+      const newYear = prev.currentWeek === 52 ? prev.currentYear + 1 : prev.currentYear;
+      const newQuarter = Math.ceil(newWeek / 13);
+      
+      // Weekly income based on reputation and ongoing projects
+      const weeklyIncome = 200000 + (prev.studio.reputation * 10000) + (prev.projects.length * 50000);
       
       return {
         ...prev,
+        currentWeek: newWeek,
         currentQuarter: newQuarter,
         currentYear: newYear,
         studio: {
           ...prev.studio,
-          budget: prev.studio.budget + 2000000 // Quarterly income
+          budget: prev.studio.budget + weeklyIncome
         }
       };
     });
 
     toast({
-      title: "Time Advances",
-      description: `Welcome to Q${gameState.currentQuarter === 4 ? 1 : gameState.currentQuarter + 1} ${gameState.currentQuarter === 4 ? gameState.currentYear + 1 : gameState.currentYear}`,
+      title: "New Week",
+      description: `Week ${gameState.currentWeek === 52 ? 1 : gameState.currentWeek + 1}, ${gameState.currentWeek === 52 ? gameState.currentYear + 1 : gameState.currentYear}`,
     });
   };
 
@@ -190,7 +243,7 @@ export const StudioMagnateGame: React.FC<StudioMagnateGameProps> = ({ onPhaseCha
                     {gameState.studio.name}
                   </div>
                   <div className="text-sm text-muted-foreground studio-mono">
-                    Q{gameState.currentQuarter} {gameState.currentYear} • Est. {gameState.studio.founded}
+                    Week {gameState.currentWeek}, Q{gameState.currentQuarter} {gameState.currentYear} • Est. {gameState.studio.founded}
                   </div>
                 </div>
               </div>
@@ -219,11 +272,11 @@ export const StudioMagnateGame: React.FC<StudioMagnateGameProps> = ({ onPhaseCha
               
               <Button 
                 size="sm" 
-                onClick={handleAdvanceQuarter}
+                onClick={handleAdvanceWeek}
                 className="btn-studio shadow-golden hover:animate-glow transition-all duration-300"
               >
                 <BudgetIcon className="mr-2" size={16} />
-                Advance Quarter
+                Advance Week
               </Button>
             </div>
           </div>
