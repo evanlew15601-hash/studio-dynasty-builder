@@ -149,6 +149,57 @@ export const BoxOfficeIcon = ({ className, size = 24 }: IconProps) => (
   </svg>
 );
 
+export const AlertIcon: React.FC<IconProps> = ({ className = "w-5 h-5", size = 20 }) => (
+  <svg 
+    width={size} 
+    height={size} 
+    viewBox="0 0 24 24" 
+    fill="none" 
+    stroke="currentColor" 
+    strokeWidth="2" 
+    strokeLinecap="round" 
+    strokeLinejoin="round" 
+    className={className}
+  >
+    <path d="m21.73 18-8-14a2 2 0 0 0-3.48 0l-8 14A2 2 0 0 0 4 21h16a2 2 0 0 0 1.73-3Z"/>
+    <path d="M12 9v4"/>
+    <path d="m12 17 .01 0"/>
+  </svg>
+);
+
+export const CheckIcon: React.FC<IconProps> = ({ className = "w-5 h-5", size = 20 }) => (
+  <svg 
+    width={size} 
+    height={size} 
+    viewBox="0 0 24 24" 
+    fill="none" 
+    stroke="currentColor" 
+    strokeWidth="2" 
+    strokeLinecap="round" 
+    strokeLinejoin="round" 
+    className={className}
+  >
+    <polyline points="20 6 9 17 4 12" />
+  </svg>
+);
+
+export const TrendingIcon: React.FC<IconProps> = ({ className = "w-5 h-5", size = 20 }) => (
+  <svg 
+    width={size} 
+    height={size} 
+    viewBox="0 0 24 24" 
+    fill="none" 
+    stroke="currentColor" 
+    strokeWidth="2" 
+    strokeLinecap="round" 
+    strokeLinejoin="round" 
+    className={className}
+  >
+    <polyline points="23 6 13.5 15.5 8.5 10.5 1 18" />
+    <polyline points="17 6 23 6 23 12" />
+  </svg>
+);
+
 export const StreamingIcon = ({ className, size = 24 }: IconProps) => (
   <svg className={className} width={size} height={size} viewBox="0 0 24 24" fill="none">
     <rect x="2" y="4" width="20" height="12" rx="2" stroke="currentColor" strokeWidth="2"/>
@@ -196,6 +247,5 @@ export const AudienceIcon = ({ className, size = 24 }: IconProps) => (
   </svg>
 );
 
-export const TrendingIcon = RevenueIcon;
 export const MarketIcon = MarketingIcon;
 export const ReelIcon = ClapperboardIcon;

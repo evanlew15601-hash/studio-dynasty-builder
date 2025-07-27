@@ -5,6 +5,7 @@ import { Button } from '@/components/ui/button';
 import { Progress } from '@/components/ui/progress';
 import { Badge } from '@/components/ui/badge';
 import { useToast } from '@/hooks/use-toast';
+import { DevelopmentProgressModal } from './DevelopmentProgressModal';
 import { 
   ProductionIcon, 
   CalendarIcon, 
@@ -12,7 +13,9 @@ import {
   BudgetIcon,
   CrewIcon,
   CameraIcon,
-  EditIcon
+  EditIcon,
+  ScriptIcon,
+  AlertIcon
 } from '@/components/ui/icons';
 
 interface ProductionManagementProps {
@@ -28,6 +31,7 @@ export const ProductionManagement: React.FC<ProductionManagementProps> = ({
 }) => {
   const { toast } = useToast();
   const [currentPhase, setCurrentPhase] = useState<'pre' | 'principal' | 'post'>('pre');
+  const [selectedDevProject, setSelectedDevProject] = useState<Project | null>(null);
 
   const getProjectsInProduction = () => {
     return gameState.projects.filter(p => 
@@ -35,6 +39,10 @@ export const ProductionManagement: React.FC<ProductionManagementProps> = ({
       p.currentPhase === 'pre-production' ||
       p.currentPhase === 'post-production'
     );
+  };
+  
+  const getProjectsInDevelopment = () => {
+    return gameState.projects.filter(p => p.currentPhase === 'development');
   };
 
   const advanceProductionPhase = (project: Project) => {
@@ -74,210 +82,177 @@ export const ProductionManagement: React.FC<ProductionManagementProps> = ({
     });
   };
 
-  const formatCurrency = (amount: number) => `$${(amount / 1000000).toFixed(1)}M`;
-
-  const getPhaseProgress = (project: Project) => {
-    switch (project.currentPhase) {
-      case 'development': return 10;
-      case 'pre-production': return 30;
-      case 'production': return 65;
-      case 'post-production': return 90;
-      case 'distribution': return 100;
-      default: return 0;
-    }
+  const getPhaseLabel = (phase: string) => {
+    return phase.charAt(0).toUpperCase() + phase.slice(1).replace('-', ' ');
   };
-
-  const getPhaseColor = (phase: string) => {
-    switch (phase) {
-      case 'development': return 'bg-blue-500';
-      case 'pre-production': return 'bg-yellow-500';
-      case 'production': return 'bg-green-500';
-      case 'post-production': return 'bg-purple-500';
-      case 'distribution': return 'bg-primary';
-      default: return 'bg-gray-500';
-    }
-  };
-
-  const productionProjects = getProjectsInProduction();
 
   return (
     <div className="space-y-6">
-      <Card className="card-premium">
-        <CardHeader>
-          <CardTitle className="flex items-center text-primary">
-            <ProductionIcon className="mr-3" size={24} />
+      <div className="flex items-center justify-between">
+        <div>
+          <h2 className="text-2xl font-bold bg-gradient-to-r from-primary to-primary-glow bg-clip-text text-transparent">
             Production Management
-          </CardTitle>
-        </CardHeader>
-        <CardContent>
-          <div className="grid grid-cols-1 md:grid-cols-3 gap-4 mb-6">
-            <div className="text-center p-4 rounded-lg bg-gradient-to-r from-primary/10 to-accent/10 border border-primary/20">
-              <CameraIcon className="mx-auto mb-2 text-primary" size={32} />
-              <div className="text-2xl font-bold text-primary">{productionProjects.length}</div>
-              <div className="text-sm text-muted-foreground">Active Productions</div>
-            </div>
-            <div className="text-center p-4 rounded-lg bg-gradient-to-r from-accent/10 to-primary/10 border border-accent/20">
-              <CrewIcon className="mx-auto mb-2 text-accent" size={32} />
-              <div className="text-2xl font-bold text-accent">
-                {productionProjects.reduce((acc, p) => acc + p.cast.length + p.crew.length, 0)}
-              </div>
-              <div className="text-sm text-muted-foreground">Total Talent</div>
-            </div>
-            <div className="text-center p-4 rounded-lg bg-gradient-to-r from-primary/10 to-accent/10 border border-primary/20">
-              <BudgetIcon className="mx-auto mb-2 text-primary" size={32} />
-              <div className="text-2xl font-bold text-primary">
-                {formatCurrency(productionProjects.reduce((acc, p) => acc + p.budget.total, 0))}
-              </div>
-              <div className="text-sm text-muted-foreground">Combined Budget</div>
-            </div>
-          </div>
-        </CardContent>
-      </Card>
-
-      {/* Active Productions */}
-      {productionProjects.length > 0 ? (
-        <div className="space-y-6">
-          {productionProjects.map((project) => (
-            <Card key={project.id} className="card-premium">
-              <CardHeader>
-                <div className="flex items-center justify-between">
-                  <div>
-                    <CardTitle className="text-xl">{project.title}</CardTitle>
-                    <div className="flex items-center space-x-2 mt-2">
-                      <Badge className={`${getPhaseColor(project.currentPhase)} text-white`}>
-                        {project.currentPhase.replace('-', ' ')}
-                      </Badge>
-                      <Badge variant="outline">
-                        {project.script.genre}
-                      </Badge>
-                    </div>
-                  </div>
-                  <div className="text-right">
-                    <div className="text-sm text-muted-foreground">Budget</div>
-                    <div className="text-lg font-bold">{formatCurrency(project.budget.total)}</div>
-                  </div>
-                </div>
-              </CardHeader>
-              
-              <CardContent className="space-y-6">
-                {/* Progress Bar */}
-                <div className="space-y-2">
-                  <div className="flex justify-between text-sm">
-                    <span>Production Progress</span>
-                    <span>{getPhaseProgress(project)}%</span>
-                  </div>
-                  <Progress value={getPhaseProgress(project)} className="h-2" />
-                </div>
-
-                {/* Timeline */}
-                <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
-                  <div className="space-y-2">
-                    <div className="flex items-center space-x-2 text-sm font-medium">
-                      <CalendarIcon size={16} />
-                      <span>Pre-Production</span>
-                    </div>
-                    <div className="text-xs text-muted-foreground">
-                      {project.timeline.preProduction.start.toLocaleDateString()} - 
-                      {project.timeline.preProduction.end.toLocaleDateString()}
-                    </div>
-                    <div className="text-xs">
-                      Cast: {project.cast.length} • Crew: {project.crew.length}
-                    </div>
-                  </div>
-                  
-                  <div className="space-y-2">
-                    <div className="flex items-center space-x-2 text-sm font-medium">
-                      <CameraIcon size={16} />
-                      <span>Principal Photography</span>
-                    </div>
-                    <div className="text-xs text-muted-foreground">
-                      {project.timeline.principalPhotography.start.toLocaleDateString()} - 
-                      {project.timeline.principalPhotography.end.toLocaleDateString()}
-                    </div>
-                    <div className="text-xs">
-                      Locations: {project.locations.length || 'TBD'}
-                    </div>
-                  </div>
-                  
-                  <div className="space-y-2">
-                    <div className="flex items-center space-x-2 text-sm font-medium">
-                      <EditIcon size={16} />
-                      <span>Post-Production</span>
-                    </div>
-                    <div className="text-xs text-muted-foreground">
-                      {project.timeline.postProduction.start.toLocaleDateString()} - 
-                      {project.timeline.postProduction.end.toLocaleDateString()}
-                    </div>
-                    <div className="text-xs">
-                      Release: {project.timeline.release.toLocaleDateString()}
-                    </div>
-                  </div>
-                </div>
-
-                {/* Budget Breakdown */}
-                <div className="space-y-3">
-                  <h4 className="font-semibold flex items-center">
-                    <BudgetIcon className="mr-2" size={16} />
-                    Budget Allocation
-                  </h4>
-                  <div className="grid grid-cols-2 md:grid-cols-3 gap-3 text-sm">
-                    <div className="space-y-1">
-                      <div className="text-muted-foreground">Above the Line</div>
-                      <div className="font-medium">{formatCurrency(project.budget.total * 0.4)}</div>
-                    </div>
-                    <div className="space-y-1">
-                      <div className="text-muted-foreground">Below the Line</div>
-                      <div className="font-medium">{formatCurrency(project.budget.total * 0.35)}</div>
-                    </div>
-                    <div className="space-y-1">
-                      <div className="text-muted-foreground">Post-Production</div>
-                      <div className="font-medium">{formatCurrency(project.budget.total * 0.15)}</div>
-                    </div>
-                  </div>
-                </div>
-
-                {/* Action Buttons */}
-                <div className="flex space-x-3 pt-4 border-t">
-                  {project.currentPhase !== 'distribution' && (
-                    <Button 
-                      onClick={() => advanceProductionPhase(project)}
-                      className="btn-studio"
-                    >
-                      <ProductionIcon className="mr-2" size={16} />
-                      Advance to {
-                        project.currentPhase === 'development' ? 'Pre-Production' :
-                        project.currentPhase === 'pre-production' ? 'Principal Photography' :
-                        project.currentPhase === 'production' ? 'Post-Production' :
-                        'Distribution'
-                      }
-                    </Button>
-                  )}
-                  
-                  <Button variant="outline" size="sm">
-                    <LocationIcon className="mr-2" size={16} />
-                    Manage Locations
-                  </Button>
-                  
-                  <Button variant="outline" size="sm">
-                    <CrewIcon className="mr-2" size={16} />
-                    Hire Crew
-                  </Button>
-                </div>
-              </CardContent>
-            </Card>
-          ))}
+          </h2>
+          <p className="text-muted-foreground">
+            Manage active projects and development pipeline
+          </p>
         </div>
-      ) : (
-        <Card className="card-premium">
-          <CardContent className="text-center py-12">
-            <ProductionIcon className="mx-auto mb-4 text-muted-foreground" size={64} />
-            <p className="text-lg text-muted-foreground mb-2">No Active Productions</p>
-            <p className="text-sm text-muted-foreground">
-              Greenlight a project and advance it to production to start filming
-            </p>
+      </div>
+
+      {/* Development Projects */}
+      {getProjectsInDevelopment().length > 0 && (
+        <Card className="border-2 border-primary/20 bg-gradient-to-br from-background to-primary/5">
+          <CardHeader>
+            <CardTitle className="flex items-center gap-3">
+              <ScriptIcon className="w-6 h-6" />
+              Projects in Development ({getProjectsInDevelopment().length})
+            </CardTitle>
+          </CardHeader>
+          <CardContent>
+            <div className="grid gap-4">
+              {getProjectsInDevelopment().map(project => {
+                const progress = project.developmentProgress;
+                const averageProgress = (progress.scriptCompletion + progress.budgetApproval + progress.talentAttached + progress.locationSecured) / 4;
+                const hasIssues = progress.issues.length > 0;
+                
+                return (
+                  <Card key={project.id} className="relative">
+                    <CardContent className="p-4">
+                      <div className="flex items-start justify-between mb-3">
+                        <div>
+                          <h3 className="font-semibold text-lg">{project.title}</h3>
+                          <p className="text-sm text-muted-foreground">
+                            {project.script.genre} • ${(project.budget.total / 1000000).toFixed(1)}M Budget
+                          </p>
+                        </div>
+                        <div className="flex items-center gap-2">
+                          {hasIssues && (
+                            <Badge variant="destructive" className="text-xs">
+                              <AlertIcon className="w-3 h-3 mr-1" />
+                              {progress.issues.length} Issue{progress.issues.length !== 1 ? 's' : ''}
+                            </Badge>
+                          )}
+                          <Badge variant="outline">
+                            {project.phaseDuration} weeks left
+                          </Badge>
+                        </div>
+                      </div>
+                      
+                      <div className="space-y-2 mb-4">
+                        <div className="flex justify-between text-sm">
+                          <span>Development Progress</span>
+                          <span className="font-medium">{averageProgress.toFixed(0)}%</span>
+                        </div>
+                        <Progress value={averageProgress} className="h-2" />
+                      </div>
+                      
+                      <div className="flex justify-between items-center">
+                        <div className="text-xs text-muted-foreground">
+                          Need {progress.completionThreshold}% to advance to Pre-Production
+                        </div>
+                        <Button
+                          size="sm"
+                          variant="outline"
+                          onClick={() => setSelectedDevProject(project)}
+                        >
+                          View Details
+                        </Button>
+                      </div>
+                    </CardContent>
+                  </Card>
+                );
+              })}
+            </div>
           </CardContent>
         </Card>
       )}
+
+      {/* Production Pipeline */}
+      <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
+        {[
+          { 
+            phase: 'pre-production', 
+            title: 'Pre-Production', 
+            icon: CalendarIcon,
+            description: 'Planning and preparation' 
+          },
+          { 
+            phase: 'production', 
+            title: 'Principal Photography', 
+            icon: CameraIcon,
+            description: 'Active filming' 
+          },
+          { 
+            phase: 'post-production', 
+            title: 'Post-Production', 
+            icon: EditIcon,
+            description: 'Editing and finishing' 
+          }
+        ].map(({ phase, title, icon: Icon, description }) => {
+          const projects = getProjectsInProduction().filter(p => p.currentPhase === phase);
+          
+          return (
+            <Card key={phase} className="h-fit">
+              <CardHeader>
+                <CardTitle className="flex items-center gap-2 text-lg">
+                  <Icon className="w-5 h-5" />
+                  {title}
+                </CardTitle>
+                <p className="text-sm text-muted-foreground">{description}</p>
+              </CardHeader>
+              <CardContent>
+                {projects.length === 0 ? (
+                  <div className="text-center py-8 text-muted-foreground">
+                    <Icon className="w-12 h-12 mx-auto mb-3 opacity-50" />
+                    <p>No projects in {phase.replace('-', ' ')}</p>
+                  </div>
+                ) : (
+                  <div className="space-y-3">
+                    {projects.map(project => (
+                      <Card key={project.id} className="bg-muted/50">
+                        <CardContent className="p-4">
+                          <div className="flex justify-between items-start mb-2">
+                            <h4 className="font-medium">{project.title}</h4>
+                            <Badge variant="outline" className="text-xs">
+                              {project.phaseDuration}w left
+                            </Badge>
+                          </div>
+                          <p className="text-sm text-muted-foreground mb-3">
+                            ${(project.budget.total / 1000000).toFixed(1)}M • {project.cast.length} cast
+                          </p>
+                          <Button
+                            size="sm"
+                            variant="outline"
+                            className="w-full"
+                            onClick={() => advanceProductionPhase(project)}
+                            disabled={project.phaseDuration > 1}
+                          >
+                            {project.phaseDuration > 1 ? 'In Progress' : 'Advance Phase'}
+                          </Button>
+                        </CardContent>
+                      </Card>
+                    ))}
+                  </div>
+                )}
+              </CardContent>
+            </Card>
+          );
+        })}
+      </div>
+
+      {/* Development Progress Modal */}
+      <DevelopmentProgressModal
+        project={selectedDevProject}
+        open={!!selectedDevProject}
+        onClose={() => setSelectedDevProject(null)}
+        onResolveIssue={(issueId, cost) => {
+          if (selectedDevProject && cost) {
+            // Handle issue resolution - would need to be passed up to parent
+            console.log(`Resolving issue ${issueId} for $${cost}`);
+            setSelectedDevProject(null);
+          }
+        }}
+      />
     </div>
   );
 };

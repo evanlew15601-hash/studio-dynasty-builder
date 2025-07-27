@@ -1,5 +1,5 @@
 import React, { useState } from 'react';
-import { GameState, Studio, Project, Script, TalentPerson } from '@/types/game';
+import { GameState, Studio, Project, Script, TalentPerson, BoxOfficeWeek, BoxOfficeRelease } from '@/types/game';
 import { ScriptDevelopment } from './ScriptDevelopment';
 import { CastingBoard } from './CastingBoard';
 import { ProductionManagement } from './ProductionManagement';
@@ -107,7 +107,8 @@ export const StudioMagnateGame: React.FC<StudioMagnateGameProps> = ({ onPhaseCha
       technologicalAdvances: [],
       regulatoryChanges: []
     },
-    eventQueue: []
+    eventQueue: [],
+    boxOfficeHistory: []
   }));
 
   const [currentPhase, setCurrentPhase] = useState<'dashboard' | 'scripts' | 'casting' | 'production' | 'distribution'>('dashboard');
@@ -127,6 +128,14 @@ export const StudioMagnateGame: React.FC<StudioMagnateGameProps> = ({ onPhaseCha
       currentPhase: 'development',
       phaseDuration: getPhaseWeeks('development'),
       contractedTalent: [],
+      developmentProgress: {
+        scriptCompletion: 25, // Script exists but needs polish
+        budgetApproval: 0,
+        talentAttached: 0,
+        locationSecured: 0,
+        completionThreshold: 80, // Need 80% to advance
+        issues: []
+      },
       budget: {
         total: script.budget,
         allocated: {
@@ -215,6 +224,20 @@ export const StudioMagnateGame: React.FC<StudioMagnateGameProps> = ({ onPhaseCha
 
   const processWeeklyProjectEffects = (projects: Project[], currentWeek: number): Project[] => {
     return projects.map(project => {
+      // Process development progress
+      if (project.currentPhase === 'development') {
+        const updatedProject = processDevelopmentProgress(project, currentWeek);
+        return updatedProject;
+      }
+      
+      // Process box office for released projects
+      if (project.status === 'released' && project.releaseWeek && project.releaseYear) {
+        const weeksSinceRelease = calculateWeeksSinceRelease(project, currentWeek, gameState.currentYear);
+        if (weeksSinceRelease <= 12) { // Track for 12 weeks
+          return processBoxOfficeRevenue(project, weeksSinceRelease);
+        }
+      }
+      
       // Advance project phase timers
       if (project.phaseDuration > 0) {
         const newPhaseDuration = project.phaseDuration - 1;
@@ -224,11 +247,18 @@ export const StudioMagnateGame: React.FC<StudioMagnateGameProps> = ({ onPhaseCha
           const newPhase = getNextPhase(project.currentPhase);
           const newPhaseDuration = getPhaseWeeks(newPhase);
           
+          // Set release date when entering distribution
+          const releaseData = newPhase === 'distribution' ? {
+            releaseWeek: currentWeek + 2, // Release 2 weeks into distribution
+            releaseYear: gameState.currentYear
+          } : {};
+          
           return {
             ...project,
             currentPhase: newPhase,
             phaseDuration: newPhaseDuration,
-            status: newPhase as any
+            status: newPhase === 'distribution' ? 'released' : newPhase as any,
+            ...releaseData
           };
         }
         
@@ -306,6 +336,133 @@ export const StudioMagnateGame: React.FC<StudioMagnateGameProps> = ({ onPhaseCha
     }
   };
 
+  const processDevelopmentProgress = (project: Project, currentWeek: number): Project => {
+    const progress = project.developmentProgress;
+    
+    // Weekly automatic progress based on budget and talent
+    let weeklyIncrease = 5; // Base progress per week
+    
+    // Boost progress if talent attached
+    if (project.cast.length > 0) weeklyIncrease += 3;
+    if (project.crew.some(c => gameState.talent.find(t => t.id === c.talentId)?.type === 'director')) {
+      weeklyIncrease += 5;
+    }
+    
+    // Random development issues
+    const newIssues = [...progress.issues];
+    if (Math.random() < 0.1) { // 10% chance each week
+      const issueTypes = ['budget', 'creative', 'talent', 'location', 'legal'];
+      const randomType = issueTypes[Math.floor(Math.random() * issueTypes.length)] as any;
+      
+      newIssues.push({
+        id: `issue-${Date.now()}`,
+        type: randomType,
+        description: getIssueDescription(randomType),
+        severity: Math.random() < 0.3 ? 'high' : 'medium',
+        weeksToResolve: Math.floor(Math.random() * 4) + 1,
+        cost: Math.random() < 0.5 ? Math.floor(Math.random() * 100000) + 50000 : undefined
+      });
+    }
+    
+    // Resolve existing issues
+    const resolvedIssues = newIssues.map(issue => ({
+      ...issue,
+      weeksToResolve: Math.max(0, issue.weeksToResolve - 1)
+    })).filter(issue => issue.weeksToResolve > 0);
+    
+    const newProgress = {
+      ...progress,
+      scriptCompletion: Math.min(100, progress.scriptCompletion + weeklyIncrease),
+      budgetApproval: project.cast.length > 0 ? Math.min(100, progress.budgetApproval + weeklyIncrease) : progress.budgetApproval,
+      talentAttached: project.cast.length > 0 ? Math.min(100, progress.talentAttached + 10) : progress.talentAttached,
+      locationSecured: Math.min(100, progress.locationSecured + weeklyIncrease),
+      issues: resolvedIssues
+    };
+    
+    // Auto-advance if completion threshold met
+    if (getAverageProgress(newProgress) >= newProgress.completionThreshold && project.phaseDuration > 1) {
+      return {
+        ...project,
+        phaseDuration: 1, // Will advance next week
+        developmentProgress: newProgress
+      };
+    }
+    
+    return {
+      ...project,
+      developmentProgress: newProgress
+    };
+  };
+  
+  const getIssueDescription = (type: string): string => {
+    const descriptions = {
+      budget: 'Studio executives questioning budget allocation',
+      creative: 'Script revisions needed for marketability',
+      talent: 'Key talent availability conflicts',
+      location: 'Permit issues with primary shooting location',
+      legal: 'Rights clearance complications'
+    };
+    return descriptions[type as keyof typeof descriptions] || 'Development complications';
+  };
+  
+  const getAverageProgress = (progress: any): number => {
+    return (progress.scriptCompletion + progress.budgetApproval + progress.talentAttached + progress.locationSecured) / 4;
+  };
+  
+  const calculateWeeksSinceRelease = (project: Project, currentWeek: number, currentYear: number): number => {
+    if (!project.releaseWeek || !project.releaseYear) return 0;
+    
+    if (project.releaseYear === currentYear) {
+      return currentWeek - project.releaseWeek;
+    } else if (project.releaseYear < currentYear) {
+      return (52 - project.releaseWeek) + currentWeek + ((currentYear - project.releaseYear - 1) * 52);
+    }
+    return 0;
+  };
+  
+  const processBoxOfficeRevenue = (project: Project, weeksSinceRelease: number): Project => {
+    const baseRevenue = calculateBaseRevenue(project);
+    const weeklyMultiplier = getWeeklyMultiplier(weeksSinceRelease);
+    const weeklyRevenue = baseRevenue * weeklyMultiplier;
+    
+    const currentTotal = project.metrics.boxOfficeTotal || 0;
+    const newTotal = currentTotal + weeklyRevenue;
+    
+    return {
+      ...project,
+      metrics: {
+        ...project.metrics,
+        boxOfficeTotal: newTotal
+      }
+    };
+  };
+  
+  const calculateBaseRevenue = (project: Project): number => {
+    // Base calculation factors: budget, cast star power, genre trends
+    let baseRevenue = project.budget.total * 0.5; // Conservative estimate
+    
+    // Star power bonus
+    const starPower = project.cast.reduce((sum, role) => {
+      const talent = gameState.talent.find(t => t.id === role.talentId);
+      return sum + (talent?.reputation || 0) * (talent?.marketValue || 0) / 1000000;
+    }, 0);
+    
+    baseRevenue += starPower * 10000;
+    
+    // Genre trending bonus
+    if (gameState.marketConditions.trendingGenres.includes(project.script.genre)) {
+      baseRevenue *= 1.3;
+    }
+    
+    return baseRevenue / 12; // Weekly amount
+  };
+  
+  const getWeeklyMultiplier = (week: number): number => {
+    // Box office typically drops off over time
+    const dropoffChart = [1.0, 0.6, 0.4, 0.3, 0.25, 0.2, 0.15, 0.12, 0.1, 0.08, 0.06, 0.05];
+    return dropoffChart[week - 1] || 0.03;
+  };
+
   const handleAdvanceWeek = () => {
     setGameState(prev => {
       const newWeek = prev.currentWeek === 52 ? 1 : prev.currentWeek + 1;
@@ -317,6 +474,13 @@ export const StudioMagnateGame: React.FC<StudioMagnateGameProps> = ({ onPhaseCha
       const updatedTalent = processWeeklyTalentEffects(prev.talent, prev.currentWeek);
       const updatedStudio = processWeeklyStudioEffects(prev.studio, updatedProjects, updatedTalent);
       
+      // Update box office history
+      const boxOfficeWeek = processWeeklyBoxOffice(updatedProjects, newWeek, newYear);
+      const updatedHistory = [...prev.boxOfficeHistory];
+      if (boxOfficeWeek.releases.length > 0) {
+        updatedHistory.push(boxOfficeWeek);
+      }
+      
       return {
         ...prev,
         currentWeek: newWeek,
@@ -324,7 +488,8 @@ export const StudioMagnateGame: React.FC<StudioMagnateGameProps> = ({ onPhaseCha
         currentYear: newYear,
         studio: updatedStudio,
         projects: updatedProjects,
-        talent: updatedTalent
+        talent: updatedTalent,
+        boxOfficeHistory: updatedHistory.slice(-52) // Keep last year of data
       };
     });
 
@@ -332,6 +497,35 @@ export const StudioMagnateGame: React.FC<StudioMagnateGameProps> = ({ onPhaseCha
       title: "New Week",
       description: `Week ${gameState.currentWeek === 52 ? 1 : gameState.currentWeek + 1}, ${gameState.currentWeek === 52 ? gameState.currentYear + 1 : gameState.currentYear}`,
     });
+  };
+  
+  const processWeeklyBoxOffice = (projects: Project[], week: number, year: number): BoxOfficeWeek => {
+    const releases = projects
+      .filter(p => p.status === 'released' && p.releaseWeek && p.releaseYear)
+      .map(project => {
+        const weeksSinceRelease = calculateWeeksSinceRelease(project, week, year);
+        if (weeksSinceRelease > 0 && weeksSinceRelease <= 12) {
+          const weeklyRevenue = calculateBaseRevenue(project) * getWeeklyMultiplier(weeksSinceRelease);
+          return {
+            projectId: project.id,
+            title: project.title,
+            studio: gameState.studio.name,
+            weeklyRevenue,
+            totalRevenue: project.metrics.boxOfficeTotal || 0,
+            theaters: Math.floor(Math.random() * 1000) + 500, // Placeholder
+            weekInRelease: weeksSinceRelease
+          };
+        }
+        return null;
+      })
+      .filter(Boolean) as BoxOfficeRelease[];
+    
+    return {
+      week,
+      year,
+      releases,
+      totalRevenue: releases.reduce((sum, release) => sum + release.weeklyRevenue, 0)
+    };
   };
 
   return (

@@ -120,6 +120,9 @@ export interface Project {
   metrics: ProjectMetrics;
   phaseDuration: number; // weeks remaining in current phase
   contractedTalent: ContractedTalent[];
+  developmentProgress: DevelopmentProgress;
+  releaseWeek?: number;
+  releaseYear?: number;
 }
 
 export interface ProjectBudget {
@@ -263,6 +266,25 @@ export interface ContractedTalent {
   startWeek: number;
 }
 
+export interface DevelopmentProgress {
+  scriptCompletion: number; // 0-100%
+  budgetApproval: number; // 0-100%
+  talentAttached: number; // 0-100%
+  locationSecured: number; // 0-100%
+  completionThreshold: number; // percentage needed to advance
+  issues: DevelopmentIssue[];
+}
+
+export interface DevelopmentIssue {
+  id: string;
+  type: 'budget' | 'creative' | 'talent' | 'location' | 'legal';
+  description: string;
+  severity: 'low' | 'medium' | 'high' | 'critical';
+  weeksToResolve: number;
+  cost?: number;
+  reputationImpact?: number;
+}
+
 export interface Producer extends TalentPerson {
   producerType: 'executive' | 'line' | 'creative' | 'associate';
   specialTraits: ProducerTrait[];
@@ -305,6 +327,24 @@ export interface GameState {
   competitorStudios: Studio[];
   marketConditions: MarketConditions;
   eventQueue: GameEvent[];
+  boxOfficeHistory: BoxOfficeWeek[];
+}
+
+export interface BoxOfficeWeek {
+  week: number;
+  year: number;
+  releases: BoxOfficeRelease[];
+  totalRevenue: number;
+}
+
+export interface BoxOfficeRelease {
+  projectId: string;
+  title: string;
+  studio: string;
+  weeklyRevenue: number;
+  totalRevenue: number;
+  theaters: number;
+  weekInRelease: number;
 }
 
 export interface MarketConditions {
