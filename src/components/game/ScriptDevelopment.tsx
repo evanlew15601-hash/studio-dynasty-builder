@@ -9,7 +9,7 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@
 import { Slider } from '@/components/ui/slider';
 import { Badge } from '@/components/ui/badge';
 import { useToast } from '@/hooks/use-toast';
-import { ScriptIcon, BudgetIcon, AwardIcon } from '@/components/ui/icons';
+import { ScriptIcon, BudgetIcon, AwardIcon, ClapperboardIcon } from '@/components/ui/icons';
 
 interface ScriptDevelopmentProps {
   gameState: GameState;
@@ -364,7 +364,7 @@ export const ScriptDevelopment: React.FC<ScriptDevelopmentProps> = ({
                           onClick={() => handleGreenlightScript(script)}
                           disabled={gameState.studio.budget < script.budget * 0.1}
                         >
-                          <span className="mr-2">🎬</span>
+                          <ClapperboardIcon className="w-4 h-4 mr-2" />
                           Greenlight Project
                         </Button>
                       </div>

@@ -56,6 +56,8 @@ export interface TalentPerson {
   availabilityCalendar?: DateRange[];
   availability: DateRange;
   agent?: string;
+  currentContractWeeks?: number;
+  weeklyOverhead?: number;
 }
 
 export interface TalentTrait {
@@ -116,6 +118,8 @@ export interface Project {
   distributionStrategy: DistributionStrategy;
   status: 'development' | 'pre-production' | 'production' | 'post-production' | 'distribution' | 'archived' | 'released' | 'filming' | 'completed';
   metrics: ProjectMetrics;
+  phaseDuration: number; // weeks remaining in current phase
+  contractedTalent: ContractedTalent[];
 }
 
 export interface ProjectBudget {
@@ -248,6 +252,15 @@ export interface Award {
 export interface DateRange {
   start: Date;
   end: Date;
+}
+
+export interface ContractedTalent {
+  talentId: string;
+  role: string;
+  weeklyPay: number;
+  contractWeeks: number;
+  weeksRemaining: number;
+  startWeek: number;
 }
 
 export interface Producer extends TalentPerson {

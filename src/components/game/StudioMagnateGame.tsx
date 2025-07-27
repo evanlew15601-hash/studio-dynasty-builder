@@ -26,6 +26,17 @@ interface StudioMagnateGameProps {
 export const StudioMagnateGame: React.FC<StudioMagnateGameProps> = ({ onPhaseChange }) => {
   const { toast } = useToast();
   
+  const getPhaseWeeks = (phase: string): number => {
+    switch (phase) {
+      case 'development': return 8;
+      case 'pre-production': return 6;
+      case 'production': return 12;
+      case 'post-production': return 16;
+      case 'distribution': return 4;
+      default: return 1;
+    }
+  };
+  
   const [gameState, setGameState] = useState<GameState>(() => ({
     studio: {
       id: 'player-studio',
@@ -114,6 +125,8 @@ export const StudioMagnateGame: React.FC<StudioMagnateGameProps> = ({ onPhaseCha
       script,
       type: 'feature',
       currentPhase: 'development',
+      phaseDuration: getPhaseWeeks('development'),
+      contractedTalent: [],
       budget: {
         total: script.budget,
         allocated: {
@@ -200,24 +213,118 @@ export const StudioMagnateGame: React.FC<StudioMagnateGameProps> = ({ onPhaseCha
     }));
   };
 
+  const processWeeklyProjectEffects = (projects: Project[], currentWeek: number): Project[] => {
+    return projects.map(project => {
+      // Advance project phase timers
+      if (project.phaseDuration > 0) {
+        const newPhaseDuration = project.phaseDuration - 1;
+        
+        // Auto-advance phase when timer reaches 0
+        if (newPhaseDuration === 0) {
+          const newPhase = getNextPhase(project.currentPhase);
+          const newPhaseDuration = getPhaseWeeks(newPhase);
+          
+          return {
+            ...project,
+            currentPhase: newPhase,
+            phaseDuration: newPhaseDuration,
+            status: newPhase as any
+          };
+        }
+        
+        return {
+          ...project,
+          phaseDuration: newPhaseDuration
+        };
+      }
+      
+      return project;
+    });
+  };
+  
+  const processWeeklyTalentEffects = (talent: TalentPerson[], currentWeek: number): TalentPerson[] => {
+    return talent.map(person => {
+      // Process contract expiry
+      if (person.currentContractWeeks && person.currentContractWeeks > 0) {
+        const newContractWeeks = person.currentContractWeeks - 1;
+        
+        if (newContractWeeks === 0) {
+          return {
+            ...person,
+            contractStatus: 'available',
+            currentContractWeeks: 0,
+            weeklyOverhead: 0
+          };
+        }
+        
+        return {
+          ...person,
+          currentContractWeeks: newContractWeeks
+        };
+      }
+      
+      return person;
+    });
+  };
+  
+  const processWeeklyStudioEffects = (studio: Studio, projects: Project[], talent: TalentPerson[]): Studio => {
+    // Calculate weekly income/expenses
+    const projectIncome = projects
+      .filter(p => p.status === 'released')
+      .reduce((sum, p) => sum + (p.metrics.boxOfficeTotal || 0) * 0.02, 0); // 2% weekly residuals
+      
+    const talentOverhead = talent
+      .reduce((sum, t) => sum + (t.weeklyOverhead || 0), 0);
+      
+    const operationalCosts = Math.max(50000, studio.budget * 0.001); // Base overhead
+    
+    // Apply penalties for idle studio
+    const activeProjects = projects.filter(p => 
+      p.status === 'development' || 
+      p.status === 'production' || 
+      p.status === 'pre-production'
+    );
+    
+    const idlePenalty = activeProjects.length === 0 ? studio.reputation * 0.1 : 0;
+    
+    const netChange = projectIncome - talentOverhead - operationalCosts - idlePenalty;
+    
+    return {
+      ...studio,
+      budget: Math.max(0, studio.budget + netChange),
+      reputation: Math.max(0, Math.min(100, studio.reputation - (idlePenalty > 0 ? 1 : 0)))
+    };
+  };
+  
+  const getNextPhase = (currentPhase: string): any => {
+    switch (currentPhase) {
+      case 'development': return 'pre-production';
+      case 'pre-production': return 'production';
+      case 'production': return 'post-production';
+      case 'post-production': return 'distribution';
+      default: return currentPhase;
+    }
+  };
+
   const handleAdvanceWeek = () => {
     setGameState(prev => {
       const newWeek = prev.currentWeek === 52 ? 1 : prev.currentWeek + 1;
       const newYear = prev.currentWeek === 52 ? prev.currentYear + 1 : prev.currentYear;
       const newQuarter = Math.ceil(newWeek / 13);
       
-      // Weekly income based on reputation and ongoing projects
-      const weeklyIncome = 200000 + (prev.studio.reputation * 10000) + (prev.projects.length * 50000);
+      // Process weekly effects
+      const updatedProjects = processWeeklyProjectEffects(prev.projects, prev.currentWeek);
+      const updatedTalent = processWeeklyTalentEffects(prev.talent, prev.currentWeek);
+      const updatedStudio = processWeeklyStudioEffects(prev.studio, updatedProjects, updatedTalent);
       
       return {
         ...prev,
         currentWeek: newWeek,
         currentQuarter: newQuarter,
         currentYear: newYear,
-        studio: {
-          ...prev.studio,
-          budget: prev.studio.budget + weeklyIncome
-        }
+        studio: updatedStudio,
+        projects: updatedProjects,
+        talent: updatedTalent
       };
     });
 

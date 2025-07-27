@@ -44,13 +44,14 @@ export const CastingBoard: React.FC<CastingBoardProps> = ({
       return;
     }
 
-    const salaryPercentage = talent.type === 'director' ? 0.08 : 0.05;
-    const salary = selectedProject.budget.total * salaryPercentage;
+    const contractWeeks = 16; // Standard contract length
+    const weeklySalary = talent.marketValue / 52;
+    const totalCost = weeklySalary * contractWeeks;
 
-    if (salary > gameState.studio.budget) {
+    if (totalCost > gameState.studio.budget) {
       toast({
         title: "Insufficient Budget",
-        description: `Cannot afford ${talent.name}'s salary of $${(salary / 1000000).toFixed(1)}M`,
+        description: `Cannot afford ${talent.name} - need $${(totalCost / 1000000).toFixed(1)}M`,
         variant: "destructive"
       });
       return;
@@ -59,20 +60,30 @@ export const CastingBoard: React.FC<CastingBoardProps> = ({
     const newRole: ProductionRole = {
       talentId: talent.id,
       role: role,
-      salary: salary,
+      salary: weeklySalary,
       points: talent.type === 'director' ? 15 : 10,
       contractTerms: {
-        duration: selectedProject.timeline.principalPhotography.end,
+        duration: new Date(Date.now() + contractWeeks * 7 * 24 * 60 * 60 * 1000),
         exclusivity: true,
         merchandising: true,
         sequelOptions: 1
       }
     };
 
+    const contractedTalent = {
+      talentId: talent.id,
+      role: role,
+      weeklyPay: weeklySalary,
+      contractWeeks: contractWeeks,
+      weeksRemaining: contractWeeks,
+      startWeek: gameState.currentWeek
+    };
+
     const updatedProject = {
       ...selectedProject,
       cast: talent.type === 'actor' ? [...selectedProject.cast, newRole] : selectedProject.cast,
-      crew: talent.type === 'director' ? [...selectedProject.crew, newRole] : selectedProject.crew
+      crew: talent.type === 'director' ? [...selectedProject.crew, newRole] : selectedProject.crew,
+      contractedTalent: [...selectedProject.contractedTalent, contractedTalent]
     };
 
     onProjectUpdate(updatedProject);
