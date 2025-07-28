@@ -546,6 +546,101 @@ export const StudioMagnateGame: React.FC<StudioMagnateGameProps> = ({ onPhaseCha
     };
   };
 
+  // DEBUG: Quick test function to skip to post-theatrical phase
+  const skipToPostTheatrical = () => {
+    console.log('🚀 SKIPPING TO POST-THEATRICAL TESTING MODE');
+    
+    // Use existing project or create minimal one
+    const existingProject = gameState.projects[0];
+    const testProject: Project = {
+      ...(existingProject || {
+        id: 'test-movie',
+        title: 'Test Movie',
+        type: 'feature',
+        genre: 'Action' as Genre,
+        script: null,
+        cast: [],
+        crew: [],
+        locations: [],
+        budget: { 
+          total: 75000000,
+          allocated: {
+            aboveTheLine: 20000000,
+            belowTheLine: 25000000, 
+            postProduction: 5000000,
+            marketing: 20000000,
+            distribution: 3000000,
+            contingency: 2000000
+          },
+          spent: {
+            aboveTheLine: 20000000,
+            belowTheLine: 25000000, 
+            postProduction: 5000000,
+            marketing: 20000000,
+            distribution: 3000000,
+            contingency: 0
+          },
+          overages: {
+            aboveTheLine: 0,
+            belowTheLine: 0, 
+            postProduction: 0,
+            marketing: 0,
+            distribution: 0,
+            contingency: 0
+          }
+        },
+        timeline: { 
+          preProduction: { start: new Date(), end: new Date() },
+          principalPhotography: { start: new Date(), end: new Date() },
+          postProduction: { start: new Date(), end: new Date() },
+          release: new Date(),
+          milestones: []
+        },
+        distributionStrategy: null,
+        marketingCampaign: null,
+        weeksInPhase: 0,
+        phaseDuration: 999,
+        readyForRelease: false,
+        contractedTalent: [],
+        developmentProgress: {
+          scriptCompletion: 100,
+          budgetApproval: 100,
+          talentAttached: 100,
+          locationSecured: 100,
+          completionThreshold: 80,
+          issues: []
+        }
+      }),
+      currentPhase: 'distribution' as const,
+      status: 'released' as any,
+      releaseWeek: gameState.currentWeek - 10,
+      releaseYear: gameState.currentYear,
+      postTheatricalEligible: true,
+      theatricalEndDate: new Date(),
+      metrics: {
+        inTheaters: false,
+        boxOfficeTotal: 125000000,
+        theaterCount: 0,
+        weeksSinceRelease: 10,
+        criticsScore: 75,
+        audienceScore: 80,
+        boxOfficeStatus: 'Ended',
+        theatricalRunLocked: true
+      }
+    };
+
+    setGameState(prev => ({
+      ...prev,
+      projects: [testProject, ...prev.projects.slice(1)],
+      currentView: 'distribution'
+    }));
+
+    toast({
+      title: "Skipped to Post-Theatrical Testing",
+      description: "Test movie ready for post-theatrical distribution",
+    });
+  };
+
   const handleAdvanceWeek = () => {
     setGameState(prev => {
       const newTimeState = TimeSystem.advanceWeek({
@@ -617,6 +712,15 @@ export const StudioMagnateGame: React.FC<StudioMagnateGameProps> = ({ onPhaseCha
                   </span>
                 </div>
               </div>
+              
+              <Button 
+                size="sm" 
+                onClick={skipToPostTheatrical}
+                variant="outline"
+                className="mr-4"
+              >
+                🚀 Skip to Post-Theatrical Test
+              </Button>
               
               <Button 
                 size="sm" 
