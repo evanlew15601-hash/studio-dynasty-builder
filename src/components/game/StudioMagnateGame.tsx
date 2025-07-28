@@ -225,58 +225,68 @@ export const StudioMagnateGame: React.FC<StudioMagnateGameProps> = ({ onPhaseCha
   };
 
   const processWeeklyProjectEffects = (projects: Project[], currentWeek: number): Project[] => {
+    console.log('=== PROCESSING WEEKLY PROJECT EFFECTS ===');
     return projects.map(project => {
-      // Process development progress
+      console.log(`Project: ${project.title}`, {
+        currentPhase: project.currentPhase,
+        phaseDuration: project.phaseDuration,
+        status: project.status
+      });
+
+      // COMPLETELY NEW APPROACH: Simple week-by-week countdown
+      let updatedProject = { ...project };
+
+      // Handle development progress for development phase
       if (project.currentPhase === 'development') {
-        const updatedProject = processDevelopmentProgress(project, currentWeek);
-        return updatedProject;
+        updatedProject = processDevelopmentProgress(project, currentWeek);
       }
       
-      // Process box office for released projects
+      // Handle box office for released projects
       if (project.status === 'released' && project.releaseWeek && project.releaseYear) {
         const weeksSinceRelease = calculateWeeksSinceRelease(project, currentWeek, gameState.currentYear);
-        if (weeksSinceRelease <= 12) { // Track for 12 weeks
-          return processBoxOfficeRevenue(project, weeksSinceRelease);
+        if (weeksSinceRelease <= 12) {
+          updatedProject = processBoxOfficeRevenue(updatedProject, weeksSinceRelease);
         }
       }
-      
-      // Advance project phase timers for ALL projects with valid phase duration
-      if (project.phaseDuration !== undefined && project.phaseDuration > 0) {
-        const newPhaseDuration = project.phaseDuration - 1;
+
+      // SIMPLE TIMER SYSTEM - Always tick down if project has duration
+      if (updatedProject.phaseDuration !== undefined) {
+        console.log(`Ticking down timer for ${updatedProject.title}: ${updatedProject.phaseDuration} -> ${updatedProject.phaseDuration - 1}`);
         
-        // Auto-advance phase when timer reaches 0 
-        if (newPhaseDuration <= 0) {
-          const newPhase = getNextPhase(project.currentPhase);
-          const newPhaseDuration = getPhaseWeeks(newPhase);
+        updatedProject.phaseDuration = Math.max(0, updatedProject.phaseDuration - 1);
+        
+        // Advance when timer hits exactly 0
+        if (updatedProject.phaseDuration === 0) {
+          const nextPhase = getNextPhase(updatedProject.currentPhase);
+          const nextDuration = getPhaseWeeks(nextPhase);
           
-          // Set release date when entering distribution
-          const releaseData = newPhase === 'distribution' ? {
-            releaseWeek: currentWeek + 2, // Release 2 weeks into distribution
-            releaseYear: gameState.currentYear
-          } : {};
+          console.log(`ADVANCING ${updatedProject.title} from ${updatedProject.currentPhase} to ${nextPhase}`);
+          
+          updatedProject = {
+            ...updatedProject,
+            currentPhase: nextPhase,
+            phaseDuration: nextDuration,
+            status: nextPhase === 'distribution' ? 'released' : nextPhase as any,
+            ...(nextPhase === 'distribution' ? {
+              releaseWeek: currentWeek + 2,
+              releaseYear: gameState.currentYear
+            } : {})
+          };
           
           toast({
-            title: "Project Advanced",
-            description: `${project.title} has moved to ${newPhase.replace('-', ' ')} phase`,
+            title: "Phase Complete!",
+            description: `${updatedProject.title} advanced to ${nextPhase.replace('-', ' ')}`,
           });
-          
-          return {
-            ...project,
-            currentPhase: newPhase,
-            phaseDuration: newPhaseDuration,
-            status: newPhase === 'distribution' ? 'released' : newPhase as any,
-            ...releaseData
-          };
         }
-        
-        // Just update the timer countdown
-        return {
-          ...project,
-          phaseDuration: newPhaseDuration
-        };
       }
-      
-      return project;
+
+      console.log(`Updated project ${updatedProject.title}:`, {
+        currentPhase: updatedProject.currentPhase,
+        phaseDuration: updatedProject.phaseDuration,
+        status: updatedProject.status
+      });
+
+      return updatedProject;
     });
   };
   
