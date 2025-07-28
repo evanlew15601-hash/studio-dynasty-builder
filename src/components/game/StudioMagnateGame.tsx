@@ -8,6 +8,8 @@ import { MarketingReleaseManagement } from './MarketingReleaseManagement';
 import { PostTheatricalManagement } from './PostTheatricalManagement';
 import { StudioDashboard } from './StudioDashboard';
 import { StudioStats } from './StudioStats';
+import { TimeSystem, TimeState } from './TimeSystem';
+import { BoxOfficeSystem } from './BoxOfficeSystem';
 import { Button } from '@/components/ui/button';
 import { Card } from '@/components/ui/card';
 import { useToast } from '@/hooks/use-toast';
@@ -229,34 +231,24 @@ export const StudioMagnateGame: React.FC<StudioMagnateGameProps> = ({ onPhaseCha
     }));
   };
 
-  const processWeeklyProjectEffects = (projects: Project[], currentWeek: number, currentYear: number): Project[] => {
-    console.log(`=== WEEKLY PROJECT PROCESSING START === Week: ${currentWeek}, Year: ${currentYear}`);
+  const processWeeklyProjectEffects = (projects: Project[], timeState: TimeState): Project[] => {
+    console.log(`=== WEEKLY PROJECT PROCESSING START === Week: ${timeState.currentWeek}, Year: ${timeState.currentYear}`);
+    
     return projects.map(project => {
       let updatedProject = { ...project };
 
       // Handle development progress for development phase
       if (project.currentPhase === 'development') {
-        updatedProject = processDevelopmentProgress(project, currentWeek);
+        updatedProject = processDevelopmentProgress(project, timeState.currentWeek);
       }
       
-      // Handle box office for released projects - ONLY while in theaters
-      if (project.status === 'released' && project.releaseWeek && project.releaseYear) {
-        const weeksSinceRelease = calculateWeeksSinceRelease(project, currentWeek, currentYear);
-        console.log(`BOX OFFICE CHECK: ${project.title} - Weeks: ${weeksSinceRelease}, InTheaters: ${project.metrics.inTheaters}`);
-        
-        // FIXED: Only process if still in theaters AND within reasonable time
-        if (project.metrics.inTheaters !== false && weeksSinceRelease >= 0 && weeksSinceRelease <= 18) {
-          updatedProject = processBoxOfficeRevenue(updatedProject, weeksSinceRelease);
-          
-          // If film left theaters, stop box office processing
-          if (updatedProject.metrics.inTheaters === false) {
-            console.log(`FILM LEFT THEATERS: ${updatedProject.title} after ${weeksSinceRelease} weeks`);
-            toast({
-              title: "Theatrical Run Ended",
-              description: `${updatedProject.title} has left theaters after ${weeksSinceRelease} weeks. Final box office: $${((updatedProject.metrics.boxOfficeTotal || 0) / 1000000).toFixed(1)}M`,
-            });
-          }
-        }
+      // COMPLETELY REWRITTEN BOX OFFICE SYSTEM
+      if (project.status === 'released') {
+        updatedProject = BoxOfficeSystem.processWeeklyRevenue(
+          updatedProject, 
+          timeState.currentWeek, 
+          timeState.currentYear
+        );
       }
 
       // Process marketing campaign activities
@@ -284,13 +276,9 @@ export const StudioMagnateGame: React.FC<StudioMagnateGameProps> = ({ onPhaseCha
             const newWeeksActive = release.weeksActive + 1;
             const newRevenue = release.revenue + release.weeklyRevenue;
             
-            // Determine if release should decline or end
             let newStatus: 'planned' | 'active' | 'declining' | 'ended' = release.status;
-            if (newWeeksActive >= 52) { // After 1 year, most releases decline
-              newStatus = 'declining';
-            } else if (newWeeksActive >= 104) { // After 2 years, end
-              newStatus = 'ended';
-            }
+            if (newWeeksActive >= 52) newStatus = 'declining';
+            else if (newWeeksActive >= 104) newStatus = 'ended';
             
             return {
               ...release,
@@ -308,11 +296,10 @@ export const StudioMagnateGame: React.FC<StudioMagnateGameProps> = ({ onPhaseCha
         };
       }
 
-      // ROBUST TIMER SYSTEM - Always process phase timers for ALL projects
+      // ROBUST TIMER SYSTEM - Process phase timers
       if (updatedProject.phaseDuration !== undefined && updatedProject.phaseDuration > 0) {
         const newPhaseDuration = updatedProject.phaseDuration - 1;
         
-        // Advance when timer hits exactly 0
         if (newPhaseDuration === 0) {
           const nextPhase = getNextPhase(updatedProject.currentPhase);
           const nextDuration = getPhaseWeeks(nextPhase);
@@ -321,25 +308,23 @@ export const StudioMagnateGame: React.FC<StudioMagnateGameProps> = ({ onPhaseCha
             ...updatedProject,
             currentPhase: nextPhase,
             phaseDuration: nextDuration,
-            status: nextPhase === 'distribution' ? 'released' : nextPhase as any,
-            ...(nextPhase === 'distribution' ? {
-              releaseWeek: currentWeek + 2,
-              releaseYear: gameState.currentYear,
-              metrics: {
-                ...updatedProject.metrics,
-                inTheaters: true, // CRITICAL FIX: Initialize inTheaters to true
-                criticsScore: Math.floor(Math.random() * 40) + 50, // 50-90
-                audienceScore: Math.floor(Math.random() * 40) + 50 // 50-90
-              }
-            } : {})
+            status: nextPhase === 'distribution' ? 'released' : nextPhase as any
           };
+
+          // FIXED: Use new box office system for releases
+          if (nextPhase === 'distribution') {
+            updatedProject = BoxOfficeSystem.initializeRelease(
+              updatedProject,
+              timeState.currentWeek + 2,
+              timeState.currentYear
+            );
+          }
           
           toast({
             title: "Phase Complete!",
             description: `${updatedProject.title} advanced to ${nextPhase.replace('-', ' ')}`,
           });
         } else {
-          // Update timer countdown
           updatedProject = {
             ...updatedProject,
             phaseDuration: newPhaseDuration
@@ -560,114 +545,7 @@ export const StudioMagnateGame: React.FC<StudioMagnateGameProps> = ({ onPhaseCha
     return (progress.scriptCompletion + progress.budgetApproval + progress.talentAttached + progress.locationSecured) / 4;
   };
   
-  const calculateWeeksSinceRelease = (project: Project, currentWeek: number, currentYear: number): number => {
-    if (!project.releaseWeek || !project.releaseYear) return 0;
-    
-    // FIXED: Proper week calculation
-    if (project.releaseYear === currentYear) {
-      const weeksDiff = currentWeek - project.releaseWeek;
-      console.log(`WEEKS CALC: ${project.title} - Current: ${currentWeek}, Release: ${project.releaseWeek}, Diff: ${weeksDiff}`);
-      return Math.max(0, weeksDiff); // Ensure non-negative
-    } else if (project.releaseYear < currentYear) {
-      const weeksLastYear = Math.max(0, 52 - project.releaseWeek);
-      const yearsInBetween = Math.max(0, currentYear - project.releaseYear - 1) * 52;
-      const weeksThisYear = currentWeek;
-      const total = weeksLastYear + yearsInBetween + weeksThisYear;
-      console.log(`MULTI-YEAR WEEKS: ${project.title} - Total: ${total}`);
-      return total;
-    }
-    return 0;
-  };
-  
-  const processBoxOfficeRevenue = (project: Project, weeksSinceRelease: number): Project => {
-    // Only process if still in theaters
-    if (project.metrics.inTheaters === false) return project;
-    
-    const baseRevenue = calculateBaseRevenue(project);
-    const weeklyMultiplier = getWeeklyMultiplier(weeksSinceRelease);
-    const weeklyRevenue = baseRevenue * weeklyMultiplier;
-    
-    const currentTotal = project.metrics.boxOfficeTotal || 0;
-    const newTotal = currentTotal + weeklyRevenue;
-    
-    // Determine if film should leave theaters based on performance
-    const performance = (project.metrics.criticsScore || 50) + (project.metrics.audienceScore || 50);
-    const buzzBonus = (project.marketingCampaign?.buzz || 0) * 0.5;
-    const adjustedPerformance = performance + buzzBonus;
-    
-    let shouldLeaveTheaters = false;
-    let theaterStatus = 'wide';
-    
-    // FIXED: More deterministic exit logic based on weeks and performance
-    if (weeksSinceRelease >= 18) { // Force exit after 18 weeks maximum
-      shouldLeaveTheaters = true;
-      theaterStatus = 'ended';
-    } else if (adjustedPerformance < 100 && weeksSinceRelease >= 3) { // Very poor performance
-      shouldLeaveTheaters = weeksSinceRelease >= 5; // Exit after 5 weeks for flops
-      theaterStatus = 'ending';
-    } else if (adjustedPerformance < 130 && weeksSinceRelease >= 6) { // Poor performance  
-      shouldLeaveTheaters = weeksSinceRelease >= 8; // Exit after 8 weeks
-      theaterStatus = weeksSinceRelease >= 7 ? 'ending' : 'limited';
-    } else if (adjustedPerformance < 160 && weeksSinceRelease >= 10) { // Average performance
-      shouldLeaveTheaters = weeksSinceRelease >= 12; // Exit after 12 weeks
-      theaterStatus = weeksSinceRelease >= 11 ? 'ending' : 'limited';
-    } else if (weeksSinceRelease >= 15) { // Good performance but time limit
-      shouldLeaveTheaters = weeksSinceRelease >= 16; // Exit after 16 weeks
-      theaterStatus = 'ending';
-    }
-    
-    // Update theater count based on status
-    let theaterCount = project.releaseStrategy?.theatersCount || 3000;
-    if (theaterStatus === 'limited') {
-      theaterCount = Math.floor(theaterCount * 0.3);
-    } else if (theaterStatus === 'ending') {
-      theaterCount = Math.floor(theaterCount * 0.1);
-    } else if (theaterStatus === 'ended') {
-      theaterCount = 0;
-    }
-    
-    return {
-      ...project,
-      metrics: {
-        ...project.metrics,
-        boxOfficeTotal: newTotal,
-        inTheaters: !shouldLeaveTheaters,
-        theaterCount,
-        weeksSinceRelease: weeksSinceRelease
-      },
-      // Mark for post-theatrical when leaving theaters
-      ...(shouldLeaveTheaters && !project.postTheatricalEligible ? {
-        postTheatricalEligible: true,
-        theatricalEndDate: new Date()
-      } : {})
-    };
-  };
-  
-  const calculateBaseRevenue = (project: Project): number => {
-    // Base calculation factors: budget, cast star power, genre trends
-    let baseRevenue = project.budget.total * 0.5; // Conservative estimate
-    
-    // Star power bonus
-    const starPower = project.cast.reduce((sum, role) => {
-      const talent = gameState.talent.find(t => t.id === role.talentId);
-      return sum + (talent?.reputation || 0) * (talent?.marketValue || 0) / 1000000;
-    }, 0);
-    
-    baseRevenue += starPower * 10000;
-    
-    // Genre trending bonus
-    if (gameState.marketConditions.trendingGenres.includes(project.script.genre)) {
-      baseRevenue *= 1.3;
-    }
-    
-    return baseRevenue / 12; // Weekly amount
-  };
-  
-  const getWeeklyMultiplier = (week: number): number => {
-    // Box office typically drops off over time
-    const dropoffChart = [1.0, 0.6, 0.4, 0.3, 0.25, 0.2, 0.15, 0.12, 0.1, 0.08, 0.06, 0.05];
-    return dropoffChart[week - 1] || 0.03;
-  };
+  // REMOVED OLD BOX OFFICE FUNCTIONS - Now using BoxOfficeSystem class
 
   const processWeeklyMarketEffects = (conditions: GameState['marketConditions'], week: number): GameState['marketConditions'] => {
     const newConditions = { ...conditions };
@@ -714,18 +592,21 @@ export const StudioMagnateGame: React.FC<StudioMagnateGameProps> = ({ onPhaseCha
 
   const handleAdvanceWeek = () => {
     setGameState(prev => {
-      const newWeek = prev.currentWeek === 52 ? 1 : prev.currentWeek + 1;
-      const newYear = prev.currentWeek === 52 ? prev.currentYear + 1 : prev.currentYear;
-      const newQuarter = Math.ceil(newWeek / 13);
+      // COMPLETELY REWRITTEN TIME SYSTEM
+      const newTimeState = TimeSystem.advanceWeek({
+        currentWeek: prev.currentWeek,
+        currentYear: prev.currentYear,
+        currentQuarter: prev.currentQuarter
+      });
       
-      // Process weekly effects BEFORE updating time
-      const updatedProjects = processWeeklyProjectEffects(prev.projects, newWeek, newYear);
+      // Process all weekly effects with new time system
+      const updatedProjects = processWeeklyProjectEffects(prev.projects, newTimeState);
       const updatedTalent = processWeeklyTalentEffects(prev.talent, prev.currentWeek);
       const updatedStudio = processWeeklyStudioEffects(prev.studio, updatedProjects, updatedTalent);
-      const updatedMarketConditions = processWeeklyMarketEffects(prev.marketConditions, newWeek);
+      const updatedMarketConditions = processWeeklyMarketEffects(prev.marketConditions, newTimeState.currentWeek);
       
       // Update box office history
-      const boxOfficeWeek = processWeeklyBoxOffice(updatedProjects, newWeek, newYear);
+      const boxOfficeWeek = processWeeklyBoxOffice(updatedProjects, newTimeState.currentWeek, newTimeState.currentYear);
       const updatedHistory = [...prev.boxOfficeHistory];
       if (boxOfficeWeek.releases.length > 0) {
         updatedHistory.push(boxOfficeWeek);
@@ -733,14 +614,14 @@ export const StudioMagnateGame: React.FC<StudioMagnateGameProps> = ({ onPhaseCha
       
       return {
         ...prev,
-        currentWeek: newWeek,
-        currentQuarter: newQuarter,
-        currentYear: newYear,
-        studio: updatedStudio,
+        currentWeek: newTimeState.currentWeek,
+        currentYear: newTimeState.currentYear,
+        currentQuarter: newTimeState.currentQuarter,
         projects: updatedProjects,
         talent: updatedTalent,
+        studio: updatedStudio,
         marketConditions: updatedMarketConditions,
-        boxOfficeHistory: updatedHistory.slice(-52) // Keep last year of data
+        boxOfficeHistory: updatedHistory.slice(-52) // Keep last year
       };
     });
 
@@ -752,18 +633,23 @@ export const StudioMagnateGame: React.FC<StudioMagnateGameProps> = ({ onPhaseCha
   
   const processWeeklyBoxOffice = (projects: Project[], week: number, year: number): BoxOfficeWeek => {
     const releases = projects
-      .filter(p => p.status === 'released' && p.releaseWeek && p.releaseYear)
+      .filter(p => p.status === 'released' && p.metrics.inTheaters)
       .map(project => {
-        const weeksSinceRelease = calculateWeeksSinceRelease(project, week, year);
-        if (weeksSinceRelease > 0 && weeksSinceRelease <= 12) {
-          const weeklyRevenue = calculateBaseRevenue(project) * getWeeklyMultiplier(weeksSinceRelease);
+        const weeksSinceRelease = TimeSystem.calculateWeeksSince(
+          project.releaseWeek!, 
+          project.releaseYear!, 
+          week, 
+          year
+        );
+        
+        if (weeksSinceRelease > 0 && weeksSinceRelease <= 18) {
           return {
             projectId: project.id,
             title: project.title,
             studio: gameState.studio.name,
-            weeklyRevenue,
+            weeklyRevenue: 0, // Will be calculated by BoxOfficeSystem
             totalRevenue: project.metrics.boxOfficeTotal || 0,
-            theaters: Math.floor(Math.random() * 1000) + 500, // Placeholder
+            theaters: project.metrics.theaterCount || 0,
             weekInRelease: weeksSinceRelease
           };
         }
@@ -775,7 +661,7 @@ export const StudioMagnateGame: React.FC<StudioMagnateGameProps> = ({ onPhaseCha
       week,
       year,
       releases,
-      totalRevenue: releases.reduce((sum, release) => sum + release.weeklyRevenue, 0)
+      totalRevenue: releases.reduce((sum, release) => sum + release.totalRevenue, 0)
     };
   };
 
