@@ -122,9 +122,9 @@ export const MarketingActivities: React.FC<MarketingActivitiesProps> = ({
   studioBudget
 }) => {
   const { toast } = useToast();
-  const [activeActivities, setActiveActivities] = useState<MarketingActivity[]>(
-    project.marketingCampaign?.activities || []
-  );
+  
+  // FIXED: Always use current project data, don't store stale state
+  const activeActivities = project.marketingCampaign?.activities || [];
 
   const calculateTotalBuzz = () => {
     return project.marketingCampaign?.buzz || 0;
@@ -207,7 +207,7 @@ export const MarketingActivities: React.FC<MarketingActivitiesProps> = ({
       marketingCampaign: updatedCampaign
     };
 
-    setActiveActivities([...activeActivities, newActivity]);
+    // REMOVED: No longer managing local state
     
     // CALL THE UPDATE FUNCTION WITH BUDGET DEDUCTION
     onProjectUpdate(updatedProject, cost);
