@@ -147,7 +147,8 @@ export class BoxOfficeSystem {
 
     console.log(`  💰 Week ${weeksSinceRelease} Report:`);
     console.log(`     Weekly: $${weeklyRevenue.toLocaleString()}`);
-    console.log(`     Total: $${newTotal.toLocaleString()}`);
+    console.log(`     Previous Total: $${(project.metrics.boxOfficeTotal || 0).toLocaleString()}`);
+    console.log(`     New Total: $${newTotal.toLocaleString()}`);
     console.log(`     Theaters: ${theaterCount}`);
     console.log(`     Status: ${status}`);
     console.log(`     Chart: #${report.chartPosition}`);
