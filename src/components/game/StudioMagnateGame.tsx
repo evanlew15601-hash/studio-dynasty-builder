@@ -227,32 +227,46 @@ export const StudioMagnateGame: React.FC<StudioMagnateGameProps> = ({ onPhaseCha
   };
 
   const processWeeklyProjectEffects = (projects: Project[], currentWeek: number): Project[] => {
-    return projects.map(project => {
+    console.log('=== WEEKLY PROJECT PROCESSING START ===');
+    console.log('Projects to process:', projects.length);
+    
+    return projects.map((project, index) => {
+      console.log(`[${index}] Processing: ${project.title}`);
+      console.log(`  Phase: ${project.currentPhase}, Duration: ${project.phaseDuration}, Status: ${project.status}`);
+      
+      let updatedProject = { ...project };
+
       // Handle development progress for development phase
       if (project.currentPhase === 'development') {
-        const updatedProject = processDevelopmentProgress(project, currentWeek);
-        return updatedProject;
+        console.log(`  -> Processing development for ${project.title}`);
+        updatedProject = processDevelopmentProgress(project, currentWeek);
+        console.log(`  -> Development result: phase=${updatedProject.currentPhase}, duration=${updatedProject.phaseDuration}`);
       }
       
       // Handle box office for released projects
       if (project.status === 'released' && project.releaseWeek && project.releaseYear) {
         const weeksSinceRelease = calculateWeeksSinceRelease(project, currentWeek, gameState.currentYear);
-        if (weeksSinceRelease <= 16) { // Extended tracking for dynamic exit
-          return processBoxOfficeRevenue(project, weeksSinceRelease);
+        console.log(`  -> Box office processing: ${project.title}, weeks since release: ${weeksSinceRelease}`);
+        if (weeksSinceRelease <= 16) {
+          updatedProject = processBoxOfficeRevenue(updatedProject, weeksSinceRelease);
         }
       }
 
-      // SIMPLE TIMER SYSTEM - Always tick down if project has duration
-      if (project.phaseDuration !== undefined) {
-        const newPhaseDuration = Math.max(0, project.phaseDuration - 1);
+      // CRITICAL: Always process phase timers for ALL projects
+      if (updatedProject.phaseDuration !== undefined && updatedProject.phaseDuration > 0) {
+        console.log(`  -> Timer tick: ${updatedProject.title} ${updatedProject.phaseDuration} -> ${updatedProject.phaseDuration - 1}`);
+        
+        const newPhaseDuration = updatedProject.phaseDuration - 1;
         
         // Advance when timer hits exactly 0
         if (newPhaseDuration === 0) {
-          const nextPhase = getNextPhase(project.currentPhase);
+          const nextPhase = getNextPhase(updatedProject.currentPhase);
           const nextDuration = getPhaseWeeks(nextPhase);
           
-          const updatedProject = {
-            ...project,
+          console.log(`  -> PHASE ADVANCE: ${updatedProject.title} from ${updatedProject.currentPhase} to ${nextPhase}`);
+          
+          updatedProject = {
+            ...updatedProject,
             currentPhase: nextPhase,
             phaseDuration: nextDuration,
             status: nextPhase === 'distribution' ? 'released' : nextPhase as any,
@@ -264,20 +278,19 @@ export const StudioMagnateGame: React.FC<StudioMagnateGameProps> = ({ onPhaseCha
           
           toast({
             title: "Phase Complete!",
-            description: `${project.title} advanced to ${nextPhase.replace('-', ' ')}`,
+            description: `${updatedProject.title} advanced to ${nextPhase.replace('-', ' ')}`,
           });
-          
-          return updatedProject;
+        } else {
+          // Just update the timer countdown
+          updatedProject = {
+            ...updatedProject,
+            phaseDuration: newPhaseDuration
+          };
         }
-        
-        // Just update the timer countdown
-        return {
-          ...project,
-          phaseDuration: newPhaseDuration
-        };
       }
 
-      return project;
+      console.log(`  -> Final result: ${updatedProject.title} - Phase: ${updatedProject.currentPhase}, Duration: ${updatedProject.phaseDuration}`);
+      return updatedProject;
     });
   };
   
