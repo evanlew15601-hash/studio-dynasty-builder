@@ -311,14 +311,30 @@ export const StudioMagnateGame: React.FC<StudioMagnateGameProps> = ({ onPhaseCha
       return;
     }
 
-    // Calculate release week/year from selected date
-    // Ensure release is at least in the current week or future
-    const gameStart = new Date(2024, 0, 1);
-    const daysSinceGameStart = Math.floor((strategy.premiereDate.getTime() - gameStart.getTime()) / (1000 * 60 * 60 * 24));
-    const weeksSinceGameStart = Math.floor(daysSinceGameStart / 7) + 1;
+    // Calculate release week/year from selected date using game time
+    console.log(`🕐 Converting date ${strategy.premiereDate.toDateString()} to game time`);
+    console.log(`🕐 Current game time: Y${gameState.currentYear}W${gameState.currentWeek}`);
     
-    let releaseYear = 2024 + Math.floor((weeksSinceGameStart - 1) / 52);
-    let releaseWeek = ((weeksSinceGameStart - 1) % 52) + 1;
+    // Simple approach: Convert calendar date to weeks from today
+    const today = new Date();
+    const daysDifference = Math.floor((strategy.premiereDate.getTime() - today.getTime()) / (1000 * 60 * 60 * 24));
+    const weeksDifference = Math.floor(daysDifference / 7);
+    
+    console.log(`🕐 Days difference: ${daysDifference}, Weeks difference: ${weeksDifference}`);
+    
+    // Calculate target week/year from current game state
+    let releaseYear = gameState.currentYear;
+    let releaseWeek = gameState.currentWeek + weeksDifference;
+    
+    // Handle year rollover
+    while (releaseWeek > 52) {
+      releaseWeek -= 52;
+      releaseYear += 1;
+    }
+    while (releaseWeek <= 0) {
+      releaseWeek += 52;
+      releaseYear -= 1;
+    }
     
     // Ensure release date is not in the past
     const currentAbsoluteWeek = (gameState.currentYear * 52) + gameState.currentWeek;
