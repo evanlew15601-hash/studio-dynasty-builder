@@ -7,6 +7,7 @@ import { DistributionDashboard } from './DistributionDashboard';
 import { MarketingReleaseManagement } from './MarketingReleaseManagement';
 import { PostTheatricalManagement } from './PostTheatricalManagement';
 import { StudioDashboard } from './StudioDashboard';
+import { StudioStats } from './StudioStats';
 import { Button } from '@/components/ui/button';
 import { Card } from '@/components/ui/card';
 import { useToast } from '@/hooks/use-toast';
@@ -19,7 +20,8 @@ import {
   MarketingIcon,
   BudgetIcon,
   ReputationIcon,
-  ClapperboardIcon
+  ClapperboardIcon,
+  BarChartIcon
 } from '@/components/ui/icons';
 
 interface StudioMagnateGameProps {
@@ -116,7 +118,7 @@ export const StudioMagnateGame: React.FC<StudioMagnateGameProps> = ({ onPhaseCha
     boxOfficeHistory: []
   }));
 
-  const [currentPhase, setCurrentPhase] = useState<'dashboard' | 'scripts' | 'casting' | 'production' | 'marketing' | 'distribution'>('dashboard');
+  const [currentPhase, setCurrentPhase] = useState<'dashboard' | 'scripts' | 'casting' | 'production' | 'marketing' | 'distribution' | 'stats'>('dashboard');
   const [selectedProject, setSelectedProject] = useState<Project | null>(null);
 
   const handlePhaseChange = (phase: typeof currentPhase) => {
@@ -559,6 +561,9 @@ export const StudioMagnateGame: React.FC<StudioMagnateGameProps> = ({ onPhaseCha
   };
   
   const processBoxOfficeRevenue = (project: Project, weeksSinceRelease: number): Project => {
+    // Only process if still in theaters
+    if (project.metrics.inTheaters === false) return project;
+    
     const baseRevenue = calculateBaseRevenue(project);
     const weeklyMultiplier = getWeeklyMultiplier(weeksSinceRelease);
     const weeklyRevenue = baseRevenue * weeklyMultiplier;
@@ -568,36 +573,36 @@ export const StudioMagnateGame: React.FC<StudioMagnateGameProps> = ({ onPhaseCha
     
     // Determine if film should leave theaters based on performance
     const performance = (project.metrics.criticsScore || 50) + (project.metrics.audienceScore || 50);
-    const buzzBonus = (project.marketingCampaign?.buzz || 0) * 0.5; // Marketing buzz affects longevity
+    const buzzBonus = (project.marketingCampaign?.buzz || 0) * 0.5;
     const adjustedPerformance = performance + buzzBonus;
     
     let shouldLeaveTheaters = false;
-    let theaterStatus = 'wide'; // wide, limited, ending
+    let theaterStatus = 'wide';
     
-    // Performance-based exit logic
-    if (adjustedPerformance < 120 && weeksSinceRelease >= 3) { // Poor performance (flops)
-      shouldLeaveTheaters = Math.random() < (weeksSinceRelease * 0.15); // 15% chance per week after week 3
-      theaterStatus = 'ending';
-    } else if (adjustedPerformance < 140 && weeksSinceRelease >= 6) { // Average performance  
-      shouldLeaveTheaters = Math.random() < (weeksSinceRelease * 0.1); // 10% chance per week after week 6
-      theaterStatus = weeksSinceRelease >= 8 ? 'ending' : 'limited';
-    } else if (adjustedPerformance < 160 && weeksSinceRelease >= 10) { // Good performance
-      shouldLeaveTheaters = Math.random() < (weeksSinceRelease * 0.08); // 8% chance per week after week 10
-      theaterStatus = weeksSinceRelease >= 12 ? 'ending' : 'limited';
-    } else if (weeksSinceRelease >= 14) { // Great performance but time limit
-      shouldLeaveTheaters = Math.random() < (weeksSinceRelease * 0.12); // 12% chance per week after week 14
-      theaterStatus = 'ending';
-    } else if (weeksSinceRelease >= 18) { // Force exit after 18 weeks maximum
+    // FIXED: More deterministic exit logic based on weeks and performance
+    if (weeksSinceRelease >= 18) { // Force exit after 18 weeks maximum
       shouldLeaveTheaters = true;
       theaterStatus = 'ended';
+    } else if (adjustedPerformance < 100 && weeksSinceRelease >= 3) { // Very poor performance
+      shouldLeaveTheaters = weeksSinceRelease >= 5; // Exit after 5 weeks for flops
+      theaterStatus = 'ending';
+    } else if (adjustedPerformance < 130 && weeksSinceRelease >= 6) { // Poor performance  
+      shouldLeaveTheaters = weeksSinceRelease >= 8; // Exit after 8 weeks
+      theaterStatus = weeksSinceRelease >= 7 ? 'ending' : 'limited';
+    } else if (adjustedPerformance < 160 && weeksSinceRelease >= 10) { // Average performance
+      shouldLeaveTheaters = weeksSinceRelease >= 12; // Exit after 12 weeks
+      theaterStatus = weeksSinceRelease >= 11 ? 'ending' : 'limited';
+    } else if (weeksSinceRelease >= 15) { // Good performance but time limit
+      shouldLeaveTheaters = weeksSinceRelease >= 16; // Exit after 16 weeks
+      theaterStatus = 'ending';
     }
     
     // Update theater count based on status
     let theaterCount = project.releaseStrategy?.theatersCount || 3000;
     if (theaterStatus === 'limited') {
-      theaterCount = Math.floor(theaterCount * 0.3); // Drop to 30% of theaters
+      theaterCount = Math.floor(theaterCount * 0.3);
     } else if (theaterStatus === 'ending') {
-      theaterCount = Math.floor(theaterCount * 0.1); // Drop to 10% of theaters
+      theaterCount = Math.floor(theaterCount * 0.1);
     } else if (theaterStatus === 'ended') {
       theaterCount = 0;
     }
@@ -822,6 +827,7 @@ export const StudioMagnateGame: React.FC<StudioMagnateGameProps> = ({ onPhaseCha
               { id: 'production', label: 'Production', IconComponent: ProductionIcon },
               { id: 'marketing', label: 'Marketing & Release', IconComponent: MarketingIcon },
               { id: 'distribution', label: 'Post-Theatrical', IconComponent: DistributionIcon },
+              { id: 'stats', label: 'Statistics', IconComponent: BarChartIcon },
             ].map((tab) => (
               <Button
                 key={tab.id}
@@ -906,11 +912,75 @@ export const StudioMagnateGame: React.FC<StudioMagnateGameProps> = ({ onPhaseCha
         {currentPhase === 'marketing' && (
           <MarketingReleaseManagement 
             gameState={gameState}
-            onProjectUpdate={(project) => {
+            onProjectUpdate={(project, marketingCost) => {
               setGameState(prev => ({
                 ...prev,
-                projects: prev.projects.map(p => p.id === project.id ? project : p)
+                projects: prev.projects.map(p => p.id === project.id ? project : p),
+                // FIXED: Deduct marketing costs from studio budget
+                studio: marketingCost ? {
+                  ...prev.studio,
+                  budget: prev.studio.budget - marketingCost
+                } : prev.studio
               }));
+            }}
+            onMarketingCampaignCreate={(project, strategy, budget, duration) => {
+              // Check if campaign already exists
+              if (project.marketingCampaign && project.marketingCampaign.weeksRemaining > 0) {
+                toast({
+                  title: "Campaign Already Active",
+                  description: "Complete the current campaign before starting a new one",
+                  variant: "destructive"
+                });
+                return;
+              }
+
+              // Validate budget
+              if (budget > gameState.studio.budget) {
+                toast({
+                  title: "Insufficient Budget",
+                  description: "Not enough studio budget for this campaign",
+                  variant: "destructive"
+                });
+                return;
+              }
+
+              // Deduct budget from studio
+              const updatedStudio = {
+                ...gameState.studio,
+                budget: gameState.studio.budget - budget
+              };
+
+              // Create marketing campaign
+              const newCampaign = {
+                id: `campaign-${Date.now()}`,
+                strategy,
+                budgetAllocated: budget,
+                budgetSpent: 0,
+                duration,
+                weeksRemaining: duration,
+                activities: [],
+                buzz: 20, // Base buzz from launching campaign
+                targetAudience: strategy.targeting.demographic,
+                effectiveness: 60 // Base effectiveness
+              };
+
+              const updatedProject = {
+                ...project,
+                marketingCampaign: newCampaign
+              };
+
+              setGameState(prev => ({
+                ...prev,
+                studio: updatedStudio,
+                projects: prev.projects.map(p => 
+                  p.id === project.id ? updatedProject : p
+                )
+              }));
+
+              toast({
+                title: "Marketing Campaign Launched!",
+                description: `${strategy.type} campaign started with $${(budget / 1000000).toFixed(1)}M budget`,
+              });
             }}
           />
         )}
@@ -925,6 +995,9 @@ export const StudioMagnateGame: React.FC<StudioMagnateGameProps> = ({ onPhaseCha
               }));
             }}
           />
+        )}
+        {currentPhase === 'stats' && (
+          <StudioStats gameState={gameState} />
         )}
       </div>
     </div>

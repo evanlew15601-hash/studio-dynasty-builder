@@ -1,5 +1,5 @@
 import React, { useState } from 'react';
-import { GameState, Project } from '@/types/game';
+import { GameState, Project, MarketingStrategy } from '@/types/game';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Progress } from '@/components/ui/progress';
@@ -19,12 +19,14 @@ import {
 
 interface MarketingReleaseManagementProps {
   gameState: GameState;
-  onProjectUpdate: (project: Project) => void;
+  onProjectUpdate: (project: Project, marketingCost?: number) => void;
+  onMarketingCampaignCreate?: (project: Project, strategy: MarketingStrategy, budget: number, duration: number) => void;
 }
 
 export const MarketingReleaseManagement: React.FC<MarketingReleaseManagementProps> = ({
   gameState,
   onProjectUpdate,
+  onMarketingCampaignCreate
 }) => {
   const { toast } = useToast();
   const [selectedProject, setSelectedProject] = useState<Project | null>(null);
@@ -308,23 +310,28 @@ export const MarketingReleaseManagement: React.FC<MarketingReleaseManagementProp
             setSelectedProject(null);
           }}
           onCreateCampaign={(strategy, budget, duration) => {
-            // Handle campaign creation with proper interface
-            const updatedProject = {
-              ...selectedProject,
-              marketingCampaign: {
-                id: `campaign-${Date.now()}`,
-                strategy,
-                budgetAllocated: budget,
-                budgetSpent: 0,
-                duration,
-                weeksRemaining: duration,
-                buzz: 0,
-                activities: [],
-                targetAudience: ['general'],
-                effectiveness: 50
-              }
-            };
-            onProjectUpdate(updatedProject);
+            // Use the provided callback if available
+            if (onMarketingCampaignCreate) {
+              onMarketingCampaignCreate(selectedProject, strategy, budget, duration);
+            } else {
+              // Fallback handling
+              const updatedProject = {
+                ...selectedProject,
+                marketingCampaign: {
+                  id: `campaign-${Date.now()}`,
+                  strategy,
+                  budgetAllocated: budget,
+                  budgetSpent: 0,
+                  duration,
+                  weeksRemaining: duration,
+                  buzz: 0,
+                  activities: [],
+                  targetAudience: ['general'],
+                  effectiveness: 50
+                }
+              };
+              onProjectUpdate(updatedProject);
+            }
             setShowMarketingModal(false);
             setSelectedProject(null);
           }}

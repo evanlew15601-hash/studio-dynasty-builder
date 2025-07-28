@@ -19,7 +19,7 @@ import {
 
 interface MarketingActivitiesProps {
   project: Project;
-  onProjectUpdate: (project: Project) => void;
+  onProjectUpdate: (project: Project, marketingCost?: number) => void;
   studioBudget: number;
 }
 
@@ -181,7 +181,7 @@ export const MarketingActivities: React.FC<MarketingActivitiesProps> = ({
       return;
     }
 
-    // Create new activity
+    // FIXED: Properly deduct cost from studio budget via callback
     const newActivity: MarketingActivity = {
       id: `activity-${Date.now()}`,
       type: activity.type as any,
@@ -208,7 +208,9 @@ export const MarketingActivities: React.FC<MarketingActivitiesProps> = ({
     };
 
     setActiveActivities([...activeActivities, newActivity]);
-    onProjectUpdate(updatedProject);
+    
+    // CALL THE UPDATE FUNCTION WITH BUDGET DEDUCTION
+    onProjectUpdate(updatedProject, cost);
 
     toast({
       title: "Marketing Activity Launched!",

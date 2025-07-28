@@ -115,6 +115,15 @@ export const MarketingCampaignModal: React.FC<MarketingCampaignModalProps> = ({
   ];
 
   const handleCreateCampaign = () => {
+    // Validate inputs
+    if (budget <= 0 || budget > studioBudget) {
+      return; // Don't create if invalid
+    }
+    
+    if (duration < 4 || duration > 16) {
+      return; // Don't create if invalid
+    }
+
     const strategy: MarketingStrategy = {
       type: selectedStrategy as any,
       channels: [],
@@ -226,7 +235,7 @@ export const MarketingCampaignModal: React.FC<MarketingCampaignModalProps> = ({
                   </Button>
                   <Button 
                     onClick={handleCreateCampaign}
-                    disabled={budget > studioBudget}
+                    disabled={budget > studioBudget || budget <= 0 || duration < 4 || duration > 16}
                   >
                     <PlayIcon className="w-4 h-4 mr-2" />
                     Launch Campaign
