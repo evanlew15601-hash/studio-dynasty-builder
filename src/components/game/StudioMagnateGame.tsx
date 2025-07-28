@@ -229,7 +229,8 @@ export const StudioMagnateGame: React.FC<StudioMagnateGameProps> = ({ onPhaseCha
     }));
   };
 
-  const processWeeklyProjectEffects = (projects: Project[], currentWeek: number): Project[] => {
+  const processWeeklyProjectEffects = (projects: Project[], currentWeek: number, currentYear: number): Project[] => {
+    console.log(`=== WEEKLY PROJECT PROCESSING START === Week: ${currentWeek}, Year: ${currentYear}`);
     return projects.map(project => {
       let updatedProject = { ...project };
 
@@ -239,13 +240,17 @@ export const StudioMagnateGame: React.FC<StudioMagnateGameProps> = ({ onPhaseCha
       }
       
       // Handle box office for released projects - ONLY while in theaters
-      if (project.status === 'released' && project.releaseWeek && project.releaseYear && project.metrics.inTheaters !== false) {
-        const weeksSinceRelease = calculateWeeksSinceRelease(project, currentWeek, gameState.currentYear);
-        if (weeksSinceRelease <= 18) { // Maximum 18 weeks in theaters
+      if (project.status === 'released' && project.releaseWeek && project.releaseYear) {
+        const weeksSinceRelease = calculateWeeksSinceRelease(project, currentWeek, currentYear);
+        console.log(`BOX OFFICE CHECK: ${project.title} - Weeks: ${weeksSinceRelease}, InTheaters: ${project.metrics.inTheaters}`);
+        
+        // FIXED: Only process if still in theaters AND within reasonable time
+        if (project.metrics.inTheaters !== false && weeksSinceRelease >= 0 && weeksSinceRelease <= 18) {
           updatedProject = processBoxOfficeRevenue(updatedProject, weeksSinceRelease);
           
           // If film left theaters, stop box office processing
           if (updatedProject.metrics.inTheaters === false) {
+            console.log(`FILM LEFT THEATERS: ${updatedProject.title} after ${weeksSinceRelease} weeks`);
             toast({
               title: "Theatrical Run Ended",
               description: `${updatedProject.title} has left theaters after ${weeksSinceRelease} weeks. Final box office: $${((updatedProject.metrics.boxOfficeTotal || 0) / 1000000).toFixed(1)}M`,
@@ -558,10 +563,18 @@ export const StudioMagnateGame: React.FC<StudioMagnateGameProps> = ({ onPhaseCha
   const calculateWeeksSinceRelease = (project: Project, currentWeek: number, currentYear: number): number => {
     if (!project.releaseWeek || !project.releaseYear) return 0;
     
+    // FIXED: Proper week calculation
     if (project.releaseYear === currentYear) {
-      return currentWeek - project.releaseWeek;
+      const weeksDiff = currentWeek - project.releaseWeek;
+      console.log(`WEEKS CALC: ${project.title} - Current: ${currentWeek}, Release: ${project.releaseWeek}, Diff: ${weeksDiff}`);
+      return Math.max(0, weeksDiff); // Ensure non-negative
     } else if (project.releaseYear < currentYear) {
-      return (52 - project.releaseWeek) + currentWeek + ((currentYear - project.releaseYear - 1) * 52);
+      const weeksLastYear = Math.max(0, 52 - project.releaseWeek);
+      const yearsInBetween = Math.max(0, currentYear - project.releaseYear - 1) * 52;
+      const weeksThisYear = currentWeek;
+      const total = weeksLastYear + yearsInBetween + weeksThisYear;
+      console.log(`MULTI-YEAR WEEKS: ${project.title} - Total: ${total}`);
+      return total;
     }
     return 0;
   };
@@ -705,8 +718,8 @@ export const StudioMagnateGame: React.FC<StudioMagnateGameProps> = ({ onPhaseCha
       const newYear = prev.currentWeek === 52 ? prev.currentYear + 1 : prev.currentYear;
       const newQuarter = Math.ceil(newWeek / 13);
       
-      // Process weekly effects
-      const updatedProjects = processWeeklyProjectEffects(prev.projects, prev.currentWeek);
+      // Process weekly effects BEFORE updating time
+      const updatedProjects = processWeeklyProjectEffects(prev.projects, newWeek, newYear);
       const updatedTalent = processWeeklyTalentEffects(prev.talent, prev.currentWeek);
       const updatedStudio = processWeeklyStudioEffects(prev.studio, updatedProjects, updatedTalent);
       const updatedMarketConditions = processWeeklyMarketEffects(prev.marketConditions, newWeek);
