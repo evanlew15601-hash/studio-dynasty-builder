@@ -325,10 +325,10 @@ export const StudioMagnateGame: React.FC<StudioMagnateGameProps> = ({ onPhaseCha
 
           // FIXED: Use new box office system for releases
           if (nextPhase === 'distribution') {
-            console.log(`  → Initializing release for ${updatedProject.title} at Week ${timeState.currentWeek + 2}, Year ${timeState.currentYear}`);
+            console.log(`  → Initializing release for ${updatedProject.title} at Week ${timeState.currentWeek}, Year ${timeState.currentYear}`);
             updatedProject = BoxOfficeSystem.initializeRelease(
               updatedProject,
-              timeState.currentWeek + 2,
+              timeState.currentWeek,
               timeState.currentYear
             );
             console.log(`    Release initialized - inTheaters: ${updatedProject.metrics?.inTheaters}`);
