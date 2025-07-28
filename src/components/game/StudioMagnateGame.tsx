@@ -8,8 +8,10 @@ import { MarketingReleaseManagement } from './MarketingReleaseManagement';
 import { PostTheatricalManagement } from './PostTheatricalManagement';
 import { StudioDashboard } from './StudioDashboard';
 import { StudioStats } from './StudioStats';
+import { FinancialReporting } from './FinancialReporting';
 import { TimeSystem, TimeState } from './TimeSystem';
 import { BoxOfficeSystem } from './BoxOfficeSystem';
+import { updateProjectFinancials } from './FinancialCalculations';
 import { Button } from '@/components/ui/button';
 import { Card } from '@/components/ui/card';
 import { useToast } from '@/hooks/use-toast';
@@ -123,7 +125,7 @@ export const StudioMagnateGame: React.FC<StudioMagnateGameProps> = ({ onPhaseCha
     boxOfficeHistory: []
   }));
 
-  const [currentPhase, setCurrentPhase] = useState<'dashboard' | 'scripts' | 'casting' | 'production' | 'marketing' | 'distribution' | 'stats'>('dashboard');
+  const [currentPhase, setCurrentPhase] = useState<'dashboard' | 'scripts' | 'casting' | 'production' | 'marketing' | 'distribution' | 'financials' | 'stats'>('dashboard');
   const [selectedProject, setSelectedProject] = useState<Project | null>(null);
 
   const handlePhaseChange = (phase: typeof currentPhase) => {
@@ -985,6 +987,7 @@ export const StudioMagnateGame: React.FC<StudioMagnateGameProps> = ({ onPhaseCha
               { id: 'production', label: 'Production', IconComponent: ProductionIcon },
               { id: 'marketing', label: 'Marketing & Release', IconComponent: MarketingIcon },
               { id: 'distribution', label: 'Post-Theatrical', IconComponent: DistributionIcon },
+              { id: 'financials', label: 'Financial Reports', IconComponent: BudgetIcon },
               { id: 'stats', label: 'Statistics', IconComponent: BarChartIcon },
             ].map((tab) => (
               <Button
@@ -1069,6 +1072,10 @@ export const StudioMagnateGame: React.FC<StudioMagnateGameProps> = ({ onPhaseCha
             gameState={gameState}
             onProjectUpdate={handleProjectUpdate}
           />
+        )}
+        
+        {currentPhase === 'financials' && (
+          <FinancialReporting gameState={gameState} />
         )}
         
         {currentPhase === 'stats' && (

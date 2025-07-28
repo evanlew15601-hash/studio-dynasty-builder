@@ -230,6 +230,53 @@ export interface ProjectMetrics {
   streaming?: StreamingMetrics;
   critical?: CriticalMetrics;
   culturalImpact?: number;
+  // Enhanced financial tracking
+  financials?: ProjectFinancials;
+}
+
+export interface ProjectFinancials {
+  totalCosts: number;
+  totalRevenue: number;
+  netProfit: number;
+  profitMargin: number; // percentage
+  roi: number; // return on investment percentage
+  costBreakdown: CostBreakdown;
+  revenueBreakdown: RevenueBreakdown;
+  weeklyProfitHistory: WeeklyProfitData[];
+  paybackWeek?: number; // week when project became profitable
+  currentStatus: 'loss' | 'breakeven' | 'profit';
+}
+
+export interface CostBreakdown {
+  development: number;
+  preProduction: number;
+  production: number;
+  postProduction: number;
+  marketing: number;
+  distribution: number;
+  talent: number;
+  overhead: number;
+  contingency: number;
+  total: number;
+}
+
+export interface RevenueBreakdown {
+  boxOffice: number;
+  international: number;
+  streaming: number;
+  licensing: number;
+  merchandise: number;
+  awards: number;
+  total: number;
+}
+
+export interface WeeklyProfitData {
+  week: number;
+  year: number;
+  weeklyRevenue: number;
+  weeklyCosts: number;
+  weeklyProfit: number;
+  cumulativeProfit: number;
 }
 
 export interface BoxOfficeMetrics {
