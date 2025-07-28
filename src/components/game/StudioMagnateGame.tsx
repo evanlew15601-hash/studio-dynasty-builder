@@ -266,6 +266,7 @@ export const StudioMagnateGame: React.FC<StudioMagnateGameProps> = ({ onPhaseCha
 
     const updatedProject = {
       ...project,
+      currentPhase: 'marketing' as any,
       marketingCampaign: {
         id: `campaign-${Date.now()}`,
         strategy,
@@ -279,8 +280,7 @@ export const StudioMagnateGame: React.FC<StudioMagnateGameProps> = ({ onPhaseCha
         effectiveness: 60
       },
       phaseDuration: duration,
-      status: 'marketing' as any,
-      readyForMarketing: false
+      status: 'marketing' as any
     };
 
     setGameState(prev => ({

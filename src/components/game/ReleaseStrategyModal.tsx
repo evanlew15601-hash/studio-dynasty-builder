@@ -297,20 +297,15 @@ export const ReleaseStrategyModal: React.FC<ReleaseStrategyModalProps> = ({
                             return true; // All dates disabled until marketing starts
                           }
                           
-                          // Calculate when marketing will end
-                          const marketingEndWeek = currentWeek + (project.marketingCampaign.weeksRemaining || 0);
-                          const marketingEndYear = marketingEndWeek > 52 ? currentYear + 1 : currentYear;
-                          const adjustedEndWeek = marketingEndWeek > 52 ? marketingEndWeek - 52 : marketingEndWeek;
+                          // Only disable past dates
+                          const today = new Date();
+                          today.setHours(0, 0, 0, 0);
                           
-                          // Convert to actual date (simplified conversion)
-                          const marketingEndDate = new Date(2024, 0, 1);
-                          marketingEndDate.setDate(marketingEndDate.getDate() + ((marketingEndYear - 2024) * 365) + ((adjustedEndWeek - 1) * 7));
+                          // Must be at least 4 weeks from now 
+                          const minDate = new Date(today);
+                          minDate.setDate(minDate.getDate() + 28);
                           
-                          // Minimum release date is 4 weeks after marketing ends
-                          const minReleaseDate = new Date(marketingEndDate);
-                          minReleaseDate.setDate(minReleaseDate.getDate() + 28); // 4 weeks = 28 days
-                          
-                          return date < minReleaseDate;
+                          return date < minDate;
                         }}
                         initialFocus
                       />
