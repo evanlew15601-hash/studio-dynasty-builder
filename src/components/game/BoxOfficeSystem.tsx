@@ -166,19 +166,19 @@ export class BoxOfficeSystem {
       return true;
     }
 
-    // POOR PERFORMANCE: Exit after 6 weeks
-    if (weeksSinceRelease >= 6) {
+    // POOR PERFORMANCE: Exit after 8 weeks for truly bad films
+    if (weeksSinceRelease >= 8) {
       const avgScore = ((project.metrics?.criticsScore || 50) + (project.metrics?.audienceScore || 50)) / 2;
-      if (avgScore < 60) {
+      if (avgScore < 40) {
         console.log(`    🚫 POOR PERFORMANCE EXIT (${avgScore.toFixed(1)} avg score)`);
         return true;
       }
     }
 
-    // MEDIOCRE PERFORMANCE: Exit after 12 weeks
-    if (weeksSinceRelease >= 12) {
+    // MEDIOCRE PERFORMANCE: Exit after 14 weeks
+    if (weeksSinceRelease >= 14) {
       const avgScore = ((project.metrics?.criticsScore || 50) + (project.metrics?.audienceScore || 50)) / 2;
-      if (avgScore < 75) {
+      if (avgScore < 60) {
         console.log(`    🚫 MEDIOCRE PERFORMANCE EXIT (${avgScore.toFixed(1)} avg score)`);
         return true;
       }
