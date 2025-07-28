@@ -7,6 +7,7 @@ import { Badge } from '@/components/ui/badge';
 import { useToast } from '@/hooks/use-toast';
 import { MarketingCampaignModal } from './MarketingCampaignModal';
 import { ReleaseStrategyModal } from './ReleaseStrategyModal';
+import { MarketingActivities } from './MarketingActivities';
 import { 
   MarketingIcon, 
   TrendingIcon,
@@ -111,22 +112,30 @@ export const MarketingReleaseManagement: React.FC<MarketingReleaseManagementProp
                       </div>
                     </div>
                     
-                    <div className="space-y-3">
-                      <div className="flex justify-between text-sm">
-                        <span>Campaign Progress</span>
-                        <span>Need to launch campaign</span>
+                    {project.marketingCampaign ? (
+                      <MarketingActivities 
+                        project={project}
+                        onProjectUpdate={onProjectUpdate}
+                        studioBudget={gameState.studio.budget}
+                      />
+                    ) : (
+                      <div className="space-y-3">
+                        <div className="flex justify-between text-sm">
+                          <span>Campaign Progress</span>
+                          <span>Need to launch campaign</span>
+                        </div>
+                        
+                        <div className="flex gap-2">
+                          <Button 
+                            onClick={() => handleMarketingCampaign(project)}
+                            className="flex-1"
+                          >
+                            <TrendingIcon className="w-4 h-4 mr-2" />
+                            Launch Campaign
+                          </Button>
+                        </div>
                       </div>
-                      
-                      <div className="flex gap-2">
-                        <Button 
-                          onClick={() => handleMarketingCampaign(project)}
-                          className="flex-1"
-                        >
-                          <TrendingIcon className="w-4 h-4 mr-2" />
-                          Launch Campaign
-                        </Button>
-                      </div>
-                    </div>
+                    )}
                   </CardContent>
                 </Card>
               ))}

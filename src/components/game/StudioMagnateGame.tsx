@@ -243,6 +243,24 @@ export const StudioMagnateGame: React.FC<StudioMagnateGameProps> = ({ onPhaseCha
         }
       }
 
+      // Process marketing campaign activities
+      if (updatedProject.marketingCampaign) {
+        const updatedActivities = updatedProject.marketingCampaign.activities.map(activity => ({
+          ...activity,
+          weeksRemaining: Math.max(0, activity.weeksRemaining - 1),
+          status: activity.weeksRemaining <= 1 ? 'completed' as const : activity.status
+        }));
+
+        updatedProject = {
+          ...updatedProject,
+          marketingCampaign: {
+            ...updatedProject.marketingCampaign,
+            activities: updatedActivities,
+            weeksRemaining: Math.max(0, updatedProject.marketingCampaign.weeksRemaining - 1)
+          }
+        };
+      }
+
       // ROBUST TIMER SYSTEM - Always process phase timers for ALL projects
       if (updatedProject.phaseDuration !== undefined && updatedProject.phaseDuration > 0) {
         const newPhaseDuration = updatedProject.phaseDuration - 1;
@@ -409,7 +427,18 @@ export const StudioMagnateGame: React.FC<StudioMagnateGameProps> = ({ onPhaseCha
     // Don't auto-advance based on progress - only time-based advancement
     return {
       ...project,
-      developmentProgress: newProgress
+      developmentProgress: newProgress,
+      // Process marketing activities if they exist
+      ...(project.marketingCampaign ? {
+        marketingCampaign: {
+          ...project.marketingCampaign,
+          activities: project.marketingCampaign.activities.map(activity => ({
+            ...activity,
+            weeksRemaining: Math.max(0, activity.weeksRemaining - 1),
+            status: activity.weeksRemaining <= 1 ? 'completed' as const : activity.status
+          }))
+        }
+      } : {})
     };
   };
   

@@ -25,7 +25,6 @@ interface MarketingCampaignModalProps {
   open: boolean;
   onClose: () => void;
   onCreateCampaign?: (strategy: MarketingStrategy, budget: number, duration: number) => void;
-  onAddActivity?: (campaignId: string, activity: Omit<MarketingActivity, 'id' | 'status'>) => void;
   studioBudget: number;
 }
 
@@ -34,7 +33,6 @@ export const MarketingCampaignModal: React.FC<MarketingCampaignModalProps> = ({
   open,
   onClose,
   onCreateCampaign,
-  onAddActivity,
   studioBudget
 }) => {
   const [selectedStrategy, setSelectedStrategy] = useState<string>('traditional');
@@ -306,16 +304,9 @@ export const MarketingCampaignModal: React.FC<MarketingCampaignModalProps> = ({
                               <Button 
                                 size="sm" 
                                 className="w-full"
-                                onClick={() => onAddActivity?.(campaign.id, { 
-                                  type: activity.type as any,
-                                  name: activity.name,
-                                  cost: activity.baseCost,
-                                  duration: activity.duration,
-                                  impact: activity.impact
-                                })}
-                                disabled={campaign.budgetSpent + activity.baseCost > campaign.budgetAllocated}
+                                disabled={true}
                               >
-                                Add Activity
+                                Managed in Campaign
                               </Button>
                             </div>
                           </CardContent>

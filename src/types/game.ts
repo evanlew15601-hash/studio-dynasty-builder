@@ -451,6 +451,7 @@ export interface MarketingActivity {
   name: string;
   cost: number;
   duration: number;
+  weeksRemaining: number;
   impact: MarketingImpact;
   status: 'planned' | 'active' | 'completed';
 }
@@ -459,7 +460,8 @@ export interface MarketingImpact {
   buzzIncrease: number;
   audienceReach: number;
   criticalAttention: number;
-  industryAwareness: number;
+  industryAwareness?: number;
+  socialMedia?: number;
 }
 
 export interface ReleaseStrategy {
