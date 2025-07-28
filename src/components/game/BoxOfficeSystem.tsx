@@ -12,7 +12,7 @@ export interface BoxOfficeState {
 
 export class BoxOfficeSystem {
   static initializeRelease(project: Project, releaseWeek: number, releaseYear: number): Project {
-    console.log(`SCHEDULING RELEASE: ${project.title} for Y${releaseYear}W${releaseWeek}`);
+    console.log(`INITIALIZING RELEASE: ${project.title} for Y${releaseYear}W${releaseWeek}`);
     
     return {
       ...project,
@@ -21,7 +21,7 @@ export class BoxOfficeSystem {
       releaseYear,
       metrics: {
         ...project.metrics,
-        inTheaters: false, // Not in theaters until release date arrives
+        inTheaters: false, // Will start when release date arrives
         boxOfficeTotal: 0,
         theaterCount: 0,
         weeksSinceRelease: 0,
@@ -36,73 +36,74 @@ export class BoxOfficeSystem {
     currentWeek: number, 
     currentYear: number
   ): Project {
-    console.log(`    BOX OFFICE: Processing ${project.title}`);
-    console.log(`      Project status: ${project.status}`);
-    console.log(`      Release info: Week ${project.releaseWeek}, Year ${project.releaseYear}`);
-    console.log(`      Current time: Week ${currentWeek}, Year ${currentYear}`);
-    console.log(`      Current metrics inTheaters: ${project.metrics?.inTheaters}, boxOffice: $${(project.metrics?.boxOfficeTotal || 0).toLocaleString()}`);
+    console.log(`BOX OFFICE PROCESSING: ${project.title}`);
+    console.log(`  Release: Y${project.releaseYear}W${project.releaseWeek}, Current: Y${currentYear}W${currentWeek}`);
+    console.log(`  Status: inTheaters=${project.metrics?.inTheaters}, total=$${(project.metrics?.boxOfficeTotal || 0).toLocaleString()}`);
     
     // Skip if no release date set
     if (!project.releaseWeek || !project.releaseYear) {
+      console.log(`  → No release date set`);
       return project;
     }
 
-    // Check if release date has actually arrived
-    const hasReleased = currentYear > project.releaseYear || 
-                       (currentYear === project.releaseYear && currentWeek >= project.releaseWeek);
+    // Check if release date has arrived
+    const currentAbsoluteWeek = (currentYear * 52) + currentWeek;
+    const releaseAbsoluteWeek = (project.releaseYear * 52) + project.releaseWeek;
+    const hasReleased = currentAbsoluteWeek >= releaseAbsoluteWeek;
     
     if (!hasReleased) {
-      console.log(`      → Waiting for release: ${project.title} scheduled for Week ${project.releaseWeek}, Year ${project.releaseYear}`);
+      console.log(`  → Waiting for release date`);
       return project;
     }
 
-    // Film is scheduled for release and date has arrived - put it in theaters if not already
-    if (!project.metrics?.inTheaters) {
-      console.log(`      → FILM NOW RELEASING: ${project.title} entering theaters`);
+    // Calculate accurate weeks since release
+    const weeksSinceRelease = Math.max(1, currentAbsoluteWeek - releaseAbsoluteWeek + 1);
+    console.log(`  → Weeks since release: ${weeksSinceRelease}`);
+
+    // First week - enter theaters
+    if (!project.metrics?.inTheaters && weeksSinceRelease === 1) {
+      console.log(`  → ENTERING THEATERS`);
       return {
         ...project,
         metrics: {
           ...project.metrics,
           inTheaters: true,
-          theaterCount: 3000,
-          weeksSinceRelease: 1
+          theaterCount: this.getInitialTheaterCount(project),
+          weeksSinceRelease: 1,
+          boxOfficeTotal: 0
         }
       };
     }
 
-    const weeksSinceRelease = TimeSystem.calculateWeeksSince(
-      project.releaseWeek,
-      project.releaseYear,
-      currentWeek,
-      currentYear
-    );
+    // If not in theaters yet, skip revenue processing
+    if (!project.metrics?.inTheaters) {
+      console.log(`  → Not in theaters yet`);
+      return project;
+    }
 
-    console.log(`      Weeks since release: ${weeksSinceRelease}`);
-
-    // Check if film should leave theaters
-    const shouldExit = this.shouldExitTheaters(project, weeksSinceRelease);
-    console.log(`      Should exit theaters: ${shouldExit}`);
-    if (shouldExit) {
-      console.log(`      → FILM EXITING THEATERS: ${project.title} after ${weeksSinceRelease} weeks`);
+    // Check if should exit theaters (final decision - no flip-flopping)
+    if (this.shouldExitTheaters(project, weeksSinceRelease)) {
+      console.log(`  → EXITING THEATERS permanently`);
       return {
         ...project,
         metrics: {
           ...project.metrics,
           inTheaters: false,
           theaterCount: 0,
-          weeksSinceRelease
+          weeksSinceRelease,
+          boxOfficeStatus: 'ended'
         },
         postTheatricalEligible: true,
         theatricalEndDate: new Date()
       };
     }
 
-    // Calculate weekly revenue
+    // Calculate weekly revenue and theater count
     const weeklyRevenue = this.calculateWeeklyRevenue(project, weeksSinceRelease);
     const newTotal = (project.metrics.boxOfficeTotal || 0) + weeklyRevenue;
     const theaterCount = this.calculateTheaterCount(project, weeksSinceRelease);
 
-    console.log(`      → Weekly revenue: $${weeklyRevenue.toLocaleString()}, New total: $${newTotal.toLocaleString()}`);
+    console.log(`  → Weekly: $${weeklyRevenue.toLocaleString()}, Total: $${newTotal.toLocaleString()}, Theaters: ${theaterCount}`);
 
     return {
       ...project,
@@ -110,85 +111,139 @@ export class BoxOfficeSystem {
         ...project.metrics,
         boxOfficeTotal: newTotal,
         theaterCount,
-        weeksSinceRelease
+        weeksSinceRelease,
+        lastWeeklyRevenue: weeklyRevenue,
+        boxOfficeStatus: this.getBoxOfficeStatus(weeksSinceRelease, theaterCount)
       }
     };
   }
 
+  private static getInitialTheaterCount(project: Project): number {
+    const releaseType = project.releaseStrategy?.type || 'wide';
+    switch (releaseType) {
+      case 'wide': return 3000;
+      case 'limited': return 500;
+      case 'platform': return 100;
+      case 'festival': return 50;
+      default: return 3000;
+    }
+  }
+
+  private static getBoxOfficeStatus(weeksSinceRelease: number, theaterCount: number): string {
+    if (theaterCount === 0) return 'ended';
+    if (weeksSinceRelease <= 2) return 'opening';
+    if (theaterCount >= 2000) return 'wide';
+    if (theaterCount >= 500) return 'limited';
+    return 'ending';
+  }
+
   private static shouldExitTheaters(project: Project, weeksSinceRelease: number): boolean {
-    // Simple, guaranteed exit logic
+    // Hard exit conditions - no exceptions, no flip-flopping
     
-    // Force exit after 12 weeks maximum (was 18, now much shorter)
-    if (weeksSinceRelease >= 12) {
-      console.log(`→ EXIT: 12 weeks maximum reached`);
+    // Maximum theatrical run: 16 weeks
+    if (weeksSinceRelease >= 16) {
+      console.log(`    → EXIT: Maximum 16 weeks reached`);
       return true;
     }
 
-    // Exit after just 6 weeks for poor performance
+    // Poor performance: exit after 6 weeks if low scores
     if (weeksSinceRelease >= 6) {
-      const criticsScore = project.metrics.criticsScore || 50;
-      const audienceScore = project.metrics.audienceScore || 50;
-      const avgScore = (criticsScore + audienceScore) / 2;
-      
-      if (avgScore < 70) {
-        console.log(`→ EXIT: Poor performance (${avgScore} < 70) after ${weeksSinceRelease} weeks`);
+      const avgScore = ((project.metrics?.criticsScore || 50) + (project.metrics?.audienceScore || 50)) / 2;
+      if (avgScore < 65) {
+        console.log(`    → EXIT: Poor performance (${avgScore.toFixed(1)} average)`);
         return true;
       }
     }
 
-    // Exit after 8 weeks for average performance  
-    if (weeksSinceRelease >= 8) {
-      const criticsScore = project.metrics.criticsScore || 50;
-      const audienceScore = project.metrics.audienceScore || 50;
-      const avgScore = (criticsScore + audienceScore) / 2;
-      
-      if (avgScore < 80) {
-        console.log(`→ EXIT: Average performance (${avgScore} < 80) after ${weeksSinceRelease} weeks`);
+    // Average performance: exit after 10 weeks if mediocre scores
+    if (weeksSinceRelease >= 10) {
+      const avgScore = ((project.metrics?.criticsScore || 50) + (project.metrics?.audienceScore || 50)) / 2;
+      if (avgScore < 75) {
+        console.log(`    → EXIT: Mediocre performance (${avgScore.toFixed(1)} average)`);
         return true;
       }
     }
-    
-    console.log(`→ STAY: Still performing well at week ${weeksSinceRelease}`);
+
+    // Good performance: can run up to 16 weeks
+    console.log(`    → CONTINUE: Still performing well (week ${weeksSinceRelease})`);
     return false;
   }
 
   private static calculateWeeklyRevenue(project: Project, weeksSinceRelease: number): number {
-    // FIXED: Handle week 0 (shouldn't happen now, but safety check)
-    if (weeksSinceRelease <= 0) {
-      console.log(`      WARNING: weeksSinceRelease is ${weeksSinceRelease}, treating as week 1`);
-      weeksSinceRelease = 1;
-    }
+    const baseRevenue = project.budget.total * 0.4; // 40% of budget as peak potential
     
-    const baseRevenue = project.budget.total * 0.3; // 30% of budget as baseline
-    
-    // Star power calculation
-    const starPower = project.cast.reduce((sum, role) => {
-      // Simplified calculation - would need talent lookup in real implementation
-      return sum + 100000; // $100k per cast member as baseline
-    }, 0);
-
     // Performance multipliers
-    const criticsMultiplier = (project.metrics.criticsScore || 50) / 100;
-    const audienceMultiplier = (project.metrics.audienceScore || 50) / 100;
-    const marketingMultiplier = 1 + ((project.marketingCampaign?.buzz || 0) / 200);
-
-    // Week-based dropoff
-    const weeklyMultipliers = [1.0, 0.6, 0.4, 0.3, 0.25, 0.2, 0.15, 0.12, 0.1, 0.08, 0.06, 0.05, 0.04, 0.03, 0.02, 0.02, 0.01, 0.01];
-    const weekMultiplier = weeklyMultipliers[weeksSinceRelease - 1] || 0.01;
-
-    const totalRevenue = (baseRevenue + starPower) * criticsMultiplier * audienceMultiplier * marketingMultiplier * weekMultiplier;
+    const criticsMultiplier = (project.metrics?.criticsScore || 50) / 100;
+    const audienceMultiplier = (project.metrics?.audienceScore || 50) / 100;
+    const marketingMultiplier = 1 + ((project.marketingCampaign?.buzz || 0) / 100);
     
-    console.log(`REVENUE CALC: ${project.title} Week ${weeksSinceRelease} = $${Math.floor(totalRevenue).toLocaleString()}`);
-    return Math.floor(totalRevenue);
+    // Release strategy impact
+    const releaseMultiplier = this.getReleaseMultiplier(project.releaseStrategy?.type || 'wide');
+    
+    // Weekly curve - starts high, drops off realistically
+    const weeklyMultiplier = this.getWeeklyMultiplier(weeksSinceRelease);
+    
+    const totalRevenue = baseRevenue * 
+      criticsMultiplier * 
+      audienceMultiplier * 
+      marketingMultiplier * 
+      releaseMultiplier * 
+      weeklyMultiplier;
+    
+    return Math.max(0, Math.floor(totalRevenue));
+  }
+
+  private static getReleaseMultiplier(releaseType: string): number {
+    switch (releaseType) {
+      case 'wide': return 1.0;
+      case 'limited': return 0.3;
+      case 'platform': return 0.6;
+      case 'festival': return 0.2;
+      default: return 1.0;
+    }
+  }
+
+  private static getWeeklyMultiplier(week: number): number {
+    // Realistic box office curve
+    const multipliers = [
+      1.0,   // Week 1: Opening weekend peak
+      0.65,  // Week 2: Standard drop
+      0.45,  // Week 3: Continued decline
+      0.35,  // Week 4: Settling
+      0.28,  // Week 5
+      0.22,  // Week 6
+      0.18,  // Week 7
+      0.15,  // Week 8
+      0.12,  // Week 9
+      0.10,  // Week 10
+      0.08,  // Week 11
+      0.06,  // Week 12
+      0.05,  // Week 13
+      0.04,  // Week 14
+      0.03,  // Week 15
+      0.02   // Week 16: Final week
+    ];
+    
+    return multipliers[week - 1] || 0.01;
   }
 
   private static calculateTheaterCount(project: Project, weeksSinceRelease: number): number {
-    const baseTheaters = 3000;
+    const initialCount = this.getInitialTheaterCount(project);
+    const releaseType = project.releaseStrategy?.type || 'wide';
     
-    if (weeksSinceRelease <= 2) return baseTheaters; // Opening wide
-    if (weeksSinceRelease <= 8) return Math.floor(baseTheaters * 0.8); // Slight reduction
-    if (weeksSinceRelease <= 12) return Math.floor(baseTheaters * 0.5); // Limited release
-    if (weeksSinceRelease <= 16) return Math.floor(baseTheaters * 0.2); // Very limited
-    return Math.floor(baseTheaters * 0.05); // Final weeks
+    // Platform release - expands over time if successful
+    if (releaseType === 'platform') {
+      const avgScore = ((project.metrics?.criticsScore || 50) + (project.metrics?.audienceScore || 50)) / 2;
+      if (avgScore > 75 && weeksSinceRelease >= 4) {
+        return Math.min(3000, initialCount * (weeksSinceRelease - 2)); // Expand after week 4
+      }
+    }
+    
+    // Standard decline pattern
+    if (weeksSinceRelease <= 2) return initialCount;
+    if (weeksSinceRelease <= 6) return Math.floor(initialCount * 0.9);
+    if (weeksSinceRelease <= 10) return Math.floor(initialCount * 0.7);
+    if (weeksSinceRelease <= 14) return Math.floor(initialCount * 0.4);
+    return Math.floor(initialCount * 0.2);
   }
 }

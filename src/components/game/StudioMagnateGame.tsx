@@ -39,7 +39,7 @@ export const StudioMagnateGame: React.FC<StudioMagnateGameProps> = ({ onPhaseCha
       case 'pre-production': return 6;
       case 'production': return 12;
       case 'post-production': return 16;
-      case 'marketing': return 4;
+      case 'marketing': return 8;
       case 'release': return 2;
       case 'distribution': return 8;
       default: return 1;
@@ -329,30 +329,27 @@ export const StudioMagnateGame: React.FC<StudioMagnateGameProps> = ({ onPhaseCha
             let releaseYear: number;
             
             if (updatedProject.releaseStrategy?.premiereDate) {
-              // Convert premiere date to game week/year
-              const currentGameDate = new Date(2024, 0, 1); // Start of game year
-              currentGameDate.setDate(currentGameDate.getDate() + (timeState.currentWeek - 1) * 7 + (timeState.currentYear - 2024) * 365);
+              // Convert premiere date to game week/year using simplified conversion
+              const gameStart = new Date(2024, 0, 1);
+              const daysSinceGameStart = Math.floor((updatedProject.releaseStrategy.premiereDate.getTime() - gameStart.getTime()) / (1000 * 60 * 60 * 24));
+              const weeksSinceGameStart = Math.floor(daysSinceGameStart / 7) + 1; // +1 because game starts at week 1
               
-              const daysDiff = Math.floor((updatedProject.releaseStrategy.premiereDate.getTime() - currentGameDate.getTime()) / (1000 * 60 * 60 * 24));
-              const weeksDiff = Math.floor(daysDiff / 7);
+              releaseYear = 2024 + Math.floor((weeksSinceGameStart - 1) / 52);
+              releaseWeek = ((weeksSinceGameStart - 1) % 52) + 1;
               
-              releaseWeek = timeState.currentWeek + weeksDiff;
+              console.log(`  → Using player-selected date: ${updatedProject.releaseStrategy.premiereDate.toDateString()} = Y${releaseYear}W${releaseWeek}`);
+            } else {
+              // Auto-schedule 8 weeks after marketing (standard practice)
+              releaseWeek = timeState.currentWeek + 8;
               releaseYear = timeState.currentYear;
               
               // Handle year overflow
-              while (releaseWeek > 52) {
-                releaseWeek -= 52;
-                releaseYear += 1;
+              if (releaseWeek > 52) {
+                releaseYear += Math.floor((releaseWeek - 1) / 52);
+                releaseWeek = ((releaseWeek - 1) % 52) + 1;
               }
               
-              console.log(`  → Using release strategy date: ${updatedProject.releaseStrategy.premiereDate.toDateString()} = Week ${releaseWeek}, Year ${releaseYear}`);
-            } else {
-              // Fallback: Auto-schedule for 4 weeks later
-              releaseWeek = timeState.currentWeek + 4;
-              releaseYear = releaseWeek > 52 ? timeState.currentYear + 1 : timeState.currentYear;
-              releaseWeek = releaseWeek > 52 ? releaseWeek - 52 : releaseWeek;
-              
-              console.log(`  → Auto-scheduling release for ${updatedProject.title} at Week ${releaseWeek}, Year ${releaseYear}`);
+              console.log(`  → Auto-scheduling: Y${releaseYear}W${releaseWeek}`);
             }
             
             updatedProject = BoxOfficeSystem.initializeRelease(

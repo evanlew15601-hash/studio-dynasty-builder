@@ -216,6 +216,8 @@ export interface ProjectMetrics {
   internationalSales?: number;
   inTheaters?: boolean;
   theaterCount?: number;
+  boxOfficeStatus?: string;
+  lastWeeklyRevenue?: number;
   weeksSinceRelease?: number;
   boxOffice?: BoxOfficeMetrics;
   streaming?: StreamingMetrics;

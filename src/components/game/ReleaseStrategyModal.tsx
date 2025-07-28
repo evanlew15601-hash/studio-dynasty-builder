@@ -263,10 +263,22 @@ export const ReleaseStrategyModal: React.FC<ReleaseStrategyModalProps> = ({
                         selected={premiereDate}
                         onSelect={setPremiereDate}
                         disabled={(date) => {
-                          // Calculate minimum release date (4 weeks from current)
-                          const currentGameDate = new Date(2024, 0, 1); // Start of game year
-                          currentGameDate.setDate(currentGameDate.getDate() + (currentWeek - 1) * 7 + (currentYear - 2024) * 365);
-                          const minReleaseDate = new Date(currentGameDate);
+                          // Project must complete marketing first
+                          if (!project.marketingCampaign) {
+                            return true; // All dates disabled until marketing starts
+                          }
+                          
+                          // Calculate when marketing will end
+                          const marketingEndWeek = currentWeek + (project.marketingCampaign.weeksRemaining || 0);
+                          const marketingEndYear = marketingEndWeek > 52 ? currentYear + 1 : currentYear;
+                          const adjustedEndWeek = marketingEndWeek > 52 ? marketingEndWeek - 52 : marketingEndWeek;
+                          
+                          // Convert to actual date (simplified conversion)
+                          const marketingEndDate = new Date(2024, 0, 1);
+                          marketingEndDate.setDate(marketingEndDate.getDate() + ((marketingEndYear - 2024) * 365) + ((adjustedEndWeek - 1) * 7));
+                          
+                          // Minimum release date is 4 weeks after marketing ends
+                          const minReleaseDate = new Date(marketingEndDate);
                           minReleaseDate.setDate(minReleaseDate.getDate() + 28); // 4 weeks = 28 days
                           
                           return date < minReleaseDate;
@@ -276,7 +288,10 @@ export const ReleaseStrategyModal: React.FC<ReleaseStrategyModalProps> = ({
                     </PopoverContent>
                   </Popover>
                   <p className="text-xs text-muted-foreground">
-                    Films must be scheduled at least 4 weeks in advance for proper marketing setup.
+                    {!project.marketingCampaign ? 
+                      "Start marketing campaign first to unlock release scheduling." :
+                      `Release must be scheduled at least 4 weeks after marketing ends (Week ${currentWeek + (project.marketingCampaign.weeksRemaining || 0) + 4}).`
+                    }
                   </p>
                 </div>
 
