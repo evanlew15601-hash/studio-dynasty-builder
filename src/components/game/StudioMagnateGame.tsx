@@ -406,7 +406,7 @@ export const StudioMagnateGame: React.FC<StudioMagnateGameProps> = ({ onPhaseCha
               description: `${updatedProject.title} is ready for marketing campaign`,
             });
           }
-          // STOP auto-progression at marketing
+          // STOP auto-progression at marketing - only advance when campaign completes
           else if (updatedProject.currentPhase === 'marketing' && updatedProject.marketingCampaign && updatedProject.marketingCampaign.weeksRemaining === 0) {
             console.log(`  → MARKETING COMPLETE: ${updatedProject.title} ready for release`);
             updatedProject = {

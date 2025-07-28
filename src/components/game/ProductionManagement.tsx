@@ -79,7 +79,7 @@ export const ProductionManagement: React.FC<ProductionManagementProps> = ({
           ...updatedProject,
           currentPhase: 'marketing',
           status: 'marketing',
-          phaseDuration: 0,
+          phaseDuration: 999, // High number so it doesn't auto-advance until campaign is created
           readyForMarketing: true
         };
         break;
