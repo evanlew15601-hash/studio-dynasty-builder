@@ -46,39 +46,50 @@ export const ProductionManagement: React.FC<ProductionManagementProps> = ({
   };
 
   const advanceProductionPhase = (project: Project) => {
-    let newPhase = project.currentPhase;
-    let newStatus = project.status;
+    let updatedProject = { ...project };
     
     switch (project.currentPhase) {
       case 'development':
-        newPhase = 'pre-production';
-        newStatus = 'pre-production';
+        updatedProject = {
+          ...updatedProject,
+          currentPhase: 'pre-production',
+          status: 'pre-production',
+          phaseDuration: 4 // 4 weeks for pre-production
+        };
         break;
       case 'pre-production':
-        newPhase = 'production';
-        newStatus = 'filming';
+        updatedProject = {
+          ...updatedProject,
+          currentPhase: 'production',
+          status: 'filming',
+          phaseDuration: 8 // 8 weeks for production
+        };
         break;
       case 'production':
-        newPhase = 'post-production';
-        newStatus = 'post-production';
+        updatedProject = {
+          ...updatedProject,
+          currentPhase: 'post-production',
+          status: 'post-production',
+          phaseDuration: 6 // 6 weeks for post-production
+        };
         break;
       case 'post-production':
-        newPhase = 'distribution';
-        newStatus = 'completed';
+        // STOP at post-production - don't auto-advance to marketing
+        updatedProject = {
+          ...updatedProject,
+          currentPhase: 'post-production',
+          status: 'ready-for-marketing',
+          phaseDuration: 0,
+          readyForMarketing: true
+        };
         break;
     }
-
-    const updatedProject = {
-      ...project,
-      currentPhase: newPhase,
-      status: newStatus
-    };
 
     onProjectUpdate(updatedProject);
 
     toast({
       title: "Production Advanced",
-      description: `"${project.title}" moved to ${newPhase.replace('-', ' ')}`,
+      description: `"${project.title}" moved to ${updatedProject.currentPhase.replace('-', ' ')}`,
     });
   };
 
@@ -227,7 +238,8 @@ export const ProductionManagement: React.FC<ProductionManagementProps> = ({
                             onClick={() => advanceProductionPhase(project)}
                             disabled={project.phaseDuration > 1}
                           >
-                            {project.phaseDuration > 1 ? 'In Progress' : 'Advance Phase'}
+                            {project.phaseDuration > 1 ? 'In Progress' : 
+                             project.currentPhase === 'post-production' ? 'Complete & Ready for Marketing' : 'Advance Phase'}
                           </Button>
                         </CardContent>
                       </Card>
