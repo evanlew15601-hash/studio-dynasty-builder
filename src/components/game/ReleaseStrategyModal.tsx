@@ -20,6 +20,7 @@ import {
   AwardIcon
 } from '@/components/ui/icons';
 import { format } from 'date-fns';
+import { useToast } from '@/hooks/use-toast';
 
 interface ReleaseStrategyModalProps {
   project: Project | null;
@@ -38,6 +39,7 @@ export const ReleaseStrategyModal: React.FC<ReleaseStrategyModalProps> = ({
   currentWeek,
   currentYear
 }) => {
+  const { toast } = useToast();
   const [selectedReleaseType, setSelectedReleaseType] = useState<string>('wide');
   const [premiereDate, setPremiereDate] = useState<Date | undefined>(new Date());
   const [theaterCount, setTheaterCount] = useState<number>(3000);
@@ -126,6 +128,33 @@ export const ReleaseStrategyModal: React.FC<ReleaseStrategyModalProps> = ({
 
   const handleCreateStrategy = () => {
     if (!premiereDate) return;
+
+    // Validate the date properly
+    if (!project.marketingCampaign) {
+      toast({
+        title: "Marketing Required",
+        description: "You must start a marketing campaign before setting a release date.",
+      });
+      return;
+    }
+
+    // Calculate when marketing will end
+    const marketingEndWeek = currentWeek + (project.marketingCampaign.weeksRemaining || 0);
+    const minReleaseWeek = marketingEndWeek + 4; // 4 weeks after marketing ends
+
+    // Convert selected date to game weeks for validation
+    const gameStart = new Date(2024, 0, 1);
+    const daysSinceGameStart = Math.floor((premiereDate.getTime() - gameStart.getTime()) / (1000 * 60 * 60 * 24));
+    const weeksSinceGameStart = Math.floor(daysSinceGameStart / 7) + 1;
+    const selectedWeek = weeksSinceGameStart;
+
+    if (selectedWeek < minReleaseWeek) {
+      toast({
+        title: "Release Date Too Early",
+        description: `Release must be scheduled at least 4 weeks after marketing ends (Week ${minReleaseWeek}).`,
+      });
+      return;
+    }
 
     const events: SpecialEvent[] = selectedEvents.map(eventType => {
       const eventData = specialEvents.find(e => e.type === eventType)!;
@@ -290,7 +319,7 @@ export const ReleaseStrategyModal: React.FC<ReleaseStrategyModalProps> = ({
                   <p className="text-xs text-muted-foreground">
                     {!project.marketingCampaign ? 
                       "Start marketing campaign first to unlock release scheduling." :
-                      `Release must be scheduled at least 4 weeks after marketing ends (Week ${currentWeek + (project.marketingCampaign.weeksRemaining || 0) + 4}).`
+                      `Release must be scheduled at least 4 weeks after marketing ends.`
                     }
                   </p>
                 </div>

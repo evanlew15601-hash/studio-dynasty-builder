@@ -1,5 +1,5 @@
 import React, { useState } from 'react';
-import { GameState, Project, MarketingStrategy } from '@/types/game';
+import { GameState, Project, MarketingStrategy, ReleaseStrategy } from '@/types/game';
 import { TimeSystem } from './TimeSystem';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
@@ -22,12 +22,14 @@ interface MarketingReleaseManagementProps {
   gameState: GameState;
   onProjectUpdate: (project: Project, marketingCost?: number) => void;
   onMarketingCampaignCreate?: (project: Project, strategy: MarketingStrategy, budget: number, duration: number) => void;
+  onReleaseStrategyCreate?: (project: Project, strategy: ReleaseStrategy) => void;
 }
 
 export const MarketingReleaseManagement: React.FC<MarketingReleaseManagementProps> = ({
   gameState,
   onProjectUpdate,
-  onMarketingCampaignCreate
+  onMarketingCampaignCreate,
+  onReleaseStrategyCreate
 }) => {
   const { toast } = useToast();
   const [selectedProject, setSelectedProject] = useState<Project | null>(null);
@@ -358,12 +360,9 @@ export const MarketingReleaseManagement: React.FC<MarketingReleaseManagementProp
             setSelectedProject(null);
           }}
           onCreateReleaseStrategy={(strategy) => {
-            // Handle release strategy
-            const updatedProject = {
-              ...selectedProject,
-              releaseStrategy: strategy
-            };
-            onProjectUpdate(updatedProject);
+            if (onReleaseStrategyCreate) {
+              onReleaseStrategyCreate(selectedProject, strategy);
+            }
             setShowReleaseModal(false);
             setSelectedProject(null);
           }}

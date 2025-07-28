@@ -116,7 +116,7 @@ export interface Project {
   timeline: ProjectTimeline;
   locations: Location[];
   distributionStrategy: DistributionStrategy;
-  status: 'development' | 'pre-production' | 'production' | 'post-production' | 'marketing' | 'release' | 'distribution' | 'archived' | 'released' | 'filming' | 'completed';
+  status: 'development' | 'pre-production' | 'production' | 'post-production' | 'marketing' | 'release' | 'distribution' | 'archived' | 'released' | 'filming' | 'completed' | 'ready-for-marketing' | 'ready-for-release';
   postTheatricalEligible?: boolean;
   theatricalEndDate?: Date;
   metrics: ProjectMetrics;
@@ -128,6 +128,8 @@ export interface Project {
   releaseWeek?: number;
   releaseYear?: number;
   postTheatricalReleases?: PostTheatricalRelease[];
+  readyForMarketing?: boolean;
+  readyForRelease?: boolean;
 }
 
 export interface ProjectBudget {
@@ -219,6 +221,8 @@ export interface ProjectMetrics {
   boxOfficeStatus?: string;
   lastWeeklyRevenue?: number;
   weeksSinceRelease?: number;
+  theatricalRunLocked?: boolean;
+  lastWeeklyReport?: any;
   boxOffice?: BoxOfficeMetrics;
   streaming?: StreamingMetrics;
   critical?: CriticalMetrics;
