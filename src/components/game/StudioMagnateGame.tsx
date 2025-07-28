@@ -439,8 +439,8 @@ export const StudioMagnateGame: React.FC<StudioMagnateGameProps> = ({ onPhaseCha
             });
           }
         } else {
-          // Only countdown for active phases
-          const shouldCountdown = ['development', 'pre-production', 'production'].includes(updatedProject.currentPhase) ||
+          // Only countdown for active phases - FIXED: Include post-production
+          const shouldCountdown = ['development', 'pre-production', 'production', 'post-production'].includes(updatedProject.currentPhase) ||
                                  (updatedProject.currentPhase === 'marketing' && updatedProject.marketingCampaign);
           
           if (shouldCountdown) {
