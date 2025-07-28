@@ -31,7 +31,7 @@ export class TimeSystem {
     const currentAbsoluteWeek = (currentYear * 52) + currentWeek;
     
     // Calculate actual weeks that have passed since release
-    const weeksSince = currentAbsoluteWeek - releaseAbsoluteWeek + 1;
+    const weeksSince = currentAbsoluteWeek - releaseAbsoluteWeek;
     
     console.log(`WEEKS CALC: Y${releaseYear}W${releaseWeek} to Y${currentYear}W${currentWeek} = ${weeksSince} weeks`);
     
