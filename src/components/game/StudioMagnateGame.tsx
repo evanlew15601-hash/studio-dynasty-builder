@@ -329,7 +329,7 @@ export const StudioMagnateGame: React.FC<StudioMagnateGameProps> = ({ onPhaseCha
       currentPhase: 'release' as const,
       status: 'scheduled-for-release' as any,
       readyForRelease: false,
-      phaseDuration: 0,
+      phaseDuration: 999, // Don't auto-advance until release date arrives
       metrics: {
         ...project.metrics,
         criticsScore: Math.floor(Math.random() * 40) + 50,
