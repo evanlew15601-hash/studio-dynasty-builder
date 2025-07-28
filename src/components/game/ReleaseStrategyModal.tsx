@@ -262,10 +262,22 @@ export const ReleaseStrategyModal: React.FC<ReleaseStrategyModalProps> = ({
                         mode="single"
                         selected={premiereDate}
                         onSelect={setPremiereDate}
+                        disabled={(date) => {
+                          // Calculate minimum release date (4 weeks from current)
+                          const currentDate = new Date();
+                          currentDate.setDate(currentDate.getDate() + (currentWeek * 7) + (currentYear - 2024) * 365);
+                          const minReleaseDate = new Date(currentDate);
+                          minReleaseDate.setDate(minReleaseDate.getDate() + 28); // 4 weeks = 28 days
+                          
+                          return date < minReleaseDate;
+                        }}
                         initialFocus
                       />
                     </PopoverContent>
                   </Popover>
+                  <p className="text-xs text-muted-foreground">
+                    Films must be scheduled at least 4 weeks in advance for proper marketing setup.
+                  </p>
                 </div>
 
                 <div className="grid grid-cols-1 md:grid-cols-2 gap-4 p-4 bg-muted/20 rounded-lg">
