@@ -36,7 +36,8 @@ export class BoxOfficeSystem {
       }
     };
     
-    console.log(`   Result status: ${result.status}, inTheaters: ${result.metrics.inTheaters}`);
+    console.log(`   Result status: ${result.status}, inTheaters: ${result.metrics.inTheaters}, theaterCount: ${result.metrics.theaterCount}`);
+    console.log(`   Full result metrics:`, result.metrics);
     return result;
   }
 
@@ -78,9 +79,15 @@ export class BoxOfficeSystem {
     const weeksSinceRelease = Math.max(0, currentAbsoluteWeek - releaseAbsoluteWeek);
     console.log(`  📅 Week ${weeksSinceRelease} of theatrical run (0 = release week)`);
 
-    // First week: Enter theaters
+    // Check if project should be processing (week 0 = release week, already in theaters from init)
+    if (weeksSinceRelease === 0) {
+      console.log(`  🎭 RELEASE WEEK - Project should already be in theaters from initialization`);
+      console.log(`  📊 Current metrics: inTheaters=${project.metrics?.inTheaters}, theaterCount=${project.metrics?.theaterCount}`);
+    }
+    
+    // First week: Enter theaters (this should not happen for week 0 releases)
     if (!project.metrics?.inTheaters && weeksSinceRelease === 1) {
-      console.log(`  🎭 ENTERING THEATERS`);
+      console.log(`  🎭 ENTERING THEATERS (Week 1 entry)`);
       const initialTheaters = this.getInitialTheaterCount(project);
       
       return {
