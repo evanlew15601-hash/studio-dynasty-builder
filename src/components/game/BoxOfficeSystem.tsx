@@ -74,9 +74,9 @@ export class BoxOfficeSystem {
       return project;
     }
 
-    // Calculate exact weeks since release
-    const weeksSinceRelease = Math.max(1, currentAbsoluteWeek - releaseAbsoluteWeek + 1);
-    console.log(`  📅 Week ${weeksSinceRelease} of theatrical run`);
+    // Calculate exact weeks since release (0 for release week, 1 for next week, etc.)
+    const weeksSinceRelease = Math.max(0, currentAbsoluteWeek - releaseAbsoluteWeek);
+    console.log(`  📅 Week ${weeksSinceRelease} of theatrical run (0 = release week)`);
 
     // First week: Enter theaters
     if (!project.metrics?.inTheaters && weeksSinceRelease === 1) {
@@ -260,7 +260,7 @@ export class BoxOfficeSystem {
       0.005  // Week 20: Final weeks
     ];
     
-    return curve[week - 1] || 0.001;
+    return curve[week] || 0.001;
   }
 
   private static calculateTheaterCount(project: Project, weeksSinceRelease: number): number {
