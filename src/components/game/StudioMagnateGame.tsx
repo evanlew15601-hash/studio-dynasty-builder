@@ -664,12 +664,20 @@ export const StudioMagnateGame: React.FC<StudioMagnateGameProps> = ({ onPhaseCha
   };
 
   const handleAdvanceWeek = () => {
+    console.log(`🕐 ADVANCING WEEK: Current Y${gameState.currentYear}W${gameState.currentWeek}`);
+    console.log(`🕐 Projects count: ${gameState.projects.length}`);
+    gameState.projects.forEach((p, i) => {
+      console.log(`   [${i}] ${p.title}: Phase=${p.currentPhase}, Status=${p.status}, PhaseDuration=${p.phaseDuration || 0}`);
+    });
+    
     setGameState(prev => {
       const newTimeState = TimeSystem.advanceWeek({
         currentWeek: prev.currentWeek,
         currentYear: prev.currentYear,
         currentQuarter: prev.currentQuarter
       });
+      
+      console.log(`🕐 NEW TIME STATE: Y${newTimeState.currentYear}W${newTimeState.currentWeek}`);
       
       const updatedProjects = processWeeklyProjectEffects(prev.projects, newTimeState);
       
