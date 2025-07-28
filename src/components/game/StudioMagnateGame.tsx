@@ -239,11 +239,11 @@ export const StudioMagnateGame: React.FC<StudioMagnateGameProps> = ({ onPhaseCha
       }
       
       // Advance project phase timers
-      if (project.phaseDuration > 0) {
+      if (project.phaseDuration >= 0) {
         const newPhaseDuration = project.phaseDuration - 1;
         
-        // Auto-advance phase when timer reaches 0
-        if (newPhaseDuration === 0) {
+        // Auto-advance phase when timer reaches 0 or below
+        if (newPhaseDuration <= 0) {
           const newPhase = getNextPhase(project.currentPhase);
           const newPhaseDuration = getPhaseWeeks(newPhase);
           
@@ -252,6 +252,11 @@ export const StudioMagnateGame: React.FC<StudioMagnateGameProps> = ({ onPhaseCha
             releaseWeek: currentWeek + 2, // Release 2 weeks into distribution
             releaseYear: gameState.currentYear
           } : {};
+          
+          toast({
+            title: "Project Advanced",
+            description: `${project.title} has moved to ${newPhase.replace('-', ' ')} phase`,
+          });
           
           return {
             ...project,
@@ -399,10 +404,10 @@ export const StudioMagnateGame: React.FC<StudioMagnateGameProps> = ({ onPhaseCha
     };
     
     // Auto-advance if completion threshold met
-    if (getAverageProgress(newProgress) >= newProgress.completionThreshold && project.phaseDuration > 1) {
+    if (getAverageProgress(newProgress) >= newProgress.completionThreshold) {
       return {
         ...project,
-        phaseDuration: 1, // Will advance next week
+        phaseDuration: 0, // Advance immediately
         developmentProgress: newProgress
       };
     }
