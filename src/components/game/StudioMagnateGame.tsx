@@ -435,6 +435,60 @@ export const StudioMagnateGame: React.FC<StudioMagnateGameProps> = ({ onPhaseCha
         };
       }
 
+      // Process post-theatrical releases revenue
+      if (updatedProject.postTheatricalReleases && updatedProject.postTheatricalReleases.length > 0) {
+        console.log(`    💰 PROCESSING POST-THEATRICAL: ${updatedProject.title}`);
+        
+        const updatedReleases = updatedProject.postTheatricalReleases.map(release => {
+          if (release.status === 'planned') {
+            // Start the release
+            console.log(`      🚀 STARTING: ${release.platform} release`);
+            return {
+              ...release,
+              status: 'active' as const,
+              weeksActive: 1,
+              revenue: release.weeklyRevenue
+            };
+          } else if (release.status === 'active') {
+            // Continue generating revenue
+            const newWeeksActive = release.weeksActive + 1;
+            const newRevenue = release.revenue + release.weeklyRevenue;
+            
+            console.log(`      💰 ${release.platform}: Week ${newWeeksActive}, +$${release.weeklyRevenue.toLocaleString()}, Total: $${newRevenue.toLocaleString()}`);
+            
+            return {
+              ...release,
+              weeksActive: newWeeksActive,
+              revenue: newRevenue
+            };
+          }
+          return release;
+        });
+
+        // Calculate total weekly revenue from all active releases
+        const weeklyPostTheatricalRevenue = updatedReleases
+          .filter(r => r.status === 'active')
+          .reduce((sum, r) => sum + r.weeklyRevenue, 0);
+
+        if (weeklyPostTheatricalRevenue > 0) {
+          console.log(`      💰 TOTAL WEEKLY POST-THEATRICAL: +$${weeklyPostTheatricalRevenue.toLocaleString()}`);
+          
+          // Add revenue to studio budget
+          setGameState(prevState => ({
+            ...prevState,
+            studio: {
+              ...prevState.studio,
+              budget: prevState.studio.budget + weeklyPostTheatricalRevenue
+            }
+          }));
+        }
+
+        updatedProject = {
+          ...updatedProject,
+          postTheatricalReleases: updatedReleases
+        };
+      }
+
       // CRITICAL: Only process phase timers for specific phases
       if (updatedProject.phaseDuration !== undefined && updatedProject.phaseDuration > 0) {
         const newPhaseDuration = updatedProject.phaseDuration - 1;
