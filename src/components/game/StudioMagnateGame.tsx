@@ -224,9 +224,20 @@ export const StudioMagnateGame: React.FC<StudioMagnateGameProps> = ({ onPhaseCha
 
   const processWeeklyProjectEffects = (projects: Project[], currentWeek: number): Project[] => {
     return projects.map(project => {
+      console.log(`Processing project ${project.title}:`, {
+        phase: project.currentPhase,
+        phaseDuration: project.phaseDuration,
+        status: project.status
+      });
+      
       // Process development progress
       if (project.currentPhase === 'development') {
         const updatedProject = processDevelopmentProgress(project, currentWeek);
+        console.log(`Development progress for ${project.title}:`, {
+          avgProgress: updatedProject.developmentProgress ? getAverageProgress(updatedProject.developmentProgress) : 'N/A',
+          threshold: updatedProject.developmentProgress?.completionThreshold,
+          newPhaseDuration: updatedProject.phaseDuration
+        });
         return updatedProject;
       }
       
@@ -239,8 +250,9 @@ export const StudioMagnateGame: React.FC<StudioMagnateGameProps> = ({ onPhaseCha
       }
       
       // Advance project phase timers
-      if (project.phaseDuration >= 0) {
+      if (project.phaseDuration !== undefined && project.phaseDuration >= 0) {
         const newPhaseDuration = project.phaseDuration - 1;
+        console.log(`Phase timer for ${project.title}: ${project.phaseDuration} -> ${newPhaseDuration}`);
         
         // Auto-advance phase when timer reaches 0 or below
         if (newPhaseDuration <= 0) {
@@ -377,6 +389,11 @@ export const StudioMagnateGame: React.FC<StudioMagnateGameProps> = ({ onPhaseCha
     // Process existing issues and apply consequences for ignored ones
     const processedIssues = newIssues.map(issue => {
       let updatedIssue = { ...issue };
+      console.log(`Processing issue ${issue.id}:`, {
+        ignored: issue.ignored,
+        ignoredWeeks: issue.ignoredWeeks,
+        weeksToResolve: issue.weeksToResolve
+      });
       
       // Check if issue has been ignored for too long
       if (issue.ignored && issue.ignoredWeeks! > 0) {
@@ -385,6 +402,7 @@ export const StudioMagnateGame: React.FC<StudioMagnateGameProps> = ({ onPhaseCha
         // Apply escalating consequences
         if (updatedIssue.ignoredWeeks >= 2) {
           const consequences = generateIssueConsequences(issue);
+          console.log(`Applying consequences for issue ${issue.id}:`, consequences);
           updatedIssue.consequences = [...(issue.consequences || []), ...consequences];
         }
       } else {
@@ -405,9 +423,21 @@ export const StudioMagnateGame: React.FC<StudioMagnateGameProps> = ({ onPhaseCha
     
     // Auto-advance if completion threshold met
     if (getAverageProgress(newProgress) >= newProgress.completionThreshold) {
+      const nextPhase = getNextPhase(project.currentPhase);
+      const nextPhaseDuration = getPhaseWeeks(nextPhase);
+      
+      console.log(`Auto-advancing ${project.title} from ${project.currentPhase} to ${nextPhase}`);
+      
+      toast({
+        title: "Project Advanced",
+        description: `${project.title} has moved to ${nextPhase.replace('-', ' ')} phase`,
+      });
+      
       return {
         ...project,
-        phaseDuration: 0, // Advance immediately
+        currentPhase: nextPhase,
+        phaseDuration: nextPhaseDuration,
+        status: nextPhase as any,
         developmentProgress: newProgress
       };
     }
