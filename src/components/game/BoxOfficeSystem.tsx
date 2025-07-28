@@ -134,6 +134,12 @@ export class BoxOfficeSystem {
   }
 
   private static calculateWeeklyRevenue(project: Project, weeksSinceRelease: number): number {
+    // FIXED: Handle week 0 (shouldn't happen now, but safety check)
+    if (weeksSinceRelease <= 0) {
+      console.log(`      WARNING: weeksSinceRelease is ${weeksSinceRelease}, treating as week 1`);
+      weeksSinceRelease = 1;
+    }
+    
     const baseRevenue = project.budget.total * 0.3; // 30% of budget as baseline
     
     // Star power calculation

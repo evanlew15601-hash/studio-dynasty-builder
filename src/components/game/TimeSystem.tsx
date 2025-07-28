@@ -29,13 +29,13 @@ export class TimeSystem {
     if (releaseYear > currentYear) return 0; // Future release
     
     if (releaseYear === currentYear) {
-      // Same year - simple subtraction
-      const weeks = currentWeek - releaseWeek;
-      console.log(`SAME YEAR CALC: ${currentWeek} - ${releaseWeek} = ${weeks}`);
-      return Math.max(0, weeks);
+      // Same year - simple subtraction + 1 (release week counts as week 1)
+      const weeks = currentWeek - releaseWeek + 1;
+      console.log(`SAME YEAR CALC: ${currentWeek} - ${releaseWeek} + 1 = ${weeks}`);
+      return Math.max(1, weeks); // Minimum 1 week (release week)
     } else {
       // Different years - calculate across year boundary
-      const weeksLeftInReleaseYear = Math.max(0, 52 - releaseWeek);
+      const weeksLeftInReleaseYear = Math.max(1, 52 - releaseWeek + 1); // Include release week as week 1
       const fullYearsBetween = Math.max(0, currentYear - releaseYear - 1) * 52;
       const weeksInCurrentYear = currentWeek;
       const total = weeksLeftInReleaseYear + fullYearsBetween + weeksInCurrentYear;
