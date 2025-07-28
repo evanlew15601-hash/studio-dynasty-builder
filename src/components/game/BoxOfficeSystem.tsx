@@ -12,7 +12,7 @@ export interface BoxOfficeState {
 
 export class BoxOfficeSystem {
   static initializeRelease(project: Project, releaseWeek: number, releaseYear: number): Project {
-    console.log(`INITIALIZING RELEASE: ${project.title} at Y${releaseYear}W${releaseWeek}`);
+    console.log(`SCHEDULING RELEASE: ${project.title} for Y${releaseYear}W${releaseWeek}`);
     
     return {
       ...project,
@@ -21,9 +21,9 @@ export class BoxOfficeSystem {
       releaseYear,
       metrics: {
         ...project.metrics,
-        inTheaters: true,
+        inTheaters: false, // Not in theaters until release date arrives
         boxOfficeTotal: 0,
-        theaterCount: 3000,
+        theaterCount: 0,
         weeksSinceRelease: 0,
         criticsScore: Math.floor(Math.random() * 40) + 50, // 50-90
         audienceScore: Math.floor(Math.random() * 40) + 50 // 50-90
@@ -42,9 +42,8 @@ export class BoxOfficeSystem {
     console.log(`      Current time: Week ${currentWeek}, Year ${currentYear}`);
     console.log(`      Current metrics inTheaters: ${project.metrics?.inTheaters}`);
     
-    // Only process if film is in theaters AND release date has passed
-    if (!project.metrics?.inTheaters || !project.releaseWeek || !project.releaseYear) {
-      console.log(`      → Skipping: inTheaters=${project.metrics?.inTheaters}, releaseWeek=${project.releaseWeek}, releaseYear=${project.releaseYear}`);
+    // Skip if no release date set
+    if (!project.releaseWeek || !project.releaseYear) {
       return project;
     }
 
@@ -53,8 +52,22 @@ export class BoxOfficeSystem {
                        (currentYear === project.releaseYear && currentWeek >= project.releaseWeek);
     
     if (!hasReleased) {
-      console.log(`      → Skipping: Release scheduled for Week ${project.releaseWeek}, Year ${project.releaseYear} but current time is Week ${currentWeek}, Year ${currentYear}`);
+      console.log(`      → Waiting for release: ${project.title} scheduled for Week ${project.releaseWeek}, Year ${project.releaseYear}`);
       return project;
+    }
+
+    // Film is scheduled for release and date has arrived - put it in theaters if not already
+    if (!project.metrics?.inTheaters) {
+      console.log(`      → FILM NOW RELEASING: ${project.title} entering theaters`);
+      return {
+        ...project,
+        metrics: {
+          ...project.metrics,
+          inTheaters: true,
+          theaterCount: 3000,
+          weeksSinceRelease: 1
+        }
+      };
     }
 
     const weeksSinceRelease = TimeSystem.calculateWeeksSince(
