@@ -30,12 +30,13 @@ export class TimeSystem {
     const releaseAbsoluteWeek = (releaseYear * 52) + releaseWeek;
     const currentAbsoluteWeek = (currentYear * 52) + currentWeek;
     
-    // Simple subtraction + 1 (because release week counts as week 1)
+    // Calculate actual weeks that have passed since release
     const weeksSince = currentAbsoluteWeek - releaseAbsoluteWeek + 1;
     
     console.log(`WEEKS CALC: Y${releaseYear}W${releaseWeek} to Y${currentYear}W${currentWeek} = ${weeksSince} weeks`);
     
-    return Math.max(1, weeksSince);
+    // Only return positive values - if negative, the release hasn't happened yet
+    return Math.max(0, weeksSince);
   }
 
   static getWeekOfYear(week: number): number {
