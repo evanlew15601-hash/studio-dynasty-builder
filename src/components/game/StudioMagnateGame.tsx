@@ -227,43 +227,30 @@ export const StudioMagnateGame: React.FC<StudioMagnateGameProps> = ({ onPhaseCha
   };
 
   const processWeeklyProjectEffects = (projects: Project[], currentWeek: number): Project[] => {
-    console.log('=== WEEKLY PROJECT PROCESSING START ===');
-    console.log('Projects to process:', projects.length);
-    
-    return projects.map((project, index) => {
-      console.log(`[${index}] Processing: ${project.title}`);
-      console.log(`  Phase: ${project.currentPhase}, Duration: ${project.phaseDuration}, Status: ${project.status}`);
-      
+    return projects.map(project => {
       let updatedProject = { ...project };
 
       // Handle development progress for development phase
       if (project.currentPhase === 'development') {
-        console.log(`  -> Processing development for ${project.title}`);
         updatedProject = processDevelopmentProgress(project, currentWeek);
-        console.log(`  -> Development result: phase=${updatedProject.currentPhase}, duration=${updatedProject.phaseDuration}`);
       }
       
       // Handle box office for released projects
       if (project.status === 'released' && project.releaseWeek && project.releaseYear) {
         const weeksSinceRelease = calculateWeeksSinceRelease(project, currentWeek, gameState.currentYear);
-        console.log(`  -> Box office processing: ${project.title}, weeks since release: ${weeksSinceRelease}`);
         if (weeksSinceRelease <= 16) {
           updatedProject = processBoxOfficeRevenue(updatedProject, weeksSinceRelease);
         }
       }
 
-      // CRITICAL: Always process phase timers for ALL projects
+      // ROBUST TIMER SYSTEM - Always process phase timers for ALL projects
       if (updatedProject.phaseDuration !== undefined && updatedProject.phaseDuration > 0) {
-        console.log(`  -> Timer tick: ${updatedProject.title} ${updatedProject.phaseDuration} -> ${updatedProject.phaseDuration - 1}`);
-        
         const newPhaseDuration = updatedProject.phaseDuration - 1;
         
         // Advance when timer hits exactly 0
         if (newPhaseDuration === 0) {
           const nextPhase = getNextPhase(updatedProject.currentPhase);
           const nextDuration = getPhaseWeeks(nextPhase);
-          
-          console.log(`  -> PHASE ADVANCE: ${updatedProject.title} from ${updatedProject.currentPhase} to ${nextPhase}`);
           
           updatedProject = {
             ...updatedProject,
@@ -281,7 +268,7 @@ export const StudioMagnateGame: React.FC<StudioMagnateGameProps> = ({ onPhaseCha
             description: `${updatedProject.title} advanced to ${nextPhase.replace('-', ' ')}`,
           });
         } else {
-          // Just update the timer countdown
+          // Update timer countdown
           updatedProject = {
             ...updatedProject,
             phaseDuration: newPhaseDuration
@@ -289,7 +276,6 @@ export const StudioMagnateGame: React.FC<StudioMagnateGameProps> = ({ onPhaseCha
         }
       }
 
-      console.log(`  -> Final result: ${updatedProject.title} - Phase: ${updatedProject.currentPhase}, Duration: ${updatedProject.phaseDuration}`);
       return updatedProject;
     });
   };
