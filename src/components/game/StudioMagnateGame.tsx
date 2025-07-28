@@ -312,12 +312,24 @@ export const StudioMagnateGame: React.FC<StudioMagnateGameProps> = ({ onPhaseCha
     }
 
     // Calculate release week/year from selected date
+    // Ensure release is at least in the current week or future
     const gameStart = new Date(2024, 0, 1);
     const daysSinceGameStart = Math.floor((strategy.premiereDate.getTime() - gameStart.getTime()) / (1000 * 60 * 60 * 24));
     const weeksSinceGameStart = Math.floor(daysSinceGameStart / 7) + 1;
     
-    const releaseYear = 2024 + Math.floor((weeksSinceGameStart - 1) / 52);
-    const releaseWeek = ((weeksSinceGameStart - 1) % 52) + 1;
+    let releaseYear = 2024 + Math.floor((weeksSinceGameStart - 1) / 52);
+    let releaseWeek = ((weeksSinceGameStart - 1) % 52) + 1;
+    
+    // Ensure release date is not in the past
+    const currentAbsoluteWeek = (gameState.currentYear * 52) + gameState.currentWeek;
+    const calculatedAbsoluteWeek = (releaseYear * 52) + releaseWeek;
+    
+    if (calculatedAbsoluteWeek < currentAbsoluteWeek) {
+      // Force release to current week if date is in the past
+      releaseWeek = gameState.currentWeek;
+      releaseYear = gameState.currentYear;
+      console.log(`  → WARNING: Release date was in past, moved to current week Y${releaseYear}W${releaseWeek}`);
+    }
     
     console.log(`  → Player selected: ${strategy.premiereDate.toDateString()} = Y${releaseYear}W${releaseWeek}`);
     
