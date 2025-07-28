@@ -319,7 +319,13 @@ export const StudioMagnateGame: React.FC<StudioMagnateGameProps> = ({ onPhaseCha
             status: nextPhase === 'distribution' ? 'released' : nextPhase as any,
             ...(nextPhase === 'distribution' ? {
               releaseWeek: currentWeek + 2,
-              releaseYear: gameState.currentYear
+              releaseYear: gameState.currentYear,
+              metrics: {
+                ...updatedProject.metrics,
+                inTheaters: true, // CRITICAL FIX: Initialize inTheaters to true
+                criticsScore: Math.floor(Math.random() * 40) + 50, // 50-90
+                audienceScore: Math.floor(Math.random() * 40) + 50 // 50-90
+              }
             } : {})
           };
           

@@ -36,8 +36,8 @@ export const MarketingCampaignModal: React.FC<MarketingCampaignModalProps> = ({
   studioBudget
 }) => {
   const [selectedStrategy, setSelectedStrategy] = useState<string>('traditional');
-  const [budget, setBudget] = useState<number>(5000000);
-  const [duration, setDuration] = useState<number>(8);
+  const [budget, setBudget] = useState<string>('5000000'); // FIXED: Use string for controlled input
+  const [duration, setDuration] = useState<string>('8'); // FIXED: Use string for controlled input
 
   if (!project) return null;
 
@@ -115,12 +115,15 @@ export const MarketingCampaignModal: React.FC<MarketingCampaignModalProps> = ({
   ];
 
   const handleCreateCampaign = () => {
+    const numBudget = parseInt(budget);
+    const numDuration = parseInt(duration);
+    
     // Validate inputs
-    if (budget <= 0 || budget > studioBudget) {
+    if (isNaN(numBudget) || numBudget <= 0 || numBudget > studioBudget) {
       return; // Don't create if invalid
     }
     
-    if (duration < 4 || duration > 16) {
+    if (isNaN(numDuration) || numDuration < 4 || numDuration > 16) {
       return; // Don't create if invalid
     }
 
@@ -135,7 +138,7 @@ export const MarketingCampaignModal: React.FC<MarketingCampaignModalProps> = ({
       }
     };
 
-    onCreateCampaign?.(strategy, budget, duration);
+    onCreateCampaign?.(strategy, numBudget, numDuration);
     onClose();
   };
 
@@ -204,12 +207,10 @@ export const MarketingCampaignModal: React.FC<MarketingCampaignModalProps> = ({
                     <Label htmlFor="budget">Marketing Budget</Label>
                     <Input
                       id="budget"
-                      type="number"
+                      type="text"
                       value={budget}
-                      onChange={(e) => setBudget(Number(e.target.value))}
-                      min={1000000}
-                      max={studioBudget * 0.5}
-                      step={100000}
+                      onChange={(e) => setBudget(e.target.value)}
+                      placeholder="5000000"
                     />
                     <p className="text-xs text-muted-foreground">
                       Available: ${(studioBudget / 1000000).toFixed(1)}M
@@ -220,11 +221,10 @@ export const MarketingCampaignModal: React.FC<MarketingCampaignModalProps> = ({
                     <Label htmlFor="duration">Campaign Duration (weeks)</Label>
                     <Input
                       id="duration"
-                      type="number"
+                      type="text"
                       value={duration}
-                      onChange={(e) => setDuration(Number(e.target.value))}
-                      min={4}
-                      max={16}
+                      onChange={(e) => setDuration(e.target.value)}
+                      placeholder="8"
                     />
                   </div>
                 </div>
@@ -235,7 +235,7 @@ export const MarketingCampaignModal: React.FC<MarketingCampaignModalProps> = ({
                   </Button>
                   <Button 
                     onClick={handleCreateCampaign}
-                    disabled={budget > studioBudget || budget <= 0 || duration < 4 || duration > 16}
+                    disabled={parseInt(budget) > studioBudget || isNaN(parseInt(budget)) || parseInt(budget) <= 0 || isNaN(parseInt(duration)) || parseInt(duration) < 4 || parseInt(duration) > 16}
                   >
                     <PlayIcon className="w-4 h-4 mr-2" />
                     Launch Campaign
