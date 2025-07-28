@@ -26,21 +26,43 @@ export class TimeSystem {
     currentWeek: number, 
     currentYear: number
   ): number {
-    if (releaseYear > currentYear) return 0; // Future release
+    console.log(`=== WEEKS CALCULATION DEBUG ===`);
+    console.log(`Input: Release Y${releaseYear}W${releaseWeek} → Current Y${currentYear}W${currentWeek}`);
+    
+    if (releaseYear > currentYear) {
+      console.log(`Future release detected, returning 0`);
+      return 0;
+    }
     
     if (releaseYear === currentYear) {
       // Same year - simple subtraction + 1 (release week counts as week 1)
       const weeks = currentWeek - releaseWeek + 1;
-      console.log(`SAME YEAR CALC: ${currentWeek} - ${releaseWeek} + 1 = ${weeks}`);
-      return Math.max(1, weeks); // Minimum 1 week (release week)
+      console.log(`SAME YEAR: ${currentWeek} - ${releaseWeek} + 1 = ${weeks}`);
+      const result = Math.max(1, weeks);
+      console.log(`Final same year result: ${result}`);
+      return result;
     } else {
       // Different years - calculate across year boundary
-      const weeksLeftInReleaseYear = Math.max(1, 52 - releaseWeek + 1); // Include release week as week 1
-      const fullYearsBetween = Math.max(0, currentYear - releaseYear - 1) * 52;
-      const weeksInCurrentYear = currentWeek;
-      const total = weeksLeftInReleaseYear + fullYearsBetween + weeksInCurrentYear;
+      console.log(`CROSS-YEAR CALCULATION:`);
       
-      console.log(`MULTI-YEAR CALC: Release Y${releaseYear}W${releaseWeek} to Y${currentYear}W${currentWeek} = ${total} weeks`);
+      // How many weeks left in the release year (including release week)
+      const weeksLeftInReleaseYear = 52 - releaseWeek + 1;
+      console.log(`  Weeks left in release year Y${releaseYear}: 52 - ${releaseWeek} + 1 = ${weeksLeftInReleaseYear}`);
+      
+      // How many full years between release year and current year
+      const yearsBetween = currentYear - releaseYear - 1;
+      const fullYearsBetween = Math.max(0, yearsBetween) * 52;
+      console.log(`  Years between: ${currentYear} - ${releaseYear} - 1 = ${yearsBetween}`);
+      console.log(`  Full weeks from years between: ${fullYearsBetween}`);
+      
+      // How many weeks into current year
+      const weeksInCurrentYear = currentWeek;
+      console.log(`  Weeks in current year Y${currentYear}: ${weeksInCurrentYear}`);
+      
+      const total = weeksLeftInReleaseYear + fullYearsBetween + weeksInCurrentYear;
+      console.log(`  TOTAL: ${weeksLeftInReleaseYear} + ${fullYearsBetween} + ${weeksInCurrentYear} = ${total}`);
+      console.log(`=== END WEEKS CALCULATION ===`);
+      
       return total;
     }
   }
