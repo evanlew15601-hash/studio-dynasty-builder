@@ -93,43 +93,39 @@ export class BoxOfficeSystem {
   }
 
   private static shouldExitTheaters(project: Project, weeksSinceRelease: number): boolean {
-    console.log(`        EXIT CHECK for ${project.title}:`);
-    console.log(`          Weeks since release: ${weeksSinceRelease}`);
+    // Simple, guaranteed exit logic
     
-    // Force exit after 18 weeks maximum
-    if (weeksSinceRelease >= 18) {
-      console.log(`          → EXIT: Maximum 18 weeks reached`);
+    // Force exit after 12 weeks maximum (was 18, now much shorter)
+    if (weeksSinceRelease >= 12) {
+      console.log(`→ EXIT: 12 weeks maximum reached`);
       return true;
     }
 
-    const criticsScore = project.metrics.criticsScore || 50;
-    const audienceScore = project.metrics.audienceScore || 50;
-    const performance = criticsScore + audienceScore;
-    const buzzBonus = (project.marketingCampaign?.buzz || 0) * 0.5;
-    const totalPerformance = performance + buzzBonus;
+    // Exit after just 6 weeks for poor performance
+    if (weeksSinceRelease >= 6) {
+      const criticsScore = project.metrics.criticsScore || 50;
+      const audienceScore = project.metrics.audienceScore || 50;
+      const avgScore = (criticsScore + audienceScore) / 2;
+      
+      if (avgScore < 70) {
+        console.log(`→ EXIT: Poor performance (${avgScore} < 70) after ${weeksSinceRelease} weeks`);
+        return true;
+      }
+    }
 
-    console.log(`          Critics: ${criticsScore}, Audience: ${audienceScore}, Buzz: ${project.marketingCampaign?.buzz || 0}`);
-    console.log(`          Performance: ${performance}, Total with buzz: ${totalPerformance}`);
-
-    // Deterministic exit based on performance
-    if (totalPerformance < 100 && weeksSinceRelease >= 5) {
-      console.log(`          → EXIT: Very poor performance (${totalPerformance} < 100) and ${weeksSinceRelease} >= 5 weeks`);
-      return true;
-    }
-    if (totalPerformance < 130 && weeksSinceRelease >= 8) {
-      console.log(`          → EXIT: Poor performance (${totalPerformance} < 130) and ${weeksSinceRelease} >= 8 weeks`);
-      return true;
-    }
-    if (totalPerformance < 160 && weeksSinceRelease >= 12) {
-      console.log(`          → EXIT: Average performance (${totalPerformance} < 160) and ${weeksSinceRelease} >= 12 weeks`);
-      return true;
-    }
-    if (totalPerformance < 190 && weeksSinceRelease >= 16) {
-      console.log(`          → EXIT: Good performance (${totalPerformance} < 190) and ${weeksSinceRelease} >= 16 weeks`);
-      return true;
+    // Exit after 8 weeks for average performance  
+    if (weeksSinceRelease >= 8) {
+      const criticsScore = project.metrics.criticsScore || 50;
+      const audienceScore = project.metrics.audienceScore || 50;
+      const avgScore = (criticsScore + audienceScore) / 2;
+      
+      if (avgScore < 80) {
+        console.log(`→ EXIT: Average performance (${avgScore} < 80) after ${weeksSinceRelease} weeks`);
+        return true;
+      }
     }
     
-    console.log(`          → STAY: Performance ${totalPerformance} is too good to exit at week ${weeksSinceRelease}`);
+    console.log(`→ STAY: Still performing well at week ${weeksSinceRelease}`);
     return false;
   }
 
