@@ -11,7 +11,7 @@ export class TimeSystem {
     const newYear = timeState.currentWeek >= 52 ? timeState.currentYear + 1 : timeState.currentYear;
     const newQuarter = Math.ceil(newWeek / 13);
     
-    console.log(`TIME ADVANCE: Week ${timeState.currentWeek} -> ${newWeek}, Year ${timeState.currentYear} -> ${newYear}`);
+    console.log(`TIME ADVANCE: Week ${timeState.currentWeek} Year ${timeState.currentYear} -> Week ${newWeek} Year ${newYear}`);
     
     return {
       currentWeek: newWeek,

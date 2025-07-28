@@ -232,9 +232,16 @@ export const StudioMagnateGame: React.FC<StudioMagnateGameProps> = ({ onPhaseCha
   };
 
   const processWeeklyProjectEffects = (projects: Project[], timeState: TimeState): Project[] => {
-    console.log(`=== WEEKLY PROJECT PROCESSING START === Week: ${timeState.currentWeek}, Year: ${timeState.currentYear}`);
+    console.log(`=== WEEKLY PROJECT PROCESSING START ===`);
+    console.log(`Time State:`, timeState);
+    console.log(`Number of projects:`, projects.length);
     
-    return projects.map(project => {
+    const results = projects.map((project, index) => {
+      console.log(`[${index}] Processing project: ${project.title}`);
+      console.log(`  Status: ${project.status}, Phase: ${project.currentPhase}`);
+      console.log(`  Release Week: ${project.releaseWeek}, Release Year: ${project.releaseYear}`);
+      console.log(`  In Theaters: ${project.metrics?.inTheaters}`);
+      
       let updatedProject = { ...project };
 
       // Handle development progress for development phase
@@ -244,11 +251,16 @@ export const StudioMagnateGame: React.FC<StudioMagnateGameProps> = ({ onPhaseCha
       
       // COMPLETELY REWRITTEN BOX OFFICE SYSTEM
       if (project.status === 'released') {
+        console.log(`  → Processing box office for ${project.title}`);
+        console.log(`    Before processing - inTheaters: ${updatedProject.metrics?.inTheaters}, boxOffice: ${updatedProject.metrics?.boxOfficeTotal}`);
+        
         updatedProject = BoxOfficeSystem.processWeeklyRevenue(
           updatedProject, 
           timeState.currentWeek, 
           timeState.currentYear
         );
+        
+        console.log(`    After processing - inTheaters: ${updatedProject.metrics?.inTheaters}, boxOffice: ${updatedProject.metrics?.boxOfficeTotal}`);
       }
 
       // Process marketing campaign activities
@@ -313,11 +325,13 @@ export const StudioMagnateGame: React.FC<StudioMagnateGameProps> = ({ onPhaseCha
 
           // FIXED: Use new box office system for releases
           if (nextPhase === 'distribution') {
+            console.log(`  → Initializing release for ${updatedProject.title} at Week ${timeState.currentWeek + 2}, Year ${timeState.currentYear}`);
             updatedProject = BoxOfficeSystem.initializeRelease(
               updatedProject,
               timeState.currentWeek + 2,
               timeState.currentYear
             );
+            console.log(`    Release initialized - inTheaters: ${updatedProject.metrics?.inTheaters}`);
           }
           
           toast({
@@ -332,8 +346,12 @@ export const StudioMagnateGame: React.FC<StudioMagnateGameProps> = ({ onPhaseCha
         }
       }
 
+      console.log(`[${index}] Final result: ${updatedProject.title} - Phase: ${updatedProject.currentPhase}, Duration: ${updatedProject.phaseDuration}, InTheaters: ${updatedProject.metrics?.inTheaters}`);
       return updatedProject;
     });
+    
+    console.log(`=== WEEKLY PROJECT PROCESSING END ===`);
+    return results;
   };
   
   const processWeeklyTalentEffects = (talent: TalentPerson[], currentWeek: number): TalentPerson[] => {
@@ -612,7 +630,7 @@ export const StudioMagnateGame: React.FC<StudioMagnateGameProps> = ({ onPhaseCha
         updatedHistory.push(boxOfficeWeek);
       }
       
-      return {
+      const newState = {
         ...prev,
         currentWeek: newTimeState.currentWeek,
         currentYear: newTimeState.currentYear,
@@ -623,13 +641,19 @@ export const StudioMagnateGame: React.FC<StudioMagnateGameProps> = ({ onPhaseCha
         marketConditions: updatedMarketConditions,
         boxOfficeHistory: updatedHistory.slice(-52) // Keep last year
       };
-    });
 
-    toast({
-      title: "New Week",
-      description: `Week ${gameState.currentWeek === 52 ? 1 : gameState.currentWeek + 1}, ${gameState.currentWeek === 52 ? gameState.currentYear + 1 : gameState.currentYear}`,
+      // Toast notification after state update
+      setTimeout(() => {
+        toast({
+          title: "New Week",
+          description: `Week ${newTimeState.currentWeek}, ${newTimeState.currentYear}`,
+        });
+      }, 100);
+
+      return newState;
     });
   };
+  
   
   const processWeeklyBoxOffice = (projects: Project[], week: number, year: number): BoxOfficeWeek => {
     const releases = projects

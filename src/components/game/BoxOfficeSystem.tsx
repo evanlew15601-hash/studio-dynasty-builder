@@ -36,8 +36,14 @@ export class BoxOfficeSystem {
     currentWeek: number, 
     currentYear: number
   ): Project {
+    console.log(`    BOX OFFICE: Processing ${project.title}`);
+    console.log(`      Project status: ${project.status}`);
+    console.log(`      Release info: Week ${project.releaseWeek}, Year ${project.releaseYear}`);
+    console.log(`      Current metrics inTheaters: ${project.metrics?.inTheaters}`);
+    
     // Only process if film is in theaters
-    if (!project.metrics.inTheaters || !project.releaseWeek || !project.releaseYear) {
+    if (!project.metrics?.inTheaters || !project.releaseWeek || !project.releaseYear) {
+      console.log(`      → Skipping: inTheaters=${project.metrics?.inTheaters}, releaseWeek=${project.releaseWeek}, releaseYear=${project.releaseYear}`);
       return project;
     }
 
@@ -48,12 +54,13 @@ export class BoxOfficeSystem {
       currentYear
     );
 
-    console.log(`PROCESSING BOX OFFICE: ${project.title} - Week ${weeksSinceRelease}`);
+    console.log(`      Weeks since release: ${weeksSinceRelease}`);
 
     // Check if film should leave theaters
     const shouldExit = this.shouldExitTheaters(project, weeksSinceRelease);
+    console.log(`      Should exit theaters: ${shouldExit}`);
     if (shouldExit) {
-      console.log(`FILM EXITING THEATERS: ${project.title} after ${weeksSinceRelease} weeks`);
+      console.log(`      → FILM EXITING THEATERS: ${project.title} after ${weeksSinceRelease} weeks`);
       return {
         ...project,
         metrics: {
@@ -71,6 +78,8 @@ export class BoxOfficeSystem {
     const weeklyRevenue = this.calculateWeeklyRevenue(project, weeksSinceRelease);
     const newTotal = (project.metrics.boxOfficeTotal || 0) + weeklyRevenue;
     const theaterCount = this.calculateTheaterCount(project, weeksSinceRelease);
+
+    console.log(`      → Weekly revenue: $${weeklyRevenue.toLocaleString()}, New total: $${newTotal.toLocaleString()}`);
 
     return {
       ...project,
