@@ -96,10 +96,25 @@ export const PostTheatricalManagement: React.FC<PostTheatricalManagementProps> =
   };
 
   const calculateWeeksSinceTheatricalEnd = (project: Project): number => {
-    if (!project.theatricalEndDate) return 0;
-    const now = new Date();
-    const diffTime = Math.abs(now.getTime() - project.theatricalEndDate.getTime());
-    return Math.ceil(diffTime / (1000 * 60 * 60 * 24 * 7));
+    if (!project.theatricalEndDate || !project.releaseWeek || !project.releaseYear) return 0;
+    
+    // Use game time instead of real time
+    const currentGameWeek = (gameState.currentYear * 52) + gameState.currentWeek;
+    const releaseGameWeek = (project.releaseYear * 52) + project.releaseWeek;
+    const weeksSinceRelease = currentGameWeek - releaseGameWeek;
+    
+    // Assume theatrical run lasted the weeks since release from metrics
+    const theatricalRunWeeks = project.metrics.weeksSinceRelease || 0;
+    const weeksSinceTheatricalEnd = Math.max(0, weeksSinceRelease - theatricalRunWeeks);
+    
+    console.log(`🎭 POST-THEATRICAL CHECK: ${project.title}`);
+    console.log(`   Release: Y${project.releaseYear}W${project.releaseWeek} (${releaseGameWeek})`);
+    console.log(`   Current: Y${gameState.currentYear}W${gameState.currentWeek} (${currentGameWeek})`);
+    console.log(`   Weeks since release: ${weeksSinceRelease}`);
+    console.log(`   Theatrical run weeks: ${theatricalRunWeeks}`);
+    console.log(`   Weeks since theatrical end: ${weeksSinceTheatricalEnd}`);
+    
+    return weeksSinceTheatricalEnd;
   };
 
   const calculatePostTheatricalRevenue = (project: Project, platform: string): number => {
