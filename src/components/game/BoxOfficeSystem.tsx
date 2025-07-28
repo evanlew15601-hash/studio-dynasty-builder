@@ -15,8 +15,10 @@ export interface BoxOfficeWeeklyReport {
 export class BoxOfficeSystem {
   static initializeRelease(project: Project, releaseWeek: number, releaseYear: number): Project {
     console.log(`🎬 INITIALIZING RELEASE: ${project.title} for Y${releaseYear}W${releaseWeek}`);
+    console.log(`   Current project status: ${project.status}`);
+    console.log(`   Current project metrics:`, project.metrics);
     
-    return {
+    const result = {
       ...project,
       status: 'released' as any,
       releaseWeek,
@@ -33,6 +35,9 @@ export class BoxOfficeSystem {
         theatricalRunLocked: false // Track if run has permanently ended
       }
     };
+    
+    console.log(`   Result status: ${result.status}, inTheaters: ${result.metrics.inTheaters}`);
+    return result;
   }
 
   static processWeeklyRevenue(
@@ -41,9 +46,11 @@ export class BoxOfficeSystem {
     currentYear: number
   ): Project {
     console.log(`\n📊 BOX OFFICE WEEKLY: ${project.title}`);
+    console.log(`   Project status: ${project.status}, inTheaters: ${project.metrics?.inTheaters}`);
     
     // Skip if no release scheduled
     if (!project.releaseWeek || !project.releaseYear) {
+      console.log(`   ❌ NO RELEASE SCHEDULED`);
       return project;
     }
 
@@ -57,6 +64,10 @@ export class BoxOfficeSystem {
     const currentAbsoluteWeek = (currentYear * 52) + currentWeek;
     const releaseAbsoluteWeek = (project.releaseYear * 52) + project.releaseWeek;
     const hasReleased = currentAbsoluteWeek >= releaseAbsoluteWeek;
+    
+    console.log(`   Current: Y${currentYear}W${currentWeek} (${currentAbsoluteWeek})`);
+    console.log(`   Release: Y${project.releaseYear}W${project.releaseWeek} (${releaseAbsoluteWeek})`);
+    console.log(`   Has released: ${hasReleased}`);
     
     if (!hasReleased) {
       console.log(`  ⏳ Waiting for release: Y${project.releaseYear}W${project.releaseWeek}`);
