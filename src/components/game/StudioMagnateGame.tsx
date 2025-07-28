@@ -374,6 +374,7 @@ export const StudioMagnateGame: React.FC<StudioMagnateGameProps> = ({ onPhaseCha
       }
       
       // Handle scheduled releases when their date arrives
+      let justReleased = false;
       if (project.status === 'scheduled-for-release' && project.releaseWeek && project.releaseYear) {
         const currentAbsoluteWeek = (timeState.currentYear * 52) + timeState.currentWeek;
         const releaseAbsoluteWeek = (project.releaseYear * 52) + project.releaseWeek;
@@ -381,11 +382,12 @@ export const StudioMagnateGame: React.FC<StudioMagnateGameProps> = ({ onPhaseCha
         if (currentAbsoluteWeek >= releaseAbsoluteWeek) {
           console.log(`🎬 RELEASE DATE ARRIVED: ${project.title}`);
           updatedProject = BoxOfficeSystem.initializeRelease(updatedProject, project.releaseWeek, project.releaseYear);
+          justReleased = true; // Flag to skip processing on release week
         }
       }
       
-      // Process box office for released films
-      if (project.status === 'released') {
+      // Process box office for released films (but skip on the week they just released)
+      if (project.status === 'released' && !justReleased) {
         updatedProject = BoxOfficeSystem.processWeeklyRevenue(
           updatedProject, 
           timeState.currentWeek, 
