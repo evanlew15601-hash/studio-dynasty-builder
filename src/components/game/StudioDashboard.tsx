@@ -31,9 +31,78 @@ export const StudioDashboard: React.FC<StudioDashboardProps> = ({
 }) => {
   const activeProjects = gameState.projects.filter(p => p.status !== 'archived');
   const recentReleases = gameState.projects.filter(p => p.status === 'distribution').slice(0, 3);
+  
+  // Box office calculations
+  const inTheatersProjects = gameState.projects.filter(p => p.metrics?.inTheaters);
+  const totalBoxOfficeThisWeek = inTheatersProjects.reduce((sum, p) => {
+    return sum + (p.metrics?.boxOfficeTotal || 0);
+  }, 0);
+  const totalTheaters = inTheatersProjects.reduce((sum, p) => sum + (p.metrics?.theaterCount || 0), 0);
 
   return (
     <div className="space-y-6">
+      {/* Box Office Performance - Show if any films in theaters */}
+      {inTheatersProjects.length > 0 && (
+        <Card className="card-golden border-2 border-primary/30 bg-gradient-to-r from-primary/5 to-accent/5">
+          <CardHeader>
+            <CardTitle className="flex items-center font-studio text-primary">
+              <div className="p-2 rounded-lg bg-gradient-to-r from-primary/20 to-accent/20 mr-3">
+                <TrendingIcon className="text-primary" size={20} />
+              </div>
+              Box Office Performance
+              <Badge className="ml-3 bg-primary/20 text-primary border-primary/30">
+                {inTheatersProjects.length} Film{inTheatersProjects.length !== 1 ? 's' : ''} in Theaters
+              </Badge>
+            </CardTitle>
+          </CardHeader>
+          <CardContent>
+            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
+              <div className="p-4 rounded-lg bg-gradient-to-r from-primary/10 to-accent/10 border border-primary/20">
+                <div className="text-sm text-muted-foreground mb-1">Total Box Office</div>
+                <div className="studio-mono text-2xl font-bold text-primary">
+                  ${(totalBoxOfficeThisWeek / 1000000).toFixed(1)}M
+                </div>
+              </div>
+              <div className="p-4 rounded-lg bg-gradient-to-r from-accent/10 to-primary/10 border border-accent/20">
+                <div className="text-sm text-muted-foreground mb-1">Total Theaters</div>
+                <div className="studio-mono text-2xl font-bold text-accent">
+                  {totalTheaters.toLocaleString()}
+                </div>
+              </div>
+              <div className="p-4 rounded-lg bg-gradient-to-r from-success/10 to-primary/10 border border-success/20">
+                <div className="text-sm text-muted-foreground mb-1">Average per Theater</div>
+                <div className="studio-mono text-2xl font-bold text-success">
+                  ${totalTheaters > 0 ? Math.round(totalBoxOfficeThisWeek / totalTheaters).toLocaleString() : '0'}
+                </div>
+              </div>
+            </div>
+            
+            {/* Individual film performance */}
+            <div className="mt-6 space-y-3">
+              <div className="text-sm font-medium text-muted-foreground mb-3">Films Currently in Theaters:</div>
+              {inTheatersProjects.map(project => (
+                <div key={project.id} className="flex items-center justify-between p-3 rounded-lg bg-card/50 border border-border/50">
+                  <div className="flex items-center space-x-3">
+                    <Badge variant="outline" className="border-primary/30 text-primary">
+                      Week {project.metrics?.weeksSinceRelease || 0}
+                    </Badge>
+                    <span className="font-medium">{project.title}</span>
+                  </div>
+                  <div className="flex items-center space-x-4 text-sm">
+                    <span className="text-muted-foreground">
+                      {(project.metrics?.theaterCount || 0).toLocaleString()} theaters
+                    </span>
+                    <span className="studio-mono font-semibold text-primary">
+                      ${((project.metrics?.boxOfficeTotal || 0) / 1000000).toFixed(1)}M
+                    </span>
+                  </div>
+                </div>
+              ))}
+            </div>
+          </CardContent>
+        </Card>
+      )}
+
       {/* Studio Overview */}
       <div className="grid grid-cols-1 md:grid-cols-3 gap-6 animate-slide-up">
         <Card className="card-golden hover:shadow-golden transition-all duration-300">

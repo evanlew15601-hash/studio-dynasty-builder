@@ -40,7 +40,7 @@ export class BoxOfficeSystem {
     console.log(`      Project status: ${project.status}`);
     console.log(`      Release info: Week ${project.releaseWeek}, Year ${project.releaseYear}`);
     console.log(`      Current time: Week ${currentWeek}, Year ${currentYear}`);
-    console.log(`      Current metrics inTheaters: ${project.metrics?.inTheaters}`);
+    console.log(`      Current metrics inTheaters: ${project.metrics?.inTheaters}, boxOffice: $${(project.metrics?.boxOfficeTotal || 0).toLocaleString()}`);
     
     // Skip if no release date set
     if (!project.releaseWeek || !project.releaseYear) {
