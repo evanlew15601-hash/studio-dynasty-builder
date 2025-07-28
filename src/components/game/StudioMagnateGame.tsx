@@ -331,7 +331,9 @@ export const StudioMagnateGame: React.FC<StudioMagnateGameProps> = ({ onPhaseCha
       case 'development': return 'pre-production';
       case 'pre-production': return 'production';
       case 'production': return 'post-production';
-      case 'post-production': return 'distribution';
+      case 'post-production': return 'marketing';
+      case 'marketing': return 'release';
+      case 'release': return 'distribution';
       default: return currentPhase;
     }
   };
@@ -360,15 +362,32 @@ export const StudioMagnateGame: React.FC<StudioMagnateGameProps> = ({ onPhaseCha
         description: getIssueDescription(randomType),
         severity: Math.random() < 0.3 ? 'high' : 'medium',
         weeksToResolve: Math.floor(Math.random() * 4) + 1,
-        cost: Math.random() < 0.5 ? Math.floor(Math.random() * 100000) + 50000 : undefined
+        cost: Math.random() < 0.5 ? Math.floor(Math.random() * 100000) + 50000 : undefined,
+        ignored: false,
+        ignoredWeeks: 0,
+        consequences: []
       });
     }
     
-    // Resolve existing issues
-    const resolvedIssues = newIssues.map(issue => ({
-      ...issue,
-      weeksToResolve: Math.max(0, issue.weeksToResolve - 1)
-    })).filter(issue => issue.weeksToResolve > 0);
+    // Process existing issues and apply consequences for ignored ones
+    const processedIssues = newIssues.map(issue => {
+      let updatedIssue = { ...issue };
+      
+      // Check if issue has been ignored for too long
+      if (issue.ignored && issue.ignoredWeeks! > 0) {
+        updatedIssue.ignoredWeeks = issue.ignoredWeeks! + 1;
+        
+        // Apply escalating consequences
+        if (updatedIssue.ignoredWeeks >= 2) {
+          const consequences = generateIssueConsequences(issue);
+          updatedIssue.consequences = [...(issue.consequences || []), ...consequences];
+        }
+      } else {
+        updatedIssue.weeksToResolve = Math.max(0, issue.weeksToResolve - 1);
+      }
+      
+      return updatedIssue;
+    }).filter(issue => issue.weeksToResolve > 0 || issue.ignored);
     
     const newProgress = {
       ...progress,
@@ -376,7 +395,7 @@ export const StudioMagnateGame: React.FC<StudioMagnateGameProps> = ({ onPhaseCha
       budgetApproval: project.cast.length > 0 ? Math.min(100, progress.budgetApproval + weeklyIncrease) : progress.budgetApproval,
       talentAttached: project.cast.length > 0 ? Math.min(100, progress.talentAttached + 10) : progress.talentAttached,
       locationSecured: Math.min(100, progress.locationSecured + weeklyIncrease),
-      issues: resolvedIssues
+      issues: processedIssues
     };
     
     // Auto-advance if completion threshold met
@@ -405,6 +424,56 @@ export const StudioMagnateGame: React.FC<StudioMagnateGameProps> = ({ onPhaseCha
     return descriptions[type as keyof typeof descriptions] || 'Development complications';
   };
   
+  const generateIssueConsequences = (issue: any): any[] => {
+    const consequences = [];
+    
+    switch (issue.type) {
+      case 'budget':
+        consequences.push({
+          type: 'budget-overrun',
+          severity: issue.severity === 'high' ? 8 : 5,
+          description: 'Budget overrun due to unresolved financial issues',
+          budgetImpact: issue.cost ? issue.cost * 1.5 : 100000
+        });
+        break;
+      case 'creative':
+        consequences.push({
+          type: 'quality-drop',
+          severity: issue.severity === 'high' ? 7 : 4,
+          description: 'Project quality degraded due to unresolved creative issues',
+          qualityImpact: -10
+        });
+        break;
+      case 'talent':
+        consequences.push({
+          type: 'talent-dissatisfaction',
+          severity: issue.severity === 'high' ? 9 : 6,
+          description: 'Talent relationship damaged due to ignored conflicts',
+          reputationImpact: -5
+        });
+        break;
+      case 'location':
+        consequences.push({
+          type: 'schedule-delay',
+          severity: issue.severity === 'high' ? 8 : 5,
+          description: 'Production delayed due to location complications',
+          scheduleImpact: 2
+        });
+        break;
+      case 'legal':
+        consequences.push({
+          type: 'budget-overrun',
+          severity: 9,
+          description: 'Legal fees and settlements due to ignored legal issues',
+          budgetImpact: issue.cost ? issue.cost * 2 : 200000,
+          reputationImpact: -3
+        });
+        break;
+    }
+    
+    return consequences;
+  };
+
   const getAverageProgress = (progress: any): number => {
     return (progress.scriptCompletion + progress.budgetApproval + progress.talentAttached + progress.locationSecured) / 4;
   };

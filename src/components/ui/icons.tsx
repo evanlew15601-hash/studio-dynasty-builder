@@ -249,3 +249,57 @@ export const AudienceIcon = ({ className, size = 24 }: IconProps) => (
 
 export const MarketIcon = MarketingIcon;
 export const ReelIcon = ClapperboardIcon;
+
+
+export const DollarIcon = ({ className, size = 24 }: IconProps) => (
+  <svg className={className} width={size} height={size} viewBox="0 0 24 24" fill="none">
+    <line x1="12" y1="1" x2="12" y2="23" stroke="currentColor" strokeWidth="2"/>
+    <path d="M17 5H9.5C8.11929 5 7 6.11929 7 7.5S8.11929 10 9.5 10H14.5C15.8807 10 17 11.1193 17 12.5S15.8807 15 14.5 15H6" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"/>
+  </svg>
+);
+
+export const UsersIcon = ({ className, size = 24 }: IconProps) => (
+  <svg className={className} width={size} height={size} viewBox="0 0 24 24" fill="none">
+    <path d="M17 21V19C17 16.7909 15.2091 15 13 15H5C2.79086 15 1 16.7909 1 19V21" stroke="currentColor" strokeWidth="2"/>
+    <circle cx="9" cy="7" r="4" stroke="currentColor" strokeWidth="2"/>
+    <path d="M23 21V19C23 17.1362 21.7252 15.5701 20 15.1339" stroke="currentColor" strokeWidth="2"/>
+    <path d="M16 3.13394C17.7252 3.57005 19 5.13616 19 7C19 8.86384 17.7252 10.4299 16 10.866" stroke="currentColor" strokeWidth="2"/>
+  </svg>
+);
+
+export const PlayIcon = ({ className, size = 24 }: IconProps) => (
+  <svg className={className} width={size} height={size} viewBox="0 0 24 24" fill="none">
+    <polygon points="5,3 19,12 5,21" fill="currentColor"/>
+  </svg>
+);
+
+export const TvIcon = ({ className, size = 24 }: IconProps) => (
+  <svg className={className} width={size} height={size} viewBox="0 0 24 24" fill="none">
+    <rect x="2" y="7" width="20" height="15" rx="2" ry="2" stroke="currentColor" strokeWidth="2"/>
+    <polyline points="17,2 12,7 7,2" stroke="currentColor" strokeWidth="2"/>
+  </svg>
+);
+
+export const GlobeIcon = ({ className, size = 24 }: IconProps) => (
+  <svg className={className} width={size} height={size} viewBox="0 0 24 24" fill="none">
+    <circle cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="2"/>
+    <path d="M2 12H22" stroke="currentColor" strokeWidth="2"/>
+    <path d="M12 2C14.5013 4.73835 15.9228 8.29203 16 12C15.9228 15.708 14.5013 19.2616 12 22C9.49872 19.2616 8.07725 15.708 8 12C8.07725 8.29203 9.49872 4.73835 12 2Z" stroke="currentColor" strokeWidth="2"/>
+  </svg>
+);
+
+export const StarIcon = ({ className, size = 24 }: IconProps) => (
+  <svg className={className} width={size} height={size} viewBox="0 0 24 24" fill="none">
+    <polygon points="12,2 15,8.5 22,9.5 17,14 18.5,21 12,17.5 5.5,21 7,14 2,9.5 9,8.5" stroke="currentColor" strokeWidth="2"/>
+  </svg>
+);
+
+export const TheaterIcon = ({ className, size = 24 }: IconProps) => (
+  <svg className={className} width={size} height={size} viewBox="0 0 24 24" fill="none">
+    <path d="M3 7V17C3 18.1046 3.89543 19 5 19H19C20.1046 19 21 18.1046 21 17V7C21 5.89543 20.1046 5 19 5H5C3.89543 5 3 5.89543 3 7Z" stroke="currentColor" strokeWidth="2"/>
+    <path d="M3 7L12 13L21 7" stroke="currentColor" strokeWidth="2"/>
+    <circle cx="8" cy="11" r="1" fill="currentColor"/>
+    <circle cx="12" cy="11" r="1" fill="currentColor"/>
+    <circle cx="16" cy="11" r="1" fill="currentColor"/>
+  </svg>
+);

@@ -116,11 +116,13 @@ export interface Project {
   timeline: ProjectTimeline;
   locations: Location[];
   distributionStrategy: DistributionStrategy;
-  status: 'development' | 'pre-production' | 'production' | 'post-production' | 'distribution' | 'archived' | 'released' | 'filming' | 'completed';
+  status: 'development' | 'pre-production' | 'production' | 'post-production' | 'marketing' | 'release' | 'distribution' | 'archived' | 'released' | 'filming' | 'completed';
   metrics: ProjectMetrics;
   phaseDuration: number; // weeks remaining in current phase
   contractedTalent: ContractedTalent[];
   developmentProgress: DevelopmentProgress;
+  marketingCampaign?: MarketingCampaign;
+  releaseStrategy?: ReleaseStrategy;
   releaseWeek?: number;
   releaseYear?: number;
 }
@@ -283,6 +285,9 @@ export interface DevelopmentIssue {
   weeksToResolve: number;
   cost?: number;
   reputationImpact?: number;
+  ignored?: boolean;
+  ignoredWeeks?: number;
+  consequences?: IssueConsequence[];
 }
 
 export interface Producer extends TalentPerson {
@@ -311,7 +316,7 @@ export type Genre =
   | 'superhero' | 'family' | 'sports' | 'historical';
 
 export type ProductionPhase = 
-  | 'development' | 'pre-production' | 'production' | 'post-production' | 'distribution';
+  | 'development' | 'pre-production' | 'production' | 'post-production' | 'marketing' | 'release' | 'distribution';
 
 export type RelationshipType = 
   | 'professional' | 'friendly' | 'romantic' | 'rivals' | 'mentor-mentee' | 'hostile';
@@ -403,4 +408,98 @@ export interface EventRequirement {
   type: 'budget' | 'reputation' | 'talent' | 'technology';
   threshold: number;
   description: string;
+}
+
+export interface MarketingCampaign {
+  id: string;
+  strategy: MarketingStrategy;
+  budgetAllocated: number;
+  budgetSpent: number;
+  duration: number; // weeks
+  weeksRemaining: number;
+  activities: MarketingActivity[];
+  buzz: number; // 0-100
+  targetAudience: string[];
+  effectiveness: number; // 0-100
+}
+
+export interface MarketingStrategy {
+  type: 'traditional' | 'digital' | 'grassroots' | 'premium' | 'festival';
+  channels: MarketingChannel[];
+  targeting: AudienceTargeting;
+}
+
+export interface MarketingChannel {
+  name: string;
+  type: 'tv' | 'digital' | 'print' | 'outdoor' | 'social' | 'events' | 'pr';
+  cost: number;
+  reach: number;
+  effectiveness: number;
+}
+
+export interface AudienceTargeting {
+  demographic: string[];
+  psychographic: string[];
+  geographic: string[];
+  platforms: string[];
+}
+
+export interface MarketingActivity {
+  id: string;
+  type: 'trailer' | 'tv-spot' | 'press-junket' | 'test-screening' | 'premiere' | 'social-campaign';
+  name: string;
+  cost: number;
+  duration: number;
+  impact: MarketingImpact;
+  status: 'planned' | 'active' | 'completed';
+}
+
+export interface MarketingImpact {
+  buzzIncrease: number;
+  audienceReach: number;
+  criticalAttention: number;
+  industryAwareness: number;
+}
+
+export interface ReleaseStrategy {
+  type: 'wide' | 'limited' | 'platform' | 'festival' | 'streaming';
+  theatersCount?: number;
+  premiereDate: Date;
+  rolloutPlan: ReleaseRollout[];
+  specialEvents: SpecialEvent[];
+  pressStrategy: PressStrategy;
+}
+
+export interface ReleaseRollout {
+  week: number;
+  markets: string[];
+  theatersAdded: number;
+  marketingPush: boolean;
+}
+
+export interface SpecialEvent {
+  type: 'premiere' | 'gala' | 'festival-screening' | 'press-conference';
+  date: Date;
+  location: string;
+  cost: number;
+  expectedImpact: number;
+  attendees: string[];
+}
+
+export interface PressStrategy {
+  embargoDate?: Date;
+  reviewScreenings: number;
+  pressJunkets: number;
+  interviews: number;
+  expectedCriticalReception: number;
+}
+
+export interface IssueConsequence {
+  type: 'budget-overrun' | 'schedule-delay' | 'reputation-loss' | 'talent-dissatisfaction' | 'quality-drop';
+  severity: number; // 1-10
+  description: string;
+  budgetImpact?: number;
+  scheduleImpact?: number; // weeks
+  reputationImpact?: number;
+  qualityImpact?: number;
 }
