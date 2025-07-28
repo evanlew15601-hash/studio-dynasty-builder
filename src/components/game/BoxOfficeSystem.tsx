@@ -18,6 +18,10 @@ export class BoxOfficeSystem {
     console.log(`   Current project status: ${project.status}`);
     console.log(`   Current project metrics:`, project.metrics);
     
+    // Calculate opening week revenue immediately during release
+    const openingWeekRevenue = this.calculateWeeklyRevenue(project, 0);
+    console.log(`   💰 OPENING WEEK REVENUE: $${openingWeekRevenue.toLocaleString()}`);
+    
     const result = {
       ...project,
       status: 'released' as any,
@@ -26,17 +30,19 @@ export class BoxOfficeSystem {
       metrics: {
         ...project.metrics,
         inTheaters: true, // Enter theaters immediately upon release
-        boxOfficeTotal: 0,
+        boxOfficeTotal: openingWeekRevenue, // START with opening week revenue
         theaterCount: this.getInitialTheaterCount(project),
         weeksSinceRelease: 0,
         criticsScore: Math.floor(Math.random() * 40) + 50, // 50-90
         audienceScore: Math.floor(Math.random() * 40) + 50, // 50-90
         boxOfficeStatus: 'Opening',
-        theatricalRunLocked: false // Track if run has permanently ended
+        theatricalRunLocked: false, // Track if run has permanently ended
+        lastWeeklyRevenue: openingWeekRevenue
       }
     };
     
     console.log(`   Result status: ${result.status}, inTheaters: ${result.metrics.inTheaters}, theaterCount: ${result.metrics.theaterCount}`);
+    console.log(`   💰 Initial boxOfficeTotal: $${result.metrics.boxOfficeTotal?.toLocaleString()}`);
     console.log(`   Full result metrics:`, result.metrics);
     return result;
   }

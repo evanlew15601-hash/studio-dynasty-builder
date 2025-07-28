@@ -365,6 +365,7 @@ export const StudioMagnateGame: React.FC<StudioMagnateGameProps> = ({ onPhaseCha
     
     const results = projects.map((project, index) => {
       console.log(`[${index}] Processing: ${project.title} (${project.currentPhase})`);
+      console.log(`    📊 BEFORE: boxOfficeTotal = ${project.metrics?.boxOfficeTotal || 0}`);
       
       let updatedProject = { ...project };
 
@@ -381,18 +382,23 @@ export const StudioMagnateGame: React.FC<StudioMagnateGameProps> = ({ onPhaseCha
         
         if (currentAbsoluteWeek >= releaseAbsoluteWeek) {
           console.log(`🎬 RELEASE DATE ARRIVED: ${project.title}`);
+          console.log(`    📊 PRE-RELEASE: boxOfficeTotal = ${project.metrics?.boxOfficeTotal || 0}`);
           updatedProject = BoxOfficeSystem.initializeRelease(updatedProject, project.releaseWeek, project.releaseYear);
+          console.log(`    📊 POST-RELEASE: boxOfficeTotal = ${updatedProject.metrics?.boxOfficeTotal || 0}`);
           justReleased = true; // Flag to skip processing on release week
         }
       }
       
       // Process box office for released films (but skip on the week they just released)
       if (project.status === 'released' && !justReleased) {
+        console.log(`    💰 PROCESSING BOX OFFICE: ${project.title}`);
+        console.log(`    📊 PRE-REVENUE: boxOfficeTotal = ${updatedProject.metrics?.boxOfficeTotal || 0}`);
         updatedProject = BoxOfficeSystem.processWeeklyRevenue(
           updatedProject, 
           timeState.currentWeek, 
           timeState.currentYear
         );
+        console.log(`    📊 POST-REVENUE: boxOfficeTotal = ${updatedProject.metrics?.boxOfficeTotal || 0}`);
       }
 
       // Process marketing campaigns
