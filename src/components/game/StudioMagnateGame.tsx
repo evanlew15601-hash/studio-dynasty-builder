@@ -53,7 +53,10 @@ export const StudioMagnateGame: React.FC<StudioMagnateGameProps> = ({ onPhaseCha
       reputation: 50,
       budget: 10000000, // $10M starting budget
       founded: new Date().getFullYear(),
-      specialties: ['drama']
+      specialties: ['drama'],
+      debt: 0, // Track studio debt
+      lastProjectWeek: 0, // Track when last project was greenlit
+      weeksSinceLastProject: 0 // Counter for reputation decay
     },
     currentYear: new Date().getFullYear(),
     currentWeek: 1,
@@ -129,6 +132,21 @@ export const StudioMagnateGame: React.FC<StudioMagnateGameProps> = ({ onPhaseCha
   };
 
   const handleProjectCreate = (script: Script) => {
+    const developmentCost = script.budget * 0.1;
+    
+    // Check if studio can afford the project (including potential loan capacity)
+    const maxLoanCapacity = Math.max(0, 50000000 - (gameState.studio.debt || 0)); // $50M max debt
+    const availableFunds = gameState.studio.budget + maxLoanCapacity;
+    
+    if (developmentCost > availableFunds) {
+      toast({
+        title: "Cannot Greenlight Project",
+        description: "Project cost exceeds studio capacity even with loans.",
+        variant: "destructive"
+      });
+      return;
+    }
+
     const newProject: Project = {
       id: `project-${Date.now()}`,
       title: script.title,
@@ -208,12 +226,30 @@ export const StudioMagnateGame: React.FC<StudioMagnateGameProps> = ({ onPhaseCha
       metrics: {}
     };
 
+    // Deduct development cost and handle loan if needed
+    const newBudget = gameState.studio.budget - developmentCost;
+    let newDebt = gameState.studio.debt || 0;
+    let finalBudget = newBudget;
+    
+    if (newBudget < 0) {
+      newDebt += Math.abs(newBudget);
+      finalBudget = 0;
+      toast({
+        title: "Loan Taken",
+        description: `Borrowed $${Math.abs(newBudget).toLocaleString()} to greenlight project.`,
+        variant: "default"
+      });
+    }
+
     setGameState(prev => ({
       ...prev,
       projects: [...prev.projects, newProject],
       studio: {
         ...prev.studio,
-        budget: prev.studio.budget - script.budget * 0.1
+        budget: finalBudget,
+        debt: newDebt,
+        lastProjectWeek: prev.currentWeek,
+        weeksSinceLastProject: 0
       }
     }));
 
@@ -739,6 +775,94 @@ export const StudioMagnateGame: React.FC<StudioMagnateGameProps> = ({ onPhaseCha
     });
   };
 
+  // Process weekly costs, debt payments, and reputation changes
+  const processWeeklyCosts = (currentState: GameState, projects: Project[]) => {
+    let studio = { ...currentState.studio };
+    
+    // Calculate weekly operational costs (basic studio overhead)
+    const baseOperationalCost = 25000; // $25k per week base cost (gentler)
+    const projectCount = projects.filter(p => ['development', 'pre-production', 'production', 'post-production'].includes(p.status)).length;
+    const operationalCost = baseOperationalCost + (projectCount * 10000); // $10k per active project
+    
+    console.log(`💰 WEEKLY COSTS: Base $${baseOperationalCost.toLocaleString()} + Projects $${(projectCount * 10000).toLocaleString()}`);
+    
+    // Calculate production phase costs (spread over full phase duration)
+    let productionCosts = 0;
+    projects.forEach(project => {
+      if (project.currentPhase === 'production') {
+        const weeklyProductionCost = project.budget.total * 0.7 / getPhaseWeeks('production'); // 70% of budget over production weeks
+        productionCosts += weeklyProductionCost;
+        console.log(`🎬 Production cost for ${project.title}: $${weeklyProductionCost.toLocaleString()}`);
+      }
+    });
+    
+    const totalWeeklyCosts = operationalCost + productionCosts;
+    
+    // Deduct costs from budget
+    studio.budget -= totalWeeklyCosts;
+    
+    // Handle debt if budget goes negative (easier loan terms)
+    if (studio.budget < 0) {
+      const loanAmount = Math.abs(studio.budget);
+      studio.debt = (studio.debt || 0) + loanAmount;
+      studio.budget = 0;
+      
+      if (loanAmount > 0) {
+        console.log(`💳 Auto-loan: $${loanAmount.toLocaleString()}`);
+      }
+    }
+    
+    // Pay down debt automatically if budget is positive (5% of surplus goes to debt)
+    if (studio.budget > 1000000 && studio.debt && studio.debt > 0) { // Only pay debt if budget > $1M
+      const debtPayment = Math.min(studio.debt, studio.budget * 0.05);
+      studio.debt -= debtPayment;
+      studio.budget -= debtPayment;
+      console.log(`💳 Auto debt payment: $${debtPayment.toLocaleString()}. Remaining debt: $${studio.debt.toLocaleString()}`);
+    }
+    
+    // Very low weekly interest on debt (1% annually = ~0.02% weekly)
+    if (studio.debt && studio.debt > 0) {
+      const weeklyInterest = studio.debt * 0.0002;
+      studio.debt += weeklyInterest;
+    }
+    
+    // Track weeks since last project for reputation system
+    studio.weeksSinceLastProject = (studio.weeksSinceLastProject || 0) + 1;
+    
+    // More forgiving reputation decay (only after 12 weeks = ~3 months)
+    if (studio.weeksSinceLastProject > 12) {
+      const reputationLoss = Math.min(1, (studio.weeksSinceLastProject - 12) * 0.25); // Very gentle decay
+      studio.reputation = Math.max(0, studio.reputation - reputationLoss);
+      if (reputationLoss > 0) {
+        console.log(`📉 Reputation declined by ${reputationLoss.toFixed(1)} (${studio.weeksSinceLastProject} weeks since last project)`);
+      }
+    }
+    
+    // Reputation changes from box office performance (check completed theatrical runs)
+    projects.forEach(project => {
+      if (project.status === 'released' && project.metrics?.boxOfficeTotal && project.metrics?.inTheaters === false) {
+        const totalRevenue = project.metrics.boxOfficeTotal;
+        const budget = project.budget.total;
+        const profitMargin = (totalRevenue * 0.55) / budget; // Studio share vs budget
+        
+        if (profitMargin > 2.0) { // 200% return - huge success
+          studio.reputation = Math.min(100, studio.reputation + 3);
+          console.log(`📈 Big reputation boost from blockbuster ${project.title} (${(profitMargin * 100).toFixed(0)}% return)`);
+        } else if (profitMargin > 1.2) { // 120% return - solid hit
+          studio.reputation = Math.min(100, studio.reputation + 1);
+          console.log(`📈 Reputation boost from successful ${project.title}`);
+        } else if (profitMargin < 0.3) { // Less than 30% return - bomb
+          studio.reputation = Math.max(0, studio.reputation - 2);
+          console.log(`📉 Reputation hit from bomb ${project.title}`);
+        }
+      }
+    });
+    
+    console.log(`💰 STUDIO STATUS: Budget: $${studio.budget.toLocaleString()}, Debt: $${(studio.debt || 0).toLocaleString()}, Reputation: ${studio.reputation.toFixed(1)}`);
+    
+    return { studio };
+  };
+
   const handleAdvanceWeek = () => {
     console.log(`🕐 ADVANCING WEEK: Current Y${gameState.currentYear}W${gameState.currentWeek}`);
     console.log(`🕐 Projects count: ${gameState.projects.length}`);
@@ -757,12 +881,16 @@ export const StudioMagnateGame: React.FC<StudioMagnateGameProps> = ({ onPhaseCha
       
       const updatedProjects = processWeeklyProjectEffects(prev.projects, newTimeState);
       
+      // Process weekly costs and reputation
+      const weeklyResults = processWeeklyCosts(prev, updatedProjects);
+      
       const newState = {
         ...prev,
         currentWeek: newTimeState.currentWeek,
         currentYear: newTimeState.currentYear,
         currentQuarter: newTimeState.currentQuarter,
-        projects: updatedProjects
+        projects: updatedProjects,
+        studio: weeklyResults.studio
       };
 
       setTimeout(() => {
@@ -806,6 +934,11 @@ export const StudioMagnateGame: React.FC<StudioMagnateGameProps> = ({ onPhaseCha
                   <span className="studio-mono font-semibold text-primary">
                     ${(gameState.studio.budget / 1000000).toFixed(1)}M
                   </span>
+                  {gameState.studio.debt && gameState.studio.debt > 0 && (
+                    <span className="text-destructive text-xs ml-2">
+                      Debt: ${(gameState.studio.debt / 1000000).toFixed(1)}M
+                    </span>
+                  )}
                 </div>
               </div>
               

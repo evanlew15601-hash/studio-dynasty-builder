@@ -7,6 +7,9 @@ export interface Studio {
   budget: number;
   founded: number;
   specialties: Genre[];
+  debt?: number;
+  lastProjectWeek?: number;
+  weeksSinceLastProject?: number;
 }
 
 export interface Script {
