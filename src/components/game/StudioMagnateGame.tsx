@@ -323,15 +323,19 @@ export const StudioMagnateGame: React.FC<StudioMagnateGameProps> = ({ onPhaseCha
             status: nextPhase === 'distribution' ? 'released' : nextPhase as any
           };
 
-          // FIXED: Use new box office system for releases
+          // FIXED: Films release 4 weeks in the future
           if (nextPhase === 'distribution') {
-            console.log(`  → Initializing release for ${updatedProject.title} at Week ${timeState.currentWeek}, Year ${timeState.currentYear}`);
+            const releaseWeek = timeState.currentWeek + 4; // 1 month later
+            const releaseYear = releaseWeek > 52 ? timeState.currentYear + 1 : timeState.currentYear;
+            const adjustedReleaseWeek = releaseWeek > 52 ? releaseWeek - 52 : releaseWeek;
+            
+            console.log(`  → Scheduling release for ${updatedProject.title} at Week ${adjustedReleaseWeek}, Year ${releaseYear}`);
             updatedProject = BoxOfficeSystem.initializeRelease(
               updatedProject,
-              timeState.currentWeek,
-              timeState.currentYear
+              adjustedReleaseWeek,
+              releaseYear
             );
-            console.log(`    Release initialized - inTheaters: ${updatedProject.metrics?.inTheaters}`);
+            console.log(`    Release scheduled - inTheaters: ${updatedProject.metrics?.inTheaters}`);
           }
           
           toast({

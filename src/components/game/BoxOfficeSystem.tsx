@@ -39,11 +39,21 @@ export class BoxOfficeSystem {
     console.log(`    BOX OFFICE: Processing ${project.title}`);
     console.log(`      Project status: ${project.status}`);
     console.log(`      Release info: Week ${project.releaseWeek}, Year ${project.releaseYear}`);
+    console.log(`      Current time: Week ${currentWeek}, Year ${currentYear}`);
     console.log(`      Current metrics inTheaters: ${project.metrics?.inTheaters}`);
     
-    // Only process if film is in theaters
+    // Only process if film is in theaters AND release date has passed
     if (!project.metrics?.inTheaters || !project.releaseWeek || !project.releaseYear) {
       console.log(`      → Skipping: inTheaters=${project.metrics?.inTheaters}, releaseWeek=${project.releaseWeek}, releaseYear=${project.releaseYear}`);
+      return project;
+    }
+
+    // Check if release date has actually arrived
+    const hasReleased = currentYear > project.releaseYear || 
+                       (currentYear === project.releaseYear && currentWeek >= project.releaseWeek);
+    
+    if (!hasReleased) {
+      console.log(`      → Skipping: Release scheduled for Week ${project.releaseWeek}, Year ${project.releaseYear} but current time is Week ${currentWeek}, Year ${currentYear}`);
       return project;
     }
 
