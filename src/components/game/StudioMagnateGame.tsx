@@ -409,12 +409,34 @@ export const StudioMagnateGame: React.FC<StudioMagnateGameProps> = ({ onPhaseCha
       if (project.status === 'released' && !justReleased) {
         console.log(`    💰 PROCESSING BOX OFFICE: ${project.title}`);
         console.log(`    📊 PRE-REVENUE: boxOfficeTotal = ${updatedProject.metrics?.boxOfficeTotal || 0}`);
+        
+        const previousTotal = updatedProject.metrics?.boxOfficeTotal || 0;
+        
         updatedProject = BoxOfficeSystem.processWeeklyRevenue(
           updatedProject, 
           timeState.currentWeek, 
           timeState.currentYear
         );
-        console.log(`    📊 POST-REVENUE: boxOfficeTotal = ${updatedProject.metrics?.boxOfficeTotal || 0}`);
+        
+        const newTotal = updatedProject.metrics?.boxOfficeTotal || 0;
+        const weeklyBoxOfficeRevenue = newTotal - previousTotal;
+        
+        console.log(`    📊 POST-REVENUE: boxOfficeTotal = ${newTotal}`);
+        console.log(`    💰 WEEKLY BOX OFFICE EARNED: $${weeklyBoxOfficeRevenue.toLocaleString()}`);
+        
+        // Add box office revenue to studio budget (studio keeps percentage after exhibitor cut)
+        if (weeklyBoxOfficeRevenue > 0) {
+          const studioShare = weeklyBoxOfficeRevenue * 0.55; // Studios typically get 55% of domestic box office
+          console.log(`    💰 STUDIO SHARE (55%): $${studioShare.toLocaleString()}`);
+          
+          setGameState(prevState => ({
+            ...prevState,
+            studio: {
+              ...prevState.studio,
+              budget: prevState.studio.budget + studioShare
+            }
+          }));
+        }
       }
 
       // Process marketing campaigns
