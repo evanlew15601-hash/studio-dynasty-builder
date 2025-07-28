@@ -107,7 +107,7 @@ export const MarketingReleaseManagement: React.FC<MarketingReleaseManagementProp
                       <div>
                         <h3 className="font-semibold text-lg">{project.title}</h3>
                         <p className="text-sm text-muted-foreground">
-                          {project.script.genre} • ${(project.budget.total / 1000000).toFixed(1)}M Budget
+                          {project.script?.genre || 'Unknown'} • ${(project.budget.total / 1000000).toFixed(1)}M Budget
                         </p>
                       </div>
                       <div className="flex items-center gap-2">
@@ -167,7 +167,7 @@ export const MarketingReleaseManagement: React.FC<MarketingReleaseManagementProp
                       <div>
                         <h3 className="font-semibold text-lg">{project.title}</h3>
                         <p className="text-sm text-muted-foreground">
-                          {project.script.genre} • Ready for theatrical release
+                          {project.script?.genre || 'Unknown'} • Ready for theatrical release
                         </p>
                       </div>
                       <div className="flex items-center gap-2">

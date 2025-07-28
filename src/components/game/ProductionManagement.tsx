@@ -133,7 +133,7 @@ export const ProductionManagement: React.FC<ProductionManagementProps> = ({
                         <div>
                           <h3 className="font-semibold text-lg">{project.title}</h3>
                           <p className="text-sm text-muted-foreground">
-                            {project.script.genre} • ${(project.budget.total / 1000000).toFixed(1)}M Budget
+                            {project.script?.genre || 'Unknown'} • ${(project.budget.total / 1000000).toFixed(1)}M Budget
                           </p>
                         </div>
                         <div className="flex items-center gap-2">

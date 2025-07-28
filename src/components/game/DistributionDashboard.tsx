@@ -41,7 +41,7 @@ export const DistributionDashboard: React.FC<DistributionDashboardProps> = ({
     // Simulate box office/streaming performance
     const basePerformance = Math.random() * 100;
     const reputationBonus = gameState.studio.reputation * 0.5;
-    const genreBonus = gameState.marketConditions.trendingGenres.includes(project.script.genre) ? 20 : 0;
+    const genreBonus = gameState.marketConditions.trendingGenres.includes(project.script?.genre) ? 20 : 0;
     
     const performance = Math.min(100, basePerformance + reputationBonus + genreBonus);
     
@@ -154,7 +154,7 @@ export const DistributionDashboard: React.FC<DistributionDashboardProps> = ({
                   <div className="space-y-1">
                     <h3 className="font-bold">{project.title}</h3>
                     <div className="flex items-center space-x-2">
-                      <Badge variant="outline">{project.script.genre}</Badge>
+                      <Badge variant="outline">{project.script?.genre || 'Unknown'}</Badge>
                       <Badge>{project.status}</Badge>
                     </div>
                     <p className="text-sm text-muted-foreground">
@@ -212,7 +212,7 @@ export const DistributionDashboard: React.FC<DistributionDashboardProps> = ({
                     <div>
                       <h3 className="font-bold text-lg">{project.title}</h3>
                       <div className="flex items-center space-x-2 mt-1">
-                        <Badge variant="outline">{project.script.genre}</Badge>
+                        <Badge variant="outline">{project.script?.genre || 'Unknown'}</Badge>
                         {project.metrics?.awards?.map((award) => (
                           <Badge key={award} className="bg-gradient-golden text-primary-foreground">
                             <TrophyIcon className="mr-1" size={12} />

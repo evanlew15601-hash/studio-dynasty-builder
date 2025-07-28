@@ -132,7 +132,7 @@ export const CastingBoard: React.FC<CastingBoardProps> = ({
                 <div>
                   <h3 className="text-xl font-bold">{selectedProject.title}</h3>
                   <p className="text-muted-foreground">
-                    {selectedProject.script.genre} • Budget: {formatCurrency(selectedProject.budget.total)}
+                    {selectedProject.script?.genre || 'Unknown'} • Budget: {formatCurrency(selectedProject.budget.total)}
                   </p>
                 </div>
                 <div className="text-right">

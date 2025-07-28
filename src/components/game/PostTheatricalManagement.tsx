@@ -267,7 +267,7 @@ export const PostTheatricalManagement: React.FC<PostTheatricalManagementProps> =
                         <div>
                           <h3 className="text-xl font-semibold">{project.title}</h3>
                           <p className="text-muted-foreground">
-                            {project.script.genre} • Box Office: ${((project.metrics.boxOfficeTotal || 0) / 1000000).toFixed(1)}M
+                            {project.script?.genre || 'Unknown'} • Box Office: ${((project.metrics.boxOfficeTotal || 0) / 1000000).toFixed(1)}M
                           </p>
                           <p className="text-sm text-muted-foreground mt-1">
                             Theatrical run ended {weeksSinceEnd} weeks ago

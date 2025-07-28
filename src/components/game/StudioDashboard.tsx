@@ -261,7 +261,7 @@ export const StudioDashboard: React.FC<StudioDashboardProps> = ({
                       <div className="flex justify-between items-center py-2 px-3 rounded-lg bg-card/50">
                         <span className="text-sm text-muted-foreground">Genre:</span>
                         <Badge variant="secondary" className="text-xs">
-                          {project.script.genre}
+                          {project.script?.genre || 'Unknown'}
                         </Badge>
                       </div>
                       <div className="flex justify-between items-center py-2 px-3 rounded-lg bg-card/50">
