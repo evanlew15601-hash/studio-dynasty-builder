@@ -240,11 +240,11 @@ export const StudioMagnateGame: React.FC<StudioMagnateGameProps> = ({ onPhaseCha
         }
       }
       
-      // Advance project phase timers
-      if (project.phaseDuration !== undefined && project.phaseDuration >= 0) {
+      // Advance project phase timers for ALL projects with valid phase duration
+      if (project.phaseDuration !== undefined && project.phaseDuration > 0) {
         const newPhaseDuration = project.phaseDuration - 1;
         
-        // Auto-advance phase when timer reaches 0 or below
+        // Auto-advance phase when timer reaches 0 
         if (newPhaseDuration <= 0) {
           const newPhase = getNextPhase(project.currentPhase);
           const newPhaseDuration = getPhaseWeeks(newPhase);
@@ -269,6 +269,7 @@ export const StudioMagnateGame: React.FC<StudioMagnateGameProps> = ({ onPhaseCha
           };
         }
         
+        // Just update the timer countdown
         return {
           ...project,
           phaseDuration: newPhaseDuration
