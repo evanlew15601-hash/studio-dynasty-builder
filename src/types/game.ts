@@ -116,7 +116,7 @@ export interface Project {
   timeline: ProjectTimeline;
   locations: Location[];
   distributionStrategy: DistributionStrategy;
-  status: 'development' | 'pre-production' | 'production' | 'post-production' | 'marketing' | 'release' | 'distribution' | 'archived' | 'released' | 'filming' | 'completed' | 'ready-for-marketing' | 'ready-for-release';
+  status: 'development' | 'pre-production' | 'production' | 'post-production' | 'marketing' | 'release' | 'distribution' | 'archived' | 'released' | 'filming' | 'completed' | 'ready-for-marketing' | 'ready-for-release' | 'scheduled-for-release';
   postTheatricalEligible?: boolean;
   theatricalEndDate?: Date;
   metrics: ProjectMetrics;

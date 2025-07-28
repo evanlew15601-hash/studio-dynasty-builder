@@ -321,17 +321,21 @@ export const StudioMagnateGame: React.FC<StudioMagnateGameProps> = ({ onPhaseCha
     
     console.log(`  → Player selected: ${strategy.premiereDate.toDateString()} = Y${releaseYear}W${releaseWeek}`);
     
-    const updatedProject = BoxOfficeSystem.initializeRelease(
-      {
-        ...project,
-        releaseStrategy: strategy,
-        status: 'released' as any,
-        readyForRelease: false,
-        phaseDuration: 0
-      },
+    const updatedProject = {
+      ...project,
+      releaseStrategy: strategy,
       releaseWeek,
-      releaseYear
-    );
+      releaseYear,
+      currentPhase: 'release' as const,
+      status: 'scheduled-for-release' as any,
+      readyForRelease: false,
+      phaseDuration: 0,
+      metrics: {
+        ...project.metrics,
+        criticsScore: Math.floor(Math.random() * 40) + 50,
+        audienceScore: Math.floor(Math.random() * 40) + 50,
+      }
+    };
 
     setGameState(prev => ({
       ...prev,
@@ -355,6 +359,17 @@ export const StudioMagnateGame: React.FC<StudioMagnateGameProps> = ({ onPhaseCha
       // Process development phase
       if (project.currentPhase === 'development') {
         updatedProject = processDevelopmentProgress(project, timeState.currentWeek);
+      }
+      
+      // Handle scheduled releases when their date arrives
+      if (project.status === 'scheduled-for-release' && project.releaseWeek && project.releaseYear) {
+        const currentAbsoluteWeek = (timeState.currentYear * 52) + timeState.currentWeek;
+        const releaseAbsoluteWeek = (project.releaseYear * 52) + project.releaseWeek;
+        
+        if (currentAbsoluteWeek >= releaseAbsoluteWeek) {
+          console.log(`🎬 RELEASE DATE ARRIVED: ${project.title}`);
+          updatedProject = BoxOfficeSystem.initializeRelease(updatedProject, project.releaseWeek, project.releaseYear);
+        }
       }
       
       // Process box office for released films
