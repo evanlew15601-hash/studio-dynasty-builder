@@ -25,13 +25,13 @@ export class BoxOfficeSystem {
       releaseYear,
       metrics: {
         ...project.metrics,
-        inTheaters: false, // Will enter theaters when release date arrives
+        inTheaters: true, // Enter theaters immediately upon release
         boxOfficeTotal: 0,
-        theaterCount: 0,
+        theaterCount: this.getInitialTheaterCount(project),
         weeksSinceRelease: 0,
         criticsScore: Math.floor(Math.random() * 40) + 50, // 50-90
         audienceScore: Math.floor(Math.random() * 40) + 50, // 50-90
-        boxOfficeStatus: 'scheduled',
+        boxOfficeStatus: 'Opening',
         theatricalRunLocked: false // Track if run has permanently ended
       }
     };
