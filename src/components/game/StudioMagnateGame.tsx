@@ -391,12 +391,11 @@ export const StudioMagnateGame: React.FC<StudioMagnateGameProps> = ({ onPhaseCha
         if (newPhaseDuration === 0) {
           const nextPhase = getNextPhase(updatedProject.currentPhase);
           
-          // STOP auto-progression at post-production
+          // STOP auto-progression at post-production - stay in post-production until manual marketing
           if (updatedProject.currentPhase === 'post-production') {
             console.log(`  → POST-PRODUCTION COMPLETE: ${updatedProject.title} ready for marketing`);
             updatedProject = {
               ...updatedProject,
-              currentPhase: 'marketing',
               phaseDuration: 0,
               status: 'ready-for-marketing' as any,
               readyForMarketing: true
