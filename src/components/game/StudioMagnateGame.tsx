@@ -5,6 +5,7 @@ import { CastingBoard } from './CastingBoard';
 import { ProductionManagement } from './ProductionManagement';
 import { DistributionDashboard } from './DistributionDashboard';
 import { MarketingReleaseManagement } from './MarketingReleaseManagement';
+import { PostTheatricalManagement } from './PostTheatricalManagement';
 import { StudioDashboard } from './StudioDashboard';
 import { Button } from '@/components/ui/button';
 import { Card } from '@/components/ui/card';
@@ -235,11 +236,19 @@ export const StudioMagnateGame: React.FC<StudioMagnateGameProps> = ({ onPhaseCha
         updatedProject = processDevelopmentProgress(project, currentWeek);
       }
       
-      // Handle box office for released projects
-      if (project.status === 'released' && project.releaseWeek && project.releaseYear) {
+      // Handle box office for released projects - ONLY while in theaters
+      if (project.status === 'released' && project.releaseWeek && project.releaseYear && project.metrics.inTheaters !== false) {
         const weeksSinceRelease = calculateWeeksSinceRelease(project, currentWeek, gameState.currentYear);
-        if (weeksSinceRelease <= 16) {
+        if (weeksSinceRelease <= 18) { // Maximum 18 weeks in theaters
           updatedProject = processBoxOfficeRevenue(updatedProject, weeksSinceRelease);
+          
+          // If film left theaters, stop box office processing
+          if (updatedProject.metrics.inTheaters === false) {
+            toast({
+              title: "Theatrical Run Ended",
+              description: `${updatedProject.title} has left theaters after ${weeksSinceRelease} weeks. Final box office: $${((updatedProject.metrics.boxOfficeTotal || 0) / 1000000).toFixed(1)}M`,
+            });
+          }
         }
       }
 
@@ -258,6 +267,37 @@ export const StudioMagnateGame: React.FC<StudioMagnateGameProps> = ({ onPhaseCha
             activities: updatedActivities,
             weeksRemaining: Math.max(0, updatedProject.marketingCampaign.weeksRemaining - 1)
           }
+        };
+      }
+
+      // Process post-theatrical releases
+      if (updatedProject.postTheatricalReleases) {
+        const updatedReleases = updatedProject.postTheatricalReleases.map(release => {
+          if (release.status === 'active') {
+            const newWeeksActive = release.weeksActive + 1;
+            const newRevenue = release.revenue + release.weeklyRevenue;
+            
+            // Determine if release should decline or end
+            let newStatus: 'planned' | 'active' | 'declining' | 'ended' = release.status;
+            if (newWeeksActive >= 52) { // After 1 year, most releases decline
+              newStatus = 'declining';
+            } else if (newWeeksActive >= 104) { // After 2 years, end
+              newStatus = 'ended';
+            }
+            
+            return {
+              ...release,
+              weeksActive: newWeeksActive,
+              revenue: newRevenue,
+              status: newStatus
+            };
+          }
+          return release;
+        });
+
+        updatedProject = {
+          ...updatedProject,
+          postTheatricalReleases: updatedReleases
         };
       }
 
@@ -528,17 +568,38 @@ export const StudioMagnateGame: React.FC<StudioMagnateGameProps> = ({ onPhaseCha
     
     // Determine if film should leave theaters based on performance
     const performance = (project.metrics.criticsScore || 50) + (project.metrics.audienceScore || 50);
-    let shouldLeaveTheaters = false;
+    const buzzBonus = (project.marketingCampaign?.buzz || 0) * 0.5; // Marketing buzz affects longevity
+    const adjustedPerformance = performance + buzzBonus;
     
-    // Flops leave sooner (4-6 weeks), hits stay longer (10-16 weeks)
-    if (performance < 120 && weeksSinceRelease >= 4) { // Poor performance
-      shouldLeaveTheaters = Math.random() < 0.3;
-    } else if (performance < 140 && weeksSinceRelease >= 8) { // Average performance
-      shouldLeaveTheaters = Math.random() < 0.4;
-    } else if (weeksSinceRelease >= 12) { // Good performance but time limit
-      shouldLeaveTheaters = Math.random() < 0.6;
-    } else if (weeksSinceRelease >= 16) { // Force exit after 16 weeks
+    let shouldLeaveTheaters = false;
+    let theaterStatus = 'wide'; // wide, limited, ending
+    
+    // Performance-based exit logic
+    if (adjustedPerformance < 120 && weeksSinceRelease >= 3) { // Poor performance (flops)
+      shouldLeaveTheaters = Math.random() < (weeksSinceRelease * 0.15); // 15% chance per week after week 3
+      theaterStatus = 'ending';
+    } else if (adjustedPerformance < 140 && weeksSinceRelease >= 6) { // Average performance  
+      shouldLeaveTheaters = Math.random() < (weeksSinceRelease * 0.1); // 10% chance per week after week 6
+      theaterStatus = weeksSinceRelease >= 8 ? 'ending' : 'limited';
+    } else if (adjustedPerformance < 160 && weeksSinceRelease >= 10) { // Good performance
+      shouldLeaveTheaters = Math.random() < (weeksSinceRelease * 0.08); // 8% chance per week after week 10
+      theaterStatus = weeksSinceRelease >= 12 ? 'ending' : 'limited';
+    } else if (weeksSinceRelease >= 14) { // Great performance but time limit
+      shouldLeaveTheaters = Math.random() < (weeksSinceRelease * 0.12); // 12% chance per week after week 14
+      theaterStatus = 'ending';
+    } else if (weeksSinceRelease >= 18) { // Force exit after 18 weeks maximum
       shouldLeaveTheaters = true;
+      theaterStatus = 'ended';
+    }
+    
+    // Update theater count based on status
+    let theaterCount = project.releaseStrategy?.theatersCount || 3000;
+    if (theaterStatus === 'limited') {
+      theaterCount = Math.floor(theaterCount * 0.3); // Drop to 30% of theaters
+    } else if (theaterStatus === 'ending') {
+      theaterCount = Math.floor(theaterCount * 0.1); // Drop to 10% of theaters
+    } else if (theaterStatus === 'ended') {
+      theaterCount = 0;
     }
     
     return {
@@ -546,8 +607,15 @@ export const StudioMagnateGame: React.FC<StudioMagnateGameProps> = ({ onPhaseCha
       metrics: {
         ...project.metrics,
         boxOfficeTotal: newTotal,
-        inTheaters: !shouldLeaveTheaters
-      }
+        inTheaters: !shouldLeaveTheaters,
+        theaterCount,
+        weeksSinceRelease: weeksSinceRelease
+      },
+      // Mark for post-theatrical when leaving theaters
+      ...(shouldLeaveTheaters && !project.postTheatricalEligible ? {
+        postTheatricalEligible: true,
+        theatricalEndDate: new Date()
+      } : {})
     };
   };
   
@@ -753,7 +821,7 @@ export const StudioMagnateGame: React.FC<StudioMagnateGameProps> = ({ onPhaseCha
               { id: 'casting', label: 'Casting Board', IconComponent: CastingIcon },
               { id: 'production', label: 'Production', IconComponent: ProductionIcon },
               { id: 'marketing', label: 'Marketing & Release', IconComponent: MarketingIcon },
-              { id: 'distribution', label: 'Distribution', IconComponent: DistributionIcon },
+              { id: 'distribution', label: 'Post-Theatrical', IconComponent: DistributionIcon },
             ].map((tab) => (
               <Button
                 key={tab.id}
@@ -821,34 +889,34 @@ export const StudioMagnateGame: React.FC<StudioMagnateGameProps> = ({ onPhaseCha
           />
         )}
         
-        {(currentPhase === 'production' || currentPhase === 'marketing') && (
-          currentPhase === 'production' ? (
-            <ProductionManagement 
-              gameState={gameState}
-              selectedProject={selectedProject}
-              onProjectUpdate={(project) => {
-                setGameState(prev => ({
-                  ...prev,
-                  projects: prev.projects.map(p => p.id === project.id ? project : p)
-                }));
-                setSelectedProject(project);
-              }}
-            />
-          ) : (
-            <MarketingReleaseManagement 
-              gameState={gameState}
-              onProjectUpdate={(project) => {
-                setGameState(prev => ({
-                  ...prev,
-                  projects: prev.projects.map(p => p.id === project.id ? project : p)
-                }));
-              }}
-            />
-          )
+        {currentPhase === 'production' && (
+          <ProductionManagement 
+            gameState={gameState}
+            selectedProject={selectedProject}
+            onProjectUpdate={(project) => {
+              setGameState(prev => ({
+                ...prev,
+                projects: prev.projects.map(p => p.id === project.id ? project : p)
+              }));
+              setSelectedProject(project);
+            }}
+          />
+        )}
+        
+        {currentPhase === 'marketing' && (
+          <MarketingReleaseManagement 
+            gameState={gameState}
+            onProjectUpdate={(project) => {
+              setGameState(prev => ({
+                ...prev,
+                projects: prev.projects.map(p => p.id === project.id ? project : p)
+              }));
+            }}
+          />
         )}
         
         {currentPhase === 'distribution' && (
-          <DistributionDashboard 
+          <PostTheatricalManagement 
             gameState={gameState}
             onProjectUpdate={(project) => {
               setGameState(prev => ({

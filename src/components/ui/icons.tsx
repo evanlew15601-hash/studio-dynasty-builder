@@ -238,6 +238,14 @@ export const RevenueIcon = ({ className, size = 24 }: IconProps) => (
   </svg>
 );
 
+export const DiscIcon = ({ className, size = 24 }: IconProps) => (
+  <svg className={className} width={size} height={size} viewBox="0 0 24 24" fill="none">
+    <circle cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="2"/>
+    <circle cx="12" cy="12" r="4" stroke="currentColor" strokeWidth="2"/>
+    <circle cx="12" cy="12" r="1" fill="currentColor"/>
+  </svg>
+);
+
 export const AudienceIcon = ({ className, size = 24 }: IconProps) => (
   <svg className={className} width={size} height={size} viewBox="0 0 24 24" fill="none">
     <circle cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="2"/>

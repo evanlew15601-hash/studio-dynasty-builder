@@ -117,6 +117,8 @@ export interface Project {
   locations: Location[];
   distributionStrategy: DistributionStrategy;
   status: 'development' | 'pre-production' | 'production' | 'post-production' | 'marketing' | 'release' | 'distribution' | 'archived' | 'released' | 'filming' | 'completed';
+  postTheatricalEligible?: boolean;
+  theatricalEndDate?: Date;
   metrics: ProjectMetrics;
   phaseDuration: number; // weeks remaining in current phase
   contractedTalent: ContractedTalent[];
@@ -125,6 +127,7 @@ export interface Project {
   releaseStrategy?: ReleaseStrategy;
   releaseWeek?: number;
   releaseYear?: number;
+  postTheatricalReleases?: PostTheatricalRelease[];
 }
 
 export interface ProjectBudget {
@@ -212,6 +215,8 @@ export interface ProjectMetrics {
   socialMediaMentions?: number;
   internationalSales?: number;
   inTheaters?: boolean;
+  theaterCount?: number;
+  weeksSinceRelease?: number;
   boxOffice?: BoxOfficeMetrics;
   streaming?: StreamingMetrics;
   critical?: CriticalMetrics;
@@ -505,4 +510,16 @@ export interface IssueConsequence {
   scheduleImpact?: number; // weeks
   reputationImpact?: number;
   qualityImpact?: number;
+}
+
+export interface PostTheatricalRelease {
+  id: string;
+  projectId: string;
+  platform: 'streaming' | 'digital' | 'physical' | 'tv-licensing';
+  releaseDate: Date;
+  revenue: number;
+  weeklyRevenue: number;
+  weeksActive: number;
+  status: 'planned' | 'active' | 'declining' | 'ended';
+  cost: number;
 }
