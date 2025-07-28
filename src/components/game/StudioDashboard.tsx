@@ -20,12 +20,14 @@ interface StudioDashboardProps {
   gameState: GameState;
   onStudioUpdate: (updates: Partial<Studio>) => void;
   onProjectSelect: (project: Project | null) => void;
+  onPhaseChange?: (phase: string) => void;
 }
 
 export const StudioDashboard: React.FC<StudioDashboardProps> = ({
   gameState,
   onStudioUpdate,
   onProjectSelect,
+  onPhaseChange,
 }) => {
   const activeProjects = gameState.projects.filter(p => p.status !== 'archived');
   const recentReleases = gameState.projects.filter(p => p.status === 'distribution').slice(0, 3);
@@ -309,6 +311,7 @@ export const StudioDashboard: React.FC<StudioDashboardProps> = ({
             <Button 
               variant="outline" 
               className="h-auto p-6 flex flex-col items-center space-y-3 btn-ghost-premium hover:border-primary/50 group"
+              onClick={() => onPhaseChange?.('scripts')}
             >
               <div className="p-3 rounded-lg bg-gradient-to-r from-primary/10 to-accent/10 group-hover:from-primary/20 group-hover:to-accent/20 transition-all duration-300">
                 <ScriptIcon className="text-primary" size={24} />
@@ -318,6 +321,7 @@ export const StudioDashboard: React.FC<StudioDashboardProps> = ({
             <Button 
               variant="outline" 
               className="h-auto p-6 flex flex-col items-center space-y-3 btn-ghost-premium hover:border-accent/50 group"
+              onClick={() => onPhaseChange?.('casting')}
             >
               <div className="p-3 rounded-lg bg-gradient-to-r from-accent/10 to-primary/10 group-hover:from-accent/20 group-hover:to-primary/20 transition-all duration-300">
                 <CastingIcon className="text-accent" size={24} />
@@ -327,20 +331,22 @@ export const StudioDashboard: React.FC<StudioDashboardProps> = ({
             <Button 
               variant="outline" 
               className="h-auto p-6 flex flex-col items-center space-y-3 btn-ghost-premium hover:border-secondary/50 group"
+              onClick={() => onPhaseChange?.('production')}
             >
               <div className="p-3 rounded-lg bg-gradient-to-r from-secondary/10 to-muted/10 group-hover:from-secondary/20 group-hover:to-muted/20 transition-all duration-300">
                 <StudioIcon className="text-secondary-foreground" size={24} />
               </div>
-              <span className="text-sm font-medium">Expand Studio</span>
+              <span className="text-sm font-medium">Production</span>
             </Button>
             <Button 
               variant="outline" 
               className="h-auto p-6 flex flex-col items-center space-y-3 btn-ghost-premium hover:border-primary/50 group"
+              onClick={() => onPhaseChange?.('distribution')}
             >
               <div className="p-3 rounded-lg bg-gradient-to-r from-primary/10 to-accent/10 group-hover:from-primary/20 group-hover:to-accent/20 transition-all duration-300">
                 <MarketIcon className="text-primary" size={24} />
               </div>
-              <span className="text-sm font-medium">Market Analysis</span>
+              <span className="text-sm font-medium">Distribution</span>
             </Button>
           </div>
         </CardContent>

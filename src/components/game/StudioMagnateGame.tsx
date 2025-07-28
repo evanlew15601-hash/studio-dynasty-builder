@@ -1,5 +1,5 @@
 import React, { useState } from 'react';
-import { GameState, Studio, Project, Script, TalentPerson, BoxOfficeWeek, BoxOfficeRelease } from '@/types/game';
+import { GameState, Studio, Project, Script, TalentPerson, BoxOfficeWeek, BoxOfficeRelease, Genre } from '@/types/game';
 import { ScriptDevelopment } from './ScriptDevelopment';
 import { CastingBoard } from './CastingBoard';
 import { ProductionManagement } from './ProductionManagement';
@@ -32,7 +32,9 @@ export const StudioMagnateGame: React.FC<StudioMagnateGameProps> = ({ onPhaseCha
       case 'pre-production': return 6;
       case 'production': return 12;
       case 'post-production': return 16;
-      case 'distribution': return 4;
+      case 'marketing': return 4;
+      case 'release': return 2;
+      case 'distribution': return 8;
       default: return 1;
     }
   };
@@ -224,20 +226,9 @@ export const StudioMagnateGame: React.FC<StudioMagnateGameProps> = ({ onPhaseCha
 
   const processWeeklyProjectEffects = (projects: Project[], currentWeek: number): Project[] => {
     return projects.map(project => {
-      console.log(`Processing project ${project.title}:`, {
-        phase: project.currentPhase,
-        phaseDuration: project.phaseDuration,
-        status: project.status
-      });
-      
       // Process development progress
       if (project.currentPhase === 'development') {
         const updatedProject = processDevelopmentProgress(project, currentWeek);
-        console.log(`Development progress for ${project.title}:`, {
-          avgProgress: updatedProject.developmentProgress ? getAverageProgress(updatedProject.developmentProgress) : 'N/A',
-          threshold: updatedProject.developmentProgress?.completionThreshold,
-          newPhaseDuration: updatedProject.phaseDuration
-        });
         return updatedProject;
       }
       
@@ -252,7 +243,6 @@ export const StudioMagnateGame: React.FC<StudioMagnateGameProps> = ({ onPhaseCha
       // Advance project phase timers
       if (project.phaseDuration !== undefined && project.phaseDuration >= 0) {
         const newPhaseDuration = project.phaseDuration - 1;
-        console.log(`Phase timer for ${project.title}: ${project.phaseDuration} -> ${newPhaseDuration}`);
         
         // Auto-advance phase when timer reaches 0 or below
         if (newPhaseDuration <= 0) {
@@ -389,11 +379,6 @@ export const StudioMagnateGame: React.FC<StudioMagnateGameProps> = ({ onPhaseCha
     // Process existing issues and apply consequences for ignored ones
     const processedIssues = newIssues.map(issue => {
       let updatedIssue = { ...issue };
-      console.log(`Processing issue ${issue.id}:`, {
-        ignored: issue.ignored,
-        ignoredWeeks: issue.ignoredWeeks,
-        weeksToResolve: issue.weeksToResolve
-      });
       
       // Check if issue has been ignored for too long
       if (issue.ignored && issue.ignoredWeeks! > 0) {
@@ -402,7 +387,6 @@ export const StudioMagnateGame: React.FC<StudioMagnateGameProps> = ({ onPhaseCha
         // Apply escalating consequences
         if (updatedIssue.ignoredWeeks >= 2) {
           const consequences = generateIssueConsequences(issue);
-          console.log(`Applying consequences for issue ${issue.id}:`, consequences);
           updatedIssue.consequences = [...(issue.consequences || []), ...consequences];
         }
       } else {
@@ -421,27 +405,7 @@ export const StudioMagnateGame: React.FC<StudioMagnateGameProps> = ({ onPhaseCha
       issues: processedIssues
     };
     
-    // Auto-advance if completion threshold met
-    if (getAverageProgress(newProgress) >= newProgress.completionThreshold) {
-      const nextPhase = getNextPhase(project.currentPhase);
-      const nextPhaseDuration = getPhaseWeeks(nextPhase);
-      
-      console.log(`Auto-advancing ${project.title} from ${project.currentPhase} to ${nextPhase}`);
-      
-      toast({
-        title: "Project Advanced",
-        description: `${project.title} has moved to ${nextPhase.replace('-', ' ')} phase`,
-      });
-      
-      return {
-        ...project,
-        currentPhase: nextPhase,
-        phaseDuration: nextPhaseDuration,
-        status: nextPhase as any,
-        developmentProgress: newProgress
-      };
-    }
-    
+    // Don't auto-advance based on progress - only time-based advancement
     return {
       ...project,
       developmentProgress: newProgress
@@ -567,6 +531,49 @@ export const StudioMagnateGame: React.FC<StudioMagnateGameProps> = ({ onPhaseCha
     return dropoffChart[week - 1] || 0.03;
   };
 
+  const processWeeklyMarketEffects = (conditions: GameState['marketConditions'], week: number): GameState['marketConditions'] => {
+    const newConditions = { ...conditions };
+    
+    // Market trends shift every 4-8 weeks
+    if (week % Math.floor(Math.random() * 5 + 4) === 0) {
+      const allGenres: Genre[] = ['action', 'drama', 'comedy', 'horror', 'sci-fi', 'romance', 'thriller', 'fantasy'];
+      const shuffled = allGenres.sort(() => 0.5 - Math.random());
+      newConditions.trendingGenres = shuffled.slice(0, 3);
+      
+      toast({
+        title: "Market Shift",
+        description: `${newConditions.trendingGenres[0]} is now the hottest genre!`,
+      });
+    }
+    
+    // Economic climate changes every 12-20 weeks
+    if (week % Math.floor(Math.random() * 9 + 12) === 0) {
+      const climates = ['boom', 'stable', 'recession'];
+      const currentIndex = climates.indexOf(conditions.economicClimate);
+      
+      // More likely to stay stable or shift gradually
+      const random = Math.random();
+      if (random < 0.4) {
+        // Stay the same
+      } else if (random < 0.7) {
+        // Shift toward stability
+        newConditions.economicClimate = 'stable';
+      } else {
+        // Random shift
+        newConditions.economicClimate = climates[Math.floor(Math.random() * climates.length)] as any;
+      }
+      
+      if (newConditions.economicClimate !== conditions.economicClimate) {
+        toast({
+          title: "Economic Shift",
+          description: `Industry climate is now ${newConditions.economicClimate}`,
+        });
+      }
+    }
+    
+    return newConditions;
+  };
+
   const handleAdvanceWeek = () => {
     setGameState(prev => {
       const newWeek = prev.currentWeek === 52 ? 1 : prev.currentWeek + 1;
@@ -577,6 +584,7 @@ export const StudioMagnateGame: React.FC<StudioMagnateGameProps> = ({ onPhaseCha
       const updatedProjects = processWeeklyProjectEffects(prev.projects, prev.currentWeek);
       const updatedTalent = processWeeklyTalentEffects(prev.talent, prev.currentWeek);
       const updatedStudio = processWeeklyStudioEffects(prev.studio, updatedProjects, updatedTalent);
+      const updatedMarketConditions = processWeeklyMarketEffects(prev.marketConditions, newWeek);
       
       // Update box office history
       const boxOfficeWeek = processWeeklyBoxOffice(updatedProjects, newWeek, newYear);
@@ -593,6 +601,7 @@ export const StudioMagnateGame: React.FC<StudioMagnateGameProps> = ({ onPhaseCha
         studio: updatedStudio,
         projects: updatedProjects,
         talent: updatedTalent,
+        marketConditions: updatedMarketConditions,
         boxOfficeHistory: updatedHistory.slice(-52) // Keep last year of data
       };
     });
@@ -724,6 +733,7 @@ export const StudioMagnateGame: React.FC<StudioMagnateGameProps> = ({ onPhaseCha
             gameState={gameState}
             onStudioUpdate={handleStudioUpdate}
             onProjectSelect={setSelectedProject}
+            onPhaseChange={handlePhaseChange}
           />
         )}
         
