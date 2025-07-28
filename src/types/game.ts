@@ -211,6 +211,7 @@ export interface ProjectMetrics {
   awards?: string[];
   socialMediaMentions?: number;
   internationalSales?: number;
+  inTheaters?: boolean;
   boxOffice?: BoxOfficeMetrics;
   streaming?: StreamingMetrics;
   critical?: CriticalMetrics;

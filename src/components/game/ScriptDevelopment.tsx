@@ -112,6 +112,11 @@ export const ScriptDevelopment: React.FC<ScriptDevelopmentProps> = ({
     onProjectCreate(script);
   };
 
+  // Filter out scripts that are already greenlit as projects
+  const availableScripts = gameState.scripts.filter(script => 
+    !gameState.projects.some(project => project.script.id === script.id)
+  );
+
   return (
     <div className="space-y-6">
       {/* Header */}
@@ -322,7 +327,7 @@ export const ScriptDevelopment: React.FC<ScriptDevelopmentProps> = ({
             </div>
           ) : (
             <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
-              {gameState.scripts.map((script) => (
+              {availableScripts.map((script) => (
                 <Card 
                   key={script.id} 
                   className="border-border hover:border-primary/40 transition-colors"

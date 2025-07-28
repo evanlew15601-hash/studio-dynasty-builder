@@ -4,6 +4,7 @@ import { ScriptDevelopment } from './ScriptDevelopment';
 import { CastingBoard } from './CastingBoard';
 import { ProductionManagement } from './ProductionManagement';
 import { DistributionDashboard } from './DistributionDashboard';
+import { MarketingReleaseManagement } from './MarketingReleaseManagement';
 import { StudioDashboard } from './StudioDashboard';
 import { Button } from '@/components/ui/button';
 import { Card } from '@/components/ui/card';
@@ -14,6 +15,7 @@ import {
   CastingIcon, 
   ProductionIcon, 
   DistributionIcon,
+  MarketingIcon,
   BudgetIcon,
   ReputationIcon,
   ClapperboardIcon
@@ -113,7 +115,7 @@ export const StudioMagnateGame: React.FC<StudioMagnateGameProps> = ({ onPhaseCha
     boxOfficeHistory: []
   }));
 
-  const [currentPhase, setCurrentPhase] = useState<'dashboard' | 'scripts' | 'casting' | 'production' | 'distribution'>('dashboard');
+  const [currentPhase, setCurrentPhase] = useState<'dashboard' | 'scripts' | 'casting' | 'production' | 'marketing' | 'distribution'>('dashboard');
   const [selectedProject, setSelectedProject] = useState<Project | null>(null);
 
   const handlePhaseChange = (phase: typeof currentPhase) => {
@@ -225,45 +227,32 @@ export const StudioMagnateGame: React.FC<StudioMagnateGameProps> = ({ onPhaseCha
   };
 
   const processWeeklyProjectEffects = (projects: Project[], currentWeek: number): Project[] => {
-    console.log('=== PROCESSING WEEKLY PROJECT EFFECTS ===');
     return projects.map(project => {
-      console.log(`Project: ${project.title}`, {
-        currentPhase: project.currentPhase,
-        phaseDuration: project.phaseDuration,
-        status: project.status
-      });
-
-      // COMPLETELY NEW APPROACH: Simple week-by-week countdown
-      let updatedProject = { ...project };
-
       // Handle development progress for development phase
       if (project.currentPhase === 'development') {
-        updatedProject = processDevelopmentProgress(project, currentWeek);
+        const updatedProject = processDevelopmentProgress(project, currentWeek);
+        return updatedProject;
       }
       
       // Handle box office for released projects
       if (project.status === 'released' && project.releaseWeek && project.releaseYear) {
         const weeksSinceRelease = calculateWeeksSinceRelease(project, currentWeek, gameState.currentYear);
-        if (weeksSinceRelease <= 12) {
-          updatedProject = processBoxOfficeRevenue(updatedProject, weeksSinceRelease);
+        if (weeksSinceRelease <= 16) { // Extended tracking for dynamic exit
+          return processBoxOfficeRevenue(project, weeksSinceRelease);
         }
       }
 
       // SIMPLE TIMER SYSTEM - Always tick down if project has duration
-      if (updatedProject.phaseDuration !== undefined) {
-        console.log(`Ticking down timer for ${updatedProject.title}: ${updatedProject.phaseDuration} -> ${updatedProject.phaseDuration - 1}`);
-        
-        updatedProject.phaseDuration = Math.max(0, updatedProject.phaseDuration - 1);
+      if (project.phaseDuration !== undefined) {
+        const newPhaseDuration = Math.max(0, project.phaseDuration - 1);
         
         // Advance when timer hits exactly 0
-        if (updatedProject.phaseDuration === 0) {
-          const nextPhase = getNextPhase(updatedProject.currentPhase);
+        if (newPhaseDuration === 0) {
+          const nextPhase = getNextPhase(project.currentPhase);
           const nextDuration = getPhaseWeeks(nextPhase);
           
-          console.log(`ADVANCING ${updatedProject.title} from ${updatedProject.currentPhase} to ${nextPhase}`);
-          
-          updatedProject = {
-            ...updatedProject,
+          const updatedProject = {
+            ...project,
             currentPhase: nextPhase,
             phaseDuration: nextDuration,
             status: nextPhase === 'distribution' ? 'released' : nextPhase as any,
@@ -275,18 +264,20 @@ export const StudioMagnateGame: React.FC<StudioMagnateGameProps> = ({ onPhaseCha
           
           toast({
             title: "Phase Complete!",
-            description: `${updatedProject.title} advanced to ${nextPhase.replace('-', ' ')}`,
+            description: `${project.title} advanced to ${nextPhase.replace('-', ' ')}`,
           });
+          
+          return updatedProject;
         }
+        
+        // Just update the timer countdown
+        return {
+          ...project,
+          phaseDuration: newPhaseDuration
+        };
       }
 
-      console.log(`Updated project ${updatedProject.title}:`, {
-        currentPhase: updatedProject.currentPhase,
-        phaseDuration: updatedProject.phaseDuration,
-        status: updatedProject.status
-      });
-
-      return updatedProject;
+      return project;
     });
   };
   
@@ -507,11 +498,27 @@ export const StudioMagnateGame: React.FC<StudioMagnateGameProps> = ({ onPhaseCha
     const currentTotal = project.metrics.boxOfficeTotal || 0;
     const newTotal = currentTotal + weeklyRevenue;
     
+    // Determine if film should leave theaters based on performance
+    const performance = (project.metrics.criticsScore || 50) + (project.metrics.audienceScore || 50);
+    let shouldLeaveTheaters = false;
+    
+    // Flops leave sooner (4-6 weeks), hits stay longer (10-16 weeks)
+    if (performance < 120 && weeksSinceRelease >= 4) { // Poor performance
+      shouldLeaveTheaters = Math.random() < 0.3;
+    } else if (performance < 140 && weeksSinceRelease >= 8) { // Average performance
+      shouldLeaveTheaters = Math.random() < 0.4;
+    } else if (weeksSinceRelease >= 12) { // Good performance but time limit
+      shouldLeaveTheaters = Math.random() < 0.6;
+    } else if (weeksSinceRelease >= 16) { // Force exit after 16 weeks
+      shouldLeaveTheaters = true;
+    }
+    
     return {
       ...project,
       metrics: {
         ...project.metrics,
-        boxOfficeTotal: newTotal
+        boxOfficeTotal: newTotal,
+        inTheaters: !shouldLeaveTheaters
       }
     };
   };
@@ -717,6 +724,7 @@ export const StudioMagnateGame: React.FC<StudioMagnateGameProps> = ({ onPhaseCha
               { id: 'scripts', label: 'Script Development', IconComponent: ScriptIcon },
               { id: 'casting', label: 'Casting Board', IconComponent: CastingIcon },
               { id: 'production', label: 'Production', IconComponent: ProductionIcon },
+              { id: 'marketing', label: 'Marketing & Release', IconComponent: MarketingIcon },
               { id: 'distribution', label: 'Distribution', IconComponent: DistributionIcon },
             ].map((tab) => (
               <Button
@@ -785,18 +793,30 @@ export const StudioMagnateGame: React.FC<StudioMagnateGameProps> = ({ onPhaseCha
           />
         )}
         
-        {currentPhase === 'production' && (
-          <ProductionManagement 
-            gameState={gameState}
-            selectedProject={selectedProject}
-            onProjectUpdate={(project) => {
-              setGameState(prev => ({
-                ...prev,
-                projects: prev.projects.map(p => p.id === project.id ? project : p)
-              }));
-              setSelectedProject(project);
-            }}
-          />
+        {(currentPhase === 'production' || currentPhase === 'marketing') && (
+          currentPhase === 'production' ? (
+            <ProductionManagement 
+              gameState={gameState}
+              selectedProject={selectedProject}
+              onProjectUpdate={(project) => {
+                setGameState(prev => ({
+                  ...prev,
+                  projects: prev.projects.map(p => p.id === project.id ? project : p)
+                }));
+                setSelectedProject(project);
+              }}
+            />
+          ) : (
+            <MarketingReleaseManagement 
+              gameState={gameState}
+              onProjectUpdate={(project) => {
+                setGameState(prev => ({
+                  ...prev,
+                  projects: prev.projects.map(p => p.id === project.id ? project : p)
+                }));
+              }}
+            />
+          )
         )}
         
         {currentPhase === 'distribution' && (
