@@ -90,17 +90,18 @@ export class BoxOfficeSystem {
       console.log(`  🎭 ENTERING THEATERS (Week 1 entry)`);
       const initialTheaters = this.getInitialTheaterCount(project);
       
-      return {
-        ...project,
-        metrics: {
-          ...project.metrics,
-          inTheaters: true,
-          theaterCount: initialTheaters,
-          weeksSinceRelease: 1,
-          boxOfficeTotal: 0,
-          boxOfficeStatus: 'Opening'
-        }
-      };
+        return {
+          ...project,
+          metrics: {
+            ...project.metrics,
+            inTheaters: true,
+            theaterCount: initialTheaters,
+            weeksSinceRelease: 1,
+            // KEEP existing boxOfficeTotal instead of resetting to 0
+            boxOfficeTotal: project.metrics.boxOfficeTotal || 0,
+            boxOfficeStatus: 'Opening'
+          }
+        };
     }
 
     // Skip if not in theaters yet
