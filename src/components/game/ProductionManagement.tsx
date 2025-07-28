@@ -74,11 +74,11 @@ export const ProductionManagement: React.FC<ProductionManagementProps> = ({
         };
         break;
       case 'post-production':
-        // STOP at post-production - don't auto-advance to marketing
+        // ADVANCE to marketing phase when button is clicked
         updatedProject = {
           ...updatedProject,
-          currentPhase: 'post-production',
-          status: 'ready-for-marketing',
+          currentPhase: 'marketing',
+          status: 'marketing',
           phaseDuration: 0,
           readyForMarketing: true
         };
