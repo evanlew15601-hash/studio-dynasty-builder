@@ -1,5 +1,6 @@
 import React, { useState } from 'react';
 import { GameState, Project, MarketingStrategy } from '@/types/game';
+import { TimeSystem } from './TimeSystem';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Progress } from '@/components/ui/progress';
@@ -210,9 +211,18 @@ export const MarketingReleaseManagement: React.FC<MarketingReleaseManagementProp
           <CardContent>
             <div className="grid gap-4">
               {getReleasedProjects().map(project => {
-                const weeksSinceRelease = project.releaseWeek ? 
-                  gameState.currentWeek - project.releaseWeek : 0;
-                const boxOfficeStatus = weeksSinceRelease > 12 ? 'ended' : 
+                // Use TimeSystem for accurate calculation
+                const weeksSinceRelease = project.releaseWeek && project.releaseYear ? 
+                  TimeSystem.calculateWeeksSince(
+                    project.releaseWeek,
+                    project.releaseYear, 
+                    gameState.currentWeek,
+                    gameState.currentYear
+                  ) : 0;
+                
+                // Check if actually in theaters vs just released  
+                const inTheaters = project.metrics?.inTheaters;
+                const boxOfficeStatus = !inTheaters ? 'ended' :
                   weeksSinceRelease > 8 ? 'declining' : 'active';
                 
                 return (

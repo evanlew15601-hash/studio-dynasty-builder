@@ -323,16 +323,41 @@ export const StudioMagnateGame: React.FC<StudioMagnateGameProps> = ({ onPhaseCha
             status: nextPhase === 'distribution' ? 'released' : nextPhase as any
           };
 
-          // FIXED: Films release 4 weeks in the future
+          // Use release strategy date if available, otherwise auto-schedule
           if (nextPhase === 'distribution') {
-            const releaseWeek = timeState.currentWeek + 4; // 1 month later
-            const releaseYear = releaseWeek > 52 ? timeState.currentYear + 1 : timeState.currentYear;
-            const adjustedReleaseWeek = releaseWeek > 52 ? releaseWeek - 52 : releaseWeek;
+            let releaseWeek: number;
+            let releaseYear: number;
             
-            console.log(`  → Scheduling release for ${updatedProject.title} at Week ${adjustedReleaseWeek}, Year ${releaseYear}`);
+            if (updatedProject.releaseStrategy?.premiereDate) {
+              // Convert premiere date to game week/year
+              const currentGameDate = new Date(2024, 0, 1); // Start of game year
+              currentGameDate.setDate(currentGameDate.getDate() + (timeState.currentWeek - 1) * 7 + (timeState.currentYear - 2024) * 365);
+              
+              const daysDiff = Math.floor((updatedProject.releaseStrategy.premiereDate.getTime() - currentGameDate.getTime()) / (1000 * 60 * 60 * 24));
+              const weeksDiff = Math.floor(daysDiff / 7);
+              
+              releaseWeek = timeState.currentWeek + weeksDiff;
+              releaseYear = timeState.currentYear;
+              
+              // Handle year overflow
+              while (releaseWeek > 52) {
+                releaseWeek -= 52;
+                releaseYear += 1;
+              }
+              
+              console.log(`  → Using release strategy date: ${updatedProject.releaseStrategy.premiereDate.toDateString()} = Week ${releaseWeek}, Year ${releaseYear}`);
+            } else {
+              // Fallback: Auto-schedule for 4 weeks later
+              releaseWeek = timeState.currentWeek + 4;
+              releaseYear = releaseWeek > 52 ? timeState.currentYear + 1 : timeState.currentYear;
+              releaseWeek = releaseWeek > 52 ? releaseWeek - 52 : releaseWeek;
+              
+              console.log(`  → Auto-scheduling release for ${updatedProject.title} at Week ${releaseWeek}, Year ${releaseYear}`);
+            }
+            
             updatedProject = BoxOfficeSystem.initializeRelease(
               updatedProject,
-              adjustedReleaseWeek,
+              releaseWeek,
               releaseYear
             );
             console.log(`    Release scheduled - inTheaters: ${updatedProject.metrics?.inTheaters}`);

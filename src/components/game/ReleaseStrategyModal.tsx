@@ -264,9 +264,9 @@ export const ReleaseStrategyModal: React.FC<ReleaseStrategyModalProps> = ({
                         onSelect={setPremiereDate}
                         disabled={(date) => {
                           // Calculate minimum release date (4 weeks from current)
-                          const currentDate = new Date();
-                          currentDate.setDate(currentDate.getDate() + (currentWeek * 7) + (currentYear - 2024) * 365);
-                          const minReleaseDate = new Date(currentDate);
+                          const currentGameDate = new Date(2024, 0, 1); // Start of game year
+                          currentGameDate.setDate(currentGameDate.getDate() + (currentWeek - 1) * 7 + (currentYear - 2024) * 365);
+                          const minReleaseDate = new Date(currentGameDate);
                           minReleaseDate.setDate(minReleaseDate.getDate() + 28); // 4 weeks = 28 days
                           
                           return date < minReleaseDate;
