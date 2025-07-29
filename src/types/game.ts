@@ -10,6 +10,9 @@ export interface Studio {
   debt?: number;
   lastProjectWeek?: number;
   weeksSinceLastProject?: number;
+  awards?: StudioAward[];
+  awardsThisYear?: number;
+  prestige?: number; // 0-100, separate from reputation
 }
 
 export interface Script {
@@ -395,6 +398,8 @@ export interface GameState {
   marketConditions: MarketConditions;
   eventQueue: GameEvent[];
   boxOfficeHistory: BoxOfficeWeek[];
+  awardsCalendar: AwardsEvent[];
+  industryTrends: IndustryTrend[];
 }
 
 export interface BoxOfficeWeek {
@@ -420,6 +425,9 @@ export interface MarketConditions {
   economicClimate: 'boom' | 'stable' | 'recession';
   technologicalAdvances: TechAdvancement[];
   regulatoryChanges: RegulatoryChange[];
+  seasonalTrends: SeasonalTrend[];
+  competitorReleases: CompetitorRelease[];
+  awardsSeasonActive?: boolean; // Jan-Mar boost
 }
 
 export interface AudiencePreference {
@@ -578,4 +586,106 @@ export interface PostTheatricalRelease {
   weeksActive: number;
   status: 'planned' | 'active' | 'declining' | 'ended';
   cost: number;
+}
+
+// Awards & Recognition System Interfaces
+export interface StudioAward {
+  id: string;
+  projectId: string;
+  category: string;
+  ceremony: string;
+  year: number;
+  prestige: number; // 1-10
+  reputationBoost: number;
+  revenueBoost?: number;
+}
+
+export interface AwardsEvent {
+  id: string;
+  name: string;
+  ceremony: 'Oscar' | 'Golden Globe' | 'BAFTA' | 'Critics Choice' | 'SAG' | 'DGA' | 'WGA';
+  category: string;
+  eligibilityWeek: number; // nomination week
+  ceremonyWeek: number; // awards ceremony week
+  year: number;
+  prestige: number; // 1-10
+  eligibleProjects: string[]; // project IDs
+  qualityThreshold: number; // minimum quality score needed
+  genreBonus?: Genre[]; // genres that get bonus consideration
+}
+
+export interface AwardsCampaign {
+  projectId: string;
+  targetCategories: string[];
+  budget: number;
+  budgetSpent: number;
+  duration: number; // weeks
+  weeksRemaining: number;
+  effectiveness: number; // 0-100
+  activities: AwardsCampaignActivity[];
+}
+
+export interface AwardsCampaignActivity {
+  type: 'screenings' | 'advertising' | 'events' | 'consultants' | 'talent-support';
+  name: string;
+  cost: number;
+  effectivenessBoost: number;
+  prestigeBoost: number;
+}
+
+// Market Competition & Trends Interfaces
+export interface IndustryTrend {
+  id: string;
+  name: string;
+  type: 'genre' | 'technology' | 'audience' | 'business';
+  description: string;
+  impact: TrendImpact;
+  duration: number; // weeks remaining
+  strength: number; // 1-10
+}
+
+export interface TrendImpact {
+  affectedGenres?: Genre[];
+  boxOfficeModifier?: number; // percentage change
+  productionCostModifier?: number;
+  audienceInterest?: number;
+  criticalReception?: number;
+  talentAvailability?: number;
+}
+
+export interface SeasonalTrend {
+  season: 'spring' | 'summer' | 'fall' | 'winter' | 'holiday';
+  weeks: number[]; // weeks of year when active
+  name: string;
+  description: string;
+  impact: SeasonalImpact;
+}
+
+export interface SeasonalImpact {
+  favoredGenres: Genre[];
+  boxOfficeMultiplier: number;
+  audienceSize: number; // relative audience size
+  competitionLevel: number; // 1-10
+}
+
+export interface CompetitorRelease {
+  id: string;
+  title: string;
+  studio: string;
+  genre: Genre;
+  budget: number;
+  quality: number;
+  marketing: number;
+  releaseWeek: number;
+  releaseYear: number;
+  expectedRevenue: number;
+  targetAudience: string[];
+  marketingBuzz: number;
+}
+
+export interface MarketCompetition {
+  weeklyReleases: CompetitorRelease[];
+  genreOversaturation: { [genre: string]: number }; // 0-100
+  audienceAttention: number; // 0-100, how much attention is available
+  marketingNoise: number; // 0-100, how crowded the marketing space is
 }

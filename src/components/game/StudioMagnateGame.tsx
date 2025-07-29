@@ -12,6 +12,8 @@ import { FinancialReporting } from './FinancialReporting';
 import { TimeSystem, TimeState } from './TimeSystem';
 import { BoxOfficeSystem } from './BoxOfficeSystem';
 import { updateProjectFinancials } from './FinancialCalculations';
+import { AwardsSystem } from './AwardsSystem';
+import { MarketCompetition } from './MarketCompetition';
 import { Button } from '@/components/ui/button';
 import { Card } from '@/components/ui/card';
 import { useToast } from '@/hooks/use-toast';
@@ -119,13 +121,18 @@ export const StudioMagnateGame: React.FC<StudioMagnateGameProps> = ({ onPhaseCha
       audiencePreferences: [],
       economicClimate: 'stable',
       technologicalAdvances: [],
-      regulatoryChanges: []
+      regulatoryChanges: [],
+      seasonalTrends: [],
+      competitorReleases: [],
+      awardsSeasonActive: false
     },
     eventQueue: [],
-    boxOfficeHistory: []
+    boxOfficeHistory: [],
+    awardsCalendar: [],
+    industryTrends: []
   }));
 
-  const [currentPhase, setCurrentPhase] = useState<'dashboard' | 'scripts' | 'casting' | 'production' | 'marketing' | 'distribution' | 'financials' | 'stats'>('dashboard');
+  const [currentPhase, setCurrentPhase] = useState<'dashboard' | 'scripts' | 'casting' | 'production' | 'marketing' | 'distribution' | 'financials' | 'awards' | 'market' | 'stats'>('dashboard');
   const [selectedProject, setSelectedProject] = useState<Project | null>(null);
 
   const handlePhaseChange = (phase: typeof currentPhase) => {
@@ -988,6 +995,8 @@ export const StudioMagnateGame: React.FC<StudioMagnateGameProps> = ({ onPhaseCha
               { id: 'marketing', label: 'Marketing & Release', IconComponent: MarketingIcon },
               { id: 'distribution', label: 'Post-Theatrical', IconComponent: DistributionIcon },
               { id: 'financials', label: 'Financial Reports', IconComponent: BudgetIcon },
+              { id: 'awards', label: 'Awards & Recognition', IconComponent: ReputationIcon },
+              { id: 'market', label: 'Market Competition', IconComponent: BarChartIcon },
               { id: 'stats', label: 'Statistics', IconComponent: BarChartIcon },
             ].map((tab) => (
               <Button
@@ -1076,6 +1085,18 @@ export const StudioMagnateGame: React.FC<StudioMagnateGameProps> = ({ onPhaseCha
         
         {currentPhase === 'financials' && (
           <FinancialReporting gameState={gameState} />
+        )}
+        
+        {currentPhase === 'awards' && (
+          <AwardsSystem 
+            gameState={gameState}
+            onProjectUpdate={handleProjectUpdate}
+            onStudioUpdate={handleStudioUpdate}
+          />
+        )}
+        
+        {currentPhase === 'market' && (
+          <MarketCompetition gameState={gameState} />
         )}
         
         {currentPhase === 'stats' && (
