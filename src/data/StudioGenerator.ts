@@ -1,0 +1,616 @@
+// AI Studio System - Generates competing studios and their autonomous film releases
+import { Studio, Genre, Project, Script } from '@/types/game';
+
+interface StudioProfile {
+  name: string;
+  personality: string;
+  budget: number;
+  reputation: number;
+  specialties: Genre[];
+  businessTendency: string;
+  riskTolerance: 'conservative' | 'moderate' | 'aggressive';
+  releaseFrequency: number; // films per year
+  brandIdentity: string;
+}
+
+const STUDIO_PROFILES: StudioProfile[] = [
+  {
+    name: 'Crimson Peak Entertainment',
+    personality: 'Edgy and provocative storytelling',
+    budget: 45000000,
+    reputation: 72,
+    specialties: ['horror', 'thriller', 'mystery'],
+    businessTendency: 'Mid-budget horror specialist with cult following',
+    riskTolerance: 'aggressive',
+    releaseFrequency: 8,
+    brandIdentity: 'Dark atmospherics and psychological tension'
+  },
+  {
+    name: 'Golden Horizon Studios',
+    personality: 'Nostalgic and heartwarming content',
+    budget: 75000000,
+    reputation: 81,
+    specialties: ['family', 'drama', 'biography'],
+    businessTendency: 'Prestige pictures with awards potential',
+    riskTolerance: 'conservative',
+    releaseFrequency: 5,
+    brandIdentity: 'Timeless stories with universal appeal'
+  },
+  {
+    name: 'Velocity Pictures',
+    personality: 'High-octane thrill rides',
+    budget: 120000000,
+    reputation: 68,
+    specialties: ['action', 'adventure', 'sci-fi'],
+    businessTendency: 'Spectacle-driven blockbusters',
+    riskTolerance: 'moderate',
+    releaseFrequency: 6,
+    brandIdentity: 'Cutting-edge visuals and intense sequences'
+  },
+  {
+    name: 'Moonbeam Independent',
+    personality: 'Artistic and character-driven',
+    budget: 15000000,
+    reputation: 85,
+    specialties: ['drama', 'romance', 'documentary'],
+    businessTendency: 'Festival circuit and limited releases',
+    riskTolerance: 'moderate',
+    releaseFrequency: 12,
+    brandIdentity: 'Intimate storytelling and emerging talent'
+  },
+  {
+    name: 'Apex Entertainment Group',
+    personality: 'Commercial powerhouse',
+    budget: 200000000,
+    reputation: 76,
+    specialties: ['superhero', 'fantasy', 'action'],
+    businessTendency: 'Franchise builder and tent-pole events',
+    riskTolerance: 'conservative',
+    releaseFrequency: 4,
+    brandIdentity: 'Spectacular entertainment for global audiences'
+  },
+  {
+    name: 'Laughing Matter Productions',
+    personality: 'Comedy-focused entertainment',
+    budget: 35000000,
+    reputation: 64,
+    specialties: ['comedy', 'family', 'romance'],
+    businessTendency: 'Crowd-pleasing comedies and rom-coms',
+    riskTolerance: 'moderate',
+    releaseFrequency: 10,
+    brandIdentity: 'Feel-good entertainment and star vehicles'
+  },
+  {
+    name: 'Heritage Films',
+    personality: 'Period pieces and literary adaptations',
+    budget: 60000000,
+    reputation: 89,
+    specialties: ['historical', 'biography', 'war'],
+    businessTendency: 'Prestigious historical epics',
+    riskTolerance: 'conservative',
+    releaseFrequency: 3,
+    brandIdentity: 'Lavish productions with historical accuracy'
+  },
+  {
+    name: 'Neon Circuit Studios',
+    personality: 'Tech-savvy and futuristic',
+    budget: 80000000,
+    reputation: 71,
+    specialties: ['sci-fi', 'animation', 'thriller'],
+    businessTendency: 'Innovation in storytelling technology',
+    riskTolerance: 'aggressive',
+    releaseFrequency: 7,
+    brandIdentity: 'Future-forward narratives and digital innovation'
+  },
+  {
+    name: 'Wildwood Pictures',
+    personality: 'Outdoor adventures and sports',
+    budget: 40000000,
+    reputation: 66,
+    specialties: ['adventure', 'sports', 'western'],
+    businessTendency: 'Action-adventure with natural settings',
+    riskTolerance: 'moderate',
+    releaseFrequency: 6,
+    brandIdentity: 'Authentic outdoor experiences and athletic stories'
+  },
+  {
+    name: 'Midnight Society Films',
+    personality: 'Cult and genre filmmaking',
+    budget: 25000000,
+    reputation: 78,
+    specialties: ['horror', 'crime', 'mystery'],
+    businessTendency: 'Distinctive genre pieces with strong following',
+    riskTolerance: 'aggressive',
+    releaseFrequency: 9,
+    brandIdentity: 'Unique voice in genre filmmaking'
+  }
+];
+
+// Dynamic title generation keywords
+const TITLE_KEYWORDS = {
+  action: ['Strike', 'Fury', 'Impact', 'Storm', 'Fire', 'Steel', 'Thunder', 'Blade', 'Shadow', 'Phoenix'],
+  drama: ['Heart', 'Soul', 'Truth', 'Light', 'Hope', 'Dream', 'Journey', 'Bridge', 'River', 'Mountain'],
+  comedy: ['Love', 'Laugh', 'Crazy', 'Wild', 'Funny', 'Mad', 'Happy', 'Silly', 'Sweet', 'Bright'],
+  horror: ['Dark', 'Blood', 'Fear', 'Terror', 'Night', 'Curse', 'Ghost', 'Demon', 'Dead', 'Evil'],
+  romance: ['Love', 'Heart', 'Kiss', 'Sweet', 'Forever', 'Together', 'Promise', 'Dream', 'Dance', 'Song'],
+  'sci-fi': ['Future', 'Star', 'Space', 'Time', 'Mind', 'Code', 'Digital', 'Cyber', 'Nova', 'Quantum'],
+  thriller: ['Edge', 'Hunt', 'Chase', 'Kill', 'Run', 'Hide', 'Trap', 'Game', 'Web', 'Net'],
+  fantasy: ['Magic', 'Dragon', 'Crown', 'Realm', 'Quest', 'Legend', 'Myth', 'Spell', 'Kingdom', 'Sword'],
+  family: ['Home', 'Family', 'Together', 'Adventure', 'Magic', 'Wonder', 'Joy', 'Smile', 'Happy', 'Friends'],
+  superhero: ['Hero', 'Guardian', 'Defender', 'Justice', 'Power', 'Shield', 'Force', 'League', 'Rising', 'Dawn']
+};
+
+const TITLE_MODIFIERS = [
+  'The', 'Last', 'First', 'Final', 'Lost', 'Hidden', 'Secret', 'Forgotten', 'Rising', 'Falling',
+  'Beyond', 'Above', 'Under', 'Dark', 'Bright', 'New', 'Old', 'Ancient', 'Modern', 'Future'
+];
+
+const TITLE_SUFFIXES = [
+  'Returns', 'Rising', 'Reborn', 'Awakens', 'Begins', 'Ends', 'Forever', 'Again', 'Unleashed', 'Revealed',
+  'Chronicles', 'Legacy', 'Destiny', 'Origins', 'Saga', 'Tales', 'Story', 'Legend', 'Myth', 'Code'
+];
+
+export class StudioGenerator {
+  private usedTitles = new Set<string>();
+  private studioReleaseSchedules = new Map<string, number>(); // Track weeks since last release
+
+  generateFilmTitle(genre: Genre, studioName: string): string {
+    const keywords = TITLE_KEYWORDS[genre] || TITLE_KEYWORDS.drama;
+    let attempts = 0;
+    let title: string;
+
+    do {
+      const structure = Math.random();
+      
+      if (structure < 0.3) {
+        // Single word titles
+        title = keywords[Math.floor(Math.random() * keywords.length)];
+      } else if (structure < 0.6) {
+        // Modifier + Keyword
+        const modifier = TITLE_MODIFIERS[Math.floor(Math.random() * TITLE_MODIFIERS.length)];
+        const keyword = keywords[Math.floor(Math.random() * keywords.length)];
+        title = `${modifier} ${keyword}`;
+      } else {
+        // Keyword + Suffix
+        const keyword = keywords[Math.floor(Math.random() * keywords.length)];
+        const suffix = TITLE_SUFFIXES[Math.floor(Math.random() * TITLE_SUFFIXES.length)];
+        title = `${keyword} ${suffix}`;
+      }
+      
+      attempts++;
+    } while (this.usedTitles.has(title) && attempts < 50);
+
+    // If we can't find a unique title, add studio name
+    if (this.usedTitles.has(title)) {
+      title = `${title}: ${studioName.split(' ')[0]} Edition`;
+    }
+
+    this.usedTitles.add(title);
+    return title;
+  }
+
+  generateScript(genre: Genre, studioProfile: StudioProfile): Script {
+    const budgetRanges = {
+      conservative: { min: 0.3, max: 0.6 },
+      moderate: { min: 0.5, max: 0.8 },
+      aggressive: { min: 0.7, max: 1.0 }
+    };
+
+    const range = budgetRanges[studioProfile.riskTolerance];
+    const budgetMultiplier = range.min + Math.random() * (range.max - range.min);
+    const projectBudget = studioProfile.budget * budgetMultiplier;
+
+    const title = this.generateFilmTitle(genre, studioProfile.name);
+
+    return {
+      id: `script-${Date.now()}-${Math.random().toString(36).substr(2, 9)}`,
+      title,
+      genre,
+      logline: this.generateLogline(genre, title),
+      writer: this.generateWriterName(),
+      pages: 90 + Math.floor(Math.random() * 40),
+      quality: 30 + Math.floor(Math.random() * 70),
+      budget: projectBudget,
+      developmentStage: 'final',
+      themes: this.generateThemes(genre),
+      targetAudience: this.selectTargetAudience(genre),
+      estimatedRuntime: 85 + Math.floor(Math.random() * 50),
+      characteristics: this.generateCharacteristics(genre, studioProfile)
+    };
+  }
+
+  private generateLogline(genre: Genre, title: string): string {
+    const templates = {
+      action: `When ${this.getRandomCharacter()} must ${this.getRandomAction()}, they discover ${this.getRandomTwist()}.`,
+      drama: `A ${this.getRandomCharacter()} struggles to ${this.getRandomGoal()} while facing ${this.getRandomObstacle()}.`,
+      comedy: `${this.getRandomCharacter()} finds themselves in ${this.getRandomSituation()} leading to ${this.getRandomOutcome()}.`,
+      horror: `${this.getRandomCharacter()} encounters ${this.getRandomThreat()} in ${this.getRandomLocation()}.`,
+      romance: `Two ${this.getRandomLovers()} must overcome ${this.getRandomObstacle()} to find ${this.getRandomEnding()}.`,
+      'sci-fi': `In ${this.getRandomFuture()}, ${this.getRandomCharacter()} discovers ${this.getRandomTechnology()}.`,
+      thriller: `${this.getRandomCharacter()} becomes trapped in ${this.getRandomDangerousSituation()}.`,
+      fantasy: `${this.getRandomCharacter()} embarks on ${this.getRandomQuest()} in ${this.getRandomMagicalWorld()}.`
+    };
+
+    return templates[genre] || templates.drama;
+  }
+
+  private getRandomCharacter(): string {
+    const characters = [
+      'a determined detective', 'an unlikely hero', 'a skilled warrior', 'a brilliant scientist',
+      'a troubled veteran', 'a young prodigy', 'a mysterious stranger', 'a desperate parent',
+      'an ambitious lawyer', 'a retired assassin', 'a gifted artist', 'a hardened criminal'
+    ];
+    return characters[Math.floor(Math.random() * characters.length)];
+  }
+
+  private getRandomAction(): string {
+    const actions = [
+      'save their family', 'stop a conspiracy', 'clear their name', 'find the truth',
+      'protect the innocent', 'uncover secrets', 'prevent disaster', 'seek revenge'
+    ];
+    return actions[Math.floor(Math.random() * actions.length)];
+  }
+
+  private getRandomTwist(): string {
+    const twists = [
+      'nothing is as it seems', 'their enemy is closer than they think', 'the real threat lies within',
+      'their past holds the key', 'time is running out', 'they are not alone'
+    ];
+    return twists[Math.floor(Math.random() * twists.length)];
+  }
+
+  private getRandomGoal(): string {
+    const goals = [
+      'reconnect with their estranged child', 'overcome their fears', 'find redemption',
+      'save their business', 'honor their legacy', 'discover their true identity'
+    ];
+    return goals[Math.floor(Math.random() * goals.length)];
+  }
+
+  private getRandomObstacle(): string {
+    const obstacles = [
+      'family disapproval', 'financial ruin', 'social prejudice', 'personal demons',
+      'professional rivalry', 'health challenges', 'legal troubles', 'cultural differences'
+    ];
+    return obstacles[Math.floor(Math.random() * obstacles.length)];
+  }
+
+  private getRandomSituation(): string {
+    const situations = [
+      'a case of mistaken identity', 'an unexpected inheritance', 'a social media mix-up',
+      'a workplace mishap', 'a travel disaster', 'a family reunion', 'a blind date gone wrong'
+    ];
+    return situations[Math.floor(Math.random() * situations.length)];
+  }
+
+  private getRandomOutcome(): string {
+    const outcomes = [
+      'hilarious consequences', 'unexpected romance', 'personal growth', 'family bonding',
+      'new friendships', 'career opportunities', 'life-changing revelations'
+    ];
+    return outcomes[Math.floor(Math.random() * outcomes.length)];
+  }
+
+  private getRandomThreat(): string {
+    const threats = [
+      'an ancient curse', 'a supernatural entity', 'a serial killer', 'paranormal activity',
+      'a deadly virus', 'demonic possession', 'a haunted location', 'mysterious disappearances'
+    ];
+    return threats[Math.floor(Math.random() * threats.length)];
+  }
+
+  private getRandomLocation(): string {
+    const locations = [
+      'an isolated cabin', 'an abandoned hospital', 'a small town', 'an old mansion',
+      'a remote island', 'a dark forest', 'a subway tunnel', 'a college campus'
+    ];
+    return locations[Math.floor(Math.random() * locations.length)];
+  }
+
+  private getRandomLovers(): string {
+    const lovers = [
+      'star-crossed lovers', 'childhood friends', 'business rivals', 'unlikely partners',
+      'opposites', 'former enemies', 'coworkers', 'neighbors'
+    ];
+    return lovers[Math.floor(Math.random() * lovers.length)];
+  }
+
+  private getRandomEnding(): string {
+    const endings = [
+      'true love', 'happiness', 'their destiny', 'a new beginning',
+      'forgiveness', 'acceptance', 'their soulmate', 'peace'
+    ];
+    return endings[Math.floor(Math.random() * endings.length)];
+  }
+
+  private getRandomFuture(): string {
+    const futures = [
+      'a dystopian future', 'the year 2087', 'a post-apocalyptic world', 'a space colony',
+      'a cyberpunk city', 'an alternate timeline', 'a virtual reality', 'a parallel universe'
+    ];
+    return futures[Math.floor(Math.random() * futures.length)];
+  }
+
+  private getRandomTechnology(): string {
+    const tech = [
+      'a dangerous AI', 'time travel', 'mind control technology', 'alien contact',
+      'genetic manipulation', 'interdimensional travel', 'consciousness transfer', 'reality manipulation'
+    ];
+    return tech[Math.floor(Math.random() * tech.length)];
+  }
+
+  private getRandomDangerousSituation(): string {
+    const situations = [
+      'a deadly game', 'a conspiracy', 'a terrorist plot', 'a murder scheme',
+      'a kidnapping', 'corporate espionage', 'witness protection failure', 'identity theft'
+    ];
+    return situations[Math.floor(Math.random() * situations.length)];
+  }
+
+  private getRandomQuest(): string {
+    const quests = [
+      'a perilous journey', 'a sacred mission', 'a heroic quest', 'a magical adventure',
+      'a dangerous expedition', 'a noble cause', 'a divine calling', 'an epic voyage'
+    ];
+    return quests[Math.floor(Math.random() * quests.length)];
+  }
+
+  private getRandomMagicalWorld(): string {
+    const worlds = [
+      'a forgotten realm', 'an enchanted kingdom', 'a mystical land', 'a magical dimension',
+      'an ancient world', 'a fairy tale kingdom', 'a legendary empire', 'a mythical realm'
+    ];
+    return worlds[Math.floor(Math.random() * worlds.length)];
+  }
+
+  private generateWriterName(): string {
+    const firstNames = ['Alex', 'Jordan', 'Casey', 'Morgan', 'Riley', 'Avery', 'Quinn', 'Taylor'];
+    const lastNames = ['Mitchell', 'Parker', 'Collins', 'Reed', 'Hayes', 'Brooks', 'Stone', 'Wells'];
+    
+    const firstName = firstNames[Math.floor(Math.random() * firstNames.length)];
+    const lastName = lastNames[Math.floor(Math.random() * lastNames.length)];
+    
+    return `${firstName} ${lastName}`;
+  }
+
+  private generateThemes(genre: Genre): string[] {
+    const themeMap = {
+      action: ['justice', 'redemption', 'survival', 'loyalty'],
+      drama: ['family', 'identity', 'loss', 'hope', 'growth'],
+      comedy: ['friendship', 'love', 'self-discovery', 'acceptance'],
+      horror: ['fear', 'isolation', 'survival', 'evil'],
+      romance: ['love', 'commitment', 'sacrifice', 'destiny'],
+      'sci-fi': ['technology', 'humanity', 'progress', 'ethics'],
+      thriller: ['paranoia', 'trust', 'danger', 'mystery'],
+      fantasy: ['heroism', 'magic', 'destiny', 'good vs evil']
+    };
+
+    const themes = themeMap[genre] || themeMap.drama;
+    return themes.slice(0, 2 + Math.floor(Math.random() * 2));
+  }
+
+  private selectTargetAudience(genre: Genre): 'general' | 'mature' | 'teen' | 'family' {
+    const audienceMap = {
+      horror: 'mature',
+      family: 'family',
+      superhero: 'teen',
+      animation: 'family',
+      war: 'mature',
+      crime: 'mature',
+      comedy: 'general',
+      drama: 'general'
+    };
+
+    return audienceMap[genre] || 'general';
+  }
+
+  private generateCharacteristics(genre: Genre, studioProfile: StudioProfile): any {
+    return {
+      tone: this.selectTone(genre),
+      pacing: this.selectPacing(genre),
+      dialogue: this.selectDialogue(studioProfile.personality),
+      visualStyle: this.selectVisualStyle(genre),
+      commercialAppeal: 3 + Math.floor(Math.random() * 7),
+      criticalPotential: 2 + Math.floor(Math.random() * 8),
+      cgiIntensity: this.selectCGIIntensity(genre)
+    };
+  }
+
+  private selectTone(genre: Genre): string {
+    const toneMap = {
+      horror: 'dark',
+      comedy: 'light',
+      drama: 'balanced',
+      action: 'dramatic',
+      'sci-fi': 'satirical'
+    };
+    return toneMap[genre] || 'balanced';
+  }
+
+  private selectPacing(genre: Genre): string {
+    const pacingMap = {
+      action: 'fast-paced',
+      thriller: 'fast-paced',
+      drama: 'slow-burn',
+      horror: 'steady',
+      comedy: 'episodic'
+    };
+    return pacingMap[genre] || 'steady';
+  }
+
+  private selectDialogue(personality: string): string {
+    if (personality.includes('edgy')) return 'stylized';
+    if (personality.includes('heartwarming')) return 'naturalistic';
+    if (personality.includes('artistic')) return 'philosophical';
+    return 'witty';
+  }
+
+  private selectVisualStyle(genre: Genre): string {
+    const styleMap = {
+      fantasy: 'epic',
+      'sci-fi': 'stylized',
+      drama: 'realistic',
+      horror: 'stylized',
+      family: 'realistic'
+    };
+    return styleMap[genre] || 'realistic';
+  }
+
+  private selectCGIIntensity(genre: Genre): string {
+    const cgiMap = {
+      'sci-fi': 'heavy',
+      fantasy: 'heavy',
+      superhero: 'heavy',
+      action: 'moderate',
+      horror: 'moderate',
+      drama: 'minimal',
+      comedy: 'minimal'
+    };
+    return cgiMap[genre] || 'minimal';
+  }
+
+  shouldStudioRelease(studioProfile: StudioProfile, currentWeek: number): boolean {
+    const studioId = studioProfile.name;
+    const weeksSinceLastRelease = this.studioReleaseSchedules.get(studioId) || 0;
+    
+    // Calculate weeks between releases based on frequency
+    const weeksPerRelease = Math.floor(52 / studioProfile.releaseFrequency);
+    
+    // Add some randomness
+    const threshold = weeksPerRelease + Math.floor(Math.random() * 4) - 2;
+    
+    return weeksSinceLastRelease >= threshold;
+  }
+
+  generateStudioRelease(studioProfile: StudioProfile, currentWeek: number, currentYear: number): Project | null {
+    if (!this.shouldStudioRelease(studioProfile, currentWeek)) {
+      // Increment weeks since last release
+      const current = this.studioReleaseSchedules.get(studioProfile.name) || 0;
+      this.studioReleaseSchedules.set(studioProfile.name, current + 1);
+      return null;
+    }
+
+    // Reset counter
+    this.studioReleaseSchedules.set(studioProfile.name, 0);
+
+    // Select genre based on studio specialties
+    const genre = studioProfile.specialties[Math.floor(Math.random() * studioProfile.specialties.length)];
+    const script = this.generateScript(genre, studioProfile);
+
+    const project: Project = {
+      id: `ai-project-${Date.now()}-${Math.random().toString(36).substr(2, 9)}`,
+      title: script.title,
+      script,
+      type: 'feature',
+      currentPhase: 'release',
+      status: 'released',
+      phaseDuration: 0,
+      contractedTalent: [],
+      developmentProgress: {
+        scriptCompletion: 100,
+        budgetApproval: 100,
+        talentAttached: 100,
+        locationSecured: 100,
+        completionThreshold: 100,
+        issues: []
+      },
+      budget: {
+        total: script.budget,
+        allocated: {
+          aboveTheLine: script.budget * 0.2,
+          belowTheLine: script.budget * 0.3,
+          postProduction: script.budget * 0.15,
+          marketing: script.budget * 0.25,
+          distribution: script.budget * 0.1,
+          contingency: 0
+        },
+        spent: {
+          aboveTheLine: script.budget * 0.2,
+          belowTheLine: script.budget * 0.3,
+          postProduction: script.budget * 0.15,
+          marketing: script.budget * 0.25,
+          distribution: script.budget * 0.1,
+          contingency: 0
+        },
+        overages: {
+          aboveTheLine: 0,
+          belowTheLine: 0,
+          postProduction: 0,
+          marketing: 0,
+          distribution: 0,
+          contingency: 0
+        }
+      },
+      cast: [],
+      crew: [],
+      timeline: {
+        preProduction: { start: new Date(), end: new Date() },
+        principalPhotography: { start: new Date(), end: new Date() },
+        postProduction: { start: new Date(), end: new Date() },
+        release: new Date(),
+        milestones: []
+      },
+      locations: [],
+      distributionStrategy: {
+        primary: {
+          platform: 'Theatrical',
+          type: 'theatrical',
+          revenue: { type: 'box-office', studioShare: 50 }
+        },
+        international: [],
+        windows: [],
+        marketingBudget: script.budget * 0.25
+      },
+      metrics: {
+        boxOfficeTotal: 0,
+        inTheaters: true,
+        theaterCount: this.calculateTheaterCount(script.budget, studioProfile),
+        weeksSinceRelease: 0,
+        boxOffice: {
+          openingWeekend: 0,
+          domesticTotal: 0,
+          internationalTotal: 0,
+          production: script.budget,
+          marketing: script.budget * 0.25,
+          profit: 0,
+          theaters: this.calculateTheaterCount(script.budget, studioProfile),
+          weeks: 0
+        }
+      },
+      releaseWeek: currentWeek,
+      releaseYear: currentYear
+    };
+
+    return project;
+  }
+
+  private calculateTheaterCount(budget: number, studioProfile: StudioProfile): number {
+    // Base theater count on budget and studio reputation
+    let baseTheaters = Math.floor(budget / 1000000) * 50; // 50 theaters per million budget
+    
+    // Studio reputation modifier
+    const reputationMultiplier = studioProfile.reputation / 100;
+    baseTheaters *= reputationMultiplier;
+    
+    // Cap between 500 and 4000 theaters
+    return Math.max(500, Math.min(4000, baseTheaters));
+  }
+
+  generateCompetitorStudios(): Studio[] {
+    return STUDIO_PROFILES.map(profile => ({
+      id: `studio-${profile.name.toLowerCase().replace(/\s+/g, '-')}`,
+      name: profile.name,
+      reputation: profile.reputation,
+      budget: profile.budget,
+      founded: 2010 + Math.floor(Math.random() * 10),
+      specialties: profile.specialties,
+      debt: 0,
+      lastProjectWeek: 0,
+      weeksSinceLastProject: 0
+    }));
+  }
+
+  getStudioProfile(studioName: string): StudioProfile | undefined {
+    return STUDIO_PROFILES.find(profile => profile.name === studioName);
+  }
+}

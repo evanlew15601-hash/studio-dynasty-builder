@@ -64,6 +64,39 @@ export interface TalentPerson {
   agent?: string;
   currentContractWeeks?: number;
   weeklyOverhead?: number;
+  // Enhanced talent properties
+  biography?: string;
+  lastWorkWeek?: number;
+  careerEvolution?: CareerEvent[];
+  publicImage?: number; // 0-100, separate from reputation
+  scandals?: Scandal[];
+  // Director-specific properties
+  directingStyle?: string;
+  temperament?: string;
+  budgetApproach?: string;
+  avgCriticalScore?: number;
+  avgBoxOfficeMultiplier?: number;
+}
+
+export interface CareerEvent {
+  week: number;
+  year: number;
+  type: 'breakthrough' | 'comeback' | 'retirement' | 'scandal' | 'award' | 'flop';
+  description: string;
+  impactOnReputation: number;
+  impactOnMarketValue: number;
+}
+
+export interface Scandal {
+  id: string;
+  type: 'personal' | 'professional' | 'legal' | 'social';
+  severity: 'minor' | 'moderate' | 'major' | 'career-ending';
+  description: string;
+  weekOccurred: number;
+  yearOccurred: number;
+  resolved: boolean;
+  reputationImpact: number;
+  marketValueImpact: number;
 }
 
 export interface TalentTrait {
@@ -400,6 +433,26 @@ export interface GameState {
   boxOfficeHistory: BoxOfficeWeek[];
   awardsCalendar: AwardsEvent[];
   industryTrends: IndustryTrend[];
+  // Enhanced game state
+  allReleases: Project[]; // Includes AI studio releases
+  topFilmsHistory: TopFilmsWeek[];
+}
+
+export interface TopFilmsWeek {
+  week: number;
+  year: number;
+  topFilms: TopFilmEntry[];
+}
+
+export interface TopFilmEntry {
+  projectId: string;
+  title: string;
+  studioName: string;
+  weeklyGross: number;
+  totalGross: number;
+  position: number;
+  trend: 'rising' | 'falling' | 'stable' | 'new';
+  receptionTags: string[];
 }
 
 export interface BoxOfficeWeek {

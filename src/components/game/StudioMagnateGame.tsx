@@ -14,6 +14,9 @@ import { BoxOfficeSystem } from './BoxOfficeSystem';
 import { updateProjectFinancials } from './FinancialCalculations';
 import { AwardsSystem } from './AwardsSystem';
 import { MarketCompetition } from './MarketCompetition';
+import { TopFilmsChart } from './TopFilmsChart';
+import { TalentGenerator } from '../../data/TalentGenerator';
+import { StudioGenerator } from '../../data/StudioGenerator';
 import { Button } from '@/components/ui/button';
 import { Card } from '@/components/ui/card';
 import { useToast } from '@/hooks/use-toast';
@@ -50,72 +53,32 @@ export const StudioMagnateGame: React.FC<StudioMagnateGameProps> = ({ onPhaseCha
     }
   };
   
-  const [gameState, setGameState] = useState<GameState>(() => ({
-    studio: {
-      id: 'player-studio',
-      name: 'Untitled Pictures',
-      reputation: 50,
-      budget: 10000000, // $10M starting budget
-      founded: new Date().getFullYear(),
-      specialties: ['drama'],
-      debt: 0, // Track studio debt
-      lastProjectWeek: 0, // Track when last project was greenlit
-      weeksSinceLastProject: 0 // Counter for reputation decay
-    },
-    currentYear: new Date().getFullYear(),
-    currentWeek: 1,
-    currentQuarter: 1,
-    projects: [],
-    talent: [
-      // Sample talent pool
-      {
-        id: 'talent-1',
-        name: 'Alexandra Sterling',
-        type: 'actor',
-        age: 28,
-        experience: 5,
-        reputation: 75,
-        marketValue: 2500000,
-        contractStatus: 'available',
-        genres: ['drama', 'thriller'],
-        awards: ['Golden Globe'],
-        traits: ['Method Actor', 'Media Darling'],
-        agent: 'CAA',
-        availability: { start: new Date(), end: new Date(Date.now() + 365 * 24 * 60 * 60 * 1000) }
+  const [gameState, setGameState] = useState<GameState>(() => {
+    // Initialize comprehensive talent pool
+    const talentGenerator = new TalentGenerator();
+    const studioGenerator = new StudioGenerator();
+    const generatedTalent = talentGenerator.generateTalentPool(300, 50);
+    const competitorStudios = studioGenerator.generateCompetitorStudios();
+
+    return {
+      studio: {
+        id: 'player-studio',
+        name: 'Untitled Pictures',
+        reputation: 50,
+        budget: 10000000, // $10M starting budget
+        founded: new Date().getFullYear(),
+        specialties: ['drama'],
+        debt: 0, // Track studio debt
+        lastProjectWeek: 0, // Track when last project was greenlit
+        weeksSinceLastProject: 0 // Counter for reputation decay
       },
-      {
-        id: 'talent-2',
-        name: 'Marcus Chen',
-        type: 'director',
-        age: 45,
-        experience: 15,
-        reputation: 85,
-        marketValue: 5000000,
-        contractStatus: 'available',
-        genres: ['action', 'sci-fi'],
-        awards: ['Emmy', 'Directors Guild'],
-        traits: ['Visionary', 'Budget Conscious'],
-        agent: 'WME',
-        availability: { start: new Date(), end: new Date(Date.now() + 365 * 24 * 60 * 60 * 1000) }
-      },
-      {
-        id: 'talent-3',
-        name: 'Isabella Rodriguez',
-        type: 'actor',
-        age: 35,
-        experience: 12,
-        reputation: 80,
-        marketValue: 4000000,
-        contractStatus: 'available',
-        genres: ['comedy', 'drama'],
-        awards: ['SAG Award', 'Critics Choice'],
-        traits: ['Versatile', 'Box Office Draw'],
-        agent: 'UTA',
-        availability: { start: new Date(), end: new Date(Date.now() + 365 * 24 * 60 * 60 * 1000) }
-      }
-    ],
-    scripts: [],
-    competitorStudios: [],
+      currentYear: new Date().getFullYear(),
+      currentWeek: 1,
+      currentQuarter: 1,
+      projects: [],
+      talent: generatedTalent,
+      scripts: [],
+      competitorStudios,
     marketConditions: {
       trendingGenres: ['action', 'drama', 'comedy'],
       audiencePreferences: [],
@@ -126,13 +89,16 @@ export const StudioMagnateGame: React.FC<StudioMagnateGameProps> = ({ onPhaseCha
       competitorReleases: [],
       awardsSeasonActive: false
     },
-    eventQueue: [],
-    boxOfficeHistory: [],
-    awardsCalendar: [],
-    industryTrends: []
-  }));
+      eventQueue: [],
+      boxOfficeHistory: [],
+      awardsCalendar: [],
+      industryTrends: [],
+      allReleases: [], // Includes AI studio releases
+      topFilmsHistory: []
+    };
+  });
 
-  const [currentPhase, setCurrentPhase] = useState<'dashboard' | 'scripts' | 'casting' | 'production' | 'marketing' | 'distribution' | 'financials' | 'awards' | 'market' | 'stats'>('dashboard');
+  const [currentPhase, setCurrentPhase] = useState<'dashboard' | 'scripts' | 'casting' | 'production' | 'marketing' | 'distribution' | 'financials' | 'awards' | 'market' | 'topfilms' | 'stats'>('dashboard');
   const [selectedProject, setSelectedProject] = useState<Project | null>(null);
 
   const handlePhaseChange = (phase: typeof currentPhase) => {
@@ -997,6 +963,7 @@ export const StudioMagnateGame: React.FC<StudioMagnateGameProps> = ({ onPhaseCha
               { id: 'financials', label: 'Financial Reports', IconComponent: BudgetIcon },
               { id: 'awards', label: 'Awards & Recognition', IconComponent: ReputationIcon },
               { id: 'market', label: 'Market Competition', IconComponent: BarChartIcon },
+              { id: 'topfilms', label: 'Top Films Chart', IconComponent: BarChartIcon },
               { id: 'stats', label: 'Statistics', IconComponent: BarChartIcon },
             ].map((tab) => (
               <Button
@@ -1097,6 +1064,10 @@ export const StudioMagnateGame: React.FC<StudioMagnateGameProps> = ({ onPhaseCha
         
         {currentPhase === 'market' && (
           <MarketCompetition gameState={gameState} />
+        )}
+        
+        {currentPhase === 'topfilms' && (
+          <TopFilmsChart gameState={gameState} allReleases={gameState.allReleases} />
         )}
         
         {currentPhase === 'stats' && (
