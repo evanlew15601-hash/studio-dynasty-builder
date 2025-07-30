@@ -41,7 +41,16 @@ export const ReleaseStrategyModal: React.FC<ReleaseStrategyModalProps> = ({
 }) => {
   const { toast } = useToast();
   const [selectedReleaseType, setSelectedReleaseType] = useState<string>('wide');
-  const [premiereDate, setPremiereDate] = useState<Date | undefined>(new Date());
+  // Calculate initial game date based on current game time
+  const getGameDate = () => {
+    const gameStartDate = new Date(2024, 0, 1); // Game starts Jan 1, 2024
+    const weeksElapsed = (currentYear - 2024) * 52 + currentWeek;
+    const gameDate = new Date(gameStartDate);
+    gameDate.setDate(gameDate.getDate() + (weeksElapsed * 7));
+    return gameDate;
+  };
+
+  const [premiereDate, setPremiereDate] = useState<Date | undefined>(getGameDate());
   const [theaterCount, setTheaterCount] = useState<number>(3000);
   const [selectedEvents, setSelectedEvents] = useState<string[]>([]);
 
@@ -297,12 +306,12 @@ export const ReleaseStrategyModal: React.FC<ReleaseStrategyModalProps> = ({
                             return true; // All dates disabled until marketing starts
                           }
                           
-                          // Only disable past dates
-                          const today = new Date();
-                          today.setHours(0, 0, 0, 0);
+                          // Use game time instead of real time
+                          const currentGameDate = getGameDate();
+                          currentGameDate.setHours(0, 0, 0, 0);
                           
-                          // Must be at least 4 weeks from now 
-                          const minDate = new Date(today);
+                          // Must be at least 4 weeks from current game date
+                          const minDate = new Date(currentGameDate);
                           minDate.setDate(minDate.getDate() + 28);
                           
                           return date < minDate;

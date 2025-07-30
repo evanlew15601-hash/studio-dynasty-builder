@@ -1,10 +1,12 @@
-import React from 'react';
+import React, { useState } from 'react';
 import { GameState, Project, AwardsEvent, AwardsCampaign, StudioAward } from '@/types/game';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
 import { Progress } from '@/components/ui/progress';
 import { useToast } from '@/hooks/use-toast';
+import { AwardsShowModal } from './AwardsShowModal';
+import { AwardsCalendar } from './AwardsCalendar';
 import { 
   TrophyIcon, 
   StarIcon, 
@@ -25,6 +27,14 @@ export const AwardsSystem: React.FC<AwardsSystemProps> = ({
   onStudioUpdate 
 }) => {
   const { toast } = useToast();
+  const [showAwardsModal, setShowAwardsModal] = useState(false);
+  const [currentCeremony, setCurrentCeremony] = useState<string>('');
+  const [currentNominations, setCurrentNominations] = useState<Array<{
+    project: Project;
+    category: string;
+    won: boolean;
+    award?: StudioAward;
+  }>>([]);
 
   // Check if it's awards season (Jan-Mar = weeks 1-12)
   const isAwardsSeasonActive = gameState.currentWeek >= 1 && gameState.currentWeek <= 12;
@@ -117,42 +127,113 @@ export const AwardsSystem: React.FC<AwardsSystemProps> = ({
     });
   };
 
-  // Process award nominations and wins
-  const processAwards = (project: Project): StudioAward[] => {
-    const probability = calculateAwardsProbability(project);
-    const awards: StudioAward[] = [];
+  // Trigger awards ceremony based on week
+  const triggerAwardsCeremony = (ceremonyName: string, week: number) => {
+    if (gameState.currentWeek !== week) return;
     
-    // Major awards with different probabilities
-    const majorAwards = [
-      { name: 'Best Picture', ceremony: 'Oscar', prestige: 10, threshold: 85 },
-      { name: 'Best Director', ceremony: 'Oscar', prestige: 8, threshold: 80 },
-      { name: 'Best Actor', ceremony: 'Oscar', prestige: 7, threshold: 75 },
-      { name: 'Best Picture', ceremony: 'Golden Globe', prestige: 6, threshold: 70 },
-      { name: 'Best Film', ceremony: 'Critics Choice', prestige: 5, threshold: 65 }
-    ];
-
-    majorAwards.forEach(award => {
-      if (probability >= award.threshold && Math.random() * 100 < (probability - award.threshold + 20)) {
-        awards.push({
-          id: `award-${Date.now()}-${Math.random()}`,
-          projectId: project.id,
-          category: award.name,
-          ceremony: award.ceremony,
-          year: gameState.currentYear,
-          prestige: award.prestige,
-          reputationBoost: award.prestige * 2,
-          revenueBoost: project.budget.total * (award.prestige / 100) // Revenue boost based on prestige
+    const eligibleProjects = getEligibleProjects();
+    const nominations: Array<{
+      project: Project;
+      category: string;
+      won: boolean;
+      award?: StudioAward;
+    }> = [];
+    
+    eligibleProjects.forEach(project => {
+      const probability = calculateAwardsProbability(project);
+      
+      // Determine nominations and wins based on ceremony
+      let categories: string[] = [];
+      let winThresholds: { [key: string]: number } = {};
+      
+      switch (ceremonyName) {
+        case 'Oscar':
+          categories = ['Best Picture', 'Best Director', 'Best Actor'];
+          winThresholds = { 'Best Picture': 85, 'Best Director': 80, 'Best Actor': 75 };
+          break;
+        case 'Golden Globe':
+          categories = ['Best Picture - Drama', 'Best Director'];
+          winThresholds = { 'Best Picture - Drama': 70, 'Best Director': 75 };
+          break;
+        case 'Critics Choice':
+          categories = ['Best Film', 'Best Acting'];
+          winThresholds = { 'Best Film': 65, 'Best Acting': 70 };
+          break;
+      }
+      
+      categories.forEach(category => {
+        if (probability >= (winThresholds[category] - 20)) { // Nomination threshold
+          const won = probability >= winThresholds[category] && Math.random() * 100 < (probability - winThresholds[category] + 30);
+          
+          let award: StudioAward | undefined;
+          if (won) {
+            const prestigeValue = ceremonyName === 'Oscar' ? 10 : ceremonyName === 'Golden Globe' ? 6 : 5;
+            award = {
+              id: `award-${Date.now()}-${Math.random()}`,
+              projectId: project.id,
+              category,
+              ceremony: ceremonyName,
+              year: gameState.currentYear,
+              prestige: prestigeValue,
+              reputationBoost: prestigeValue * 2,
+              revenueBoost: project.budget.total * (prestigeValue / 100)
+            };
+          }
+          
+          nominations.push({
+            project,
+            category,
+            won,
+            award
+          });
+        }
+      });
+    });
+    
+    if (nominations.length > 0) {
+      setCurrentCeremony(ceremonyName);
+      setCurrentNominations(nominations);
+      setShowAwardsModal(true);
+      
+      // Apply awards to studio
+      const wonAwards = nominations.filter(n => n.won).map(n => n.award!);
+      if (wonAwards.length > 0) {
+        const totalReputation = wonAwards.reduce((sum, award) => sum + award.reputationBoost, 0);
+        const totalRevenue = wonAwards.reduce((sum, award) => sum + award.revenueBoost, 0);
+        
+        onStudioUpdate({
+          reputation: Math.min(100, gameState.studio.reputation + totalReputation),
+          budget: gameState.studio.budget + totalRevenue,
+          awards: [...(gameState.studio.awards || []), ...wonAwards]
         });
       }
-    });
-
-    return awards;
+    }
   };
+
+  // Check for awards ceremonies this week
+  React.useEffect(() => {
+    if (isAwardsSeasonActive) {
+      if (gameState.currentWeek === 6) {
+        triggerAwardsCeremony('Golden Globe', 6);
+      } else if (gameState.currentWeek === 8) {
+        triggerAwardsCeremony('Critics Choice', 8);
+      } else if (gameState.currentWeek === 10) {
+        triggerAwardsCeremony('Oscar', 10);
+      }
+    }
+  }, [gameState.currentWeek]);
 
   const eligibleProjects = getEligibleProjects();
 
   return (
     <div className="space-y-6">
+      <AwardsShowModal
+        open={showAwardsModal}
+        onClose={() => setShowAwardsModal(false)}
+        ceremony={currentCeremony}
+        nominations={currentNominations}
+        year={gameState.currentYear}
+      />
       {/* Awards Season Status */}
       <Card className="card-premium">
         <CardHeader>
@@ -317,6 +398,12 @@ export const AwardsSystem: React.FC<AwardsSystemProps> = ({
           </CardContent>
         </Card>
       )}
+
+      {/* Awards Calendar */}
+      <AwardsCalendar 
+        currentWeek={gameState.currentWeek}
+        currentYear={gameState.currentYear}
+      />
 
       {eligibleProjects.length === 0 && (
         <Card className="card-premium">
