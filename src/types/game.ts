@@ -15,6 +15,16 @@ export interface Studio {
   prestige?: number; // 0-100, separate from reputation
 }
 
+export interface ScriptCharacter {
+  id: string;
+  name: string;
+  roleType: 'lead' | 'supporting' | 'minor' | 'cameo';
+  screenTimeMinutes: number;
+  description: string;
+  ageRange: [number, number];
+  requiredTraits: string[];
+}
+
 export interface Script {
   id: string;
   title: string;
@@ -29,6 +39,7 @@ export interface Script {
   targetAudience: 'general' | 'mature' | 'teen' | 'family';
   estimatedRuntime: number;
   characteristics: ScriptCharacteristics;
+  characters?: ScriptCharacter[];
 }
 
 export interface ScriptCharacteristics {

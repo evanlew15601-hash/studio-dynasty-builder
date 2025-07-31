@@ -9,6 +9,7 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@
 import { Slider } from '@/components/ui/slider';
 import { Badge } from '@/components/ui/badge';
 import { useToast } from '@/hooks/use-toast';
+import { ScriptCharacterManager, ScriptCharacter } from './ScriptCharacterManager';
 import { ScriptIcon, BudgetIcon, AwardIcon, ClapperboardIcon } from '@/components/ui/icons';
 
 interface ScriptDevelopmentProps {
@@ -48,6 +49,8 @@ export const ScriptDevelopment: React.FC<ScriptDevelopmentProps> = ({
     }
   });
 
+  const [scriptCharacters, setScriptCharacters] = useState<ScriptCharacter[]>([]);
+
   const genres: Genre[] = [
     'action', 'adventure', 'comedy', 'drama', 'horror', 'thriller',
     'romance', 'sci-fi', 'fantasy', 'documentary', 'animation',
@@ -86,16 +89,18 @@ export const ScriptDevelopment: React.FC<ScriptDevelopmentProps> = ({
         commercialAppeal: 5,
         criticalPotential: 5,
         cgiIntensity: 'minimal'
-      }
+      },
+      characters: scriptCharacters
     };
 
     onScriptUpdate(script);
     setIsCreating(false);
     setNewScript({});
+    setScriptCharacters([]);
     
     toast({
       title: "Script Created",
-      description: `"${script.title}" has been added to your development slate.`,
+      description: `"${script.title}" has been added to your development slate with ${scriptCharacters.length} character roles.`,
     });
   };
 
@@ -291,10 +296,21 @@ export const ScriptDevelopment: React.FC<ScriptDevelopmentProps> = ({
               </div>
             </div>
 
+            {/* Character Manager */}
+            <div className="border-t pt-6">
+              <ScriptCharacterManager
+                characters={scriptCharacters}
+                onCharactersChange={setScriptCharacters}
+              />
+            </div>
+
             <div className="flex justify-end space-x-3">
               <Button 
                 variant="outline" 
-                onClick={() => setIsCreating(false)}
+                onClick={() => {
+                  setIsCreating(false);
+                  setScriptCharacters([]);
+                }}
               >
                 Cancel
               </Button>

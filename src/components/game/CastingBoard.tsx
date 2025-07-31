@@ -5,6 +5,7 @@ import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
 import { Avatar, AvatarFallback } from '@/components/ui/avatar';
 import { useToast } from '@/hooks/use-toast';
+import { CastingBoardFilters, CastingFilters } from './CastingBoardFilters';
 import { 
   CastingIcon, 
   TalentIcon, 
@@ -29,10 +30,32 @@ export const CastingBoard: React.FC<CastingBoardProps> = ({
 }) => {
   const { toast } = useToast();
   const [selectedTalent, setSelectedTalent] = useState<TalentPerson | null>(null);
+  const [filters, setFilters] = useState<CastingFilters>({
+    talentType: 'all',
+    genre: 'all',
+    ageRange: [18, 80],
+    reputationRange: [0, 100],
+    experienceRange: [0, 50],
+    marketValueRange: [0, 50000000],
+    hasAwards: null,
+    searchQuery: ''
+  });
 
-  const availableTalent = gameState.talent.filter(
-    talent => talent.contractStatus === 'available'
-  );
+  const availableTalent = gameState.talent.filter(talent => {
+    if (talent.contractStatus !== 'available') return false;
+    
+    // Apply filters
+    if (filters.talentType !== 'all' && talent.type !== filters.talentType) return false;
+    if (filters.genre !== 'all' && !talent.genres.includes(filters.genre)) return false;
+    if (talent.age < filters.ageRange[0] || talent.age > filters.ageRange[1]) return false;
+    if (talent.reputation < filters.reputationRange[0] || talent.reputation > filters.reputationRange[1]) return false;
+    if (talent.experience < filters.experienceRange[0] || talent.experience > filters.experienceRange[1]) return false;
+    if (talent.marketValue < filters.marketValueRange[0] || talent.marketValue > filters.marketValueRange[1]) return false;
+    if (filters.hasAwards !== null && (talent.awards?.length > 0) !== filters.hasAwards) return false;
+    if (filters.searchQuery && !talent.name.toLowerCase().includes(filters.searchQuery.toLowerCase())) return false;
+    
+    return true;
+  });
 
   const handleHireTalent = (talent: TalentPerson, role: string) => {
     if (!selectedProject) {
@@ -109,6 +132,13 @@ export const CastingBoard: React.FC<CastingBoardProps> = ({
 
   return (
     <div className="space-y-6">
+      {/* Casting Filters */}
+      <CastingBoardFilters
+        filters={filters}
+        onFiltersChange={setFilters}
+        talent={gameState.talent.filter(t => t.contractStatus === 'available')}
+      />
+
       {/* Project Selection */}
       <Card className="card-premium">
         <CardHeader>

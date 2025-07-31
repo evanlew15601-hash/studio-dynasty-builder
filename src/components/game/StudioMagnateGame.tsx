@@ -19,6 +19,7 @@ import { TalentGenerator } from '../../data/TalentGenerator';
 import { StudioGenerator } from '../../data/StudioGenerator';
 import { Button } from '@/components/ui/button';
 import { Card } from '@/components/ui/card';
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { useToast } from '@/hooks/use-toast';
 import { 
   StudioIcon, 
@@ -855,6 +856,17 @@ export const StudioMagnateGame: React.FC<StudioMagnateGameProps> = ({ onPhaseCha
       console.log(`🕐 NEW TIME STATE: Y${newTimeState.currentYear}W${newTimeState.currentWeek}`);
       
       const updatedProjects = processWeeklyProjectEffects(prev.projects, newTimeState);
+
+      // Generate AI studio releases every 2-4 weeks
+      const shouldGenerateRelease = Math.random() < 0.3; // 30% chance each week
+      let newAIReleases: any[] = [];
+      
+      if (shouldGenerateRelease && prev.competitorStudios.length > 0) {
+        const studioGenerator = new StudioGenerator();
+        const randomStudio = prev.competitorStudios[Math.floor(Math.random() * prev.competitorStudios.length)];
+        const aiRelease = studioGenerator.generateStudioRelease(randomStudio, newTimeState.currentYear, newTimeState.currentWeek);
+        newAIReleases.push(aiRelease);
+      }
       
       // Process weekly costs and reputation
       const weeklyResults = processWeeklyCosts(prev, updatedProjects);
@@ -865,7 +877,8 @@ export const StudioMagnateGame: React.FC<StudioMagnateGameProps> = ({ onPhaseCha
         currentYear: newTimeState.currentYear,
         currentQuarter: newTimeState.currentQuarter,
         projects: updatedProjects,
-        studio: weeklyResults.studio
+        studio: weeklyResults.studio,
+        allReleases: [...prev.allReleases, ...newAIReleases]
       };
 
       setTimeout(() => {
@@ -951,21 +964,21 @@ export const StudioMagnateGame: React.FC<StudioMagnateGameProps> = ({ onPhaseCha
 
       {/* Navigation */}
       <div className="border-b border-border/30 bg-gradient-to-r from-card/80 to-card/60 backdrop-blur-sm">
-        <div className="container mx-auto px-6">
-          <div className="flex space-x-1">
-            {[
-              { id: 'dashboard', label: 'Studio Dashboard', IconComponent: StudioIcon },
-              { id: 'scripts', label: 'Script Development', IconComponent: ScriptIcon },
-              { id: 'casting', label: 'Casting Board', IconComponent: CastingIcon },
-              { id: 'production', label: 'Production', IconComponent: ProductionIcon },
-              { id: 'marketing', label: 'Marketing & Release', IconComponent: MarketingIcon },
-              { id: 'distribution', label: 'Post-Theatrical', IconComponent: DistributionIcon },
-              { id: 'financials', label: 'Financial Reports', IconComponent: BudgetIcon },
-              { id: 'awards', label: 'Awards & Recognition', IconComponent: ReputationIcon },
-              { id: 'market', label: 'Market Competition', IconComponent: BarChartIcon },
-              { id: 'topfilms', label: 'Top Films Chart', IconComponent: BarChartIcon },
-              { id: 'stats', label: 'Statistics', IconComponent: BarChartIcon },
-            ].map((tab) => (
+          <div className="container mx-auto px-6">
+            <div className="flex space-x-1 overflow-x-auto">
+              {[
+                { id: 'dashboard', label: 'Dashboard', IconComponent: StudioIcon },
+                { id: 'scripts', label: 'Scripts', IconComponent: ScriptIcon },
+                { id: 'casting', label: 'Casting', IconComponent: CastingIcon },
+                { id: 'production', label: 'Production', IconComponent: ProductionIcon },
+                { id: 'marketing', label: 'Marketing', IconComponent: MarketingIcon },
+                { id: 'distribution', label: 'Distribution', IconComponent: DistributionIcon },
+                { id: 'financials', label: 'Financials', IconComponent: BudgetIcon },
+                { id: 'awards', label: 'Awards', IconComponent: ReputationIcon },
+                { id: 'market', label: 'Market', IconComponent: BarChartIcon },
+                { id: 'topfilms', label: 'Top Films', IconComponent: BarChartIcon },
+                { id: 'stats', label: 'Stats', IconComponent: BarChartIcon },
+              ].map((tab) => (
               <Button
                 key={tab.id}
                 variant="ghost"
