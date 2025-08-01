@@ -3,6 +3,8 @@ import { GameState, Studio, Project, Script, TalentPerson, BoxOfficeWeek, BoxOff
 import { useLoadingContext } from '@/contexts/LoadingContext';
 import { LoadingOverlay } from '@/components/ui/loading-overlay';
 import { LOADING_OPERATIONS, delay, simulateProgress } from '@/utils/loadingUtils';
+import { FranchiseGenerator } from '@/data/FranchiseGenerator';
+import { PublicDomainGenerator } from '@/data/PublicDomainGenerator';
 import { ScriptDevelopment } from './ScriptDevelopment';
 import { CastingBoard } from './CastingBoard';
 import { ProductionManagement } from './ProductionManagement';
@@ -31,6 +33,12 @@ import { AchievementNotifications } from './AchievementNotifications';
 import { ReputationPanel } from './ReputationPanel';
 import { DeepReputationPanel } from './DeepReputationPanel';
 import { TalentGenerator } from '../../data/TalentGenerator';
+import { 
+  DropdownMenu,
+  DropdownMenuContent,
+  DropdownMenuItem,
+  DropdownMenuTrigger,
+} from "@/components/ui/dropdown-menu";
 import { StudioGenerator } from '../../data/StudioGenerator';
 import { useTalentMarket } from '../../hooks/useTalentMarket';
 import { useGenreSaturation } from '../../hooks/useGenreSaturation';
@@ -53,6 +61,7 @@ import {
   ClapperboardIcon,
   BarChartIcon
 } from '@/components/ui/icons';
+import { ChevronDown } from 'lucide-react';
 
 interface StudioMagnateGameProps {
   onPhaseChange?: (phase: string) => void;
@@ -138,9 +147,9 @@ export const StudioMagnateGame: React.FC<StudioMagnateGameProps> = ({ onPhaseCha
       industryTrends: [],
       allReleases: [], // Includes AI studio releases
       topFilmsHistory: [],
-      // Franchise & Public Domain Systems
-      franchises: [],
-      publicDomainIPs: []
+      // Initialize Franchise & Public Domain Systems
+      franchises: FranchiseGenerator.generateInitialFranchises(30),
+      publicDomainIPs: PublicDomainGenerator.generateInitialPublicDomainIPs(50)
     };
 
     updateOperation(LOADING_OPERATIONS.GAME_INIT.id, 100, 'Game ready!');
@@ -1175,38 +1184,107 @@ export const StudioMagnateGame: React.FC<StudioMagnateGameProps> = ({ onPhaseCha
 
       {/* Navigation */}
       <div className="border-b border-border/30 bg-gradient-to-r from-card/80 to-card/60 backdrop-blur-sm">
-          <div className="container mx-auto px-6">
-            <div className="flex space-x-1 overflow-x-auto">
-              {[
-                { id: 'dashboard', label: 'Dashboard', IconComponent: StudioIcon },
-                { id: 'scripts', label: 'Scripts', IconComponent: ScriptIcon },
-                { id: 'casting', label: 'Casting', IconComponent: CastingIcon },
-                { id: 'media', label: 'Media', IconComponent: BarChartIcon },
-                { id: 'production', label: 'Production', IconComponent: ProductionIcon },
-                { id: 'marketing', label: 'Marketing', IconComponent: MarketingIcon },
-                { id: 'distribution', label: 'Distribution', IconComponent: DistributionIcon },
-                { id: 'financials', label: 'Financials', IconComponent: BudgetIcon },
-                { id: 'competition', label: 'AI Competition', IconComponent: BarChartIcon },
-                { id: 'awards', label: 'Awards', IconComponent: ReputationIcon },
-                { id: 'market', label: 'Market', IconComponent: BarChartIcon },
-                { id: 'topfilms', label: 'Top Films', IconComponent: BarChartIcon },
-                { id: 'stats', label: 'Stats', IconComponent: BarChartIcon },
-                { id: 'reputation', label: 'Reputation', IconComponent: ReputationIcon },
-              ].map((tab) => (
+        <div className="container mx-auto px-6">
+          <div className="flex items-center space-x-1 overflow-x-auto">
+            {/* Core Navigation */}
+            {[
+              { id: 'dashboard', label: 'Dashboard', IconComponent: StudioIcon },
+              { id: 'scripts', label: 'Scripts', IconComponent: ScriptIcon },
+              { id: 'casting', label: 'Casting', IconComponent: CastingIcon },
+              { id: 'production', label: 'Production', IconComponent: ProductionIcon },
+              { id: 'marketing', label: 'Marketing', IconComponent: MarketingIcon },
+              { id: 'distribution', label: 'Distribution', IconComponent: DistributionIcon },
+            ].map((tab) => (
               <Button
                 key={tab.id}
                 variant="ghost"
-                className={`rounded-none border-b-2 px-6 py-4 font-medium transition-all duration-300 ${
+                className={`rounded-none border-b-2 px-4 py-4 font-medium transition-all duration-300 ${
                   currentPhase === tab.id 
                     ? 'border-primary bg-gradient-to-t from-primary/20 to-primary/10 text-primary shadow-lg' 
                     : 'border-transparent hover:border-primary/40 hover:bg-primary/5 btn-ghost-premium'
                 }`}
                 onClick={() => handlePhaseChange(tab.id as typeof currentPhase)}
               >
-                <tab.IconComponent className="mr-3" size={18} />
+                <tab.IconComponent className="mr-2" size={16} />
                 {tab.label}
               </Button>
             ))}
+
+            {/* Business Analytics Dropdown */}
+            <DropdownMenu>
+              <DropdownMenuTrigger asChild>
+                <Button
+                  variant="ghost"
+                  className={`rounded-none border-b-2 px-4 py-4 font-medium transition-all duration-300 ${
+                    ['financials', 'competition', 'market', 'topfilms', 'stats'].includes(currentPhase)
+                      ? 'border-primary bg-gradient-to-t from-primary/20 to-primary/10 text-primary shadow-lg' 
+                      : 'border-transparent hover:border-primary/40 hover:bg-primary/5 btn-ghost-premium'
+                  }`}
+                >
+                  <BarChartIcon className="mr-2" size={16} />
+                  Analytics
+                  <ChevronDown className="ml-1" size={14} />
+                </Button>
+              </DropdownMenuTrigger>
+              <DropdownMenuContent className="w-56 bg-card/95 backdrop-blur-md border-border/50 shadow-2xl z-50">
+                <DropdownMenuItem onClick={() => handlePhaseChange('financials')} className="cursor-pointer">
+                  <BudgetIcon className="mr-2" size={16} />
+                  Financials
+                </DropdownMenuItem>
+                <DropdownMenuItem onClick={() => handlePhaseChange('competition')} className="cursor-pointer">
+                  <BarChartIcon className="mr-2" size={16} />
+                  AI Competition
+                </DropdownMenuItem>
+                <DropdownMenuItem onClick={() => handlePhaseChange('market')} className="cursor-pointer">
+                  <BarChartIcon className="mr-2" size={16} />
+                  Market Analysis
+                </DropdownMenuItem>
+                <DropdownMenuItem onClick={() => handlePhaseChange('topfilms')} className="cursor-pointer">
+                  <BarChartIcon className="mr-2" size={16} />
+                  Top Films
+                </DropdownMenuItem>
+                <DropdownMenuItem onClick={() => handlePhaseChange('stats')} className="cursor-pointer">
+                  <BarChartIcon className="mr-2" size={16} />
+                  Performance Stats
+                </DropdownMenuItem>
+              </DropdownMenuContent>
+            </DropdownMenu>
+
+            {/* Studio Management Dropdown */}
+            <DropdownMenu>
+              <DropdownMenuTrigger asChild>
+                <Button
+                  variant="ghost"
+                  className={`rounded-none border-b-2 px-4 py-4 font-medium transition-all duration-300 ${
+                    ['media', 'talent', 'awards', 'reputation'].includes(currentPhase)
+                      ? 'border-primary bg-gradient-to-t from-primary/20 to-primary/10 text-primary shadow-lg' 
+                      : 'border-transparent hover:border-primary/40 hover:bg-primary/5 btn-ghost-premium'
+                  }`}
+                >
+                  <ReputationIcon className="mr-2" size={16} />
+                  Studio
+                  <ChevronDown className="ml-1" size={14} />
+                </Button>
+              </DropdownMenuTrigger>
+              <DropdownMenuContent className="w-56 bg-card/95 backdrop-blur-md border-border/50 shadow-2xl z-50">
+                <DropdownMenuItem onClick={() => handlePhaseChange('media')} className="cursor-pointer">
+                  <BarChartIcon className="mr-2" size={16} />
+                  Media Relations
+                </DropdownMenuItem>
+                <DropdownMenuItem onClick={() => handlePhaseChange('talent')} className="cursor-pointer">
+                  <CastingIcon className="mr-2" size={16} />
+                  Talent Management
+                </DropdownMenuItem>
+                <DropdownMenuItem onClick={() => handlePhaseChange('awards')} className="cursor-pointer">
+                  <ReputationIcon className="mr-2" size={16} />
+                  Awards & Recognition
+                </DropdownMenuItem>
+                <DropdownMenuItem onClick={() => handlePhaseChange('reputation')} className="cursor-pointer">
+                  <ReputationIcon className="mr-2" size={16} />
+                  Reputation Management
+                </DropdownMenuItem>
+              </DropdownMenuContent>
+            </DropdownMenu>
           </div>
         </div>
       </div>
