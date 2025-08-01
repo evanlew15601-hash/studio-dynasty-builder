@@ -156,7 +156,7 @@ export const GameLanding: React.FC<GameLandingProps> = ({ onStartGame, onLoadGam
             <div className="flex flex-col sm:flex-row gap-6 justify-center">
               <Button 
                 size="lg" 
-                className="btn-studio px-12 py-6 text-lg font-semibold shadow-golden hover:shadow-golden transition-all duration-500 hover:scale-105 animate-glow"
+                className="btn-studio px-14 py-7 text-lg shadow-golden hover:shadow-golden/60 transition-all duration-500 hover:scale-[1.02]"
                 onClick={handleStartGame}
               >
                 <Play className="mr-3" size={24} />
@@ -166,7 +166,7 @@ export const GameLanding: React.FC<GameLandingProps> = ({ onStartGame, onLoadGam
               <Button 
                 size="lg" 
                 variant="outline" 
-                className="btn-ghost-premium px-12 py-6 text-lg text-foreground hover:text-primary transition-all duration-500 hover:scale-105"
+                className="btn-ghost-premium px-14 py-7 text-lg transition-all duration-500 hover:scale-[1.02]"
                 onClick={() => setShowCustomization(true)}
               >
                 <Settings className="mr-3" size={24} />
@@ -190,7 +190,7 @@ export const GameLanding: React.FC<GameLandingProps> = ({ onStartGame, onLoadGam
                 <CardContent className="p-12 text-center">
                   <div className="relative mb-10">
                     <div className="absolute inset-0 bg-primary/15 rounded-full blur-xl group-hover:bg-primary/25 transition-all duration-700" />
-                    <Film className="relative mx-auto text-primary group-hover:text-accent transition-all duration-500 animate-shimmer" size={64} />
+                    <Film className="relative mx-auto text-primary group-hover:text-accent transition-all duration-500" size={64} />
                   </div>
                   <h3 className="text-xl font-bold text-foreground mb-4 group-hover:text-primary transition-colors duration-500 studio-title">Create Blockbusters</h3>
                   <p className="text-muted-foreground leading-relaxed group-hover:text-foreground/90 transition-colors duration-500">Develop scripts, cast talent, and produce films that captivate audiences worldwide.</p>
@@ -201,7 +201,7 @@ export const GameLanding: React.FC<GameLandingProps> = ({ onStartGame, onLoadGam
                 <CardContent className="p-12 text-center">
                   <div className="relative mb-10">
                     <div className="absolute inset-0 bg-primary/15 rounded-full blur-xl group-hover:bg-primary/25 transition-all duration-700" />
-                    <Star className="relative mx-auto text-primary group-hover:text-accent transition-all duration-500 animate-shimmer" size={64} />
+                    <Star className="relative mx-auto text-primary group-hover:text-accent transition-all duration-500" size={64} />
                   </div>
                   <h3 className="text-xl font-bold text-foreground mb-4 group-hover:text-primary transition-colors duration-500 studio-title">Manage Talent</h3>
                   <p className="text-muted-foreground leading-relaxed group-hover:text-foreground/90 transition-colors duration-500">Discover rising stars, negotiate contracts, and build lasting relationships with A-list celebrities.</p>
@@ -212,7 +212,7 @@ export const GameLanding: React.FC<GameLandingProps> = ({ onStartGame, onLoadGam
                 <CardContent className="p-12 text-center">
                   <div className="relative mb-10">
                     <div className="absolute inset-0 bg-primary/15 rounded-full blur-xl group-hover:bg-primary/25 transition-all duration-700" />
-                    <Trophy className="relative mx-auto text-primary group-hover:text-accent transition-all duration-500 animate-shimmer" size={64} />
+                    <Trophy className="relative mx-auto text-primary group-hover:text-accent transition-all duration-500" size={64} />
                   </div>
                   <h3 className="text-xl font-bold text-foreground mb-4 group-hover:text-primary transition-colors duration-500 studio-title">Win Awards</h3>
                   <p className="text-muted-foreground leading-relaxed group-hover:text-foreground/90 transition-colors duration-500">Compete for prestigious awards and build your studio's reputation in the industry.</p>
