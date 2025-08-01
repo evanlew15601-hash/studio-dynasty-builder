@@ -1,5 +1,8 @@
 import React, { useState, Suspense } from 'react';
 import { GameState, Studio, Project, Script, TalentPerson, BoxOfficeWeek, BoxOfficeRelease, Genre, MarketingStrategy, ReleaseStrategy, ProductionPhase } from '@/types/game';
+import { useLoadingContext } from '@/contexts/LoadingContext';
+import { LoadingOverlay } from '@/components/ui/loading-overlay';
+import { LOADING_OPERATIONS, delay, simulateProgress } from '@/utils/loadingUtils';
 import { ScriptDevelopment } from './ScriptDevelopment';
 import { CastingBoard } from './CastingBoard';
 import { ProductionManagement } from './ProductionManagement';
@@ -57,6 +60,7 @@ interface StudioMagnateGameProps {
 
 export const StudioMagnateGame: React.FC<StudioMagnateGameProps> = ({ onPhaseChange }) => {
   const { toast } = useToast();
+  const { loading, startOperation, updateOperation, completeOperation } = useLoadingContext();
   
   const getPhaseWeeks = (phase: string): number => {
     switch (phase) {
@@ -72,24 +76,39 @@ export const StudioMagnateGame: React.FC<StudioMagnateGameProps> = ({ onPhaseCha
   };
   
   const [gameState, setGameState] = useState<GameState>(() => {
+    // Start loading for game initialization
+    startOperation(LOADING_OPERATIONS.GAME_INIT.id, LOADING_OPERATIONS.GAME_INIT.name, LOADING_OPERATIONS.GAME_INIT.estimatedTime);
+    
+    // Initialize in steps with progress updates
+    updateOperation(LOADING_OPERATIONS.GAME_INIT.id, 10, 'Setting up studio...');
+    
+    const studio = {
+      id: 'player-studio',
+      name: 'Untitled Pictures',
+      reputation: 50,
+      budget: 10000000, // $10M starting budget
+      founded: new Date().getFullYear(),
+      specialties: ['drama'] as Genre[],
+      debt: 0, // Track studio debt
+      lastProjectWeek: 0, // Track when last project was greenlit
+      weeksSinceLastProject: 0 // Counter for reputation decay
+    };
+
+    updateOperation(LOADING_OPERATIONS.GAME_INIT.id, 30, 'Generating talent pool...');
+    
     // Initialize comprehensive talent pool
     const talentGenerator = new TalentGenerator();
-    const studioGenerator = new StudioGenerator();
     const generatedTalent = talentGenerator.generateTalentPool(300, 50);
+
+    updateOperation(LOADING_OPERATIONS.GAME_INIT.id, 60, 'Creating competitor studios...');
+    
+    const studioGenerator = new StudioGenerator();
     const competitorStudios = studioGenerator.generateCompetitorStudios();
 
-    return {
-      studio: {
-        id: 'player-studio',
-        name: 'Untitled Pictures',
-        reputation: 50,
-        budget: 10000000, // $10M starting budget
-        founded: new Date().getFullYear(),
-        specialties: ['drama'],
-        debt: 0, // Track studio debt
-        lastProjectWeek: 0, // Track when last project was greenlit
-        weeksSinceLastProject: 0 // Counter for reputation decay
-      },
+    updateOperation(LOADING_OPERATIONS.GAME_INIT.id, 80, 'Initializing systems...');
+
+    const initialState = {
+      studio,
       currentYear: new Date().getFullYear(),
       currentWeek: 1,
       currentQuarter: 1,
@@ -97,16 +116,16 @@ export const StudioMagnateGame: React.FC<StudioMagnateGameProps> = ({ onPhaseCha
       talent: generatedTalent,
       scripts: [],
       competitorStudios,
-    marketConditions: {
-      trendingGenres: ['action', 'drama', 'comedy'],
-      audiencePreferences: [],
-      economicClimate: 'stable',
-      technologicalAdvances: [],
-      regulatoryChanges: [],
-      seasonalTrends: [],
-      competitorReleases: [],
-      awardsSeasonActive: false
-    },
+      marketConditions: {
+        trendingGenres: ['action', 'drama', 'comedy'] as Genre[],
+        audiencePreferences: [],
+        economicClimate: 'stable' as const,
+        technologicalAdvances: [],
+        regulatoryChanges: [],
+        seasonalTrends: [],
+        competitorReleases: [],
+        awardsSeasonActive: false
+      },
       eventQueue: [],
       boxOfficeHistory: [],
       awardsCalendar: [],
@@ -114,6 +133,15 @@ export const StudioMagnateGame: React.FC<StudioMagnateGameProps> = ({ onPhaseCha
       allReleases: [], // Includes AI studio releases
       topFilmsHistory: []
     };
+
+    updateOperation(LOADING_OPERATIONS.GAME_INIT.id, 100, 'Game ready!');
+    
+    // Complete initialization after a brief delay
+    setTimeout(() => {
+      completeOperation(LOADING_OPERATIONS.GAME_INIT.id);
+    }, 500);
+
+    return initialState;
   });
 
   // Market dynamics hooks  
@@ -884,6 +912,14 @@ export const StudioMagnateGame: React.FC<StudioMagnateGameProps> = ({ onPhaseCha
       console.log(`   [${i}] ${p.title}: Phase=${p.currentPhase}, Status=${p.status}, PhaseDuration=${p.phaseDuration || 0}`);
     });
     
+    // Start weekly processing with loading
+    startOperation(LOADING_OPERATIONS.WEEKLY_PROCESSING.id, LOADING_OPERATIONS.WEEKLY_PROCESSING.name, LOADING_OPERATIONS.WEEKLY_PROCESSING.estimatedTime);
+    
+    updateOperation(LOADING_OPERATIONS.WEEKLY_PROCESSING.id, 10, 'Advancing time...');
+    // Remove await since we'll handle this synchronously
+
+    updateOperation(LOADING_OPERATIONS.WEEKLY_PROCESSING.id, 30, 'Processing projects...');
+    
     setGameState(prev => {
       const newTimeState = TimeSystem.advanceWeek({
         currentWeek: prev.currentWeek,
@@ -1019,6 +1055,9 @@ export const StudioMagnateGame: React.FC<StudioMagnateGameProps> = ({ onPhaseCha
           title: "New Week",
           description: `Week ${newTimeState.currentWeek}, ${newTimeState.currentYear}`,
         });
+        
+        // Complete the loading operation
+        completeOperation(LOADING_OPERATIONS.WEEKLY_PROCESSING.id);
       }, 100);
 
       return newState;
@@ -1371,5 +1410,7 @@ export const StudioMagnateGame: React.FC<StudioMagnateGameProps> = ({ onPhaseCha
         )}
       </div>
     </div>
+    </div>
+    </>
   );
 };
