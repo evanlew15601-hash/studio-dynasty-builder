@@ -66,47 +66,68 @@ export const GameLanding: React.FC<GameLandingProps> = ({ onStartGame, onLoadGam
   };
 
   return (
-    <div className="min-h-screen bg-gradient-to-br from-gray-900 via-gray-800 to-black relative overflow-hidden">
-      {/* Animated Spotlight Effects */}
+    <div className="min-h-screen bg-gradient-to-br from-slate-950 via-slate-900 to-black relative overflow-hidden">
+      {/* Cinematic Background Effects */}
       <div className="absolute inset-0">
-        {/* Primary spotlight */}
-        <div className="absolute top-1/4 left-1/2 transform -translate-x-1/2 -translate-y-1/2 w-96 h-96 bg-gradient-radial from-yellow-400/30 via-yellow-500/20 to-transparent rounded-full animate-pulse" />
+        {/* Primary cinematic spotlight */}
+        <div className="absolute top-1/3 left-1/2 transform -translate-x-1/2 -translate-y-1/2 w-[800px] h-[400px] bg-gradient-radial from-amber-400/25 via-yellow-500/15 to-transparent rounded-full animate-[pulse_6s_ease-in-out_infinite] blur-sm" />
         
-        {/* Secondary moving spotlight */}
-        <div className="absolute top-1/3 right-1/4 w-64 h-64 bg-gradient-radial from-amber-400/20 via-orange-500/10 to-transparent rounded-full animate-[pulse_3s_ease-in-out_infinite]" />
+        {/* Secondary stage light */}
+        <div className="absolute top-1/4 right-1/3 w-80 h-80 bg-gradient-radial from-yellow-300/20 via-amber-400/10 to-transparent rounded-full animate-[pulse_4s_ease-in-out_infinite_1s] blur-sm" />
         
         {/* Tertiary accent light */}
-        <div className="absolute bottom-1/4 left-1/4 w-48 h-48 bg-gradient-radial from-yellow-300/15 via-amber-400/10 to-transparent rounded-full animate-[pulse_4s_ease-in-out_infinite_reverse]" />
+        <div className="absolute bottom-1/3 left-1/5 w-60 h-60 bg-gradient-radial from-orange-400/15 via-yellow-400/8 to-transparent rounded-full animate-[pulse_5s_ease-in-out_infinite_2s] blur-sm" />
         
-        {/* Floating particles */}
+        {/* Fourth accent */}
+        <div className="absolute top-2/3 right-1/5 w-40 h-40 bg-gradient-radial from-yellow-200/12 via-amber-300/6 to-transparent rounded-full animate-[pulse_7s_ease-in-out_infinite_3s] blur-sm" />
+        
+        {/* Film grain texture overlay */}
+        <div className="absolute inset-0 opacity-30 bg-[radial-gradient(circle_at_center,transparent_20%,rgba(0,0,0,0.3)_100%)]" />
+        
+        {/* Floating cinematic particles */}
         <div className="absolute inset-0">
-          {[...Array(20)].map((_, i) => (
+          {[...Array(30)].map((_, i) => (
             <div
               key={i}
-              className="absolute w-1 h-1 bg-yellow-400/40 rounded-full animate-pulse"
+              className="absolute w-0.5 h-0.5 bg-yellow-400/60 rounded-full animate-pulse"
               style={{
                 left: `${Math.random() * 100}%`,
                 top: `${Math.random() * 100}%`,
-                animationDelay: `${Math.random() * 3}s`,
-                animationDuration: `${2 + Math.random() * 3}s`
+                animationDelay: `${Math.random() * 4}s`,
+                animationDuration: `${3 + Math.random() * 4}s`,
+                filter: 'blur(0.5px)'
               }}
             />
           ))}
         </div>
+
+        {/* Subtle corner vignette */}
+        <div className="absolute inset-0 bg-gradient-radial from-transparent via-transparent to-black/40" />
       </div>
 
       <div className="relative z-10 flex flex-col items-center justify-center min-h-screen p-8">
         {/* Main Title */}
-        <div className="text-center mb-12 animate-fade-in">
-          <h1 className="text-8xl md:text-9xl font-bold bg-gradient-to-b from-yellow-300 via-yellow-400 to-yellow-600 bg-clip-text text-transparent drop-shadow-2xl mb-4 tracking-wider">
-            STUDIO
-          </h1>
-          <h1 className="text-8xl md:text-9xl font-bold bg-gradient-to-b from-yellow-300 via-yellow-400 to-yellow-600 bg-clip-text text-transparent drop-shadow-2xl mb-6 tracking-wider">
-            MAGNATE
-          </h1>
-          <div className="w-32 h-1 bg-gradient-to-r from-transparent via-yellow-400 to-transparent mx-auto mb-8" />
-          <p className="text-xl text-yellow-100/80 max-w-2xl mx-auto leading-relaxed">
-            Build your entertainment empire. Create blockbuster films. Manage talent. Dominate the industry.
+        <div className="text-center mb-16 animate-fade-in">
+          <div className="relative mb-8">
+            <h1 className="text-7xl md:text-8xl lg:text-9xl font-black bg-gradient-to-b from-yellow-200 via-yellow-400 to-amber-600 bg-clip-text text-transparent drop-shadow-2xl mb-2 tracking-[0.15em] leading-none">
+              STUDIO
+            </h1>
+            <h1 className="text-7xl md:text-8xl lg:text-9xl font-black bg-gradient-to-b from-yellow-200 via-yellow-400 to-amber-600 bg-clip-text text-transparent drop-shadow-2xl tracking-[0.15em] leading-none">
+              MAGNATE
+            </h1>
+            
+            {/* Elegant underline with glow */}
+            <div className="flex justify-center mt-8 mb-8">
+              <div className="relative">
+                <div className="h-[2px] w-40 bg-gradient-to-r from-transparent via-yellow-400 to-transparent" />
+                <div className="absolute inset-0 h-[2px] w-40 bg-gradient-to-r from-transparent via-yellow-400 to-transparent blur-sm" />
+              </div>
+            </div>
+          </div>
+          
+          <p className="text-xl md:text-2xl text-yellow-50/90 max-w-3xl mx-auto leading-relaxed font-light tracking-wide">
+            Build your entertainment empire. Create blockbuster films. Manage talent. 
+            <span className="block mt-2 text-yellow-200/80">Dominate the industry.</span>
           </p>
         </div>
 
@@ -145,28 +166,37 @@ export const GameLanding: React.FC<GameLandingProps> = ({ onStartGame, onLoadGam
             </div>
 
             {/* Feature Highlights */}
-            <div className="mt-16 grid grid-cols-1 md:grid-cols-3 gap-6 max-w-4xl">
-              <Card className="bg-black/40 border-yellow-500/30 backdrop-blur-sm hover:bg-black/50 transition-all duration-300 hover:scale-105">
-                <CardContent className="p-6 text-center">
-                  <Film className="mx-auto mb-3 text-yellow-400" size={32} />
-                  <h3 className="text-lg font-semibold text-yellow-200 mb-2">Create Blockbusters</h3>
-                  <p className="text-yellow-100/70 text-sm">Develop scripts, cast talent, and produce films that captivate audiences worldwide.</p>
+            <div className="mt-20 grid grid-cols-1 md:grid-cols-3 gap-8 max-w-5xl">
+              <Card className="group bg-black/50 border-yellow-400/40 backdrop-blur-md hover:bg-black/60 hover:border-yellow-300/60 transition-all duration-500 hover:scale-105 hover:shadow-2xl hover:shadow-yellow-500/20">
+                <CardContent className="p-8 text-center">
+                  <div className="relative mb-6">
+                    <div className="absolute inset-0 bg-yellow-400/20 rounded-full blur-xl group-hover:bg-yellow-400/30 transition-all duration-500" />
+                    <Film className="relative mx-auto text-yellow-400 group-hover:text-yellow-300 transition-all duration-300" size={48} />
+                  </div>
+                  <h3 className="text-xl font-bold text-yellow-100 mb-4 group-hover:text-white transition-colors duration-300">Create Blockbusters</h3>
+                  <p className="text-yellow-200/80 text-sm leading-relaxed group-hover:text-yellow-100/90 transition-colors duration-300">Develop scripts, cast talent, and produce films that captivate audiences worldwide.</p>
                 </CardContent>
               </Card>
 
-              <Card className="bg-black/40 border-yellow-500/30 backdrop-blur-sm hover:bg-black/50 transition-all duration-300 hover:scale-105">
-                <CardContent className="p-6 text-center">
-                  <Star className="mx-auto mb-3 text-yellow-400" size={32} />
-                  <h3 className="text-lg font-semibold text-yellow-200 mb-2">Manage Talent</h3>
-                  <p className="text-yellow-100/70 text-sm">Discover rising stars, negotiate contracts, and build lasting relationships with A-list celebrities.</p>
+              <Card className="group bg-black/50 border-yellow-400/40 backdrop-blur-md hover:bg-black/60 hover:border-yellow-300/60 transition-all duration-500 hover:scale-105 hover:shadow-2xl hover:shadow-yellow-500/20">
+                <CardContent className="p-8 text-center">
+                  <div className="relative mb-6">
+                    <div className="absolute inset-0 bg-yellow-400/20 rounded-full blur-xl group-hover:bg-yellow-400/30 transition-all duration-500" />
+                    <Star className="relative mx-auto text-yellow-400 group-hover:text-yellow-300 transition-all duration-300" size={48} />
+                  </div>
+                  <h3 className="text-xl font-bold text-yellow-100 mb-4 group-hover:text-white transition-colors duration-300">Manage Talent</h3>
+                  <p className="text-yellow-200/80 text-sm leading-relaxed group-hover:text-yellow-100/90 transition-colors duration-300">Discover rising stars, negotiate contracts, and build lasting relationships with A-list celebrities.</p>
                 </CardContent>
               </Card>
 
-              <Card className="bg-black/40 border-yellow-500/30 backdrop-blur-sm hover:bg-black/50 transition-all duration-300 hover:scale-105">
-                <CardContent className="p-6 text-center">
-                  <Trophy className="mx-auto mb-3 text-yellow-400" size={32} />
-                  <h3 className="text-lg font-semibold text-yellow-200 mb-2">Win Awards</h3>
-                  <p className="text-yellow-100/70 text-sm">Compete for prestigious awards and build your studio's reputation in the industry.</p>
+              <Card className="group bg-black/50 border-yellow-400/40 backdrop-blur-md hover:bg-black/60 hover:border-yellow-300/60 transition-all duration-500 hover:scale-105 hover:shadow-2xl hover:shadow-yellow-500/20">
+                <CardContent className="p-8 text-center">
+                  <div className="relative mb-6">
+                    <div className="absolute inset-0 bg-yellow-400/20 rounded-full blur-xl group-hover:bg-yellow-400/30 transition-all duration-500" />
+                    <Trophy className="relative mx-auto text-yellow-400 group-hover:text-yellow-300 transition-all duration-300" size={48} />
+                  </div>
+                  <h3 className="text-xl font-bold text-yellow-100 mb-4 group-hover:text-white transition-colors duration-300">Win Awards</h3>
+                  <p className="text-yellow-200/80 text-sm leading-relaxed group-hover:text-yellow-100/90 transition-colors duration-300">Compete for prestigious awards and build your studio's reputation in the industry.</p>
                 </CardContent>
               </Card>
             </div>
