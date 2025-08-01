@@ -17,6 +17,8 @@ import { MarketCompetition } from './MarketCompetition';
 import { TopFilmsChart } from './TopFilmsChart';
 import { TalentGenerator } from '../../data/TalentGenerator';
 import { StudioGenerator } from '../../data/StudioGenerator';
+import { useTalentMarket } from '../../hooks/useTalentMarket';
+import { useGenreSaturation } from '../../hooks/useGenreSaturation';
 import { Button } from '@/components/ui/button';
 import { Card } from '@/components/ui/card';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
@@ -40,6 +42,10 @@ interface StudioMagnateGameProps {
 
 export const StudioMagnateGame: React.FC<StudioMagnateGameProps> = ({ onPhaseChange }) => {
   const { toast } = useToast();
+  
+  // Market dynamics hooks
+  const talentMarket = useTalentMarket([], 1); // Will be updated with actual state
+  const genreSaturation = useGenreSaturation([], 1); // Will be updated with actual state
   
   const getPhaseWeeks = (phase: string): number => {
     switch (phase) {
