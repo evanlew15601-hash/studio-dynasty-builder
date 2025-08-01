@@ -1227,23 +1227,38 @@ export const StudioMagnateGame: React.FC<StudioMagnateGameProps> = ({ onPhaseCha
                 </Button>
               </DropdownMenuTrigger>
               <DropdownMenuContent className="w-56 bg-card/95 backdrop-blur-md border-border/50 shadow-2xl z-50">
-                <DropdownMenuItem onClick={() => setCurrentPhase('financials')} className="cursor-pointer">
+                <DropdownMenuItem onClick={(e) => {
+                  e.preventDefault();
+                  handlePhaseChange('financials');
+                }} className="cursor-pointer">
                   <BudgetIcon className="mr-2" size={16} />
                   Financials
                 </DropdownMenuItem>
-                <DropdownMenuItem onClick={() => setCurrentPhase('competition')} className="cursor-pointer">
+                <DropdownMenuItem onClick={(e) => {
+                  e.preventDefault();
+                  handlePhaseChange('competition');
+                }} className="cursor-pointer">
                   <BarChartIcon className="mr-2" size={16} />
                   AI Competition
                 </DropdownMenuItem>
-                <DropdownMenuItem onClick={() => setCurrentPhase('market')} className="cursor-pointer">
+                <DropdownMenuItem onClick={(e) => {
+                  e.preventDefault();
+                  handlePhaseChange('market');
+                }} className="cursor-pointer">
                   <BarChartIcon className="mr-2" size={16} />
                   Market Analysis
                 </DropdownMenuItem>
-                <DropdownMenuItem onClick={() => setCurrentPhase('topfilms')} className="cursor-pointer">
+                <DropdownMenuItem onClick={(e) => {
+                  e.preventDefault();
+                  handlePhaseChange('topfilms');
+                }} className="cursor-pointer">
                   <BarChartIcon className="mr-2" size={16} />
                   Top Films
                 </DropdownMenuItem>
-                <DropdownMenuItem onClick={() => setCurrentPhase('stats')} className="cursor-pointer">
+                <DropdownMenuItem onClick={(e) => {
+                  e.preventDefault();
+                  handlePhaseChange('stats');
+                }} className="cursor-pointer">
                   <BarChartIcon className="mr-2" size={16} />
                   Performance Stats
                 </DropdownMenuItem>
@@ -1267,23 +1282,38 @@ export const StudioMagnateGame: React.FC<StudioMagnateGameProps> = ({ onPhaseCha
                 </Button>
               </DropdownMenuTrigger>
               <DropdownMenuContent className="w-56 bg-card/95 backdrop-blur-md border-border/50 shadow-2xl z-50">
-                <DropdownMenuItem onClick={() => setCurrentPhase('franchise')} className="cursor-pointer">
+                <DropdownMenuItem onClick={(e) => {
+                  e.preventDefault();
+                  handlePhaseChange('franchise');
+                }} className="cursor-pointer">
                   <ClapperboardIcon className="mr-2" size={16} />
                   Franchise Manager
                 </DropdownMenuItem>
-                <DropdownMenuItem onClick={() => setCurrentPhase('media')} className="cursor-pointer">
+                <DropdownMenuItem onClick={(e) => {
+                  e.preventDefault();
+                  handlePhaseChange('media');
+                }} className="cursor-pointer">
                   <BarChartIcon className="mr-2" size={16} />
                   Media Relations
                 </DropdownMenuItem>
-                <DropdownMenuItem onClick={() => setCurrentPhase('talent')} className="cursor-pointer">
+                <DropdownMenuItem onClick={(e) => {
+                  e.preventDefault();
+                  handlePhaseChange('talent');
+                }} className="cursor-pointer">
                   <CastingIcon className="mr-2" size={16} />
                   Talent Management
                 </DropdownMenuItem>
-                <DropdownMenuItem onClick={() => setCurrentPhase('awards')} className="cursor-pointer">
+                <DropdownMenuItem onClick={(e) => {
+                  e.preventDefault();
+                  handlePhaseChange('awards');
+                }} className="cursor-pointer">
                   <ReputationIcon className="mr-2" size={16} />
                   Awards & Recognition
                 </DropdownMenuItem>
-                <DropdownMenuItem onClick={() => setCurrentPhase('reputation')} className="cursor-pointer">
+                <DropdownMenuItem onClick={(e) => {
+                  e.preventDefault();
+                  handlePhaseChange('reputation');
+                }} className="cursor-pointer">
                   <ReputationIcon className="mr-2" size={16} />
                   Reputation Management
                 </DropdownMenuItem>

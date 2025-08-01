@@ -96,7 +96,11 @@ export class DeepReputationSystem {
     this.studioFactors.set(studio.id, factors);
     this.recordReputationHistory(studio.id, timeState, finalReputation, factors);
     
-    console.log(`DEEP REP: ${studio.name} = ${finalReputation.toFixed(1)} (base: ${baseReputation.toFixed(1)}, modifiers: +${(finalReputation - baseReputation).toFixed(1)})`);
+    // Only log reputation changes, not every calculation
+    const previousRep = this.getLastReputation(studio.id);
+    if (!previousRep || Math.abs(finalReputation - previousRep) > 0.1) {
+      console.log(`DEEP REP: ${studio.name} = ${finalReputation.toFixed(1)} (base: ${baseReputation.toFixed(1)}, modifiers: +${(finalReputation - baseReputation).toFixed(1)})`);
+    }
     
     return { reputation: finalReputation, factors, modifiers };
   }
@@ -447,6 +451,14 @@ export class DeepReputationSystem {
     };
   }
   
+  private static getLastReputation(studioId: string): number | null {
+    const history = this.reputationHistory.get(studioId);
+    if (!history || history.length === 0) {
+      return null;
+    }
+    return history[history.length - 1].value;
+  }
+
   static getReputationTrend(studioId: string): {
     trend: 'rising' | 'falling' | 'stable';
     changePercent: number;
