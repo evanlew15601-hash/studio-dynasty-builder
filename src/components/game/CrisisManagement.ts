@@ -357,4 +357,19 @@ export class CrisisManagement {
 
     return { reputationImpact, financialImpact };
   }
+
+  // Memory management
+  static cleanup(): void {
+    this.activeCrises = [];
+    this.crisisHistory = [];
+  }
+
+  // Periodic cleanup to prevent memory leaks
+  static performMaintenanceCleanup(currentWeek: number, currentYear: number): void {
+    // Remove old resolved crises from history (keep last 52 weeks)
+    this.crisisHistory = this.crisisHistory.filter(crisis => {
+      const weeksAgo = (currentYear - crisis.triggerYear) * 52 + (currentWeek - crisis.triggerWeek);
+      return weeksAgo <= 52;
+    });
+  }
 }

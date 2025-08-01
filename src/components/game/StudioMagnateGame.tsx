@@ -118,7 +118,7 @@ export const StudioMagnateGame: React.FC<StudioMagnateGameProps> = ({ onPhaseCha
 
   // Market dynamics hooks  
   const talentMarket = useTalentMarket(gameState.talent, gameState.currentWeek);
-  const genreSaturation = useGenreSaturation(gameState.allReleases?.filter((item): item is Project => 'script' in item) || [], gameState.currentWeek);
+  const genreSaturation = useGenreSaturation(gameState.allReleases.filter((item): item is Project => 'script' in item), gameState.currentWeek);
   const achievements = useAchievements(gameState);
 
   const [currentPhase, setCurrentPhase] = useState<'dashboard' | 'scripts' | 'casting' | 'talent' | 'media' | 'production' | 'marketing' | 'distribution' | 'financials' | 'awards' | 'market' | 'topfilms' | 'stats' | 'reputation' | 'competition'>('dashboard');
@@ -1000,6 +1000,16 @@ export const StudioMagnateGame: React.FC<StudioMagnateGameProps> = ({ onPhaseCha
             console.log(`📰 MEDIA: Generated ${newMediaItems.length} articles, triggered ${triggeredEvents.length} events`);
           }
         });
+
+        // Perform memory cleanup for static classes every 10 weeks
+        if (newTimeState.currentWeek % 10 === 0) {
+          import('./CrisisManagement').then(({ CrisisManagement }) => {
+            CrisisManagement.performMaintenanceCleanup(newTimeState.currentWeek, newTimeState.currentYear);
+          });
+          import('./MediaRelationships').then(({ MediaRelationships }) => {
+            MediaRelationships.performMaintenanceCleanup(newTimeState.currentWeek, newTimeState.currentYear);
+          });
+        }
         
         import('./SystemIntegration').then(({ SystemIntegration }) => {
           SystemIntegration.runDiagnostics(newState);
@@ -1199,7 +1209,7 @@ export const StudioMagnateGame: React.FC<StudioMagnateGameProps> = ({ onPhaseCha
               <TabsContent value="agencies">
                 <Suspense fallback={<div>Loading agency system...</div>}>
                   {React.createElement(React.lazy(() => import('./TalentAgencySystem').then(m => ({ default: m.TalentAgencySystem }))), {
-                    agents: gameState.talent.map(t => t.agent).filter(Boolean),
+                    agents: gameState.talent.filter(t => t.agent).map(t => t.agent!),
                     talent: gameState.talent,
                     studioId: gameState.studio.id,
                     currentWeek: gameState.currentWeek,
@@ -1339,7 +1349,7 @@ export const StudioMagnateGame: React.FC<StudioMagnateGameProps> = ({ onPhaseCha
         )}
         
         {currentPhase === 'topfilms' && (
-          <TopFilmsChart gameState={gameState} allReleases={gameState.allReleases?.filter((item): item is Project => 'script' in item) || []} />
+          <TopFilmsChart gameState={gameState} allReleases={gameState.allReleases.filter((item): item is Project => 'script' in item)} />
         )}
         
         {currentPhase === 'stats' && (

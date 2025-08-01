@@ -19,7 +19,7 @@ export const useGenreSaturation = (allReleases: Project[], currentWeek: number) 
     const recentReleases = allReleases.filter(release => {
       if (!release.releaseWeek || !release.releaseYear) return false;
       const releaseGameWeek = (release.releaseYear * 52) + release.releaseWeek;
-      const currentGameWeek = (new Date().getFullYear() * 52) + currentWeek;
+      const currentGameWeek = (2025 * 52) + currentWeek; // Use game year instead of real year
       return (currentGameWeek - releaseGameWeek) <= 12; // Last 12 weeks
     });
 

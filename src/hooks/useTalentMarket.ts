@@ -63,14 +63,15 @@ export const useTalentMarket = (talent: TalentPerson[], currentWeek: number) => 
       const trendingGenres: Genre[] = ['action', 'horror', 'comedy', 'drama', 'sci-fi'];
       const randomTrendingGenre = trendingGenres[Math.floor(Math.random() * trendingGenres.length)];
       
-      // Update genre trends
-      Object.keys(newGenreTrends).forEach(genre => {
+      // Update genre trends efficiently
+      const genreKeys = Object.keys(newGenreTrends) as Genre[];
+      for (const genre of genreKeys) {
         if (genre === randomTrendingGenre) {
-          newGenreTrends[genre as Genre] = Math.min(1.5, (newGenreTrends[genre as Genre] || 1) + 0.1);
+          newGenreTrends[genre] = Math.min(1.5, (newGenreTrends[genre] || 1) + 0.1);
         } else {
-          newGenreTrends[genre as Genre] = Math.max(0.8, (newGenreTrends[genre as Genre] || 1) - 0.05);
+          newGenreTrends[genre] = Math.max(0.8, (newGenreTrends[genre] || 1) - 0.05);
         }
-      });
+      }
 
       // Random availability changes (contracts, scheduling conflicts)
       talent.forEach(person => {

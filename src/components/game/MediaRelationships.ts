@@ -332,4 +332,20 @@ export class MediaRelationships {
       .sort((a, b) => b.year * 52 + b.week - (a.year * 52 + a.week))
       .slice(0, limit);
   }
+
+  // Memory management
+  static cleanup(): void {
+    this.relationships.clear();
+    this.interactionHistory = [];
+  }
+
+  // Periodic cleanup to prevent memory leaks
+  static performMaintenanceCleanup(currentWeek: number, currentYear: number): void {
+    // Remove old interactions (keep last 100 interactions)
+    if (this.interactionHistory.length > 100) {
+      this.interactionHistory = this.interactionHistory
+        .sort((a, b) => b.year * 52 + b.week - (a.year * 52 + a.week))
+        .slice(0, 100);
+    }
+  }
 }

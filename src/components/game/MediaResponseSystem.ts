@@ -5,6 +5,12 @@ export class MediaResponseSystem {
   private static activeCampaigns: MediaCampaign[] = [];
   private static playerReactions: MediaReaction[] = [];
 
+  // Memory management
+  static cleanup(): void {
+    this.activeCampaigns = [];
+    this.playerReactions = [];
+  }
+
   // Player response actions
   static createPRCampaign(
     studioId: string,
