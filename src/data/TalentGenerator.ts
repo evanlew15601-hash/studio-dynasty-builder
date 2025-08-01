@@ -304,7 +304,13 @@ export class TalentGenerator {
         start: new Date(),
         end: new Date(Date.now() + 365 * 24 * 60 * 60 * 1000)
       },
-      gender
+      gender,
+      // Advanced talent management fields
+      burnoutLevel: Math.floor(Math.random() * 30), // 0-30 starting burnout
+      studioLoyalty: {},
+      chemistry: {},
+      futureHolds: [],
+      recentProjects: []
     };
     
     // Add biography as a custom property
@@ -346,7 +352,13 @@ export class TalentGenerator {
         start: new Date(),
         end: new Date(Date.now() + 365 * 24 * 60 * 60 * 1000)
       },
-      gender
+      gender,
+      // Advanced talent management fields
+      burnoutLevel: Math.floor(Math.random() * 20), // Directors have lower starting burnout
+      studioLoyalty: {},
+      chemistry: {},
+      futureHolds: [],
+      recentProjects: []
     };
     
     // Add biography and director-specific traits

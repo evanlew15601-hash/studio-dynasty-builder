@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useState, Suspense } from 'react';
 import { GameState, Studio, Project, Script, TalentPerson, BoxOfficeWeek, BoxOfficeRelease, Genre, MarketingStrategy, ReleaseStrategy } from '@/types/game';
 import { ScriptDevelopment } from './ScriptDevelopment';
 import { CastingBoard } from './CastingBoard';
@@ -35,6 +35,7 @@ import { useAchievements } from '../../hooks/useAchievements';
 import { DeepReputationSystem } from './DeepReputationSystem';
 import { Button } from '@/components/ui/button';
 import { Card } from '@/components/ui/card';
+import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { useToast } from '@/hooks/use-toast';
 import { 
@@ -120,7 +121,7 @@ export const StudioMagnateGame: React.FC<StudioMagnateGameProps> = ({ onPhaseCha
   const genreSaturation = useGenreSaturation(gameState.allReleases || [], gameState.currentWeek);
   const achievements = useAchievements(gameState);
 
-  const [currentPhase, setCurrentPhase] = useState<'dashboard' | 'scripts' | 'casting' | 'production' | 'marketing' | 'distribution' | 'financials' | 'awards' | 'market' | 'topfilms' | 'stats' | 'reputation' | 'competition'>('dashboard');
+  const [currentPhase, setCurrentPhase] = useState<'dashboard' | 'scripts' | 'casting' | 'talent' | 'production' | 'marketing' | 'distribution' | 'financials' | 'awards' | 'market' | 'topfilms' | 'stats' | 'reputation' | 'competition'>('dashboard');
   const [selectedProject, setSelectedProject] = useState<Project | null>(null);
 
   // Handle achievement rewards
@@ -1093,6 +1094,7 @@ export const StudioMagnateGame: React.FC<StudioMagnateGameProps> = ({ onPhaseCha
                 { id: 'dashboard', label: 'Dashboard', IconComponent: StudioIcon },
                 { id: 'scripts', label: 'Scripts', IconComponent: ScriptIcon },
                 { id: 'casting', label: 'Casting', IconComponent: CastingIcon },
+                { id: 'talent', label: 'Talent', IconComponent: CastingIcon },
                 { id: 'production', label: 'Production', IconComponent: ProductionIcon },
                 { id: 'marketing', label: 'Marketing', IconComponent: MarketingIcon },
                 { id: 'distribution', label: 'Distribution', IconComponent: DistributionIcon },
@@ -1163,6 +1165,73 @@ export const StudioMagnateGame: React.FC<StudioMagnateGameProps> = ({ onPhaseCha
             }}
           />
         )}
+        
+        {currentPhase === 'talent' && (
+          <div className="space-y-6">
+            <Tabs defaultValue="marketplace" className="space-y-4">
+              <TabsList>
+                <TabsTrigger value="marketplace">Talent Marketplace</TabsTrigger>
+                <TabsTrigger value="agencies">Agency Network</TabsTrigger>
+                <TabsTrigger value="wellness">Wellness Monitor</TabsTrigger>
+                <TabsTrigger value="chemistry">Chemistry & Relations</TabsTrigger>
+                <TabsTrigger value="test">🧪 Integration Test</TabsTrigger>
+              </TabsList>
+              
+              <TabsContent value="marketplace">
+                <Suspense fallback={<div>Loading talent marketplace...</div>}>
+                  {React.createElement(React.lazy(() => import('./TalentMarketplace').then(m => ({ default: m.TalentMarketplace }))), {
+                    talent: gameState.talent,
+                    currentWeek: gameState.currentWeek,
+                    currentYear: gameState.currentYear,
+                    onCastTalent: (talentId: string) => console.log('Cast talent:', talentId)
+                  })}
+                </Suspense>
+              </TabsContent>
+              
+              <TabsContent value="agencies">
+                <Suspense fallback={<div>Loading agency system...</div>}>
+                  {React.createElement(React.lazy(() => import('./TalentAgencySystem').then(m => ({ default: m.TalentAgencySystem }))), {
+                    agents: gameState.talent.map(t => t.agent).filter(Boolean),
+                    talent: gameState.talent,
+                    studioId: gameState.studio.id,
+                    currentWeek: gameState.currentWeek,
+                    currentYear: gameState.currentYear,
+                    onNegotiateDeal: (agentId: string, talentId: string, terms: any) => console.log('Negotiating deal:', { agentId, talentId, terms }),
+                    onCreateHold: (hold: any) => console.log('Creating hold:', hold)
+                  })}
+                </Suspense>
+              </TabsContent>
+              
+              <TabsContent value="wellness">
+                <Suspense fallback={<div>Loading wellness monitor...</div>}>
+                  {React.createElement(React.lazy(() => import('./TalentBurnoutSystem').then(m => ({ default: m.TalentBurnoutSystem }))), {
+                    talent: gameState.talent,
+                    currentWeek: gameState.currentWeek,
+                    currentYear: gameState.currentYear
+                  })}
+                </Suspense>
+              </TabsContent>
+              
+              <TabsContent value="chemistry">
+                <Suspense fallback={<div>Loading chemistry system...</div>}>
+                  {React.createElement(React.lazy(() => import('./TalentChemistrySystem').then(m => ({ default: m.TalentChemistrySystem }))), {
+                    talent: gameState.talent,
+                    chemistryEvents: [],
+                    currentWeek: gameState.currentWeek,
+                    currentYear: gameState.currentYear
+                  })}
+                </Suspense>
+              </TabsContent>
+              
+              <TabsContent value="test">
+                <Suspense fallback={<div>Loading test suite...</div>}>
+                  {React.createElement(React.lazy(() => import('./AdvancedTalentTestSuite').then(m => ({ default: m.AdvancedTalentTestSuite }))), {})}
+                </Suspense>
+              </TabsContent>
+            </Tabs>
+          </div>
+        )}
+        
         
         {currentPhase === 'production' && (
           <ProductionManagement 
