@@ -882,7 +882,47 @@ export const StudioMagnateGame: React.FC<StudioMagnateGameProps> = ({ onPhaseCha
       
       console.log(`🕐 NEW TIME STATE: Y${newTimeState.currentYear}W${newTimeState.currentWeek}`);
       
-      const updatedProjects = processWeeklyProjectEffects(prev.projects, newTimeState);
+      // Process scheduled releases first
+      let updatedProjects = prev.projects;
+      
+      import('./ReleaseSystem').then(({ ReleaseSystem }) => {
+        const releasingFilms = ReleaseSystem.processReleases(newTimeState);
+        
+        if (releasingFilms.length > 0) {
+          updatedProjects = updatedProjects.map(project => {
+            const releasingFilm = releasingFilms.find(rf => rf.id === project.id);
+            if (releasingFilm) {
+              return {
+                ...project,
+                status: 'released',
+                releaseWeek: newTimeState.currentWeek,
+                releaseYear: newTimeState.currentYear
+              };
+            }
+            return project;
+          });
+        }
+      });
+      
+      // Simulate box office for released films
+      import('./FinancialEngine').then(({ FinancialEngine }) => {
+        const releasedFilms = updatedProjects
+          .filter(p => p.status === 'released' && p.releaseWeek && p.releaseYear)
+          .map(p => ({
+            id: p.id,
+            title: p.title,
+            weeksSinceRelease: TimeSystem.calculateWeeksSince(
+              p.releaseWeek!,
+              p.releaseYear!,
+              newTimeState.currentWeek,
+              newTimeState.currentYear
+            )
+          }));
+        
+        FinancialEngine.simulateBoxOfficeWeek(releasedFilms, newTimeState.currentWeek, newTimeState.currentYear);
+      });
+      
+      updatedProjects = processWeeklyProjectEffects(updatedProjects, newTimeState);
 
       // Generate AI studio releases every 2-4 weeks
       const shouldGenerateRelease = Math.random() < 0.3; // 30% chance each week
