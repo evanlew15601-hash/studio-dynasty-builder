@@ -18,6 +18,7 @@ import { TopFilmsChart } from './TopFilmsChart';
 import { AchievementsPanel } from './AchievementsPanel';
 import { PerformanceMetrics } from './PerformanceMetrics';
 import { AchievementNotifications } from './AchievementNotifications';
+import { ReputationPanel } from './ReputationPanel';
 import { TalentGenerator } from '../../data/TalentGenerator';
 import { StudioGenerator } from '../../data/StudioGenerator';
 import { useTalentMarket } from '../../hooks/useTalentMarket';
@@ -110,7 +111,7 @@ export const StudioMagnateGame: React.FC<StudioMagnateGameProps> = ({ onPhaseCha
   const genreSaturation = useGenreSaturation(gameState.allReleases || [], gameState.currentWeek);
   const achievements = useAchievements(gameState);
 
-  const [currentPhase, setCurrentPhase] = useState<'dashboard' | 'scripts' | 'casting' | 'production' | 'marketing' | 'distribution' | 'financials' | 'awards' | 'market' | 'topfilms' | 'stats'>('dashboard');
+  const [currentPhase, setCurrentPhase] = useState<'dashboard' | 'scripts' | 'casting' | 'production' | 'marketing' | 'distribution' | 'financials' | 'awards' | 'market' | 'topfilms' | 'stats' | 'reputation'>('dashboard');
   const [selectedProject, setSelectedProject] = useState<Project | null>(null);
 
   // Handle achievement rewards
@@ -955,6 +956,11 @@ export const StudioMagnateGame: React.FC<StudioMagnateGameProps> = ({ onPhaseCha
       };
 
       setTimeout(() => {
+        // Run system integration checks periodically
+        import('./SystemIntegration').then(({ SystemIntegration }) => {
+          SystemIntegration.runDiagnostics(newState);
+        });
+        
         toast({
           title: "New Week",
           description: `Week ${newTimeState.currentWeek}, ${newTimeState.currentYear}`,
@@ -1060,6 +1066,7 @@ export const StudioMagnateGame: React.FC<StudioMagnateGameProps> = ({ onPhaseCha
                 { id: 'market', label: 'Market', IconComponent: BarChartIcon },
                 { id: 'topfilms', label: 'Top Films', IconComponent: BarChartIcon },
                 { id: 'stats', label: 'Stats', IconComponent: BarChartIcon },
+                { id: 'reputation', label: 'Reputation', IconComponent: ReputationIcon },
               ].map((tab) => (
               <Button
                 key={tab.id}
@@ -1167,6 +1174,10 @@ export const StudioMagnateGame: React.FC<StudioMagnateGameProps> = ({ onPhaseCha
         
         {currentPhase === 'stats' && (
           <PerformanceMetrics gameState={gameState} />
+        )}
+        
+        {currentPhase === 'reputation' && (
+          <ReputationPanel studio={gameState.studio} />
         )}
       </div>
     </div>
