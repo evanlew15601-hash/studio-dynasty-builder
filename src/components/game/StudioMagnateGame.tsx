@@ -992,7 +992,15 @@ export const StudioMagnateGame: React.FC<StudioMagnateGameProps> = ({ onPhaseCha
       };
 
       setTimeout(() => {
-        // Run system integration checks periodically
+        // Process media events and run system integration checks
+        import('./MediaEngine').then(({ MediaEngine }) => {
+          const newMediaItems = MediaEngine.processMediaEvents(newState);
+          const triggeredEvents = MediaEngine.triggerAutomaticEvents(newState, gameState);
+          if (newMediaItems.length > 0 || triggeredEvents.length > 0) {
+            console.log(`📰 MEDIA: Generated ${newMediaItems.length} articles, triggered ${triggeredEvents.length} events`);
+          }
+        });
+        
         import('./SystemIntegration').then(({ SystemIntegration }) => {
           SystemIntegration.runDiagnostics(newState);
         });

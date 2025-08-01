@@ -80,8 +80,8 @@ export class SystemIntegration {
           const testValidation = CalendarManager.validateRelease('test-film', timeState.currentWeek + 1, timeState.currentYear, timeState);
           
           return {
-            passed: testValidation.canRelease !== undefined,
-            message: testValidation.canRelease ? 'Calendar system operational' : 'Calendar validation failed'
+            passed: testValidation.canRelease === true,
+            message: testValidation.canRelease ? 'Calendar system operational' : (testValidation.reason || 'Calendar validation failed')
           };
         }
       },
