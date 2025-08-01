@@ -167,7 +167,7 @@ export const StudioMagnateGame: React.FC<StudioMagnateGameProps> = ({ onPhaseCha
   const genreSaturation = useGenreSaturation(gameState.allReleases.filter((item): item is Project => 'script' in item), gameState.currentWeek);
   const achievements = useAchievements(gameState);
 
-  const [currentPhase, setCurrentPhase] = useState<'dashboard' | 'scripts' | 'casting' | 'talent' | 'media' | 'production' | 'marketing' | 'distribution' | 'financials' | 'awards' | 'market' | 'topfilms' | 'stats' | 'reputation' | 'competition'>('dashboard');
+  const [currentPhase, setCurrentPhase] = useState<'dashboard' | 'scripts' | 'casting' | 'talent' | 'franchise' | 'media' | 'production' | 'marketing' | 'distribution' | 'financials' | 'awards' | 'market' | 'topfilms' | 'stats' | 'reputation' | 'competition'>('dashboard');
   const [selectedProject, setSelectedProject] = useState<Project | null>(null);
 
   // Handle achievement rewards
@@ -1255,18 +1255,22 @@ export const StudioMagnateGame: React.FC<StudioMagnateGameProps> = ({ onPhaseCha
               <DropdownMenuTrigger asChild>
                 <Button
                   variant="ghost"
-                  className={`rounded-none border-b-2 px-4 py-4 font-medium transition-all duration-300 ${
-                    ['media', 'talent', 'awards', 'reputation'].includes(currentPhase)
-                      ? 'border-primary bg-gradient-to-t from-primary/20 to-primary/10 text-primary shadow-lg' 
-                      : 'border-transparent hover:border-primary/40 hover:bg-primary/5 btn-ghost-premium'
-                  }`}
+                   className={`rounded-none border-b-2 px-4 py-4 font-medium transition-all duration-300 ${
+                     ['franchise', 'media', 'talent', 'awards', 'reputation'].includes(currentPhase)
+                       ? 'border-primary bg-gradient-to-t from-primary/20 to-primary/10 text-primary shadow-lg' 
+                       : 'border-transparent hover:border-primary/40 hover:bg-primary/5 btn-ghost-premium'
+                   }`}
                 >
                   <ReputationIcon className="mr-2" size={16} />
                   Studio
                   <ChevronDown className="ml-1" size={14} />
                 </Button>
               </DropdownMenuTrigger>
-              <DropdownMenuContent className="w-56 bg-card/95 backdrop-blur-md border-border/50 shadow-2xl z-50">
+               <DropdownMenuContent className="w-56 bg-card/95 backdrop-blur-md border-border/50 shadow-2xl z-50">
+                <DropdownMenuItem onClick={() => handlePhaseChange('franchise')} className="cursor-pointer">
+                  <ClapperboardIcon className="mr-2" size={16} />
+                  Franchise Manager
+                </DropdownMenuItem>
                 <DropdownMenuItem onClick={() => handlePhaseChange('media')} className="cursor-pointer">
                   <BarChartIcon className="mr-2" size={16} />
                   Media Relations
@@ -1298,6 +1302,18 @@ export const StudioMagnateGame: React.FC<StudioMagnateGameProps> = ({ onPhaseCha
             onProjectSelect={setSelectedProject}
             onPhaseChange={handlePhaseChange}
           />
+        )}
+        
+        {currentPhase === 'franchise' && (
+          <Suspense fallback={<div>Loading franchise manager...</div>}>
+            {React.createElement(React.lazy(() => import('./FranchiseManager').then(m => ({ default: m.FranchiseManager }))), {
+              gameState: gameState,
+              onCreateProject: (franchiseId?: string, publicDomainId?: string) => {
+                console.log('Creating project from:', { franchiseId, publicDomainId });
+                setCurrentPhase('scripts');
+              }
+            })}
+          </Suspense>
         )}
         
         {currentPhase === 'scripts' && (
@@ -1425,13 +1441,19 @@ export const StudioMagnateGame: React.FC<StudioMagnateGameProps> = ({ onPhaseCha
               </TabsList>
               
               <TabsContent value="feed">
-                {React.createElement(React.lazy(() => import('./MediaDashboard').then(m => ({ default: m.MediaDashboard }))), {
+                {React.createElement(React.lazy(() => 
+                  import('./MediaDashboard').then(m => ({ default: m.MediaDashboard }))
+                  .catch(() => import('./MediaNotifications').then(m => ({ default: m.MediaNotifications })))
+                ), {
                   gameState: gameState
                 })}
               </TabsContent>
               
               <TabsContent value="responses">
-                {React.createElement(React.lazy(() => import('./MediaResponseDashboard').then(m => ({ default: m.MediaResponseDashboard }))), {
+                {React.createElement(React.lazy(() => 
+                  import('./MediaResponseDashboard').then(m => ({ default: m.MediaResponseDashboard }))
+                  .catch(() => ({ default: () => <div className="text-center py-8 text-muted-foreground">Media Response Dashboard loading...</div> }))
+                ), {
                   gameState: gameState,
                   onBudgetUpdate: (newBudget: number) => {
                     setGameState(prev => ({
