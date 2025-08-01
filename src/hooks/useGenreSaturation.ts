@@ -1,4 +1,4 @@
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useMemo } from 'react';
 import { Genre, Project } from '@/types/game';
 
 interface GenreSaturationState {
@@ -14,12 +14,16 @@ export const useGenreSaturation = (allReleases: Project[], currentWeek: number) 
     trendingGenres: []
   });
 
+  // Memoize the releases array to prevent infinite re-renders
+  const memoizedReleases = useMemo(() => allReleases, [allReleases.length, allReleases.map(r => r.id).join(',')]);
+  const memoizedCurrentWeek = useMemo(() => currentWeek, [currentWeek]);
+
   // Calculate genre saturation based on recent releases
   useEffect(() => {
-    const recentReleases = allReleases.filter(release => {
+    const recentReleases = memoizedReleases.filter(release => {
       if (!release.releaseWeek || !release.releaseYear) return false;
       const releaseGameWeek = (release.releaseYear * 52) + release.releaseWeek;
-      const currentGameWeek = (2025 * 52) + currentWeek; // Use game year instead of real year
+      const currentGameWeek = (2025 * 52) + memoizedCurrentWeek; // Use game year instead of real year
       return (currentGameWeek - releaseGameWeek) <= 12; // Last 12 weeks
     });
 
@@ -71,7 +75,7 @@ export const useGenreSaturation = (allReleases: Project[], currentWeek: number) 
       trendingGenres
     });
 
-  }, [allReleases, currentWeek]);
+  }, [memoizedReleases, memoizedCurrentWeek]);
 
   // Get performance multiplier for a genre
   const getGenreMultiplier = (genre: Genre): number => {
