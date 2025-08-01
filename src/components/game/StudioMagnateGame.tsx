@@ -137,7 +137,10 @@ export const StudioMagnateGame: React.FC<StudioMagnateGameProps> = ({ onPhaseCha
       awardsCalendar: [],
       industryTrends: [],
       allReleases: [], // Includes AI studio releases
-      topFilmsHistory: []
+      topFilmsHistory: [],
+      // Franchise & Public Domain Systems
+      franchises: [],
+      publicDomainIPs: []
     };
 
     updateOperation(LOADING_OPERATIONS.GAME_INIT.id, 100, 'Game ready!');

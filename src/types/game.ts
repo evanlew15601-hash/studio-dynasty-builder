@@ -1,5 +1,43 @@
 // Studio Magnate Core Game Types
 
+// Franchise System Types
+export interface Franchise {
+  id: string;
+  title: string;
+  originDate: string; // YYYY-MM-DD
+  creatorStudioId: string;
+  genre: Genre[];
+  tone: 'dark' | 'light' | 'pulpy' | 'serious' | 'comedic' | 'epic';
+  parodySource?: string; // What real-world IP this parodies
+  entries: string[]; // Film IDs in this franchise
+  status: 'active' | 'dormant' | 'rebooted' | 'retired';
+  franchiseTags: string[];
+  culturalWeight: number; // 0-100, affects buzz and marketing
+  lastEntryDate?: string;
+  totalBoxOffice?: number;
+  averageRating?: number;
+  merchandisingPotential?: number;
+  fanbaseSize?: number;
+  criticalFatigue?: number; // 0-100, increases with poor sequels
+}
+
+// Public Domain System Types
+export interface PublicDomainIP {
+  id: string;
+  name: string;
+  domainType: 'literature' | 'mythology' | 'folklore' | 'historical' | 'religious';
+  dateEnteredDomain: string; // YYYY-MM-DD
+  coreElements: string[]; // Key characters, themes, settings
+  genreFlexibility: Genre[]; // What genres this can work in
+  notableAdaptations: string[]; // Film IDs of previous adaptations
+  reputationScore: number; // 0-100, how iconic/recognizable
+  adaptationFatigue?: number; // 0-100, increases with overuse
+  lastAdaptationDate?: string;
+  culturalRelevance?: number; // Changes over time
+  requiredElements?: string[]; // Core elements that must be present
+  suggestedCharacters?: ScriptCharacter[];
+}
+
 export interface Studio {
   id: string;
   name: string;
@@ -186,6 +224,13 @@ export interface Project {
   postTheatricalReleases?: PostTheatricalRelease[];
   readyForMarketing?: boolean;
   readyForRelease?: boolean;
+  // Franchise & Public Domain Integration
+  franchiseId?: string; // If part of a franchise
+  franchisePosition?: number; // Which entry in the franchise (1, 2, 3...)
+  publicDomainId?: string; // If adapting public domain IP
+  adaptationType?: 'faithful' | 'modern' | 'reimagined' | 'parody'; // How it adapts the source
+  legacyBonus?: number; // Marketing/buzz bonus from franchise/PD recognition
+  sequelPotential?: number; // 0-100, how likely this is to spawn sequels
 }
 
 export interface ProjectBudget {
@@ -614,6 +659,9 @@ export interface GameState {
   // Enhanced game state
   allReleases: (Project | BoxOfficeRelease)[]; // Includes AI studio releases
   topFilmsHistory: TopFilmsWeek[];
+  // Franchise & Public Domain Systems
+  franchises: Franchise[];
+  publicDomainIPs: PublicDomainIP[];
 }
 
 export interface TopFilmsWeek {
