@@ -13,6 +13,9 @@ import { FinancialDashboard } from './FinancialDashboard';
 import { GameplayLoops } from './GameplayLoops';
 import { IntegrationMonitor } from './IntegrationMonitor';
 import { AwardsCalendar } from './AwardsCalendar';
+import { AIStudioManager } from './AIStudioManager';
+import { AIStudioIntegrationTests } from './AIStudioIntegrationTests';
+import { CompetitorMonitor } from './CompetitorMonitor';
 import { TimeSystem, TimeState } from './TimeSystem';
 import { BoxOfficeSystem } from './BoxOfficeSystem';
 import { updateProjectFinancials } from './FinancialCalculations';
@@ -117,7 +120,7 @@ export const StudioMagnateGame: React.FC<StudioMagnateGameProps> = ({ onPhaseCha
   const genreSaturation = useGenreSaturation(gameState.allReleases || [], gameState.currentWeek);
   const achievements = useAchievements(gameState);
 
-  const [currentPhase, setCurrentPhase] = useState<'dashboard' | 'scripts' | 'casting' | 'production' | 'marketing' | 'distribution' | 'financials' | 'awards' | 'market' | 'topfilms' | 'stats' | 'reputation'>('dashboard');
+  const [currentPhase, setCurrentPhase] = useState<'dashboard' | 'scripts' | 'casting' | 'production' | 'marketing' | 'distribution' | 'financials' | 'awards' | 'market' | 'topfilms' | 'stats' | 'reputation' | 'competition'>('dashboard');
   const [selectedProject, setSelectedProject] = useState<Project | null>(null);
 
   // Handle achievement rewards
@@ -1094,6 +1097,7 @@ export const StudioMagnateGame: React.FC<StudioMagnateGameProps> = ({ onPhaseCha
                 { id: 'marketing', label: 'Marketing', IconComponent: MarketingIcon },
                 { id: 'distribution', label: 'Distribution', IconComponent: DistributionIcon },
                 { id: 'financials', label: 'Financials', IconComponent: BudgetIcon },
+                { id: 'competition', label: 'AI Competition', IconComponent: BarChartIcon },
                 { id: 'awards', label: 'Awards', IconComponent: ReputationIcon },
                 { id: 'market', label: 'Market', IconComponent: BarChartIcon },
                 { id: 'topfilms', label: 'Top Films', IconComponent: BarChartIcon },
@@ -1189,6 +1193,14 @@ export const StudioMagnateGame: React.FC<StudioMagnateGameProps> = ({ onPhaseCha
             currentWeek={gameState.currentWeek}
             currentYear={gameState.currentYear}
             projects={gameState.projects}
+          />
+        )}
+        
+        {currentPhase === 'competition' && (
+          <CompetitorMonitor 
+            competitorStudios={gameState.competitorStudios}
+            currentWeek={gameState.currentWeek}
+            currentYear={gameState.currentYear}
           />
         )}
         
