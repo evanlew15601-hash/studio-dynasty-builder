@@ -4,12 +4,13 @@ import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
 import { ScrollArea } from '@/components/ui/scroll-area';
+import { Studio } from '@/types/game';
 import { AIStudioManager, AIFilmProject, TalentCommitment } from './AIStudioManager';
 import { AIStudioIntegrationTests } from './AIStudioIntegrationTests';
 import { Building, Film, Users, TrendingUp, Play, TestTube } from 'lucide-react';
 
 interface CompetitorMonitorProps {
-  competitorStudios: any[];
+  competitorStudios: Studio[];
   currentWeek: number;
   currentYear: number;
 }

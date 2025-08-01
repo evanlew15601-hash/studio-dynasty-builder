@@ -5,6 +5,7 @@ import { Badge } from '@/components/ui/badge';
 import { Progress } from '@/components/ui/progress';
 import { Button } from '@/components/ui/button';
 import { Alert, AlertDescription } from '@/components/ui/alert';
+import { Project } from '@/types/game';
 import { FinancialEngine, Transaction, FinancialSummary } from './FinancialEngine';
 import { LineChart, Line, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer, BarChart, Bar, PieChart, Pie, Cell } from 'recharts';
 import { TrendingUp, TrendingDown, AlertTriangle, DollarSign, Activity, PieChart as PieChartIcon } from 'lucide-react';
@@ -12,7 +13,7 @@ import { TrendingUp, TrendingDown, AlertTriangle, DollarSign, Activity, PieChart
 interface FinancialDashboardProps {
   currentWeek: number;
   currentYear: number;
-  projects: any[];
+  projects: Project[];
 }
 
 export const FinancialDashboard: React.FC<FinancialDashboardProps> = ({

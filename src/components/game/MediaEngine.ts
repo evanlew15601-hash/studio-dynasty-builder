@@ -49,13 +49,20 @@ class MediaEngine {
         console.log(`📺 Generated media: \"${mediaItem.headline}\" from ${mediaItem.source.name}`);
       } catch (error) {
         console.error('Error processing media event:', error);
+        // Mark as processed to prevent infinite retry
+        event.processed = true;
       }
     }
 
-    // Clean up processed events older than 52 weeks
+    // Clean up processed events older than 52 weeks to prevent memory leaks
     this.eventQueue = this.eventQueue.filter(event => 
       !event.processed || (gameState.currentWeek - event.week < 52 && gameState.currentYear === event.year)
     );
+
+    // Limit media history to prevent memory growth (keep last 1000 items)
+    if (this.mediaHistory.length > 1000) {
+      this.mediaHistory = this.mediaHistory.slice(-1000);
+    }
 
     return newMediaItems;
   }
@@ -315,6 +322,13 @@ class MediaEngine {
       week: gameState.currentWeek,
       year: gameState.currentYear
     });
+  }
+
+  // Cleanup method for memory management
+  static cleanup(): void {
+    this.mediaHistory = [];
+    this.mediaMemory.clear();
+    this.eventQueue = [];
   }
 }
 

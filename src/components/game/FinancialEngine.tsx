@@ -1,4 +1,5 @@
 // Unified Financial Engine - Single source of truth for all financial transactions
+import { Studio, Project } from '@/types/game';
 export interface Transaction {
   id: string;
   filmId?: string;
@@ -224,7 +225,7 @@ export class FinancialEngine {
     });
   }
 
-  static processWeeklyFinancialEvents(currentWeek: number, currentYear: number, studios: any[], projects: any[]): void {
+  static processWeeklyFinancialEvents(currentWeek: number, currentYear: number, studios: Studio[], projects: Project[]): void {
     // Process studio overhead costs
     studios.forEach(studio => {
       const weeklyOverhead = Math.max(studio.budget * 0.001, 50); // 0.1% of budget or 50k minimum
@@ -238,7 +239,7 @@ export class FinancialEngine {
 
     // Process ongoing production costs
     projects.forEach(project => {
-      if (project.status === 'in-production' || project.status === 'post-production') {
+      if (project.status === 'production' || project.status === 'post-production') {
         const weeklyProductionCost = project.budget.total * 0.02; // 2% of budget per week
         this.recordFilmExpense(
           project.id,

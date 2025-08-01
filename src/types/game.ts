@@ -612,7 +612,7 @@ export interface GameState {
   awardsCalendar: AwardsEvent[];
   industryTrends: IndustryTrend[];
   // Enhanced game state
-  allReleases: Project[]; // Includes AI studio releases
+  allReleases: (Project | BoxOfficeRelease)[]; // Includes AI studio releases
   topFilmsHistory: TopFilmsWeek[];
 }
 

@@ -1,5 +1,5 @@
 import React, { useState, Suspense } from 'react';
-import { GameState, Studio, Project, Script, TalentPerson, BoxOfficeWeek, BoxOfficeRelease, Genre, MarketingStrategy, ReleaseStrategy } from '@/types/game';
+import { GameState, Studio, Project, Script, TalentPerson, BoxOfficeWeek, BoxOfficeRelease, Genre, MarketingStrategy, ReleaseStrategy, ProductionPhase } from '@/types/game';
 import { ScriptDevelopment } from './ScriptDevelopment';
 import { CastingBoard } from './CastingBoard';
 import { ProductionManagement } from './ProductionManagement';
@@ -118,14 +118,14 @@ export const StudioMagnateGame: React.FC<StudioMagnateGameProps> = ({ onPhaseCha
 
   // Market dynamics hooks  
   const talentMarket = useTalentMarket(gameState.talent, gameState.currentWeek);
-  const genreSaturation = useGenreSaturation(gameState.allReleases || [], gameState.currentWeek);
+  const genreSaturation = useGenreSaturation(gameState.allReleases?.filter((item): item is Project => 'script' in item) || [], gameState.currentWeek);
   const achievements = useAchievements(gameState);
 
   const [currentPhase, setCurrentPhase] = useState<'dashboard' | 'scripts' | 'casting' | 'talent' | 'media' | 'production' | 'marketing' | 'distribution' | 'financials' | 'awards' | 'market' | 'topfilms' | 'stats' | 'reputation' | 'competition'>('dashboard');
   const [selectedProject, setSelectedProject] = useState<Project | null>(null);
 
   // Handle achievement rewards
-  const handleAchievementRewards = (unlockedAchievements: any[]) => {
+  const handleAchievementRewards = (unlockedAchievements: Array<{ reward?: { reputation?: number; budget?: number } }>) => {
     unlockedAchievements.forEach(achievement => {
       if (achievement.reward) {
         setGameState(prev => ({
@@ -636,7 +636,7 @@ export const StudioMagnateGame: React.FC<StudioMagnateGameProps> = ({ onPhaseCha
     return results;
   };
 
-  const getNextPhase = (currentPhase: string): any => {
+  const getNextPhase = (currentPhase: string): ProductionPhase => {
     switch (currentPhase) {
       case 'development': return 'pre-production';
       case 'pre-production': return 'production';
@@ -644,7 +644,7 @@ export const StudioMagnateGame: React.FC<StudioMagnateGameProps> = ({ onPhaseCha
       case 'post-production': return 'marketing';
       case 'marketing': return 'release';
       case 'release': return 'distribution';
-      default: return currentPhase;
+      default: return currentPhase as ProductionPhase;
     }
   };
 
@@ -947,7 +947,7 @@ export const StudioMagnateGame: React.FC<StudioMagnateGameProps> = ({ onPhaseCha
 
       // Generate AI studio releases every 2-4 weeks
       const shouldGenerateRelease = Math.random() < 0.3; // 30% chance each week
-      let newAIReleases: any[] = [];
+      let newAIReleases: BoxOfficeRelease[] = [];
       
       if (shouldGenerateRelease && prev.competitorStudios.length > 0) {
         const studioGenerator = new StudioGenerator();
@@ -957,7 +957,7 @@ export const StudioMagnateGame: React.FC<StudioMagnateGameProps> = ({ onPhaseCha
         if (studioProfile) {
           const aiRelease = studioGenerator.generateStudioRelease(studioProfile, newTimeState.currentWeek, newTimeState.currentYear);
           if (aiRelease) {
-            newAIReleases.push(aiRelease);
+            newAIReleases.push(aiRelease as any); // Cast to match allReleases type
           }
         }
       }
@@ -1339,7 +1339,7 @@ export const StudioMagnateGame: React.FC<StudioMagnateGameProps> = ({ onPhaseCha
         )}
         
         {currentPhase === 'topfilms' && (
-          <TopFilmsChart gameState={gameState} allReleases={gameState.allReleases} />
+          <TopFilmsChart gameState={gameState} allReleases={gameState.allReleases?.filter((item): item is Project => 'script' in item) || []} />
         )}
         
         {currentPhase === 'stats' && (
