@@ -2,7 +2,7 @@ import { MediaEvent, MediaItem, MediaMemory, GameState, TalentPerson, Project, S
 import { MediaSourceGenerator } from '@/data/MediaSourceGenerator';
 import { MediaContentGenerator } from '@/data/MediaContentGenerator';
 
-export class MediaEngine {
+class MediaEngine {
   private static mediaHistory: MediaItem[] = [];
   private static mediaMemory: Map<string, MediaMemory> = new Map();
   private static eventQueue: MediaEvent[] = [];
@@ -317,3 +317,5 @@ export class MediaEngine {
     });
   }
 }
+
+export { MediaEngine };

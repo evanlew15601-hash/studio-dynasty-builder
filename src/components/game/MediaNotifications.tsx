@@ -12,7 +12,8 @@ import {
   Eye,
   X
 } from 'lucide-react';
-import { MediaEngine, MediaItem } from './MediaEngine';
+import { MediaEngine } from './MediaEngine';
+import type { MediaItem } from '../../types/game';
 import { CrisisManagement, Crisis } from './CrisisManagement';
 import { MediaRelationships } from './MediaRelationships';
 import { GameState } from '../../types/game';
@@ -68,9 +69,9 @@ export const MediaNotifications: React.FC<Props> = ({ gameState, onNotificationA
 
     // Media trend notifications
     const mediaStats = MediaEngine.getMediaStats();
-    if (mediaStats.recentSentiment < -0.3) {
+    if (mediaStats.totalItems > 0) {
       newNotifications.push(createTrendNotification('negative', mediaStats));
-    } else if (mediaStats.recentSentiment > 0.5) {
+    } else if (mediaStats.recentActivity > 5) {
       newNotifications.push(createTrendNotification('positive', mediaStats));
     }
 
@@ -79,15 +80,15 @@ export const MediaNotifications: React.FC<Props> = ({ gameState, onNotificationA
   };
 
   const shouldNotifyAboutMedia = (media: MediaItem): boolean => {
-    return media.impact > 0.7 || 
-           media.sentiment === 'negative' && media.impact > 0.4 ||
-           media.type === 'breaking';
+    return media.impact.intensity > 70 || 
+           media.sentiment === 'negative' && media.impact.intensity > 40 ||
+           media.type === 'news';
   };
 
   const createMediaNotification = (media: MediaItem): MediaNotification => {
-    const priority = media.impact > 0.8 ? 'critical' : 
-                    media.impact > 0.6 ? 'high' : 
-                    media.impact > 0.4 ? 'medium' : 'low';
+    const priority = media.impact.intensity > 80 ? 'critical' : 
+                    media.impact.intensity > 60 ? 'high' : 
+                    media.impact.intensity > 40 ? 'medium' : 'low';
 
     return {
       id: `media-${media.id}`,

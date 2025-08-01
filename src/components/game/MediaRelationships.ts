@@ -1,4 +1,4 @@
-import { MediaSource } from './MediaEngine';
+import type { MediaSource } from '../../types/game';
 import { GameState, Studio } from '../../types/game';
 
 export interface MediaRelationship {
@@ -66,20 +66,23 @@ export class MediaRelationships {
     let base = 0;
     
     switch (source.type) {
-      case 'trade':
+      case 'trade_publication':
         base = 10; // Trade publications start neutral-positive
         break;
-      case 'mainstream':
+      case 'newspaper':
         base = 0; // Mainstream media starts neutral
         break;
-      case 'tabloid':
-        base = -10; // Tabloids start slightly negative
+      case 'magazine':
+        base = -10; // Magazines start slightly negative
         break;
       case 'blog':
         base = -5; // Blogs start slightly negative
         break;
-      case 'social':
+      case 'social_media':
         base = 5; // Social media starts slightly positive
+        break;
+      case 'tv_network':
+        base = 0; // TV networks start neutral
         break;
     }
 
@@ -277,7 +280,7 @@ export class MediaRelationships {
       requirements.push('Studio reputation must be at least 60');
     }
 
-    if (eventType === 'exclusive' && !gameState.activeProjects.length) {
+    if (eventType === 'exclusive' && !gameState.projects?.length) {
       requirements.push('Must have at least one active project');
     }
 

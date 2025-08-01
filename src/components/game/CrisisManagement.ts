@@ -55,17 +55,20 @@ export class CrisisManagement {
     // Generate initial media coverage
     MediaEngine.queueMediaEvent({
       type: 'scandal',
+      triggerType: 'automatic',
       priority: crisis.severity === 'critical' ? 'breaking' : 'high',
       entities: {
         studios: [studio.id],
         talent: crisis.affectedEntities,
         projects: crisis.affectedEntities
       },
-      metadata: {
+      eventData: {
         crisisId: crisis.id,
         severity: crisis.severity,
         title: crisis.title
-      }
+      },
+      week: gameState.currentWeek,
+      year: gameState.currentYear
     });
 
     return crisis;
@@ -92,10 +95,18 @@ export class CrisisManagement {
     // Generate follow-up media
     MediaEngine.queueMediaEvent({
       type: 'interview',
+      triggerType: 'player_action',
       priority: 'high',
       entities: {
         studios: [gameState.studio.id]
-      }
+      },
+      eventData: {
+        crisisId: crisis.id,
+        responseType: response.label,
+        effectiveness: response.effectiveness
+      },
+      week: gameState.currentWeek,
+      year: gameState.currentYear
     });
 
     // Mark crisis as resolved or reduce severity
@@ -121,7 +132,7 @@ export class CrisisManagement {
     // Higher chance with lower reputation
     const reputationFactor = (100 - studio.reputation) / 100;
     baseChance += reputationFactor * 0.03;
-    baseChance += problematicTalent * 0.005;
+    baseChance += 0; // Removed problematic talent calculation
 
     return Math.min(baseChance, 0.25); // Cap at 25%
   }
