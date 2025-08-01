@@ -254,16 +254,15 @@ export const ScriptCharacterManager: React.FC<ScriptCharacterManagerProps> = ({
                       </p>
                     )}
                     
-                    {character.requiredTraits.length > 0 && (
-                      <div className="flex flex-wrap gap-1">
-                        {character.requiredTraits.map((trait) => (
-                          <Badge key={trait} variant="secondary" className="text-xs">
-                            {trait}
-                          </Badge>
-                        ))
-                      )}
-                      </div>
-                    )}
+                     {character.requiredTraits.length > 0 && (
+                       <div className="flex flex-wrap gap-1">
+                         {character.requiredTraits.map((trait) => (
+                           <Badge key={trait} variant="secondary" className="text-xs">
+                             {trait}
+                           </Badge>
+                         ))}
+                       </div>
+                     )}
                   </div>
                   
                   <Button

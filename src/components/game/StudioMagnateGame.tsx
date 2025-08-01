@@ -864,8 +864,14 @@ export const StudioMagnateGame: React.FC<StudioMagnateGameProps> = ({ onPhaseCha
       if (shouldGenerateRelease && prev.competitorStudios.length > 0) {
         const studioGenerator = new StudioGenerator();
         const randomStudio = prev.competitorStudios[Math.floor(Math.random() * prev.competitorStudios.length)];
-        const aiRelease = studioGenerator.generateStudioRelease(randomStudio, newTimeState.currentYear, newTimeState.currentWeek);
-        newAIReleases.push(aiRelease);
+        // Find corresponding studio profile by name
+        const studioProfile = studioGenerator.getStudioProfile(randomStudio.name);
+        if (studioProfile) {
+          const aiRelease = studioGenerator.generateStudioRelease(studioProfile, newTimeState.currentWeek, newTimeState.currentYear);
+          if (aiRelease) {
+            newAIReleases.push(aiRelease);
+          }
+        }
       }
       
       // Process weekly costs and reputation
