@@ -1210,81 +1210,85 @@ export const StudioMagnateGame: React.FC<StudioMagnateGameProps> = ({ onPhaseCha
               </Button>
             ))}
 
-            {/* Business Analytics - Simple Buttons */}
-            <div className="relative group">
-              <Button
-                variant="ghost"
-                className={`rounded-none border-b-2 px-4 py-4 font-medium transition-all duration-300 border-transparent hover:border-primary/40 hover:bg-primary/5 btn-ghost-premium ${
-                  ['financials', 'competition', 'market', 'topfilms', 'stats'].includes(currentPhase)
-                    ? 'border-primary bg-gradient-to-t from-primary/20 to-primary/10 text-primary shadow-lg' 
-                    : ''
-                }`}
-              >
-                <BarChartIcon className="mr-2" size={16} />
-                Analytics
-                <ChevronDown className="ml-1" size={14} />
-              </Button>
-              <div className="absolute top-full left-0 z-50 hidden group-hover:block bg-card/95 backdrop-blur-md border border-border/50 shadow-2xl rounded-md min-w-[200px]">
-                <button onClick={() => handlePhaseChange('financials')} className="w-full px-4 py-2 text-left hover:bg-primary/10 flex items-center">
+            {/* Business Analytics Dropdown */}
+            <DropdownMenu>
+              <DropdownMenuTrigger asChild>
+                <Button
+                  variant="ghost"
+                  className={`rounded-none border-b-2 px-4 py-4 font-medium transition-all duration-300 border-transparent hover:border-primary/40 hover:bg-primary/5 btn-ghost-premium ${
+                    ['financials', 'competition', 'market', 'topfilms', 'stats'].includes(currentPhase)
+                      ? 'border-primary bg-gradient-to-t from-primary/20 to-primary/10 text-primary shadow-lg' 
+                      : ''
+                  }`}
+                >
+                  <BarChartIcon className="mr-2" size={16} />
+                  Analytics
+                  <ChevronDown className="ml-1" size={14} />
+                </Button>
+              </DropdownMenuTrigger>
+              <DropdownMenuContent align="start" className="min-w-[200px] bg-background/95 backdrop-blur-md">
+                <DropdownMenuItem onClick={() => handlePhaseChange('financials')}>
                   <BudgetIcon className="mr-2" size={16} />
                   Financials
-                </button>
-                <button onClick={() => handlePhaseChange('competition')} className="w-full px-4 py-2 text-left hover:bg-primary/10 flex items-center">
+                </DropdownMenuItem>
+                <DropdownMenuItem onClick={() => handlePhaseChange('competition')}>
                   <BarChartIcon className="mr-2" size={16} />
                   AI Competition
-                </button>
-                <button onClick={() => handlePhaseChange('market')} className="w-full px-4 py-2 text-left hover:bg-primary/10 flex items-center">
+                </DropdownMenuItem>
+                <DropdownMenuItem onClick={() => handlePhaseChange('market')}>
                   <BarChartIcon className="mr-2" size={16} />
                   Market Analysis
-                </button>
-                <button onClick={() => handlePhaseChange('topfilms')} className="w-full px-4 py-2 text-left hover:bg-primary/10 flex items-center">
+                </DropdownMenuItem>
+                <DropdownMenuItem onClick={() => handlePhaseChange('topfilms')}>
                   <BarChartIcon className="mr-2" size={16} />
                   Top Films
-                </button>
-                <button onClick={() => handlePhaseChange('stats')} className="w-full px-4 py-2 text-left hover:bg-primary/10 flex items-center">
+                </DropdownMenuItem>
+                <DropdownMenuItem onClick={() => handlePhaseChange('stats')}>
                   <BarChartIcon className="mr-2" size={16} />
                   Performance Stats
-                </button>
-              </div>
-            </div>
+                </DropdownMenuItem>
+              </DropdownMenuContent>
+            </DropdownMenu>
 
-            {/* Studio Management - Simple Buttons */}
-            <div className="relative group">
-              <Button
-                variant="ghost"
-                className={`rounded-none border-b-2 px-4 py-4 font-medium transition-all duration-300 border-transparent hover:border-primary/40 hover:bg-primary/5 btn-ghost-premium ${
-                   ['franchise', 'media', 'talent', 'awards', 'reputation'].includes(currentPhase)
-                     ? 'border-primary bg-gradient-to-t from-primary/20 to-primary/10 text-primary shadow-lg' 
-                     : ''
-                 }`}
-              >
-                <ReputationIcon className="mr-2" size={16} />
-                Studio
-                <ChevronDown className="ml-1" size={14} />
-              </Button>
-              <div className="absolute top-full left-0 z-50 hidden group-hover:block bg-card/95 backdrop-blur-md border border-border/50 shadow-2xl rounded-md min-w-[200px]">
-                <button onClick={() => handlePhaseChange('franchise')} className="w-full px-4 py-2 text-left hover:bg-primary/10 flex items-center">
+            {/* Studio Management Dropdown */}
+            <DropdownMenu>
+              <DropdownMenuTrigger asChild>
+                <Button
+                  variant="ghost"
+                  className={`rounded-none border-b-2 px-4 py-4 font-medium transition-all duration-300 border-transparent hover:border-primary/40 hover:bg-primary/5 btn-ghost-premium ${
+                     ['franchise', 'media', 'talent', 'awards', 'reputation'].includes(currentPhase)
+                       ? 'border-primary bg-gradient-to-t from-primary/20 to-primary/10 text-primary shadow-lg' 
+                       : ''
+                   }`}
+                >
+                  <ReputationIcon className="mr-2" size={16} />
+                  Studio
+                  <ChevronDown className="ml-1" size={14} />
+                </Button>
+              </DropdownMenuTrigger>
+              <DropdownMenuContent align="start" className="min-w-[200px] bg-background/95 backdrop-blur-md">
+                <DropdownMenuItem onClick={() => handlePhaseChange('franchise')}>
                   <ClapperboardIcon className="mr-2" size={16} />
                   Franchise Manager
-                </button>
-                <button onClick={() => handlePhaseChange('media')} className="w-full px-4 py-2 text-left hover:bg-primary/10 flex items-center">
+                </DropdownMenuItem>
+                <DropdownMenuItem onClick={() => handlePhaseChange('media')}>
                   <BarChartIcon className="mr-2" size={16} />
                   Media Relations
-                </button>
-                <button onClick={() => handlePhaseChange('talent')} className="w-full px-4 py-2 text-left hover:bg-primary/10 flex items-center">
+                </DropdownMenuItem>
+                <DropdownMenuItem onClick={() => handlePhaseChange('talent')}>
                   <CastingIcon className="mr-2" size={16} />
                   Talent Management
-                </button>
-                <button onClick={() => handlePhaseChange('awards')} className="w-full px-4 py-2 text-left hover:bg-primary/10 flex items-center">
+                </DropdownMenuItem>
+                <DropdownMenuItem onClick={() => handlePhaseChange('awards')}>
                   <ReputationIcon className="mr-2" size={16} />
                   Awards & Recognition
-                </button>
-                <button onClick={() => handlePhaseChange('reputation')} className="w-full px-4 py-2 text-left hover:bg-primary/10 flex items-center">
+                </DropdownMenuItem>
+                <DropdownMenuItem onClick={() => handlePhaseChange('reputation')}>
                   <ReputationIcon className="mr-2" size={16} />
                   Reputation Management
-                </button>
-              </div>
-            </div>
+                </DropdownMenuItem>
+              </DropdownMenuContent>
+            </DropdownMenu>
           </div>
         </div>
       </div>
