@@ -19,11 +19,13 @@ import { AchievementsPanel } from './AchievementsPanel';
 import { PerformanceMetrics } from './PerformanceMetrics';
 import { AchievementNotifications } from './AchievementNotifications';
 import { ReputationPanel } from './ReputationPanel';
+import { DeepReputationPanel } from './DeepReputationPanel';
 import { TalentGenerator } from '../../data/TalentGenerator';
 import { StudioGenerator } from '../../data/StudioGenerator';
 import { useTalentMarket } from '../../hooks/useTalentMarket';
 import { useGenreSaturation } from '../../hooks/useGenreSaturation';
 import { useAchievements } from '../../hooks/useAchievements';
+import { DeepReputationSystem } from './DeepReputationSystem';
 import { Button } from '@/components/ui/button';
 import { Card } from '@/components/ui/card';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
@@ -942,8 +944,24 @@ export const StudioMagnateGame: React.FC<StudioMagnateGameProps> = ({ onPhaseCha
         }
       }
       
-      // Process weekly costs and reputation
+      // Process weekly costs and reputation with deep system
       const weeklyResults = processWeeklyCosts(prev, updatedProjects);
+      
+      // Update industry context and calculate deep reputation
+      DeepReputationSystem.updateIndustryContext([...prev.competitorStudios, prev.studio], newTimeState);
+      const deepRepResult = DeepReputationSystem.calculateDeepReputation(
+        weeklyResults.studio,
+        updatedProjects,
+        prev.talent,
+        newTimeState,
+        prev.competitorStudios
+      );
+      
+      // Apply deep reputation to studio
+      const enhancedStudio = {
+        ...weeklyResults.studio,
+        reputation: deepRepResult.reputation
+      };
       
       const newState = {
         ...prev,
@@ -951,7 +969,7 @@ export const StudioMagnateGame: React.FC<StudioMagnateGameProps> = ({ onPhaseCha
         currentYear: newTimeState.currentYear,
         currentQuarter: newTimeState.currentQuarter,
         projects: updatedProjects,
-        studio: weeklyResults.studio,
+        studio: enhancedStudio,
         allReleases: [...prev.allReleases, ...newAIReleases]
       };
 
@@ -1177,7 +1195,17 @@ export const StudioMagnateGame: React.FC<StudioMagnateGameProps> = ({ onPhaseCha
         )}
         
         {currentPhase === 'reputation' && (
-          <ReputationPanel studio={gameState.studio} />
+          <DeepReputationPanel 
+            studio={gameState.studio}
+            projects={gameState.projects}
+            talent={gameState.talent}
+            timeState={{
+              currentWeek: gameState.currentWeek,
+              currentYear: gameState.currentYear,
+              currentQuarter: gameState.currentQuarter
+            }}
+            allStudios={gameState.competitorStudios}
+          />
         )}
       </div>
     </div>
