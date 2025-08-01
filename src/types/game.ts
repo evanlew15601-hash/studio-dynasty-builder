@@ -486,6 +486,117 @@ export interface BurnoutCalculation {
   currentBurnout: number; // 0-100
 }
 
+// ===== COMPREHENSIVE MEDIA SYSTEM =====
+
+export interface MediaSource {
+  id: string;
+  name: string;
+  type: 'newspaper' | 'magazine' | 'blog' | 'social_media' | 'trade_publication' | 'tv_network';
+  credibility: number; // 0-100, affects how much impact their stories have
+  bias: number; // -100 to 100, affects sentiment of stories they generate
+  reach: number; // 0-100, affects how many people see their stories
+  specialties: Genre[]; // Which film genres they cover best
+  established: number; // Year founded, affects credibility
+}
+
+export interface MediaItem {
+  id: string;
+  source: MediaSource;
+  type: 'news' | 'review' | 'rumor' | 'interview' | 'social_post' | 'editorial' | 'leak';
+  headline: string;
+  content: string;
+  publishDate: {
+    week: number;
+    year: number;
+  };
+  targets: {
+    studios?: string[]; // Studio IDs
+    talent?: string[]; // Talent IDs  
+    projects?: string[]; // Project IDs
+    films?: string[]; // Released film IDs
+  };
+  sentiment: 'positive' | 'neutral' | 'negative';
+  impact: {
+    reach: number; // How many people saw this
+    credibility: number; // How believable it is
+    virality: number; // How likely to spawn follow-up stories
+    intensity: number; // How strong the sentiment is
+  };
+  tags: string[]; // For categorization and searching
+  relatedEvents?: string[]; // IDs of game events that triggered this
+}
+
+export interface MediaEvent {
+  id: string;
+  type: 'casting_announcement' | 'production_start' | 'production_wrap' | 'release' | 'box_office' | 
+        'award_nomination' | 'award_win' | 'scandal' | 'interview' | 'exclusive' | 'leak' | 'rumor';
+  triggerType: 'automatic' | 'player_action' | 'random' | 'competitor_action';
+  priority: 'low' | 'medium' | 'high' | 'breaking';
+  entities: {
+    studios?: string[];
+    talent?: string[];
+    projects?: string[];
+    films?: string[];
+  };
+  eventData: any; // Flexible data specific to event type
+  week: number;
+  year: number;
+  processed: boolean; // Has this generated media yet?
+}
+
+export interface MediaMemory {
+  entityId: string; // Studio, talent, or project ID
+  entityType: 'studio' | 'talent' | 'project' | 'film';
+  reputationImpact: number; // Cumulative media impact on reputation
+  sentimentHistory: Array<{
+    week: number;
+    year: number;
+    sentiment: 'positive' | 'neutral' | 'negative';
+    intensity: number;
+  }>;
+  majorStories: string[]; // IDs of significant media items
+  currentBuzz: number; // 0-100, how much attention they're getting
+  lastMajorStory?: {
+    week: number;
+    year: number;
+    type: string;
+    sentiment: 'positive' | 'neutral' | 'negative';
+  };
+}
+
+export interface MediaCampaign {
+  id: string;
+  studioId: string;
+  name: string;
+  type: 'pr_boost' | 'damage_control' | 'product_placement' | 'exclusive_access' | 'social_media_blitz';
+  targets: {
+    projects?: string[];
+    talent?: string[];
+    studio?: boolean;
+  };
+  budget: number;
+  duration: {
+    startWeek: number;
+    endWeek: number;
+    year: number;
+  };
+  status: 'planned' | 'active' | 'completed' | 'cancelled';
+  effectiveness: number; // 0-100, how well it's working
+  generatedMedia: string[]; // IDs of media items created by this campaign
+}
+
+export interface MediaReaction {
+  mediaItemId: string;
+  reactionType: 'player_response' | 'automatic_consequence' | 'follow_up_story';
+  action: 'deny' | 'confirm' | 'deflect' | 'counter_attack' | 'capitalize' | 'ignore';
+  impact: {
+    reputationChange: number;
+    moraleChange: number;
+    publicPerceptionChange: number;
+  };
+  cost?: number; // For paid responses like PR campaigns
+}
+
 export interface GameState {
   studio: Studio;
   currentYear: number;

@@ -121,7 +121,7 @@ export const StudioMagnateGame: React.FC<StudioMagnateGameProps> = ({ onPhaseCha
   const genreSaturation = useGenreSaturation(gameState.allReleases || [], gameState.currentWeek);
   const achievements = useAchievements(gameState);
 
-  const [currentPhase, setCurrentPhase] = useState<'dashboard' | 'scripts' | 'casting' | 'talent' | 'production' | 'marketing' | 'distribution' | 'financials' | 'awards' | 'market' | 'topfilms' | 'stats' | 'reputation' | 'competition'>('dashboard');
+  const [currentPhase, setCurrentPhase] = useState<'dashboard' | 'scripts' | 'casting' | 'talent' | 'media' | 'production' | 'marketing' | 'distribution' | 'financials' | 'awards' | 'market' | 'topfilms' | 'stats' | 'reputation' | 'competition'>('dashboard');
   const [selectedProject, setSelectedProject] = useState<Project | null>(null);
 
   // Handle achievement rewards
@@ -1094,7 +1094,7 @@ export const StudioMagnateGame: React.FC<StudioMagnateGameProps> = ({ onPhaseCha
                 { id: 'dashboard', label: 'Dashboard', IconComponent: StudioIcon },
                 { id: 'scripts', label: 'Scripts', IconComponent: ScriptIcon },
                 { id: 'casting', label: 'Casting', IconComponent: CastingIcon },
-                { id: 'talent', label: 'Talent', IconComponent: CastingIcon },
+                { id: 'media', label: 'Media', IconComponent: BarChartIcon },
                 { id: 'production', label: 'Production', IconComponent: ProductionIcon },
                 { id: 'marketing', label: 'Marketing', IconComponent: MarketingIcon },
                 { id: 'distribution', label: 'Distribution', IconComponent: DistributionIcon },
@@ -1248,6 +1248,14 @@ export const StudioMagnateGame: React.FC<StudioMagnateGameProps> = ({ onPhaseCha
             onMarketingCampaignCreate={handleMarketingCampaignCreate}
             onReleaseStrategyCreate={handleReleaseStrategyCreate}
           />
+        )}
+        
+        {currentPhase === 'media' && (
+          <Suspense fallback={<div>Loading media dashboard...</div>}>
+            {React.createElement(React.lazy(() => import('./MediaDashboard').then(m => ({ default: m.MediaDashboard }))), {
+              gameState: gameState
+            })}
+          </Suspense>
         )}
         
         {currentPhase === 'distribution' && (

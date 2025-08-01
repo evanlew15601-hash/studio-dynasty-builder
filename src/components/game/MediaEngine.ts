@@ -1,0 +1,319 @@
+import { MediaEvent, MediaItem, MediaMemory, GameState, TalentPerson, Project, Studio } from '@/types/game';
+import { MediaSourceGenerator } from '@/data/MediaSourceGenerator';
+import { MediaContentGenerator } from '@/data/MediaContentGenerator';
+
+export class MediaEngine {
+  private static mediaHistory: MediaItem[] = [];
+  private static mediaMemory: Map<string, MediaMemory> = new Map();
+  private static eventQueue: MediaEvent[] = [];
+
+  // Initialize media sources
+  static initialize() {
+    MediaSourceGenerator.generateMediaSources();
+    console.log('🎬 Media Engine initialized with realistic news sources');
+  }
+
+  // Add media event to queue for processing
+  static queueMediaEvent(event: Omit<MediaEvent, 'id' | 'processed'>): string {
+    const mediaEvent: MediaEvent = {
+      ...event,
+      id: `event_${Date.now()}_${Math.random().toString(36).substr(2, 9)}`,
+      processed: false
+    };
+
+    this.eventQueue.push(mediaEvent);
+    console.log(`📰 Media event queued: ${mediaEvent.type} - ${mediaEvent.priority}`);
+    
+    return mediaEvent.id;
+  }
+
+  // Process all queued media events
+  static processMediaEvents(gameState: GameState): MediaItem[] {
+    const newMediaItems: MediaItem[] = [];
+    const eventsToProcess = this.eventQueue.filter(event => !event.processed);
+
+    for (const event of eventsToProcess) {
+      try {
+        const entities = this.getEntitiesForEvent(event, gameState);
+        const mediaItem = MediaContentGenerator.generateMediaItem(event, entities);
+        
+        newMediaItems.push(mediaItem);
+        this.mediaHistory.push(mediaItem);
+        
+        // Update media memory for affected entities
+        this.updateMediaMemory(mediaItem);
+        
+        // Mark event as processed
+        event.processed = true;
+        
+        console.log(`📺 Generated media: \"${mediaItem.headline}\" from ${mediaItem.source.name}`);
+      } catch (error) {
+        console.error('Error processing media event:', error);
+      }
+    }
+
+    // Clean up processed events older than 52 weeks
+    this.eventQueue = this.eventQueue.filter(event => 
+      !event.processed || (gameState.currentWeek - event.week < 52 && gameState.currentYear === event.year)
+    );
+
+    return newMediaItems;
+  }
+
+  // Auto-generate events based on game state changes
+  static triggerAutomaticEvents(gameState: GameState, previousState?: GameState): string[] {
+    const triggeredEvents: string[] = [];
+
+    // Check for new projects entering production
+    if (previousState) {
+      const newInProduction = gameState.projects.filter(project =>
+        project.status === 'production' &&
+        previousState.projects.find(p => p.id === project.id)?.status !== 'production'
+      );
+
+      for (const project of newInProduction) {
+        const eventId = this.queueMediaEvent({
+          type: 'production_start',
+          triggerType: 'automatic',
+          priority: 'medium',
+          entities: {
+            studios: [gameState.studio.id],
+            projects: [project.id],
+            talent: project.cast?.map(c => c.talentId) || []
+          },
+          eventData: { project },
+          week: gameState.currentWeek,
+          year: gameState.currentYear
+        });
+        triggeredEvents.push(eventId);
+      }
+
+      // Check for completed films
+      const newlyCompleted = gameState.projects.filter(project =>
+        project.status === 'post-production' &&
+        previousState.projects.find(p => p.id === project.id)?.status === 'production'
+      );
+
+      for (const project of newlyCompleted) {
+        const eventId = this.queueMediaEvent({
+          type: 'production_wrap',
+          triggerType: 'automatic',
+          priority: 'medium',
+          entities: {
+            studios: [gameState.studio.id],
+            projects: [project.id],
+            talent: project.cast?.map(c => c.talentId) || []
+          },
+          eventData: { project },
+          week: gameState.currentWeek,
+          year: gameState.currentYear
+        });
+        triggeredEvents.push(eventId);
+      }
+    }
+
+    // Random industry events (5% chance per week)
+    if (Math.random() < 0.05) {
+      const randomEventTypes = ['rumor', 'interview', 'exclusive'];
+      const eventType = randomEventTypes[Math.floor(Math.random() * randomEventTypes.length)];
+      
+      // Pick random talent for the event
+      const talent = gameState.talent[Math.floor(Math.random() * gameState.talent.length)];
+      
+      const eventId = this.queueMediaEvent({
+        type: eventType as any,
+        triggerType: 'random',
+        priority: 'low',
+        entities: {
+          talent: [talent.id]
+        },
+        eventData: { talent },
+        week: gameState.currentWeek,
+        year: gameState.currentYear
+      });
+      triggeredEvents.push(eventId);
+    }
+
+    return triggeredEvents;
+  }
+
+  // Get entities (studios, talent, projects) referenced in an event
+  private static getEntitiesForEvent(event: MediaEvent, gameState: GameState) {
+    const entities: {
+      studios?: Studio[];
+      talent?: TalentPerson[];
+      projects?: Project[];
+    } = {};
+
+    if (event.entities.studios) {
+      entities.studios = [gameState.studio]; // For now, only player studio
+    }
+
+    if (event.entities.talent) {
+      entities.talent = gameState.talent.filter(t => 
+        event.entities.talent?.includes(t.id)
+      );
+    }
+
+    if (event.entities.projects) {
+      entities.projects = gameState.projects.filter(p => 
+        event.entities.projects?.includes(p.id)
+      );
+    }
+
+    return entities;
+  }
+
+  // Update media memory for reputation tracking
+  private static updateMediaMemory(mediaItem: MediaItem) {
+    const updateEntityMemory = (entityId: string, entityType: 'studio' | 'talent' | 'project' | 'film') => {
+      let memory = this.mediaMemory.get(entityId);
+      
+      if (!memory) {
+        memory = {
+          entityId,
+          entityType,
+          reputationImpact: 0,
+          sentimentHistory: [],
+          majorStories: [],
+          currentBuzz: 0,
+          lastMajorStory: undefined
+        };
+      }
+
+      // Update sentiment history
+      memory.sentimentHistory.push({
+        week: mediaItem.publishDate.week,
+        year: mediaItem.publishDate.year,
+        sentiment: mediaItem.sentiment,
+        intensity: mediaItem.impact.intensity
+      });
+
+      // Calculate reputation impact
+      const sentimentMultiplier = {
+        'positive': 1,
+        'neutral': 0,
+        'negative': -1
+      }[mediaItem.sentiment];
+
+      const impactValue = (mediaItem.impact.reach * mediaItem.impact.credibility * mediaItem.impact.intensity) / 10000;
+      memory.reputationImpact += impactValue * sentimentMultiplier;
+
+      // Update buzz level
+      memory.currentBuzz = Math.min(100, memory.currentBuzz + mediaItem.impact.virality);
+
+      // Track major stories
+      if (mediaItem.impact.intensity > 50) {
+        memory.majorStories.push(mediaItem.id);
+        memory.lastMajorStory = {
+          week: mediaItem.publishDate.week,
+          year: mediaItem.publishDate.year,
+          type: mediaItem.type,
+          sentiment: mediaItem.sentiment
+        };
+      }
+
+      // Keep only recent sentiment history (last 52 weeks)
+      memory.sentimentHistory = memory.sentimentHistory.filter(entry =>
+        mediaItem.publishDate.week - entry.week < 52 && mediaItem.publishDate.year >= entry.year
+      );
+
+      this.mediaMemory.set(entityId, memory);
+    };
+
+    // Update memory for all targeted entities
+    if (mediaItem.targets.studios) {
+      mediaItem.targets.studios.forEach(id => updateEntityMemory(id, 'studio'));
+    }
+    if (mediaItem.targets.talent) {
+      mediaItem.targets.talent.forEach(id => updateEntityMemory(id, 'talent'));
+    }
+    if (mediaItem.targets.projects) {
+      mediaItem.targets.projects.forEach(id => updateEntityMemory(id, 'project'));
+    }
+  }
+
+  // Public API for getting media data
+  static getRecentMedia(limit: number = 20): MediaItem[] {
+    return this.mediaHistory
+      .sort((a, b) => b.publishDate.week - a.publishDate.week)
+      .slice(0, limit);
+  }
+
+  static getMediaForEntity(entityId: string): MediaItem[] {
+    return this.mediaHistory.filter(item =>
+      item.targets.studios?.includes(entityId) ||
+      item.targets.talent?.includes(entityId) ||
+      item.targets.projects?.includes(entityId)
+    );
+  }
+
+  static getMediaMemory(entityId: string): MediaMemory | undefined {
+    return this.mediaMemory.get(entityId);
+  }
+
+  static getAllMediaSources() {
+    return MediaSourceGenerator.generateMediaSources();
+  }
+
+  static getMediaStats() {
+    return {
+      totalItems: this.mediaHistory.length,
+      queuedEvents: this.eventQueue.filter(e => !e.processed).length,
+      entitiesTracked: this.mediaMemory.size,
+      recentActivity: this.mediaHistory.filter(item => 
+        // Items from last 4 weeks
+        Date.now() - new Date(item.publishDate.year, 0, item.publishDate.week * 7).getTime() < 4 * 7 * 24 * 60 * 60 * 1000
+      ).length
+    };
+  }
+
+  // Player action triggers
+  static triggerCastingAnnouncement(project: Project, talent: TalentPerson, gameState: GameState): string {
+    return this.queueMediaEvent({
+      type: 'casting_announcement',
+      triggerType: 'player_action',
+      priority: talent.reputation > 80 ? 'high' : 'medium',
+      entities: {
+        studios: [gameState.studio.id],
+        projects: [project.id],
+        talent: [talent.id]
+      },
+      eventData: { project, talent },
+      week: gameState.currentWeek,
+      year: gameState.currentYear
+    });
+  }
+
+  static triggerBoxOfficeReport(project: Project, earnings: number, gameState: GameState): string {
+    return this.queueMediaEvent({
+      type: 'box_office',
+      triggerType: 'automatic',
+      priority: earnings > 50000000 ? 'breaking' : 'high',
+      entities: {
+        studios: [gameState.studio.id],
+        projects: [project.id],
+        talent: project.cast?.map(c => c.talentId) || []
+      },
+      eventData: { project, earnings },
+      week: gameState.currentWeek,
+      year: gameState.currentYear
+    });
+  }
+
+  static triggerAwardWin(talent: TalentPerson, award: string, project: Project, gameState: GameState): string {
+    return this.queueMediaEvent({
+      type: 'award_win',
+      triggerType: 'automatic',
+      priority: 'breaking',
+      entities: {
+        studios: [gameState.studio.id],
+        projects: [project.id],
+        talent: [talent.id]
+      },
+      eventData: { talent, award, project },
+      week: gameState.currentWeek,
+      year: gameState.currentYear
+    });
+  }
+}
