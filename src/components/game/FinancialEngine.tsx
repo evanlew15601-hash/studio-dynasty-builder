@@ -171,15 +171,33 @@ export class FinancialEngine {
       .reverse(); // Most recent first
   }
   
-  static simulateBoxOfficeWeek(films: { id: string; title: string; weeksSinceRelease: number }[], currentWeek: number, currentYear: number): void {
+  static simulateBoxOfficeWeek(films: { id: string; title: string; weeksSinceRelease: number; budget: number; genre: string }[], currentWeek: number, currentYear: number): void {
     films.forEach(film => {
       if (film.weeksSinceRelease >= 0) {
-        // Simple box office simulation - declines over time
-        let baseEarnings = 5000; // Base 5M per week
-        const declineRate = Math.pow(0.7, film.weeksSinceRelease); // 30% decline each week
+        // Enhanced box office simulation based on budget and genre
+        let baseEarnings = Math.max(film.budget * 0.1, 1000); // Base on budget, minimum 1M
+        
+        // Genre multipliers
+        const genreMultipliers: Record<string, number> = {
+          'action': 1.3,
+          'comedy': 1.0,
+          'drama': 0.8,
+          'horror': 1.2,
+          'romance': 0.9,
+          'thriller': 1.1,
+          'family': 1.4,
+          'animation': 1.5,
+          'sci-fi': 1.3,
+          'fantasy': 1.2
+        };
+        
+        baseEarnings *= genreMultipliers[film.genre] || 1.0;
+        
+        // Decline rate based on genre and performance
+        const declineRate = Math.pow(0.65, film.weeksSinceRelease); // Faster decline
         const weeklyEarnings = baseEarnings * declineRate;
         
-        if (weeklyEarnings > 100) { // Stop tracking when earnings drop below 100k
+        if (weeklyEarnings > 50) { // Stop tracking when earnings drop below 50k
           this.recordFilmRevenue(
             film.id,
             weeklyEarnings,
@@ -187,7 +205,65 @@ export class FinancialEngine {
             currentYear,
             `Week ${film.weeksSinceRelease + 1} box office`
           );
+          
+          // Add streaming revenue after theatrical window (4+ weeks)
+          if (film.weeksSinceRelease >= 4) {
+            const streamingRevenue = weeklyEarnings * 0.3; // 30% of box office
+            this.recordTransaction(
+              'revenue',
+              'streaming',
+              streamingRevenue,
+              currentWeek,
+              currentYear,
+              `Streaming revenue - Week ${film.weeksSinceRelease + 1}`,
+              film.id
+            );
+          }
         }
+      }
+    });
+  }
+
+  static processWeeklyFinancialEvents(currentWeek: number, currentYear: number, studios: any[], projects: any[]): void {
+    // Process studio overhead costs
+    studios.forEach(studio => {
+      const weeklyOverhead = Math.max(studio.budget * 0.001, 50); // 0.1% of budget or 50k minimum
+      this.recordStudioOverhead(
+        weeklyOverhead,
+        currentWeek,
+        currentYear,
+        `Studio ${studio.name} weekly overhead`
+      );
+    });
+
+    // Process ongoing production costs
+    projects.forEach(project => {
+      if (project.status === 'in-production' || project.status === 'post-production') {
+        const weeklyProductionCost = project.budget.total * 0.02; // 2% of budget per week
+        this.recordFilmExpense(
+          project.id,
+          weeklyProductionCost,
+          currentWeek,
+          currentYear,
+          'production',
+          `Weekly production costs - ${project.title}`
+        );
+      }
+      
+      // Process talent weekly payments
+      if (project.contractedTalent) {
+        project.contractedTalent.forEach((talent: any) => {
+          if (talent.weeklyPay > 0) {
+            this.recordFilmExpense(
+              project.id,
+              talent.weeklyPay,
+              currentWeek,
+              currentYear,
+              'talent',
+              `Weekly payment - ${talent.name}`
+            );
+          }
+        });
       }
     });
   }

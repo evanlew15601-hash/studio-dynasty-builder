@@ -9,6 +9,7 @@ import { PostTheatricalManagement } from './PostTheatricalManagement';
 import { StudioDashboard } from './StudioDashboard';
 import { StudioStats } from './StudioStats';
 import { FinancialReporting } from './FinancialReporting';
+import { FinancialDashboard } from './FinancialDashboard';
 import { TimeSystem, TimeState } from './TimeSystem';
 import { BoxOfficeSystem } from './BoxOfficeSystem';
 import { updateProjectFinancials } from './FinancialCalculations';
@@ -919,10 +920,20 @@ export const StudioMagnateGame: React.FC<StudioMagnateGameProps> = ({ onPhaseCha
               p.releaseYear!,
               newTimeState.currentWeek,
               newTimeState.currentYear
-            )
+            ),
+            budget: p.budget?.total || 10000000,
+            genre: p.script?.genre || 'drama'
           }));
         
         FinancialEngine.simulateBoxOfficeWeek(releasedFilms, newTimeState.currentWeek, newTimeState.currentYear);
+        
+        // Process weekly financial events
+        FinancialEngine.processWeeklyFinancialEvents(
+          newTimeState.currentWeek,
+          newTimeState.currentYear,
+          [prev.studio, ...prev.competitorStudios],
+          updatedProjects
+        );
       });
       
       updatedProjects = processWeeklyProjectEffects(updatedProjects, newTimeState);
@@ -1171,7 +1182,11 @@ export const StudioMagnateGame: React.FC<StudioMagnateGameProps> = ({ onPhaseCha
         )}
         
         {currentPhase === 'financials' && (
-          <FinancialReporting gameState={gameState} />
+          <FinancialDashboard
+            currentWeek={gameState.currentWeek}
+            currentYear={gameState.currentYear}
+            projects={gameState.projects}
+          />
         )}
         
         {currentPhase === 'awards' && (
