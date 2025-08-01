@@ -173,7 +173,11 @@ export const StudioMagnateGame: React.FC<StudioMagnateGameProps> = ({ onPhaseCha
     onPhaseChange?.(phase);
   };
 
-  const handleProjectCreate = (script: Script) => {
+  const handleProjectCreate = async (script: Script) => {
+    // Start loading for project creation
+    startOperation('project-create', 'Creating Project', 2);
+    updateOperation('project-create', 20, 'Validating budget...');
+    
     const developmentCost = script.budget * 0.1;
     
     // Check if studio can afford the project (including potential loan capacity)
@@ -181,6 +185,8 @@ export const StudioMagnateGame: React.FC<StudioMagnateGameProps> = ({ onPhaseCha
     const availableFunds = gameState.studio.budget + maxLoanCapacity;
     
     if (developmentCost > availableFunds) {
+      updateOperation('project-create', 40, 'Insufficient funds available');
+      completeOperation('project-create');
       toast({
         title: "Cannot Greenlight Project",
         description: "Project cost exceeds studio capacity even with loans.",
@@ -188,6 +194,8 @@ export const StudioMagnateGame: React.FC<StudioMagnateGameProps> = ({ onPhaseCha
       });
       return;
     }
+
+    updateOperation('project-create', 60, 'Setting up project structure...');
 
     const newProject: Project = {
       id: `project-${Date.now()}`,
@@ -268,6 +276,8 @@ export const StudioMagnateGame: React.FC<StudioMagnateGameProps> = ({ onPhaseCha
       metrics: {}
     };
 
+    updateOperation('project-create', 90, 'Finalizing project...');
+
     // Deduct development cost and handle loan if needed
     const newBudget = gameState.studio.budget - developmentCost;
     let newDebt = gameState.studio.debt || 0;
@@ -295,11 +305,16 @@ export const StudioMagnateGame: React.FC<StudioMagnateGameProps> = ({ onPhaseCha
       }
     }));
 
+    updateOperation('project-create', 100, 'Project created successfully!');
+
     setSelectedProject(newProject);
     toast({
       title: "Project Greenlit!",
       description: `"${script.title}" has entered development.`,
     });
+    
+    // Complete loading operation
+    setTimeout(() => completeOperation('project-create'), 500);
   };
 
   const handleStudioUpdate = (updates: Partial<Studio>) => {
@@ -918,7 +933,7 @@ export const StudioMagnateGame: React.FC<StudioMagnateGameProps> = ({ onPhaseCha
     updateOperation(LOADING_OPERATIONS.WEEKLY_PROCESSING.id, 10, 'Advancing time...');
     // Remove await since we'll handle this synchronously
 
-    updateOperation(LOADING_OPERATIONS.WEEKLY_PROCESSING.id, 30, 'Processing projects...');
+    updateOperation(LOADING_OPERATIONS.WEEKLY_PROCESSING.id, 50, 'Processing AI studios...');
     
     setGameState(prev => {
       const newTimeState = TimeSystem.advanceWeek({
@@ -979,11 +994,15 @@ export const StudioMagnateGame: React.FC<StudioMagnateGameProps> = ({ onPhaseCha
         );
       });
       
+      updateOperation(LOADING_OPERATIONS.WEEKLY_PROCESSING.id, 70, 'Calculating finances...');
+      
       updatedProjects = processWeeklyProjectEffects(updatedProjects, newTimeState);
 
       // Generate AI studio releases every 2-4 weeks
       const shouldGenerateRelease = Math.random() < 0.3; // 30% chance each week
       let newAIReleases: BoxOfficeRelease[] = [];
+      
+      updateOperation(LOADING_OPERATIONS.WEEKLY_PROCESSING.id, 90, 'Finalizing updates...');
       
       if (shouldGenerateRelease && prev.competitorStudios.length > 0) {
         const studioGenerator = new StudioGenerator();
@@ -1065,7 +1084,9 @@ export const StudioMagnateGame: React.FC<StudioMagnateGameProps> = ({ onPhaseCha
   };
 
   return (
-    <div className="min-h-screen bg-background font-studio">
+    <>
+      <LoadingOverlay loading={loading} />
+      <div className="min-h-screen bg-background font-studio">
       {/* Achievement Notifications */}
       <AchievementNotifications
         achievements={achievements.recentUnlocks}
@@ -1409,7 +1430,6 @@ export const StudioMagnateGame: React.FC<StudioMagnateGameProps> = ({ onPhaseCha
           />
         )}
       </div>
-    </div>
     </div>
     </>
   );
