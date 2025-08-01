@@ -1252,9 +1252,44 @@ export const StudioMagnateGame: React.FC<StudioMagnateGameProps> = ({ onPhaseCha
         
         {currentPhase === 'media' && (
           <Suspense fallback={<div>Loading media dashboard...</div>}>
-            {React.createElement(React.lazy(() => import('./MediaDashboard').then(m => ({ default: m.MediaDashboard }))), {
-              gameState: gameState
-            })}
+            <Tabs defaultValue="feed" className="space-y-4">
+              <TabsList>
+                <TabsTrigger value="feed">Media Feed</TabsTrigger>
+                <TabsTrigger value="responses">Response Center</TabsTrigger>
+                <TabsTrigger value="analytics">Analytics</TabsTrigger>
+              </TabsList>
+              
+              <TabsContent value="feed">
+                {React.createElement(React.lazy(() => import('./MediaDashboard').then(m => ({ default: m.MediaDashboard }))), {
+                  gameState: gameState
+                })}
+              </TabsContent>
+              
+              <TabsContent value="responses">
+                {React.createElement(React.lazy(() => import('./MediaResponseDashboard').then(m => ({ default: m.MediaResponseDashboard }))), {
+                  gameState: gameState,
+                  onBudgetUpdate: (newBudget: number) => {
+                    setGameState(prev => ({
+                      ...prev,
+                      studio: { ...prev.studio, budget: newBudget }
+                    }));
+                  },
+                  onReputationUpdate: (change: number) => {
+                    setGameState(prev => ({
+                      ...prev,
+                      studio: { ...prev.studio, reputation: Math.max(0, Math.min(100, prev.studio.reputation + change)) }
+                    }));
+                  }
+                })}
+              </TabsContent>
+              
+              <TabsContent value="analytics">
+                <div className="text-center text-muted-foreground py-8">
+                  <h3 className="text-lg font-semibold mb-2">Media Analytics Dashboard</h3>
+                  <p>Advanced analytics and reputation tracking coming soon...</p>
+                </div>
+              </TabsContent>
+            </Tabs>
           </Suspense>
         )}
         
