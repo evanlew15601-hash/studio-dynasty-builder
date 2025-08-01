@@ -1210,115 +1210,81 @@ export const StudioMagnateGame: React.FC<StudioMagnateGameProps> = ({ onPhaseCha
               </Button>
             ))}
 
-            {/* Business Analytics Dropdown */}
-            <DropdownMenu>
-              <DropdownMenuTrigger asChild>
-                <Button
-                  variant="ghost"
-                  className={`rounded-none border-b-2 px-4 py-4 font-medium transition-all duration-300 border-transparent hover:border-primary/40 hover:bg-primary/5 btn-ghost-premium ${
-                    ['financials', 'competition', 'market', 'topfilms', 'stats'].includes(currentPhase)
-                      ? 'border-primary bg-gradient-to-t from-primary/20 to-primary/10 text-primary shadow-lg' 
-                      : ''
-                  }`}
-                >
-                  <BarChartIcon className="mr-2" size={16} />
-                  Analytics
-                  <ChevronDown className="ml-1" size={14} />
-                </Button>
-              </DropdownMenuTrigger>
-              <DropdownMenuContent className="w-56 bg-card/95 backdrop-blur-md border-border/50 shadow-2xl z-50">
-                <DropdownMenuItem onClick={(e) => {
-                  e.preventDefault();
-                  handlePhaseChange('financials');
-                }} className="cursor-pointer">
+            {/* Business Analytics - Simple Buttons */}
+            <div className="relative group">
+              <Button
+                variant="ghost"
+                className={`rounded-none border-b-2 px-4 py-4 font-medium transition-all duration-300 border-transparent hover:border-primary/40 hover:bg-primary/5 btn-ghost-premium ${
+                  ['financials', 'competition', 'market', 'topfilms', 'stats'].includes(currentPhase)
+                    ? 'border-primary bg-gradient-to-t from-primary/20 to-primary/10 text-primary shadow-lg' 
+                    : ''
+                }`}
+              >
+                <BarChartIcon className="mr-2" size={16} />
+                Analytics
+                <ChevronDown className="ml-1" size={14} />
+              </Button>
+              <div className="absolute top-full left-0 z-50 hidden group-hover:block bg-card/95 backdrop-blur-md border border-border/50 shadow-2xl rounded-md min-w-[200px]">
+                <button onClick={() => handlePhaseChange('financials')} className="w-full px-4 py-2 text-left hover:bg-primary/10 flex items-center">
                   <BudgetIcon className="mr-2" size={16} />
                   Financials
-                </DropdownMenuItem>
-                <DropdownMenuItem onClick={(e) => {
-                  e.preventDefault();
-                  handlePhaseChange('competition');
-                }} className="cursor-pointer">
+                </button>
+                <button onClick={() => handlePhaseChange('competition')} className="w-full px-4 py-2 text-left hover:bg-primary/10 flex items-center">
                   <BarChartIcon className="mr-2" size={16} />
                   AI Competition
-                </DropdownMenuItem>
-                <DropdownMenuItem onClick={(e) => {
-                  e.preventDefault();
-                  handlePhaseChange('market');
-                }} className="cursor-pointer">
+                </button>
+                <button onClick={() => handlePhaseChange('market')} className="w-full px-4 py-2 text-left hover:bg-primary/10 flex items-center">
                   <BarChartIcon className="mr-2" size={16} />
                   Market Analysis
-                </DropdownMenuItem>
-                <DropdownMenuItem onClick={(e) => {
-                  e.preventDefault();
-                  handlePhaseChange('topfilms');
-                }} className="cursor-pointer">
+                </button>
+                <button onClick={() => handlePhaseChange('topfilms')} className="w-full px-4 py-2 text-left hover:bg-primary/10 flex items-center">
                   <BarChartIcon className="mr-2" size={16} />
                   Top Films
-                </DropdownMenuItem>
-                <DropdownMenuItem onClick={(e) => {
-                  e.preventDefault();
-                  handlePhaseChange('stats');
-                }} className="cursor-pointer">
+                </button>
+                <button onClick={() => handlePhaseChange('stats')} className="w-full px-4 py-2 text-left hover:bg-primary/10 flex items-center">
                   <BarChartIcon className="mr-2" size={16} />
                   Performance Stats
-                </DropdownMenuItem>
-              </DropdownMenuContent>
-            </DropdownMenu>
+                </button>
+              </div>
+            </div>
 
-            {/* Studio Management Dropdown */}
-            <DropdownMenu>
-              <DropdownMenuTrigger asChild>
-                <Button
-                  variant="ghost"
-                  className={`rounded-none border-b-2 px-4 py-4 font-medium transition-all duration-300 border-transparent hover:border-primary/40 hover:bg-primary/5 btn-ghost-premium ${
-                     ['franchise', 'media', 'talent', 'awards', 'reputation'].includes(currentPhase)
-                       ? 'border-primary bg-gradient-to-t from-primary/20 to-primary/10 text-primary shadow-lg' 
-                       : ''
-                   }`}
-                >
-                  <ReputationIcon className="mr-2" size={16} />
-                  Studio
-                  <ChevronDown className="ml-1" size={14} />
-                </Button>
-              </DropdownMenuTrigger>
-              <DropdownMenuContent className="w-56 bg-card/95 backdrop-blur-md border-border/50 shadow-2xl z-50">
-                <DropdownMenuItem onClick={(e) => {
-                  e.preventDefault();
-                  handlePhaseChange('franchise');
-                }} className="cursor-pointer">
+            {/* Studio Management - Simple Buttons */}
+            <div className="relative group">
+              <Button
+                variant="ghost"
+                className={`rounded-none border-b-2 px-4 py-4 font-medium transition-all duration-300 border-transparent hover:border-primary/40 hover:bg-primary/5 btn-ghost-premium ${
+                   ['franchise', 'media', 'talent', 'awards', 'reputation'].includes(currentPhase)
+                     ? 'border-primary bg-gradient-to-t from-primary/20 to-primary/10 text-primary shadow-lg' 
+                     : ''
+                 }`}
+              >
+                <ReputationIcon className="mr-2" size={16} />
+                Studio
+                <ChevronDown className="ml-1" size={14} />
+              </Button>
+              <div className="absolute top-full left-0 z-50 hidden group-hover:block bg-card/95 backdrop-blur-md border border-border/50 shadow-2xl rounded-md min-w-[200px]">
+                <button onClick={() => handlePhaseChange('franchise')} className="w-full px-4 py-2 text-left hover:bg-primary/10 flex items-center">
                   <ClapperboardIcon className="mr-2" size={16} />
                   Franchise Manager
-                </DropdownMenuItem>
-                <DropdownMenuItem onClick={(e) => {
-                  e.preventDefault();
-                  handlePhaseChange('media');
-                }} className="cursor-pointer">
+                </button>
+                <button onClick={() => handlePhaseChange('media')} className="w-full px-4 py-2 text-left hover:bg-primary/10 flex items-center">
                   <BarChartIcon className="mr-2" size={16} />
                   Media Relations
-                </DropdownMenuItem>
-                <DropdownMenuItem onClick={(e) => {
-                  e.preventDefault();
-                  handlePhaseChange('talent');
-                }} className="cursor-pointer">
+                </button>
+                <button onClick={() => handlePhaseChange('talent')} className="w-full px-4 py-2 text-left hover:bg-primary/10 flex items-center">
                   <CastingIcon className="mr-2" size={16} />
                   Talent Management
-                </DropdownMenuItem>
-                <DropdownMenuItem onClick={(e) => {
-                  e.preventDefault();
-                  handlePhaseChange('awards');
-                }} className="cursor-pointer">
+                </button>
+                <button onClick={() => handlePhaseChange('awards')} className="w-full px-4 py-2 text-left hover:bg-primary/10 flex items-center">
                   <ReputationIcon className="mr-2" size={16} />
                   Awards & Recognition
-                </DropdownMenuItem>
-                <DropdownMenuItem onClick={(e) => {
-                  e.preventDefault();
-                  handlePhaseChange('reputation');
-                }} className="cursor-pointer">
+                </button>
+                <button onClick={() => handlePhaseChange('reputation')} className="w-full px-4 py-2 text-left hover:bg-primary/10 flex items-center">
                   <ReputationIcon className="mr-2" size={16} />
                   Reputation Management
-                </DropdownMenuItem>
-              </DropdownMenuContent>
-            </DropdownMenu>
+                </button>
+              </div>
+            </div>
           </div>
         </div>
       </div>
