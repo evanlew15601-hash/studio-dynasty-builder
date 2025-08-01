@@ -1,5 +1,5 @@
 // Comprehensive Talent Generation System
-import { TalentPerson, Genre } from '@/types/game';
+import { TalentPerson, Genre, TalentAgent } from '@/types/game';
 
 interface BiographyTemplate {
   careerPath: string;
@@ -377,9 +377,38 @@ export class TalentGenerator {
     return selected;
   }
 
-  private selectAgent(): string {
-    const agents = ['CAA', 'WME', 'UTA', 'ICM', 'Gersh', 'APA', 'Paradigm', 'Independent'];
-    return agents[Math.floor(Math.random() * agents.length)];
+  private selectAgent(): TalentAgent {
+    const agencies = [
+      { name: 'CAA', powerLevel: 9, commission: 10 },
+      { name: 'WME', powerLevel: 9, commission: 10 },
+      { name: 'UTA', powerLevel: 8, commission: 10 },
+      { name: 'ICM', powerLevel: 7, commission: 10 },
+      { name: 'Gersh', powerLevel: 6, commission: 8 },
+      { name: 'APA', powerLevel: 5, commission: 8 },
+      { name: 'Paradigm', powerLevel: 4, commission: 8 },
+      { name: 'Independent', powerLevel: 3, commission: 5 }
+    ];
+    
+    const agentNames = [
+      'Richard Sterling', 'Sarah Chen', 'Michael Rodriguez', 'Emma Thompson',
+      'David Kim', 'Amanda Foster', 'James Wilson', 'Lisa Parker',
+      'Robert Taylor', 'Jennifer Martinez', 'Christopher Lee', 'Rachel Davis'
+    ];
+    
+    const agency = agencies[Math.floor(Math.random() * agencies.length)];
+    const agentName = agentNames[Math.floor(Math.random() * agentNames.length)];
+    
+    return {
+      id: `agent_${Math.random().toString(36).substr(2, 9)}`,
+      name: agentName,
+      agency: agency.name,
+      powerLevel: agency.powerLevel + Math.floor(Math.random() * 2) - 1, // ±1 variation
+      commission: agency.commission,
+      specialties: this.selectGenres(Math.floor(Math.random() * 3) + 1),
+      clientList: [], // Will be populated later
+      reputation: Math.floor(Math.random() * 50) + 50, // 50-100
+      connectionStrength: Math.floor(Math.random() * 40) + 60 // 60-100
+    };
   }
 
   private selectDirectingStyle(): string {

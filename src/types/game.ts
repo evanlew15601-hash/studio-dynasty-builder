@@ -72,7 +72,7 @@ export interface TalentPerson {
   relationships?: { [personId: string]: RelationshipType };
   availabilityCalendar?: DateRange[];
   availability: DateRange;
-  agent?: string;
+  agent?: TalentAgent;
   currentContractWeeks?: number;
   weeklyOverhead?: number;
   // Enhanced talent properties
@@ -87,6 +87,12 @@ export interface TalentPerson {
   budgetApproach?: string;
   avgCriticalScore?: number;
   avgBoxOfficeMultiplier?: number;
+  // Advanced talent management
+  burnoutLevel?: number; // 0-100, higher = more tired
+  studioLoyalty?: { [studioId: string]: number }; // 0-100 loyalty per studio
+  chemistry?: { [talentId: string]: number }; // -100 to 100 chemistry with other talent
+  futureHolds?: TalentHold[]; // Pre-contracts and reservations
+  recentProjects?: string[]; // Last 5 project IDs for burnout tracking
 }
 
 export interface CareerEvent {
@@ -429,6 +435,56 @@ export type ProductionPhase =
 
 export type RelationshipType = 
   | 'professional' | 'friendly' | 'romantic' | 'rivals' | 'mentor-mentee' | 'hostile';
+
+// Advanced Talent Management Types
+export interface TalentAgent {
+  id: string;
+  name: string;
+  agency: string;
+  powerLevel: number; // 1-10, affects negotiation strength
+  commission: number; // Percentage taken from deals
+  specialties: Genre[];
+  clientList: string[]; // Talent IDs
+  reputation: number;
+  connectionStrength: number; // Ability to get priority deals
+}
+
+export interface TalentHold {
+  id: string;
+  talentId: string;
+  studioId: string;
+  projectId?: string;
+  startWeek: number;
+  endWeek: number;
+  year: number;
+  type: 'hold' | 'pre-contract' | 'exclusive';
+  terms?: {
+    salary?: number;
+    bonuses?: number;
+    perks?: string[];
+  };
+  status: 'pending' | 'confirmed' | 'expired' | 'cancelled';
+}
+
+export interface ChemistryEvent {
+  id: string;
+  talent1Id: string;
+  talent2Id: string;
+  projectId: string;
+  interactionType: 'positive' | 'negative' | 'neutral';
+  magnitude: number; // How much it affects chemistry
+  description: string;
+  week: number;
+  year: number;
+}
+
+export interface BurnoutCalculation {
+  talentId: string;
+  recentProjects: number; // Projects in last 52 weeks
+  intensityScore: number; // Based on budget/pressure of recent projects
+  recoveryWeeks: number; // Weeks since last project
+  currentBurnout: number; // 0-100
+}
 
 export interface GameState {
   studio: Studio;
