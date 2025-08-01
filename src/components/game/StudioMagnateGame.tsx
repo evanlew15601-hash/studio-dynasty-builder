@@ -56,9 +56,15 @@ import {
 
 interface StudioMagnateGameProps {
   onPhaseChange?: (phase: string) => void;
+  gameConfig?: {
+    studioName: string;
+    specialties: Genre[];
+    difficulty: 'easy' | 'normal' | 'hard' | 'magnate';
+    startingBudget: number;
+  };
 }
 
-export const StudioMagnateGame: React.FC<StudioMagnateGameProps> = ({ onPhaseChange }) => {
+export const StudioMagnateGame: React.FC<StudioMagnateGameProps> = ({ onPhaseChange, gameConfig }) => {
   const { toast } = useToast();
   const { loading, startOperation, updateOperation, completeOperation } = useLoadingContext();
   
@@ -84,14 +90,14 @@ export const StudioMagnateGame: React.FC<StudioMagnateGameProps> = ({ onPhaseCha
     
     const studio = {
       id: 'player-studio',
-      name: 'Untitled Pictures',
+      name: gameConfig?.studioName || 'Untitled Pictures',
       reputation: 50,
-      budget: 10000000, // $10M starting budget
+      budget: gameConfig?.startingBudget || 10000000,
       founded: new Date().getFullYear(),
-      specialties: ['drama'] as Genre[],
-      debt: 0, // Track studio debt
-      lastProjectWeek: 0, // Track when last project was greenlit
-      weeksSinceLastProject: 0 // Counter for reputation decay
+      specialties: gameConfig?.specialties || ['drama'] as Genre[],
+      debt: 0,
+      lastProjectWeek: 0,
+      weeksSinceLastProject: 0
     };
 
     updateOperation(LOADING_OPERATIONS.GAME_INIT.id, 30, 'Generating talent pool...');
