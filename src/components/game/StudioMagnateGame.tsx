@@ -1215,10 +1215,10 @@ export const StudioMagnateGame: React.FC<StudioMagnateGameProps> = ({ onPhaseCha
               <DropdownMenuTrigger asChild>
                 <Button
                   variant="ghost"
-                  className={`rounded-none border-b-2 px-4 py-4 font-medium transition-all duration-300 ${
+                  className={`rounded-none border-b-2 px-4 py-4 font-medium transition-all duration-300 border-transparent hover:border-primary/40 hover:bg-primary/5 btn-ghost-premium ${
                     ['financials', 'competition', 'market', 'topfilms', 'stats'].includes(currentPhase)
                       ? 'border-primary bg-gradient-to-t from-primary/20 to-primary/10 text-primary shadow-lg' 
-                      : 'border-transparent hover:border-primary/40 hover:bg-primary/5 btn-ghost-premium'
+                      : ''
                   }`}
                 >
                   <BarChartIcon className="mr-2" size={16} />
@@ -1227,23 +1227,23 @@ export const StudioMagnateGame: React.FC<StudioMagnateGameProps> = ({ onPhaseCha
                 </Button>
               </DropdownMenuTrigger>
               <DropdownMenuContent className="w-56 bg-card/95 backdrop-blur-md border-border/50 shadow-2xl z-50">
-                <DropdownMenuItem onClick={() => handlePhaseChange('financials')} className="cursor-pointer">
+                <DropdownMenuItem onClick={() => setCurrentPhase('financials')} className="cursor-pointer">
                   <BudgetIcon className="mr-2" size={16} />
                   Financials
                 </DropdownMenuItem>
-                <DropdownMenuItem onClick={() => handlePhaseChange('competition')} className="cursor-pointer">
+                <DropdownMenuItem onClick={() => setCurrentPhase('competition')} className="cursor-pointer">
                   <BarChartIcon className="mr-2" size={16} />
                   AI Competition
                 </DropdownMenuItem>
-                <DropdownMenuItem onClick={() => handlePhaseChange('market')} className="cursor-pointer">
+                <DropdownMenuItem onClick={() => setCurrentPhase('market')} className="cursor-pointer">
                   <BarChartIcon className="mr-2" size={16} />
                   Market Analysis
                 </DropdownMenuItem>
-                <DropdownMenuItem onClick={() => handlePhaseChange('topfilms')} className="cursor-pointer">
+                <DropdownMenuItem onClick={() => setCurrentPhase('topfilms')} className="cursor-pointer">
                   <BarChartIcon className="mr-2" size={16} />
                   Top Films
                 </DropdownMenuItem>
-                <DropdownMenuItem onClick={() => handlePhaseChange('stats')} className="cursor-pointer">
+                <DropdownMenuItem onClick={() => setCurrentPhase('stats')} className="cursor-pointer">
                   <BarChartIcon className="mr-2" size={16} />
                   Performance Stats
                 </DropdownMenuItem>
@@ -1255,10 +1255,10 @@ export const StudioMagnateGame: React.FC<StudioMagnateGameProps> = ({ onPhaseCha
               <DropdownMenuTrigger asChild>
                 <Button
                   variant="ghost"
-                   className={`rounded-none border-b-2 px-4 py-4 font-medium transition-all duration-300 ${
+                  className={`rounded-none border-b-2 px-4 py-4 font-medium transition-all duration-300 border-transparent hover:border-primary/40 hover:bg-primary/5 btn-ghost-premium ${
                      ['franchise', 'media', 'talent', 'awards', 'reputation'].includes(currentPhase)
                        ? 'border-primary bg-gradient-to-t from-primary/20 to-primary/10 text-primary shadow-lg' 
-                       : 'border-transparent hover:border-primary/40 hover:bg-primary/5 btn-ghost-premium'
+                       : ''
                    }`}
                 >
                   <ReputationIcon className="mr-2" size={16} />
@@ -1266,24 +1266,24 @@ export const StudioMagnateGame: React.FC<StudioMagnateGameProps> = ({ onPhaseCha
                   <ChevronDown className="ml-1" size={14} />
                 </Button>
               </DropdownMenuTrigger>
-               <DropdownMenuContent className="w-56 bg-card/95 backdrop-blur-md border-border/50 shadow-2xl z-50">
-                <DropdownMenuItem onClick={() => handlePhaseChange('franchise')} className="cursor-pointer">
+              <DropdownMenuContent className="w-56 bg-card/95 backdrop-blur-md border-border/50 shadow-2xl z-50">
+                <DropdownMenuItem onClick={() => setCurrentPhase('franchise')} className="cursor-pointer">
                   <ClapperboardIcon className="mr-2" size={16} />
                   Franchise Manager
                 </DropdownMenuItem>
-                <DropdownMenuItem onClick={() => handlePhaseChange('media')} className="cursor-pointer">
+                <DropdownMenuItem onClick={() => setCurrentPhase('media')} className="cursor-pointer">
                   <BarChartIcon className="mr-2" size={16} />
                   Media Relations
                 </DropdownMenuItem>
-                <DropdownMenuItem onClick={() => handlePhaseChange('talent')} className="cursor-pointer">
+                <DropdownMenuItem onClick={() => setCurrentPhase('talent')} className="cursor-pointer">
                   <CastingIcon className="mr-2" size={16} />
                   Talent Management
                 </DropdownMenuItem>
-                <DropdownMenuItem onClick={() => handlePhaseChange('awards')} className="cursor-pointer">
+                <DropdownMenuItem onClick={() => setCurrentPhase('awards')} className="cursor-pointer">
                   <ReputationIcon className="mr-2" size={16} />
                   Awards & Recognition
                 </DropdownMenuItem>
-                <DropdownMenuItem onClick={() => handlePhaseChange('reputation')} className="cursor-pointer">
+                <DropdownMenuItem onClick={() => setCurrentPhase('reputation')} className="cursor-pointer">
                   <ReputationIcon className="mr-2" size={16} />
                   Reputation Management
                 </DropdownMenuItem>
