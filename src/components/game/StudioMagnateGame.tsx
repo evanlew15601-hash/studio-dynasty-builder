@@ -15,10 +15,14 @@ import { updateProjectFinancials } from './FinancialCalculations';
 import { AwardsSystem } from './AwardsSystem';
 import { MarketCompetition } from './MarketCompetition';
 import { TopFilmsChart } from './TopFilmsChart';
+import { AchievementsPanel } from './AchievementsPanel';
+import { PerformanceMetrics } from './PerformanceMetrics';
+import { AchievementNotifications } from './AchievementNotifications';
 import { TalentGenerator } from '../../data/TalentGenerator';
 import { StudioGenerator } from '../../data/StudioGenerator';
 import { useTalentMarket } from '../../hooks/useTalentMarket';
 import { useGenreSaturation } from '../../hooks/useGenreSaturation';
+import { useAchievements } from '../../hooks/useAchievements';
 import { Button } from '@/components/ui/button';
 import { Card } from '@/components/ui/card';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
@@ -42,10 +46,6 @@ interface StudioMagnateGameProps {
 
 export const StudioMagnateGame: React.FC<StudioMagnateGameProps> = ({ onPhaseChange }) => {
   const { toast } = useToast();
-  
-  // Market dynamics hooks
-  const talentMarket = useTalentMarket([], 1); // Will be updated with actual state
-  const genreSaturation = useGenreSaturation([], 1); // Will be updated with actual state
   
   const getPhaseWeeks = (phase: string): number => {
     switch (phase) {
@@ -105,8 +105,29 @@ export const StudioMagnateGame: React.FC<StudioMagnateGameProps> = ({ onPhaseCha
     };
   });
 
+  // Market dynamics hooks  
+  const talentMarket = useTalentMarket(gameState.talent, gameState.currentWeek);
+  const genreSaturation = useGenreSaturation(gameState.allReleases || [], gameState.currentWeek);
+  const achievements = useAchievements(gameState);
+
   const [currentPhase, setCurrentPhase] = useState<'dashboard' | 'scripts' | 'casting' | 'production' | 'marketing' | 'distribution' | 'financials' | 'awards' | 'market' | 'topfilms' | 'stats'>('dashboard');
   const [selectedProject, setSelectedProject] = useState<Project | null>(null);
+
+  // Handle achievement rewards
+  const handleAchievementRewards = (unlockedAchievements: any[]) => {
+    unlockedAchievements.forEach(achievement => {
+      if (achievement.reward) {
+        setGameState(prev => ({
+          ...prev,
+          studio: {
+            ...prev.studio,
+            reputation: prev.studio.reputation + (achievement.reward.reputation || 0),
+            budget: prev.studio.budget + (achievement.reward.budget || 0)
+          }
+        }));
+      }
+    });
+  };
 
   const handlePhaseChange = (phase: typeof currentPhase) => {
     setCurrentPhase(phase);
@@ -906,6 +927,15 @@ export const StudioMagnateGame: React.FC<StudioMagnateGameProps> = ({ onPhaseCha
 
   return (
     <div className="min-h-screen bg-background font-studio">
+      {/* Achievement Notifications */}
+      <AchievementNotifications
+        achievements={achievements.recentUnlocks}
+        onDismiss={(achievementId) => {
+          achievements.clearRecentUnlocks();
+          handleAchievementRewards(achievements.recentUnlocks);
+        }}
+      />
+
       {/* Studio Header */}
       <div className="border-b border-border/50 card-premium backdrop-blur-lg">
         <div className="container mx-auto px-6 py-6">
@@ -1096,7 +1126,7 @@ export const StudioMagnateGame: React.FC<StudioMagnateGameProps> = ({ onPhaseCha
         )}
         
         {currentPhase === 'stats' && (
-          <StudioStats gameState={gameState} />
+          <PerformanceMetrics gameState={gameState} />
         )}
       </div>
     </div>
