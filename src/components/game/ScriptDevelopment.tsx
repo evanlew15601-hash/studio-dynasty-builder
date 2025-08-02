@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import { GameState, Script, Genre, ScriptCharacteristics } from '@/types/game';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
@@ -14,40 +14,112 @@ import { ScriptIcon, BudgetIcon, AwardIcon, ClapperboardIcon } from '@/component
 
 interface ScriptDevelopmentProps {
   gameState: GameState;
+  selectedFranchise?: string | null;
+  selectedPublicDomain?: string | null;
   onProjectCreate: (script: Script) => void;
   onScriptUpdate: (script: Script) => void;
 }
 
 export const ScriptDevelopment: React.FC<ScriptDevelopmentProps> = ({
   gameState,
+  selectedFranchise,
+  selectedPublicDomain,
   onProjectCreate,
   onScriptUpdate,
 }) => {
   const { toast } = useToast();
   
   const [isCreating, setIsCreating] = useState(false);
-  const [newScript, setNewScript] = useState<Partial<Script>>({
-    title: '',
-    genre: 'drama',
-    logline: '',
-    writer: '',
-    pages: 120,
-    quality: 50,
-    budget: 5000000,
-    developmentStage: 'concept',
-    themes: [],
-    targetAudience: 'general',
-    estimatedRuntime: 120,
-    characteristics: {
-      tone: 'balanced',
-      pacing: 'steady',
-      dialogue: 'naturalistic',
-      visualStyle: 'realistic',
-      commercialAppeal: 5,
-      criticalPotential: 5,
-      cgiIntensity: 'minimal'
+  
+  // Auto-fill script based on selected franchise or PD
+  const getInitialScript = (): Partial<Script> => {
+    if (selectedFranchise) {
+      const franchise = gameState.franchises.find(f => f.id === selectedFranchise);
+      if (franchise) {
+        return {
+          title: `${franchise.title}${franchise.entries.length > 0 ? ` ${franchise.entries.length + 1}` : ''}`,
+          genre: franchise.genre[0] || 'drama',
+          logline: `${franchise.description || 'A continuation of the beloved franchise'} This installment explores new depths while honoring the legacy that fans love.`,
+          writer: '',
+          pages: 120,
+          quality: 50 + (franchise.culturalWeight * 0.3), // Higher for prestigious franchises
+          budget: Math.max(5000000, franchise.culturalWeight * 500000), // Budget scales with cultural weight
+          developmentStage: 'concept',
+          themes: franchise.franchiseTags.slice(0, 3),
+          targetAudience: franchise.tone === 'light' ? 'family' : 'general',
+          estimatedRuntime: franchise.genre.includes('fantasy') ? 150 : 120,
+          characteristics: {
+            tone: franchise.tone === 'dark' ? 'dark' : franchise.tone === 'comedic' ? 'light' : 'balanced',
+            pacing: franchise.genre.includes('action') ? 'fast-paced' : 'steady',
+            dialogue: 'naturalistic',
+            visualStyle: franchise.genre.includes('fantasy') || franchise.genre.includes('sci-fi') ? 'stylized' : 'realistic',
+            commercialAppeal: Math.min(10, Math.round(franchise.culturalWeight / 10)),
+            criticalPotential: Math.min(10, Math.round(franchise.averageRating || 5)),
+            cgiIntensity: franchise.genre.includes('action') || franchise.genre.includes('sci-fi') || franchise.genre.includes('fantasy') ? 'heavy' : 'minimal'
+          }
+        };
+      }
     }
-  });
+    
+    if (selectedPublicDomain) {
+      const pd = gameState.publicDomainIPs.find(p => p.id === selectedPublicDomain);
+      if (pd) {
+        return {
+          title: `${pd.name}: A New Vision`,
+          genre: pd.genreFlexibility[0] || 'drama',
+          logline: `${pd.description || 'A fresh adaptation of a timeless classic'} This modern interpretation brings new relevance to the beloved story.`,
+          writer: '',
+          pages: 120,
+          quality: 50 + (pd.reputationScore * 0.2), // Higher for well-known properties
+          budget: Math.max(3000000, pd.reputationScore * 200000), // Lower budget since it's free IP
+          developmentStage: 'concept',
+          themes: pd.coreElements.slice(0, 3),
+          targetAudience: pd.domainType === 'folklore' ? 'family' : 'general',
+          estimatedRuntime: pd.domainType === 'mythology' ? 140 : 120,
+          characteristics: {
+            tone: pd.domainType === 'religious' ? 'dramatic' : 'balanced',
+            pacing: 'steady',
+            dialogue: pd.domainType === 'literature' ? 'philosophical' : 'naturalistic',
+            visualStyle: pd.domainType === 'mythology' || pd.domainType === 'folklore' ? 'stylized' : 'realistic',
+            commercialAppeal: Math.min(10, Math.round(pd.reputationScore / 10)),
+            criticalPotential: Math.min(10, Math.round(pd.reputationScore / 8)), // Prestige from adaptation
+            cgiIntensity: pd.domainType === 'mythology' ? 'heavy' : 'minimal'
+          }
+        };
+      }
+    }
+    
+    // Default script
+    return {
+      title: '',
+      genre: 'drama',
+      logline: '',
+      writer: '',
+      pages: 120,
+      quality: 50,
+      budget: 5000000,
+      developmentStage: 'concept',
+      themes: [],
+      targetAudience: 'general',
+      estimatedRuntime: 120,
+      characteristics: {
+        tone: 'balanced',
+        pacing: 'steady',
+        dialogue: 'naturalistic',
+        visualStyle: 'realistic',
+        commercialAppeal: 5,
+        criticalPotential: 5,
+        cgiIntensity: 'minimal'
+      }
+    };
+  };
+  
+  const [newScript, setNewScript] = useState<Partial<Script>>(getInitialScript());
+
+  // Update script when franchise/PD selection changes
+  useEffect(() => {
+    setNewScript(getInitialScript());
+  }, [selectedFranchise, selectedPublicDomain]);
 
   const [scriptCharacters, setScriptCharacters] = useState<ScriptCharacter[]>([]);
 
@@ -95,7 +167,9 @@ export const ScriptDevelopment: React.FC<ScriptDevelopmentProps> = ({
 
     onScriptUpdate(script);
     setIsCreating(false);
-    setNewScript({});
+    
+    // Reset form to default state (clears franchise/PD selection)
+    setNewScript(getInitialScript());
     setScriptCharacters([]);
     
     toast({
@@ -124,6 +198,19 @@ export const ScriptDevelopment: React.FC<ScriptDevelopmentProps> = ({
 
   return (
     <div className="space-y-6">
+      {/* Debug info */}
+      {(selectedFranchise || selectedPublicDomain) && (
+        <div className="p-3 bg-blue-50 rounded-lg border border-blue-200">
+          <p className="text-sm text-blue-800">
+            ✨ Auto-filled from {selectedFranchise ? 'franchise' : 'public domain'}: {
+              selectedFranchise 
+                ? gameState.franchises.find(f => f.id === selectedFranchise)?.title 
+                : gameState.publicDomainIPs.find(p => p.id === selectedPublicDomain)?.name
+            }
+          </p>
+        </div>
+      )}
+      
       {/* Header */}
       <div className="flex items-center justify-between animate-slide-up">
         <div>

@@ -169,6 +169,8 @@ export const StudioMagnateGame: React.FC<StudioMagnateGameProps> = ({ onPhaseCha
 
   const [currentPhase, setCurrentPhase] = useState<'dashboard' | 'scripts' | 'casting' | 'talent' | 'franchise' | 'media' | 'production' | 'marketing' | 'distribution' | 'financials' | 'awards' | 'market' | 'topfilms' | 'stats' | 'reputation' | 'competition'>('dashboard');
   const [selectedProject, setSelectedProject] = useState<Project | null>(null);
+  const [selectedFranchise, setSelectedFranchise] = useState<string | null>(null);
+  const [selectedPublicDomain, setSelectedPublicDomain] = useState<string | null>(null);
 
   // Handle achievement rewards
   const handleAchievementRewards = (unlockedAchievements: Array<{ reward?: { reputation?: number; budget?: number } }>) => {
@@ -626,6 +628,8 @@ export const StudioMagnateGame: React.FC<StudioMagnateGameProps> = ({ onPhaseCha
       if (updatedProject.phaseDuration !== undefined && updatedProject.phaseDuration > 0) {
         const newPhaseDuration = updatedProject.phaseDuration - 1;
         
+        console.log(`⏱️ Phase timer for ${updatedProject.title}: ${updatedProject.phaseDuration} -> ${newPhaseDuration} (${updatedProject.currentPhase})`);
+        
         if (newPhaseDuration === 0) {
           const nextPhase = getNextPhase(updatedProject.currentPhase);
           
@@ -920,15 +924,17 @@ export const StudioMagnateGame: React.FC<StudioMagnateGameProps> = ({ onPhaseCha
         const budget = project.budget.total;
         const profitMargin = (totalRevenue * 0.55) / budget; // Studio share vs budget
         
+        console.log(`📊 Checking reputation for ${project.title}: Profit margin ${(profitMargin * 100).toFixed(0)}%`);
+        
         if (profitMargin > 2.0) { // 200% return - huge success
           studio.reputation = Math.min(100, studio.reputation + 3);
-          console.log(`📈 Big reputation boost from blockbuster ${project.title} (${(profitMargin * 100).toFixed(0)}% return)`);
+          console.log(`📈 Big reputation boost from blockbuster ${project.title} (${(profitMargin * 100).toFixed(0)}% return): ${studio.reputation}`);
         } else if (profitMargin > 1.2) { // 120% return - solid hit
           studio.reputation = Math.min(100, studio.reputation + 1);
-          console.log(`📈 Reputation boost from successful ${project.title}`);
+          console.log(`📈 Reputation boost from successful ${project.title}: ${studio.reputation}`);
         } else if (profitMargin < 0.3) { // Less than 30% return - bomb
           studio.reputation = Math.max(0, studio.reputation - 2);
-          console.log(`📉 Reputation hit from bomb ${project.title}`);
+          console.log(`📉 Reputation hit from bomb ${project.title}: ${studio.reputation}`);
         }
       }
     });
@@ -1047,6 +1053,9 @@ export const StudioMagnateGame: React.FC<StudioMagnateGameProps> = ({ onPhaseCha
         newTimeState,
         prev.competitorStudios
       );
+      
+      console.log(`📊 Weekly reputation update: ${prev.studio.reputation} -> ${weeklyResults.studio.reputation}`);
+      console.log(`🏆 Deep reputation: Overall ${deepRepResult.reputation.toFixed(1)}`);
       
       // Apply deep reputation to studio
       const enhancedStudio = {
@@ -1322,6 +1331,9 @@ export const StudioMagnateGame: React.FC<StudioMagnateGameProps> = ({ onPhaseCha
                   }));
                 }
                 
+                // Store the selected franchise/PD for script auto-filling
+                setSelectedFranchise(franchiseId);
+                setSelectedPublicDomain(publicDomainId);
                 setCurrentPhase('scripts');
               }
             })}
@@ -1331,8 +1343,14 @@ export const StudioMagnateGame: React.FC<StudioMagnateGameProps> = ({ onPhaseCha
         {currentPhase === 'scripts' && (
           <ScriptDevelopment 
             gameState={gameState}
+            selectedFranchise={selectedFranchise}
+            selectedPublicDomain={selectedPublicDomain}
             onProjectCreate={handleProjectCreate}
             onScriptUpdate={(script) => {
+              // Clear selections after script creation
+              setSelectedFranchise(null);
+              setSelectedPublicDomain(null);
+              
               setGameState(prev => ({
                 ...prev,
                 scripts: prev.scripts.some(s => s.id === script.id)
