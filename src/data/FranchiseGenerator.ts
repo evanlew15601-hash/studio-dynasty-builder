@@ -8,6 +8,7 @@ interface FranchiseTemplate {
   parodySource: string;
   tags: string[];
   culturalWeight: number;
+  description: string;
 }
 
 const FRANCHISE_TEMPLATES: FranchiseTemplate[] = [
@@ -18,7 +19,8 @@ const FRANCHISE_TEMPLATES: FranchiseTemplate[] = [
     tone: 'pulpy',
     parodySource: 'Star Wars',
     tags: ['space', 'laser weapons', 'alien rebellion', 'chosen one'],
-    culturalWeight: 92
+    culturalWeight: 92,
+    description: 'Epic space opera featuring galactic conflicts, mystical powers, and the eternal struggle between good and evil across the cosmos.'
   },
   {
     titlePatterns: ['Future Shock', 'Cyber Knights', 'Digital Dawn', 'Neural Network'],
@@ -26,7 +28,8 @@ const FRANCHISE_TEMPLATES: FranchiseTemplate[] = [
     tone: 'dark',
     parodySource: 'Blade Runner',
     tags: ['cyberpunk', 'AI', 'dystopia', 'corporate conspiracy'],
-    culturalWeight: 78
+    culturalWeight: 78,
+    description: 'Cyberpunk thriller exploring the dark future where AI and humanity blur, set in neon-soaked dystopian cities ruled by mega-corporations.'
   },
   {
     titlePatterns: ['Alien Hunter', 'Cosmic Horror', 'Deep Space', 'Void Walkers'],
@@ -34,7 +37,8 @@ const FRANCHISE_TEMPLATES: FranchiseTemplate[] = [
     tone: 'dark',
     parodySource: 'Alien',
     tags: ['space horror', 'survival', 'isolation', 'alien threat'],
-    culturalWeight: 85
+    culturalWeight: 85,
+    description: 'Terrifying space horror where isolated crews face unknown alien threats in the vast emptiness of space with nowhere to run.'
   },
   
   // Fantasy Franchises
@@ -44,7 +48,8 @@ const FRANCHISE_TEMPLATES: FranchiseTemplate[] = [
     tone: 'epic',
     parodySource: 'Lord of the Rings',
     tags: ['medieval', 'magic', 'quest', 'dark lord'],
-    culturalWeight: 95
+    culturalWeight: 95,
+    description: 'Epic medieval fantasy following heroes on a grand quest to save their world from ancient evil, featuring rich mythology and magical realms.'
   },
   {
     titlePatterns: ['Wizard Academy', 'Spell Casters', 'Magic School', 'Arcane Arts'],
@@ -52,25 +57,19 @@ const FRANCHISE_TEMPLATES: FranchiseTemplate[] = [
     tone: 'light',
     parodySource: 'Harry Potter',
     tags: ['magic school', 'coming of age', 'friendship', 'dark wizard'],
-    culturalWeight: 98
+    culturalWeight: 98,
+    description: 'Coming-of-age magical adventure following young wizards learning their craft while facing dark forces threatening their magical world.'
   },
   
   // Superhero Franchises
   {
-    titlePatterns: ['Super Squadron', 'Hero Alliance', 'Power League', 'Guardian Force'],
+    titlePatterns: ['Hero Collective', 'Champions Universe', 'Legendary Alliance', 'Guardian Legacy'],
     genre: ['action', 'adventure'],
     tone: 'pulpy',
-    parodySource: 'Marvel Cinematic Universe',
-    tags: ['superheroes', 'team up', 'world threat', 'powers'],
-    culturalWeight: 89
-  },
-  {
-    titlePatterns: ['Dark Vigilante', 'Night Guardian', 'Shadow Protector', 'Urban Legend'],
-    genre: ['action', 'crime'],
-    tone: 'dark',
-    parodySource: 'Batman',
-    tags: ['vigilante', 'crime fighting', 'psychological', 'urban'],
-    culturalWeight: 91
+    parodySource: 'Marvel/DC Superhero Universe',
+    tags: ['superheroes', 'team up', 'world threat', 'powers', 'mythology', 'interconnected'],
+    culturalWeight: 95,
+    description: 'A sprawling superhero universe featuring interconnected stories of heroes with extraordinary powers who must unite to face cosmic threats while dealing with personal struggles and complex moral choices.'
   },
   
   // Horror Franchises
@@ -80,7 +79,8 @@ const FRANCHISE_TEMPLATES: FranchiseTemplate[] = [
     tone: 'dark',
     parodySource: 'A Nightmare on Elm Street',
     tags: ['supernatural killer', 'dreams', 'teenagers', 'recurring villain'],
-    culturalWeight: 76
+    culturalWeight: 76,
+    description: 'Supernatural horror featuring an unstoppable killer who hunts victims through their dreams, blurring the line between nightmare and reality.'
   },
   {
     titlePatterns: ['The Mask Killer', 'Silent Stalker', 'Halloween Terror', 'The Shape'],
@@ -88,7 +88,8 @@ const FRANCHISE_TEMPLATES: FranchiseTemplate[] = [
     tone: 'dark',
     parodySource: 'Halloween',
     tags: ['slasher', 'unstoppable killer', 'final girl', 'holiday horror'],
-    culturalWeight: 74
+    culturalWeight: 74,
+    description: 'Classic slasher horror with a relentless masked killer stalking victims on specific nights, creating an atmosphere of dread and inevitability.'
   },
   
   // Action Franchises
@@ -98,7 +99,8 @@ const FRANCHISE_TEMPLATES: FranchiseTemplate[] = [
     tone: 'pulpy',
     parodySource: 'Fast & Furious',
     tags: ['cars', 'heists', 'family', 'impossible stunts'],
-    culturalWeight: 83
+    culturalWeight: 83,
+    description: 'High-octane action featuring street racers turned unlikely heroes, combining family bonds with spectacular car chases and impossible heists.'
   },
   {
     titlePatterns: ['Mission Critical', 'Impossible Task', 'Agent Protocol', 'Operation Ghost'],
@@ -106,7 +108,8 @@ const FRANCHISE_TEMPLATES: FranchiseTemplate[] = [
     tone: 'serious',
     parodySource: 'Mission: Impossible',
     tags: ['spy', 'gadgets', 'infiltration', 'death-defying stunts'],
-    culturalWeight: 87
+    culturalWeight: 87,
+    description: 'Spy thriller featuring elite agents using cutting-edge technology and death-defying stunts to complete seemingly impossible missions.'
   },
   
   // Comedy Franchises
@@ -116,7 +119,8 @@ const FRANCHISE_TEMPLATES: FranchiseTemplate[] = [
     tone: 'comedic',
     parodySource: 'American Pie',
     tags: ['coming of age', 'raunchy humor', 'teenagers', 'school'],
-    culturalWeight: 65
+    culturalWeight: 65,
+    description: 'Raunchy teen comedy exploring the awkward and hilarious journey of young adults navigating relationships, parties, and growing up.'
   },
   
   // Crime Franchises
@@ -126,11 +130,20 @@ const FRANCHISE_TEMPLATES: FranchiseTemplate[] = [
     tone: 'serious',
     parodySource: 'The Godfather',
     tags: ['organized crime', 'family loyalty', 'power struggle', 'corruption'],
-    culturalWeight: 97
+    culturalWeight: 97,
+    description: 'Epic crime saga exploring the complex dynamics of organized crime families, their codes of honor, and the price of power and loyalty.'
   }
 ];
 
 export class FranchiseGenerator {
+  static calculateFranchiseCost(culturalWeight: number): number {
+    // Cost calculation: Higher cultural weight = higher cost
+    // Range: $1M - $50M based on cultural weight (30-100)
+    const baseCost = 1000000; // $1M minimum
+    const weightMultiplier = Math.max(0, culturalWeight - 30) / 70; // 0-1 range
+    return Math.round(baseCost + (weightMultiplier * 49000000)); // Up to $50M
+  }
+
   static generateInitialFranchises(count: number = 30): Franchise[] {
     const franchises: Franchise[] = [];
     const usedTitles = new Set<string>();
@@ -146,6 +159,7 @@ export class FranchiseGenerator {
       const title = titleOptions[Math.floor(Math.random() * titleOptions.length)];
       usedTitles.add(title);
       
+      const culturalWeight = template.culturalWeight + Math.floor(Math.random() * 10 - 5);
       const franchise: Franchise = {
         id: `FR${String(i + 1).padStart(3, '0')}`,
         title,
@@ -157,12 +171,14 @@ export class FranchiseGenerator {
         entries: [], // Will be populated as AI creates films
         status: Math.random() > 0.3 ? 'active' : 'dormant',
         franchiseTags: template.tags,
-        culturalWeight: template.culturalWeight + Math.floor(Math.random() * 10 - 5),
+        culturalWeight,
         totalBoxOffice: 0,
         averageRating: 0,
         merchandisingPotential: Math.floor(Math.random() * 100),
         fanbaseSize: Math.floor(Math.random() * 1000000),
-        criticalFatigue: 0
+        criticalFatigue: 0,
+        description: template.description,
+        cost: this.calculateFranchiseCost(culturalWeight)
       };
       
       franchises.push(franchise);
@@ -172,6 +188,7 @@ export class FranchiseGenerator {
     const remainingCount = count - franchises.length;
     for (let i = 0; i < remainingCount; i++) {
       const randomTemplate = FRANCHISE_TEMPLATES[Math.floor(Math.random() * FRANCHISE_TEMPLATES.length)];
+      const culturalWeight = Math.floor(Math.random() * 40) + 30;
       const franchise: Franchise = {
         id: `FR${String(franchises.length + i + 1).padStart(3, '0')}`,
         title: this.generateRandomTitle(),
@@ -182,12 +199,14 @@ export class FranchiseGenerator {
         entries: [],
         status: Math.random() > 0.4 ? 'active' : 'dormant',
         franchiseTags: this.generateRandomTags(),
-        culturalWeight: Math.floor(Math.random() * 40) + 30,
+        culturalWeight,
         totalBoxOffice: 0,
         averageRating: 0,
         merchandisingPotential: Math.floor(Math.random() * 100),
         fanbaseSize: Math.floor(Math.random() * 500000),
-        criticalFatigue: 0
+        criticalFatigue: 0,
+        description: 'A unique franchise with its own distinct style and storytelling approach.',
+        cost: this.calculateFranchiseCost(culturalWeight)
       };
       
       franchises.push(franchise);

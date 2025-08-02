@@ -1308,8 +1308,20 @@ export const StudioMagnateGame: React.FC<StudioMagnateGameProps> = ({ onPhaseCha
           <Suspense fallback={<div>Loading franchise manager...</div>}>
             {React.createElement(React.lazy(() => import('./FranchiseManager').then(m => ({ default: m.FranchiseManager }))), {
               gameState: gameState,
-              onCreateProject: (franchiseId?: string, publicDomainId?: string) => {
-                console.log('Creating project from:', { franchiseId, publicDomainId });
+              onCreateProject: (franchiseId?: string, publicDomainId?: string, cost?: number) => {
+                console.log('Creating project from:', { franchiseId, publicDomainId, cost });
+                
+                // Deduct cost from studio budget if applicable
+                if (cost && cost > 0) {
+                  setGameState(prev => ({
+                    ...prev,
+                    studio: {
+                      ...prev.studio,
+                      budget: prev.studio.budget - cost
+                    }
+                  }));
+                }
+                
                 setCurrentPhase('scripts');
               }
             })}

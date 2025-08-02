@@ -19,6 +19,8 @@ export interface Franchise {
   merchandisingPotential?: number;
   fanbaseSize?: number;
   criticalFatigue?: number; // 0-100, increases with poor sequels
+  description?: string; // Bio/background for player familiarity
+  cost: number; // Cost to license/use franchise based on cultural weight
 }
 
 // Public Domain System Types
@@ -36,6 +38,8 @@ export interface PublicDomainIP {
   culturalRelevance?: number; // Changes over time
   requiredElements?: string[]; // Core elements that must be present
   suggestedCharacters?: ScriptCharacter[];
+  description?: string; // Bio/background for player familiarity
+  cost: number; // Always 0 for public domain
 }
 
 export interface Studio {

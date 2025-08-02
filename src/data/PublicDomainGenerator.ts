@@ -237,6 +237,8 @@ export class PublicDomainGenerator {
         adaptationFatigue: 0,
         culturalRelevance: this.calculateInitialCulturalRelevance(template.reputationScore),
         requiredElements: template.coreElements.slice(0, Math.min(3, template.coreElements.length)),
+        description: this.generateDescription(template.name, template.domainType),
+        cost: 0, // Public domain is always free
         suggestedCharacters: template.suggestedCharacters.map((char, index) => ({
           id: `${template.name.replace(/\s+/g, '')}_${index}`,
           name: char.name || 'Character',
@@ -298,6 +300,8 @@ export class PublicDomainGenerator {
         notableAdaptations: [],
         reputationScore: Math.floor(Math.random() * 30) + 60, // 60-90
         adaptationFatigue: 0,
+        description: this.generateDescription(name, domainType),
+        cost: 0, // Public domain is always free
         culturalRelevance: Math.floor(Math.random() * 40) + 50, // 50-90
         requiredElements: [],
         suggestedCharacters: []
@@ -337,6 +341,25 @@ export class PublicDomainGenerator {
   static calculateInitialCulturalRelevance(reputationScore: number): number {
     // Base cultural relevance on reputation but add some variation
     return Math.min(100, reputationScore + Math.floor(Math.random() * 20 - 10));
+  }
+
+  static generateDescription(name: string, domainType: string): string {
+    // Use template description if available
+    const template = PUBLIC_DOMAIN_TEMPLATES.find(t => t.name === name);
+    if (template?.description) {
+      return template.description;
+    }
+
+    // Generate generic description based on domain type
+    const domainDescriptions = {
+      literature: `A classic work of literature that has influenced countless generations of readers and storytellers.`,
+      mythology: `An ancient mythological tale rich with symbolic meaning and timeless themes.`,
+      folklore: `A beloved folk tale passed down through generations, embodying cultural values and universal truths.`,
+      historical: `A significant historical figure or event that continues to fascinate and inspire.`,
+      religious: `A sacred story that has provided guidance and meaning to believers throughout history.`
+    };
+
+    return domainDescriptions[domainType] || 'A significant cultural work available in the public domain.';
   }
   
   static canAdapt(publicDomainIP: PublicDomainIP, currentDate: string): boolean {

@@ -6,12 +6,12 @@ import { Badge } from '@/components/ui/badge';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { Input } from '@/components/ui/input';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
-import { Search, Star, Crown, Clock, TrendingUp, BookOpen, Sparkles } from 'lucide-react';
+import { Search, Star, Crown, Clock, TrendingUp, BookOpen, Sparkles, DollarSign, Info } from 'lucide-react';
 import { Progress } from '@/components/ui/progress';
 
 interface FranchiseManagerProps {
   gameState: GameState;
-  onCreateProject: (franchiseId?: string, publicDomainId?: string) => void;
+  onCreateProject: (franchiseId?: string, publicDomainId?: string, cost?: number) => void;
 }
 
 export const FranchiseManager: React.FC<FranchiseManagerProps> = ({
@@ -150,6 +150,24 @@ export const FranchiseManager: React.FC<FranchiseManagerProps> = ({
                     <Progress value={franchise.culturalWeight} className="h-2" />
                   </div>
 
+                  <div className="p-3 bg-muted rounded-lg">
+                    <div className="flex items-center justify-between mb-2">
+                      <div className="flex items-center space-x-2">
+                        <DollarSign className="w-4 h-4" />
+                        <span className="text-sm font-medium">License Cost</span>
+                      </div>
+                      <span className="text-lg font-bold">
+                        ${(franchise.cost / 1000000).toFixed(1)}M
+                      </span>
+                    </div>
+                    {franchise.description && (
+                      <div className="flex items-start space-x-2 mt-2">
+                        <Info className="w-4 h-4 text-muted-foreground mt-0.5 flex-shrink-0" />
+                        <p className="text-xs text-muted-foreground">{franchise.description}</p>
+                      </div>
+                    )}
+                  </div>
+
                   <div className="space-y-2">
                     <div className="text-sm font-medium">Genres:</div>
                     <div className="flex flex-wrap gap-1">
@@ -189,10 +207,14 @@ export const FranchiseManager: React.FC<FranchiseManagerProps> = ({
 
                   <Button 
                     className="w-full"
-                    onClick={() => onCreateProject(franchise.id)}
-                    disabled={franchise.status === 'retired'}
+                    onClick={() => onCreateProject(franchise.id, undefined, franchise.cost)}
+                    disabled={franchise.status === 'retired' || gameState.studio.budget < franchise.cost}
+                    variant={gameState.studio.budget < franchise.cost ? 'secondary' : 'default'}
                   >
-                    {franchise.entries.length === 0 ? 'Start Franchise' : 'Create Sequel'}
+                    {gameState.studio.budget < franchise.cost
+                      ? 'Insufficient Budget' 
+                      : franchise.entries.length === 0 ? 'Start Franchise' : 'Create Sequel'
+                    }
                   </Button>
                 </CardContent>
               </Card>
@@ -259,6 +281,22 @@ export const FranchiseManager: React.FC<FranchiseManagerProps> = ({
                     </div>
                   </div>
 
+                  <div className="p-3 bg-muted rounded-lg">
+                    <div className="flex items-center justify-between mb-2">
+                      <div className="flex items-center space-x-2">
+                        <DollarSign className="w-4 h-4" />
+                        <span className="text-sm font-medium">Cost</span>
+                      </div>
+                      <span className="text-lg font-bold text-green-600">FREE</span>
+                    </div>
+                    {ip.description && (
+                      <div className="flex items-start space-x-2 mt-2">
+                        <Info className="w-4 h-4 text-muted-foreground mt-0.5 flex-shrink-0" />
+                        <p className="text-xs text-muted-foreground">{ip.description}</p>
+                      </div>
+                    )}
+                  </div>
+
                   <div className="text-xs text-muted-foreground">
                     Previous adaptations: {ip.notableAdaptations.length}
                     {ip.lastAdaptationDate && (
@@ -270,7 +308,7 @@ export const FranchiseManager: React.FC<FranchiseManagerProps> = ({
 
                   <Button 
                     className="w-full"
-                    onClick={() => onCreateProject(undefined, ip.id)}
+                    onClick={() => onCreateProject(undefined, ip.id, ip.cost)}
                   >
                     <TrendingUp className="w-4 h-4 mr-2" />
                     Adapt Property
