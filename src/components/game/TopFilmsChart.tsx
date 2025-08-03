@@ -25,33 +25,26 @@ interface TopFilmEntry {
 export const TopFilmsChart: React.FC<TopFilmsChartProps> = ({ gameState, allReleases }) => {
   
   const calculateWeeklyGross = (project: Project): number => {
-    if (!project.metrics.boxOffice || !project.metrics.inTheaters) return 0;
+    if (!project.metrics?.inTheaters) return 0;
     
-    const weeksInRelease = project.metrics.weeksSinceRelease || 0;
-    if (weeksInRelease === 0) {
-      return project.metrics.boxOffice.openingWeekend || 0;
-    }
-    
-    // Simulate box office decay
-    const baseRevenue = project.metrics.boxOffice.openingWeekend || 0;
-    const decayRate = Math.pow(0.65, weeksInRelease - 1);
-    return baseRevenue * decayRate;
+    const weeklyRevenue = project.metrics.lastWeeklyRevenue || 0;
+    return weeklyRevenue;
   };
 
   const generateReceptionTags = (project: Project): string[] => {
     const tags: string[] = [];
     const metrics = project.metrics;
     
-    if (metrics.weeksSinceRelease === 0) tags.push('New Release');
-    if (metrics.criticsScore && metrics.criticsScore > 80) tags.push('Critical Darling');
-    if (metrics.audienceScore && metrics.audienceScore > 85) tags.push('Crowd Pleaser');
-    if (metrics.boxOfficeTotal && metrics.boxOfficeTotal > project.script.budget * 3) tags.push('Blockbuster');
-    if (metrics.boxOfficeTotal && metrics.boxOfficeTotal < project.script.budget * 0.5) tags.push('Box Office Bomb');
-    if (metrics.socialMediaMentions && metrics.socialMediaMentions > 1000000) tags.push('Viral Hit');
-    if (project.script.budget < 10000000 && metrics.boxOfficeTotal && metrics.boxOfficeTotal > 50000000) tags.push('Sleeper Success');
-    if (metrics.weeksSinceRelease && metrics.weeksSinceRelease > 8) tags.push('Long Runner');
-    if (project.script.genre === 'horror' && metrics.boxOfficeTotal && metrics.boxOfficeTotal > 100000000) tags.push('Horror Phenomenon');
-    if (project.script.genre === 'comedy' && metrics.audienceScore && metrics.audienceScore > 90) tags.push('Comedy Gold');
+    if (metrics?.weeksSinceRelease === 0) tags.push('New Release');
+    if (metrics?.criticsScore && metrics.criticsScore > 80) tags.push('Critical Darling');
+    if (metrics?.audienceScore && metrics.audienceScore > 85) tags.push('Crowd Pleaser');
+    if (metrics?.boxOfficeTotal && metrics.boxOfficeTotal > project.budget.total * 3) tags.push('Blockbuster');
+    if (metrics?.boxOfficeTotal && metrics.boxOfficeTotal < project.budget.total * 0.5) tags.push('Box Office Bomb');
+    if (metrics?.socialMediaMentions && metrics.socialMediaMentions > 1000000) tags.push('Viral Hit');
+    if (project.budget.total < 10000000 && metrics?.boxOfficeTotal && metrics.boxOfficeTotal > 50000000) tags.push('Sleeper Success');
+    if (metrics?.weeksSinceRelease && metrics.weeksSinceRelease > 8) tags.push('Long Runner');
+    if (project.script?.genre === 'horror' && metrics?.boxOfficeTotal && metrics.boxOfficeTotal > 100000000) tags.push('Horror Phenomenon');
+    if (project.script?.genre === 'comedy' && metrics?.audienceScore && metrics.audienceScore > 90) tags.push('Comedy Gold');
     
     return tags.slice(0, 2); // Limit to 2 tags for readability
   };
@@ -73,26 +66,26 @@ export const TopFilmsChart: React.FC<TopFilmsChartProps> = ({ gameState, allRele
 
   const createTopFilmEntries = (): TopFilmEntry[] => {
     const currentReleases = allReleases.filter(project => 
-      project.metrics.inTheaters && 
+      project.metrics?.inTheaters && 
       project.status === 'released' &&
-      (project.metrics.weeksSinceRelease || 0) < 12 // Only films in their first 12 weeks
+      (project.metrics?.weeksSinceRelease || 0) < 12 // Only films in their first 12 weeks
     );
 
     const entries: TopFilmEntry[] = currentReleases.map(project => {
       const weeklyGross = calculateWeeklyGross(project);
-      const totalGross = project.metrics.boxOfficeTotal || 0;
+      const totalGross = project.metrics?.boxOfficeTotal || 0;
       const studioName = determineStudioName(project);
       const receptionTags = generateReceptionTags(project);
       
       // Determine trend based on weeks in release and performance
       let trend: 'rising' | 'falling' | 'stable' | 'new' = 'stable';
-      const weeksInRelease = project.metrics.weeksSinceRelease || 0;
+      const weeksInRelease = project.metrics?.weeksSinceRelease || 0;
       
       if (weeksInRelease === 0) {
         trend = 'new';
-      } else if (weeksInRelease <= 2 && weeklyGross > (project.metrics.boxOffice?.openingWeekend || 0) * 0.8) {
+      } else if (weeksInRelease <= 2) {
         trend = 'rising';
-      } else if (weeksInRelease > 2 && weeklyGross < (project.metrics.boxOffice?.openingWeekend || 0) * 0.3) {
+      } else if (weeksInRelease > 6) {
         trend = 'falling';
       }
 
@@ -174,7 +167,7 @@ export const TopFilmsChart: React.FC<TopFilmsChartProps> = ({ gameState, allRele
                       <div className="flex-1">
                         <h3 className="font-bold text-lg">{entry.project.title}</h3>
                         <p className="text-sm text-muted-foreground">
-                          {entry.studioName} • {entry.project.script.genre}
+                          {entry.studioName} • {entry.project.script?.genre || 'Unknown'}
                         </p>
                       </div>
                     </div>
@@ -193,11 +186,11 @@ export const TopFilmsChart: React.FC<TopFilmsChartProps> = ({ gameState, allRele
                     {/* Performance Bar */}
                     <div className="mb-3">
                       <div className="flex justify-between text-xs text-muted-foreground mb-1">
-                        <span>vs Budget ({formatCurrency(entry.project.script.budget)})</span>
-                        <span>{((entry.totalGross / entry.project.script.budget) * 100).toFixed(0)}%</span>
+                        <span>vs Budget ({formatCurrency(entry.project.budget?.total || 0)})</span>
+                        <span>{((entry.totalGross / (entry.project.budget?.total || 1)) * 100).toFixed(0)}%</span>
                       </div>
                       <Progress 
-                        value={Math.min(100, (entry.totalGross / entry.project.script.budget) * 100)} 
+                        value={Math.min(100, (entry.totalGross / (entry.project.budget?.total || 1)) * 100)} 
                         className="h-2"
                       />
                     </div>
@@ -220,10 +213,10 @@ export const TopFilmsChart: React.FC<TopFilmsChartProps> = ({ gameState, allRele
 
                   <div className="text-right ml-4">
                     <div className="text-sm text-muted-foreground">
-                      Week {(entry.project.metrics.weeksSinceRelease || 0) + 1}
+                      Week {(entry.project.metrics?.weeksSinceRelease || 0) + 1}
                     </div>
                     <div className="text-sm text-muted-foreground">
-                      {entry.project.metrics.boxOffice?.theaters || 0} theaters
+                      {entry.project.metrics?.theaterCount || 0} theaters
                     </div>
                   </div>
                 </div>
@@ -245,7 +238,7 @@ export const TopFilmsChart: React.FC<TopFilmsChartProps> = ({ gameState, allRele
             <div>
               <p className="text-muted-foreground">Top Genre</p>
               <p className="font-semibold capitalize">
-                {topFilms.length > 0 ? topFilms[0].project.script.genre : 'N/A'}
+                {topFilms.length > 0 ? topFilms[0].project.script?.genre || 'Unknown' : 'N/A'}
               </p>
             </div>
             <div>

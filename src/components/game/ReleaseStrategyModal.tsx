@@ -8,8 +8,7 @@ import { Separator } from '@/components/ui/separator';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
-import { Calendar } from '@/components/ui/calendar';
-import { Popover, PopoverContent, PopoverTrigger } from '@/components/ui/popover';
+import { GameCalendar } from './GameCalendar';
 import { 
   CalendarIcon,
   PlayIcon,
@@ -19,7 +18,7 @@ import {
   GlobeIcon,
   AwardIcon
 } from '@/components/ui/icons';
-import { format } from 'date-fns';
+import { TimeState } from './TimeSystem';
 import { useToast } from '@/hooks/use-toast';
 
 interface ReleaseStrategyModalProps {
@@ -41,16 +40,16 @@ export const ReleaseStrategyModal: React.FC<ReleaseStrategyModalProps> = ({
 }) => {
   const { toast } = useToast();
   const [selectedReleaseType, setSelectedReleaseType] = useState<string>('wide');
-  // Calculate initial game date based on current game time
-  const getGameDate = () => {
-    const gameStartDate = new Date(2024, 0, 1); // Game starts Jan 1, 2024
-    const weeksElapsed = (currentYear - 2024) * 52 + currentWeek;
-    const gameDate = new Date(gameStartDate);
-    gameDate.setDate(gameDate.getDate() + (weeksElapsed * 7));
-    return gameDate;
+  
+  // Game time state instead of Date objects
+  const currentTimeState: TimeState = {
+    currentWeek,
+    currentYear,
+    currentQuarter: Math.ceil(currentWeek / 13)
   };
-
-  const [premiereDate, setPremiereDate] = useState<Date | undefined>(getGameDate());
+  
+  const [selectedWeek, setSelectedWeek] = useState<number | undefined>();
+  const [selectedYear, setSelectedYear] = useState<number | undefined>();
   const [theaterCount, setTheaterCount] = useState<number>(3000);
   const [selectedEvents, setSelectedEvents] = useState<string[]>([]);
 
@@ -136,31 +135,36 @@ export const ReleaseStrategyModal: React.FC<ReleaseStrategyModalProps> = ({
   ];
 
   const handleCreateStrategy = () => {
-    if (!premiereDate) return;
-
-    // Validate the date properly
-    if (!project.marketingCampaign) {
+    if (!selectedWeek || !selectedYear) {
       toast({
-        title: "Marketing Required",
-        description: "You must start a marketing campaign before setting a release date.",
+        title: "Release Date Required",
+        description: "Please select a release date from the calendar.",
+        variant: "destructive"
       });
       return;
     }
 
-    // Calculate when marketing will end
+    // Validate the selected date
+    if (!project.marketingCampaign) {
+      toast({
+        title: "Marketing Required", 
+        description: "You must start a marketing campaign before setting a release date.",
+        variant: "destructive"
+      });
+      return;
+    }
+
+    // Calculate minimum release date based on marketing
     const marketingEndWeek = currentWeek + (project.marketingCampaign.weeksRemaining || 0);
-    const minReleaseWeek = marketingEndWeek + 4; // 4 weeks after marketing ends
+    const currentAbsoluteWeek = (currentYear * 52) + currentWeek;
+    const selectedAbsoluteWeek = (selectedYear * 52) + selectedWeek;
+    const weeksFromNow = selectedAbsoluteWeek - currentAbsoluteWeek;
 
-    // Convert selected date to game weeks for validation
-    const gameStart = new Date(2024, 0, 1);
-    const daysSinceGameStart = Math.floor((premiereDate.getTime() - gameStart.getTime()) / (1000 * 60 * 60 * 24));
-    const weeksSinceGameStart = Math.floor(daysSinceGameStart / 7) + 1;
-    const selectedWeek = weeksSinceGameStart;
-
-    if (selectedWeek < minReleaseWeek) {
+    if (weeksFromNow < 4) {
       toast({
         title: "Release Date Too Early",
-        description: `Release must be scheduled at least 4 weeks after marketing ends (Week ${minReleaseWeek}).`,
+        description: `Release must be scheduled at least 4 weeks from now.`,
+        variant: "destructive"
       });
       return;
     }
@@ -169,7 +173,7 @@ export const ReleaseStrategyModal: React.FC<ReleaseStrategyModalProps> = ({
       const eventData = specialEvents.find(e => e.type === eventType)!;
       return {
         type: eventType as any,
-        date: new Date(premiereDate.getTime() - 7 * 24 * 60 * 60 * 1000), // Week before premiere
+        date: new Date(), // Simplified for now
         location: 'Hollywood',
         cost: eventData.cost,
         expectedImpact: eventData.impact,
@@ -180,7 +184,7 @@ export const ReleaseStrategyModal: React.FC<ReleaseStrategyModalProps> = ({
     const strategy: ReleaseStrategy = {
       type: selectedReleaseType as any,
       theatersCount: selectedReleaseType === 'streaming' ? 0 : theaterCount,
-      premiereDate,
+      premiereDate: new Date(), // Will be replaced with game time
       rolloutPlan: [],
       specialEvents: events,
       pressStrategy: {
@@ -191,7 +195,14 @@ export const ReleaseStrategyModal: React.FC<ReleaseStrategyModalProps> = ({
       }
     };
 
-    onCreateReleaseStrategy?.(strategy);
+    // Pass the selected week/year to the strategy
+    const finalStrategy = {
+      ...strategy,
+      releaseWeek: selectedWeek,
+      releaseYear: selectedYear
+    };
+    
+    onCreateReleaseStrategy?.(finalStrategy);
     onClose();
   };
 
@@ -286,46 +297,27 @@ export const ReleaseStrategyModal: React.FC<ReleaseStrategyModalProps> = ({
                 <CardTitle>Release Scheduling</CardTitle>
               </CardHeader>
               <CardContent className="space-y-4">
-                <div className="space-y-2">
-                  <Label>Premiere Date</Label>
-                  <Popover>
-                    <PopoverTrigger asChild>
-                      <Button variant="outline" className="w-full justify-start text-left">
-                        <CalendarIcon className="mr-2 h-4 w-4" />
-                        {premiereDate ? format(premiereDate, 'PPP') : 'Select date'}
-                      </Button>
-                    </PopoverTrigger>
-                    <PopoverContent className="w-auto p-0">
-                      <Calendar
-                        mode="single"
-                        selected={premiereDate}
-                        onSelect={setPremiereDate}
-                        disabled={(date) => {
-                          // Project must complete marketing first
-                          if (!project.marketingCampaign) {
-                            return true; // All dates disabled until marketing starts
-                          }
-                          
-                          // Use game time instead of real time
-                          const currentGameDate = getGameDate();
-                          currentGameDate.setHours(0, 0, 0, 0);
-                          
-                          // Must be at least 4 weeks from current game date
-                          const minDate = new Date(currentGameDate);
-                          minDate.setDate(minDate.getDate() + 28);
-                          
-                          return date < minDate;
-                        }}
-                        initialFocus
-                      />
-                    </PopoverContent>
-                  </Popover>
-                  <p className="text-xs text-muted-foreground">
-                    {!project.marketingCampaign ? 
-                      "Start marketing campaign first to unlock release scheduling." :
-                      `Release must be scheduled at least 4 weeks after marketing ends.`
-                    }
-                  </p>
+                <div className="space-y-4">
+                  <GameCalendar
+                    currentTime={currentTimeState}
+                    onDateSelect={(week, year) => {
+                      setSelectedWeek(week);
+                      setSelectedYear(year);
+                    }}
+                    selectedWeek={selectedWeek}
+                    selectedYear={selectedYear}
+                    minWeeksFromNow={4}
+                    maxMonthsAhead={12}
+                    disabled={!project.marketingCampaign}
+                  />
+                  
+                  {!project.marketingCampaign && (
+                    <div className="p-4 bg-yellow-50 border border-yellow-200 rounded-lg">
+                      <p className="text-sm text-yellow-800">
+                        <strong>Marketing Required:</strong> Start a marketing campaign before scheduling a release date.
+                      </p>
+                    </div>
+                  )}
                 </div>
 
                 <div className="grid grid-cols-1 md:grid-cols-2 gap-4 p-4 bg-muted/20 rounded-lg">
@@ -333,29 +325,34 @@ export const ReleaseStrategyModal: React.FC<ReleaseStrategyModalProps> = ({
                     <h4 className="font-semibold mb-2">Release Timeline</h4>
                     <div className="space-y-2 text-sm">
                       <div className="flex justify-between">
-                        <span>Marketing Launch:</span>
-                        <span>8 weeks before</span>
+                        <span>Marketing Campaign:</span>
+                        <span>4-8 weeks before</span>
                       </div>
                       <div className="flex justify-between">
                         <span>Press Screenings:</span>
                         <span>2 weeks before</span>
                       </div>
                       <div className="flex justify-between">
-                        <span>Premiere:</span>
-                        <span>{premiereDate ? format(premiereDate, 'MMM dd') : 'TBD'}</span>
+                        <span>Premiere Date:</span>
+                        <span>
+                          {selectedWeek && selectedYear ? 
+                            `Year ${selectedYear}, Week ${selectedWeek}` : 
+                            'Select from calendar'
+                          }
+                        </span>
                       </div>
                       <div className="flex justify-between">
-                        <span>Wide Release:</span>
-                        <span>3 days after premiere</span>
+                        <span>Theater Release:</span>
+                        <span>Same week</span>
                       </div>
                     </div>
                   </div>
                   <div>
                     <h4 className="font-semibold mb-2">Market Considerations</h4>
                     <div className="space-y-1 text-sm text-muted-foreground">
-                      <div>• Summer blockbuster season (May-August)</div>
-                      <div>• Awards consideration (Oct-Dec)</div>
-                      <div>• Holiday competition (Nov-Dec)</div>
+                      <div>• Summer blockbuster season (Weeks 20-35)</div>
+                      <div>• Awards consideration (Weeks 1-12, 44-52)</div>
+                      <div>• Holiday competition (Weeks 47-52)</div>
                       <div>• Counter-programming opportunities</div>
                     </div>
                   </div>
@@ -427,9 +424,9 @@ export const ReleaseStrategyModal: React.FC<ReleaseStrategyModalProps> = ({
           <Button variant="outline" onClick={onClose}>
             Cancel
           </Button>
-          <Button 
+            <Button 
             onClick={handleCreateStrategy}
-            disabled={!premiereDate}
+            disabled={!selectedWeek || !selectedYear}
           >
             <PlayIcon className="w-4 h-4 mr-2" />
             Set Release Strategy
