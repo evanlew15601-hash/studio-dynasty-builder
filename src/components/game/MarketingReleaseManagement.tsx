@@ -112,7 +112,7 @@ export const MarketingReleaseManagement: React.FC<MarketingReleaseManagementProp
                       </div>
                       <div className="flex items-center gap-2">
                         <Badge variant="outline">
-                          {project.phaseDuration} weeks left
+                          {project.phaseDuration === -1 ? 'Manual Control' : project.phaseDuration === 0 ? 'Complete' : `${project.phaseDuration} weeks left`}
                         </Badge>
                       </div>
                     </div>
@@ -172,7 +172,7 @@ export const MarketingReleaseManagement: React.FC<MarketingReleaseManagementProp
                       </div>
                       <div className="flex items-center gap-2">
                         <Badge variant="outline">
-                          {project.phaseDuration} weeks left
+                          {project.phaseDuration === -1 ? 'Awaiting Release' : project.phaseDuration === 0 ? 'Ready' : `${project.phaseDuration} weeks left`}
                         </Badge>
                       </div>
                     </div>

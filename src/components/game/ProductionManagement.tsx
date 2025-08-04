@@ -79,7 +79,7 @@ export const ProductionManagement: React.FC<ProductionManagementProps> = ({
           ...updatedProject,
           currentPhase: 'marketing',
           status: 'marketing',
-          phaseDuration: 999, // High number so it doesn't auto-advance until campaign is created
+          phaseDuration: -1, // Special value to prevent auto-advancement until marketing campaign starts
           readyForMarketing: true
         };
         break;
@@ -144,7 +144,7 @@ export const ProductionManagement: React.FC<ProductionManagementProps> = ({
                             </Badge>
                           )}
                           <Badge variant="outline">
-                            {project.phaseDuration} weeks left
+                            {project.phaseDuration === -1 ? 'Ready' : project.phaseDuration === 0 ? 'Complete' : `${project.phaseDuration} weeks left`}
                           </Badge>
                         </div>
                       </div>
@@ -225,7 +225,7 @@ export const ProductionManagement: React.FC<ProductionManagementProps> = ({
                           <div className="flex justify-between items-start mb-2">
                             <h4 className="font-medium">{project.title}</h4>
                             <Badge variant="outline" className="text-xs">
-                              {project.phaseDuration}w left
+                              {project.phaseDuration === -1 ? 'Ready' : project.phaseDuration === 0 ? 'Done' : `${project.phaseDuration}w left`}
                             </Badge>
                           </div>
                           <p className="text-sm text-muted-foreground mb-3">
@@ -236,9 +236,10 @@ export const ProductionManagement: React.FC<ProductionManagementProps> = ({
                             variant="outline"
                             className="w-full"
                             onClick={() => advanceProductionPhase(project)}
-                            disabled={project.phaseDuration > 1}
+                            disabled={project.phaseDuration > 1 && project.phaseDuration !== -1}
                           >
-                            {project.phaseDuration > 1 ? 'In Progress' : 
+                            {project.phaseDuration > 1 && project.phaseDuration !== -1 ? 'In Progress' :
+                             project.phaseDuration === -1 ? 'Ready for Next Phase' :
                              project.currentPhase === 'post-production' ? 'Complete & Ready for Marketing' : 'Advance Phase'}
                           </Button>
                         </CardContent>

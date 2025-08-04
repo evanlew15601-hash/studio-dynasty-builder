@@ -116,8 +116,8 @@ export class DeepReputationSystem {
       culturalImpact: 25,
       currentMomentum: 0,
       buzzCycle: 'dormant',
-      lastMajorHit: 999,
-      lastMajorFlop: 999,
+      lastMajorHit: -1, // -1 means no major hit yet
+      lastMajorFlop: -1, // -1 means no major flop yet
       developmentCadence: 50,
       genreConsistency: 50,
       budgetDiscipline: 50,

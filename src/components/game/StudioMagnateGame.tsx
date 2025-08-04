@@ -470,7 +470,7 @@ export const StudioMagnateGame: React.FC<StudioMagnateGameProps> = ({ onPhaseCha
       currentPhase: 'release' as const,
       status: 'scheduled-for-release' as any,
       readyForRelease: false,
-      phaseDuration: 999, // Don't auto-advance until release date arrives
+      phaseDuration: -1, // Special value to prevent auto-advancement until release date
       metrics: {
         ...project.metrics,
         criticsScore: Math.floor(Math.random() * 40) + 50,
@@ -624,7 +624,7 @@ export const StudioMagnateGame: React.FC<StudioMagnateGameProps> = ({ onPhaseCha
         };
       }
 
-      // CRITICAL: Only process phase timers for specific phases
+      // CRITICAL: Only process phase timers for specific phases (skip if phaseDuration is -1, which means manual control)
       if (updatedProject.phaseDuration !== undefined && updatedProject.phaseDuration > 0) {
         const newPhaseDuration = updatedProject.phaseDuration - 1;
         
@@ -812,7 +812,7 @@ export const StudioMagnateGame: React.FC<StudioMagnateGameProps> = ({ onPhaseCha
         distributionStrategy: null,
         marketingCampaign: null,
         weeksInPhase: 0,
-        phaseDuration: 999,
+        phaseDuration: 0,
         readyForRelease: false,
         contractedTalent: [],
         developmentProgress: {

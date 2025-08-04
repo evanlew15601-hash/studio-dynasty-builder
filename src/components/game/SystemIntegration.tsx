@@ -212,8 +212,8 @@ export class SystemIntegration {
           let message = 'Project progression healthy';
           
           projectsInProgress.forEach(project => {
-            // Check if project has reasonable phase duration
-            if (project.phaseDuration !== undefined && project.phaseDuration < 0) {
+            // Check if project has reasonable phase duration (allow -1 for manual control)
+            if (project.phaseDuration !== undefined && project.phaseDuration < -1) {
               progressionHealthy = false;
               message = `Project "${project.title}" has negative phase duration`;
             }
@@ -265,7 +265,7 @@ export class SystemIntegration {
     
     // Fix projects with missing or invalid phase durations
     fixedState.projects = fixedState.projects.map(project => {
-      if (project.phaseDuration === undefined || project.phaseDuration < 0) {
+      if (project.phaseDuration === undefined || project.phaseDuration < -1) {
         const defaultDurations = {
           'development': 8,
           'pre-production': 6,
