@@ -39,14 +39,25 @@ export const AwardsSystem: React.FC<AwardsSystemProps> = ({
   // Check if it's awards season (Jan-Mar = weeks 1-12)
   const isAwardsSeasonActive = gameState.currentWeek >= 1 && gameState.currentWeek <= 12;
 
-  // Get eligible projects for awards (completed releases from previous year)
+  // Get eligible projects for awards (completed releases from previous year, including AI studios)
   const getEligibleProjects = (): Project[] => {
-    return gameState.projects.filter(project => 
+    // Include both player projects and AI studio releases
+    const playerProjects = gameState.projects.filter(project => 
       project.status === 'released' && 
       project.releaseYear === gameState.currentYear - 1 && // Released previous year
       project.metrics?.criticsScore && 
       project.metrics.criticsScore >= 60 // Minimum quality threshold
     );
+    
+    const aiProjects = gameState.allReleases.filter((release): release is Project => 
+      'script' in release && // It's a Project, not BoxOfficeRelease
+      release.status === 'released' &&
+      release.releaseYear === gameState.currentYear - 1 &&
+      release.metrics?.criticsScore && 
+      release.metrics.criticsScore >= 60
+    );
+    
+    return [...playerProjects, ...aiProjects];
   };
 
   // Calculate award probability based on project metrics
@@ -387,7 +398,12 @@ export const AwardsSystem: React.FC<AwardsSystemProps> = ({
                   </div>
                   <div className="text-sm font-medium">{award.category}</div>
                   <div className="text-xs text-muted-foreground">
-                    Project: {gameState.projects.find(p => p.id === award.projectId)?.title}
+                    Project: {gameState.projects.find(p => p.id === award.projectId)?.title || 
+                             gameState.allReleases.find((r): r is Project => 'script' in r && r.id === award.projectId)?.title}
+                  </div>
+                  <div className="text-xs text-muted-foreground">
+                    Studio: {gameState.projects.find(p => p.id === award.projectId) ? 'Your Studio' : 
+                            gameState.allReleases.find((r): r is Project => 'script' in r && r.id === award.projectId)?.studioName || 'Unknown'}
                   </div>
                   <div className="text-xs text-yellow-600 mt-1">
                     +{award.reputationBoost} Reputation

@@ -68,6 +68,8 @@ export const TopFilmsChart: React.FC<TopFilmsChartProps> = ({ gameState, allRele
     const currentReleases = allReleases.filter(project => 
       project.metrics?.inTheaters && 
       project.status === 'released' &&
+      project.metrics?.boxOfficeTotal && 
+      project.metrics.boxOfficeTotal > 0 &&
       (project.metrics?.weeksSinceRelease || 0) < 12 // Only films in their first 12 weeks
     );
 

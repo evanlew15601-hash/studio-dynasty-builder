@@ -219,6 +219,7 @@ export interface Project {
   theatricalEndDate?: Date;
   metrics: ProjectMetrics;
   phaseDuration: number; // weeks remaining in current phase
+  studioName?: string; // For AI projects, tracks which studio produced it
   contractedTalent: ContractedTalent[];
   developmentProgress: DevelopmentProgress;
   marketingCampaign?: MarketingCampaign;

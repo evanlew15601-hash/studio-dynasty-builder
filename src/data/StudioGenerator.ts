@@ -562,10 +562,14 @@ export class StudioGenerator {
         marketingBudget: script.budget * 0.25
       },
       metrics: {
-        boxOfficeTotal: 0,
         inTheaters: true,
-        theaterCount: this.calculateTheaterCount(script.budget, studioProfile),
+        boxOfficeTotal: this.generateBoxOfficeTotal(script.budget, genre),
+        theaterCount: this.generateTheaterCount('major'), // Use helper method
         weeksSinceRelease: 0,
+        criticsScore: this.generateCriticsScore(genre, studioProfile.reputation),
+        audienceScore: this.generateAudienceScore(genre, studioProfile.reputation),
+        boxOfficeStatus: 'Current' as any,
+        theatricalRunLocked: false,
         boxOffice: {
           openingWeekend: 0,
           domesticTotal: 0,
@@ -573,7 +577,7 @@ export class StudioGenerator {
           production: script.budget,
           marketing: script.budget * 0.25,
           profit: 0,
-          theaters: this.calculateTheaterCount(script.budget, studioProfile),
+          theaters: this.generateTheaterCount('major'),
           weeks: 0
         }
       },
@@ -584,16 +588,8 @@ export class StudioGenerator {
     return project;
   }
 
-  private calculateTheaterCount(budget: number, studioProfile: StudioProfile): number {
-    // Base theater count on budget and studio reputation
-    let baseTheaters = Math.floor(budget / 1000000) * 50; // 50 theaters per million budget
-    
-    // Studio reputation modifier
-    const reputationMultiplier = studioProfile.reputation / 100;
-    baseTheaters *= reputationMultiplier;
-    
-    // Cap between 500 and 4000 theaters
-    return Math.max(500, Math.min(4000, baseTheaters));
+  getAllStudios(): Studio[] {
+    return this.generateCompetitorStudios();
   }
 
   generateCompetitorStudios(): Studio[] {
@@ -612,5 +608,81 @@ export class StudioGenerator {
 
   getStudioProfile(studioName: string): StudioProfile | undefined {
     return STUDIO_PROFILES.find(profile => profile.name === studioName);
+  }
+
+  private generateBoxOfficeTotal(budget: number, genre: Genre): number {
+    // Generate realistic box office based on budget and genre
+    const multiplier = this.getGenreMultiplier(genre);
+    const basePerformance = 1.5 + (Math.random() * 3); // 1.5x to 4.5x budget
+    return Math.floor(budget * basePerformance * multiplier);
+  }
+
+  private generateTheaterCount(studioSize: string): number {
+    const sizeMap = {
+      'major': 2500 + Math.floor(Math.random() * 1500), // 2500-4000 theaters
+      'mid-tier': 1000 + Math.floor(Math.random() * 1000), // 1000-2000 theaters
+      'independent': 200 + Math.floor(Math.random() * 300) // 200-500 theaters
+    };
+    return sizeMap[studioSize as keyof typeof sizeMap] || 1500;
+  }
+
+  private generateCriticsScore(genre: Genre, studioReputation: number): number {
+    // Base score influenced by genre and studio reputation
+    const genreBase = {
+      'drama': 70,
+      'biography': 75,
+      'historical': 72,
+      'thriller': 65,
+      'action': 60,
+      'comedy': 62,
+      'horror': 58,
+      'sci-fi': 68,
+      'fantasy': 65,
+      'family': 70
+    }[genre] || 65;
+
+    const reputationBonus = (studioReputation - 50) * 0.3; // ±15 points based on rep
+    const randomness = (Math.random() - 0.5) * 20; // ±10 points random
+    
+    return Math.max(30, Math.min(95, Math.floor(genreBase + reputationBonus + randomness)));
+  }
+
+  private generateAudienceScore(genre: Genre, studioReputation: number): number {
+    // Audience scores tend to be higher and vary differently than critics
+    const genreBase = {
+      'action': 75,
+      'comedy': 78,
+      'family': 80,
+      'fantasy': 73,
+      'sci-fi': 74,
+      'horror': 70,
+      'thriller': 72,
+      'drama': 68,
+      'biography': 65,
+      'historical': 67
+    }[genre] || 72;
+
+    const reputationBonus = (studioReputation - 50) * 0.2; // ±10 points based on rep
+    const randomness = (Math.random() - 0.5) * 25; // ±12.5 points random
+    
+    return Math.max(40, Math.min(95, Math.floor(genreBase + reputationBonus + randomness)));
+  }
+
+  private getGenreMultiplier(genre: Genre): number {
+    // Different genres have different commercial potential
+    const multipliers = {
+      'action': 1.3,
+      'superhero': 1.5,
+      'family': 1.4,
+      'comedy': 1.2,
+      'sci-fi': 1.3,
+      'fantasy': 1.3,
+      'horror': 1.1,
+      'thriller': 1.0,
+      'drama': 0.8,
+      'biography': 0.7,
+      'historical': 0.8
+    };
+    return multipliers[genre] || 1.0;
   }
 }

@@ -1024,7 +1024,7 @@ export const StudioMagnateGame: React.FC<StudioMagnateGameProps> = ({ onPhaseCha
 
       // Generate AI studio releases every 2-4 weeks
       const shouldGenerateRelease = Math.random() < 0.3; // 30% chance each week
-      let newAIReleases: BoxOfficeRelease[] = [];
+      let newAIReleases: Project[] = [];
       
       updateOperation(LOADING_OPERATIONS.WEEKLY_PROCESSING.id, 90, 'Finalizing updates...');
       
@@ -1036,7 +1036,12 @@ export const StudioMagnateGame: React.FC<StudioMagnateGameProps> = ({ onPhaseCha
         if (studioProfile) {
           const aiRelease = studioGenerator.generateStudioRelease(studioProfile, newTimeState.currentWeek, newTimeState.currentYear);
           if (aiRelease) {
-            newAIReleases.push(aiRelease as any); // Cast to match allReleases type
+            // Set proper release timing for AI films
+            aiRelease.releaseWeek = newTimeState.currentWeek;
+            aiRelease.releaseYear = newTimeState.currentYear;
+            aiRelease.studioName = studioProfile.name; // Track which AI studio made this
+            newAIReleases.push(aiRelease);
+            console.log(`🤖 AI STUDIO: ${studioProfile.name} released "${aiRelease.title}" (${aiRelease.script.genre})`);
           }
         }
       }
