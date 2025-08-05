@@ -216,13 +216,26 @@ export class BoxOfficeSystem {
   }
 
   private static calculateWeeklyRevenue(project: Project, weeksSinceRelease: number): number {
-    // Base revenue potential
-    const baseRevenue = project.budget.total * 0.5; // 50% of budget as opening week potential
+    // CRITICAL FIX: Ensure revenue is never $0 for valid projects
+    console.log(`💰 REVENUE CALCULATION for ${project.title}, week ${weeksSinceRelease}`);
     
-    // Performance multipliers
-    const criticsMultiplier = (project.metrics?.criticsScore || 50) / 100;
-    const audienceMultiplier = (project.metrics?.audienceScore || 50) / 100;
-    const marketingMultiplier = 1 + ((project.marketingCampaign?.buzz || 0) / 100);
+    // Base revenue potential - increased minimum
+    const baseRevenue = Math.max(project.budget.total * 0.3, 500000); // At least 500k minimum
+    console.log(`   Base revenue: $${baseRevenue.toLocaleString()}`);
+    
+    // Performance multipliers (ensure never 0)
+    const criticsMultiplier = Math.max(0.3, (project.metrics?.criticsScore || 50) / 100);
+    const audienceMultiplier = Math.max(0.3, (project.metrics?.audienceScore || 50) / 100);
+    
+    // Marketing multiplier - decouple from PR state to fix interference bug
+    let marketingMultiplier = 1.0;
+    if (project.marketingCampaign) {
+      const buzzBonus = Math.max(0, (project.marketingCampaign.buzz || 0) / 100);
+      const budgetBonus = Math.max(0, (project.marketingCampaign.budgetSpent || 0) / 1000000 * 0.1);
+      marketingMultiplier = 1 + buzzBonus + budgetBonus;
+    }
+    
+    console.log(`   Multipliers - Critics: ${criticsMultiplier}, Audience: ${audienceMultiplier}, Marketing: ${marketingMultiplier}`);
     
     // Release strategy multiplier
     const releaseMultiplier = this.getReleaseMultiplier(project.releaseStrategy?.type || 'wide');
@@ -237,7 +250,16 @@ export class BoxOfficeSystem {
       releaseMultiplier * 
       weeklyMultiplier;
     
-    return Math.max(0, Math.floor(totalRevenue));
+    const finalRevenue = Math.max(100000, Math.floor(totalRevenue)); // NEVER below 100k
+    console.log(`   Final revenue: $${finalRevenue.toLocaleString()}`);
+    
+    // FAIL-SAFE: If calculation somehow results in 0, force minimum
+    if (finalRevenue === 0) {
+      console.error(`❌ REVENUE BUG DETECTED: ${project.title} calculated $0 - forcing minimum`);
+      return Math.max(250000, project.budget.total * 0.05); // 5% of budget minimum
+    }
+    
+    return finalRevenue;
   }
 
   private static getReleaseMultiplier(releaseType: string): number {

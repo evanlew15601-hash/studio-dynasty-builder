@@ -77,7 +77,7 @@ export class ReputationSystem {
     weeksSinceLastProject: number
   ): ReputationState {
     const traits = this.getStudioTraits(studio);
-    let decayRate = 1.0;
+    let decayRate = 0.5; // FIXED: Much slower base decay rate
     
     // Apply trait modifiers
     traits.forEach(trait => {
@@ -86,32 +86,39 @@ export class ReputationSystem {
       }
     });
     
-    // Development buffer - no decay while actively developing
+    // NO DECAY during active periods
     const activeProjectsInDevelopment = activeProjects.filter(p => 
-      p.status === 'development' || p.status === 'pre-production' || p.status === 'production'
+      p.status === 'development' || p.status === 'pre-production' || p.status === 'production' || p.status === 'post-production'
     );
     
-    if (activeProjectsInDevelopment.length > 0) {
-      decayRate *= 0.3; // 70% less decay when actively developing
+    const releasedRecently = activeProjects.some(p => 
+      p.status === 'released' && p.metrics?.inTheaters
+    );
+    
+    // No decay while actively working or in theaters
+    if (activeProjectsInDevelopment.length > 0 || releasedRecently) {
+      console.log(`REPUTATION: No decay - active work or recent release`);
+      return currentReputation; // NO DECAY AT ALL
     }
     
-    // Accelerating decay for inactivity
-    const inactivityMultiplier = Math.min(2.0, 1.0 + (weeksSinceLastProject * 0.1));
+    // Minimal decay for inactivity (capped)
+    const inactivityMultiplier = Math.min(1.5, 1.0 + (weeksSinceLastProject * 0.02)); // Much smaller multiplier
     decayRate *= inactivityMultiplier;
     
-    // Apply decay
-    const buzzDecay = Math.max(-2, Math.min(2, currentReputation.buzz * 0.1 * decayRate));
-    const reputationDecay = currentReputation.coreReputation > 50 ? 
-      0.5 * decayRate : // Slower decay when reputation is good
-      1.0 * decayRate;  // Normal decay when reputation is average/poor
+    // Apply very gentle decay
+    const buzzDecay = Math.max(-1, Math.min(1, currentReputation.buzz * 0.05 * decayRate));
+    const reputationDecay = Math.min(0.3, 0.1 * decayRate); // Maximum 0.3 per week
     
-    return {
-      coreReputation: Math.max(0, currentReputation.coreReputation - reputationDecay),
+    const newReputation = {
+      coreReputation: Math.max(20, currentReputation.coreReputation - reputationDecay), // Never below 20
       buzz: Math.max(-50, Math.min(50, currentReputation.buzz - buzzDecay)),
-      prestige: Math.max(0, currentReputation.prestige - (0.2 * decayRate)),
-      reliability: Math.max(0, currentReputation.reliability - (0.3 * decayRate)),
+      prestige: Math.max(0, currentReputation.prestige - (0.05 * decayRate)), // Very slow prestige decay
+      reliability: Math.max(0, currentReputation.reliability - (0.1 * decayRate)),
       innovation: currentReputation.innovation // Innovation doesn't decay
     };
+    
+    console.log(`REPUTATION DECAY: ${currentReputation.coreReputation.toFixed(1)} -> ${newReputation.coreReputation.toFixed(1)} (rate: ${decayRate.toFixed(2)})`);
+    return newReputation;
   }
   
   static processProjectMilestone(
