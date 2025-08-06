@@ -9,6 +9,7 @@ interface FranchiseTemplate {
   tags: string[];
   culturalWeight: number;
   description: string;
+  predefinedRoles?: any[];
 }
 
 const FRANCHISE_TEMPLATES: FranchiseTemplate[] = [
@@ -58,7 +59,13 @@ const FRANCHISE_TEMPLATES: FranchiseTemplate[] = [
     parodySource: 'Harry Potter',
     tags: ['magic school', 'coming of age', 'friendship', 'dark wizard'],
     culturalWeight: 98,
-    description: 'Coming-of-age magical adventure following young wizards learning their craft while facing dark forces threatening their magical world.'
+    description: 'Coming-of-age magical adventure following young wizards learning their craft while facing dark forces threatening their magical world.',
+    predefinedRoles: [
+      { id: 'young-wizard', name: 'Young Wizard', importance: 'lead', requiredType: 'actor', ageRange: [11, 18] },
+      { id: 'mentor', name: 'Wise Mentor', importance: 'supporting', requiredType: 'actor', ageRange: [45, 70] },
+      { id: 'dark-wizard', name: 'Dark Wizard', importance: 'supporting', requiredType: 'actor', ageRange: [30, 60] },
+      { id: 'best-friend', name: 'Best Friend', importance: 'supporting', requiredType: 'actor', ageRange: [11, 18] }
+    ]
   },
   
   // Superhero Franchises

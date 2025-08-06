@@ -42,12 +42,25 @@ export interface PublicDomainIP {
   cost: number; // Always 0 for public domain
 }
 
+export interface Loan {
+  id: string;
+  amount: number;
+  interestRate: number;
+  termWeeks: number;
+  weeklyPayment: number;
+  remainingBalance: number;
+  weeksRemaining: number;
+  missedPayments: number;
+  status: 'active' | 'paid' | 'defaulted';
+}
+
 export interface Studio {
   id: string;
   name: string;
   reputation: number;
   budget: number;
   founded: number;
+  loans?: Loan[];
   specialties: Genre[];
   debt?: number;
   lastProjectWeek?: number;
@@ -60,11 +73,13 @@ export interface Studio {
 export interface ScriptCharacter {
   id: string;
   name: string;
-  roleType: 'lead' | 'supporting' | 'minor' | 'cameo';
-  screenTimeMinutes: number;
-  description: string;
-  ageRange: [number, number];
-  requiredTraits: string[];
+  description?: string;
+  importance: 'lead' | 'supporting' | 'minor' | 'crew';
+  traits?: string[];
+  relationships?: { characterId: string; relationship: string }[];
+  assignedTalentId?: string;
+  requiredType?: 'actor' | 'director';
+  ageRange?: [number, number];
 }
 
 export interface Script {
@@ -82,6 +97,9 @@ export interface Script {
   estimatedRuntime: number;
   characteristics: ScriptCharacteristics;
   characters?: ScriptCharacter[];
+  sourceType?: 'original' | 'franchise' | 'public-domain' | 'adaptation';
+  franchiseId?: string;
+  publicDomainId?: string;
 }
 
 export interface ScriptCharacteristics {
@@ -226,6 +244,11 @@ export interface Project {
   releaseStrategy?: ReleaseStrategy;
   releaseWeek?: number;
   releaseYear?: number;
+  scheduledReleaseWeek?: number;
+  scheduledReleaseYear?: number;
+  hasReleasedPostTheatrical?: boolean;
+  postTheatricalRevenue?: number;
+  releaseDate?: string;
   postTheatricalReleases?: PostTheatricalRelease[];
   readyForMarketing?: boolean;
   readyForRelease?: boolean;
@@ -333,6 +356,7 @@ export interface ProjectMetrics {
   streaming?: StreamingMetrics;
   critical?: CriticalMetrics;
   culturalImpact?: number;
+  totalRevenue?: number;
   // Enhanced financial tracking
   financials?: ProjectFinancials;
 }
@@ -667,6 +691,8 @@ export interface GameState {
   // Franchise & Public Domain Systems
   franchises: Franchise[];
   publicDomainIPs: PublicDomainIP[];
+  publicDomainSources?: PublicDomainIP[];
+  aiStudioProjects?: Project[];
 }
 
 export interface TopFilmsWeek {
@@ -775,6 +801,7 @@ export interface MarketingCampaign {
   buzz: number; // 0-100
   targetAudience: string[];
   effectiveness: number; // 0-100
+  isActive?: boolean;
 }
 
 export interface MarketingStrategy {

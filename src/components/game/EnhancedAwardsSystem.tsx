@@ -52,7 +52,7 @@ export const EnhancedAwardsSystem: React.FC<EnhancedAwardsSystemProps> = ({
 
   useEffect(() => {
     processAnnualAwards();
-  }, [gameState.currentYear, gameState.currentWeek]);
+  }, [gameState.currentYear, gameState.currentWeek, gameState.projects]);
 
   const AWARD_CATEGORIES: AwardCategory[] = [
     { id: 'best-picture', name: 'Best Picture', type: 'film', weight: 10 },
@@ -124,12 +124,12 @@ export const EnhancedAwardsSystem: React.FC<EnhancedAwardsSystemProps> = ({
       project.metrics?.boxOfficeTotal && project.metrics.boxOfficeTotal > 0
     );
 
-    // Get AI studio projects from the system
-    const aiProjects: any[] = [];
+    // Get AI studio projects - they should be in gameState.aiStudioProjects or similar
+    const aiProjects = gameState.aiStudioProjects || [];
     const eligibleAIProjects = aiProjects.filter(project =>
       project.status === 'released' &&
       project.releaseYear === gameState.currentYear - 1 &&
-      project.performance?.boxOffice && project.performance.boxOffice > 0
+      project.metrics?.boxOfficeTotal && project.metrics.boxOfficeTotal > 0
     );
 
     console.log(`   Player projects: ${playerProjects.length}, AI projects: ${eligibleAIProjects.length}`);

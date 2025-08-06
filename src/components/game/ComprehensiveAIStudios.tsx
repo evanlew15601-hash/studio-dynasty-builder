@@ -356,7 +356,7 @@ export const ComprehensiveAIStudios: React.FC<ComprehensiveAIStudiosProps> = ({
 
     // Prefer talent that matches genre
     const genreMatchingTalent = availableTalent.filter(t => 
-      t.genres.includes(genre) || t.specialties.includes(genre)
+      t.genres.includes(genre as any) || (t.specialties && t.specialties.includes(genre as any))
     );
 
     const talentPool = genreMatchingTalent.length > 0 ? genreMatchingTalent : availableTalent;
