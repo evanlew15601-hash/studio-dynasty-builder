@@ -11,11 +11,12 @@ import { Trash2, Plus, Users } from 'lucide-react';
 export interface ScriptCharacter {
   id: string;
   name: string;
-  roleType: 'lead' | 'supporting' | 'minor' | 'cameo';
+  importance: 'lead' | 'supporting' | 'crew';
   screenTimeMinutes: number;
   description: string;
   ageRange: [number, number];
   requiredTraits: string[];
+  requiredType?: 'actor' | 'director';
 }
 
 interface ScriptCharacterManagerProps {
@@ -30,18 +31,17 @@ export const ScriptCharacterManager: React.FC<ScriptCharacterManagerProps> = ({
   const [isAdding, setIsAdding] = useState(false);
   const [newCharacter, setNewCharacter] = useState<Partial<ScriptCharacter>>({
     name: '',
-    roleType: 'supporting',
+    importance: 'supporting',
     screenTimeMinutes: 15,
     description: '',
     ageRange: [25, 45],
     requiredTraits: []
   });
 
-  const roleTypes = [
+  const importanceTypes = [
     { value: 'lead', label: 'Lead Role', screenTime: 60 },
     { value: 'supporting', label: 'Supporting Role', screenTime: 25 },
-    { value: 'minor', label: 'Minor Role', screenTime: 10 },
-    { value: 'cameo', label: 'Cameo', screenTime: 3 }
+    { value: 'crew', label: 'Crew Role', screenTime: 0 }
   ];
 
   const commonTraits = [
@@ -57,17 +57,18 @@ export const ScriptCharacterManager: React.FC<ScriptCharacterManagerProps> = ({
     const character: ScriptCharacter = {
       id: `char-${Date.now()}`,
       name: newCharacter.name,
-      roleType: newCharacter.roleType || 'supporting',
+      importance: newCharacter.importance || 'supporting',
       screenTimeMinutes: newCharacter.screenTimeMinutes || 15,
       description: newCharacter.description || '',
       ageRange: newCharacter.ageRange || [25, 45],
-      requiredTraits: newCharacter.requiredTraits || []
+      requiredTraits: newCharacter.requiredTraits || [],
+      requiredType: newCharacter.requiredType
     };
 
     onCharactersChange([...characters, character]);
     setNewCharacter({
       name: '',
-      roleType: 'supporting',
+      importance: 'supporting',
       screenTimeMinutes: 15,
       description: '',
       ageRange: [25, 45],
@@ -135,15 +136,16 @@ export const ScriptCharacterManager: React.FC<ScriptCharacterManagerProps> = ({
                 </div>
 
                 <div>
-                  <Label>Role Type</Label>
+                  <Label>Role Importance</Label>
                   <Select
-                    value={newCharacter.roleType}
+                    value={newCharacter.importance}
                     onValueChange={(value) => {
-                      const roleType = roleTypes.find(r => r.value === value);
+                      const importance = importanceTypes.find(r => r.value === value);
                       setNewCharacter(prev => ({
                         ...prev,
-                        roleType: value as any,
-                        screenTimeMinutes: roleType?.screenTime || 15
+                        importance: value as any,
+                        screenTimeMinutes: importance?.screenTime || 15,
+                        requiredType: value === 'crew' ? 'director' : 'actor'
                       }));
                     }}
                   >
@@ -151,9 +153,9 @@ export const ScriptCharacterManager: React.FC<ScriptCharacterManagerProps> = ({
                       <SelectValue />
                     </SelectTrigger>
                     <SelectContent>
-                      {roleTypes.map((role) => (
+                      {importanceTypes.map((role) => (
                         <SelectItem key={role.value} value={role.value}>
-                          {role.label} (~{role.screenTime} min)
+                          {role.label} {role.screenTime > 0 && `(~${role.screenTime} min)`}
                         </SelectItem>
                       ))}
                     </SelectContent>
@@ -238,7 +240,7 @@ export const ScriptCharacterManager: React.FC<ScriptCharacterManagerProps> = ({
                     <div className="flex items-center space-x-2 mb-2">
                       <h4 className="font-semibold">{character.name}</h4>
                       <Badge variant="outline" className="capitalize">
-                        {character.roleType}
+                        {character.importance}
                       </Badge>
                       <Badge variant="secondary">
                         {character.screenTimeMinutes} min

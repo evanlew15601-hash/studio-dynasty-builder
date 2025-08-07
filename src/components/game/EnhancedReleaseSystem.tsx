@@ -28,26 +28,25 @@ export const EnhancedReleaseSystem: React.FC<EnhancedReleaseSystemProps> = ({
     const warnings: string[] = [];
 
     // Check casting
-    if (!project.script?.characters) {
-      errors.push("No roles defined for this project");
-    } else {
-      const uncastRoles = project.script.characters.filter(c => !c.assignedTalentId);
-      const hasDirector = project.script.characters.some(c => 
-        c.requiredType === 'director' && c.assignedTalentId
-      );
-      
-      if (!hasDirector) {
-        errors.push("Director must be assigned before release");
-      }
-      
-      const leadRoles = project.script.characters.filter(c => c.importance === 'lead' && !c.assignedTalentId);
-      if (leadRoles.length > 0) {
-        errors.push("All lead roles must be cast before release");
-      }
-      
-      if (uncastRoles.length > leadRoles.length) {
-        warnings.push(`${uncastRoles.length} supporting roles still uncast`);
-      }
+    // Check casting requirements
+    const hasDirector = project.cast?.some(c => 
+      c.role === 'Director' || c.role.toLowerCase().includes('director')
+    );
+    
+    if (!hasDirector) {
+      errors.push("Director must be assigned before release");
+    }
+    
+    const hasLeadActor = project.cast?.some(c => 
+      c.role.toLowerCase().includes('lead') || c.role.toLowerCase().includes('protagonist')
+    );
+    
+    if (!hasLeadActor) {
+      errors.push("At least one lead actor must be cast before release");
+    }
+    
+    if (project.cast && project.cast.length < 2) {
+      warnings.push("Very small cast - consider adding more roles");
     }
 
     // Check production status
@@ -87,10 +86,10 @@ export const EnhancedReleaseSystem: React.FC<EnhancedReleaseSystemProps> = ({
     }
 
     // Prevent releasing if already released
-    if (project.releaseDate || project.status === 'released') {
+    if (project.releaseDate || project.status === 'released' || project.status === 'scheduled-for-release') {
       toast({
-        title: "Already Released",
-        description: "This film has already been released. Use re-release option if needed.",
+        title: "Already Scheduled/Released",
+        description: "This film has already been released or scheduled for release.",
         variant: "destructive"
       });
       return;
@@ -186,9 +185,23 @@ export const EnhancedReleaseSystem: React.FC<EnhancedReleaseSystemProps> = ({
       return;
     }
 
-    // Calculate additional revenue
+    // Check if film has been released for at least 8 weeks
+    const releaseTime = project.scheduledReleaseWeek! + (project.scheduledReleaseYear! - 1) * 52;
+    const currentTime = gameState.currentWeek + (gameState.currentYear - 1) * 52;
+    const weeksReleased = currentTime - releaseTime;
+    
+    if (weeksReleased < 8) {
+      toast({
+        title: "Too Early",
+        description: `Film must be in theaters for at least 8 weeks. ${8 - weeksReleased} weeks remaining.`,
+        variant: "destructive"
+      });
+      return;
+    }
+
+    // Calculate additional revenue based on theatrical performance
     const baseRevenue = project.metrics?.boxOfficeTotal || 0;
-    const postTheatricalRevenue = baseRevenue * 0.3; // 30% of theatrical
+    const postTheatricalRevenue = baseRevenue * 0.25; // 25% of theatrical
 
     const updatedProject = {
       ...project,
@@ -204,7 +217,7 @@ export const EnhancedReleaseSystem: React.FC<EnhancedReleaseSystemProps> = ({
     
     toast({
       title: "Post-Theatrical Released",
-      description: `${project.title} earned additional $${(postTheatricalRevenue / 1000000).toFixed(1)}M`,
+      description: `${project.title} earned additional $${(postTheatricalRevenue / 1000000).toFixed(1)}M from streaming/digital`,
     });
   };
 

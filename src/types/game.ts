@@ -124,7 +124,8 @@ export interface TalentPerson {
   traits?: string[];
   specialties?: Genre[];
   genres: Genre[];
-  contractStatus: 'available' | 'contracted' | 'exclusive' | 'retired';
+  contractStatus: 'available' | 'contracted' | 'exclusive' | 'retired' | 'busy';
+  busyUntilWeek?: number;
   salary?: number;
   awards?: string[];
   careerStage?: 'unknown' | 'rising' | 'established' | 'veteran' | 'legend';

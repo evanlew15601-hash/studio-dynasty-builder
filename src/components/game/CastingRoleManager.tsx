@@ -53,7 +53,7 @@ export const CastingRoleManager: React.FC<CastingRoleManagerProps> = ({
         roles.push({
           characterId: character.id,
           characterName: character.name,
-          roleType: character.roleType,
+          roleType: character.importance,
           talentId: existingCast?.talentId,
           talentName: existingCast ? availableTalent.find(t => t.id === existingCast.talentId)?.name : undefined,
           salary: existingCast?.salary,
