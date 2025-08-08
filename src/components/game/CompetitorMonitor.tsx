@@ -121,7 +121,7 @@ export const CompetitorMonitor: React.FC<CompetitorMonitorProps> = ({
                           <div>
                             <h3 className="font-semibold">{studio.name}</h3>
                             <div className="text-sm text-muted-foreground">
-                              Reputation: {studio.reputation}/100
+                              Reputation: {Math.round(studio.reputation)}/100
                             </div>
                           </div>
                           <Badge variant="outline">

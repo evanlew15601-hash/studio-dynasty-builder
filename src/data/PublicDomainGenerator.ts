@@ -1,4 +1,4 @@
-import { ScriptCharacter } from '@/types/game';
+import { ScriptCharacter, PublicDomainIP } from '@/types/game';
 
 const getRandomElement = <T>(array: T[]): T => {
   return array[Math.floor(Math.random() * array.length)];
@@ -38,7 +38,6 @@ export const generatePublicDomainSources = (): PublicDomainSource[] => {
           importance: 'lead',
           description: 'Young man from feuding family',
           requiredType: 'actor',
-          screenTimeMinutes: 60,
           ageRange: [18, 30],
           requiredTraits: []
         },
@@ -48,7 +47,6 @@ export const generatePublicDomainSources = (): PublicDomainSource[] => {
           importance: 'lead',
           description: 'Young woman from feuding family',
           requiredType: 'actor',
-          screenTimeMinutes: 60,
           ageRange: [16, 25],
           requiredTraits: []
         },
@@ -58,7 +56,6 @@ export const generatePublicDomainSources = (): PublicDomainSource[] => {
           importance: 'crew',
           description: 'Film director',
           requiredType: 'director',
-          screenTimeMinutes: 0,
           ageRange: [30, 65],
           requiredTraits: []
         }
@@ -71,3 +68,41 @@ export const getRandomPublicDomainSource = (): PublicDomainSource => {
   const sources = generatePublicDomainSources();
   return getRandomElement(sources);
 };
+
+// Compatibility generator to match existing imports in the game
+export class PublicDomainGenerator {
+  static generateInitialPublicDomainIPs(count: number = 20): PublicDomainIP[] {
+    const sources = generatePublicDomainSources();
+
+    // Map PublicDomainSource -> PublicDomainIP (structural match for gameplay systems)
+    const mapped: PublicDomainIP[] = sources.map((s) => ({
+      id: s.id,
+      name: s.title,
+      domainType: 'literature',
+      dateEnteredDomain: '1900-01-01',
+      coreElements: s.themes,
+      genreFlexibility: (s.genre as any) || ['drama'],
+      notableAdaptations: [],
+      reputationScore: 70,
+      adaptationFatigue: 0,
+      lastAdaptationDate: undefined,
+      culturalRelevance: 70,
+      requiredElements: [],
+      suggestedCharacters: s.suggestedCharacters,
+      description: s.description,
+      cost: 0
+    }));
+
+    // Expand to requested count by cycling and tweaking ids slightly
+    const list: PublicDomainIP[] = [];
+    for (let i = 0; i < count; i++) {
+      const base = mapped[i % mapped.length];
+      list.push({
+        ...base,
+        id: `${base.id}-${Math.floor(i / mapped.length) + 1}`
+      });
+    }
+
+    return list;
+  }
+}

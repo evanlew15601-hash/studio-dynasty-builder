@@ -388,7 +388,7 @@ export const CastingRoleManager: React.FC<CastingRoleManagerProps> = ({
                       <div>
                         <div className="font-medium">{talent.name}</div>
                         <div className="text-sm text-muted-foreground">
-                          {talent.type} • Age {talent.age} • Rep: {talent.reputation}
+                          {talent.type} • Age {talent.age} • Rep: {Math.round(talent.reputation)}
                         </div>
                         <div className="flex items-center gap-2 mt-1">
                           <Badge variant="secondary">

@@ -503,7 +503,7 @@ export const ComprehensiveAIStudios: React.FC<ComprehensiveAIStudiosProps> = ({
                   {studio.name}
                 </CardTitle>
                 <div className="flex gap-2">
-                  <Badge variant="outline">Rep: {studio.reputation}</Badge>
+                      <Badge variant="outline">Rep: {Math.round(studio.reputation)}</Badge>
                   <Badge variant="secondary">{studio.riskTolerance}</Badge>
                 </div>
               </CardHeader>
