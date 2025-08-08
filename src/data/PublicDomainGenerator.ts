@@ -39,7 +39,6 @@ export const generatePublicDomainSources = (): PublicDomainSource[] => {
           description: 'Young man from feuding family',
           requiredType: 'actor',
           ageRange: [18, 30],
-          requiredTraits: []
         },
         {
           id: 'juliet',
@@ -48,7 +47,6 @@ export const generatePublicDomainSources = (): PublicDomainSource[] => {
           description: 'Young woman from feuding family',
           requiredType: 'actor',
           ageRange: [16, 25],
-          requiredTraits: []
         },
         {
           id: 'director',
@@ -57,7 +55,6 @@ export const generatePublicDomainSources = (): PublicDomainSource[] => {
           description: 'Film director',
           requiredType: 'director',
           ageRange: [30, 65],
-          requiredTraits: []
         }
       ]
     }

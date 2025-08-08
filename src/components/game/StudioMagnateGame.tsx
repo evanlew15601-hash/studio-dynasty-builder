@@ -3,7 +3,8 @@ import { GameState, Studio, Project, Script, TalentPerson, BoxOfficeWeek, BoxOff
 import { useLoadingContext } from '@/contexts/LoadingContext';
 import { LoadingOverlay } from '@/components/ui/loading-overlay';
 import { LOADING_OPERATIONS, delay, simulateProgress } from '@/utils/loadingUtils';
-import { PublicDomainGenerator, generatePublicDomainSources } from '@/data/PublicDomainGenerator';
+import { FranchiseGenerator } from '@/data/FranchiseGenerator';
+import { PublicDomainGenerator } from '@/data/PublicDomainGenerator';
 import { ScriptDevelopment } from './ScriptDevelopment';
 import { CastingBoard } from './CastingBoard';
 import { ProductionManagement } from './ProductionManagement';
@@ -153,7 +154,7 @@ export const StudioMagnateGame: React.FC<StudioMagnateGameProps> = ({ onPhaseCha
       // Initialize Franchise & Public Domain Systems
       franchises: FranchiseGenerator.generateInitialFranchises(30),
       publicDomainIPs: PublicDomainGenerator.generateInitialPublicDomainIPs(50),
-      publicDomainSources: generatePublicDomainSources(),
+      publicDomainSources: PublicDomainGenerator.generateInitialPublicDomainIPs(20),
     };
 
     updateOperation(LOADING_OPERATIONS.GAME_INIT.id, 100, 'Game ready!');
