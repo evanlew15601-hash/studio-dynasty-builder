@@ -621,7 +621,7 @@ export const ComprehensiveAIStudios: React.FC<ComprehensiveAIStudiosProps> = ({
                     </div>
                     <div className="flex items-center gap-1">
                       <Star className="h-3 w-3" />
-                      <span className="text-sm">{talent.reputation}</span>
+                      <span className="text-sm">{Math.round(talent.reputation)}</span>
                     </div>
                   </div>
                   

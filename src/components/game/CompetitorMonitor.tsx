@@ -30,6 +30,12 @@ export const CompetitorMonitor: React.FC<CompetitorMonitorProps> = ({
     setCommitments(AIStudioManager.getAllCommitments());
   }, [currentWeek, currentYear]);
 
+  // Auto-run tests once on mount to surface issues early
+  useEffect(() => {
+    const results = AIStudioIntegrationTests.runAllTests();
+    setTestResults(results);
+  }, []);
+
   const getStudioAIFilms = (studioId: string) => {
     return aiFilms.filter(f => f.studioId === studioId);
   };

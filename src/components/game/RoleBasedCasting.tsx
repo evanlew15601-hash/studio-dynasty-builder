@@ -82,6 +82,20 @@ export const RoleBasedCasting: React.FC<RoleBasedCastingProps> = ({
   const generateFranchiseRoles = (franchise: any): ScriptCharacter[] => {
     const roles: ScriptCharacter[] = [];
     
+    // Import predefined roles if the franchise template provides them
+    if ((franchise as any).predefinedRoles && Array.isArray((franchise as any).predefinedRoles)) {
+      (franchise as any).predefinedRoles.forEach((r: any) => {
+        roles.push({
+          id: r.id,
+          name: r.name,
+          importance: r.importance,
+          description: r.description,
+          requiredType: r.requiredType,
+          ageRange: r.ageRange
+        });
+      });
+    }
+    
     // Generate common franchise roles based on genre
     if (franchise.genre.includes('action')) {
       roles.push({
@@ -112,7 +126,7 @@ export const RoleBasedCasting: React.FC<RoleBasedCastingProps> = ({
         ageRange: [22, 40]
       });
     }
-
+  
     // Always add director role
     roles.push({
       id: 'director',
@@ -121,7 +135,7 @@ export const RoleBasedCasting: React.FC<RoleBasedCastingProps> = ({
       description: 'Film director',
       requiredType: 'director'
     });
-
+  
     return roles;
   };
 

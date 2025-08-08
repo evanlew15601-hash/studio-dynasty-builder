@@ -220,13 +220,17 @@ export const PostTheatricalManagement: React.FC<PostTheatricalManagementProps> =
       };
     }
     
-    // Check if already released on this platform
-    const alreadyReleased = activeReleases.some(r => 
-      r.projectId === project.id && r.platform === option.platform
-    );
+    // Check if already released on this platform or any post-theatrical already done
+    const alreadyReleasedOnAny = (project.postTheatricalReleases && project.postTheatricalReleases.length > 0);
+    const alreadyReleasedOnPlatform = (project.postTheatricalReleases || []).some(r => r.platform === option.platform);
+    const activeOrPastOnPlatform = alreadyReleasedOnPlatform || activeReleases.some(r => r.projectId === project.id && r.platform === option.platform);
     
-    if (alreadyReleased) {
-      return { canRelease: false, reason: 'Already released' };
+    if (alreadyReleasedOnAny) {
+      return { canRelease: false, reason: 'Post-theatrical already executed for this film' };
+    }
+    
+    if (activeOrPastOnPlatform) {
+      return { canRelease: false, reason: 'Already released on this platform' };
     }
     
     // Check budget

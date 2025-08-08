@@ -226,7 +226,7 @@ export const CastingBoard: React.FC<CastingBoardProps> = ({
                 <div className="text-right">
                   <div className="flex items-center space-x-1 text-sm text-muted-foreground">
                     <ReputationIcon size={14} />
-                    <span>{talent.reputation}/100</span>
+                    <span>{Math.round(talent.reputation)}/100</span>
                   </div>
                 </div>
               </div>
