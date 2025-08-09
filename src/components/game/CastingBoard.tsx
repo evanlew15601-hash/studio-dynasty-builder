@@ -74,7 +74,7 @@ export const CastingBoard: React.FC<CastingBoardProps> = ({
     if (totalCost > gameState.studio.budget) {
       toast({
         title: "Insufficient Budget",
-        description: `Cannot afford ${talent.name} - need $${(totalCost / 1000000).toFixed(1)}M`,
+        description: `Cannot afford ${talent.name} - need $${(totalCost / 1000000).toFixed(0)}M`,
         variant: "destructive"
       });
       return;
@@ -124,7 +124,7 @@ export const CastingBoard: React.FC<CastingBoardProps> = ({
     });
   };
 
-  const formatCurrency = (amount: number) => `$${(amount / 1000000).toFixed(1)}M`;
+  const formatCurrency = (amount: number) => `$${(amount / 1000000).toFixed(0)}M`;
 
   const getProjectBudget = () => {
     return selectedProject ? selectedProject.budget.total * 0.05 : 0;

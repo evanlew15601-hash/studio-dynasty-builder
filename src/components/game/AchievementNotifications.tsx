@@ -54,7 +54,7 @@ export const AchievementNotification: React.FC<AchievementNotificationProps> = (
                   {achievement.reward.budget && (
                     <Badge variant="outline" className="text-xs">
                       <DollarSign size={12} className="mr-1" />
-                      +${(achievement.reward.budget / 1000000).toFixed(1)}M
+                      +${(achievement.reward.budget / 1000000).toFixed(0)}M
                     </Badge>
                   )}
                 </div>

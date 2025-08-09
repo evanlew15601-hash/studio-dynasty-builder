@@ -157,7 +157,7 @@ export const AwardsShowModal: React.FC<AwardsShowModalProps> = ({
                         <div className="text-right">
                           <div className="text-sm font-medium">+{winner.award?.reputationBoost || 0} Reputation</div>
                           <div className="text-xs text-muted-foreground">
-                            +${((winner.award?.revenueBoost || 0) / 1000000).toFixed(1)}M Revenue
+                            +${((winner.award?.revenueBoost || 0) / 1000000).toFixed(0)}M Revenue
                           </div>
                         </div>
                       </div>

@@ -36,7 +36,7 @@ export const ScriptDevelopment: React.FC<ScriptDevelopmentProps> = ({
     if (selectedFranchise) {
       const franchise = gameState.franchises.find(f => f.id === selectedFranchise);
       if (franchise) {
-        return {
+return {
           title: `${franchise.title}${franchise.entries.length > 0 ? ` ${franchise.entries.length + 1}` : ''}`,
           genre: franchise.genre[0] || 'drama',
           logline: `${franchise.description || 'A continuation of the beloved franchise'} This installment explores new depths while honoring the legacy that fans love.`,
@@ -56,7 +56,9 @@ export const ScriptDevelopment: React.FC<ScriptDevelopmentProps> = ({
             commercialAppeal: Math.min(10, Math.round(franchise.culturalWeight / 10)),
             criticalPotential: Math.min(10, Math.round(franchise.averageRating || 5)),
             cgiIntensity: franchise.genre.includes('action') || franchise.genre.includes('sci-fi') || franchise.genre.includes('fantasy') ? 'heavy' : 'minimal'
-          }
+          },
+          sourceType: 'franchise',
+          franchiseId: franchise.id
         };
       }
     }
@@ -64,7 +66,7 @@ export const ScriptDevelopment: React.FC<ScriptDevelopmentProps> = ({
     if (selectedPublicDomain) {
       const pd = gameState.publicDomainIPs.find(p => p.id === selectedPublicDomain);
       if (pd) {
-        return {
+return {
           title: `${pd.name}: A New Vision`,
           genre: pd.genreFlexibility[0] || 'drama',
           logline: `${pd.description || 'A fresh adaptation of a timeless classic'} This modern interpretation brings new relevance to the beloved story.`,
@@ -84,7 +86,9 @@ export const ScriptDevelopment: React.FC<ScriptDevelopmentProps> = ({
             commercialAppeal: Math.min(10, Math.round(pd.reputationScore / 10)),
             criticalPotential: Math.min(10, Math.round(pd.reputationScore / 8)), // Prestige from adaptation
             cgiIntensity: pd.domainType === 'mythology' ? 'heavy' : 'minimal'
-          }
+          },
+          sourceType: 'public-domain',
+          publicDomainId: pd.id
         };
       }
     }

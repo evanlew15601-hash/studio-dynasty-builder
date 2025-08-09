@@ -124,7 +124,7 @@ export const CastingRoleManager: React.FC<CastingRoleManagerProps> = ({
     if (currentBudgetUsed + cost > studioBudget) {
       toast({
         title: "Insufficient Budget",
-        description: `Cannot afford ${talent.name}. Need $${(cost / 1000000).toFixed(1)}M more.`,
+        description: `Cannot afford ${talent.name}. Need $${(cost / 1000000).toFixed(0)}M more.`,
         variant: "destructive"
       });
       return;
@@ -259,7 +259,7 @@ export const CastingRoleManager: React.FC<CastingRoleManagerProps> = ({
             </div>
             <div className="text-center p-4 bg-muted/20 rounded-lg">
               <div className="text-2xl font-bold text-green-600">
-                ${(getTotalBudgetUsed() / 1000000).toFixed(1)}M
+                ${(getTotalBudgetUsed() / 1000000).toFixed(0)}M
               </div>
               <div className="text-sm text-muted-foreground">Budget Used</div>
             </div>
@@ -291,7 +291,7 @@ export const CastingRoleManager: React.FC<CastingRoleManagerProps> = ({
                             {role.roleType.replace('_', ' ')}
                           </Badge>
                           {talent && (
-                            <Badge variant="secondary">${(talent.marketValue / 1000000).toFixed(1)}M</Badge>
+                            <Badge variant="secondary">${(talent.marketValue / 1000000).toFixed(0)}M</Badge>
                           )}
                         </div>
                       </div>
@@ -392,10 +392,10 @@ export const CastingRoleManager: React.FC<CastingRoleManagerProps> = ({
                         </div>
                         <div className="flex items-center gap-2 mt-1">
                           <Badge variant="secondary">
-                            ${(talent.marketValue / 1000000).toFixed(1)}M value
+                            ${(talent.marketValue / 1000000).toFixed(0)}M value
                           </Badge>
                           <Badge variant="outline">
-                            ${(cost / 1000000).toFixed(1)}M total cost
+                            ${(cost / 1000000).toFixed(0)}M total cost
                           </Badge>
                           {talent.awards && talent.awards.length > 0 && (
                             <Badge variant="secondary" className="bg-yellow-100 text-yellow-800">

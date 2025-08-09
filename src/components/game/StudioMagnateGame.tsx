@@ -1020,7 +1020,7 @@ export const StudioMagnateGame: React.FC<StudioMagnateGameProps> = ({ onPhaseCha
       try {
         AIStudioManager.processWeeklyAIFilms(newTimeState.currentWeek, newTimeState.currentYear);
         if (prev.competitorStudios.length > 0) {
-          const shouldStartAIFilm = (newTimeState.currentWeek % 6 === 1) || Math.random() < 0.15;
+          const shouldStartAIFilm = (newTimeState.currentWeek % 4 === 1) || Math.random() < 0.35;
           if (shouldStartAIFilm) {
             const randomStudio = prev.competitorStudios[Math.floor(Math.random() * prev.competitorStudios.length)];
             AIStudioManager.createAIFilm(

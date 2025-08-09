@@ -117,7 +117,7 @@ const AchievementCard: React.FC<{ achievement: Achievement }> = ({ achievement }
                 )}
                 {achievement.reward.budget && (
                   <Badge variant="outline" className="text-xs">
-                    +${(achievement.reward.budget / 1000000).toFixed(1)}M
+                    +${(achievement.reward.budget / 1000000).toFixed(0)}M
                   </Badge>
                 )}
               </div>

@@ -94,7 +94,7 @@ export const DeepReputationPanel: React.FC<DeepReputationPanelProps> = ({
           <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
             <div className="text-center">
               <div className={`text-4xl font-bold ${getFactorColor(repResult.reputation)}`}>
-                {repResult.reputation.toFixed(1)}
+                {repResult.reputation.toFixed(0)}
               </div>
               <div className="text-sm text-muted-foreground">Overall Reputation</div>
               <div className="mt-2">
@@ -104,7 +104,7 @@ export const DeepReputationPanel: React.FC<DeepReputationPanelProps> = ({
             
             <div className="text-center">
               <div className={`text-2xl font-semibold ${trend.trend === 'rising' ? 'text-green-600' : trend.trend === 'falling' ? 'text-red-600' : 'text-gray-600'}`}>
-                {trend.changePercent > 0 ? '+' : ''}{trend.changePercent.toFixed(1)}%
+                {trend.changePercent > 0 ? '+' : ''}{trend.changePercent.toFixed(0)}%
               </div>
               <div className="text-sm text-muted-foreground">Recent Trend</div>
               <div className="text-xs text-muted-foreground mt-1">
@@ -223,7 +223,7 @@ export const DeepReputationPanel: React.FC<DeepReputationPanelProps> = ({
                     <span className="font-medium">Industry Bonus</span>
                   </div>
                   <span className={repResult.modifiers.industryBonus >= 0 ? 'text-green-600' : 'text-red-600'}>
-                    {repResult.modifiers.industryBonus > 0 ? '+' : ''}{repResult.modifiers.industryBonus.toFixed(1)}
+                    {repResult.modifiers.industryBonus > 0 ? '+' : ''}{repResult.modifiers.industryBonus.toFixed(0)}
                   </span>
                 </div>
                 
@@ -233,7 +233,7 @@ export const DeepReputationPanel: React.FC<DeepReputationPanelProps> = ({
                     <span className="font-medium">Seasonal Adjustment</span>
                   </div>
                   <span className={repResult.modifiers.seasonalAdjustment >= 0 ? 'text-green-600' : 'text-red-600'}>
-                    {repResult.modifiers.seasonalAdjustment > 0 ? '+' : ''}{repResult.modifiers.seasonalAdjustment.toFixed(1)}
+                    {repResult.modifiers.seasonalAdjustment > 0 ? '+' : ''}{repResult.modifiers.seasonalAdjustment.toFixed(0)}
                   </span>
                 </div>
                 
@@ -243,7 +243,7 @@ export const DeepReputationPanel: React.FC<DeepReputationPanelProps> = ({
                     <span className="font-medium">Competitor Comparison</span>
                   </div>
                   <span className={repResult.modifiers.competitorComparison >= 0 ? 'text-green-600' : 'text-red-600'}>
-                    {repResult.modifiers.competitorComparison > 0 ? '+' : ''}{repResult.modifiers.competitorComparison.toFixed(1)}
+                    {repResult.modifiers.competitorComparison > 0 ? '+' : ''}{repResult.modifiers.competitorComparison.toFixed(0)}
                   </span>
                 </div>
                 
@@ -253,7 +253,7 @@ export const DeepReputationPanel: React.FC<DeepReputationPanelProps> = ({
                     <span className="font-medium">Talent Endorsement</span>
                   </div>
                   <span className={repResult.modifiers.talentEndorsement >= 0 ? 'text-green-600' : 'text-red-600'}>
-                    {repResult.modifiers.talentEndorsement > 0 ? '+' : ''}{repResult.modifiers.talentEndorsement.toFixed(1)}
+                    {repResult.modifiers.talentEndorsement > 0 ? '+' : ''}{repResult.modifiers.talentEndorsement.toFixed(0)}
                   </span>
                 </div>
                 
@@ -263,7 +263,7 @@ export const DeepReputationPanel: React.FC<DeepReputationPanelProps> = ({
                     <span className="font-medium">Project Portfolio</span>
                   </div>
                   <span className={repResult.modifiers.projectPortfolio >= 0 ? 'text-green-600' : 'text-red-600'}>
-                    {repResult.modifiers.projectPortfolio > 0 ? '+' : ''}{repResult.modifiers.projectPortfolio.toFixed(1)}
+                    {repResult.modifiers.projectPortfolio > 0 ? '+' : ''}{repResult.modifiers.projectPortfolio.toFixed(0)}
                   </span>
                 </div>
               </div>

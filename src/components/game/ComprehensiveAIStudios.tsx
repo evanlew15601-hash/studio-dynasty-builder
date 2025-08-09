@@ -591,7 +591,7 @@ export const ComprehensiveAIStudios: React.FC<ComprehensiveAIStudiosProps> = ({
                   <div>Cast: {project.cast.length}</div>
                   {project.performance && (
                     <>
-                      <div>BO: ${(project.performance.boxOffice / 1000000).toFixed(1)}M</div>
+                      <div>BO: ${(project.performance.boxOffice / 1000000).toFixed(0)}M</div>
                       <div>Critics: {project.performance.criticsScore}</div>
                       <div>Audience: {project.performance.audienceScore}</div>
                     </>
