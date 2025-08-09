@@ -112,7 +112,7 @@ export const PerformanceMetrics: React.FC<PerformanceMetricsProps> = ({ gameStat
             <div className="flex items-center justify-between">
               <span className="text-sm font-medium">Studio Reputation</span>
               <Badge variant={studio.reputation >= 70 ? 'default' : studio.reputation >= 40 ? 'secondary' : 'destructive'}>
-                {studio.reputation}/100
+                {Math.round(studio.reputation)}/100
               </Badge>
             </div>
             <Progress value={studio.reputation} className="h-2" />

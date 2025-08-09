@@ -138,10 +138,10 @@ export const TalentMarketplace: React.FC<TalentMarketplaceProps> = ({
                 <div className="flex justify-between items-start mb-3">
                   <div>
                     <h3 className="font-semibold">{person.name}</h3>
-                    <div className="flex items-center gap-2 text-sm text-muted-foreground">
-                      <Star size={14} />
-                      <span>{person.reputation}/100</span>
-                    </div>
+                      <div className="flex items-center gap-2 text-sm text-muted-foreground">
+                        <Star size={14} />
+                        <span>{Math.round(person.reputation)}/100</span>
+                      </div>
                   </div>
                   
                   <Badge 
@@ -175,7 +175,7 @@ export const TalentMarketplace: React.FC<TalentMarketplaceProps> = ({
                         <div key={film.id} className="text-xs p-1 bg-muted/30 rounded">
                           <div className="font-medium">{film.title}</div>
                           <div className="text-muted-foreground">
-                            {film.studioName} • ${(film.performance?.boxOffice || 0 / 1000000).toFixed(1)}M
+                            {film.studioName} • ${( (film.performance?.boxOffice || 0) / 1000000).toFixed(0)}M
                           </div>
                         </div>
                       ))}

@@ -215,10 +215,10 @@ export const EnhancedReleaseSystem: React.FC<EnhancedReleaseSystemProps> = ({
 
     onProjectUpdate(updatedProject);
     
-    toast({
-      title: "Post-Theatrical Released",
-      description: `${project.title} earned additional $${(postTheatricalRevenue / 1000000).toFixed(1)}M from streaming/digital`,
-    });
+      toast({
+        title: "Post-Theatrical Released",
+        description: `${project.title} earned additional $${(postTheatricalRevenue / 1000000).toFixed(0)}M from streaming/digital`,
+      });
   };
 
   return (
@@ -277,7 +277,7 @@ export const EnhancedReleaseSystem: React.FC<EnhancedReleaseSystemProps> = ({
                       {project.title}
                     </CardTitle>
                     <p className="text-sm text-muted-foreground">
-                      {project.script?.genre} • ${(project.budget.total / 1000000).toFixed(1)}M
+                      {project.script?.genre} • ${(project.budget.total / 1000000).toFixed(0)}M
                     </p>
                   </div>
                   <Badge variant={validation.canRelease ? "default" : "destructive"}>

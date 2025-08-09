@@ -1,5 +1,5 @@
 import React, { useState, Suspense } from 'react';
-import { GameState, Studio, Project, Script, TalentPerson, BoxOfficeWeek, BoxOfficeRelease, Genre, MarketingStrategy, ReleaseStrategy, ProductionPhase } from '@/types/game';
+import { GameState, Studio, Project, Script, TalentPerson, BoxOfficeWeek, BoxOfficeRelease, Genre, MarketingStrategy, ReleaseStrategy, ProductionPhase, ScriptCharacter } from '@/types/game';
 import { useLoadingContext } from '@/contexts/LoadingContext';
 import { LoadingOverlay } from '@/components/ui/loading-overlay';
 import { LOADING_OPERATIONS, delay, simulateProgress } from '@/utils/loadingUtils';
@@ -301,6 +301,47 @@ export const StudioMagnateGame: React.FC<StudioMagnateGameProps> = ({ onPhaseCha
       metrics: {}
     };
 
+    // Auto-generate roles from source material if none defined
+    let enrichedProject: Project = newProject;
+    try {
+      const roles: ScriptCharacter[] = [];
+      if ((!newProject.script.characters || newProject.script.characters.length === 0)) {
+        if (newProject.script.sourceType === 'franchise' && newProject.script.franchiseId) {
+          const franchise = gameState.franchises.find(f => f.id === newProject.script.franchiseId);
+          if (franchise) {
+            // Common franchise roles
+            if ((franchise as any).predefinedRoles && Array.isArray((franchise as any).predefinedRoles)) {
+              (franchise as any).predefinedRoles.forEach((r: any) => {
+                roles.push({ id: r.id, name: r.name, importance: r.importance, description: r.description, requiredType: r.requiredType, ageRange: r.ageRange });
+              });
+            }
+            const genreList = franchise.genre.join(',').toLowerCase();
+            if (genreList.includes('action')) {
+              roles.push({ id: 'hero-lead', name: 'Hero', importance: 'lead', description: 'The main protagonist', requiredType: 'actor', ageRange: [25,45] });
+              roles.push({ id: 'villain', name: 'Main Villain', importance: 'supporting', description: 'Primary antagonist', requiredType: 'actor', ageRange: [30,60] });
+            }
+            if (genreList.includes('romance')) {
+              roles.push({ id: 'love-interest', name: 'Love Interest', importance: 'supporting', description: 'Romantic partner', requiredType: 'actor', ageRange: [22,40] });
+            }
+          }
+        } else if (newProject.script.sourceType === 'public-domain' && newProject.script.publicDomainId) {
+          const pd = gameState.publicDomainSources?.find(p => p.id === newProject.script.publicDomainId);
+          if (pd?.suggestedCharacters) {
+            pd.suggestedCharacters.forEach(c => roles.push({ ...c }));
+          }
+        }
+        // Always ensure a director role exists
+        if (!roles.some(r => r.requiredType === 'director')) {
+          roles.push({ id: 'director', name: 'Director', importance: 'crew', description: 'Film director', requiredType: 'director' });
+        }
+        if (roles.length > 0) {
+          enrichedProject = { ...newProject, script: { ...newProject.script, characters: roles } };
+        }
+      }
+    } catch (e) {
+      console.warn('Role auto-generation failed', e);
+    }
+
     updateOperation('project-create', 90, 'Finalizing project...');
 
     // Deduct development cost and handle loan if needed
@@ -320,7 +361,7 @@ export const StudioMagnateGame: React.FC<StudioMagnateGameProps> = ({ onPhaseCha
 
     setGameState(prev => ({
       ...prev,
-      projects: [...prev.projects, newProject],
+      projects: [...prev.projects, enrichedProject],
       studio: {
         ...prev.studio,
         budget: finalBudget,
@@ -459,10 +500,12 @@ export const StudioMagnateGame: React.FC<StudioMagnateGameProps> = ({ onPhaseCha
     const calculatedAbsoluteWeek = (releaseYear * 52) + releaseWeek;
     
     if (calculatedAbsoluteWeek < currentAbsoluteWeek) {
-      // Force release to current week if date is in the past
-      releaseWeek = gameState.currentWeek;
-      releaseYear = gameState.currentYear;
-      console.log(`  → WARNING: Release date was in past, moved to current week Y${releaseYear}W${releaseWeek}`);
+      toast({
+        title: "Invalid Release Date",
+        description: "Release date cannot be in the past.",
+        variant: "destructive"
+      });
+      return;
     }
     
     console.log(`  → Player selected: ${strategy.premiereDate.toDateString()} = Y${releaseYear}W${releaseWeek}`);
@@ -973,6 +1016,25 @@ export const StudioMagnateGame: React.FC<StudioMagnateGameProps> = ({ onPhaseCha
       
       console.log(`🕐 NEW TIME STATE: Y${newTimeState.currentYear}W${newTimeState.currentWeek}`);
       
+      // Process AI studio timelines and potential new film starts
+      try {
+        AIStudioManager.processWeeklyAIFilms(newTimeState.currentWeek, newTimeState.currentYear);
+        if (prev.competitorStudios.length > 0) {
+          const shouldStartAIFilm = (newTimeState.currentWeek % 6 === 1) || Math.random() < 0.15;
+          if (shouldStartAIFilm) {
+            const randomStudio = prev.competitorStudios[Math.floor(Math.random() * prev.competitorStudios.length)];
+            AIStudioManager.createAIFilm(
+              randomStudio,
+              newTimeState.currentWeek,
+              newTimeState.currentYear,
+              prev.talent.filter(t => t.contractStatus === 'available')
+            );
+          }
+        }
+      } catch (e) {
+        console.warn('AI Studio processing error', e);
+      }
+      
       // Process scheduled releases first
       let updatedProjects = prev.projects;
       
@@ -1159,11 +1221,11 @@ export const StudioMagnateGame: React.FC<StudioMagnateGameProps> = ({ onPhaseCha
                 <div className="text-sm">
                   <span className="text-muted-foreground">Budget:</span>{' '}
                   <span className="studio-mono font-semibold text-primary">
-                    ${(gameState.studio.budget / 1000000).toFixed(1)}M
+                    ${(gameState.studio.budget / 1000000).toFixed(0)}M
                   </span>
                   {gameState.studio.debt && gameState.studio.debt > 0 && (
                     <span className="text-destructive text-xs ml-2">
-                      Debt: ${(gameState.studio.debt / 1000000).toFixed(1)}M
+                      Debt: ${(gameState.studio.debt / 1000000).toFixed(0)}M
                     </span>
                   )}
                 </div>
@@ -1174,7 +1236,7 @@ export const StudioMagnateGame: React.FC<StudioMagnateGameProps> = ({ onPhaseCha
                 <div className="text-sm">
                   <span className="text-muted-foreground">Reputation:</span>{' '}
                   <span className="studio-mono font-semibold text-accent">
-                    {gameState.studio.reputation}/100
+                    {Math.round(gameState.studio.reputation)}/100
                   </span>
                 </div>
               </div>

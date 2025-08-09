@@ -224,7 +224,7 @@ export const StudioStats: React.FC<StudioStatsProps> = ({
                 <div className="space-y-2">
                   <div className="flex justify-between text-sm">
                     <span>Studio Reputation</span>
-                    <span>{gameState.studio.reputation}/100</span>
+                    <span>{Math.round(gameState.studio.reputation)}/100</span>
                   </div>
                   <Progress value={gameState.studio.reputation} className="h-2" />
                 </div>

@@ -152,9 +152,9 @@ export const TalentAgencySystem: React.FC<TalentAgencySystemProps> = ({
                         <div>
                           <h4 className="font-medium">{person.name}</h4>
                           <p className="text-sm text-muted-foreground capitalize">{person.type}</p>
-                          <Badge variant="outline" className="text-xs mt-1">
-                            Rep: {person.reputation}/100
-                          </Badge>
+                            <Badge variant="outline" className="text-xs mt-1">
+                              Rep: {Math.round(person.reputation)}/100
+                            </Badge>
                         </div>
                         <div className="text-right text-sm">
                           <p className="font-medium">

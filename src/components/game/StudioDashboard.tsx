@@ -120,7 +120,7 @@ export const StudioDashboard: React.FC<StudioDashboardProps> = ({
                 <div className="flex justify-between items-center py-2 px-3 rounded-lg bg-gradient-to-r from-primary/5 to-accent/5 border border-primary/10">
                   <span className="text-sm text-muted-foreground">Current Budget</span>
                   <span className="studio-mono font-semibold text-primary">
-                    ${(gameState.studio.budget / 1000000).toFixed(1)}M
+                    ${(gameState.studio.budget / 1000000).toFixed(0)}M
                   </span>
                 </div>
                 <div className="flex justify-between items-center py-2 px-3 rounded-lg bg-card/50">
@@ -151,7 +151,7 @@ export const StudioDashboard: React.FC<StudioDashboardProps> = ({
                 <div className="flex justify-between items-center mb-3">
                   <span className="text-sm text-muted-foreground">Reputation Score</span>
                   <span className="studio-mono font-semibold text-accent text-lg">
-                    {gameState.studio.reputation}/100
+                    {Math.round(gameState.studio.reputation)}/100
                   </span>
                 </div>
                 <div className="space-y-2">

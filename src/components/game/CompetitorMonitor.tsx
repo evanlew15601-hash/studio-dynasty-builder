@@ -215,7 +215,7 @@ export const CompetitorMonitor: React.FC<CompetitorMonitorProps> = ({
                         <div className="grid grid-cols-3 gap-2 text-xs mb-2">
                           <div>
                             <span className="text-muted-foreground">Budget:</span>{' '}
-                            ${(film.budget.production / 1000000).toFixed(1)}M
+                            ${(film.budget.production / 1000000).toFixed(0)}M
                           </div>
                           <div>
                             <span className="text-muted-foreground">Cast:</span>{' '}
@@ -229,7 +229,7 @@ export const CompetitorMonitor: React.FC<CompetitorMonitorProps> = ({
 
                         {film.performance && (
                           <div className="text-xs p-2 bg-green-50 rounded">
-                            <strong>Box Office:</strong> ${(film.performance.boxOffice / 1000000).toFixed(1)}M • 
+                            <strong>Box Office:</strong> ${(film.performance.boxOffice / 1000000).toFixed(0)}M • 
                             <strong> Critics:</strong> {film.performance.criticsScore}/100
                           </div>
                         )}
