@@ -221,11 +221,11 @@ export const CastingRoleManager: React.FC<CastingRoleManagerProps> = ({
 
   const getRoleTypeColor = (roleType: string) => {
     switch (roleType) {
-      case 'director': return 'bg-purple-100 text-purple-800';
-      case 'lead': return 'bg-red-100 text-red-800';
-      case 'supporting': return 'bg-blue-100 text-blue-800';
-      case 'character': return 'bg-green-100 text-green-800';
-      default: return 'bg-gray-100 text-gray-800';
+      case 'director': return 'bg-primary/15 text-primary';
+      case 'lead': return 'bg-destructive/10 text-destructive';
+      case 'supporting': return 'bg-accent/15 text-accent';
+      case 'character': return 'bg-green-500/10 text-green-600';
+      default: return 'bg-muted/50 text-muted-foreground';
     }
   };
 

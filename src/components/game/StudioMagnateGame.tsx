@@ -4,7 +4,7 @@ import { useLoadingContext } from '@/contexts/LoadingContext';
 import { LoadingOverlay } from '@/components/ui/loading-overlay';
 import { LOADING_OPERATIONS, delay, simulateProgress } from '@/utils/loadingUtils';
 import { FranchiseGenerator } from '@/data/FranchiseGenerator';
-import { PublicDomainGenerator } from '@/data/PublicDomainGenerator';
+import { PublicDomainGenerator, generatePublicDomainSources } from '@/data/PublicDomainGenerator';
 import { ScriptDevelopment } from './ScriptDevelopment';
 import { CastingBoard } from './CastingBoard';
 import { ProductionManagement } from './ProductionManagement';
@@ -149,12 +149,30 @@ export const StudioMagnateGame: React.FC<StudioMagnateGameProps> = ({ onPhaseCha
       boxOfficeHistory: [],
       awardsCalendar: [],
       industryTrends: [],
-      allReleases: [], // Includes AI studio releases
+      allReleases: (() => {
+        const sg = new StudioGenerator();
+        const releases: Project[] = [];
+        const year = new Date().getFullYear();
+        for (let w = 1; w <= 52; w++) {
+          let added = false;
+          for (const st of competitorStudios) {
+            const profile = sg.getStudioProfile(st.name);
+            const rel = profile ? sg.generateStudioRelease(profile, w, year) : null;
+            if (rel) { releases.push(rel); added = true; break; }
+          }
+          if (!added && competitorStudios[0]) {
+            const fallback = sg.getStudioProfile(competitorStudios[0].name);
+            const rel = fallback ? sg.generateStudioRelease(fallback, w, year) : null;
+            if (rel) releases.push(rel);
+          }
+        }
+        return releases;
+      })(), // Pre-generated AI releases to ensure weekly box office
       topFilmsHistory: [],
       // Initialize Franchise & Public Domain Systems
       franchises: FranchiseGenerator.generateInitialFranchises(30),
       publicDomainIPs: PublicDomainGenerator.generateInitialPublicDomainIPs(50),
-      publicDomainSources: PublicDomainGenerator.generateInitialPublicDomainIPs(20),
+      publicDomainSources: generatePublicDomainSources(),
     };
 
     updateOperation(LOADING_OPERATIONS.GAME_INIT.id, 100, 'Game ready!');
@@ -333,6 +351,10 @@ export const StudioMagnateGame: React.FC<StudioMagnateGameProps> = ({ onPhaseCha
         // Always ensure a director role exists
         if (!roles.some(r => r.requiredType === 'director')) {
           roles.push({ id: 'director', name: 'Director', importance: 'crew', description: 'Film director', requiredType: 'director' });
+        }
+        // Ensure at least one cameo/minor role for flavor
+        if (!roles.some(r => r.importance === 'minor')) {
+          roles.push({ id: 'cameo-generic', name: 'Cameo Appearance', importance: 'minor', description: 'Short cameo role', requiredType: 'actor', ageRange: [25, 80] });
         }
         if (roles.length > 0) {
           enrichedProject = { ...newProject, script: { ...newProject.script, characters: roles } };
@@ -1059,7 +1081,7 @@ export const StudioMagnateGame: React.FC<StudioMagnateGameProps> = ({ onPhaseCha
       
       // Simulate box office for released films
       import('./FinancialEngine').then(({ FinancialEngine }) => {
-        const releasedFilms = updatedProjects
+        const playerReleased = updatedProjects
           .filter(p => p.status === 'released' && p.releaseWeek && p.releaseYear)
           .map(p => ({
             id: p.id,
@@ -1073,6 +1095,21 @@ export const StudioMagnateGame: React.FC<StudioMagnateGameProps> = ({ onPhaseCha
             budget: p.budget?.total || 10000000,
             genre: p.script?.genre || 'drama'
           }));
+        const aiReleased = prev.allReleases
+          .filter((r): r is Project => 'script' in r && (r as any).status === 'released' && r.releaseWeek && r.releaseYear)
+          .map(r => ({
+            id: r.id,
+            title: r.title,
+            weeksSinceRelease: TimeSystem.calculateWeeksSince(
+              r.releaseWeek!,
+              r.releaseYear!,
+              newTimeState.currentWeek,
+              newTimeState.currentYear
+            ),
+            budget: (r as any).budget?.total || (r as any).budget || 10000000,
+            genre: (r as any).script?.genre || (r as any).genre || 'drama'
+          }));
+        const releasedFilms = [...playerReleased, ...aiReleased];
         
         FinancialEngine.simulateBoxOfficeWeek(releasedFilms, newTimeState.currentWeek, newTimeState.currentYear);
         
@@ -1135,6 +1172,35 @@ export const StudioMagnateGame: React.FC<StudioMagnateGameProps> = ({ onPhaseCha
         reputation: deepRepResult.reputation
       };
       
+      // Update talent availability (prevent double-booking during filming)
+      const currentAbsWeek = (newTimeState.currentYear * 52) + newTimeState.currentWeek;
+      const updatedTalent = prev.talent.map(t => {
+        let status = t.contractStatus;
+        let busyUntil = t.busyUntilWeek;
+        if (status === 'busy' && typeof busyUntil === 'number' && busyUntil <= currentAbsWeek) {
+          status = 'available';
+          busyUntil = undefined;
+        }
+        return { ...t, contractStatus: status, busyUntilWeek: busyUntil };
+      });
+      // Mark cast as busy for projects in production
+      updatedProjects.forEach(p => {
+        if (p.currentPhase === 'production' || p.status === 'filming') {
+          p.cast?.forEach(c => {
+            const idx = updatedTalent.findIndex(t => t.id === c.talentId);
+            if (idx >= 0) {
+              const isCameo = c.role.toLowerCase().includes('cameo') || c.role.toLowerCase().includes('minor');
+              const durationWeeks = isCameo ? 2 : 8;
+              updatedTalent[idx] = {
+                ...updatedTalent[idx],
+                contractStatus: 'busy',
+                busyUntilWeek: currentAbsWeek + durationWeeks
+              };
+            }
+          });
+        }
+      });
+
       const newState = {
         ...prev,
         currentWeek: newTimeState.currentWeek,
@@ -1142,7 +1208,8 @@ export const StudioMagnateGame: React.FC<StudioMagnateGameProps> = ({ onPhaseCha
         currentQuarter: newTimeState.currentQuarter,
         projects: updatedProjects,
         studio: enhancedStudio,
-        allReleases: [...prev.allReleases, ...newAIReleases]
+        allReleases: [...prev.allReleases, ...newAIReleases],
+        talent: updatedTalent
       };
 
       setTimeout(() => {
