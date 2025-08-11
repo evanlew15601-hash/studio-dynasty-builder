@@ -5,19 +5,16 @@ import path from 'path';
 
 export default defineConfig(({ mode }) => {
   const env = loadEnv(mode, process.cwd(), '');
-  const ENABLE_STUDIO_SIM = env.VITE_ENABLE_STUDIO_SIM_FEATURES === 'true';
 
   return {
     server: { host: '::', port: 8080 },
     plugins: [
       react(),
-      ENABLE_STUDIO_SIM && componentTagger(),
+      mode === 'development' && componentTagger(),
     ].filter(Boolean),
-    define: {
-      'import.meta.env.VITE_ENABLE_STUDIO_SIM_FEATURES': JSON.stringify(
-        ENABLE_STUDIO_SIM
-      ),
-    },
     resolve: { alias: { '@': path.resolve(__dirname, './src') } },
+    define: {
+      'import.meta.env.VITE_ENABLE_STUDIO_SIM_FEATURES': JSON.stringify(env.VITE_ENABLE_STUDIO_SIM_FEATURES === 'true')
+    }
   };
 });
