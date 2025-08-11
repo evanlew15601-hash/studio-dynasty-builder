@@ -4,7 +4,7 @@ import { useLoadingContext } from '@/contexts/LoadingContext';
 import { LoadingOverlay } from '@/components/ui/loading-overlay';
 import { LOADING_OPERATIONS, delay, simulateProgress } from '@/utils/loadingUtils';
 import { FranchiseGenerator } from '@/data/FranchiseGenerator';
-import { PublicDomainGenerator, generatePublicDomainSources } from '@/data/PublicDomainGenerator';
+import { PublicDomainGenerator } from '@/data/PublicDomainGenerator';
 import { ScriptDevelopment } from './ScriptDevelopment';
 import { CastingBoard } from './CastingBoard';
 import { ProductionManagement } from './ProductionManagement';
@@ -172,9 +172,7 @@ export const StudioMagnateGame: React.FC<StudioMagnateGameProps> = ({ onPhaseCha
       // Initialize Franchise & Public Domain Systems
       franchises: FranchiseGenerator.generateInitialFranchises(30),
       publicDomainIPs: PublicDomainGenerator.generateInitialPublicDomainIPs(50),
-      publicDomainSources: generatePublicDomainSources(),
     };
-
     updateOperation(LOADING_OPERATIONS.GAME_INIT.id, 100, 'Game ready!');
     
     // Complete initialization after a brief delay
@@ -343,7 +341,7 @@ export const StudioMagnateGame: React.FC<StudioMagnateGameProps> = ({ onPhaseCha
             }
           }
         } else if (newProject.script.sourceType === 'public-domain' && newProject.script.publicDomainId) {
-          const pd = gameState.publicDomainSources?.find(p => p.id === newProject.script.publicDomainId);
+          const pd = gameState.publicDomainIPs?.find(p => p.id === newProject.script.publicDomainId);
           if (pd?.suggestedCharacters) {
             pd.suggestedCharacters.forEach(c => roles.push({ ...c }));
           }
@@ -1082,7 +1080,7 @@ export const StudioMagnateGame: React.FC<StudioMagnateGameProps> = ({ onPhaseCha
       // Simulate box office for released films
       import('./FinancialEngine').then(({ FinancialEngine }) => {
         const playerReleased = updatedProjects
-          .filter(p => p.status === 'released' && p.releaseWeek && p.releaseYear)
+          .filter(p => p.status === 'released' && !!p.releaseWeek && !!p.releaseYear)
           .map(p => ({
             id: p.id,
             title: p.title,
@@ -1096,7 +1094,7 @@ export const StudioMagnateGame: React.FC<StudioMagnateGameProps> = ({ onPhaseCha
             genre: p.script?.genre || 'drama'
           }));
         const aiReleased = prev.allReleases
-          .filter((r): r is Project => 'script' in r && (r as any).status === 'released' && r.releaseWeek && r.releaseYear)
+          .filter((r): r is Project => 'script' in r && (r as any).status === 'released' && !!r.releaseWeek && !!r.releaseYear)
           .map(r => ({
             id: r.id,
             title: r.title,

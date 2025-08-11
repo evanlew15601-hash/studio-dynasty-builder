@@ -67,7 +67,7 @@ export const RoleBasedCasting: React.FC<RoleBasedCastingProps> = ({
         });
       }
     } else if (project.script?.sourceType === 'public-domain' && project.script.publicDomainId) {
-      const pdSource = gameState.publicDomainSources?.find(p => p.id === project.script.publicDomainId);
+      const pdSource = gameState.publicDomainIPs?.find(p => p.id === project.script.publicDomainId);
       if (pdSource?.suggestedCharacters) {
         pdSource.suggestedCharacters.forEach(role => onCreateRole(role));
         
