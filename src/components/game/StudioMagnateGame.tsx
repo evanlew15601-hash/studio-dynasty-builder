@@ -152,26 +152,88 @@ export const StudioMagnateGame: React.FC<StudioMagnateGameProps> = ({ onPhaseCha
       allReleases: (() => {
         const sg = new StudioGenerator();
         const releases: Project[] = [];
-        const year = new Date().getFullYear();
-        for (let w = 1; w <= 52; w++) {
-          let added = false;
-          for (const st of competitorStudios) {
-            const profile = sg.getStudioProfile(st.name);
-            const rel = profile ? sg.generateStudioRelease(profile, w, year) : null;
-            if (rel) { releases.push(rel); added = true; break; }
-          }
-          if (!added && competitorStudios[0]) {
-            const fallback = sg.getStudioProfile(competitorStudios[0].name);
-            const rel = fallback ? sg.generateStudioRelease(fallback, w, year) : null;
-            if (rel) releases.push(rel);
+        const currentYear = new Date().getFullYear();
+        const yearsToSeed = [currentYear - 1, currentYear];
+        for (const year of yearsToSeed) {
+          for (let w = 1; w <= 52; w++) {
+            let added = false;
+            for (const st of competitorStudios) {
+              const profile = sg.getStudioProfile(st.name);
+              const rel = profile ? sg.generateStudioRelease(profile, w, year) : null;
+              if (rel) { releases.push(rel); added = true; break; }
+            }
+            if (!added && competitorStudios[0]) {
+              const fallback = sg.getStudioProfile(competitorStudios[0].name);
+              if (fallback) {
+                const rel = sg.generateStudioRelease(fallback, w, year);
+                if (rel) {
+                  releases.push(rel);
+                } else {
+                  // Guarantee at least one release per week: synthesize a small indie release
+                  const genre = fallback.specialties[0] as Genre;
+                  const script = {
+                    id: `script-${year}-${w}-${Math.random().toString(36).slice(2, 8)}`,
+                    title: sg.generateFilmTitle(genre, fallback.name),
+                    genre,
+                    logline: 'An indie story released to keep the slate full.',
+                    writer: 'Staff Writer',
+                    pages: 100,
+                    quality: 60,
+                    budget: 12000000,
+                    developmentStage: 'final',
+                    themes: ['indie','festival'],
+                    targetAudience: 'general',
+                    estimatedRuntime: 110,
+                    characteristics: { tone: 'balanced', pacing: 'steady', dialogue: 'naturalistic', visualStyle: 'realistic', commercialAppeal: 5, criticalPotential: 6, cgiIntensity: 'minimal' }
+                  } as Script;
+                  releases.push({
+                    id: `ai-project-${year}-${w}-${Math.random().toString(36).slice(2, 6)}`,
+                    title: script.title,
+                    script,
+                    type: 'feature',
+                    currentPhase: 'release',
+                    status: 'released',
+                    phaseDuration: 0,
+                    contractedTalent: [],
+                    developmentProgress: { scriptCompletion: 100, budgetApproval: 100, talentAttached: 100, locationSecured: 100, completionThreshold: 100, issues: [] },
+                    budget: {
+                      total: script.budget,
+                      allocated: { aboveTheLine: script.budget * 0.2, belowTheLine: script.budget * 0.3, postProduction: script.budget * 0.15, marketing: script.budget * 0.25, distribution: script.budget * 0.1, contingency: 0 },
+                      spent: { aboveTheLine: script.budget * 0.2, belowTheLine: script.budget * 0.3, postProduction: script.budget * 0.15, marketing: script.budget * 0.25, distribution: script.budget * 0.1, contingency: 0 },
+                      overages: { aboveTheLine: 0, belowTheLine: 0, postProduction: 0, marketing: 0, distribution: 0, contingency: 0 }
+                    },
+                    cast: [],
+                    crew: [],
+                    timeline: { preProduction: { start: new Date(), end: new Date() }, principalPhotography: { start: new Date(), end: new Date() }, postProduction: { start: new Date(), end: new Date() }, release: new Date(), milestones: [] },
+                    locations: [],
+                    distributionStrategy: { primary: { platform: 'Theatrical', type: 'theatrical', revenue: { type: 'box-office', studioShare: 50 } }, international: [], windows: [], marketingBudget: script.budget * 0.25 },
+                    metrics: {
+                      inTheaters: true,
+                      boxOfficeTotal: Math.floor(script.budget * 2.2),
+                      theaterCount: 1200,
+                      weeksSinceRelease: 0,
+                      criticsScore: 70,
+                      audienceScore: 72,
+                      boxOfficeStatus: 'Current',
+                      theatricalRunLocked: false,
+                      boxOffice: { openingWeekend: 0, domesticTotal: 0, internationalTotal: 0, production: script.budget, marketing: script.budget * 0.25, profit: 0, theaters: 1200, weeks: 0 }
+                    },
+                    releaseWeek: w,
+                    releaseYear: year,
+                    studioName: fallback.name
+                  } as Project);
+                }
+              }
+            }
           }
         }
         return releases;
-      })(), // Pre-generated AI releases to ensure weekly box office
+      })(), // Pre-generated AI releases for current and previous year
       topFilmsHistory: [],
       // Initialize Franchise & Public Domain Systems
       franchises: FranchiseGenerator.generateInitialFranchises(30),
       publicDomainIPs: PublicDomainGenerator.generateInitialPublicDomainIPs(50),
+      aiStudioProjects: [] as Project[],
     };
     updateOperation(LOADING_OPERATIONS.GAME_INIT.id, 100, 'Game ready!');
     
@@ -1207,6 +1269,7 @@ export const StudioMagnateGame: React.FC<StudioMagnateGameProps> = ({ onPhaseCha
         projects: updatedProjects,
         studio: enhancedStudio,
         allReleases: [...prev.allReleases, ...newAIReleases],
+        aiStudioProjects: [...prev.allReleases, ...newAIReleases].filter((r): r is Project => 'script' in r),
         talent: updatedTalent
       };
 
@@ -1671,13 +1734,11 @@ export const StudioMagnateGame: React.FC<StudioMagnateGameProps> = ({ onPhaseCha
         )}
         
         {currentPhase === 'awards' && (
-          <div className="space-y-6">
-            <div className="text-center text-muted-foreground">
-              <h2 className="text-2xl font-bold mb-4">🏆 Awards System</h2>
-              <p>Awards system implementation complete!</p>
-              <p className="text-sm">Awards ceremonies will trigger automatically in March (Week 12) each year.</p>
-            </div>
-          </div>
+          <AwardsSystem 
+            gameState={gameState}
+            onProjectUpdate={handleProjectUpdate}
+            onStudioUpdate={handleStudioUpdate}
+          />
         )}
         
         {currentPhase === 'market' && (
