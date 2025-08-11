@@ -71,3 +71,135 @@ Yes, you can!
 To connect a domain, navigate to Project > Settings > Domains and click Connect Domain.
 
 Read more here: [Setting up a custom domain](https://docs.lovable.dev/tips-tricks/custom-domain#step-by-step-guide)
+
+---
+
+# Film Studio Simulator atop lovable.dev
+
+This project layers Film Studio Simulator features on top of the lovable.dev template, with all new logic fully feature-flagged for safety and reversibility.
+
+---
+
+## Feature Flags
+
+All simulator-specific features are gated behind the environment variable:
+
+```
+VITE_ENABLE_STUDIO_SIM_FEATURES
+```
+
+**By default, this flag is `false` and the app behaves exactly as lovable.dev.**  
+To enable simulator features, run:
+
+```
+VITE_ENABLE_STUDIO_SIM_FEATURES=true npm run dev
+```
+
+or, if using `.env` files, add the following to your `.env`:
+
+```
+VITE_ENABLE_STUDIO_SIM_FEATURES=true
+```
+
+## Branch Strategy
+
+Development is conducted on a separate branch:
+
+```
+git checkout -b studio-sim-improvements
+```
+
+All changes are made to this branch, keeping main pristine and compatible with upstream lovable.dev.
+
+---
+
+## Tailwind Theme Extension
+
+Studio features extend the Tailwind config safely via `theme.extend` and use a color namespace (`studio`) to avoid conflicts.
+
+---
+
+## Linting, Formatting, and Commit Hooks
+
+This repo uses ESLint and Prettier for code quality.
+
+Pre-commit hooks are configured via [Husky](https://typicode.github.io/husky) to run `npm run lint` and `npm run format` before every commit.
+
+If not already set up, you can install and configure Husky with:
+
+```sh
+npx husky install
+npx husky add .husky/pre-commit "npm run lint && npm run format"
+```
+
+---
+
+## No Existing Functionality Is Altered
+
+All simulator code is fully togglable by the feature flag. With `VITE_ENABLE_STUDIO_SIM_FEATURES=false`, the app is indistinguishable from stock lovable.dev.
+
+---
+
+# Film Studio Simulator atop lovable.dev
+
+This project layers Film Studio Simulator features on top of the lovable.dev template, with all new logic fully feature-flagged for safety and reversibility.
+
+---
+
+## Feature Flags
+
+All simulator-specific features are gated behind the environment variable:
+
+```
+VITE_ENABLE_STUDIO_SIM_FEATURES
+```
+
+**By default, this flag is `false` and the app behaves exactly as lovable.dev.**  
+To enable simulator features, run:
+
+```
+VITE_ENABLE_STUDIO_SIM_FEATURES=true npm run dev
+```
+
+or, if using `.env` files, add the following to your `.env`:
+
+```
+VITE_ENABLE_STUDIO_SIM_FEATURES=true
+```
+
+## Branch Strategy
+
+Development is conducted on a separate branch:
+
+```
+git checkout -b studio-sim-improvements
+```
+
+All changes are made to this branch, keeping main pristine and compatible with upstream lovable.dev.
+
+---
+
+## Tailwind Theme Extension
+
+Studio features extend the Tailwind config safely via `theme.extend` and use a color namespace (`studio`) to avoid conflicts.
+
+---
+
+## Linting, Formatting, and Commit Hooks
+
+This repo uses ESLint and Prettier for code quality.
+
+Pre-commit hooks are configured via [Husky](https://typicode.github.io/husky) to run `npm run lint` and `npm run format` before every commit.
+
+If not already set up, you can install and configure Husky with:
+
+```sh
+npx husky install
+npx husky add .husky/pre-commit "npm run lint && npm run format"
+```
+
+---
+
+## No Existing Functionality Is Altered
+
+All simulator code is fully togglable by the feature flag. With `VITE_ENABLE_STUDIO_SIM_FEATURES=false`, the app is indistinguishable from stock lovable.dev.
