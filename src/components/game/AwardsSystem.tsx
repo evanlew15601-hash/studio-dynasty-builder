@@ -85,6 +85,17 @@ export const AwardsSystem: React.FC<AwardsSystemProps> = ({
 
   // Start awards campaign
   const startAwardsCampaign = (project: Project, budget: number) => {
+    // Prevent campaigning for AI films
+    const isPlayerProject = gameState.projects.some(p => p.id === project.id);
+    if (!isPlayerProject) {
+      toast({
+        title: "Not Allowed",
+        description: "You can only run awards campaigns for your own films.",
+        variant: "destructive"
+      });
+      return;
+    }
+
     if (budget > gameState.studio.budget) {
       toast({
         title: "Insufficient Budget",

@@ -66,6 +66,7 @@ import {
   BarChartIcon
 } from '@/components/ui/icons';
 import { ChevronDown } from 'lucide-react';
+import { RoleDatabase } from '../../data/RoleDatabase';
 
 interface StudioMagnateGameProps {
   onPhaseChange?: (phase: string) => void;
@@ -382,40 +383,8 @@ export const StudioMagnateGame: React.FC<StudioMagnateGameProps> = ({ onPhaseCha
     // Auto-generate roles from source material if none defined
     let enrichedProject: Project = newProject;
     try {
-      const roles: ScriptCharacter[] = [];
       if ((!newProject.script.characters || newProject.script.characters.length === 0)) {
-        if (newProject.script.sourceType === 'franchise' && newProject.script.franchiseId) {
-          const franchise = gameState.franchises.find(f => f.id === newProject.script.franchiseId);
-          if (franchise) {
-            // Common franchise roles
-            if ((franchise as any).predefinedRoles && Array.isArray((franchise as any).predefinedRoles)) {
-              (franchise as any).predefinedRoles.forEach((r: any) => {
-                roles.push({ id: r.id, name: r.name, importance: r.importance, description: r.description, requiredType: r.requiredType, ageRange: r.ageRange });
-              });
-            }
-            const genreList = franchise.genre.join(',').toLowerCase();
-            if (genreList.includes('action')) {
-              roles.push({ id: 'hero-lead', name: 'Hero', importance: 'lead', description: 'The main protagonist', requiredType: 'actor', ageRange: [25,45] });
-              roles.push({ id: 'villain', name: 'Main Villain', importance: 'supporting', description: 'Primary antagonist', requiredType: 'actor', ageRange: [30,60] });
-            }
-            if (genreList.includes('romance')) {
-              roles.push({ id: 'love-interest', name: 'Love Interest', importance: 'supporting', description: 'Romantic partner', requiredType: 'actor', ageRange: [22,40] });
-            }
-          }
-        } else if (newProject.script.sourceType === 'public-domain' && newProject.script.publicDomainId) {
-          const pd = gameState.publicDomainIPs?.find(p => p.id === newProject.script.publicDomainId);
-          if (pd?.suggestedCharacters) {
-            pd.suggestedCharacters.forEach(c => roles.push({ ...c }));
-          }
-        }
-        // Always ensure a director role exists
-        if (!roles.some(r => r.requiredType === 'director')) {
-          roles.push({ id: 'director', name: 'Director', importance: 'crew', description: 'Film director', requiredType: 'director' });
-        }
-        // Ensure at least one cameo/minor role for flavor
-        if (!roles.some(r => r.importance === 'minor')) {
-          roles.push({ id: 'cameo-generic', name: 'Cameo Appearance', importance: 'minor', description: 'Short cameo role', requiredType: 'actor', ageRange: [25, 80] });
-        }
+        const roles: ScriptCharacter[] = RoleDatabase.getRolesForProject(newProject, gameState);
         if (roles.length > 0) {
           enrichedProject = { ...newProject, script: { ...newProject.script, characters: roles } };
         }

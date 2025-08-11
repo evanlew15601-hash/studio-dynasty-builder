@@ -5,6 +5,7 @@ import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
 import { useToast } from '@/hooks/use-toast';
 import { Users, User, Crown, Star } from 'lucide-react';
+import { RoleDatabase } from '@/data/RoleDatabase';
 
 interface RoleBasedCastingProps {
   project: Project;
@@ -54,89 +55,28 @@ export const RoleBasedCasting: React.FC<RoleBasedCastingProps> = ({
   };
 
   const importRolesFromSource = () => {
-    if (project.script?.sourceType === 'franchise' && project.script.franchiseId) {
-      const franchise = gameState.franchises?.find(f => f.id === project.script.franchiseId);
-      if (franchise) {
-        // Create predefined roles based on franchise
-        const franchiseRoles = generateFranchiseRoles(franchise);
-        franchiseRoles.forEach(role => onCreateRole(role));
-        
+    const sourceType = project.script?.sourceType;
+    if (sourceType === 'franchise' && project.script.franchiseId) {
+      const roles = RoleDatabase.getRolesForSource('franchise', project.script.franchiseId, gameState);
+      roles.forEach(onCreateRole);
+      if (roles.length > 0) {
+        const franchise = gameState.franchises.find(f => f.id === project.script!.franchiseId);
         toast({
-          title: "Roles Imported",
-          description: `Added ${franchiseRoles.length} predefined roles from ${franchise.title}`,
+          title: 'Roles Imported',
+          description: `Added ${roles.length} predefined roles${franchise ? ` from ${franchise.title}` : ''}`
         });
       }
-    } else if (project.script?.sourceType === 'public-domain' && project.script.publicDomainId) {
-      const pdSource = gameState.publicDomainIPs?.find(p => p.id === project.script.publicDomainId);
-      if (pdSource?.suggestedCharacters) {
-        pdSource.suggestedCharacters.forEach(role => onCreateRole(role));
-        
+    } else if (sourceType === 'public-domain' && project.script.publicDomainId) {
+      const roles = RoleDatabase.getRolesForSource('public-domain', project.script.publicDomainId, gameState);
+      roles.forEach(onCreateRole);
+      if (roles.length > 0) {
+        const pd = gameState.publicDomainIPs.find(p => p.id === project.script!.publicDomainId);
         toast({
-          title: "Characters Imported",
-          description: `Added ${pdSource.suggestedCharacters.length} suggested characters`,
+          title: 'Characters Imported',
+          description: `Added ${roles.length} suggested characters${pd ? ` from ${pd.name}` : ''}`
         });
       }
     }
-  };
-
-  const generateFranchiseRoles = (franchise: any): ScriptCharacter[] => {
-    const roles: ScriptCharacter[] = [];
-    
-    // Import predefined roles if the franchise template provides them
-    if ((franchise as any).predefinedRoles && Array.isArray((franchise as any).predefinedRoles)) {
-      (franchise as any).predefinedRoles.forEach((r: any) => {
-        roles.push({
-          id: r.id,
-          name: r.name,
-          importance: r.importance,
-          description: r.description,
-          requiredType: r.requiredType,
-          ageRange: r.ageRange
-        });
-      });
-    }
-    
-    // Generate common franchise roles based on genre
-    if (franchise.genre.includes('action')) {
-      roles.push({
-        id: 'hero-lead',
-        name: 'Hero',
-        importance: 'lead',
-        description: 'The main protagonist',
-        requiredType: 'actor',
-        ageRange: [25, 45]
-      });
-      roles.push({
-        id: 'villain',
-        name: 'Main Villain',
-        importance: 'supporting',
-        description: 'The primary antagonist',
-        requiredType: 'actor',
-        ageRange: [30, 60]
-      });
-    }
-    
-    if (franchise.genre.includes('romance')) {
-      roles.push({
-        id: 'love-interest',
-        name: 'Love Interest',
-        importance: 'supporting',
-        description: 'The romantic partner',
-        requiredType: 'actor',
-        ageRange: [22, 40]
-      });
-    }
-  
-    // Always add director role
-    roles.push({
-      id: 'director',
-      name: 'Director',
-      importance: 'crew',
-      description: 'Film director',
-      requiredType: 'director'
-    });
-  
-    return roles;
   };
 
   const getCastingProgress = () => {
