@@ -80,6 +80,12 @@ export interface ScriptCharacter {
   assignedTalentId?: string;
   requiredType?: 'actor' | 'director';
   ageRange?: [number, number];
+  // Franchise/IP linkage for imported roles
+  franchiseId?: string; // Global franchise this role belongs to (immutable linkage)
+  franchiseCharacterId?: string; // Stable character_id from franchise DB
+  roleTemplateId?: string; // Template mapping for casting/awards
+  locked?: boolean; // Prevent accidental deletion for imported characters
+  localOverrides?: Partial<Pick<ScriptCharacter, 'name' | 'description' | 'traits' | 'ageRange'>>; // Stored separately from global DB
 }
 
 export interface Script {

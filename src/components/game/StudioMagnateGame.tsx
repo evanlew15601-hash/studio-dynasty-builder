@@ -67,6 +67,7 @@ import {
 } from '@/components/ui/icons';
 import { ChevronDown } from 'lucide-react';
 import { RoleDatabase } from '../../data/RoleDatabase';
+import { importRolesForScript } from '@/utils/roleImport';
 
 interface StudioMagnateGameProps {
   onPhaseChange?: (phase: string) => void;
@@ -380,14 +381,12 @@ export const StudioMagnateGame: React.FC<StudioMagnateGameProps> = ({ onPhaseCha
       metrics: {}
     };
 
-    // Auto-generate roles from source material if none defined
+    // Auto-generate roles from source material if none defined or to sync curated roles
     let enrichedProject: Project = newProject;
     try {
-      if ((!newProject.script.characters || newProject.script.characters.length === 0)) {
-        const roles: ScriptCharacter[] = RoleDatabase.getRolesForProject(newProject, gameState);
-        if (roles.length > 0) {
-          enrichedProject = { ...newProject, script: { ...newProject.script, characters: roles } };
-        }
+      const roles = importRolesForScript(newProject.script, gameState);
+      if (roles && roles.length > 0) {
+        enrichedProject = { ...newProject, script: { ...newProject.script, characters: roles } };
       }
     } catch (e) {
       console.warn('Role auto-generation failed', e);

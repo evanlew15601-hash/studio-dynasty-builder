@@ -10,6 +10,7 @@ import { Slider } from '@/components/ui/slider';
 import { Badge } from '@/components/ui/badge';
 import { useToast } from '@/hooks/use-toast';
 import { ScriptCharacterManager, ScriptCharacter } from './ScriptCharacterManager';
+import { importRolesForScript } from '@/utils/roleImport';
 import { ScriptIcon, BudgetIcon, AwardIcon, ClapperboardIcon } from '@/components/ui/icons';
 
 interface ScriptDevelopmentProps {
@@ -120,9 +121,36 @@ return {
   
   const [newScript, setNewScript] = useState<Partial<Script>>(getInitialScript());
 
-  // Update script when franchise/PD selection changes
+  // Update script when franchise/PD selection changes and pre-populate roles
   useEffect(() => {
-    setNewScript(getInitialScript());
+    const next = getInitialScript();
+    setNewScript(next);
+    // If a source is selected, auto-import curated characters
+    const tempScript: Script = {
+      id: `temp-${Date.now()}`,
+      title: next.title || 'Temp',
+      genre: next.genre as any || 'drama',
+      logline: next.logline || '',
+      writer: next.writer || '',
+      pages: next.pages || 120,
+      quality: next.quality || 50,
+      budget: next.budget || 5000000,
+      developmentStage: (next.developmentStage as any) || 'concept',
+      themes: next.themes || [],
+      targetAudience: (next.targetAudience as any) || 'general',
+      estimatedRuntime: next.estimatedRuntime || 120,
+      characteristics: next.characteristics as any || { tone: 'balanced', pacing: 'steady', dialogue: 'naturalistic', visualStyle: 'realistic', commercialAppeal: 5, criticalPotential: 5, cgiIntensity: 'minimal' },
+      sourceType: (next as any).sourceType,
+      franchiseId: (next as any).franchiseId,
+      publicDomainId: (next as any).publicDomainId,
+      characters: []
+    };
+    if (tempScript.sourceType === 'franchise' || tempScript.sourceType === 'public-domain') {
+      const imported = importRolesForScript(tempScript, gameState);
+      setScriptCharacters(imported);
+    } else {
+      setScriptCharacters([]);
+    }
   }, [selectedFranchise, selectedPublicDomain]);
 
   const [scriptCharacters, setScriptCharacters] = useState<ScriptCharacter[]>([]);

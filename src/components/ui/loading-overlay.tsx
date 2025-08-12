@@ -47,6 +47,9 @@ export const LoadingOverlay: React.FC<LoadingOverlayProps> = ({ loading, classNa
                 Processing...
               </span>
             </div>
+            <p className="text-xs text-muted-foreground mt-2">
+              Building the initial game world: studios, talent, franchises, public-domain IPs, and seeding AI releases. This prepares a living industry before you begin.
+            </p>
           </div>
         </CardContent>
       </Card>

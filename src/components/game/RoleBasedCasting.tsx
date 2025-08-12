@@ -6,6 +6,7 @@ import { Badge } from '@/components/ui/badge';
 import { useToast } from '@/hooks/use-toast';
 import { Users, User, Crown, Star } from 'lucide-react';
 import { RoleDatabase } from '@/data/RoleDatabase';
+import { importRolesForScript } from '@/utils/roleImport';
 
 interface RoleBasedCastingProps {
   project: Project;
@@ -55,27 +56,20 @@ export const RoleBasedCasting: React.FC<RoleBasedCastingProps> = ({
   };
 
   const importRolesFromSource = () => {
-    const sourceType = project.script?.sourceType;
-    if (sourceType === 'franchise' && project.script.franchiseId) {
-      const roles = RoleDatabase.getRolesForSource('franchise', project.script.franchiseId, gameState);
-      roles.forEach(onCreateRole);
-      if (roles.length > 0) {
-        const franchise = gameState.franchises.find(f => f.id === project.script!.franchiseId);
-        toast({
-          title: 'Roles Imported',
-          description: `Added ${roles.length} predefined roles${franchise ? ` from ${franchise.title}` : ''}`
-        });
-      }
-    } else if (sourceType === 'public-domain' && project.script.publicDomainId) {
-      const roles = RoleDatabase.getRolesForSource('public-domain', project.script.publicDomainId, gameState);
-      roles.forEach(onCreateRole);
-      if (roles.length > 0) {
-        const pd = gameState.publicDomainIPs.find(p => p.id === project.script!.publicDomainId);
-        toast({
-          title: 'Characters Imported',
-          description: `Added ${roles.length} suggested characters${pd ? ` from ${pd.name}` : ''}`
-        });
-      }
+    const script = project.script;
+    if (!script?.sourceType) return;
+    const imported = importRolesForScript(script, gameState);
+    const existingIds = new Set((project.script?.characters || []).map(c => c.id));
+    const toAdd = imported.filter(r => !existingIds.has(r.id));
+    toAdd.forEach(onCreateRole);
+    if (toAdd.length > 0) {
+      const sourceLabel = script.sourceType === 'franchise'
+        ? gameState.franchises.find(f => f.id === script.franchiseId)?.title
+        : gameState.publicDomainIPs.find(p => p.id === script.publicDomainId)?.name;
+      toast({
+        title: 'Roles Imported',
+        description: `Added ${toAdd.length} predefined roles${sourceLabel ? ` from ${sourceLabel}` : ''}`
+      });
     }
   };
 

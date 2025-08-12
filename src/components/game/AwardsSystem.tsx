@@ -353,7 +353,7 @@ export const AwardsSystem: React.FC<AwardsSystemProps> = ({
                     <Progress value={probability} className="h-2" />
                   </div>
                   
-                  {isAwardsSeasonActive && (
+                  {isAwardsSeasonActive && gameState.projects.some(p => p.id === project.id) && (
                     <div className="flex space-x-2">
                       <Button
                         size="sm"
