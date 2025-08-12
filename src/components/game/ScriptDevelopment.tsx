@@ -147,7 +147,21 @@ return {
     };
     if (tempScript.sourceType === 'franchise' || tempScript.sourceType === 'public-domain') {
       const imported = importRolesForScript(tempScript, gameState);
-      setScriptCharacters(imported);
+      const adapted = imported.map((c): ScriptCharacter => {
+        const imp = c.importance === 'lead' ? 'lead' : c.importance === 'crew' ? 'crew' : 'supporting';
+        const screen = imp === 'lead' ? 60 : imp === 'supporting' ? 25 : 0;
+        return {
+          id: c.id,
+          name: c.name,
+          importance: imp,
+          screenTimeMinutes: screen,
+          description: c.description || '',
+          ageRange: (c.ageRange as [number, number]) || [25, 45],
+          requiredTraits: [],
+          requiredType: c.requiredType,
+        };
+      });
+      setScriptCharacters(adapted);
     } else {
       setScriptCharacters([]);
     }
