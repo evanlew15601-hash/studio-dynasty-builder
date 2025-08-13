@@ -1,5 +1,6 @@
 // Unified Calendar Management System - Single source of truth for all game time
 import { TimeState, TimeSystem } from './TimeSystem';
+import { getEarliestEligibleShowForRelease, isWithinAwardCooldown } from '@/data/AwardsSchedule';
 
 export interface CalendarEvent {
   id: string;
@@ -67,6 +68,23 @@ export class CalendarManager {
         canRelease: false,
         reason: "Another film is already scheduled for this week"
       };
+    }
+    
+    // Awards show cooldown and eligibility checks
+    const cooldown = isWithinAwardCooldown(targetWeek, targetYear);
+    if (cooldown.within) {
+      const recommendedWeek = Math.min(52, (cooldown.show!.ceremonyWeek + cooldown.show!.cooldownWeeks));
+      return {
+        canRelease: false,
+        reason: `Release falls within ${cooldown.show!.name} cooldown period`,
+        recommendedWeek,
+      };
+    }
+
+    const qualifiesFor = getEarliestEligibleShowForRelease(targetWeek, targetYear);
+    if (qualifiesFor) {
+      // Informational: qualifies for this show based on eligibility cutoff. Do not block.
+      // Consumers may display a note using getEarliestEligibleShowForRelease directly.
     }
     
     return { canRelease: true };

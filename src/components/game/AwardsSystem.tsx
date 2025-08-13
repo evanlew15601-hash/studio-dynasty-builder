@@ -14,6 +14,7 @@ import {
   DollarIcon,
   TrendingIcon 
 } from '@/components/ui/icons';
+import { getAwardShowsForYear } from '@/data/AwardsSchedule';
 
 interface AwardsSystemProps {
   gameState: GameState;
@@ -152,34 +153,45 @@ export const AwardsSystem: React.FC<AwardsSystemProps> = ({
     });
   };
 
-  // Build per-show configuration
+  // Build per-show configuration (weeks sourced from centralized schedule)
   const getShowConfig = (ceremonyName: string) => {
-    switch (ceremonyName) {
-      case 'Golden Globe':
-        return {
-          prestige: 6,
-          categories: ['Best Picture - Drama', 'Best Director'],
-          nominationWeek: 2,
-          ceremonyWeek: 6,
-          momentumBonus: 8
-        } as const;
-      case 'Critics Choice':
-        return {
-          prestige: 5,
-          categories: ['Best Film', 'Best Acting'],
-          nominationWeek: 3,
-          ceremonyWeek: 8,
-          momentumBonus: 6
-        } as const;
-      default:
-        return {
-          prestige: 10,
-          categories: ['Best Picture', 'Best Director', 'Best Actor'],
-          nominationWeek: 4,
-          ceremonyWeek: 10,
-          momentumBonus: 12
-        } as const; // Oscar
-    }
+    const schedule = getAwardShowsForYear(gameState.currentYear);
+    const show = schedule.find(s => s.name === ceremonyName);
+
+    const base = (() => {
+      switch (ceremonyName) {
+        case 'Golden Globe':
+          return {
+            prestige: 6,
+            categories: ['Best Picture - Drama', 'Best Director'],
+            nominationWeek: 2,
+            ceremonyWeek: 6,
+            momentumBonus: 8
+          } as const;
+        case 'Critics Choice':
+          return {
+            prestige: 5,
+            categories: ['Best Film', 'Best Acting'],
+            nominationWeek: 3,
+            ceremonyWeek: 8,
+            momentumBonus: 6
+          } as const;
+        default:
+          return {
+            prestige: 10,
+            categories: ['Best Picture', 'Best Director', 'Best Actor'],
+            nominationWeek: 4,
+            ceremonyWeek: 10,
+            momentumBonus: 12
+          } as const; // Oscar
+      }
+    })();
+
+    return {
+      ...base,
+      nominationWeek: show?.nominationWeek ?? base.nominationWeek,
+      ceremonyWeek: show?.ceremonyWeek ?? base.ceremonyWeek,
+    };
   };
 
   // Generate and store nominations (top 5 per category) with momentum-aware scoring
@@ -309,15 +321,14 @@ export const AwardsSystem: React.FC<AwardsSystemProps> = ({
   // Weekly triggers for nominations and ceremonies
   React.useEffect(() => {
     if (!isAwardsSeasonActive) return;
-    // Nominations announcements
-    if (gameState.currentWeek === getShowConfig('Golden Globe').nominationWeek) announceNominations('Golden Globe');
-    if (gameState.currentWeek === getShowConfig('Critics Choice').nominationWeek) announceNominations('Critics Choice');
-    if (gameState.currentWeek === getShowConfig('Oscar').nominationWeek) announceNominations('Oscar');
-    // Ceremonies
-    triggerAwardsCeremony('Golden Globe');
-    triggerAwardsCeremony('Critics Choice');
-    triggerAwardsCeremony('Oscar');
-  }, [gameState.currentWeek, isAwardsSeasonActive]);
+    const shows = getAwardShowsForYear(gameState.currentYear);
+    // Announcements
+    shows.forEach(s => {
+      if (gameState.currentWeek === s.nominationWeek) announceNominations(s.name);
+    });
+    // Ceremonies (triggerAwardsCeremony checks week and processed state internally)
+    shows.forEach(s => triggerAwardsCeremony(s.name));
+  }, [gameState.currentWeek, isAwardsSeasonActive, gameState.currentYear]);
 
   const eligibleProjects = getEligibleProjects();
 
