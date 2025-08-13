@@ -27,6 +27,7 @@ import { updateProjectFinancials } from './FinancialCalculations';
 import { AwardsSystem } from './AwardsSystem';
 import { EnhancedAwardsSystem } from './EnhancedAwardsSystem';
 import { RoleBasedCasting } from './RoleBasedCasting';
+import { useAwardsEngine } from '@/hooks/useAwardsEngine';
 import { EnhancedReleaseSystem } from './EnhancedReleaseSystem';
 import { EnhancedLoanSystem } from './EnhancedLoanSystem';
 import { MarketCompetition } from './MarketCompetition';
@@ -439,6 +440,9 @@ export const StudioMagnateGame: React.FC<StudioMagnateGameProps> = ({ onPhaseCha
       studio: { ...prev.studio, ...updates }
     }));
   };
+
+  // Always run awards engine in the background (independent of UI phase)
+  useAwardsEngine(gameState, handleStudioUpdate);
 
   const handleProjectUpdate = (project: Project, marketingCost?: number) => {
     setGameState(prev => ({

@@ -319,16 +319,17 @@ export const AwardsSystem: React.FC<AwardsSystemProps> = ({
   }, [gameState.currentYear, gameState.currentWeek]);
 
   // Weekly triggers for nominations and ceremonies
-  React.useEffect(() => {
-    if (!isAwardsSeasonActive) return;
-    const shows = getAwardShowsForYear(gameState.currentYear);
-    // Announcements
-    shows.forEach(s => {
-      if (gameState.currentWeek === s.nominationWeek) announceNominations(s.name);
-    });
-    // Ceremonies (triggerAwardsCeremony checks week and processed state internally)
-    shows.forEach(s => triggerAwardsCeremony(s.name));
-  }, [gameState.currentWeek, isAwardsSeasonActive, gameState.currentYear]);
+  // Note: Headless engine now handles triggers globally. This UI remains view-only.
+  // React.useEffect(() => {
+  //   if (!isAwardsSeasonActive) return;
+  //   const shows = getAwardShowsForYear(gameState.currentYear);
+  //   // Announcements
+  //   shows.forEach(s => {
+  //     if (gameState.currentWeek === s.nominationWeek) announceNominations(s.name);
+  //   });
+  //   // Ceremonies (triggerAwardsCeremony checks week and processed state internally)
+  //   shows.forEach(s => triggerAwardsCeremony(s.name));
+  // }, [gameState.currentWeek, isAwardsSeasonActive, gameState.currentYear]);
 
   const eligibleProjects = getEligibleProjects();
 
