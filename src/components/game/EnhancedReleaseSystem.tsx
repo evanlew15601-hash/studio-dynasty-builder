@@ -167,11 +167,20 @@ export const EnhancedReleaseSystem: React.FC<EnhancedReleaseSystemProps> = ({
 
   const getUpcomingReleases = () => {
     return projects.filter(p => p.status === 'scheduled-for-release')
-      .map(p => ({
-        project: p,
-        weeksUntil: (p.scheduledReleaseWeek! + (p.scheduledReleaseYear! - 1) * 52) - 
-                   (gameState.currentWeek + (gameState.currentYear - 1) * 52)
-      }))
+      .map(p => {
+        // Fix calculation to handle missing or invalid scheduled dates
+        const scheduledWeek = p.scheduledReleaseWeek || 0;
+        const scheduledYear = p.scheduledReleaseYear || gameState.currentYear + 1;
+        const currentTime = gameState.currentWeek + (gameState.currentYear - 1) * 52;
+        const releaseTime = scheduledWeek + (scheduledYear - 1) * 52;
+        const weeksUntil = Math.max(0, releaseTime - currentTime);
+        
+        return {
+          project: p,
+          weeksUntil: weeksUntil
+        };
+      })
+      .filter(item => item.weeksUntil < 999) // Filter out invalid calculations
       .sort((a, b) => a.weeksUntil - b.weeksUntil);
   };
 
@@ -250,11 +259,11 @@ export const EnhancedReleaseSystem: React.FC<EnhancedReleaseSystemProps> = ({
                       Week {project.scheduledReleaseWeek}, {project.scheduledReleaseYear}
                     </p>
                   </div>
-                  <div className="text-right">
-                    <Badge variant={weeksUntil <= 1 ? "destructive" : weeksUntil <= 4 ? "default" : "secondary"}>
-                      {weeksUntil} weeks
-                    </Badge>
-                  </div>
+                   <div className="text-right">
+                     <Badge variant={weeksUntil <= 1 ? "destructive" : weeksUntil <= 4 ? "default" : "secondary"}>
+                       {weeksUntil > 0 ? `${weeksUntil} weeks` : 'This week'}
+                     </Badge>
+                   </div>
                 </div>
               ))}
             </div>

@@ -176,12 +176,18 @@ export class ReleaseSystem {
     const upcomingEvents = CalendarManager.getUpcomingEvents(currentTime, 12);
     const releaseEvents = upcomingEvents.filter(event => event.type === 'release');
     
-    return releaseEvents.map(event => ({
-      filmId: event.filmId!,
-      title: event.title.replace('Release: ', ''),
-      week: event.week,
-      year: event.year,
-      weeksUntilRelease: ((event.year * 52) + event.week) - ((currentTime.currentYear * 52) + currentTime.currentWeek)
-    }));
+    return releaseEvents.map(event => {
+      const currentTimeValue = (currentTime.currentYear * 52) + currentTime.currentWeek;
+      const eventTime = (event.year * 52) + event.week;
+      const weeksUntilRelease = Math.max(0, eventTime - currentTimeValue);
+      
+      return {
+        filmId: event.filmId!,
+        title: event.title.replace('Release: ', ''),
+        week: event.week,
+        year: event.year,
+        weeksUntilRelease
+      };
+    }).filter(release => release.weeksUntilRelease < 999); // Filter out invalid calculations
   }
 }
