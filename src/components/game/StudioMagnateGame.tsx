@@ -28,6 +28,7 @@ import { AwardsSystem } from './AwardsSystem';
 import { EnhancedAwardsSystem } from './EnhancedAwardsSystem';
 import { RoleBasedCasting } from './RoleBasedCasting';
 import { useAwardsEngine } from '@/hooks/useAwardsEngine';
+import { IndividualAwardShowModal, AwardShowCeremony } from './IndividualAwardShowModal';
 import { EnhancedReleaseSystem } from './EnhancedReleaseSystem';
 import { EnhancedLoanSystem } from './EnhancedLoanSystem';
 import { MarketCompetition } from './MarketCompetition';
@@ -257,6 +258,10 @@ export const StudioMagnateGame: React.FC<StudioMagnateGameProps> = ({ onPhaseCha
   const [selectedProject, setSelectedProject] = useState<Project | null>(null);
   const [selectedFranchise, setSelectedFranchise] = useState<string | null>(null);
   const [selectedPublicDomain, setSelectedPublicDomain] = useState<string | null>(null);
+  
+  // Award show modal state
+  const [currentAwardShow, setCurrentAwardShow] = useState<AwardShowCeremony | null>(null);
+  const [showAwardModal, setShowAwardModal] = useState(false);
 
   // Handle achievement rewards
   const handleAchievementRewards = (unlockedAchievements: Array<{ reward?: { reputation?: number; budget?: number } }>) => {
@@ -441,8 +446,14 @@ export const StudioMagnateGame: React.FC<StudioMagnateGameProps> = ({ onPhaseCha
     }));
   };
 
+  // Handle award show triggers
+  const handleAwardShow = (ceremony: AwardShowCeremony) => {
+    setCurrentAwardShow(ceremony);
+    setShowAwardModal(true);
+  };
+
   // Always run awards engine in the background (independent of UI phase)
-  useAwardsEngine(gameState, handleStudioUpdate);
+  useAwardsEngine(gameState, handleStudioUpdate, handleAwardShow);
 
   const handleProjectUpdate = (project: Project, marketingCost?: number) => {
     setGameState(prev => ({
@@ -1739,6 +1750,22 @@ export const StudioMagnateGame: React.FC<StudioMagnateGameProps> = ({ onPhaseCha
           />
         )}
       </div>
+      
+      {/* Award Show Modal */}
+      {currentAwardShow && (
+        <IndividualAwardShowModal
+          isOpen={showAwardModal}
+          onClose={() => {
+            setShowAwardModal(false);
+            setCurrentAwardShow(null);
+          }}
+          onSkip={() => {
+            setShowAwardModal(false);
+            setCurrentAwardShow(null);
+          }}
+          ceremony={currentAwardShow}
+        />
+      )}
     </div>
     </>
   );

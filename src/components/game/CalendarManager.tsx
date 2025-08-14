@@ -15,6 +15,7 @@ export interface CalendarValidation {
   canRelease: boolean;
   reason?: string;
   recommendedWeek?: number;
+  awardEligibility?: string;
 }
 
 export class CalendarManager {
@@ -76,18 +77,20 @@ export class CalendarManager {
       const recommendedWeek = Math.min(52, (cooldown.show!.ceremonyWeek + cooldown.show!.cooldownWeeks));
       return {
         canRelease: false,
-        reason: `Release falls within ${cooldown.show!.name} cooldown period`,
+        reason: `Release falls within ${cooldown.show!.name} cooldown period (weeks ${cooldown.show!.ceremonyWeek}-${cooldown.show!.ceremonyWeek + cooldown.show!.cooldownWeeks - 1})`,
         recommendedWeek,
       };
     }
 
     const qualifiesFor = getEarliestEligibleShowForRelease(targetWeek, targetYear);
-    if (qualifiesFor) {
-      // Informational: qualifies for this show based on eligibility cutoff. Do not block.
-      // Consumers may display a note using getEarliestEligibleShowForRelease directly.
-    }
+    const awardEligibility = qualifiesFor 
+      ? `Qualifies for ${qualifiesFor.name} Awards (ceremony week ${qualifiesFor.ceremonyWeek})`
+      : "Does not qualify for current year's award shows";
     
-    return { canRelease: true };
+    return { 
+      canRelease: true,
+      awardEligibility
+    };
   }
   
   static scheduleRelease(filmId: string, title: string, week: number, year: number): boolean {

@@ -2,11 +2,13 @@ import { useEffect, useState } from 'react';
 import { GameState, Project, Studio, StudioAward } from '@/types/game';
 import { getAwardShowsForYear } from '@/data/AwardsSchedule';
 import { useToast } from '@/hooks/use-toast';
+import { AwardShowCeremony } from '@/components/game/IndividualAwardShowModal';
 
 // Headless awards season engine: runs nominations and ceremonies regardless of UI phase
 export function useAwardsEngine(
   gameState: GameState,
-  onStudioUpdate: (updates: Partial<Studio>) => void
+  onStudioUpdate: (updates: Partial<Studio>) => void,
+  onAwardShowTrigger?: (ceremony: AwardShowCeremony) => void
 ) {
   const { toast } = useToast();
 
@@ -198,6 +200,47 @@ export function useAwardsEngine(
     }
 
     if (flatForModal.length > 0) {
+      // Create ceremony object for modal
+      const ceremonyData: AwardShowCeremony = {
+        ceremonyName,
+        year: gameState.currentYear,
+        nominations: {},
+        winners: {}
+      };
+
+      // Convert nominations to proper format for modal
+      categories.forEach((category) => {
+        const nominees = nominationsRecord.categories[category] || [];
+        ceremonyData.nominations[category] = nominees.map(n => ({
+          ...n,
+          category,
+          project: { ...n.project, studioId: n.project.id.includes('player') ? 'player' : 'ai' } as any
+        }));
+      });
+
+      // Add winners to ceremony data
+      categories.forEach((category) => {
+        const nominees = nominationsRecord.categories[category] || [];
+        const winner = nominees.find(n => flatForModal.some(f => f.project.id === n.project.id && f.category === category && f.won));
+        if (winner) {
+          const winnerData = flatForModal.find(f => f.project.id === winner.project.id && f.category === category && f.won);
+          if (winnerData) {
+            ceremonyData.winners[category] = {
+              ...winner,
+              category,
+              won: true,
+              award: winnerData.award,
+              project: { ...winner.project, studioId: winner.project.id.includes('player') ? 'player' : 'ai' } as any
+            };
+          }
+        }
+      });
+
+      // Trigger award show modal if callback provided
+      if (onAwardShowTrigger) {
+        onAwardShowTrigger(ceremonyData);
+      }
+
       const wonAwards = flatForModal
         .filter((n) => n.won && n.award)
         .map((n) => n.award!)
