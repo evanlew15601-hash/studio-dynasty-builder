@@ -290,6 +290,7 @@ export class TalentGenerator {
       id: `actor-${Date.now()}-${Math.random().toString(36).substr(2, 9)}`,
       name,
       type: 'actor',
+      gender,
       age,
       experience,
       reputation,
@@ -304,7 +305,6 @@ export class TalentGenerator {
         start: new Date(),
         end: new Date(Date.now() + 365 * 24 * 60 * 60 * 1000)
       },
-      gender,
       // Advanced talent management fields
       burnoutLevel: Math.floor(Math.random() * 30), // 0-30 starting burnout
       studioLoyalty: {},
@@ -352,7 +352,6 @@ export class TalentGenerator {
         start: new Date(),
         end: new Date(Date.now() + 365 * 24 * 60 * 60 * 1000)
       },
-      gender,
       // Advanced talent management fields
       burnoutLevel: Math.floor(Math.random() * 20), // Directors have lower starting burnout
       studioLoyalty: {},

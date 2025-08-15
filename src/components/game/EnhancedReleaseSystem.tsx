@@ -261,7 +261,7 @@ export const EnhancedReleaseSystem: React.FC<EnhancedReleaseSystemProps> = ({
                   </div>
                    <div className="text-right">
                      <Badge variant={weeksUntil <= 1 ? "destructive" : weeksUntil <= 4 ? "default" : "secondary"}>
-                       {weeksUntil > 0 ? `${weeksUntil} weeks` : 'This week'}
+                       {weeksUntil > 0 ? `${weeksUntil} week${weeksUntil !== 1 ? 's' : ''}` : 'This week'}
                      </Badge>
                    </div>
                 </div>

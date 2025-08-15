@@ -172,12 +172,12 @@ export class DeepReputationSystem {
       newFactors.budgetDiscipline = Math.min(95, Math.max(10, avgROI * 50));
     }
     
-    // Development Cadence: Regular activity vs. long gaps
+    // Development Cadence: Regular activity vs. long gaps (HEAVILY NERFED)
     if (studio.lastProjectWeek && studio.weeksSinceLastProject !== undefined) {
       if (studio.weeksSinceLastProject <= 4) {
-        newFactors.developmentCadence = Math.min(95, newFactors.developmentCadence + 2);
-      } else if (studio.weeksSinceLastProject > 12) {
-        newFactors.developmentCadence = Math.max(10, newFactors.developmentCadence - 3);
+        newFactors.developmentCadence = Math.min(95, newFactors.developmentCadence + 0.5); // Reduced from +2
+      } else if (studio.weeksSinceLastProject > 24) { // Increased from 12 to 24 weeks
+        newFactors.developmentCadence = Math.max(30, newFactors.developmentCadence - 0.5); // Reduced from -3 to -0.5
       }
     }
     
@@ -208,10 +208,10 @@ export class DeepReputationSystem {
       const recentSuccessRate = recentSuccess / recentProjects.length;
       
       if (recentSuccessRate > 0.7) {
-        newFactors.currentMomentum = Math.min(50, newFactors.currentMomentum + 5);
+        newFactors.currentMomentum = Math.min(50, newFactors.currentMomentum + 2); // Reduced from +5
         newFactors.buzzCycle = 'building';
-      } else if (recentSuccessRate < 0.3) {
-        newFactors.currentMomentum = Math.max(-50, newFactors.currentMomentum - 5);
+      } else if (recentSuccessRate < 0.2) { // Made it harder to trigger negative momentum
+        newFactors.currentMomentum = Math.max(-30, newFactors.currentMomentum - 1); // Reduced from -5 to -1, capped at -30
         newFactors.buzzCycle = 'declining';
       }
     }

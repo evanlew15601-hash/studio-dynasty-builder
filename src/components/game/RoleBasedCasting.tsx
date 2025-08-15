@@ -81,6 +81,8 @@ export const RoleBasedCasting: React.FC<RoleBasedCastingProps> = ({
 
   const { cast, total } = getCastingProgress();
   const hasDirector = project.script?.characters?.some(c => c.requiredType === 'director' && c.assignedTalentId);
+  const hasLead = project.script?.characters?.some(c => c.importance === 'lead' && c.assignedTalentId);
+  const canProceed = hasDirector && hasLead;
 
   return (
     <div className="space-y-6">
@@ -96,9 +98,17 @@ export const RoleBasedCasting: React.FC<RoleBasedCastingProps> = ({
               <Badge variant={hasDirector ? "default" : "destructive"}>
                 Director: {hasDirector ? "Cast" : "Required"}
               </Badge>
+              <Badge variant={hasLead ? "default" : "destructive"}>
+                Lead: {hasLead ? "Cast" : "Required"}
+              </Badge>
               <Badge variant={cast >= total ? "default" : "secondary"}>
                 {cast}/{total} Roles Cast
               </Badge>
+              {!canProceed && (
+                <Badge variant="destructive">
+                  Cannot proceed without Director & Lead
+                </Badge>
+              )}
             </div>
           </CardTitle>
         </CardHeader>
