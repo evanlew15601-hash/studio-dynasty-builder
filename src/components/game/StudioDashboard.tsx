@@ -418,6 +418,40 @@ export const StudioDashboard: React.FC<StudioDashboardProps> = ({
               <span className="text-sm font-medium">Distribution</span>
             </Button>
           </div>
+          
+          {/* Financial Actions Row */}
+          <div className="grid grid-cols-2 md:grid-cols-3 gap-4 mt-4 pt-4 border-t border-border/50">
+            <Button 
+              variant="outline" 
+              className="h-auto p-4 flex items-center space-x-3 btn-ghost-premium hover:border-primary/50 group"
+              onClick={() => onPhaseChange?.('financials')}
+            >
+              <div className="p-2 rounded-lg bg-gradient-to-r from-primary/10 to-accent/10 group-hover:from-primary/20 group-hover:to-accent/20 transition-all duration-300">
+                <BudgetIcon className="text-primary" size={20} />
+              </div>
+              <span className="text-sm font-medium">Financial Center</span>
+            </Button>
+            <Button 
+              variant="outline" 
+              className="h-auto p-4 flex items-center space-x-3 btn-ghost-premium hover:border-green-500/50 group"
+              onClick={() => onPhaseChange?.('loans')}
+            >
+              <div className="p-2 rounded-lg bg-gradient-to-r from-green-500/10 to-blue-500/10 group-hover:from-green-500/20 group-hover:to-blue-500/20 transition-all duration-300">
+                <BudgetIcon className="text-green-600" size={20} />
+              </div>
+              <span className="text-sm font-medium">Manage Loans</span>
+            </Button>
+            <Button 
+              variant="outline" 
+              className="h-auto p-4 flex items-center space-x-3 btn-ghost-premium hover:border-accent/50 group"
+              onClick={() => onPhaseChange?.('reputation')}
+            >
+              <div className="p-2 rounded-lg bg-gradient-to-r from-accent/10 to-primary/10 group-hover:from-accent/20 group-hover:to-primary/20 transition-all duration-300">
+                <ReputationIcon className="text-accent" size={20} />
+              </div>
+              <span className="text-sm font-medium">Reputation Panel</span>
+            </Button>
+          </div>
         </CardContent>
       </Card>
     </div>

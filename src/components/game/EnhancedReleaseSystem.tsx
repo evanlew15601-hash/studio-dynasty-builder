@@ -180,7 +180,7 @@ export const EnhancedReleaseSystem: React.FC<EnhancedReleaseSystemProps> = ({
           weeksUntil: weeksUntil
         };
       })
-      .filter(item => item.weeksUntil < 999) // Filter out invalid calculations
+      .filter(item => item.weeksUntil >= 0 && item.weeksUntil < 999) // Filter out invalid calculations
       .sort((a, b) => a.weeksUntil - b.weeksUntil);
   };
 

@@ -220,14 +220,9 @@ export const PostTheatricalManagement: React.FC<PostTheatricalManagementProps> =
       };
     }
     
-    // Check if already released on this platform or any post-theatrical already done
-    const alreadyReleasedOnAny = (project.postTheatricalReleases && project.postTheatricalReleases.length > 0);
+    // Check if already released on this platform
     const alreadyReleasedOnPlatform = (project.postTheatricalReleases || []).some(r => r.platform === option.platform);
     const activeOrPastOnPlatform = alreadyReleasedOnPlatform || activeReleases.some(r => r.projectId === project.id && r.platform === option.platform);
-    
-    if (alreadyReleasedOnAny) {
-      return { canRelease: false, reason: 'Post-theatrical already executed for this film' };
-    }
     
     if (activeOrPastOnPlatform) {
       return { canRelease: false, reason: 'Already released on this platform' };

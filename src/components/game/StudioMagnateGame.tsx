@@ -254,7 +254,7 @@ export const StudioMagnateGame: React.FC<StudioMagnateGameProps> = ({ onPhaseCha
   const genreSaturation = useGenreSaturation(gameState.allReleases.filter((item): item is Project => 'script' in item), gameState.currentWeek);
   const achievements = useAchievements(gameState);
 
-  const [currentPhase, setCurrentPhase] = useState<'dashboard' | 'scripts' | 'casting' | 'talent' | 'franchise' | 'media' | 'production' | 'marketing' | 'distribution' | 'financials' | 'awards' | 'market' | 'topfilms' | 'stats' | 'reputation' | 'competition'>('dashboard');
+  const [currentPhase, setCurrentPhase] = useState<'dashboard' | 'scripts' | 'casting' | 'talent' | 'franchise' | 'media' | 'production' | 'marketing' | 'distribution' | 'financials' | 'awards' | 'market' | 'topfilms' | 'stats' | 'reputation' | 'loans' | 'competition'>('dashboard');
   const [selectedProject, setSelectedProject] = useState<Project | null>(null);
   const [selectedFranchise, setSelectedFranchise] = useState<string | null>(null);
   const [selectedPublicDomain, setSelectedPublicDomain] = useState<string | null>(null);
@@ -1747,6 +1747,25 @@ export const StudioMagnateGame: React.FC<StudioMagnateGameProps> = ({ onPhaseCha
               currentQuarter: gameState.currentQuarter
             }}
             allStudios={gameState.competitorStudios}
+          />
+        )}
+        
+        {currentPhase === 'loans' && (
+          <EnhancedLoanSystem
+            gameState={gameState}
+            onBudgetUpdate={(newBudget) => setGameState(prev => ({
+              ...prev,
+              studio: { ...prev.studio, budget: newBudget }
+            }))}
+            onReputationChange={(change) => {
+              setGameState(prev => ({
+                ...prev,
+                studio: {
+                  ...prev.studio,
+                  reputation: Math.max(0, Math.min(100, prev.studio.reputation + change))
+                }
+              }));
+            }}
           />
         )}
       </div>
