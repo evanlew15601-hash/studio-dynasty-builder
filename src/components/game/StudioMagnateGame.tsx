@@ -1545,19 +1545,70 @@ export const StudioMagnateGame: React.FC<StudioMagnateGameProps> = ({ onPhaseCha
         )}
         
         {currentPhase === 'casting' && (
-          <CastingBoard 
-            gameState={gameState}
-            selectedProject={selectedProject}
-            onProjectUpdate={handleProjectUpdate}
-            onTalentHire={(talent) => {
-              setGameState(prev => ({
-                ...prev,
-                talent: prev.talent.some(t => t.id === talent.id)
-                  ? prev.talent.map(t => t.id === talent.id ? talent : t)
-                  : [...prev.talent, talent]
-              }));
-            }}
-          />
+          <div className="space-y-6">
+            <Tabs defaultValue="character-casting" className="space-y-4">
+              <TabsList>
+                <TabsTrigger value="character-casting">Character Casting</TabsTrigger>
+                <TabsTrigger value="role-based">Role-Based System</TabsTrigger>
+                <TabsTrigger value="casting-board">Talent Marketplace</TabsTrigger>
+              </TabsList>
+              
+              <TabsContent value="character-casting">
+                <Suspense fallback={<div>Loading character casting...</div>}>
+                  {React.createElement(React.lazy(() => import('./CharacterCastingSystem').then(m => ({ default: m.CharacterCastingSystem }))), {
+                    project: selectedProject!,
+                    gameState,
+                    onProjectUpdate: handleProjectUpdate
+                  })}
+                </Suspense>
+              </TabsContent>
+              
+              <TabsContent value="role-based">
+                <RoleBasedCasting
+                  project={selectedProject!}
+                  gameState={gameState}
+                  onCastRole={(characterId: string, talentId: string) => {
+                    if (!selectedProject) return;
+                    const updatedCharacters = (selectedProject.script?.characters || []).map(c =>
+                      c.id === characterId ? { ...c, assignedTalentId: talentId } : c
+                    );
+                    const updatedProject = {
+                      ...selectedProject,
+                      script: { ...selectedProject.script!, characters: updatedCharacters }
+                    };
+                    handleProjectUpdate(updatedProject);
+                  }}
+                  onCreateRole={(role) => {
+                    if (!selectedProject) return;
+                    const updatedProject = {
+                      ...selectedProject,
+                      script: {
+                        ...selectedProject.script!,
+                        characters: [...(selectedProject.script?.characters || []), role]
+                      }
+                    };
+                    handleProjectUpdate(updatedProject);
+                  }}
+                />
+              </TabsContent>
+              
+              <TabsContent value="casting-board">
+                <CastingBoard
+                  gameState={gameState}
+                  selectedProject={selectedProject}
+                  onProjectUpdate={handleProjectUpdate}
+                  onTalentHire={(talent) => {
+                    setGameState(prev => ({
+                      ...prev,
+                      talent: prev.talent.some(t => t.id === talent.id)
+                        ? prev.talent.map(t => t.id === talent.id ? talent : t)
+                        : [...prev.talent, talent]
+                    }));
+                  }}
+                />
+              </TabsContent>
+            </Tabs>
+          </div>
         )}
         
         {currentPhase === 'talent' && (
