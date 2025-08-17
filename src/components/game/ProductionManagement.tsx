@@ -50,6 +50,14 @@ export const ProductionManagement: React.FC<ProductionManagementProps> = ({
     
     switch (project.currentPhase) {
       case 'development':
+        if (!project.castingConfirmed) {
+          toast({
+            title: 'Casting Not Confirmed',
+            description: 'Confirm casting (Director and Lead) before moving to Pre-Production.',
+            variant: 'destructive'
+          });
+          return;
+        }
         updatedProject = {
           ...updatedProject,
           currentPhase: 'pre-production',

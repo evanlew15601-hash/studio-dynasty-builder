@@ -1614,11 +1614,12 @@ export const StudioMagnateGame: React.FC<StudioMagnateGameProps> = ({ onPhaseCha
         {currentPhase === 'talent' && (
           <div className="space-y-6">
             <Tabs defaultValue="marketplace" className="space-y-4">
-              <TabsList>
+            <TabsList>
                 <TabsTrigger value="marketplace">Talent Marketplace</TabsTrigger>
                 <TabsTrigger value="agencies">Agency Network</TabsTrigger>
                 <TabsTrigger value="wellness">Wellness Monitor</TabsTrigger>
                 <TabsTrigger value="chemistry">Chemistry & Relations</TabsTrigger>
+                <TabsTrigger value="top-actors">Top Actors</TabsTrigger>
                 <TabsTrigger value="test">🧪 Integration Test</TabsTrigger>
               </TabsList>
               
@@ -1664,6 +1665,14 @@ export const StudioMagnateGame: React.FC<StudioMagnateGameProps> = ({ onPhaseCha
                     chemistryEvents: [],
                     currentWeek: gameState.currentWeek,
                     currentYear: gameState.currentYear
+                  })}
+                </Suspense>
+              </TabsContent>
+
+              <TabsContent value="top-actors">
+                <Suspense fallback={<div>Loading top actors...</div>}>
+                  {React.createElement(React.lazy(() => import('./TopActorsPanel').then(m => ({ default: m.TopActorsPanel }))), {
+                    gameState
                   })}
                 </Suspense>
               </TabsContent>

@@ -160,6 +160,15 @@ export interface TalentPerson {
   chemistry?: { [talentId: string]: number }; // -100 to 100 chemistry with other talent
   futureHolds?: TalentHold[]; // Pre-contracts and reservations
   recentProjects?: string[]; // Last 5 project IDs for burnout tracking
+  // Fame & filmography
+  fame?: number; // 0-100 star power that affects box office
+  filmography?: Array<{
+    projectId: string;
+    title: string;
+    role: string;
+    year?: number;
+    boxOffice?: number;
+  }>;
 }
 
 export interface CareerEvent {
@@ -266,6 +275,9 @@ export interface Project {
   adaptationType?: 'faithful' | 'modern' | 'reimagined' | 'parody'; // How it adapts the source
   legacyBonus?: number; // Marketing/buzz bonus from franchise/PD recognition
   sequelPotential?: number; // 0-100, how likely this is to spawn sequels
+  // Casting confirmation & star power
+  castingConfirmed?: boolean;
+  starPowerBonus?: number; // 0.0-0.5 multiplier added to box office from cast fame
 }
 
 export interface ProjectBudget {

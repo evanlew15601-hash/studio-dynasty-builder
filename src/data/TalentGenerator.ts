@@ -286,6 +286,8 @@ export class TalentGenerator {
     
     const template = BIOGRAPHY_TEMPLATES[Math.floor(Math.random() * BIOGRAPHY_TEMPLATES.length)];
     
+    const fame = Math.min(100, Math.round(reputation * 0.7 + (awards.length * 5)));
+    
     const actor: TalentPerson = {
       id: `actor-${Date.now()}-${Math.random().toString(36).substr(2, 9)}`,
       name,
@@ -310,7 +312,10 @@ export class TalentGenerator {
       studioLoyalty: {},
       chemistry: {},
       futureHolds: [],
-      recentProjects: []
+      recentProjects: [],
+      // Fame & filmography
+      fame,
+      filmography: []
     };
     
     // Add biography as a custom property
@@ -333,6 +338,8 @@ export class TalentGenerator {
     const traits = this.generateTraits([], careerStage);
     
     const template = BIOGRAPHY_TEMPLATES[Math.floor(Math.random() * BIOGRAPHY_TEMPLATES.length)];
+    
+    const fame = Math.min(100, Math.round(reputation * 0.6 + (awards.length * 4)));
     
     const director: TalentPerson = {
       id: `director-${Date.now()}-${Math.random().toString(36).substr(2, 9)}`,
@@ -358,7 +365,10 @@ export class TalentGenerator {
       studioLoyalty: {},
       chemistry: {},
       futureHolds: [],
-      recentProjects: []
+      recentProjects: [],
+      // Fame & filmography
+      fame,
+      filmography: []
     };
     
     // Add biography and director-specific traits

@@ -237,6 +237,9 @@ export class BoxOfficeSystem {
     
     console.log(`   Multipliers - Critics: ${criticsMultiplier}, Audience: ${audienceMultiplier}, Marketing: ${marketingMultiplier}`);
     
+    // Star power multiplier from confirmed casting
+    const starPowerMultiplier = 1 + Math.min(0.5, project.starPowerBonus || 0);
+    
     // Release strategy multiplier
     const releaseMultiplier = this.getReleaseMultiplier(project.releaseStrategy?.type || 'wide');
     
@@ -247,6 +250,7 @@ export class BoxOfficeSystem {
       criticsMultiplier * 
       audienceMultiplier * 
       marketingMultiplier * 
+      starPowerMultiplier * 
       releaseMultiplier * 
       weeklyMultiplier;
     

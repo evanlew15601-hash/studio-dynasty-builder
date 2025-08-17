@@ -170,6 +170,60 @@ export const CharacterCastingSystem: React.FC<CharacterCastingSystemProps> = ({
       .reduce((sum, slot) => sum + slot.contractCost, 0);
   };
 
+  const handleConfirmCasting = () => {
+    const slots = createCastingSlots();
+    const requiredSlots = slots.filter(s => s.isRequired);
+    const castRequired = requiredSlots.filter(s => s.talent).length;
+    if (castRequired !== requiredSlots.length) {
+      toast({ title: 'Cannot Confirm', description: 'Director and Lead roles must be cast', variant: 'destructive' });
+      return;
+    }
+
+    // Build cast entries and compute star power
+    const castEntries = slots
+      .filter(s => s.talent)
+      .map(s => ({
+        talentId: (s.talent as TalentPerson).id,
+        role: s.character.requiredType === 'director'
+          ? 'Director'
+          : s.character.importance === 'lead'
+            ? `Lead - ${s.character.name}`
+            : `Supporting - ${s.character.name}`,
+        salary: Math.round(s.contractCost),
+        points: 0,
+        contractTerms: {
+          duration: new Date(Date.now() + 1000 * 60 * 60 * 24 * 90),
+          exclusivity: false,
+          merchandising: false,
+          sequelOptions: 1
+        }
+      }));
+
+    const assignedTalents = slots.filter(s => s.talent).map(s => s.talent!) as TalentPerson[];
+    const fameScores = assignedTalents
+      .filter(t => t.type === 'actor' || t.type === 'director')
+      .map(t => t.fame ?? Math.min(100, Math.round(t.reputation)));
+    const topTwo = fameScores.sort((a, b) => b - a).slice(0, 2);
+    const starPowerBonus = Math.min(0.5, (topTwo.reduce((a, b) => a + b, 0) / (topTwo.length || 1)) / 200); // up to +0.5
+
+    const updatedProject: Project = {
+      ...project,
+      cast: castEntries as any,
+      castingConfirmed: true,
+      starPowerBonus,
+      currentPhase: project.currentPhase === 'development' ? 'pre-production' as any : project.currentPhase,
+      status: project.currentPhase === 'development' ? 'pre-production' as any : project.status,
+      phaseDuration: project.currentPhase === 'development' ? 4 : project.phaseDuration
+    };
+
+    onProjectUpdate(updatedProject);
+
+    toast({
+      title: 'Casting Confirmed',
+      description: 'All assignments locked. Moved to Pre-Production.',
+    });
+  };
+
   const filteredSlots = createCastingSlots().filter(slot => {
     if (filterType === 'all') return true;
     return slot.character.requiredType === filterType;
@@ -204,6 +258,13 @@ export const CharacterCastingSystem: React.FC<CharacterCastingSystemProps> = ({
               <Badge variant="outline">
                 Total Cost: ${(getTotalCastingCost() / 1000000).toFixed(1)}M
               </Badge>
+              <Button 
+                onClick={handleConfirmCasting}
+                variant={progress.canProceed ? "default" : "outline"}
+                disabled={!progress.canProceed}
+              >
+                Confirm Casting
+              </Button>
             </div>
           </CardTitle>
         </CardHeader>
@@ -280,7 +341,7 @@ export const CharacterCastingSystem: React.FC<CharacterCastingSystemProps> = ({
             
             <CardContent>
               {slot.talent ? (
-                <div className="flex items-center justify-between p-4 bg-white rounded-lg border border-green-200">
+                <div className="flex items-center justify-between p-4 bg-card rounded-lg border border-green-200">
                   <div className="flex items-center gap-3">
                     <Avatar>
                       <AvatarFallback className="bg-green-100 text-green-700">
