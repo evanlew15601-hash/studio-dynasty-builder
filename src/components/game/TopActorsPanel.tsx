@@ -15,9 +15,15 @@ export const TopActorsPanel: React.FC<TopActorsPanelProps> = ({ gameState }) => 
 
   const getFilmographyCount = (actorId: string) => {
     let count = 0;
+    // Check player projects
     for (const p of gameState.projects) {
       const roles = p.script?.characters || [];
       if (roles.some(r => r.assignedTalentId === actorId)) count++;
+    }
+    // Check talent's own filmography
+    const talent = gameState.talent.find(t => t.id === actorId);
+    if (talent?.filmography) {
+      count += talent.filmography.length;
     }
     return count;
   };

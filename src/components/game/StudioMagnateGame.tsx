@@ -24,11 +24,13 @@ import { CompetitorMonitor } from './CompetitorMonitor';
 import { TimeSystem, TimeState } from './TimeSystem';
 import { BoxOfficeSystem } from './BoxOfficeSystem';
 import { updateProjectFinancials } from './FinancialCalculations';
+import { TalentFilmographyManager } from '@/utils/talentFilmographyManager';
 import { AwardsSystem } from './AwardsSystem';
 import { EnhancedAwardsSystem } from './EnhancedAwardsSystem';
 import { RoleBasedCasting } from './RoleBasedCasting';
 import { useAwardsEngine } from '@/hooks/useAwardsEngine';
 import { IndividualAwardShowModal, AwardShowCeremony } from './IndividualAwardShowModal';
+import { FirstWeekBoxOfficeModal } from './FirstWeekBoxOfficeModal';
 import { EnhancedReleaseSystem } from './EnhancedReleaseSystem';
 import { EnhancedLoanSystem } from './EnhancedLoanSystem';
 import { MarketCompetition } from './MarketCompetition';
@@ -258,6 +260,10 @@ export const StudioMagnateGame: React.FC<StudioMagnateGameProps> = ({ onPhaseCha
   const [selectedProject, setSelectedProject] = useState<Project | null>(null);
   const [selectedFranchise, setSelectedFranchise] = useState<string | null>(null);
   const [selectedPublicDomain, setSelectedPublicDomain] = useState<string | null>(null);
+  
+  // First week box office modal state
+  const [firstWeekModalProject, setFirstWeekModalProject] = useState<Project | null>(null);
+  const [showFirstWeekModal, setShowFirstWeekModal] = useState(false);
   
   // Award show modal state
   const [currentAwardShow, setCurrentAwardShow] = useState<AwardShowCeremony | null>(null);
@@ -628,6 +634,17 @@ export const StudioMagnateGame: React.FC<StudioMagnateGameProps> = ({ onPhaseCha
           updatedProject = BoxOfficeSystem.initializeRelease(updatedProject, project.releaseWeek, project.releaseYear);
           console.log(`    📊 POST-RELEASE: boxOfficeTotal = ${updatedProject.metrics?.boxOfficeTotal || 0}`);
           justReleased = true; // Flag to skip processing on release week
+
+          // Update filmography when film is released and show first week modal
+          setGameState(prevState => {
+            const newState = TalentFilmographyManager.updateFilmographyOnRelease(prevState, updatedProject);
+            
+            // Show first week box office modal
+            setFirstWeekModalProject(updatedProject);
+            setShowFirstWeekModal(true);
+            
+            return newState;
+          });
         }
       }
       
@@ -1829,6 +1846,18 @@ export const StudioMagnateGame: React.FC<StudioMagnateGameProps> = ({ onPhaseCha
           />
         )}
       </div>
+      
+      {/* First Week Box Office Modal */}
+      {firstWeekModalProject && (
+        <FirstWeekBoxOfficeModal
+          isOpen={showFirstWeekModal}
+          onClose={() => {
+            setShowFirstWeekModal(false);
+            setFirstWeekModalProject(null);
+          }}
+          project={firstWeekModalProject}
+        />
+      )}
       
       {/* Award Show Modal */}
       {currentAwardShow && (

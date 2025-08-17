@@ -27,7 +27,6 @@ export const EnhancedReleaseSystem: React.FC<EnhancedReleaseSystemProps> = ({
     const errors: string[] = [];
     const warnings: string[] = [];
 
-    // Check casting
     // Check casting requirements
     const hasDirector = project.cast?.some(c => 
       c.role === 'Director' || c.role.toLowerCase().includes('director')
@@ -43,6 +42,11 @@ export const EnhancedReleaseSystem: React.FC<EnhancedReleaseSystemProps> = ({
     
     if (!hasLeadActor) {
       errors.push("At least one lead actor must be cast before release");
+    }
+    
+    // Check casting confirmation
+    if (!project.castingConfirmed) {
+      errors.push("Casting must be confirmed before release");
     }
     
     if (project.cast && project.cast.length < 2) {
