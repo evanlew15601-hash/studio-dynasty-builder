@@ -31,6 +31,15 @@ export const CharacterCastingSystem: React.FC<CharacterCastingSystemProps> = ({
   const [selectedSlot, setSelectedSlot] = useState<CastingSlot | null>(null);
   const [filterType, setFilterType] = useState<'all' | 'actor' | 'director'>('all');
 
+  // Early return if project or script is null
+  if (!project || !project.script) {
+    return (
+      <div className="p-8 text-center">
+        <p className="text-muted-foreground">No script available for casting</p>
+      </div>
+    );
+  }
+
   const createCastingSlots = (): CastingSlot[] => {
     const characters = project.script?.characters || [];
     
@@ -83,8 +92,8 @@ export const CharacterCastingSystem: React.FC<CharacterCastingSystemProps> = ({
       return true;
     }).sort((a, b) => {
       // Sort by genre match first, then reputation
-      const aGenreMatch = project.script?.genre && a.genres?.includes(project.script.genre) ? 1 : 0;
-      const bGenreMatch = project.script?.genre && b.genres?.includes(project.script.genre) ? 1 : 0;
+      const aGenreMatch = project.script?.genre && a.genres?.includes(project.script?.genre) ? 1 : 0;
+      const bGenreMatch = project.script?.genre && b.genres?.includes(project.script?.genre) ? 1 : 0;
       
       if (aGenreMatch !== bGenreMatch) return bGenreMatch - aGenreMatch;
       return b.reputation - a.reputation;
