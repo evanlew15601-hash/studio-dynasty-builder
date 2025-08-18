@@ -28,6 +28,7 @@ import { TalentFilmographyManager } from '@/utils/talentFilmographyManager';
 import { AwardsSystem } from './AwardsSystem';
 import { EnhancedAwardsSystem } from './EnhancedAwardsSystem';
 import { RoleBasedCasting } from './RoleBasedCasting';
+import { CharacterCastingSystem } from './CharacterCastingSystem';
 import { useAwardsEngine } from '@/hooks/useAwardsEngine';
 import { IndividualAwardShowModal, AwardShowCeremony } from './IndividualAwardShowModal';
 import { FirstWeekBoxOfficeModal } from './FirstWeekBoxOfficeModal';
@@ -1571,13 +1572,11 @@ export const StudioMagnateGame: React.FC<StudioMagnateGameProps> = ({ onPhaseCha
               </TabsList>
               
               <TabsContent value="character-casting">
-                <Suspense fallback={<div>Loading character casting...</div>}>
-                  {React.createElement(React.lazy(() => import('./CharacterCastingSystem').then(m => ({ default: m.CharacterCastingSystem }))), {
-                    project: selectedProject!,
-                    gameState,
-                    onProjectUpdate: handleProjectUpdate
-                  })}
-                </Suspense>
+                <CharacterCastingSystem
+                  project={selectedProject!}
+                  gameState={gameState}
+                  onProjectUpdate={handleProjectUpdate}
+                />
               </TabsContent>
               
               <TabsContent value="role-based">
