@@ -307,10 +307,10 @@ export const CharacterCastingSystem: React.FC<CharacterCastingSystemProps> = ({
           <Card 
             key={slot.character.id} 
             className={`transition-colors ${
-              slot.talent ? 'border-green-200 bg-green-50/50' : 
-              slot.isRequired ? 'border-red-200 bg-red-50/50' : 
-              'border-amber-200 bg-amber-50/50'
-            }`}
+              slot.talent ? 'border-green-500/30 bg-green-50/50 dark:bg-green-950/20 dark:border-green-400/30' : 
+              slot.isRequired ? 'border-red-500/30 bg-red-50/50 dark:bg-red-950/20 dark:border-red-400/30' : 
+              'border-amber-500/30 bg-amber-50/50 dark:bg-amber-950/20 dark:border-amber-400/30'
+            } bg-card`}
           >
             <CardHeader className="pb-3">
               <div className="flex items-center justify-between">
@@ -341,7 +341,7 @@ export const CharacterCastingSystem: React.FC<CharacterCastingSystemProps> = ({
             
             <CardContent>
               {slot.talent ? (
-                <div className="flex items-center justify-between p-4 bg-card rounded-lg border border-green-200">
+                <div className="flex items-center justify-between p-4 bg-background rounded-lg border border-green-500/30 dark:border-green-400/30">
                   <div className="flex items-center gap-3">
                     <Avatar>
                       <AvatarFallback className="bg-green-100 text-green-700">
@@ -475,23 +475,27 @@ const CastingCandidatesList: React.FC<CastingCandidatesListProps> = ({
             return (
               <div 
                 key={talent.id} 
-                className={`flex items-center justify-between p-3 border rounded-lg ${
-                  isCurrent ? 'border-green-500 bg-green-50' : 
-                  isGenreMatch ? 'border-blue-200 bg-blue-50' : 
-                  'border-gray-200 hover:border-gray-300'
-                }`}
+                className={`flex items-center justify-between p-3 border rounded-lg transition-colors ${
+                  isCurrent ? 'border-green-500 bg-green-50 dark:bg-green-950/20 dark:border-green-400' : 
+                  isGenreMatch ? 'border-blue-500 bg-blue-50 dark:bg-blue-950/20 dark:border-blue-400' : 
+                  'border-border hover:border-accent'
+                } bg-card`}
               >
                 <div className="flex items-center gap-3">
                   <Avatar>
-                    <AvatarFallback>
+                    <AvatarFallback className={`${
+                      isCurrent ? 'bg-green-100 text-green-800 dark:bg-green-900/50 dark:text-green-300' :
+                      isGenreMatch ? 'bg-blue-100 text-blue-800 dark:bg-blue-900/50 dark:text-blue-300' :
+                      'bg-muted text-foreground'
+                    }`}>
                       {talent.name.split(' ').map(n => n[0]).join('')}
                     </AvatarFallback>
                   </Avatar>
                   <div>
                     <div className="flex items-center gap-2">
-                      <p className="font-medium">{talent.name}</p>
-                      {isGenreMatch && <Badge variant="outline" className="text-xs">Genre Match</Badge>}
-                      {isCurrent && <Badge variant="default" className="text-xs">Current</Badge>}
+                      <p className="font-medium text-foreground">{talent.name}</p>
+                      {isGenreMatch && <Badge variant="outline" className="text-xs border-blue-300 text-blue-700 dark:border-blue-600 dark:text-blue-300">Genre Match</Badge>}
+                      {isCurrent && <Badge variant="default" className="text-xs bg-green-600 text-white dark:bg-green-700">Current</Badge>}
                     </div>
                     <p className="text-sm text-muted-foreground">
                       ${(talent.marketValue / 1000000).toFixed(1)}M • Rep: {Math.round(talent.reputation)} • Age: {talent.age}
@@ -499,7 +503,7 @@ const CastingCandidatesList: React.FC<CastingCandidatesListProps> = ({
                     </p>
                     <div className="flex flex-wrap gap-1 mt-1">
                       {talent.genres?.slice(0, 3).map(genre => (
-                        <Badge key={genre} variant="secondary" className="text-xs">
+                        <Badge key={genre} variant="secondary" className="text-xs bg-secondary/80 text-secondary-foreground">
                           {genre}
                         </Badge>
                       ))}
@@ -508,8 +512,19 @@ const CastingCandidatesList: React.FC<CastingCandidatesListProps> = ({
                 </div>
                 <Button 
                   size="sm"
-                  onClick={() => onCast(character, talent)}
+                  onClick={() => {
+                    onCast(character, talent);
+                    // Force close dialog by finding and clicking backdrop
+                    setTimeout(() => {
+                      const dialog = document.querySelector('[role="dialog"]');
+                      if (dialog) {
+                        const backdrop = dialog.parentElement?.querySelector('[data-radix-dialog-overlay]') as HTMLElement;
+                        if (backdrop) backdrop.click();
+                      }
+                    }, 100);
+                  }}
                   disabled={isCurrent}
+                  className={isCurrent ? 'opacity-50' : ''}
                 >
                   {isCurrent ? 'Current' : 'Cast'}
                 </Button>
