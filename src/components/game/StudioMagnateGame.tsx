@@ -453,6 +453,13 @@ export const StudioMagnateGame: React.FC<StudioMagnateGameProps> = ({ onPhaseCha
     }));
   };
 
+  const handleTalentUpdate = (talentId: string, updates: Partial<TalentPerson>) => {
+    setGameState(prev => ({
+      ...prev,
+      talent: prev.talent.map(t => t.id === talentId ? { ...t, ...updates } : t)
+    }));
+  };
+
   // Handle award show triggers
   const handleAwardShow = (ceremony: AwardShowCeremony) => {
     setCurrentAwardShow(ceremony);
@@ -460,7 +467,7 @@ export const StudioMagnateGame: React.FC<StudioMagnateGameProps> = ({ onPhaseCha
   };
 
   // Always run awards engine in the background (independent of UI phase)
-  useAwardsEngine(gameState, handleStudioUpdate, handleAwardShow);
+  useAwardsEngine(gameState, handleStudioUpdate, handleTalentUpdate, handleAwardShow);
 
   const handleProjectUpdate = (project: Project, marketingCost?: number) => {
     setGameState(prev => ({

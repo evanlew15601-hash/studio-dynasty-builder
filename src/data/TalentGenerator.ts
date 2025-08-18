@@ -281,7 +281,7 @@ export class TalentGenerator {
     const name = this.generateName(gender);
     const genres = this.selectGenres(2 + Math.floor(Math.random() * 3));
     const marketValue = this.generateMarketValue(age, experience, reputation, 'actor');
-    const awards = this.generateAwards(careerStage, reputation);
+    const awards: any[] = [];
     const traits = this.generateTraits([], careerStage);
     
     const template = BIOGRAPHY_TEMPLATES[Math.floor(Math.random() * BIOGRAPHY_TEMPLATES.length)];
@@ -334,7 +334,7 @@ export class TalentGenerator {
     const name = this.generateName(gender);
     const genres = this.selectGenres(1 + Math.floor(Math.random() * 2));
     const marketValue = this.generateMarketValue(age, experience, reputation, 'director');
-    const awards = this.generateAwards(careerStage, reputation);
+    const awards: any[] = [];
     const traits = this.generateTraits([], careerStage);
     
     const template = BIOGRAPHY_TEMPLATES[Math.floor(Math.random() * BIOGRAPHY_TEMPLATES.length)];

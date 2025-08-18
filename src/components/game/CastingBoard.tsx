@@ -268,9 +268,9 @@ export const CastingBoard: React.FC<CastingBoardProps> = ({
                     Awards:
                   </p>
                   <div className="flex flex-wrap gap-1">
-                    {talent.awards.map((award) => (
-                      <Badge key={award} variant="outline" className="text-xs">
-                        {award}
+                    {talent.awards.map((award, index) => (
+                      <Badge key={typeof award === 'string' ? award : award.id || index} variant="outline" className="text-xs">
+                        {typeof award === 'string' ? award : award.category || 'Award'}
                       </Badge>
                     ))}
                   </div>

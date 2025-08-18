@@ -133,7 +133,7 @@ export interface TalentPerson {
   contractStatus: 'available' | 'contracted' | 'exclusive' | 'retired' | 'busy';
   busyUntilWeek?: number;
   salary?: number;
-  awards?: string[];
+  awards?: TalentAward[];
   careerStage?: 'unknown' | 'rising' | 'established' | 'veteran' | 'legend';
   personality?: PersonalityTrait[];
   relationships?: { [personId: string]: RelationshipType };
@@ -928,6 +928,18 @@ export interface StudioAward {
   prestige: number; // 1-10
   reputationBoost: number;
   revenueBoost?: number;
+}
+
+export interface TalentAward {
+  id: string;
+  talentId: string;
+  projectId: string;
+  category: string;
+  ceremony: string;
+  year: number;
+  prestige: number; // 1-10
+  reputationBoost: number;
+  marketValueBoost?: number;
 }
 
 export interface AwardsEvent {
