@@ -471,6 +471,9 @@ export const StudioMagnateGame: React.FC<StudioMagnateGameProps> = ({ onPhaseCha
         budget: prev.studio.budget - marketingCost
       } : prev.studio
     }));
+
+    // Keep the local selectedProject in sync so UI reflects changes immediately
+    setSelectedProject(prevSel => (prevSel && prevSel.id === project.id) ? project : prevSel);
   };
 
   // CRITICAL: Manual marketing campaign creation (no auto-progression)
