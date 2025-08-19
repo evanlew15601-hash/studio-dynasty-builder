@@ -34,7 +34,7 @@ export const DistributionDashboard: React.FC<DistributionDashboardProps> = ({
   };
 
   const getReleasedProjects = () => {
-    return gameState.projects.filter(p => p.metrics);
+    return gameState.projects.filter(p => p.status === 'released');
   };
 
   const releaseProject = (project: Project, platform: 'theatrical' | 'streaming' | 'festival') => {
@@ -92,13 +92,14 @@ export const DistributionDashboard: React.FC<DistributionDashboardProps> = ({
 
   const completedProjects = getCompletedProjects();
   const releasedProjects = getReleasedProjects();
+  const inTheatersProjects = releasedProjects.filter(p => p.metrics?.inTheaters);
 
-  const totalRevenue = releasedProjects.reduce((acc, p) => 
+  const totalRevenue = inTheatersProjects.reduce((acc, p) => 
     acc + (p.metrics?.boxOfficeTotal || 0), 0
   );
 
-  const averageCriticsScore = releasedProjects.length > 0 
-    ? releasedProjects.reduce((acc, p) => acc + (p.metrics?.criticsScore || 0), 0) / releasedProjects.length
+  const averageCriticsScore = inTheatersProjects.length > 0 
+    ? inTheatersProjects.reduce((acc, p) => acc + (p.metrics?.criticsScore || 0), 0) / inTheatersProjects.length
     : 0;
 
   return (
@@ -196,7 +197,7 @@ export const DistributionDashboard: React.FC<DistributionDashboardProps> = ({
       )}
 
       {/* Released Projects Performance */}
-      {releasedProjects.length > 0 && (
+      {inTheatersProjects.length > 0 && (
         <Card className="card-premium">
           <CardHeader>
             <CardTitle className="flex items-center">
@@ -206,7 +207,7 @@ export const DistributionDashboard: React.FC<DistributionDashboardProps> = ({
           </CardHeader>
           <CardContent>
             <div className="space-y-6">
-              {releasedProjects.map((project) => (
+              {inTheatersProjects.map((project) => (
                 <div key={project.id} className="space-y-4 p-4 rounded-lg border bg-card">
                   <div className="flex items-center justify-between">
                     <div>
@@ -276,6 +277,7 @@ export const DistributionDashboard: React.FC<DistributionDashboardProps> = ({
           </CardContent>
         </Card>
       )}
+
 
       {completedProjects.length === 0 && (
         <Card className="card-premium">

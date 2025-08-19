@@ -151,14 +151,19 @@ export const IndividualAwardShowModal: React.FC<IndividualAwardShowModalProps> =
                         <div className="text-2xl font-semibold mb-2">
                           {currentWinner.project.title}
                         </div>
-                        <div className="text-lg text-muted-foreground mb-4">
+                        <div className="text-lg text-muted-foreground mb-2">
                           {currentWinner.project.script.genre} • 
                           {(currentWinner.project as any).studioId === 'player' || currentWinner.project.id.includes('player') ? ' Your Studio' : ' AI Studio'}
                         </div>
+                        {(currentWinner as any).talentName && (
+                          <div className="text-base font-medium">
+                            Recipient: {(currentWinner as any).talentName}
+                          </div>
+                        )}
                         {((currentWinner.project as any).studioId === 'player' || currentWinner.project.id.includes('player')) && currentWinner.award && (
                           <div className="space-y-2 p-4 rounded-lg bg-green-50 dark:bg-green-900/20">
                             <div className="font-semibold text-green-700 dark:text-green-300">
-                              Congratulations to Your Studio!
+                              Congratulations!
                             </div>
                             <div className="text-sm">
                               +{currentWinner.award.reputationBoost} Reputation • 
@@ -223,7 +228,7 @@ export const IndividualAwardShowModal: React.FC<IndividualAwardShowModalProps> =
                     {playerWins.map((winner, index) => (
                       <div key={index} className="flex justify-between items-center p-3 rounded-lg bg-yellow-50 dark:bg-yellow-900/20">
                         <div>
-                          <div className="font-medium">{winner.project.title}</div>
+                          <div className="font-medium">{(winner as any).talentName ? `${(winner as any).talentName} (${winner.project.title})` : winner.project.title}</div>
                           <div className="text-sm text-muted-foreground">
                             {Object.keys(ceremony.winners).find(cat => ceremony.winners[cat] === winner)}
                           </div>

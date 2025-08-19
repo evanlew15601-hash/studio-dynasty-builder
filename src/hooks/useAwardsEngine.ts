@@ -292,11 +292,12 @@ export function useAwardsEngine(
         if (winner) {
           const winnerData = flatForModal.find(f => f.project.id === winner.project.id && f.category === category && f.won);
           if (winnerData) {
-            ceremonyData.winners[category] = {
+            (ceremonyData.winners as any)[category] = {
               ...winner,
               category,
               won: true,
               award: winnerData.award,
+              talentName: winnerData.talentName,
               project: { ...winner.project, studioId: winner.project.id.includes('player') ? 'player' : 'ai' } as any
             };
           }

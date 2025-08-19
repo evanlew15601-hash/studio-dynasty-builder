@@ -470,14 +470,35 @@ export const StudioMagnateGame: React.FC<StudioMagnateGameProps> = ({ onPhaseCha
   useAwardsEngine(gameState, handleStudioUpdate, handleTalentUpdate, handleAwardShow);
 
   const handleProjectUpdate = (project: Project, marketingCost?: number) => {
-    setGameState(prev => ({
-      ...prev,
-      projects: prev.projects.map(p => p.id === project.id ? project : p),
-      studio: marketingCost ? {
-        ...prev.studio,
-        budget: prev.studio.budget - marketingCost
-      } : prev.studio
-    }));
+    setGameState(prev => {
+      const prevProject = prev.projects.find(p => p.id === project.id);
+      const nextState = {
+        ...prev,
+        projects: prev.projects.map(p => p.id === project.id ? project : p),
+        studio: marketingCost ? {
+          ...prev.studio,
+          budget: prev.studio.budget - marketingCost
+        } : prev.studio
+      };
+
+      // If casting was just confirmed, lock talent availability for the production period
+      if (prevProject?.castingConfirmed !== true && project.castingConfirmed && project.cast?.length > 0) {
+        const totalProdWeeks = getPhaseWeeks('pre-production') + getPhaseWeeks('production') + getPhaseWeeks('post-production');
+        const busyUntilWeek = prev.currentWeek + totalProdWeeks;
+        nextState.talent = nextState.talent.map(t => {
+          const isInCast = project.cast.some(c => c.talentId === t.id);
+          if (!isInCast) return t;
+          return {
+            ...t,
+            contractStatus: 'contracted',
+            currentContractWeeks: totalProdWeeks,
+            busyUntilWeek
+          };
+        });
+      }
+
+      return nextState;
+    });
 
     // Keep the local selectedProject in sync so UI reflects changes immediately
     setSelectedProject(prevSel => (prevSel && prevSel.id === project.id) ? project : prevSel);
@@ -542,65 +563,44 @@ export const StudioMagnateGame: React.FC<StudioMagnateGameProps> = ({ onPhaseCha
   // CRITICAL: Manual release strategy creation (no auto-progression)
   const handleReleaseStrategyCreate = (project: Project, strategy: ReleaseStrategy) => {
     console.log(`🎬 MANUAL RELEASE STRATEGY SET: ${project.title}`);
-    
-    if (!strategy.premiereDate) {
+
+    // Prefer exact game week/year from the modal if provided
+    const selectedWeek = (strategy as any).releaseWeek as number | undefined;
+    const selectedYear = (strategy as any).releaseYear as number | undefined;
+
+    if (!selectedWeek || !selectedYear) {
       toast({
         title: "Release Date Required",
-        description: "Please select a premiere date for the release.",
+        description: "Please select a release week and year from the calendar.",
         variant: "destructive"
       });
       return;
     }
 
-    // Calculate release week/year from selected date using game time
-    console.log(`🕐 Converting date ${strategy.premiereDate.toDateString()} to game time`);
-    console.log(`🕐 Current game time: Y${gameState.currentYear}W${gameState.currentWeek}`);
-    
-    // Simple approach: Convert calendar date to weeks from today
-    const today = new Date();
-    const daysDifference = Math.floor((strategy.premiereDate.getTime() - today.getTime()) / (1000 * 60 * 60 * 24));
-    const weeksDifference = Math.floor(daysDifference / 7);
-    
-    console.log(`🕐 Days difference: ${daysDifference}, Weeks difference: ${weeksDifference}`);
-    
-    // Calculate target week/year from current game state
-    let releaseYear = gameState.currentYear;
-    let releaseWeek = gameState.currentWeek + weeksDifference;
-    
-    // Handle year rollover
-    while (releaseWeek > 52) {
-      releaseWeek -= 52;
-      releaseYear += 1;
-    }
-    while (releaseWeek <= 0) {
-      releaseWeek += 52;
-      releaseYear -= 1;
-    }
-    
-    // Ensure release date is not in the past
+    // Ensure release is not in the past relative to game time
     const currentAbsoluteWeek = (gameState.currentYear * 52) + gameState.currentWeek;
-    const calculatedAbsoluteWeek = (releaseYear * 52) + releaseWeek;
-    
-    if (calculatedAbsoluteWeek < currentAbsoluteWeek) {
+    const releaseAbsoluteWeek = (selectedYear * 52) + selectedWeek;
+    if (releaseAbsoluteWeek <= currentAbsoluteWeek) {
       toast({
         title: "Invalid Release Date",
-        description: "Release date cannot be in the past.",
+        description: "Release date must be in the future.",
         variant: "destructive"
       });
       return;
     }
-    
-    console.log(`  → Player selected: ${strategy.premiereDate.toDateString()} = Y${releaseYear}W${releaseWeek}`);
-    
+
     const updatedProject = {
       ...project,
       releaseStrategy: strategy,
-      releaseWeek,
-      releaseYear,
+      releaseWeek: selectedWeek,
+      releaseYear: selectedYear,
+      // mirror for any components reading scheduled fields
+      scheduledReleaseWeek: selectedWeek,
+      scheduledReleaseYear: selectedYear,
       currentPhase: 'release' as const,
       status: 'scheduled-for-release' as any,
       readyForRelease: false,
-      phaseDuration: -1, // Special value to prevent auto-advancement until release date
+      phaseDuration: -1, // prevent auto-advancement until release week
       metrics: {
         ...project.metrics,
         criticsScore: Math.floor(Math.random() * 40) + 50,
@@ -612,10 +612,10 @@ export const StudioMagnateGame: React.FC<StudioMagnateGameProps> = ({ onPhaseCha
       ...prev,
       projects: prev.projects.map(p => p.id === project.id ? updatedProject : p)
     }));
-    
+
     toast({
       title: "Release Strategy Set!",
-      description: `${project.title} will be released on ${strategy.premiereDate?.toDateString()}.`,
+      description: `${project.title} will be released in Y${selectedYear}W${selectedWeek}.`,
     });
   };
 
