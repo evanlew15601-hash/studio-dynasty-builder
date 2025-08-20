@@ -74,6 +74,43 @@ import { ChevronDown } from 'lucide-react';
 import { RoleDatabase } from '../../data/RoleDatabase';
 import { importRolesForScript } from '@/utils/roleImport';
 
+// Ensure AI films have at least a Director and Lead actor so awards/crediting work
+function attachBasicCastForAI(project: Project, talentPool: TalentPerson[]): Project {
+  try {
+    // If already has cast or assigned characters, do nothing
+    if ((project.cast && project.cast.length > 0) || project.script?.characters?.some(c => c.assignedTalentId)) {
+      return project;
+    }
+    const director = talentPool.find(t => t.type === 'director');
+    const lead = talentPool.find(t => t.type === 'actor');
+    if (!project.script) return project;
+
+    const baseChars = project.script.characters || [];
+    const characters = baseChars.length > 0 ? baseChars.map(c => {
+      if (c.requiredType === 'director' && !c.assignedTalentId && director) return { ...c, assignedTalentId: director.id };
+      if (c.importance === 'lead' && c.requiredType !== 'director' && !c.assignedTalentId && lead) return { ...c, assignedTalentId: lead.id };
+      return c;
+    }) : [
+      { id: `${project.id}-dir`, name: 'Director', description: 'Director', requiredType: 'director', importance: 'lead', traits: ['mandatory'], assignedTalentId: director?.id } as any,
+      { id: `${project.id}-lead`, name: 'Protagonist', description: 'Lead role', requiredType: 'actor', importance: 'lead', traits: ['mandatory'], assignedTalentId: lead?.id } as any,
+    ];
+
+    const cast = [
+      director && { talentId: director.id, role: 'Director', salary: Math.round((director.marketValue || 5_000_000) * 0.1), points: 0, contractTerms: { duration: new Date(), exclusivity: false, merchandising: false, sequelOptions: 0 } },
+      lead && { talentId: lead.id, role: `Lead - ${characters.find(c => c.importance==='lead' && c.requiredType !== 'director')?.name || 'Lead'}`, salary: Math.round((lead.marketValue || 5_000_000) * 0.1), points: 0, contractTerms: { duration: new Date(), exclusivity: false, merchandising: false, sequelOptions: 0 } },
+    ].filter(Boolean) as any;
+
+    return {
+      ...project,
+      script: { ...project.script, characters },
+      cast: cast.length > 0 ? cast : project.cast
+    };
+  } catch (e) {
+    console.warn('attachBasicCastForAI failed', e);
+    return project;
+  }
+}
+
 interface StudioMagnateGameProps {
   onPhaseChange?: (phase: string) => void;
   gameConfig?: {
@@ -167,7 +204,7 @@ export const StudioMagnateGame: React.FC<StudioMagnateGameProps> = ({ onPhaseCha
             for (const st of competitorStudios) {
               const profile = sg.getStudioProfile(st.name);
               const rel = profile ? sg.generateStudioRelease(profile, w, year) : null;
-              if (rel) { releases.push(rel); added = true; break; }
+              if (rel) { releases.push(rel); releases[releases.length - 1] = attachBasicCastForAI(releases[releases.length - 1] as Project, generatedTalent); added = true; break; }
             }
             if (!added && competitorStudios[0]) {
               const fallback = sg.getStudioProfile(competitorStudios[0].name);
@@ -175,6 +212,7 @@ export const StudioMagnateGame: React.FC<StudioMagnateGameProps> = ({ onPhaseCha
                 const rel = sg.generateStudioRelease(fallback, w, year);
                 if (rel) {
                   releases.push(rel);
+                  releases[releases.length - 1] = attachBasicCastForAI(releases[releases.length - 1] as Project, generatedTalent);
                 } else {
                   // Guarantee at least one release per week: synthesize a small indie release
                   const genre = fallback.specialties[0] as Genre;
@@ -229,6 +267,7 @@ export const StudioMagnateGame: React.FC<StudioMagnateGameProps> = ({ onPhaseCha
                     releaseYear: year,
                     studioName: fallback.name
                   } as Project);
+                  releases[releases.length - 1] = attachBasicCastForAI(releases[releases.length - 1] as Project, generatedTalent);
                 }
               }
             }
@@ -1209,12 +1248,13 @@ export const StudioMagnateGame: React.FC<StudioMagnateGameProps> = ({ onPhaseCha
         // Find corresponding studio profile by name
         const studioProfile = studioGenerator.getStudioProfile(randomStudio.name);
         if (studioProfile) {
-          const aiRelease = studioGenerator.generateStudioRelease(studioProfile, newTimeState.currentWeek, newTimeState.currentYear);
+          let aiRelease = studioGenerator.generateStudioRelease(studioProfile, newTimeState.currentWeek, newTimeState.currentYear);
           if (aiRelease) {
             // Set proper release timing for AI films
             aiRelease.releaseWeek = newTimeState.currentWeek;
             aiRelease.releaseYear = newTimeState.currentYear;
             aiRelease.studioName = studioProfile.name; // Track which AI studio made this
+            aiRelease = attachBasicCastForAI(aiRelease, prev.talent);
             newAIReleases.push(aiRelease);
             console.log(`🤖 AI STUDIO: ${studioProfile.name} released "${aiRelease.title}" (${aiRelease.script.genre})`);
           }

@@ -327,7 +327,17 @@ export const EnhancedReleaseSystem: React.FC<EnhancedReleaseSystemProps> = ({
                 <div className="flex gap-2">
                   {project.status === 'post-production' && validation.canRelease && (
                     <Button 
-                      onClick={() => scheduleRelease(project, gameState.currentWeek + 2, gameState.currentYear)}
+                      onClick={() => {
+                        if (project.scheduledReleaseWeek && project.scheduledReleaseYear) {
+                          scheduleRelease(project, project.scheduledReleaseWeek, project.scheduledReleaseYear);
+                        } else {
+                          toast({
+                            title: "Select Release Date",
+                            description: "Set the exact release week/year via Release Strategy.",
+                            variant: "destructive"
+                          });
+                        }
+                      }}
                     >
                       Schedule Release
                     </Button>
