@@ -678,7 +678,7 @@ export const StudioMagnateGame: React.FC<StudioMagnateGameProps> = ({ onPhaseCha
         const currentAbsoluteWeek = (timeState.currentYear * 52) + timeState.currentWeek;
         const releaseAbsoluteWeek = (project.releaseYear * 52) + project.releaseWeek;
         
-        if (currentAbsoluteWeek >= releaseAbsoluteWeek) {
+        if (currentAbsoluteWeek === releaseAbsoluteWeek) {
           console.log(`🎬 RELEASE DATE ARRIVED: ${project.title}`);
           console.log(`    📊 PRE-RELEASE: boxOfficeTotal = ${project.metrics?.boxOfficeTotal || 0}`);
           updatedProject = BoxOfficeSystem.initializeRelease(updatedProject, project.releaseWeek, project.releaseYear);
