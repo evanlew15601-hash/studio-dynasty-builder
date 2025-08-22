@@ -100,8 +100,8 @@ export const EnhancedReleaseSystem: React.FC<EnhancedReleaseSystemProps> = ({
     }
 
     // Check if release date is in the future
-    const currentTime = gameState.currentWeek + (gameState.currentYear - 1) * 52;
-    const releaseTime = releaseWeek + (releaseYear - 1) * 52;
+    const currentTime = (gameState.currentYear * 52) + gameState.currentWeek;
+    const releaseTime = (releaseYear * 52) + releaseWeek;
     
     if (releaseTime <= currentTime) {
       toast({
@@ -129,14 +129,14 @@ export const EnhancedReleaseSystem: React.FC<EnhancedReleaseSystemProps> = ({
   };
 
   const processReleases = () => {
-    const currentTime = gameState.currentWeek + (gameState.currentYear - 1) * 52;
+    const currentTime = (gameState.currentYear * 52) + gameState.currentWeek;
     
     projects.forEach(project => {
       if (project.status === 'scheduled-for-release' && 
           project.scheduledReleaseWeek && 
           project.scheduledReleaseYear) {
         
-        const releaseTime = project.scheduledReleaseWeek + (project.scheduledReleaseYear - 1) * 52;
+        const releaseTime = (project.scheduledReleaseYear * 52) + project.scheduledReleaseWeek;
         
         if (releaseTime === currentTime) {
           // Release the film
@@ -175,8 +175,8 @@ export const EnhancedReleaseSystem: React.FC<EnhancedReleaseSystemProps> = ({
         // Fix calculation to handle missing or invalid scheduled dates
         const scheduledWeek = p.scheduledReleaseWeek || 0;
         const scheduledYear = p.scheduledReleaseYear || gameState.currentYear + 1;
-        const currentTime = gameState.currentWeek + (gameState.currentYear - 1) * 52;
-        const releaseTime = scheduledWeek + (scheduledYear - 1) * 52;
+        const currentTime = (gameState.currentYear * 52) + gameState.currentWeek;
+        const releaseTime = (scheduledYear * 52) + scheduledWeek;
         const weeksUntil = Math.max(0, releaseTime - currentTime);
         
         return {
@@ -199,8 +199,8 @@ export const EnhancedReleaseSystem: React.FC<EnhancedReleaseSystemProps> = ({
     }
 
     // Check if film has been released for at least 8 weeks
-    const releaseTime = project.scheduledReleaseWeek! + (project.scheduledReleaseYear! - 1) * 52;
-    const currentTime = gameState.currentWeek + (gameState.currentYear - 1) * 52;
+    const releaseTime = (project.scheduledReleaseYear! * 52) + project.scheduledReleaseWeek!;
+    const currentTime = (gameState.currentYear * 52) + gameState.currentWeek;
     const weeksReleased = currentTime - releaseTime;
     
     if (weeksReleased < 8) {
