@@ -1,3 +1,4 @@
+
 import React, { useState, useEffect } from 'react';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
@@ -142,7 +143,7 @@ export const EnhancedAwardsSystem: React.FC<EnhancedAwardsSystemProps> = ({
     eligibleProjects.forEach(project => {
       const score = calculateAwardScore(project, category);
       
-      if (score > 60) { // Minimum threshold for nomination
+      if (score > 45) { // lowered threshold from 60 -> 45 to avoid unrealistically high bar
         const nomination: AwardNomination = {
           id: `nom-${category.id}-${project.id}`,
           categoryId: category.id,

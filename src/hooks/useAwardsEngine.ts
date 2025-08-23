@@ -275,14 +275,20 @@ export function useAwardsEngine(
         winners: {}
       };
 
-      // Convert nominations to proper format for modal
+      // Convert nominations to proper format for modal (include talentName for talent categories)
       categories.forEach((category) => {
         const nominees = nominationsRecord.categories[category] || [];
-        ceremonyData.nominations[category] = nominees.map(n => ({
-          ...n,
-          category,
-          project: { ...n.project, studioId: n.project.id.includes('player') ? 'player' : 'ai' } as any
-        }));
+        ceremonyData.nominations[category] = nominees.map(n => {
+          const t = (category.toLowerCase().includes('actor') || category.toLowerCase().includes('actress') || category.toLowerCase().includes('director'))
+            ? findRelevantTalent(n.project, category)
+            : undefined;
+          return {
+            ...n,
+            category,
+            project: { ...n.project, studioId: n.project.id.includes('player') ? 'player' : 'ai' } as any,
+            talentName: t?.name
+          } as any;
+        });
       });
 
       // Add winners to ceremony data

@@ -1,3 +1,4 @@
+
 import React, { useState } from 'react';
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from '@/components/ui/dialog';
 import { Button } from '@/components/ui/button';
@@ -14,6 +15,7 @@ export interface AwardShowNomination {
   score: number;
   won?: boolean;
   award?: StudioAward;
+  talentName?: string; // added to visually credit actors/directors
 }
 
 export interface AwardShowCeremony {
@@ -50,6 +52,11 @@ export const IndividualAwardShowModal: React.FC<IndividualAwardShowModalProps> =
     .filter(nom => (nom.project as any).studioId === 'player' || nom.project.id.includes('player'));
   const playerWins = Object.values(ceremony.winners)
     .filter(winner => (winner.project as any).studioId === 'player' || winner.project.id.includes('player'));
+
+  const isTalentCategory = (category: string) => {
+    const cl = category.toLowerCase();
+    return cl.includes('actor') || cl.includes('actress') || cl.includes('director');
+  };
 
   const nextCategory = () => {
     if (currentCategoryIndex < categories.length - 1) {
@@ -110,26 +117,34 @@ export const IndividualAwardShowModal: React.FC<IndividualAwardShowModalProps> =
                   <div className="space-y-4">
                     <h3 className="text-lg font-semibold text-center">The Nominees Are:</h3>
                     <div className="grid gap-3">
-                      {currentNominations.map((nomination, index) => (
-                        <Card 
-                          key={`${nomination.project.id}-${index}`}
-                          className={`p-4 ${(nomination.project as any).studioId === 'player' || nomination.project.id.includes('player') ? 'border-primary bg-primary/5' : ''}`}
-                        >
-                          <div className="flex items-center justify-between">
-                            <div>
-                              <div className="font-semibold">{nomination.project.title}</div>
-                              <div className="text-sm text-muted-foreground">
-                                {nomination.project.script.genre} • {(nomination.project as any).studioId === 'player' || nomination.project.id.includes('player') ? 'Your Studio' : 'AI Studio'}
+                      {currentNominations.map((nomination, index) => {
+                        const isPlayer = (nomination.project as any).studioId === 'player' || nomination.project.id.includes('player');
+                        return (
+                          <Card 
+                            key={`${nomination.project.id}-${index}`}
+                            className={`p-4 ${isPlayer ? 'border-primary bg-primary/5' : ''}`}
+                          >
+                            <div className="flex items-center justify-between">
+                              <div>
+                                <div className="font-semibold">{nomination.project.title}</div>
+                                <div className="text-sm text-muted-foreground">
+                                  {nomination.project.script.genre} • {isPlayer ? 'Your Studio' : 'AI Studio'}
+                                </div>
+                                {isTalentCategory(nomination.category) && (
+                                  <div className="text-xs text-muted-foreground mt-1">
+                                    Nominee: {nomination.talentName ?? '—'}
+                                  </div>
+                                )}
+                              </div>
+                              <div className="text-right">
+                                <Badge variant="outline">
+                                  Score: {nomination.score.toFixed(0)}
+                                </Badge>
                               </div>
                             </div>
-                            <div className="text-right">
-                              <Badge variant="outline">
-                                Score: {nomination.score.toFixed(0)}
-                              </Badge>
-                            </div>
-                          </div>
-                        </Card>
-                      ))}
+                          </Card>
+                        );
+                      })}
                     </div>
                     <div className="text-center">
                       <Button onClick={revealWinner} size="lg">
@@ -155,7 +170,7 @@ export const IndividualAwardShowModal: React.FC<IndividualAwardShowModalProps> =
                           {currentWinner.project.script.genre} • 
                           {(currentWinner.project as any).studioId === 'player' || currentWinner.project.id.includes('player') ? ' Your Studio' : ' AI Studio'}
                         </div>
-                        {(currentWinner as any).talentName && (
+                        {isTalentCategory(currentWinner.category) && (currentWinner as any).talentName && (
                           <div className="text-base font-medium">
                             Recipient: {(currentWinner as any).talentName}
                           </div>

@@ -1,10 +1,11 @@
+
 import React from 'react';
 import { Project, TalentPerson, GameState, ScriptCharacter } from '@/types/game';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
 import { useToast } from '@/hooks/use-toast';
-import { Users, User, Crown, Star } from 'lucide-react';
+import { Users, User, Crown, Star, CheckCircle } from 'lucide-react';
 import { RoleDatabase } from '@/data/RoleDatabase';
 import { importRolesForScript } from '@/utils/roleImport';
 
@@ -153,9 +154,17 @@ export const RoleBasedCasting: React.FC<RoleBasedCastingProps> = ({
                     </CardTitle>
                     <p className="text-sm text-muted-foreground">{character.description}</p>
                   </div>
-                  <Badge variant="outline" className="capitalize">
-                    {character.importance}
-                  </Badge>
+                  <div className="flex items-center gap-2">
+                    <Badge variant="outline" className="capitalize">
+                      {character.importance}
+                    </Badge>
+                    {castTalent && (
+                      <Badge variant="default" className="flex items-center gap-1">
+                        <CheckCircle className="h-3 w-3" />
+                        Assigned
+                      </Badge>
+                    )}
+                  </div>
                 </div>
               </CardHeader>
               <CardContent>
