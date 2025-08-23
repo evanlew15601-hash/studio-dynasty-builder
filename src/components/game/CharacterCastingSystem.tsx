@@ -5,7 +5,7 @@ import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
 import { Avatar, AvatarFallback } from '@/components/ui/avatar';
 import { useToast } from '@/hooks/use-toast';
-import { Users, User, Crown, Star, UserCheck, AlertTriangle, Filter } from 'lucide-react';
+import { Users, User, Crown, Star, UserCheck, AlertTriangle, Filter, CheckCircle } from 'lucide-react';
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger } from '@/components/ui/dialog';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 
@@ -215,15 +215,40 @@ export const CharacterCastingSystem: React.FC<CharacterCastingSystemProps> = ({
     const topTwo = fameScores.sort((a, b) => b - a).slice(0, 2);
     const starPowerBonus = Math.min(0.5, (topTwo.reduce((a, b) => a + b, 0) / (topTwo.length || 1)) / 200); // up to +0.5
 
-    const updatedProject: Project = {
-      ...project,
-      cast: castEntries as any,
-      castingConfirmed: true,
-      starPowerBonus,
-      currentPhase: project.currentPhase === 'development' ? 'pre-production' as any : project.currentPhase,
-      status: project.currentPhase === 'development' ? 'pre-production' as any : project.status,
-      phaseDuration: project.currentPhase === 'development' ? 4 : project.phaseDuration
-    };
+const totalCost = getTotalCastingCost();
+
+const contracted = slots
+  .filter(s => s.talent)
+  .map(s => ({
+    talentId: (s.talent as TalentPerson).id,
+    role: s.character.requiredType === 'director'
+      ? 'Director'
+      : s.character.importance === 'lead'
+        ? `Lead - ${s.character.name}`
+        : `Supporting - ${s.character.name}`,
+    weeklyPay: Math.round(((s.talent as TalentPerson).marketValue) / 52),
+    contractWeeks: 16,
+    weeksRemaining: 16,
+    startWeek: gameState.currentWeek
+  }));
+
+const updatedProject: Project = {
+  ...project,
+  cast: castEntries as any,
+  contractedTalent: [...(project.contractedTalent || []), ...contracted],
+  castingConfirmed: true,
+  starPowerBonus,
+  currentPhase: project.currentPhase === 'development' ? 'pre-production' as any : project.currentPhase,
+  status: project.currentPhase === 'development' ? 'pre-production' as any : project.status,
+  phaseDuration: project.currentPhase === 'development' ? 4 : project.phaseDuration,
+  budget: {
+    ...project.budget,
+    spent: {
+      ...project.budget.spent,
+      aboveTheLine: (project.budget.spent?.aboveTheLine || 0) + Math.round(totalCost)
+    }
+  }
+};
 
     onProjectUpdate(updatedProject);
 
@@ -267,13 +292,13 @@ export const CharacterCastingSystem: React.FC<CharacterCastingSystemProps> = ({
               <Badge variant="outline">
                 Total Cost: ${(getTotalCastingCost() / 1000000).toFixed(1)}M
               </Badge>
-              <Button 
-                onClick={handleConfirmCasting}
-                variant={progress.canProceed ? "default" : "outline"}
-                disabled={!progress.canProceed}
-              >
-                Confirm Casting
-              </Button>
+<Button 
+  onClick={handleConfirmCasting}
+  variant={progress.canProceed && !project.castingConfirmed ? "default" : "outline"}
+  disabled={!progress.canProceed || project.castingConfirmed}
+>
+  {project.castingConfirmed ? 'Casting Confirmed' : 'Confirm Casting'}
+</Button>
             </div>
           </CardTitle>
         </CardHeader>
@@ -299,14 +324,22 @@ export const CharacterCastingSystem: React.FC<CharacterCastingSystemProps> = ({
             </div>
           </div>
           
-          {!progress.canProceed && (
-            <div className="mt-4 p-3 bg-destructive/10 border border-destructive/20 rounded-lg flex items-center gap-2">
-              <AlertTriangle className="h-4 w-4 text-destructive" />
-              <span className="text-sm text-destructive">
-                Must cast all required roles (Director and Lead) before proceeding to production
-              </span>
-            </div>
-          )}
+{!progress.canProceed && !project.castingConfirmed && (
+  <div className="mt-4 p-3 bg-destructive/10 border border-destructive/20 rounded-lg flex items-center gap-2">
+    <AlertTriangle className="h-4 w-4 text-destructive" />
+    <span className="text-sm text-destructive">
+      Must cast all required roles (Director and Lead) before proceeding to production
+    </span>
+  </div>
+)}
+{project.castingConfirmed && (
+  <div className="mt-4 p-3 bg-green-100 dark:bg-green-900/20 border border-green-400/30 rounded-lg flex items-center gap-2">
+    <CheckCircle className="h-4 w-4 text-green-600" />
+    <span className="text-sm text-green-700 dark:text-green-300">
+      Casting confirmed and locked. Roles can no longer be changed.
+    </span>
+  </div>
+)}
         </CardContent>
       </Card>
 
@@ -369,13 +402,13 @@ export const CharacterCastingSystem: React.FC<CharacterCastingSystemProps> = ({
                     </div>
                   </div>
                   <div className="flex gap-2">
-                    <Dialog>
-                      <DialogTrigger asChild>
-                        <Button variant="outline" size="sm">
-                          Change
-                        </Button>
-                      </DialogTrigger>
-                      <DialogContent className="max-w-4xl max-h-[80vh] overflow-y-auto">
+<Dialog>
+  <DialogTrigger asChild>
+    <Button variant="outline" size="sm" disabled={project.castingConfirmed}>
+      Change
+    </Button>
+  </DialogTrigger>
+  <DialogContent className="max-w-4xl max-h-[80vh] overflow-y-auto">
                         <DialogHeader>
                           <DialogTitle>Cast {slot.character.name}</DialogTitle>
                         </DialogHeader>
@@ -388,13 +421,14 @@ export const CharacterCastingSystem: React.FC<CharacterCastingSystemProps> = ({
                         />
                       </DialogContent>
                     </Dialog>
-                    <Button 
-                      variant="destructive" 
-                      size="sm"
-                      onClick={() => handleRemoveTalent(slot.character)}
-                    >
-                      Remove
-                    </Button>
+<Button 
+  variant="destructive" 
+  size="sm"
+  onClick={() => handleRemoveTalent(slot.character)}
+  disabled={project.castingConfirmed}
+>
+  Remove
+</Button>
                   </div>
                 </div>
               ) : (
@@ -410,13 +444,13 @@ export const CharacterCastingSystem: React.FC<CharacterCastingSystemProps> = ({
                     </p>
                   </div>
                   
-                  <Dialog>
-                    <DialogTrigger asChild>
-                      <Button className="w-full" variant={slot.isRequired ? "default" : "outline"}>
-                        <UserCheck className="h-4 w-4 mr-2" />
-                        Cast Role ({getEligibleTalent(slot.character).length} candidates)
-                      </Button>
-                    </DialogTrigger>
+<Dialog>
+  <DialogTrigger asChild>
+    <Button className="w-full" variant={slot.isRequired ? "default" : "outline"} disabled={project.castingConfirmed}>
+      <UserCheck className="h-4 w-4 mr-2" />
+      Cast Role ({getEligibleTalent(slot.character).length} candidates)
+    </Button>
+  </DialogTrigger>
                     <DialogContent className="max-w-4xl max-h-[80vh] overflow-y-auto">
                       <DialogHeader>
                         <DialogTitle>Cast {slot.character.name}</DialogTitle>

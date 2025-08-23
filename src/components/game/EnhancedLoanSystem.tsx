@@ -24,12 +24,14 @@ interface EnhancedLoanSystemProps {
   gameState: GameState;
   onBudgetUpdate: (newBudget: number) => void;
   onReputationChange: (change: number) => void;
+  onLoansUpdate?: (loans: Loan[]) => void;
 }
 
 export const EnhancedLoanSystem: React.FC<EnhancedLoanSystemProps> = ({
   gameState,
   onBudgetUpdate,
-  onReputationChange
+  onReputationChange,
+  onLoansUpdate
 }) => {
   const { toast } = useToast();
   const [loanAmount, setLoanAmount] = useState([5000000]); // $5M default
@@ -70,14 +72,14 @@ export const EnhancedLoanSystem: React.FC<EnhancedLoanSystemProps> = ({
     const weeks = loanTerm[0];
     const terms = calculateLoanTerms(amount, weeks);
 
-    if (!canAffordLoan(terms.weeklyPayment)) {
-      toast({
-        title: "Loan Denied",
-        description: "Weekly payments would exceed your estimated income capacity",
-        variant: "destructive"
-      });
-      return;
-    }
+if (!canAffordLoan(terms.weeklyPayment)) {
+  toast({
+    title: "High Risk Loan",
+    description: "Approved, but payments may be hard to sustain",
+    variant: "destructive"
+  });
+}
+
 
     if (getActiveLoans().length >= 3) {
       toast({
@@ -88,29 +90,29 @@ export const EnhancedLoanSystem: React.FC<EnhancedLoanSystemProps> = ({
       return;
     }
 
-    const newLoan: Loan = {
-      id: `loan-${Date.now()}`,
-      amount,
-      interestRate: terms.interestRate,
-      termWeeks: weeks,
-      weeklyPayment: terms.weeklyPayment,
-      remainingBalance: amount,
-      weeksRemaining: weeks,
-      missedPayments: 0,
-      status: 'active'
-    };
+const newLoan: Loan = {
+  id: `loan-${Date.now()}`,
+  amount,
+  interestRate: terms.interestRate,
+  termWeeks: weeks,
+  weeklyPayment: terms.weeklyPayment,
+  remainingBalance: amount,
+  weeksRemaining: weeks,
+  missedPayments: 0,
+  status: 'active'
+};
 
-    const updatedStudio = {
-      ...gameState.studio,
-      loans: [...(gameState.studio.loans || []), newLoan]
-    };
+const existingLoans = gameState.studio.loans || [];
+if (onLoansUpdate) {
+  onLoansUpdate([...existingLoans, newLoan]);
+}
 
-    onBudgetUpdate(gameState.studio.budget + amount);
-    
-    toast({
-      title: "Loan Approved",
-      description: `$${(amount / 1000000).toFixed(1)}M loan approved. Weekly payment: $${(terms.weeklyPayment / 1000000).toFixed(2)}M`,
-    });
+onBudgetUpdate(gameState.studio.budget + amount);
+
+toast({
+  title: "Loan Approved",
+  description: `$${(amount / 1000000).toFixed(1)}M loan approved. Weekly payment: $${(terms.weeklyPayment / 1000000).toFixed(2)}M`,
+});
   };
 
   const makePayment = (loanId: string, amount?: number) => {
@@ -141,11 +143,14 @@ export const EnhancedLoanSystem: React.FC<EnhancedLoanSystemProps> = ({
       missedPayments: 0 // Reset missed payments on successful payment
     };
 
-    const updatedLoans = gameState.studio.loans?.map(l => 
-      l.id === loanId ? updatedLoan : l
-    ) || [];
+const updatedLoans = gameState.studio.loans?.map(l => 
+  l.id === loanId ? updatedLoan : l
+) || [];
 
-    onBudgetUpdate(gameState.studio.budget - paymentAmount);
+if (onLoansUpdate) {
+  onLoansUpdate(updatedLoans);
+}
+
     
     if (isPaidOff) {
       onReputationChange(5); // Bonus for paying off loan
@@ -166,26 +171,31 @@ export const EnhancedLoanSystem: React.FC<EnhancedLoanSystemProps> = ({
     let totalPayments = 0;
     let missedPayments = 0;
 
-    const updatedLoans = activeLoans.map(loan => {
-      if (gameState.studio.budget >= loan.weeklyPayment) {
-        totalPayments += loan.weeklyPayment;
-        const newBalance = Math.max(0, loan.remainingBalance - loan.weeklyPayment);
-        return {
-          ...loan,
-          remainingBalance: newBalance,
-          weeksRemaining: loan.weeksRemaining - 1,
-          status: newBalance === 0 ? 'paid' as const : loan.status,
-          missedPayments: 0
-        };
-      } else {
-        missedPayments++;
-        return {
-          ...loan,
-          weeksRemaining: loan.weeksRemaining - 1,
-          missedPayments: loan.missedPayments + 1
-        };
-      }
-    });
+const updatedLoans = activeLoans.map(loan => {
+  if (gameState.studio.budget >= loan.weeklyPayment) {
+    totalPayments += loan.weeklyPayment;
+    const newBalance = Math.max(0, loan.remainingBalance - loan.weeklyPayment);
+    return {
+      ...loan,
+      remainingBalance: newBalance,
+      weeksRemaining: loan.weeksRemaining - 1,
+      status: newBalance === 0 ? 'paid' as const : loan.status,
+      missedPayments: 0
+    };
+  } else {
+    missedPayments++;
+    return {
+      ...loan,
+      weeksRemaining: loan.weeksRemaining - 1,
+      missedPayments: loan.missedPayments + 1
+    };
+  }
+});
+
+if (onLoansUpdate) {
+  onLoansUpdate(updatedLoans);
+}
+
 
     if (totalPayments > 0) {
       onBudgetUpdate(gameState.studio.budget - totalPayments);
@@ -380,13 +390,13 @@ export const EnhancedLoanSystem: React.FC<EnhancedLoanSystemProps> = ({
             </div>
           </div>
 
-          <Button 
-            onClick={takeLoan}
-            disabled={!canAffordLoan(currentTerms.weeklyPayment) || getActiveLoans().length >= 3}
-            className="w-full"
-          >
-            Apply for Loan
-          </Button>
+<Button 
+  onClick={takeLoan}
+  disabled={getActiveLoans().length >= 3}
+  className="w-full"
+>
+  Apply for Loan
+</Button>
 
           {!canAffordLoan(currentTerms.weeklyPayment) && (
             <p className="text-sm text-red-600">

@@ -46,20 +46,20 @@ export const AwardsSystem: React.FC<AwardsSystemProps> = ({
   // Get eligible projects for awards (completed releases from previous year, including AI studios)
   const getEligibleProjects = (): Project[] => {
     // Include both player projects and AI studio releases
-    const playerProjects = gameState.projects.filter(project => 
-      project.status === 'released' && 
-      project.releaseYear === gameState.currentYear - 1 && // Released previous year
-      project.metrics?.criticsScore && 
-      project.metrics.criticsScore >= 60 // Minimum quality threshold
-    );
+const playerProjects = gameState.projects.filter(project => 
+  project.status === 'released' && 
+  project.releaseYear === gameState.currentYear - 1 && // Released previous year
+  project.metrics?.criticsScore && 
+  project.metrics.criticsScore >= 45 // Lower threshold to 45
+);
     
-    const aiProjects = gameState.allReleases.filter((release): release is Project => 
-      'script' in release && // It's a Project, not BoxOfficeRelease
-      release.status === 'released' &&
-      release.releaseYear === gameState.currentYear - 1 &&
-      release.metrics?.criticsScore && 
-      release.metrics.criticsScore >= 60
-    );
+const aiProjects = gameState.allReleases.filter((release): release is Project => 
+  'script' in release && // It's a Project, not BoxOfficeRelease
+  release.status === 'released' &&
+  release.releaseYear === gameState.currentYear - 1 &&
+  release.metrics?.criticsScore && 
+  release.metrics.criticsScore >= 45
+);
     
     return [...playerProjects, ...aiProjects];
   };

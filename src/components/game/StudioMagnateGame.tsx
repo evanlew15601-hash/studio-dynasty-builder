@@ -1876,24 +1876,30 @@ export const StudioMagnateGame: React.FC<StudioMagnateGameProps> = ({ onPhaseCha
           />
         )}
         
-        {currentPhase === 'loans' && (
-          <EnhancedLoanSystem
-            gameState={gameState}
-            onBudgetUpdate={(newBudget) => setGameState(prev => ({
-              ...prev,
-              studio: { ...prev.studio, budget: newBudget }
-            }))}
-            onReputationChange={(change) => {
-              setGameState(prev => ({
-                ...prev,
-                studio: {
-                  ...prev.studio,
-                  reputation: Math.max(0, Math.min(100, prev.studio.reputation + change))
-                }
-              }));
-            }}
-          />
-        )}
+{currentPhase === 'loans' && (
+  <EnhancedLoanSystem
+    gameState={gameState}
+    onBudgetUpdate={(newBudget) => setGameState(prev => ({
+      ...prev,
+      studio: { ...prev.studio, budget: newBudget }
+    }))}
+    onReputationChange={(change) => {
+      setGameState(prev => ({
+        ...prev,
+        studio: {
+          ...prev.studio,
+          reputation: Math.max(0, Math.min(100, prev.studio.reputation + change))
+        }
+      }));
+    }}
+    onLoansUpdate={(loans) => {
+      setGameState(prev => ({
+        ...prev,
+        studio: { ...prev.studio, loans }
+      }));
+    }}
+  />
+)}
       </div>
       
       {/* First Week Box Office Modal */}

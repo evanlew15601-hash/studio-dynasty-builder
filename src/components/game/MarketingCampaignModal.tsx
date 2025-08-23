@@ -118,10 +118,10 @@ export const MarketingCampaignModal: React.FC<MarketingCampaignModalProps> = ({
     const numBudget = parseInt(budget);
     const numDuration = parseInt(duration);
     
-    // Validate inputs
-    if (isNaN(numBudget) || numBudget <= 0 || numBudget > studioBudget) {
-      return; // Don't create if invalid
-    }
+// Validate inputs
+if (isNaN(numBudget) || numBudget < 0 || numBudget > studioBudget) {
+  return; // Don't create if invalid
+}
     
     if (isNaN(numDuration) || numDuration < 4 || numDuration > 16) {
       return; // Don't create if invalid
@@ -233,13 +233,13 @@ export const MarketingCampaignModal: React.FC<MarketingCampaignModalProps> = ({
                   <Button variant="outline" onClick={onClose}>
                     Cancel
                   </Button>
-                  <Button 
-                    onClick={handleCreateCampaign}
-                    disabled={parseInt(budget) > studioBudget || isNaN(parseInt(budget)) || parseInt(budget) <= 0 || isNaN(parseInt(duration)) || parseInt(duration) < 4 || parseInt(duration) > 16}
-                  >
-                    <PlayIcon className="w-4 h-4 mr-2" />
-                    Launch Campaign
-                  </Button>
+<Button 
+  onClick={handleCreateCampaign}
+  disabled={parseInt(budget) > studioBudget || isNaN(parseInt(budget)) || parseInt(budget) < 0 || isNaN(parseInt(duration)) || parseInt(duration) < 4 || parseInt(duration) > 16}
+>
+  <PlayIcon className="w-4 h-4 mr-2" />
+  Launch Campaign
+</Button>
                 </div>
               </CardContent>
             </Card>

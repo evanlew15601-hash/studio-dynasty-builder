@@ -22,21 +22,21 @@ export function useAwardsEngine(
   const isAwardsSeasonActive = gameState.currentWeek >= 1 && gameState.currentWeek <= 12;
 
   const getEligibleProjects = (): Project[] => {
-    const playerProjects = gameState.projects.filter(
-      (project) =>
-        project.status === 'released' &&
-        project.releaseYear === gameState.currentYear - 1 &&
-        project.metrics?.criticsScore &&
-        project.metrics.criticsScore >= 60
-    );
+const playerProjects = gameState.projects.filter(
+  (project) =>
+    project.status === 'released' &&
+    project.releaseYear === gameState.currentYear - 1 &&
+    project.metrics?.criticsScore &&
+    project.metrics.criticsScore >= 45
+);
 
-    const aiProjects = gameState.allReleases.filter((release): release is Project =>
-      'script' in release &&
-      release.status === 'released' &&
-      release.releaseYear === gameState.currentYear - 1 &&
-      release.metrics?.criticsScore &&
-      release.metrics.criticsScore >= 60
-    );
+const aiProjects = gameState.allReleases.filter((release): release is Project =>
+  'script' in release &&
+  release.status === 'released' &&
+  release.releaseYear === gameState.currentYear - 1 &&
+  release.metrics?.criticsScore &&
+  release.metrics.criticsScore >= 45
+);
 
     return [...playerProjects, ...aiProjects];
   };
