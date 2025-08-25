@@ -352,10 +352,19 @@ const aiProjects = gameState.allReleases.filter((release): release is Project =>
             Awards Season {gameState.currentYear}
             {isAwardsSeasonActive && (
               <Badge variant="default" className="ml-3 animate-pulse">
-                ACTIVE
+                ACTIVE (Weeks 1-12)
               </Badge>
             )}
           </CardTitle>
+          <div className="text-sm text-muted-foreground mt-1">
+            <strong>Eligibility Period:</strong> Films released in {gameState.currentYear - 1} (January 1 - December 31)
+            {isAwardsSeasonActive && (
+              <div className="mt-1">
+                <strong>Current Phase:</strong> {gameState.currentWeek <= 4 ? 'Nominations Period' : 
+                gameState.currentWeek <= 8 ? 'Early Ceremonies' : 'Major Awards Season'}
+              </div>
+            )}
+          </div>
         </CardHeader>
         <CardContent>
           <div className="grid grid-cols-1 md:grid-cols-3 gap-4">

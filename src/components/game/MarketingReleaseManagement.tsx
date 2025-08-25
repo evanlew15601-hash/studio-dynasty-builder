@@ -37,15 +37,39 @@ export const MarketingReleaseManagement: React.FC<MarketingReleaseManagementProp
   const [showReleaseModal, setShowReleaseModal] = useState(false);
 
   const getProjectsInMarketing = () => {
-    return gameState.projects.filter(p => p.currentPhase === 'marketing');
+    return gameState.projects.filter(p => 
+      p.currentPhase === 'marketing' && 
+      p.status !== 'released' // Exclude released films
+    );
   };
 
   const getProjectsInRelease = () => {
-    return gameState.projects.filter(p => p.currentPhase === 'release');
+    return gameState.projects.filter(p => 
+      p.currentPhase === 'release' && 
+      p.status !== 'released' // Exclude released films
+    );
   };
 
   const getReleasedProjects = () => {
-    return gameState.projects.filter(p => p.status === 'released');
+    // Only show released projects that have ended their theatrical run
+    return gameState.projects.filter(p => {
+      if (p.status !== 'released') return false;
+      
+      // Check if theatrical run has ended
+      const weeksSinceRelease = p.releaseWeek && p.releaseYear ? 
+        TimeSystem.calculateWeeksSince(
+          p.releaseWeek,
+          p.releaseYear, 
+          gameState.currentWeek,
+          gameState.currentYear
+        ) : 0;
+      
+      // Theatrical runs typically last 6-12 weeks depending on performance
+      const inTheaters = p.metrics?.inTheaters;
+      const theatricalEnded = !inTheaters || weeksSinceRelease > 12;
+      
+      return theatricalEnded;
+    });
   };
 
   const handleMarketingCampaign = (project: Project) => {
@@ -263,24 +287,14 @@ export const MarketingReleaseManagement: React.FC<MarketingReleaseManagementProp
                         </div>
                         
                         {boxOfficeStatus === 'ended' && (
-                          <div className="flex gap-2">
-                            <Button 
-                              size="sm"
-                              variant="outline"
-                              onClick={() => handlePostTheatricalRelease(project, 'streaming')}
-                              className="flex-1"
-                            >
-                              <StreamingIcon className="w-4 h-4 mr-1" />
-                              Streaming
-                            </Button>
-                            <Button 
-                              size="sm"
-                              variant="outline"
-                              onClick={() => handlePostTheatricalRelease(project, 'digital')}
-                              className="flex-1"
-                            >
-                              Digital
-                            </Button>
+                          <div className="text-center p-4 border border-primary/20 rounded-lg bg-primary/5">
+                            <p className="text-sm text-primary font-medium mb-2">
+                              🎬 Theatrical Run Complete
+                            </p>
+                            <p className="text-xs text-muted-foreground">
+                              This film is now eligible for post-theatrical distribution. 
+                              Visit the Post-Theatrical Management section to launch streaming, digital, or physical releases.
+                            </p>
                           </div>
                         )}
                       </div>
@@ -304,9 +318,12 @@ export const MarketingReleaseManagement: React.FC<MarketingReleaseManagementProp
                 <MarketingIcon className="text-muted-foreground" size={32} />
               </div>
             </div>
-            <h3 className="text-lg font-medium mb-2">No Projects in Marketing or Release</h3>
+            <h3 className="text-lg font-medium mb-2">No Active Marketing or Release Projects</h3>
             <p className="text-sm text-muted-foreground">
               Complete post-production on your projects to begin marketing campaigns
+            </p>
+            <p className="text-xs text-muted-foreground mt-2">
+              Films with ended theatrical runs can be found in Post-Theatrical Distribution
             </p>
           </CardContent>
         </Card>

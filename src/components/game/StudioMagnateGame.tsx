@@ -59,7 +59,8 @@ import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { useToast } from '@/hooks/use-toast';
 import { EnhancedFinancialAccuracy } from './EnhancedFinancialAccuracy';
-import { EnhancedMediaVariety } from './EnhancedMediaVariety';
+import { EnhancedFranchiseSystem } from './EnhancedFranchiseSystem';
+import { EnhancedTalentManagement } from './EnhancedTalentManagement';
 import { 
   StudioIcon, 
   ScriptIcon, 
@@ -1567,17 +1568,20 @@ export const StudioMagnateGame: React.FC<StudioMagnateGameProps> = ({ onPhaseCha
         )}
         
         {currentPhase === 'franchise' && (
-          <Suspense fallback={<div>Loading franchise manager...</div>}>
-            {React.createElement(React.lazy(() => import('./FranchiseManager').then(m => ({ default: m.FranchiseManager }))), {
-              gameState: gameState,
-              onCreateProject: (franchiseId?: string, publicDomainId?: string, cost?: number) => {
-                console.log('Creating project from:', { franchiseId, publicDomainId, cost });
-                
-                // Deduct cost from studio budget if applicable
-                if (cost && cost > 0) {
-                  setGameState(prev => ({
-                    ...prev,
-                    studio: {
+          <EnhancedFranchiseSystem
+            gameState={gameState}
+            onCreateFranchise={handleCreateFranchise}
+            onUpdateFranchise={handleUpdateFranchise}
+            onProjectUpdate={(projectId, updates) => {
+              setGameState(prev => ({
+                ...prev,
+                projects: prev.projects.map(p => 
+                  p.id === projectId ? { ...p, ...updates } : p
+                )
+              }));
+            }}
+          />
+        )}
                       ...prev.studio,
                       budget: prev.studio.budget - cost
                     }
