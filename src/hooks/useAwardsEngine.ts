@@ -82,7 +82,7 @@ const aiProjects = gameState.allReleases.filter((release): release is Project =>
             categories: [
               'Best Film', 'Best Director', 'Best Actor', 'Best Actress',
               'Best Supporting Actor', 'Best Supporting Actress', 'Best Original Screenplay',
-              'Best Adapted Screenplay', 'Best Cinematography', 'Best Visual Effects',
+              'Best Cinematography', 'Best Visual Effects',
               'Best Editing', 'Best Production Design'
             ],
             nominationWeek: 3,
@@ -92,14 +92,14 @@ const aiProjects = gameState.allReleases.filter((release): release is Project =>
         default:
           return {
             prestige: 10,
-            categories: [
-              'Best Picture', 'Best Director', 'Best Actor', 'Best Actress',
-              'Best Supporting Actor', 'Best Supporting Actress', 'Best Original Screenplay',
-              'Best Adapted Screenplay', 'Best Cinematography', 'Best Film Editing',
-              'Best Visual Effects', 'Best Production Design', 'Best Costume Design',
-              'Best Makeup and Hairstyling', 'Best Original Score', 'Best Original Song',
-              'Best Sound', 'Best Animated Feature'
-            ],
+          categories: [
+            'Best Picture', 'Best Director', 'Best Actor', 'Best Actress',
+            'Best Supporting Actor', 'Best Supporting Actress', 'Best Original Screenplay',
+            'Best Cinematography', 'Best Film Editing',
+            'Best Visual Effects', 'Best Production Design', 'Best Costume Design',
+            'Best Makeup and Hairstyling', 'Best Original Score', 'Best Original Song',
+            'Best Sound', 'Best Animated Feature'
+          ],
             nominationWeek: 4,
             ceremonyWeek: 10,
             momentumBonus: 12,
@@ -386,54 +386,65 @@ const aiProjects = gameState.allReleases.filter((release): release is Project =>
       return undefined;
     }
 
-    // Acting categories
+    // Acting categories - improved gender handling
     const isActress = categoryLower.includes('actress');
     const isSupporting = categoryLower.includes('supporting');
 
-    const matchActorFromCast = (predicate: (role: string) => boolean, preferGender?: 'female' | 'male' | 'any'): TalentPerson | undefined => {
-      const entry = castEntries.find(c => predicate(c.role.toLowerCase()));
-      if (!entry) return undefined;
-      let t = getTalentById(entry.talentId);
-      if (!t || t.type !== 'actor') return undefined;
-      if (preferGender === 'female' && t.gender !== 'female') {
-        // try to find a female alternative from characters
-        const alt = characters.find(ch => ch.assignedTalentId && (ch.importance === 'lead' || ch.importance === 'supporting'));
-        const altT = getTalentById(alt?.assignedTalentId);
-        if (altT && altT.type === 'actor' && altT.gender === 'female') return altT;
+    // First try to find exact role matches from cast
+    if (isSupporting) {
+      const supportingCast = castEntries.filter(c => 
+        c.role.toLowerCase().includes('supporting') && 
+        (!isActress || getTalentById(c.talentId)?.gender === 'Female')
+      );
+      if (supportingCast.length > 0) {
+        const randomSupporting = supportingCast[Math.floor(Math.random() * supportingCast.length)];
+        const talent = getTalentById(randomSupporting.talentId);
+        if (talent && talent.type === 'actor') return talent;
       }
-      if (preferGender === 'male' && t.gender === 'female') {
-        const alt = characters.find(ch => ch.assignedTalentId && (ch.importance === 'lead' || ch.importance === 'supporting'));
-        const altT = getTalentById(alt?.assignedTalentId);
-        if (altT && altT.type === 'actor' && altT.gender !== 'female') return altT;
+    } else {
+      // Lead roles
+      const leadCast = castEntries.filter(c => 
+        (c.role.toLowerCase().includes('lead') || c.role.toLowerCase().includes('actor') || c.role.toLowerCase().includes('actress')) &&
+        !c.role.toLowerCase().includes('supporting') &&
+        (!isActress || getTalentById(c.talentId)?.gender === 'Female')
+      );
+      if (leadCast.length > 0) {
+        const randomLead = leadCast[Math.floor(Math.random() * leadCast.length)];
+        const talent = getTalentById(randomLead.talentId);
+        if (talent && talent.type === 'actor') return talent;
       }
-      return t;
-    };
+    }
 
-    const preferGender: 'female' | 'male' | 'any' = isActress ? 'female' : 'any';
+    // Fallback to any actor with proper gender
+    const anyActorCast = castEntries.filter(c => {
+      const talent = getTalentById(c.talentId);
+      return talent && talent.type === 'actor' && 
+             (!isActress || talent.gender === 'Female') &&
+             (isActress || talent.gender !== 'Female');
+    });
+    
+    if (anyActorCast.length > 0) {
+      const randomActor = anyActorCast[Math.floor(Math.random() * anyActorCast.length)];
+      const talent = getTalentById(randomActor.talentId);
+      if (talent && talent.type === 'actor') return talent;
+    }
 
-    // Try cast first
-    const castMatch = matchActorFromCast(
-      role => isSupporting ? role.includes('supporting') : role.includes('lead') || role.includes('protagonist'),
-      preferGender
-    );
-    if (castMatch) return castMatch;
-
-    // Fallback to script characters
+    // Final fallback to script characters
     const char = characters.find(ch => {
       if (ch.requiredType === 'director') return false;
+      const talent = getTalentById(ch.assignedTalentId);
+      if (!talent || talent.type !== 'actor') return false;
+      
+      if (isActress && talent.gender !== 'Female') return false;
+      if (!isActress && talent.gender === 'Female') return false;
+      
       if (isSupporting) return ch.importance === 'supporting';
       return ch.importance === 'lead';
     });
-    const t = getTalentById(char?.assignedTalentId);
-    if (t && t.type === 'actor') {
-      if (isActress && t.gender !== 'female') {
-        // try to find a female actor
-        const alt = characters
-          .map(ch => getTalentById(ch.assignedTalentId))
-          .find(tt => tt && tt.type === 'actor' && tt.gender === 'female');
-        return alt as TalentPerson | undefined;
-      }
-      return t;
+    
+    if (char) {
+      const talent = getTalentById(char.assignedTalentId);
+      if (talent && talent.type === 'actor') return talent;
     }
 
     return undefined;

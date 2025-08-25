@@ -312,30 +312,46 @@ export const ComprehensiveAIStudios: React.FC<ComprehensiveAIStudiosProps> = ({
   };
 
   const generateProjectTitle = (genre: string): string => {
-    const titleTemplates = {
-      action: ['Operation', 'Strike', 'Code', 'The Last', 'Dark', 'Final'],
-      drama: ['The', 'A', 'Finding', 'The Story of', 'Between', 'Under'],
-      horror: ['The', 'Night of', 'House of', 'Blood', 'The Curse of', 'Dark'],
-      comedy: ['The', 'My', 'Crazy', 'The Great', 'Super', 'Big'],
-      romance: ['Love', 'The', 'Finding', 'A', 'Sweet', 'Forever'],
-      thriller: ['The', 'Dead', 'Silent', 'Final', 'The Secret', 'Hidden'],
-      'sci-fi': ['The', 'Star', 'Quantum', 'The Future', 'Neo', 'Cyber']
+    const titleLibrary = {
+      action: [
+        'Steel Thunder', 'Crimson Strike', 'Shadow Protocol', 'Dark Phoenix', 'Final Impact',
+        'Iron Storm', 'Blood Diamond', 'Silent Fury', 'Black Hawk', 'Code Red',
+        'Venom Rising', 'Night Raid', 'Blaze Protocol', 'Titan Force', 'Scorpion\'s Edge'
+      ],
+      drama: [
+        'Broken Hearts', 'Silent Truth', 'The River\'s Edge', 'Fading Light', 'Distant Thunder',
+        'Whispered Dreams', 'Between Worlds', 'The Long Road', 'Shattered Glass', 'Empty Rooms',
+        'Lost Highway', 'Quiet Storm', 'The Other Side', 'Midnight Sun', 'Turning Point'
+      ],
+      horror: [
+        'The Midnight Hour', 'Crimson Manor', 'Dead of Night', 'The Haunting', 'Blood Moon',
+        'Dark Whispers', 'The Cursed', 'Nightmare\'s End', 'Shadow Walker', 'The Possession',
+        'Bone Collector', 'Evil Awakens', 'The Ritual', 'Sinister', 'The Conjuring'
+      ],
+      comedy: [
+        'Crazy Times', 'The Mix-Up', 'Laugh Track', 'Wild Card', 'Happy Accident',
+        'The Jokers', 'Comedy Central', 'Funny Business', 'The Laughing Game', 'Good Times',
+        'Lucky Break', 'The Misadventure', 'Silly Season', 'The Comedy Show', 'Fun House'
+      ],
+      romance: [
+        'Love\'s Promise', 'Heart Song', 'Sweet Dreams', 'Forever Yours', 'Perfect Match',
+        'True Love', 'Heart\'s Desire', 'Romance Novel', 'Love Story', 'Cupid\'s Arrow',
+        'Tender Moments', 'Love Letters', 'The Wedding', 'First Kiss', 'Soul Mate'
+      ],
+      'sci-fi': [
+        'Future Shock', 'Quantum Leap', 'Star Walker', 'Cyber Dreams', 'Time Shift',
+        'Neural Network', 'Digital Dawn', 'Space Odyssey', 'Cyber Punk', 'Virtual Reality',
+        'Neo Genesis', 'Quantum Storm', 'Star Port', 'Data Stream', 'Electric Dreams'
+      ],
+      thriller: [
+        'The Hunt', 'Edge of Darkness', 'Silent Witness', 'Dead End', 'The Chase',
+        'Point of No Return', 'Danger Zone', 'The Trap', 'Final Hour', 'Death Wish',
+        'The Conspiracy', 'Web of Lies', 'Breaking Point', 'The Suspect', 'No Escape'
+      ]
     };
 
-    const suffixes = {
-      action: ['Force', 'Mission', 'Warrior', 'Strike', 'Protocol', 'Rising'],
-      drama: ['Journey', 'Story', 'Life', 'Heart', 'Dreams', 'Truth'],
-      horror: ['Terror', 'Nightmare', 'Darkness', 'Evil', 'Fear', 'Death'],
-      comedy: ['Adventures', 'Show', 'Story', 'Life', 'Times', 'Movie'],
-      romance: ['Story', 'Affair', 'Heart', 'Kiss', 'Dreams', 'Wedding'],
-      thriller: ['Game', 'Truth', 'Conspiracy', 'Identity', 'Hunt', 'Code'],
-      'sci-fi': ['Wars', 'Future', 'Matrix', 'Prime', 'Genesis', 'Nexus']
-    };
-
-    const prefix = titleTemplates[genre as keyof typeof titleTemplates] || titleTemplates.drama;
-    const suffix = suffixes[genre as keyof typeof suffixes] || suffixes.drama;
-    
-    return `${prefix[Math.floor(Math.random() * prefix.length)]} ${suffix[Math.floor(Math.random() * suffix.length)]}`;
+    const titles = titleLibrary[genre as keyof typeof titleLibrary] || titleLibrary.drama;
+    return titles[Math.floor(Math.random() * titles.length)];
   };
 
   const castTalentForProject = (studio: AIStudio, genre: string, budget: number): AIProject['cast'] => {
@@ -350,30 +366,64 @@ export const ComprehensiveAIStudios: React.FC<ComprehensiveAIStudiosProps> = ({
 
     if (availableTalent.length === 0) return [];
 
-    // Select talent based on studio strategy and budget
-    const targetTalentCount = budget > 50000000 ? 3 : budget > 20000000 ? 2 : 1;
     const cast: AIProject['cast'] = [];
-
-    // Prefer talent that matches genre
-    const genreMatchingTalent = availableTalent.filter(t => 
-      t.genres.includes(genre as any) || (t.specialties && t.specialties.includes(genre as any))
-    );
-
-    const talentPool = genreMatchingTalent.length > 0 ? genreMatchingTalent : availableTalent;
-
-    for (let i = 0; i < Math.min(targetTalentCount, talentPool.length); i++) {
-      const talent = talentPool[Math.floor(Math.random() * talentPool.length)];
-      
-      // Remove from pool to avoid duplicates
-      const index = talentPool.indexOf(talent);
-      talentPool.splice(index, 1);
-
-      const salary = calculateTalentSalary(talent, budget);
+    
+    // 1. Cast Director first
+    const availableDirectors = availableTalent.filter(t => t.type === 'director');
+    if (availableDirectors.length > 0) {
+      const genreMatchingDirectors = availableDirectors.filter(t => 
+        t.genres.includes(genre as any) || (t.specialties && t.specialties.includes(genre as any))
+      );
+      const directorPool = genreMatchingDirectors.length > 0 ? genreMatchingDirectors : availableDirectors;
+      const director = directorPool[Math.floor(Math.random() * directorPool.length)];
       
       cast.push({
-        talentId: talent.id,
-        role: i === 0 ? 'Lead Actor' : i === 1 ? 'Supporting Actor' : 'Director',
-        salary
+        talentId: director.id,
+        role: 'Director',
+        salary: calculateTalentSalary(director, budget)
+      });
+    }
+
+    // 2. Cast Actors by specific roles
+    const availableActors = availableTalent.filter(t => 
+      t.type === 'actor' && !cast.some(c => c.talentId === t.id)
+    );
+    
+    if (availableActors.length === 0) return cast;
+
+    // Determine casting needs based on budget
+    const targetActorCount = budget > 80000000 ? 4 : budget > 40000000 ? 3 : 2;
+    
+    // Cast Lead Actor/Actress
+    const genreMatchingActors = availableActors.filter(t => 
+      t.genres.includes(genre as any) || (t.specialties && t.specialties.includes(genre as any))
+    );
+    const actorPool = genreMatchingActors.length > 0 ? genreMatchingActors : availableActors;
+    
+    // Lead roles - prefer higher reputation
+    const leadCandidates = actorPool.filter(a => a.reputation >= 60).sort((a, b) => b.reputation - a.reputation);
+    const leadPool = leadCandidates.length > 0 ? leadCandidates.slice(0, Math.min(10, leadCandidates.length)) : actorPool;
+    
+    if (leadPool.length > 0) {
+      const leadActor = leadPool[Math.floor(Math.random() * leadPool.length)];
+      cast.push({
+        talentId: leadActor.id,
+        role: leadActor.gender === 'Female' ? 'Lead Actress' : 'Lead Actor',
+        salary: calculateTalentSalary(leadActor, budget)
+      });
+    }
+
+    // Cast Supporting Actors
+    const remainingActors = availableActors.filter(a => !cast.some(c => c.talentId === a.id));
+    for (let i = 1; i < targetActorCount && remainingActors.length > 0; i++) {
+      const supportingActor = remainingActors[Math.floor(Math.random() * remainingActors.length)];
+      const index = remainingActors.indexOf(supportingActor);
+      remainingActors.splice(index, 1);
+      
+      cast.push({
+        talentId: supportingActor.id,
+        role: supportingActor.gender === 'Female' ? 'Supporting Actress' : 'Supporting Actor',
+        salary: calculateTalentSalary(supportingActor, budget) * 0.4 // Supporting actors get less
       });
     }
 
