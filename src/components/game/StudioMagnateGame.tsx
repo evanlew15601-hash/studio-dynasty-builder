@@ -502,6 +502,26 @@ export const StudioMagnateGame: React.FC<StudioMagnateGameProps> = ({ onPhaseCha
     }));
   };
 
+  const handleCreateFranchise = (franchise: any) => {
+    setGameState(prev => ({
+      ...prev,
+      franchises: [...(prev.franchises || []), franchise]
+    }));
+    toast({
+      title: "Franchise Created",
+      description: `${franchise.name} franchise has been established`,
+    });
+  };
+
+  const handleUpdateFranchise = (franchiseId: string, updates: any) => {
+    setGameState(prev => ({
+      ...prev,
+      franchises: (prev.franchises || []).map(f => 
+        f.id === franchiseId ? { ...f, ...updates } : f
+      )
+    }));
+  };
+
   // Handle award show triggers
   const handleAwardShow = (ceremony: AwardShowCeremony) => {
     setCurrentAwardShow(ceremony);
@@ -1581,20 +1601,6 @@ export const StudioMagnateGame: React.FC<StudioMagnateGameProps> = ({ onPhaseCha
               }));
             }}
           />
-        )}
-                      ...prev.studio,
-                      budget: prev.studio.budget - cost
-                    }
-                  }));
-                }
-                
-                // Store the selected franchise/PD for script auto-filling
-                setSelectedFranchise(franchiseId);
-                setSelectedPublicDomain(publicDomainId);
-                setCurrentPhase('scripts');
-              }
-            })}
-          </Suspense>
         )}
         
         {currentPhase === 'scripts' && (
