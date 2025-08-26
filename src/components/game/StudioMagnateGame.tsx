@@ -1588,19 +1588,26 @@ export const StudioMagnateGame: React.FC<StudioMagnateGameProps> = ({ onPhaseCha
         )}
         
         {currentPhase === 'franchise' && (
-          <EnhancedFranchiseSystem
-            gameState={gameState}
-            onCreateFranchise={handleCreateFranchise}
-            onUpdateFranchise={handleUpdateFranchise}
-            onProjectUpdate={(projectId, updates) => {
-              setGameState(prev => ({
-                ...prev,
-                projects: prev.projects.map(p => 
-                  p.id === projectId ? { ...p, ...updates } : p
-                )
-              }));
-            }}
-          />
+          <div className="space-y-6">
+            <EnhancedFranchiseSystem
+              gameState={gameState}
+              onCreateFranchise={handleCreateFranchise}
+              onUpdateFranchise={handleUpdateFranchise}
+              onProjectUpdate={(projectId, updates) => {
+                setGameState(prev => ({
+                  ...prev,
+                  projects: prev.projects.map(p => 
+                    p.id === projectId ? { ...p, ...updates } : p
+                  )
+                }));
+              }}
+            />
+            <SequelManagement
+              gameState={gameState}
+              onProjectCreate={handleProjectCreate}
+              onProjectUpdate={handleProjectUpdate}
+            />
+          </div>
         )}
         
         {currentPhase === 'scripts' && (
@@ -1871,7 +1878,14 @@ export const StudioMagnateGame: React.FC<StudioMagnateGameProps> = ({ onPhaseCha
         )}
         
         {currentPhase === 'stats' && (
-          <PerformanceMetrics gameState={gameState} />
+          <div className="space-y-6">
+            <PerformanceMetrics gameState={gameState} />
+            <BackgroundSimulation
+              gameState={gameState}
+              onWorldUpdate={(updates) => setGameState(prev => ({ ...prev, ...updates }))}
+              onStudioUpdate={handleStudioUpdate}
+            />
+          </div>
         )}
         
         {currentPhase === 'reputation' && (
