@@ -199,21 +199,34 @@ export const SequelManagement: React.FC<SequelManagementProps> = ({
     const sequelScript: Script = {
       id: `script-${Date.now()}`,
       title: sequelPlan.title,
-      description: sequelPlan.description,
-      genre: selectedProject.script?.genre || 'Action',
+      genre: selectedProject.script?.genre || 'action',
+      logline: `Sequel to ${selectedProject.title}`,
+      writer: selectedProject.script?.writer || 'Studio Writer',
+      pages: 120,
+      quality: Math.max(60, (selectedProject.script?.quality || 70) - 10),
       budget: sequelPlan.budget,
-      developmentWeeks: Math.ceil(sequelPlan.timeline / 4),
-      marketingBudget: Math.round(sequelPlan.budget * 0.15),
+      developmentStage: 'concept',
+      themes: selectedProject.script?.themes || ['adventure', 'friendship'],
+      targetAudience: selectedProject.script?.targetAudience || 'general',
+      estimatedRuntime: selectedProject.script?.estimatedRuntime || 120,
+      characteristics: selectedProject.script?.characteristics || {
+        tone: 'balanced',
+        pacing: 'fast-paced', 
+        dialogue: 'naturalistic',
+        visualStyle: 'realistic',
+        commercialAppeal: 7,
+        criticalPotential: 6,
+        cgiIntensity: 'moderate'
+      },
       characters: (selectedProject.script?.characters || []).map(char => ({
         ...char,
-        id: `char-${Date.now()}-${Math.random()}`, // New character ID for sequel
+        id: `char-${Date.now()}-${Math.random()}`,
         assignedTalentId: sequelPlan.returningCast.find(cast => 
           cast.characterId === char.id && cast.confirmed
-        )?.talentId // Only assign if confirmed
+        )?.talentId
       })),
-      franchiseId: franchise?.id || `franchise-${selectedProject.id}`, // Create franchise if needed
-      sequelTo: selectedProject.id,
-      marketingHook: sequelPlan.marketingHook
+      franchiseId: franchise?.id || `franchise-${selectedProject.id}`,
+      sourceType: 'franchise'
     };
     
     onProjectCreate(sequelScript);

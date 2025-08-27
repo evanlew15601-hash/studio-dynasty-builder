@@ -41,6 +41,8 @@ import { PerformanceMetrics } from './PerformanceMetrics';
 import { AchievementNotifications } from './AchievementNotifications';
 import { ReputationPanel } from './ReputationPanel';
 import { DeepReputationPanel } from './DeepReputationPanel';
+import { BackgroundSimulation as BackgroundSimulationComponent } from './BackgroundSimulation';
+import { SequelManagement as SequelManagementComponent } from './SequelManagement';
 import { TalentGenerator } from '../../data/TalentGenerator';
 import { 
   DropdownMenu,
@@ -1602,7 +1604,7 @@ export const StudioMagnateGame: React.FC<StudioMagnateGameProps> = ({ onPhaseCha
                 }));
               }}
             />
-            <SequelManagement
+            <SequelManagementComponent
               gameState={gameState}
               onProjectCreate={handleProjectCreate}
               onProjectUpdate={handleProjectUpdate}
@@ -1880,7 +1882,7 @@ export const StudioMagnateGame: React.FC<StudioMagnateGameProps> = ({ onPhaseCha
         {currentPhase === 'stats' && (
           <div className="space-y-6">
             <PerformanceMetrics gameState={gameState} />
-            <BackgroundSimulation
+            <BackgroundSimulationComponent
               gameState={gameState}
               onWorldUpdate={(updates) => setGameState(prev => ({ ...prev, ...updates }))}
               onStudioUpdate={handleStudioUpdate}

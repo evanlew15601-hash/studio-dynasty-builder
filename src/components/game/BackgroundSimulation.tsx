@@ -196,7 +196,7 @@ export const BackgroundSimulation: React.FC<BackgroundSimulationProps> = ({
 
   // Simulate competitor activities
   const updateCompetitorActivities = () => {
-    const aiStudios = gameState.studios?.filter(s => s.id !== gameState.studio.id) || [];
+    const aiStudios: Studio[] = []; // Will be populated when AI studios are implemented
     
     const newActivities: CompetitorActivity[] = [];
     
@@ -581,7 +581,7 @@ export const BackgroundSimulation: React.FC<BackgroundSimulationProps> = ({
                   </div>
                 </div>
               </div>
-            )))}
+            ))}
           </div>
         </CardContent>
       </Card>

@@ -1,5 +1,5 @@
 import React, { useEffect, useState } from 'react';
-import { GameState, Studio, Project, TalentPerson, MarketTrend } from '@/types/game';
+import { GameState, Studio, Project, TalentPerson } from '@/types/game';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
 import { TrendingUp, TrendingDown, Users, AlertTriangle, Crown, Star } from 'lucide-react';
@@ -120,7 +120,7 @@ export const DynamicWorldSystem: React.FC<DynamicWorldSystemProps> = ({
           return {
             title: 'Industry Scandal',
             description: scandal,
-            impact: { reputation: -5, marketShift: { category: 'public_trust', direction: 'down', strength: 10 } },
+            impact: { reputation: -5, marketShift: { category: 'public_trust', direction: 'down' as const, strength: 10 } },
             severity: 'major' as const,
             duration: 6
           };
@@ -153,7 +153,7 @@ export const DynamicWorldSystem: React.FC<DynamicWorldSystemProps> = ({
           return {
             title: 'Studio Competition Heats Up',
             description: 'Rival studios are making aggressive moves in the market',
-            impact: { marketShift: { category: 'competition', direction: 'up', strength: 15 } },
+            impact: { marketShift: { category: 'competition', direction: 'up' as const, strength: 15 } },
             severity: 'moderate' as const,
             duration: 6
           };
@@ -250,17 +250,13 @@ export const DynamicWorldSystem: React.FC<DynamicWorldSystemProps> = ({
   const updateRivalries = () => {
     // Find competing projects (same genre, similar release dates)
     const playerProjects = gameState.projects.filter(p => p.status === 'released');
-    const aiStudioIds = gameState.studios?.filter(s => s.id !== gameState.studio.id)?.map(s => s.id) || [];
+    const aiStudioIds: string[] = []; // Will be populated when AI studios are implemented
     
     aiStudioIds.forEach(rivalId => {
       const existing = rivalries.find(r => r.rivalStudioId === rivalId);
       const competingProjects = playerProjects.filter(pp => {
         // Check if AI studio had a competing project
-        return gameState.aiProjects?.some(ai => 
-          ai.studioId === rivalId &&
-          ai.genre === pp.script?.genre &&
-          Math.abs((ai.releaseWeek || 0) - (pp.releaseWeek || 0)) < 4
-        );
+        return false; // Will be populated when AI projects are implemented
       });
       
       if (competingProjects.length > 0 && !existing) {
