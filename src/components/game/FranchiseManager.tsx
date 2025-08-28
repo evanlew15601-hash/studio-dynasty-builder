@@ -22,8 +22,14 @@ export const FranchiseManager: React.FC<FranchiseManagerProps> = ({
   const [selectedGenre, setSelectedGenre] = useState<string>('all');
   const [selectedDomain, setSelectedDomain] = useState<string>('all');
 
-  // Filter franchises
+  // Check which franchises are owned by player
+  const ownedFranchiseIds = gameState.franchises
+    .filter(f => f.creatorStudioId === gameState.studio.id)
+    .map(f => f.id);
+
+  // Filter franchises (exclude owned ones from purchase list)
   const filteredFranchises = gameState.franchises.filter(franchise => {
+    if (ownedFranchiseIds.includes(franchise.id)) return false; // Don't show owned franchises in purchase list
     const matchesSearch = franchise.title.toLowerCase().includes(searchTerm.toLowerCase()) ||
                          franchise.franchiseTags.some(tag => tag.toLowerCase().includes(searchTerm.toLowerCase()));
     const matchesGenre = selectedGenre === 'all' || franchise.genre.includes(selectedGenre as any);
@@ -120,7 +126,7 @@ export const FranchiseManager: React.FC<FranchiseManagerProps> = ({
 
       <Tabs defaultValue="franchises" className="space-y-4">
         <TabsList>
-          <TabsTrigger value="franchises">Franchises ({gameState.franchises.length})</TabsTrigger>
+          <TabsTrigger value="franchises">Available Franchises ({filteredFranchises.length})</TabsTrigger>
           <TabsTrigger value="public-domain">Public Domain ({gameState.publicDomainIPs.length})</TabsTrigger>
         </TabsList>
 

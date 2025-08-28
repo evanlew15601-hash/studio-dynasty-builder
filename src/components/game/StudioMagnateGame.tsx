@@ -62,6 +62,8 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@
 import { useToast } from '@/hooks/use-toast';
 import { EnhancedFinancialAccuracy } from './EnhancedFinancialAccuracy';
 import { EnhancedFranchiseSystem } from './EnhancedFranchiseSystem';
+import { FranchiseManager } from './FranchiseManager';
+import { OwnedFranchiseManager } from './OwnedFranchiseManager';
 import { EnhancedTalentManagement } from './EnhancedTalentManagement';
 import { 
   StudioIcon, 
@@ -1591,6 +1593,104 @@ export const StudioMagnateGame: React.FC<StudioMagnateGameProps> = ({ onPhaseCha
         
         {currentPhase === 'franchise' && (
           <div className="space-y-6">
+            <OwnedFranchiseManager
+              gameState={gameState}
+              onUpdateFranchise={handleUpdateFranchise}
+              onCreateProject={(franchiseId) => {
+                // Create a basic script for franchise project
+                const franchise = gameState.franchises.find(f => f.id === franchiseId);
+                const script: Script = {
+                  id: `script-${Date.now()}`,
+                  title: franchise ? `${franchise.title} Entry` : 'New Franchise Film',
+                  logline: '',
+                  writer: 'Studio Writer',
+                  pages: 100,
+                  quality: 50,
+                  developmentStage: 'concept',
+                  genre: 'drama',
+                  targetAudience: 'general',
+                  estimatedRuntime: 120,
+                  franchiseId,
+                  characteristics: {
+                    tone: 'light',
+                    pacing: 'steady',
+                    dialogue: 'naturalistic',
+                    visualStyle: 'realistic',
+                    commercialAppeal: 6,
+                    criticalPotential: 5,
+                    cgiIntensity: 'minimal'
+                  },
+                  themes: [],
+                  sourceType: 'franchise',
+                  budget: 15000000
+                };
+                handleProjectCreate(script);
+              }}
+            />
+            <FranchiseManager
+              gameState={gameState}
+              onCreateProject={(franchiseId, publicDomainId, cost) => {
+                // Use existing handleCreateProject logic but adapted for the new interface
+                if (cost && cost > gameState.studio.budget) {
+                  toast({
+                    title: "Insufficient Budget",
+                    description: `Cannot afford this franchise - need $${(cost / 1000000).toFixed(1)}M`,
+                    variant: "destructive"
+                  });
+                  return;
+                }
+
+                const franchise = franchiseId ? gameState.franchises.find(f => f.id === franchiseId) : null;
+                const publicDomain = publicDomainId ? gameState.publicDomainIPs.find(ip => ip.id === publicDomainId) : null;
+                
+                const script: Script = {
+                  id: `script-${Date.now()}`,
+                  title: franchise ? `${franchise.title} Entry` : 
+                         publicDomain ? `${publicDomain.name} Adaptation` : 
+                         'New Project',
+                  logline: '',
+                  writer: 'Studio Writer',
+                  pages: 100,
+                  quality: 50,
+                  developmentStage: 'concept',
+                  genre: 'drama',
+                  targetAudience: 'general',
+                  estimatedRuntime: 120,
+                  franchiseId,
+                  publicDomainId,
+                  characteristics: {
+                    tone: 'light',
+                    pacing: 'steady',
+                    dialogue: 'naturalistic',
+                    visualStyle: 'realistic',
+                    commercialAppeal: 6,
+                    criticalPotential: 5,
+                    cgiIntensity: 'minimal'
+                  },
+                  themes: [],
+                  sourceType: franchiseId ? 'franchise' : publicDomainId ? 'public-domain' : 'original',
+                  budget: cost ? 25000000 : 15000000 // Higher budget for licensed franchises
+                };
+
+                // Deduct franchise cost if applicable
+                if (cost) {
+                  setGameState(prev => ({
+                    ...prev,
+                    studio: {
+                      ...prev.studio,
+                      budget: prev.studio.budget - cost
+                    }
+                  }));
+                  
+                  toast({
+                    title: "Franchise Acquired!",
+                    description: `Spent $${(cost / 1000000).toFixed(1)}M to license franchise`,
+                  });
+                }
+
+                handleProjectCreate(script);
+              }}
+            />
             <EnhancedFranchiseSystem
               gameState={gameState}
               onCreateFranchise={handleCreateFranchise}
