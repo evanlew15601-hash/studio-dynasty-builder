@@ -195,37 +195,73 @@ export const SequelManagement: React.FC<SequelManagementProps> = ({
   const createSequel = () => {
     if (!sequelPlan || !selectedProject) return;
     
-    const franchise = gameState.franchises?.find(f => f.id === selectedProject.script?.franchiseId);
+    // Check budget
+    if (sequelPlan.budget > gameState.studio.budget) {
+      toast({
+        title: "Insufficient Budget",
+        description: `Need $${(sequelPlan.budget / 1000000).toFixed(1)}M to develop sequel`,
+        variant: "destructive"
+      });
+      return;
+    }
+    
+    // Ensure franchise exists or create one
+    let franchiseId = selectedProject.script?.franchiseId;
+    if (!franchiseId) {
+      // Create franchise from successful original
+      franchiseId = `franchise-${selectedProject.id}-${Date.now()}`;
+      const newFranchise: Franchise = {
+        id: franchiseId,
+        title: `${selectedProject.title} Universe`,
+        description: `Franchise based on the successful film "${selectedProject.title}"`,
+        originDate: new Date().toISOString().split('T')[0],
+        creatorStudioId: gameState.studio.id,
+        genre: selectedProject.script?.genre ? [selectedProject.script.genre] : ['action'],
+        tone: 'light', // Convert to valid franchise tone
+        entries: [selectedProject.id],
+        status: 'active',
+        franchiseTags: ['sequel-ready', 'successful'],
+        culturalWeight: Math.min(90, 50 + ((selectedProject.metrics?.criticsScore || 0) / 2)),
+        cost: 0
+      };
+      
+      // Add franchise to game state and update original project
+      // Note: This should trigger a state update in parent component
+    }
+    
     const sequelScript: Script = {
-      id: `script-${Date.now()}`,
+      id: `script-sequel-${Date.now()}`,
       title: sequelPlan.title,
       genre: selectedProject.script?.genre || 'action',
-      logline: `Sequel to ${selectedProject.title}`,
+      logline: sequelPlan.description,
       writer: selectedProject.script?.writer || 'Studio Writer',
       pages: 120,
-      quality: Math.max(60, (selectedProject.script?.quality || 70) - 10),
+      quality: Math.max(60, (selectedProject.script?.quality || 70) - 5), // Slight quality penalty
       budget: sequelPlan.budget,
       developmentStage: 'concept',
       themes: selectedProject.script?.themes || ['adventure', 'friendship'],
       targetAudience: selectedProject.script?.targetAudience || 'general',
-      estimatedRuntime: selectedProject.script?.estimatedRuntime || 120,
-      characteristics: selectedProject.script?.characteristics || {
-        tone: 'balanced',
-        pacing: 'fast-paced', 
-        dialogue: 'naturalistic',
-        visualStyle: 'realistic',
-        commercialAppeal: 7,
-        criticalPotential: 6,
+      estimatedRuntime: (selectedProject.script?.estimatedRuntime || 120) + 10, // Slightly longer
+      characteristics: {
+        tone: selectedProject.script?.characteristics?.tone || 'balanced',
+        pacing: 'fast-paced',
+        dialogue: selectedProject.script?.characteristics?.dialogue || 'naturalistic',
+        visualStyle: selectedProject.script?.characteristics?.visualStyle || 'realistic',
+        commercialAppeal: Math.min(10, (selectedProject.script?.characteristics?.commercialAppeal || 6) + 1),
+        criticalPotential: Math.max(1, (selectedProject.script?.characteristics?.criticalPotential || 5) - 1),
         cgiIntensity: 'moderate'
       },
       characters: (selectedProject.script?.characters || []).map(char => ({
         ...char,
-        id: `char-${Date.now()}-${Math.random()}`,
+        id: `sequel-char-${Date.now()}-${Math.random().toString(36).substr(2, 9)}`,
+        // Keep assigned talent if they're confirmed for sequel
         assignedTalentId: sequelPlan.returningCast.find(cast => 
           cast.characterId === char.id && cast.confirmed
-        )?.talentId
+        )?.talentId || undefined,
+        // Update character for sequel context
+        description: `${char.description} (returning character)`
       })),
-      franchiseId: franchise?.id || `franchise-${selectedProject.id}`,
+      franchiseId,
       sourceType: 'franchise'
     };
     

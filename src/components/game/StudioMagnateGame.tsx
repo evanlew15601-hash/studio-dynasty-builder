@@ -64,6 +64,7 @@ import { EnhancedFinancialAccuracy } from './EnhancedFinancialAccuracy';
 import { EnhancedFranchiseSystem } from './EnhancedFranchiseSystem';
 import { FranchiseManager } from './FranchiseManager';
 import { OwnedFranchiseManager } from './OwnedFranchiseManager';
+import { FranchiseProjectCreator } from './FranchiseProjectCreator';
 import { EnhancedTalentManagement } from './EnhancedTalentManagement';
 import { 
   StudioIcon, 
@@ -1627,6 +1628,10 @@ export const StudioMagnateGame: React.FC<StudioMagnateGameProps> = ({ onPhaseCha
                 handleProjectCreate(script);
               }}
             />
+            <FranchiseProjectCreator
+              gameState={gameState}
+              onProjectCreate={handleProjectCreate}
+            />
             <FranchiseManager
               gameState={gameState}
               onCreateProject={(franchiseId, publicDomainId, cost) => {
@@ -1689,19 +1694,6 @@ export const StudioMagnateGame: React.FC<StudioMagnateGameProps> = ({ onPhaseCha
                 }
 
                 handleProjectCreate(script);
-              }}
-            />
-            <EnhancedFranchiseSystem
-              gameState={gameState}
-              onCreateFranchise={handleCreateFranchise}
-              onUpdateFranchise={handleUpdateFranchise}
-              onProjectUpdate={(projectId, updates) => {
-                setGameState(prev => ({
-                  ...prev,
-                  projects: prev.projects.map(p => 
-                    p.id === projectId ? { ...p, ...updates } : p
-                  )
-                }));
               }}
             />
             <SequelManagementComponent
