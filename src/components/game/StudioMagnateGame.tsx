@@ -1875,12 +1875,22 @@ export const StudioMagnateGame: React.FC<StudioMagnateGameProps> = ({ onPhaseCha
           />
         )}
         
-        {currentPhase === 'marketing' && (
-          <MarketingReleaseManagement 
+        {currentPhase === 'marketing' && selectedProject && (
+          <EnhancedMarketingSystem
+            project={selectedProject}
             gameState={gameState}
-            onProjectUpdate={handleProjectUpdate}
-            onMarketingCampaignCreate={handleMarketingCampaignCreate}
-            onReleaseStrategyCreate={handleReleaseStrategyCreate}
+            onUpdateProject={(projectId, updates) => {
+              const project = gameState.projects.find(p => p.id === projectId);
+              if (project) {
+                handleProjectUpdate({ ...project, ...updates });
+              }
+            }}
+            onUpdateBudget={(amount) => {
+              setGameState(prev => ({
+                ...prev,
+                studio: { ...prev.studio, budget: prev.studio.budget + amount }
+              }));
+            }}
           />
         )}
         

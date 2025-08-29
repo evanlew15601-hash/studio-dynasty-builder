@@ -76,15 +76,12 @@ export class MediaContentGenerator {
     const source = MediaSourceGenerator.getSourceForEvent(event.type);
     const sentiment = this.determineSentiment(event, source);
     
-    const headline = this.generateHeadline(event, entities, source);
-    const content = this.generateContent(event, entities, source, sentiment);
-    
     return {
       id: `media_${Date.now()}_${Math.random().toString(36).substr(2, 9)}`,
       source,
-      type: this.mapEventToMediaType(event.type),
-      headline,
-      content,
+      type: 'news', // Simplified for now
+      headline: this.generateHeadline(event, entities, source),
+      content: this.generateContent(event, entities, source, sentiment),
       publishDate: {
         week: event.week,
         year: event.year

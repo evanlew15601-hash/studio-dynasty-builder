@@ -1,12 +1,10 @@
-
 import React from 'react';
-import { Project, TalentPerson, GameState, ScriptCharacter } from '@/types/game';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
 import { useToast } from '@/hooks/use-toast';
+import { Project, TalentPerson, GameState, ScriptCharacter } from '@/types/game';
 import { Users, User, Crown, Star, CheckCircle } from 'lucide-react';
-import { RoleDatabase } from '@/data/RoleDatabase';
 import { importRolesForScript } from '@/utils/roleImport';
 
 interface RoleBasedCastingProps {
@@ -58,7 +56,34 @@ export const RoleBasedCasting: React.FC<RoleBasedCastingProps> = ({
 
   const importRolesFromSource = () => {
     const script = project.script;
-    if (!script?.sourceType) return;
+    if (!script?.sourceType) {
+      // Create default roles for original projects
+      const defaultRoles: ScriptCharacter[] = [
+        {
+          id: `director-${Date.now()}`,
+          name: 'Director',
+          importance: 'crew',
+          description: 'Film director responsible for creative vision',
+          ageRange: [25, 70],
+          requiredType: 'director'
+        },
+        {
+          id: `lead-${Date.now()}`,
+          name: 'Lead Character',
+          importance: 'lead',
+          description: 'Main protagonist of the story',
+          ageRange: [20, 50],
+          requiredType: 'actor'
+        }
+      ];
+      defaultRoles.forEach(onCreateRole);
+      toast({
+        title: 'Default Roles Added',
+        description: 'Added Director and Lead Actor roles'
+      });
+      return;
+    }
+    
     const imported = importRolesForScript(script, gameState);
     const existingIds = new Set((project.script?.characters || []).map(c => c.id));
     const toAdd = imported.filter(r => !existingIds.has(r.id));
@@ -81,8 +106,12 @@ export const RoleBasedCasting: React.FC<RoleBasedCastingProps> = ({
   };
 
   const { cast, total } = getCastingProgress();
-  const hasDirector = project.script?.characters?.some(c => c.requiredType === 'director' && c.assignedTalentId);
-  const hasLead = project.script?.characters?.some(c => c.importance === 'lead' && c.assignedTalentId);
+  const hasDirector = project.script?.characters?.some(c => 
+    c.requiredType === 'director' && c.assignedTalentId
+  );
+  const hasLead = project.script?.characters?.some(c => 
+    c.importance === 'lead' && c.requiredType === 'actor' && c.assignedTalentId
+  );
   const canProceed = hasDirector && hasLead;
 
   return (
@@ -102,7 +131,7 @@ export const RoleBasedCasting: React.FC<RoleBasedCastingProps> = ({
               <Badge variant={hasLead ? "default" : "destructive"}>
                 Lead: {hasLead ? "Cast" : "Required"}
               </Badge>
-              <Badge variant={cast >= total ? "default" : "secondary"}>
+              <Badge variant={cast >= total && canProceed ? "default" : "secondary"}>
                 {cast}/{total} Roles Cast
               </Badge>
               {!canProceed && (
@@ -123,7 +152,8 @@ export const RoleBasedCasting: React.FC<RoleBasedCastingProps> = ({
                 id: `custom-${Date.now()}`,
                 name: 'Custom Role',
                 importance: 'supporting',
-                description: 'A custom character role'
+                description: 'A custom character role',
+                requiredType: 'actor'
               })}
               variant="outline"
             >
@@ -149,7 +179,7 @@ export const RoleBasedCasting: React.FC<RoleBasedCastingProps> = ({
                     <CardTitle className="flex items-center gap-2">
                       {character.importance === 'lead' && <Crown className="h-4 w-4 text-yellow-500" />}
                       {character.importance === 'supporting' && <Star className="h-4 w-4 text-blue-500" />}
-                      {character.importance === 'crew' && <User className="h-4 w-4 text-purple-500" />}
+                      {character.requiredType === 'director' && <User className="h-4 w-4 text-purple-500" />}
                       {character.name}
                     </CardTitle>
                     <p className="text-sm text-muted-foreground">{character.description}</p>
@@ -157,6 +187,9 @@ export const RoleBasedCasting: React.FC<RoleBasedCastingProps> = ({
                   <div className="flex items-center gap-2">
                     <Badge variant="outline" className="capitalize">
                       {character.importance}
+                    </Badge>
+                    <Badge variant="outline" className="capitalize">
+                      {character.requiredType || 'actor'}
                     </Badge>
                     {castTalent && (
                       <Badge variant="default" className="flex items-center gap-1">
