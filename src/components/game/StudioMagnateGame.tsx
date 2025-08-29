@@ -66,6 +66,7 @@ import { FranchiseManager } from './FranchiseManager';
 import { OwnedFranchiseManager } from './OwnedFranchiseManager';
 import { FranchiseProjectCreator } from './FranchiseProjectCreator';
 import { EnhancedTalentManagement } from './EnhancedTalentManagement';
+import { EnhancedMarketingSystem } from './EnhancedMarketingSystem';
 import { 
   StudioIcon, 
   ScriptIcon, 

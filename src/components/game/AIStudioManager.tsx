@@ -222,22 +222,22 @@ export class AIStudioManager {
     return true;
   }
 
-  // **CHECKPOINT 3**: Process AI films weekly
+  // **CHECKPOINT 3**: Process AI films weekly - Increased frequency
   static processWeeklyAIFilms(currentWeek: number, currentYear: number): void {
     this.aiFilms.forEach(film => {
       const weeksInProduction = this.calculateWeeksInProduction(film, currentWeek, currentYear);
       
-      // Update film status based on timeline
-      if (film.status === 'development' && weeksInProduction >= 2) {
+      // Update film status based on timeline - Faster progression
+      if (film.status === 'development' && weeksInProduction >= 1) {
         film.status = 'casting';
         console.log(`🎬 AI FILM: "${film.title}" moved to casting phase`);
-      } else if (film.status === 'casting' && weeksInProduction >= 4) {
+      } else if (film.status === 'casting' && weeksInProduction >= 2) {
         film.status = 'production';
         console.log(`🎬 AI FILM: "${film.title}" started production`);
-      } else if (film.status === 'production' && weeksInProduction >= (4 + film.timeline.productionWeeks)) {
+      } else if (film.status === 'production' && weeksInProduction >= (2 + Math.floor(film.timeline.productionWeeks * 0.7))) {
         film.status = 'post-production';
         console.log(`🎬 AI FILM: "${film.title}" moved to post-production`);
-      } else if (film.status === 'post-production' && weeksInProduction >= (4 + film.timeline.productionWeeks + 6)) {
+      } else if (film.status === 'post-production' && weeksInProduction >= (2 + Math.floor(film.timeline.productionWeeks * 0.7) + 3)) {
         film.status = 'marketing';
         console.log(`🎬 AI FILM: "${film.title}" moved to marketing`);
       } else if (film.status === 'marketing' && 

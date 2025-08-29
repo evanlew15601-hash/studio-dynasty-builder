@@ -278,6 +278,18 @@ export interface Project {
   // Casting confirmation & star power
   castingConfirmed?: boolean;
   starPowerBonus?: number; // 0.0-0.5 multiplier added to box office from cast fame
+  // Marketing system data
+  marketingData?: {
+    currentBuzz: number;
+    totalSpent: number;
+    campaigns: Array<{
+      type: string;
+      cost: number;
+      buzz: number;
+      week: number;
+      year: number;
+    }>;
+  };
 }
 
 export interface ProjectBudget {
