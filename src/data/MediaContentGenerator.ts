@@ -191,9 +191,9 @@ export class MediaContentGenerator {
     // Replace project/film titles
     if (entities.projects && entities.projects.length > 0) {
       const project = entities.projects[0];
-      result = result.replace(/\[FilmTitle\]/g, project.script?.title || 'Untitled Project');
+      result = result.replace(/\[FilmTitle\]/g, project.title || 'Untitled Project');
       result = result.replace(/\[Genre\]/g, project.script?.genre || 'drama');
-      result = result.replace(/\[Budget\]/g, `$${(project.budget?.allocated || 1000000) / 1000000}M`);
+      result = result.replace(/\[Budget\]/g, `$${(project.budget?.total || 1000000) / 1000000}M`);
     }
     
     // Replace generic variables

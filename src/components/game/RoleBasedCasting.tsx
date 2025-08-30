@@ -22,6 +22,25 @@ export const RoleBasedCasting: React.FC<RoleBasedCastingProps> = ({
 }) => {
   const { toast } = useToast();
 
+  // Import roles when project changes or script updates
+  React.useEffect(() => {
+    if (project?.script && (!project.script.characters || project.script.characters.length === 0)) {
+      console.log(`🎭 IMPORTING ROLES for ${project.title}`);
+      const importedRoles = importRolesForScript(project.script, gameState);
+      
+      if (importedRoles.length > 0) {
+        importedRoles.forEach(role => {
+          onCreateRole(role);
+        });
+        
+        toast({
+          title: "Roles Imported",
+          description: `${importedRoles.length} character roles imported for casting`,
+        });
+      }
+    }
+  }, [project?.script?.franchiseId, project?.script?.publicDomainId, project?.id]);
+
   const getAvailableTalent = (role: ScriptCharacter) => {
     return gameState.talent.filter(talent => {
       if (talent.contractStatus !== 'available') return false;

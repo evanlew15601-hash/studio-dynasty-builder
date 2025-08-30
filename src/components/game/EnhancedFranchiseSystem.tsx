@@ -38,7 +38,7 @@ export const EnhancedFranchiseSystem: React.FC<EnhancedFranchiseSystemProps> = (
   // Get franchises created by the player studio
   const ownedFranchises = gameState.franchises.filter(f => f.creatorStudioId === gameState.studio.id);
   
-  // Get projects that could become franchises - NO RESTRICTIONS
+  // Get ALL released projects that could become franchises - NO PERFORMANCE RESTRICTIONS
   const eligibleForFranchise = gameState.projects.filter(p => 
     p.status === 'released' && 
     !p.script.franchiseId // Not already part of a franchise - that's the only requirement

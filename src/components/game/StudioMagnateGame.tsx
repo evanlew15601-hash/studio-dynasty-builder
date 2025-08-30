@@ -761,23 +761,36 @@ export const StudioMagnateGame: React.FC<StudioMagnateGameProps> = ({ onPhaseCha
         }
       }
 
-      // Process marketing campaigns
-      if (updatedProject.marketingCampaign && updatedProject.marketingCampaign.weeksRemaining > 0) {
-        const updatedActivities = updatedProject.marketingCampaign.activities.map(activity => ({
-          ...activity,
-          weeksRemaining: Math.max(0, activity.weeksRemaining - 1),
-          status: activity.weeksRemaining <= 1 ? 'completed' as const : activity.status
-        }));
+  // Process marketing campaigns and advance to release phase when complete
+  if (updatedProject.marketingCampaign && updatedProject.marketingCampaign.weeksRemaining > 0) {
+    const updatedActivities = updatedProject.marketingCampaign.activities.map(activity => ({
+      ...activity,
+      weeksRemaining: Math.max(0, activity.weeksRemaining - 1),
+      status: activity.weeksRemaining <= 1 ? 'completed' as const : activity.status
+    }));
 
-        updatedProject = {
-          ...updatedProject,
-          marketingCampaign: {
-            ...updatedProject.marketingCampaign,
-            activities: updatedActivities,
-            weeksRemaining: Math.max(0, updatedProject.marketingCampaign.weeksRemaining - 1)
-          }
-        };
+    const newWeeksRemaining = Math.max(0, updatedProject.marketingCampaign.weeksRemaining - 1);
+
+    updatedProject = {
+      ...updatedProject,
+      marketingCampaign: {
+        ...updatedProject.marketingCampaign,
+        activities: updatedActivities,
+        weeksRemaining: newWeeksRemaining
       }
+    };
+
+    // When marketing is complete, move to release phase
+    if (newWeeksRemaining === 0) {
+      console.log(`🎬 MARKETING COMPLETE: ${project.title} - Moving to release phase`);
+      updatedProject = {
+        ...updatedProject,
+        currentPhase: 'release',
+        status: 'ready-for-release',
+        readyForRelease: true
+      };
+    }
+  }
 
       // Process post-theatrical releases revenue
       if (updatedProject.postTheatricalReleases && updatedProject.postTheatricalReleases.length > 0) {

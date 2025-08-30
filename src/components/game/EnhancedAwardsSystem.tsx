@@ -209,21 +209,37 @@ export const EnhancedAwardsSystem: React.FC<EnhancedAwardsSystemProps> = ({
   };
 
   const getRelevantTalent = (project: Project, categoryId: string): string | undefined => {
-    if (!project.cast || project.cast.length === 0) return undefined;
+    if (!project.script?.characters) return undefined;
     
-    // For now, return the first cast member - this should be enhanced to match role types
-    const relevantRoles = {
-      'best-director': 'director',
-      'best-actor': 'lead',
-      'best-actress': 'lead',
-      'best-supporting-actor': 'supporting',
-      'best-supporting-actress': 'supporting'
+    // Enhanced talent selection with better diversity
+    const castMembers = project.script.characters.filter(c => c.assignedTalentId);
+    
+    if (castMembers.length === 0) return undefined;
+    
+    // Map category to role type preferences
+    const rolePreferences: Record<string, string[]> = {
+      'best-director': ['director'],
+      'best-actor': ['lead', 'protagonist', 'main'],
+      'best-actress': ['lead', 'protagonist', 'main', 'female'],
+      'best-supporting-actor': ['supporting', 'secondary'],
+      'best-supporting-actress': ['supporting', 'secondary', 'female']
     };
     
-    const targetRole = relevantRoles[categoryId as keyof typeof relevantRoles];
-    const castMember = project.cast.find(c => c.role.toLowerCase().includes(targetRole || 'lead'));
+    const preferences = rolePreferences[categoryId] || [];
     
-    return castMember?.talentId || project.cast[0]?.talentId;
+    // Try to find talent matching role preferences
+    for (const pref of preferences) {
+      const match = castMembers.find(c => 
+        c.name.toLowerCase().includes(pref) || 
+        c.description?.toLowerCase().includes(pref) ||
+        (pref === 'director' && c.requiredType === 'director')
+      );
+      if (match) return match.assignedTalentId;
+    }
+    
+    // Fallback to random cast member to ensure nominations exist
+    const randomMember = castMembers[Math.floor(Math.random() * castMembers.length)];
+    return randomMember.assignedTalentId;
   };
 
   const hostAwardsCeremony = (ceremony: AwardsCeremony) => {

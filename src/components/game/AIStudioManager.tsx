@@ -103,9 +103,49 @@ export class AIStudioManager {
     film.timeline.expectedReleaseWeek = (currentWeek + totalProductionTime) % 52 || 52;
     film.timeline.expectedReleaseYear = currentYear + Math.floor((currentWeek + totalProductionTime) / 52);
 
+    // Cast multiple talent members with variety - directors, leads, and supporting
+    const directorCandidates = availableTalent.filter(t => t.type === 'director');
+    const actorCandidates = availableTalent.filter(t => t.type === 'actor');
+    
+    const usedTalent = new Set<string>();
+    const castingStartWeek = currentWeek + 1; // Start casting next week
+    const totalCommitmentWeeks = film.timeline.productionWeeks + 4; // Production + buffer
+    
+    // Cast director (mandatory)
+    if (directorCandidates.length > 0) {
+      const director = directorCandidates[Math.floor(Math.random() * directorCandidates.length)];
+      this.castTalentInAIFilm(film.id, director, 'Director', castingStartWeek, totalCommitmentWeeks, currentYear);
+      usedTalent.add(director.id);
+    }
+    
+    // Cast lead actor (mandatory)
+    const availableActors = actorCandidates.filter(a => !usedTalent.has(a.id));
+    if (availableActors.length > 0) {
+      const leadActor = availableActors[Math.floor(Math.random() * availableActors.length)];
+      this.castTalentInAIFilm(film.id, leadActor, 'Lead Actor', castingStartWeek, totalCommitmentWeeks, currentYear);
+      usedTalent.add(leadActor.id);
+    }
+
+    // Cast 2-4 additional supporting actors for variety
+    const supportingCount = Math.min(4, Math.floor(Math.random() * 3) + 2); // 2-4 supporting actors
+    const remainingActors = actorCandidates.filter(a => !usedTalent.has(a.id));
+    
+    for (let i = 0; i < supportingCount && i < remainingActors.length; i++) {
+      const supportingActor = remainingActors[Math.floor(Math.random() * remainingActors.length)];
+      const supportingRoles = ['Supporting Actor', 'Supporting Actress', 'Character Actor', 'Ensemble Cast'];
+      const role = supportingRoles[Math.floor(Math.random() * supportingRoles.length)];
+      
+      this.castTalentInAIFilm(film.id, supportingActor, role, castingStartWeek, totalCommitmentWeeks, currentYear);
+      usedTalent.add(supportingActor.id);
+      
+      // Remove from available pool to ensure variety
+      const actorIndex = remainingActors.indexOf(supportingActor);
+      if (actorIndex > -1) remainingActors.splice(actorIndex, 1);
+    }
+
     this.aiFilms.push(film);
     
-    console.log(`🎬 AI STUDIO: ${studio.name} started "${film.title}" (${genre}, $${(budget/1000000).toFixed(1)}M)`);
+    console.log(`🎬 AI STUDIO: ${studio.name} started "${film.title}" (${genre}, $${(budget/1000000).toFixed(1)}M) with ${usedTalent.size} cast members`);
     
     return film;
   }
