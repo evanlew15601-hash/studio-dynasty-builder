@@ -886,21 +886,58 @@ export const StudioMagnateGame: React.FC<StudioMagnateGameProps> = ({ onPhaseCha
               description: `${updatedProject.title} is ready for release strategy`,
             });
           }
-          // Normal progression for early phases only
+          // Normal progression with gating for early phases
           else if (['development', 'pre-production', 'production'].includes(updatedProject.currentPhase)) {
-            const nextDuration = getPhaseWeeks(nextPhase);
-            
-            updatedProject = {
-              ...updatedProject,
-              currentPhase: nextPhase,
-              phaseDuration: nextDuration,
-              status: nextPhase as any
-            };
-            
-            toast({
-              title: "Phase Complete!",
-              description: `${updatedProject.title} advanced to ${nextPhase.replace('-', ' ')}`,
-            });
+            // Gate: ensure roles imported before leaving development
+            if (updatedProject.currentPhase === 'development' && nextPhase === 'pre-production') {
+              const roles = updatedProject.script?.characters && updatedProject.script.characters.length > 0
+                ? updatedProject.script.characters
+                : importRolesForScript(updatedProject.script!, gameState);
+              if (!roles || roles.length === 0) {
+                console.warn(`⛔ Cannot advance ${updatedProject.title}: no roles imported yet`);
+                updatedProject = { ...updatedProject, phaseDuration: 2 };
+                toast({ title: 'Roles Required', description: `${updatedProject.title} needs characters imported before pre-production`, variant: 'destructive' });
+              } else {
+                updatedProject = {
+                  ...updatedProject,
+                  script: { ...updatedProject.script!, characters: roles },
+                  currentPhase: nextPhase,
+                  phaseDuration: getPhaseWeeks(nextPhase),
+                  status: nextPhase as any
+                };
+                toast({ title: 'Phase Complete!', description: `${updatedProject.title} advanced to ${nextPhase.replace('-', ' ')}` });
+              }
+            }
+            // Gate: require Director + Lead actor before entering production
+            else if (updatedProject.currentPhase === 'pre-production' && nextPhase === 'production') {
+              const chars = updatedProject.script?.characters || [];
+              const hasDirector = chars.some(c => c.requiredType === 'director' && c.assignedTalentId);
+              const hasLead = chars.some(c => c.importance === 'lead' && c.requiredType !== 'director' && c.assignedTalentId);
+              if (!hasDirector || !hasLead) {
+                console.warn(`⛔ Cannot advance ${updatedProject.title}: missing mandatory cast (director=${hasDirector}, lead=${hasLead})`);
+                updatedProject = { ...updatedProject, phaseDuration: 2 };
+                toast({ title: 'Cast Required', description: 'Attach a Director and Lead before production', variant: 'destructive' });
+              } else {
+                updatedProject = {
+                  ...updatedProject,
+                  currentPhase: nextPhase,
+                  phaseDuration: getPhaseWeeks(nextPhase),
+                  status: nextPhase as any
+                };
+                toast({ title: 'Phase Complete!', description: `${updatedProject.title} advanced to ${nextPhase.replace('-', ' ')}` });
+              }
+            }
+            // Other early phases progress normally
+            else {
+              const nextDuration = getPhaseWeeks(nextPhase);
+              updatedProject = {
+                ...updatedProject,
+                currentPhase: nextPhase,
+                phaseDuration: nextDuration,
+                status: nextPhase as any
+              };
+              toast({ title: 'Phase Complete!', description: `${updatedProject.title} advanced to ${nextPhase.replace('-', ' ')}` });
+            }
           }
         } else {
           // Only countdown for active phases - FIXED: Include post-production
@@ -1640,6 +1677,17 @@ export const StudioMagnateGame: React.FC<StudioMagnateGameProps> = ({ onPhaseCha
                   budget: 15000000
                 };
                 handleProjectCreate(script);
+              }}
+            />
+            <EnhancedFranchiseSystem
+              gameState={gameState}
+              onCreateFranchise={handleCreateFranchise}
+              onUpdateFranchise={handleUpdateFranchise}
+              onProjectUpdate={(projectId, updates) => {
+                const project = gameState.projects.find(p => p.id === projectId);
+                if (project) {
+                  handleProjectUpdate({ ...project, ...updates });
+                }
               }}
             />
             <FranchiseProjectCreator

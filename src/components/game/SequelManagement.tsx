@@ -42,24 +42,9 @@ export const SequelManagement: React.FC<SequelManagementProps> = ({
   const [sequelPlan, setSequelPlan] = useState<SequelPlan | null>(null);
   const [isCreating, setIsCreating] = useState(false);
 
-  // Get projects eligible for sequels
+  // Get projects eligible for sequels - REMOVED SUCCESS RESTRICTIONS
   const getSequelEligibleProjects = () => {
-    return gameState.projects.filter(project => {
-      // Must be released and successful
-      if (project.status !== 'released') return false;
-      if (!project.metrics?.boxOfficeTotal) return false;
-      
-      // Profitability threshold
-      const profitable = project.metrics.boxOfficeTotal > project.budget.total * 1.3;
-      
-      // Critical reception threshold  
-      const wellReceived = (project.metrics.criticsScore || 0) > 55;
-      
-      // Audience appeal
-      const audienceApproval = (project.metrics.audienceScore || 0) > 60;
-      
-      return profitable && (wellReceived || audienceApproval);
-    });
+    return gameState.projects.filter(project => project.status === 'released');
   };
 
   // Get existing sequels for a project

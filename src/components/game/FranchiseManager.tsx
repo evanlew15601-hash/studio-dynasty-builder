@@ -213,14 +213,10 @@ export const FranchiseManager: React.FC<FranchiseManagerProps> = ({
 
                   <Button 
                     className="w-full"
-                    onClick={() => onCreateProject(franchise.id, undefined, franchise.cost)}
-                    disabled={franchise.status === 'retired' || gameState.studio.budget < franchise.cost}
-                    variant={gameState.studio.budget < franchise.cost ? 'secondary' : 'default'}
+                    onClick={() => onCreateProject(franchise.id, undefined, 0)}
+                    variant="default"
                   >
-                    {gameState.studio.budget < franchise.cost
-                      ? 'Insufficient Budget' 
-                      : franchise.entries.length === 0 ? 'Start Franchise' : 'Create Sequel'
-                    }
+                    {franchise.entries.length === 0 ? 'Start Franchise' : 'Create Sequel'}
                   </Button>
                 </CardContent>
               </Card>

@@ -125,7 +125,7 @@ return {
   useEffect(() => {
     const next = getInitialScript();
     setNewScript(next);
-    // If a source is selected, auto-import curated characters
+    // If a source is selected, auto-import curated characters into the creation form
     const tempScript: Script = {
       id: `temp-${Date.now()}`,
       title: next.title || 'Temp',
@@ -147,20 +147,16 @@ return {
     };
     if (tempScript.sourceType === 'franchise' || tempScript.sourceType === 'public-domain') {
       const imported = importRolesForScript(tempScript, gameState);
-      const adapted = imported.map((c): ScriptCharacter => {
-        const imp = c.importance === 'lead' ? 'lead' : c.importance === 'crew' ? 'crew' : 'supporting';
-        const screen = imp === 'lead' ? 60 : imp === 'supporting' ? 25 : 0;
-        return {
-          id: c.id,
-          name: c.name,
-          importance: imp,
-          screenTimeMinutes: screen,
-          description: c.description || '',
-          ageRange: (c.ageRange as [number, number]) || [25, 45],
-          requiredTraits: [],
-          requiredType: c.requiredType,
-        };
-      });
+      const adapted = imported.map((c): ScriptCharacter => ({
+        id: c.id,
+        name: c.name,
+        importance: c.importance === 'crew' ? 'supporting' : (c.importance as any),
+        screenTimeMinutes: c.importance === 'lead' ? 60 : c.importance === 'supporting' ? 25 : 0,
+        description: c.description || '',
+        ageRange: (c.ageRange as [number, number]) || [25, 45],
+        requiredTraits: [],
+        requiredType: c.requiredType,
+      }));
       setScriptCharacters(adapted);
     } else {
       setScriptCharacters([]);
