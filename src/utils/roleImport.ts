@@ -1,11 +1,20 @@
 import { GameState, Script, ScriptCharacter } from '@/types/game';
 import { FRANCHISE_CHARACTER_DB, FranchiseCharacterDef } from '@/data/FranchiseCharacterDB';
 import { RoleDatabase } from '@/data/RoleDatabase';
+import { PARODY_CHARACTER_NAME_MAP } from '@/data/ParodyCharacterNames';
 
-function toScriptCharacter(def: FranchiseCharacterDef, franchiseId?: string): ScriptCharacter {
+function toScriptCharacter(def: FranchiseCharacterDef, franchiseId?: string, parodySource?: string): ScriptCharacter {
+  // Prefer recognizable names from parody source mapping when available
+  let resolvedName = def.name;
+  if (parodySource) {
+    const map = PARODY_CHARACTER_NAME_MAP[parodySource];
+    if (map) {
+      resolvedName = map.byCharacterId?.[def.character_id] || map.byTemplateId?.[def.role_template_id] || def.name;
+    }
+  }
   return {
     id: def.character_id,
-    name: def.name,
+    name: resolvedName,
     description: def.description,
     importance: def.importance,
     traits: def.traits,
@@ -64,8 +73,8 @@ export function importRolesForScript(script: Script, gameState: GameState): Scri
 
     if (defs && defs.length > 0) {
       for (const def of defs) {
-        const incoming = toScriptCharacter(def, script.franchiseId);
-        const match = existing.find(c => c.franchiseCharacterId === def.character_id || (c.name === def.name && c.requiredType === def.requiredType));
+        const incoming = toScriptCharacter(def, script.franchiseId, franchise?.parodySource);
+        const match = existing.find(c => c.franchiseCharacterId === def.character_id || (c.name === incoming.name && c.requiredType === def.requiredType));
         if (!match) {
           characters.push(incoming);
         } else {

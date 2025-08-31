@@ -1791,6 +1791,7 @@ export const StudioMagnateGame: React.FC<StudioMagnateGameProps> = ({ onPhaseCha
               gameState={gameState}
               onProjectCreate={handleProjectCreate}
               onProjectUpdate={handleProjectUpdate}
+              onCreateFranchise={handleCreateFranchise}
             />
           </div>
         )}

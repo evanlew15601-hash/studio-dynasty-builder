@@ -14,6 +14,7 @@ interface SequelManagementProps {
   gameState: GameState;
   onProjectCreate: (script: Script) => void;
   onProjectUpdate: (project: Project) => void;
+  onCreateFranchise?: (franchise: Franchise) => void;
 }
 
 interface SequelPlan {
@@ -35,7 +36,8 @@ interface SequelPlan {
 export const SequelManagement: React.FC<SequelManagementProps> = ({
   gameState,
   onProjectCreate,
-  onProjectUpdate
+  onProjectUpdate,
+  onCreateFranchise
 }) => {
   const { toast } = useToast();
   const [selectedProject, setSelectedProject] = useState<Project | null>(null);
@@ -210,8 +212,8 @@ export const SequelManagement: React.FC<SequelManagementProps> = ({
         cost: 0
       };
       
-      // Add franchise to game state and update original project
-      // Note: This should trigger a state update in parent component
+      // Add franchise to game state and update original project if callback provided
+      onCreateFranchise?.(newFranchise);
     }
     
     const sequelScript: Script = {
