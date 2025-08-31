@@ -442,16 +442,17 @@ export const StudioMagnateGame: React.FC<StudioMagnateGameProps> = ({ onPhaseCha
       metrics: {}
     };
 
-    // Auto-generate roles from source material if none defined or to sync curated roles
-    let enrichedProject: Project = newProject;
-    try {
-      const roles = importRolesForScript(newProject.script, gameState);
-      if (roles && roles.length > 0) {
-        enrichedProject = { ...newProject, script: { ...newProject.script, characters: roles } };
+      // Auto-generate roles only if script has no characters
+      let enrichedProject: Project = newProject;
+      try {
+        const preexisting = newProject.script.characters && newProject.script.characters.length > 0;
+        const roles = preexisting ? newProject.script.characters! : importRolesForScript(newProject.script, gameState);
+        if (roles && roles.length > 0) {
+          enrichedProject = { ...newProject, script: { ...newProject.script, characters: roles } };
+        }
+      } catch (e) {
+        console.warn('Role auto-generation failed', e);
       }
-    } catch (e) {
-      console.warn('Role auto-generation failed', e);
-    }
 
     updateOperation('project-create', 90, 'Finalizing project...');
 
@@ -1692,7 +1693,21 @@ export const StudioMagnateGame: React.FC<StudioMagnateGameProps> = ({ onPhaseCha
             />
             <FranchiseProjectCreator
               gameState={gameState}
-              onProjectCreate={handleProjectCreate}
+              onProjectCreate={(script) => {
+                setSelectedFranchise(script.franchiseId || null);
+                setSelectedPublicDomain(script.publicDomainId || null);
+                handlePhaseChange('scripts');
+                setGameState(prev => ({
+                  ...prev,
+                  scripts: prev.scripts.some(s => s.id === script.id)
+                    ? prev.scripts.map(s => (s.id === script.id ? script : s))
+                    : [...prev.scripts, script]
+                }));
+                toast({
+                  title: 'Script Draft Created',
+                  description: `"${script.title}" is ready in Script Development to customize roles before greenlighting.`,
+                });
+              }}
             />
             <FranchiseManager
               gameState={gameState}
@@ -1755,7 +1770,21 @@ export const StudioMagnateGame: React.FC<StudioMagnateGameProps> = ({ onPhaseCha
                   });
                 }
 
-                handleProjectCreate(script);
+                // Route to Script Development instead of directly greenlighting
+                setSelectedFranchise(franchiseId || null);
+                setSelectedPublicDomain(publicDomainId || null);
+                handlePhaseChange('scripts');
+                setGameState(prev => ({
+                  ...prev,
+                  scripts: prev.scripts.some(s => s.id === script.id)
+                    ? prev.scripts.map(s => s.id === script.id ? script : s)
+                    : [...prev.scripts, script]
+                }));
+
+                toast({
+                  title: "Script Draft Created",
+                  description: `"${script.title}" is ready in Script Development to customize roles before greenlighting.`,
+                });
               }}
             />
             <SequelManagementComponent
