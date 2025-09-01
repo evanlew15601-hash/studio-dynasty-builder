@@ -212,8 +212,19 @@ export const SequelManagement: React.FC<SequelManagementProps> = ({
         cost: 0
       };
       
-      // Add franchise to game state and update original project if callback provided
+    // Add franchise to game state and update original project if callback provided
       onCreateFranchise?.(newFranchise);
+      
+      // Update original project to include franchise connection
+      const updatedOriginalProject = {
+        ...selectedProject,
+        script: {
+          ...selectedProject.script!,
+          franchiseId
+        },
+        franchisePosition: 1
+      };
+      onProjectUpdate(updatedOriginalProject);
     }
     
     const sequelScript: Script = {

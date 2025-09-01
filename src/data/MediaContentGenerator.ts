@@ -4,64 +4,64 @@ import { MediaSourceGenerator } from '@/data/MediaSourceGenerator';
 export class MediaContentGenerator {
   private static headlines = {
     casting_announcement: [
-      "[ActorName] Joins [FilmTitle] in [Role] Role",
-      "EXCLUSIVE: [ActorName] Cast in [StudioName]'s [FilmTitle]",
-      "[FilmTitle] Lands [ActorName] for Key Role",
-      "Breaking: [ActorName] Signs On for [FilmTitle]",
-      "[StudioName] Announces [ActorName] Casting in [FilmTitle]"
+      "{ActorName} Joins {FilmTitle} in {Role} Role",
+      "EXCLUSIVE: {ActorName} Cast in {StudioName}'s {FilmTitle}",
+      "{FilmTitle} Lands {ActorName} for Key Role", 
+      "Breaking: {ActorName} Signs On for {FilmTitle}",
+      "{StudioName} Announces {ActorName} Casting in {FilmTitle}"
     ],
     production_start: [
-      "[FilmTitle] Begins Production with [ActorName]",
-      "Cameras Roll on [StudioName]'s [FilmTitle]",
-      "[FilmTitle] Production Officially Underway",
-      "[ActorName] Spotted on [FilmTitle] Set",
-      "FIRST LOOK: [FilmTitle] Production Begins"
+      "{FilmTitle} Begins Production with {ActorName}",
+      "Cameras Roll on {StudioName}'s {FilmTitle}",
+      "{FilmTitle} Production Officially Underway",
+      "{ActorName} Spotted on {FilmTitle} Set",
+      "FIRST LOOK: {FilmTitle} Production Begins"
     ],
     box_office: [
-      "[FilmTitle] Dominates Box Office with $[Amount]M Opening",
-      "[FilmTitle] Exceeds Expectations with [Amount]M Weekend",
-      "Box Office Report: [FilmTitle] Takes Top Spot",
-      "[FilmTitle] Breaks Records with [Amount]M Opening",
-      "Audiences Flock to [FilmTitle]: [Amount]M Opening Weekend"
+      "{FilmTitle} Dominates Box Office with ${Amount}M Opening",
+      "{FilmTitle} Exceeds Expectations with {Amount}M Weekend",
+      "Box Office Report: {FilmTitle} Takes Top Spot",
+      "{FilmTitle} Breaks Records with {Amount}M Opening",
+      "Audiences Flock to {FilmTitle}: {Amount}M Opening Weekend"
     ],
     award_win: [
-      "[ActorName] Wins [AwardName] for [FilmTitle]",
-      "[FilmTitle] Takes Home [AwardName] Award",
-      "WINNER: [ActorName] Honored for [FilmTitle] Performance",
-      "[AwardName] Goes to [FilmTitle]'s [ActorName]",
-      "[StudioName]'s [FilmTitle] Wins [AwardName]"
+      "{ActorName} Wins {AwardName} for {FilmTitle}",
+      "{FilmTitle} Takes Home {AwardName} Award",
+      "WINNER: {ActorName} Honored for {FilmTitle} Performance",
+      "{AwardName} Goes to {FilmTitle}'s {ActorName}",
+      "{StudioName}'s {FilmTitle} Wins {AwardName}"
     ],
     scandal: [
-      "SCANDAL: [ActorName] Involved in [ScandalType]",
-      "[ActorName] Under Fire for [ScandalType]",
-      "BREAKING: [ActorName] [ScandalType] Rocks Hollywood",
-      "[ActorName] Faces Backlash Over [ScandalType]",
-      "CONTROVERSY: [ActorName] in Hot Water"
+      "SCANDAL: {ActorName} Involved in {ScandalType}",
+      "{ActorName} Under Fire for {ScandalType}",
+      "BREAKING: {ActorName} {ScandalType} Rocks Hollywood",
+      "{ActorName} Faces Backlash Over {ScandalType}",
+      "CONTROVERSY: {ActorName} in Hot Water"
     ],
     rumor: [
-      "RUMOR: [ActorName] and [StudioName] at Odds?",
-      "Sources Say [ActorName] Unhappy with [FilmTitle]",
-      "Is [ActorName] Leaving [StudioName]?",
-      "Whispers: [FilmTitle] Facing Production Issues",
-      "Inside Sources: [ActorName] Demands Changes"
+      "RUMOR: {ActorName} and {StudioName} at Odds?",
+      "Sources Say {ActorName} Unhappy with {FilmTitle}",
+      "Is {ActorName} Leaving {StudioName}?",
+      "Whispers: {FilmTitle} Facing Production Issues",
+      "Inside Sources: {ActorName} Demands Changes"
     ]
   };
 
   private static contentTemplates = {
     casting_announcement: [
-      "[StudioName] has officially announced that [ActorName] will star in the upcoming [Genre] film [FilmTitle]. The [CareerStage] actor, known for [PreviousWork], is expected to bring [Qualities] to the role.",
-      "In a move that has excited fans, [ActorName] has joined the cast of [FilmTitle]. The [StudioName] production will showcase [ActorName]'s range in this [Genre] project.",
-      "[ActorName] is set to headline [StudioName]'s [FilmTitle], marking a significant collaboration between the [CareerStage] talent and the studio. Filming is expected to begin [TimeFrame]."
+      "{StudioName} has officially announced that {ActorName} will star in the upcoming {Genre} film {FilmTitle}. The {CareerStage} actor, known for {PreviousWork}, is expected to bring {Qualities} to the role.",
+      "In a move that has excited fans, {ActorName} has joined the cast of {FilmTitle}. The {StudioName} production will showcase {ActorName}'s range in this {Genre} project.",
+      "{ActorName} is set to headline {StudioName}'s {FilmTitle}, marking a significant collaboration between the {CareerStage} talent and the studio. Filming is expected to begin {TimeFrame}."
     ],
     production_start: [
-      "Principal photography has begun on [StudioName]'s [FilmTitle], with [ActorName] and the cast now in production. The [Genre] film is being shot on location in [Location].",
-      "[FilmTitle] officially started filming this week, with [ActorName] spotted on set for the first time. The [StudioName] production has a budget of [Budget] and is expected to wrap [TimeFrame].",
-      "Cameras are rolling on [FilmTitle] as [StudioName] begins production on their latest [Genre] project. [ActorName] leads an ensemble cast in what promises to be [Description]."
+      "Principal photography has begun on {StudioName}'s {FilmTitle}, with {ActorName} and the cast now in production. The {Genre} film is being shot on location in {Location}.",
+      "{FilmTitle} officially started filming this week, with {ActorName} spotted on set for the first time. The {StudioName} production has a budget of {Budget} and is expected to wrap {TimeFrame}.",
+      "Cameras are rolling on {FilmTitle} as {StudioName} begins production on their latest {Genre} project. {ActorName} leads an ensemble cast in what promises to be {Description}."
     ],
     box_office: [
-      "[FilmTitle] exceeded all expectations this weekend, earning $[Amount]M domestically. The [StudioName] film benefited from strong word-of-mouth and [ActorName]'s star power.",
-      "Audiences responded enthusiastically to [FilmTitle], driving the film to a $[Amount]M opening weekend. [StudioName] executives are calling it a major success for the studio.",
-      "With $[Amount]M in ticket sales, [FilmTitle] has proven that [Genre] films still have strong appeal. [ActorName]'s performance is being credited as a major draw."
+      "{FilmTitle} exceeded all expectations this weekend, earning ${Amount}M domestically. The {StudioName} film benefited from strong word-of-mouth and {ActorName}'s star power.",
+      "Audiences responded enthusiastically to {FilmTitle}, driving the film to a ${Amount}M opening weekend. {StudioName} executives are calling it a major success for the studio.",
+      "With ${Amount}M in ticket sales, {FilmTitle} has proven that {Genre} films still have strong appeal. {ActorName}'s performance is being credited as a major draw."
     ]
   };
 
@@ -176,34 +176,34 @@ export class MediaContentGenerator {
     // Replace actor names
     if (entities.talent && entities.talent.length > 0) {
       const actor = entities.talent[0];
-      result = result.replace(/\[ActorName\]/g, actor.name);
-      result = result.replace(/\[CareerStage\]/g, actor.careerStage || 'established');
-      result = result.replace(/\[PreviousWork\]/g, 'previous acclaimed performances');
-      result = result.replace(/\[Qualities\]/g, 'depth and authenticity');
+      result = result.replace(/\{ActorName\}/g, actor.name);
+      result = result.replace(/\{CareerStage\}/g, actor.careerStage || 'established');
+      result = result.replace(/\{PreviousWork\}/g, 'previous acclaimed performances');
+      result = result.replace(/\{Qualities\}/g, 'depth and authenticity');
     }
     
     // Replace studio names
     if (entities.studios && entities.studios.length > 0) {
       const studio = entities.studios[0];
-      result = result.replace(/\[StudioName\]/g, studio.name);
+      result = result.replace(/\{StudioName\}/g, studio.name);
     }
     
     // Replace project/film titles
     if (entities.projects && entities.projects.length > 0) {
       const project = entities.projects[0];
-      result = result.replace(/\[FilmTitle\]/g, project.title || 'Untitled Project');
-      result = result.replace(/\[Genre\]/g, project.script?.genre || 'drama');
-      result = result.replace(/\[Budget\]/g, `$${(project.budget?.total || 1000000) / 1000000}M`);
+      result = result.replace(/\{FilmTitle\}/g, project.title || 'Untitled Project');
+      result = result.replace(/\{Genre\}/g, project.script?.genre || 'drama');
+      result = result.replace(/\{Budget\}/g, `$${(project.budget?.total || 1000000) / 1000000}M`);
     }
     
     // Replace generic variables
-    result = result.replace(/\[Role\]/g, 'leading');
-    result = result.replace(/\[Amount\]/g, (Math.random() * 50 + 10).toFixed(1));
-    result = result.replace(/\[Location\]/g, 'Los Angeles');
-    result = result.replace(/\[TimeFrame\]/g, 'later this year');
-    result = result.replace(/\[Description\]/g, 'an engaging story');
-    result = result.replace(/\[AwardName\]/g, 'Best Actor');
-    result = result.replace(/\[ScandalType\]/g, 'controversial statements');
+    result = result.replace(/\{Role\}/g, 'leading');
+    result = result.replace(/\{Amount\}/g, (Math.random() * 50 + 10).toFixed(1));
+    result = result.replace(/\{Location\}/g, 'Los Angeles');
+    result = result.replace(/\{TimeFrame\}/g, 'later this year');
+    result = result.replace(/\{Description\}/g, 'an engaging story');
+    result = result.replace(/\{AwardName\}/g, 'Best Actor');
+    result = result.replace(/\{ScandalType\}/g, 'controversial statements');
     
     return result;
   }

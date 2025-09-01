@@ -285,16 +285,7 @@ export class PublicDomainGenerator {
       cost: 0
     }));
 
-    // Expand to requested count by cycling and tweaking ids slightly
-    const list: PublicDomainIP[] = [];
-    for (let i = 0; i < count; i++) {
-      const base = mapped[i % mapped.length];
-      list.push({
-        ...base,
-        id: `${base.id}-${Math.floor(i / mapped.length) + 1}`
-      });
-    }
-
-    return list;
+    // No duplicates - return only unique sources
+    return mapped.slice(0, Math.min(count, mapped.length));
   }
 }

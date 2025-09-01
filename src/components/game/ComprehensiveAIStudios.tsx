@@ -368,14 +368,17 @@ export const ComprehensiveAIStudios: React.FC<ComprehensiveAIStudiosProps> = ({
 
     const cast: AIProject['cast'] = [];
     
-    // 1. Cast Director first
+    // 1. Cast Director first with diversity
     const availableDirectors = availableTalent.filter(t => t.type === 'director');
     if (availableDirectors.length > 0) {
       const genreMatchingDirectors = availableDirectors.filter(t => 
         t.genres.includes(genre as any) || (t.specialties && t.specialties.includes(genre as any))
       );
+      
+      // Add randomization to prevent always casting the same director
       const directorPool = genreMatchingDirectors.length > 0 ? genreMatchingDirectors : availableDirectors;
-      const director = directorPool[Math.floor(Math.random() * directorPool.length)];
+      const shuffledDirectors = [...directorPool].sort(() => Math.random() - 0.5);
+      const director = shuffledDirectors[0];
       
       cast.push({
         talentId: director.id,
@@ -384,7 +387,7 @@ export const ComprehensiveAIStudios: React.FC<ComprehensiveAIStudiosProps> = ({
       });
     }
 
-    // 2. Cast Actors by specific roles
+    // 2. Cast Actors with much more diversity
     const availableActors = availableTalent.filter(t => 
       t.type === 'actor' && !cast.some(c => c.talentId === t.id)
     );
@@ -394,18 +397,41 @@ export const ComprehensiveAIStudios: React.FC<ComprehensiveAIStudiosProps> = ({
     // Determine casting needs based on budget
     const targetActorCount = budget > 80000000 ? 4 : budget > 40000000 ? 3 : 2;
     
-    // Cast Lead Actor/Actress
+    // Create multiple pools for diversity
     const genreMatchingActors = availableActors.filter(t => 
       t.genres.includes(genre as any) || (t.specialties && t.specialties.includes(genre as any))
     );
-    const actorPool = genreMatchingActors.length > 0 ? genreMatchingActors : availableActors;
     
-    // Lead roles - prefer higher reputation
-    const leadCandidates = actorPool.filter(a => a.reputation >= 60).sort((a, b) => b.reputation - a.reputation);
-    const leadPool = leadCandidates.length > 0 ? leadCandidates.slice(0, Math.min(10, leadCandidates.length)) : actorPool;
+    // Separate by reputation tiers for variety
+    const highRepActors = availableActors.filter(a => a.reputation >= 75);
+    const midRepActors = availableActors.filter(a => a.reputation >= 50 && a.reputation < 75);
+    const emergingActors = availableActors.filter(a => a.reputation < 50);
     
-    if (leadPool.length > 0) {
-      const leadActor = leadPool[Math.floor(Math.random() * leadPool.length)];
+    // Cast Lead Actor/Actress with strategic selection
+    let leadPool: typeof availableActors = [];
+    
+    // Strategy based on studio preference
+    if (studio.strategy.talentStrategy === 'established') {
+      leadPool = highRepActors.length > 0 ? highRepActors : midRepActors;
+    } else if (studio.strategy.talentStrategy === 'emerging') {
+      leadPool = emergingActors.length > 0 ? emergingActors : midRepActors;
+    } else { // mixed
+      leadPool = [...highRepActors, ...midRepActors, ...emergingActors];
+    }
+    
+    // Add genre preference but don't make it exclusive
+    const preferredLeads = leadPool.filter(a => 
+      a.genres.includes(genre as any) || (a.specialties && a.specialties.includes(genre as any))
+    );
+    
+    if (preferredLeads.length > 0) {
+      leadPool = [...preferredLeads, ...leadPool.filter(a => !preferredLeads.includes(a))];
+    }
+    
+    // Randomize selection within the top choices
+    const topChoices = leadPool.slice(0, Math.min(15, leadPool.length));
+    if (topChoices.length > 0) {
+      const leadActor = topChoices[Math.floor(Math.random() * topChoices.length)];
       cast.push({
         talentId: leadActor.id,
         role: leadActor.gender === 'Female' ? 'Lead Actress' : 'Lead Actor',
@@ -413,12 +439,16 @@ export const ComprehensiveAIStudios: React.FC<ComprehensiveAIStudiosProps> = ({
       });
     }
 
-    // Cast Supporting Actors
+    // Cast Supporting Actors with variety
     const remainingActors = availableActors.filter(a => !cast.some(c => c.talentId === a.id));
-    for (let i = 1; i < targetActorCount && remainingActors.length > 0; i++) {
-      const supportingActor = remainingActors[Math.floor(Math.random() * remainingActors.length)];
-      const index = remainingActors.indexOf(supportingActor);
-      remainingActors.splice(index, 1);
+    const shuffledRemaining = [...remainingActors].sort(() => Math.random() - 0.5);
+    
+    for (let i = 1; i < targetActorCount && shuffledRemaining.length > 0; i++) {
+      // Pick from first portion to maintain some quality but ensure variety
+      const poolSize = Math.min(20, shuffledRemaining.length);
+      const supportingActor = shuffledRemaining[Math.floor(Math.random() * poolSize)];
+      const index = shuffledRemaining.indexOf(supportingActor);
+      shuffledRemaining.splice(index, 1);
       
       cast.push({
         talentId: supportingActor.id,

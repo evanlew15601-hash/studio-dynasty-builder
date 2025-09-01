@@ -67,6 +67,8 @@ import { OwnedFranchiseManager } from './OwnedFranchiseManager';
 import { FranchiseProjectCreator } from './FranchiseProjectCreator';
 import { EnhancedTalentManagement } from './EnhancedTalentManagement';
 import { EnhancedMarketingSystem } from './EnhancedMarketingSystem';
+import { FilmStatsModal } from './FilmStatsModal';
+import { ComprehensiveTelevisionSystem } from './ComprehensiveTelevisionSystem';
 import { 
   StudioIcon, 
   ScriptIcon, 

@@ -154,17 +154,22 @@ export class FranchiseGenerator {
   static generateInitialFranchises(count: number = 30): Franchise[] {
     const franchises: Franchise[] = [];
     const usedTitles = new Set<string>();
+    const usedSources = new Set<string>();
     
-    // Generate from templates
-    const templatesUsed = Math.min(count, FRANCHISE_TEMPLATES.length * 2);
+    // Generate from templates - only once per parody source
+    const templatesUsed = Math.min(count, FRANCHISE_TEMPLATES.length);
     for (let i = 0; i < templatesUsed; i++) {
-      const template = FRANCHISE_TEMPLATES[i % FRANCHISE_TEMPLATES.length];
-      const titleOptions = template.titlePatterns.filter(title => !usedTitles.has(title));
+      const template = FRANCHISE_TEMPLATES[i];
       
+      // Skip if parody source already used
+      if (usedSources.has(template.parodySource)) continue;
+      
+      const titleOptions = template.titlePatterns.filter(title => !usedTitles.has(title));
       if (titleOptions.length === 0) continue;
       
       const title = titleOptions[Math.floor(Math.random() * titleOptions.length)];
       usedTitles.add(title);
+      usedSources.add(template.parodySource);
       
       const culturalWeight = template.culturalWeight + Math.floor(Math.random() * 10 - 5);
       const franchise: Franchise = {

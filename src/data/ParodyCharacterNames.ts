@@ -7,96 +7,96 @@ export const PARODY_CHARACTER_NAME_MAP: Record<string, {
 }> = {
   'Star Wars': {
     byCharacterId: {
-      'char_hero_pilot': 'Luke Skywalker',
-      'char_wise_mentor': 'Obi-Wan Kenobi',
+      'char_hero_pilot': 'Luke Starwalker',
+      'char_wise_mentor': 'Obi-Juan Kenobi',
       'char_director': 'Director'
     },
     byTemplateId: {
-      'lead_hero': 'Luke Skywalker',
-      'mentor_mystic': 'Obi-Wan Kenobi',
+      'lead_hero': 'Luke Starwalker',
+      'mentor_mystic': 'Obi-Juan Kenobi',
       'director': 'Director'
     }
   },
   'Blade Runner': {
     byCharacterId: {
-      'char_detective': 'Rick Deckard',
+      'char_detective': 'Rick Decker',
       'char_director': 'Director'
     },
     byTemplateId: {
-      'lead_detective': 'Rick Deckard',
+      'lead_detective': 'Rick Decker',
       'director': 'Director'
     }
   },
   'Alien': {
     byTemplateId: {
-      'lead_hero': 'Ellen Ripley',
+      'lead_hero': 'Ellen Riley',
       'director': 'Director'
     }
   },
   'Lord of the Rings': {
     byTemplateId: {
-      'lead_hero': 'Frodo Baggins',
-      'mentor_mystic': 'Gandalf',
+      'lead_hero': 'Frodo Bagsworth',
+      'mentor_mystic': 'Gandor',
       'director': 'Director'
     }
   },
   'Harry Potter': {
     byTemplateId: {
-      'young_wizard': 'Harry Potter',
-      'mentor_mystic': 'Albus Dumbledore',
-      'dark_wizard': 'Lord Voldemort',
-      'best_friend': 'Ron Weasley',
+      'young_wizard': 'Harry Potter-Smith',
+      'mentor_mystic': 'Albus Dumbleton',
+      'dark_wizard': 'Lord Voldermore',
+      'best_friend': 'Ron Weaselby',
       'director': 'Director'
     }
   },
   'The Godfather': {
     byTemplateId: {
-      'patriarch': 'Vito Corleone',
-      'heir': 'Michael Corleone',
-      'advisor': 'Tom Hagen',
+      'patriarch': 'Vito Corelli',
+      'heir': 'Michael Corelli',
+      'advisor': 'Tom Hagan',
       'director': 'Director'
     }
   },
   'Fast & Furious': {
     byTemplateId: {
-      'street_racer': 'Dominic Toretto',
-      'agent': 'Luke Hobbs',
+      'street_racer': 'Dominic Torretti',
+      'agent': 'Luke Hobson',
       'director': 'Director'
     }
   },
   'Mission: Impossible': {
     byTemplateId: {
-      'spy_lead': 'Ethan Hunt',
+      'spy_lead': 'Ethan Hunter',
       'director': 'Director'
     }
   },
   'Marvel/DC Superhero Universe': {
     byTemplateId: {
-      'team_leader': 'Steve Rogers',
-      'billionaire_genius': 'Tony Stark',
-      'demigod': 'Thor',
-      'dark_knight': 'Bruce Wayne',
+      'team_leader': 'Steve Robertson',
+      'billionaire_genius': 'Tony Starks',
+      'demigod': 'Thorsen',
+      'dark_knight': 'Bruce Waynes',
       'director': 'Director'
     }
   },
   'A Nightmare on Elm Street': {
     byTemplateId: {
-      'slasher_icon': 'Freddy Krueger',
-      'final_girl': 'Nancy Thompson',
+      'slasher_icon': 'Freddy Kruger',
+      'final_girl': 'Nancy Thomson',
       'director': 'Director'
     }
   },
   'Halloween': {
     byTemplateId: {
-      'slasher_icon': 'Michael Myers',
-      'final_girl': 'Laurie Strode',
+      'slasher_icon': 'Michael Meyer',
+      'final_girl': 'Laurie Stride',
       'director': 'Director'
     }
   },
   'American Pie': {
     byTemplateId: {
-      'awkward_teen': 'Jim Levenstein',
-      'best_friend': 'Kevin Myers',
+      'awkward_teen': 'Jim Livingston',
+      'best_friend': 'Kevin Myer',
       'director': 'Director'
     }
   }
