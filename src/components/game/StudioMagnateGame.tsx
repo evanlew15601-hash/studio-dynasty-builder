@@ -70,6 +70,7 @@ import { EnhancedMarketingSystem } from './EnhancedMarketingSystem';
 import { FilmStatsModal } from './FilmStatsModal';
 import { ReleaseStrategyModal } from './ReleaseStrategyModal';
 import { ComprehensiveTelevisionSystem } from './ComprehensiveTelevisionSystem';
+import { TelevisionSystemTests } from './TelevisionSystemTests';
 import { 
   StudioIcon, 
   ScriptIcon, 
@@ -308,7 +309,7 @@ export const StudioMagnateGame: React.FC<StudioMagnateGameProps> = ({ onPhaseCha
   const genreSaturation = useGenreSaturation(gameState.allReleases.filter((item): item is Project => 'script' in item), gameState.currentWeek);
   const achievements = useAchievements(gameState);
 
-  const [currentPhase, setCurrentPhase] = useState<'dashboard' | 'scripts' | 'casting' | 'talent' | 'franchise' | 'media' | 'production' | 'marketing' | 'distribution' | 'financials' | 'awards' | 'market' | 'topfilms' | 'stats' | 'reputation' | 'loans' | 'competition' | 'television'>('dashboard');
+  const [currentPhase, setCurrentPhase] = useState<'dashboard' | 'scripts' | 'casting' | 'talent' | 'franchise' | 'media' | 'production' | 'marketing' | 'distribution' | 'financials' | 'awards' | 'market' | 'topfilms' | 'stats' | 'reputation' | 'loans' | 'competition' | 'television' | 'tv-tests'>('dashboard');
   const [selectedProject, setSelectedProject] = useState<Project | null>(null);
   const [selectedFranchise, setSelectedFranchise] = useState<string | null>(null);
   const [selectedPublicDomain, setSelectedPublicDomain] = useState<string | null>(null);
@@ -1626,6 +1627,10 @@ export const StudioMagnateGame: React.FC<StudioMagnateGameProps> = ({ onPhaseCha
                    <BarChartIcon className="mr-2" size={16} />
                    Television & Streaming
                  </DropdownMenuItem>
+                 <DropdownMenuItem onClick={() => handlePhaseChange('tv-tests')}>
+                   <BarChartIcon className="mr-2" size={16} />
+                   🧪 TV System Tests
+                 </DropdownMenuItem>
                 <DropdownMenuItem onClick={() => handlePhaseChange('awards')}>
                   <ReputationIcon className="mr-2" size={16} />
                   Awards & Recognition
@@ -1897,6 +1902,21 @@ export const StudioMagnateGame: React.FC<StudioMagnateGameProps> = ({ onPhaseCha
                 ...prev,
                 studio: { ...prev.studio, budget: prev.studio.budget + amount }
               }));
+            }}
+          />
+        )}
+
+        {currentPhase === 'tv-tests' && (
+          <TelevisionSystemTests 
+            gameState={gameState} 
+            onUpdateBudget={(amount) => {
+              setGameState(prev => ({
+                ...prev,
+                studio: { ...prev.studio, budget: prev.studio.budget + amount }
+              }));
+            }}
+            onGameStateUpdate={(updates) => {
+              setGameState(prev => ({ ...prev, ...updates }));
             }}
           />
         )}
