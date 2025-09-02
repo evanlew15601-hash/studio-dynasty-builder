@@ -68,6 +68,7 @@ import { FranchiseProjectCreator } from './FranchiseProjectCreator';
 import { EnhancedTalentManagement } from './EnhancedTalentManagement';
 import { EnhancedMarketingSystem } from './EnhancedMarketingSystem';
 import { FilmStatsModal } from './FilmStatsModal';
+import { ReleaseStrategyModal } from './ReleaseStrategyModal';
 import { ComprehensiveTelevisionSystem } from './ComprehensiveTelevisionSystem';
 import { 
   StudioIcon, 
@@ -307,7 +308,7 @@ export const StudioMagnateGame: React.FC<StudioMagnateGameProps> = ({ onPhaseCha
   const genreSaturation = useGenreSaturation(gameState.allReleases.filter((item): item is Project => 'script' in item), gameState.currentWeek);
   const achievements = useAchievements(gameState);
 
-  const [currentPhase, setCurrentPhase] = useState<'dashboard' | 'scripts' | 'casting' | 'talent' | 'franchise' | 'media' | 'production' | 'marketing' | 'distribution' | 'financials' | 'awards' | 'market' | 'topfilms' | 'stats' | 'reputation' | 'loans' | 'competition'>('dashboard');
+  const [currentPhase, setCurrentPhase] = useState<'dashboard' | 'scripts' | 'casting' | 'talent' | 'franchise' | 'media' | 'production' | 'marketing' | 'distribution' | 'financials' | 'awards' | 'market' | 'topfilms' | 'stats' | 'reputation' | 'loans' | 'competition' | 'television'>('dashboard');
   const [selectedProject, setSelectedProject] = useState<Project | null>(null);
   const [selectedFranchise, setSelectedFranchise] = useState<string | null>(null);
   const [selectedPublicDomain, setSelectedPublicDomain] = useState<string | null>(null);
@@ -1617,10 +1618,14 @@ export const StudioMagnateGame: React.FC<StudioMagnateGameProps> = ({ onPhaseCha
                   <BarChartIcon className="mr-2" size={16} />
                   Media Relations
                 </DropdownMenuItem>
-                <DropdownMenuItem onClick={() => handlePhaseChange('talent')}>
-                  <CastingIcon className="mr-2" size={16} />
-                  Talent Management
-                </DropdownMenuItem>
+                 <DropdownMenuItem onClick={() => handlePhaseChange('talent')}>
+                   <CastingIcon className="mr-2" size={16} />
+                   Talent Management
+                 </DropdownMenuItem>
+                 <DropdownMenuItem onClick={() => handlePhaseChange('television')}>
+                   <BarChartIcon className="mr-2" size={16} />
+                   Television & Streaming
+                 </DropdownMenuItem>
                 <DropdownMenuItem onClick={() => handlePhaseChange('awards')}>
                   <ReputationIcon className="mr-2" size={16} />
                   Awards & Recognition
@@ -1883,8 +1888,20 @@ export const StudioMagnateGame: React.FC<StudioMagnateGameProps> = ({ onPhaseCha
             </Tabs>
           </div>
         )}
-        
-        {currentPhase === 'talent' && (
+
+        {currentPhase === 'television' && (
+          <ComprehensiveTelevisionSystem 
+            gameState={gameState} 
+            onUpdateBudget={(amount) => {
+              setGameState(prev => ({
+                ...prev,
+                studio: { ...prev.studio, budget: prev.studio.budget + amount }
+              }));
+            }}
+          />
+        )}
+         
+         {currentPhase === 'talent' && (
           <div className="space-y-6">
             <Tabs defaultValue="marketplace" className="space-y-4">
             <TabsList>

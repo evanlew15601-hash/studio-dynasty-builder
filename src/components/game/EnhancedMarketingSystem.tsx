@@ -196,7 +196,9 @@ export const EnhancedMarketingSystem: React.FC<EnhancedMarketingSystemProps> = (
             year: gameState.currentYear
           }))
         ]
-      }
+      },
+      // Mark as ready for release planning when marketing completed
+      readyForRelease: true
     });
 
     // Deduct budget
@@ -209,7 +211,7 @@ export const EnhancedMarketingSystem: React.FC<EnhancedMarketingSystemProps> = (
 
     toast({
       title: "Campaign Launched!",
-      description: `Spent $${(totalCost / 1000000).toFixed(1)}M, gained ${expectedBuzz} buzz points`,
+      description: `Spent $${(totalCost / 1000000).toFixed(1)}M, gained ${expectedBuzz} buzz points. Project ready for release planning.`,
     });
   };
 

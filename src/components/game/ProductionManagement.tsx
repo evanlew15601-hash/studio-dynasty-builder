@@ -86,7 +86,7 @@ export const ProductionManagement: React.FC<ProductionManagementProps> = ({
         updatedProject = {
           ...updatedProject,
           currentPhase: 'marketing',
-          status: 'marketing',
+          status: 'completed',
           phaseDuration: -1, // Special value to prevent auto-advancement until marketing campaign starts
           readyForMarketing: true
         };

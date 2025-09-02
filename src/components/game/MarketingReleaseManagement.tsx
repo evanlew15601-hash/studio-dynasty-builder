@@ -371,20 +371,20 @@ export const MarketingReleaseManagement: React.FC<MarketingReleaseManagementProp
       {showReleaseModal && selectedProject && (
         <ReleaseStrategyModal
           project={selectedProject}
-          open={showReleaseModal}
+          isOpen={showReleaseModal}
           onClose={() => {
             setShowReleaseModal(false);
             setSelectedProject(null);
           }}
-          onCreateReleaseStrategy={(strategy) => {
-            if (onReleaseStrategyCreate) {
-              onReleaseStrategyCreate(selectedProject, strategy);
+          gameState={gameState}
+          onProjectUpdate={(projectId, updates) => {
+            const project = gameState.projects.find(p => p.id === projectId);
+            if (project) {
+              onProjectUpdate({ ...project, ...updates });
             }
             setShowReleaseModal(false);
             setSelectedProject(null);
           }}
-          currentWeek={gameState.currentWeek}
-          currentYear={gameState.currentYear}
         />
       )}
     </div>

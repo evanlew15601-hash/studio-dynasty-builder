@@ -230,7 +230,20 @@ return {
       return;
     }
 
-    onProjectCreate(script);
+    // Create project with proper workflow phase
+    const project = {
+      ...script,
+      currentPhase: 'development',
+      status: 'in-development',
+      castingConfirmed: false
+    };
+
+    onProjectCreate(project);
+    
+    toast({
+      title: "Script Greenlit!",
+      description: `"${script.title}" moved to Development phase. Assign cast and crew to proceed to Pre-Production.`,
+    });
   };
 
   // Filter out scripts that are already greenlit as projects
