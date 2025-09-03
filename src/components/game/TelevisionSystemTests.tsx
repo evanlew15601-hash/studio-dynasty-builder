@@ -556,8 +556,9 @@ export const TelevisionSystemTests: React.FC<TelevisionSystemTestsProps> = ({
         throw new Error('Budget update function not available');
       }
 
-      if (typeof onGameStateUpdate !== 'function') {
-        throw new Error('Game state update function not available');
+      // onGameStateUpdate is optional, so only test if provided
+      if (onGameStateUpdate && typeof onGameStateUpdate !== 'function') {
+        throw new Error('Game state update function has wrong type');
       }
 
       // Test UI state management
@@ -570,7 +571,7 @@ export const TelevisionSystemTests: React.FC<TelevisionSystemTestsProps> = ({
       };
 
       // Validate UI state structure
-      const validTabs = ['shows', 'networks', 'analytics'];
+      const validTabs = ['shows', 'networks', 'market']; // Updated to match actual tabs
       if (!validTabs.includes(testUIState.selectedTab)) {
         throw new Error('Invalid UI tab selection');
       }
