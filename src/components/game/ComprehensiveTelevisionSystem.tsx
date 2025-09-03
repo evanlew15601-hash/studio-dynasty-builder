@@ -1,27 +1,23 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState } from 'react';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
-import { Input } from '@/components/ui/input';
-import { Label } from '@/components/ui/label';
-import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
-import { Textarea } from '@/components/ui/textarea';
-import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger } from '@/components/ui/dialog';
-import { useToast } from '@/hooks/use-toast';
-import { GameState, TalentPerson } from '@/types/game';
+import { GameState } from '@/types/game';
+import { TVShowDevelopment } from './TVShowDevelopment';
+import { TVProductionManagement } from './TVProductionManagement';
+import { AITelevisionStudios } from './AITelevisionStudios';
 import { 
   Tv, 
-  Plus, 
-  Star, 
-  Users, 
-  DollarSign, 
-  Calendar, 
-  TrendingUp,
-  Play,
   Monitor,
-  Wifi,
-  Radio
+  TrendingUp,
+  Building
 } from 'lucide-react';
+
+interface ComprehensiveTelevisionSystemProps {
+  gameState: GameState;
+  onUpdateBudget: (amount: number) => void;
+  onGameStateUpdate: (updates: Partial<GameState>) => void;
+}
 
 interface TVShow {
   id: string;

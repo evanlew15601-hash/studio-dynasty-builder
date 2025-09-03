@@ -1043,3 +1043,27 @@ export interface MarketCompetition {
   audienceAttention: number; // 0-100, how much attention is available
   marketingNoise: number; // 0-100, how crowded the marketing space is
 }
+
+// TV Development System (matching film development patterns)
+export interface TVShowScript {
+  id: string;
+  title: string;
+  genre: string;
+  format: 'sitcom' | 'drama' | 'reality' | 'documentary' | 'limited-series' | 'anthology';
+  developmentStage: 'concept' | 'outline' | 'pilot-script' | 'series-bible' | 'ready-for-production';
+  quality: number;
+  budget: { perEpisode: number; totalSeason: number; };
+  episodeCount: number;
+  studioId: string;
+  createdWeek: number;
+  createdYear: number;
+}
+
+export interface TVShowProject {
+  id: string;
+  script: TVShowScript;
+  currentPhase: 'pre-production' | 'production' | 'post-production' | 'ready-to-air';
+  cast: Array<{ talentId: string; role: string; salary: number; }>;
+  castingConfirmed: boolean;
+  budget: { allocated: number; spent: number; remaining: number; };
+}
