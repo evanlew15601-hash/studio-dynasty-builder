@@ -1,7 +1,12 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
+import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger } from '@/components/ui/dialog';
+import { Label } from '@/components/ui/label';
+import { Input } from '@/components/ui/input';
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
+import { Progress } from '@/components/ui/progress';
 import { GameState } from '@/types/game';
 import { TVShowDevelopment } from './TVShowDevelopment';
 import { TVProductionManagement } from './TVProductionManagement';
@@ -10,14 +15,15 @@ import {
   Tv, 
   Monitor,
   TrendingUp,
-  Building
+  Building,
+  Play,
+  Users,
+  Star,
+  Plus,
+  Wifi,
+  Radio
 } from 'lucide-react';
-
-interface ComprehensiveTelevisionSystemProps {
-  gameState: GameState;
-  onUpdateBudget: (amount: number) => void;
-  onGameStateUpdate: (updates: Partial<GameState>) => void;
-}
+import { useToast } from '@/hooks/use-toast';
 
 interface TVShow {
   id: string;
@@ -78,12 +84,14 @@ interface StreamingService {
 interface ComprehensiveTelevisionSystemProps {
   gameState: GameState;
   onUpdateBudget: (amount: number) => void;
+  onGameStateUpdate: (updates: Partial<GameState>) => void;
   onTalentCommitmentChange?: (talentId: string, busy: boolean, project?: string) => void;
 }
 
 export const ComprehensiveTelevisionSystem: React.FC<ComprehensiveTelevisionSystemProps> = ({
   gameState,
   onUpdateBudget,
+  onGameStateUpdate,
   onTalentCommitmentChange
 }) => {
   const { toast } = useToast();

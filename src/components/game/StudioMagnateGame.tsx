@@ -1903,6 +1903,7 @@ export const StudioMagnateGame: React.FC<StudioMagnateGameProps> = ({ onPhaseCha
                 studio: { ...prev.studio, budget: prev.studio.budget + amount }
               }));
             }}
+            onGameStateUpdate={(updates) => setGameState(prev => ({ ...prev, ...updates }))}
           />
         )}
 

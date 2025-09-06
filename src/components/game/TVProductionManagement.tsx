@@ -1,457 +1,167 @@
 import React, { useState } from 'react';
-import { GameState, TalentPerson } from '@/types/game';
+import { GameState, TalentPerson, Project, Script } from '@/types/game';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
+import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
 import { Progress } from '@/components/ui/progress';
-import { Badge } from '@/components/ui/badge';
+import { Calendar, Camera, Edit, Users, Star, Award } from 'lucide-react';
 import { useToast } from '@/hooks/use-toast';
-import { TVShowScript } from './TVShowDevelopment';
-import { 
-  Tv, 
-  Camera, 
-  Edit, 
-  Calendar, 
-  Users,
-  DollarSign,
-  Star,
-  TrendingUp,
-  Clock,
-  CheckCircle,
-  AlertCircle
-} from 'lucide-react';
-
-export interface TVShowProject {
-  id: string;
-  script: TVShowScript;
-  currentPhase: 'pre-production' | 'production' | 'post-production' | 'ready-to-air';
-  status: 'pre-production' | 'filming' | 'post-production' | 'completed';
-  phaseDuration: number; // weeks
-  weeksRemaining: number;
-  episodeProgress: {
-    currentEpisode: number;
-    totalEpisodes: number;
-    episodesCompleted: number;
-  };
-  cast: Array<{
-    talentId: string;
-    talentName: string;
-    role: string;
-    salary: number;
-    episodeCommitment: number;
-  }>;
-  crew: Array<{
-    role: string;
-    name: string;
-    salary: number;
-  }>;
-  budget: {
-    allocated: number;
-    spent: number;
-    remaining: number;
-  };
-  schedule: {
-    startWeek: number;
-    startYear: number;
-    estimatedCompletionWeek: number;
-    estimatedCompletionYear: number;
-  };
-  castingConfirmed: boolean;
-  network?: string;
-  quality: number; // 0-100, evolves during production
-  performanceMetrics?: {
-    onTime: boolean;
-    onBudget: boolean;
-    crewMorale: number;
-    productionIssues: string[];
-  };
-}
 
 interface TVProductionManagementProps {
   gameState: GameState;
-  onProjectUpdate: (project: TVShowProject) => void;
-  onBudgetUpdate: (amount: number) => void;
+  onUpdateBudget: (amount: number) => void;
+  onGameStateUpdate: (updates: Partial<GameState>) => void;
 }
 
 export const TVProductionManagement: React.FC<TVProductionManagementProps> = ({
   gameState,
-  onProjectUpdate,
-  onBudgetUpdate,
+  onUpdateBudget,
+  onGameStateUpdate
 }) => {
   const { toast } = useToast();
-  const [selectedProject, setSelectedProject] = useState<TVShowProject | null>(null);
 
-  const getProjectsInProduction = (): TVShowProject[] => {
-    return gameState.tvProjects?.filter(p =>
-      p.currentPhase === 'pre-production' || 
-      p.currentPhase === 'production' ||
-      p.currentPhase === 'post-production'
+  const getTVProjects = (): Project[] => {
+    return gameState.projects?.filter(p =>
+      p.type === 'series' || p.type === 'limited-series'
     ) || [];
   };
 
-  const getReadyToStartProjects = (): TVShowScript[] => {
-    const projectIds = gameState.tvProjects?.map(p => p.script.id) || [];
-    return gameState.tvScripts?.filter(s => 
-      s.developmentStage === 'ready-for-production' && 
-      !projectIds.includes(s.id)
+  const getReadyTVScripts = (): Script[] => {
+    const projectScriptIds = getTVProjects().map(p => p.script.id);
+    return gameState.scripts?.filter(s => 
+      s.developmentStage === 'final' && 
+      !projectScriptIds.includes(s.id)
     ) || [];
   };
 
-  const advanceProductionPhase = (project: TVShowProject) => {
-    let updatedProject = { ...project };
-    
-    switch (project.currentPhase) {
-      case 'pre-production':
-        if (!project.castingConfirmed) {
-          toast({
-            title: 'Casting Not Confirmed',
-            description: 'Confirm main cast before moving to Production.',
-            variant: 'destructive'
-          });
-          return;
-        }
-        updatedProject = {
-          ...updatedProject,
-          currentPhase: 'production',
-          status: 'filming',
-          phaseDuration: project.script.episodeCount * 0.7, // ~0.7 weeks per episode
-          weeksRemaining: project.script.episodeCount * 0.7,
-          episodeProgress: {
-            ...project.episodeProgress,
-            currentEpisode: 1
-          }
-        };
-        break;
-      case 'production':
-        updatedProject = {
-          ...updatedProject,
-          currentPhase: 'post-production',
-          status: 'post-production',
-          phaseDuration: Math.ceil(project.script.episodeCount * 0.4), // ~0.4 weeks per episode
-          weeksRemaining: Math.ceil(project.script.episodeCount * 0.4),
-          episodeProgress: {
-            ...project.episodeProgress,
-            episodesCompleted: project.script.episodeCount
-          }
-        };
-        break;
-      case 'post-production':
-        updatedProject = {
-          ...updatedProject,
-          currentPhase: 'ready-to-air',
-          status: 'completed',
-          phaseDuration: 0,
-          weeksRemaining: 0,
-          quality: Math.min(100, project.quality + Math.random() * 10 + 5)
-        };
-        break;
-    }
-
-    onProjectUpdate(updatedProject);
-
-    toast({
-      title: "Production Advanced",
-      description: `"${project.script.title}" moved to ${updatedProject.currentPhase.replace('-', ' ')}`,
-    });
-  };
-
-  const startProduction = (script: TVShowScript) => {
-    if (script.budget.totalSeason > gameState.studio.budget) {
+  const startProduction = (script: Script) => {
+    if (gameState.studio.budget < script.budget) {
       toast({
         title: "Insufficient Budget",
-        description: `Need $${(script.budget.totalSeason / 1000000).toFixed(1)}M to start production`,
+        description: "Not enough budget to start this TV production",
         variant: "destructive"
       });
       return;
     }
 
-    const project: TVShowProject = {
-      id: `tv-project-${Date.now()}`,
+    // Create minimal project that satisfies interface
+    const newProject: Project = {
+      id: `tv-${Date.now()}`,
+      title: script.title,
       script: script,
-      currentPhase: 'pre-production',
-      status: 'pre-production',
-      phaseDuration: 4, // 4 weeks for pre-production
-      weeksRemaining: 4,
-      episodeProgress: {
-        currentEpisode: 0,
-        totalEpisodes: script.episodeCount,
-        episodesCompleted: 0
+      type: 'series' as const,
+      currentPhase: 'pre-production' as const,
+      budget: {
+        total: script.budget,
+        allocated: { aboveTheLine: 0, belowTheLine: 0, postProduction: 0, marketing: 0, distribution: 0, contingency: 0 },
+        spent: { aboveTheLine: 0, belowTheLine: 0, postProduction: 0, marketing: 0, distribution: 0, contingency: 0 },
+        overages: { aboveTheLine: 0, belowTheLine: 0, postProduction: 0, marketing: 0, distribution: 0, contingency: 0 }
       },
       cast: [],
-      crew: [
-        { role: 'Showrunner', name: script.writer, salary: script.budget.perEpisode * 0.1 },
-        { role: 'Director', name: 'TBD', salary: script.budget.perEpisode * 0.08 },
-        { role: 'Producer', name: 'TBD', salary: script.budget.perEpisode * 0.06 }
-      ],
-      budget: {
-        allocated: script.budget.totalSeason,
-        spent: 0,
-        remaining: script.budget.totalSeason
+      crew: [],
+      timeline: {
+        preProduction: { start: new Date(), end: new Date() },
+        principalPhotography: { start: new Date(), end: new Date() },
+        postProduction: { start: new Date(), end: new Date() },
+        release: new Date(),
+        milestones: []
       },
-      schedule: {
-        startWeek: gameState.currentWeek,
-        startYear: gameState.currentYear,
-        estimatedCompletionWeek: gameState.currentWeek + 12, // ~12 weeks total
-        estimatedCompletionYear: gameState.currentYear
-      },
-      castingConfirmed: false,
-      quality: script.quality,
-      performanceMetrics: {
-        onTime: true,
-        onBudget: true,
-        crewMorale: 75,
-        productionIssues: []
+      locations: [],
+      distributionStrategy: { platforms: [], territories: ['domestic'] },
+      status: 'pre-production' as const,
+      metrics: {},
+      phaseDuration: 8,
+      contractedTalent: [],
+      developmentProgress: {
+        scriptDevelopment: 100,
+        preProduction: 0,
+        production: 0,
+        postProduction: 0,
+        marketing: 0
       }
     };
 
-    // Deduct initial production budget
-    onBudgetUpdate(-script.budget.totalSeason);
+    const updatedProjects = [...gameState.projects, newProject];
+    const updatedBudget = gameState.studio.budget - script.budget;
 
-    onProjectUpdate(project);
+    onGameStateUpdate({
+      projects: updatedProjects,
+      studio: { ...gameState.studio, budget: updatedBudget }
+    });
 
     toast({
       title: "Production Started",
-      description: `"${script.title}" entered pre-production`,
+      description: `"${script.title}" has entered pre-production`,
     });
   };
 
-  const castTalentInTVShow = (project: TVShowProject, talent: TalentPerson, role: string) => {
-    const episodeSalary = talent.marketValue * 0.4; // TV pays less than films
-    const totalSalary = episodeSalary * project.script.episodeCount;
-
-    const updatedProject: TVShowProject = {
-      ...project,
-      cast: [...project.cast, {
-        talentId: talent.id,
-        talentName: talent.name,
-        role: role,
-        salary: episodeSalary,
-        episodeCommitment: project.script.episodeCount
-      }],
-      budget: {
-        ...project.budget,
-        spent: project.budget.spent + totalSalary,
-        remaining: project.budget.remaining - totalSalary
-      }
-    };
-
-    // Check if main roles are filled
-    const hasLead = updatedProject.cast.some(c => c.role.toLowerCase().includes('lead'));
-    const hasSupporting = updatedProject.cast.length >= 2;
-    
-    if (hasLead && hasSupporting) {
-      updatedProject.castingConfirmed = true;
-    }
-
-    onProjectUpdate(updatedProject);
-
-    toast({
-      title: `${talent.name} Cast`,
-      description: `Added to "${project.script.title}" as ${role}`,
-    });
-  };
-
-  const getAvailableTalent = (): TalentPerson[] => {
-    const busyTalentIds = new Set(
-      gameState.tvProjects?.flatMap(p => p.cast.map(c => c.talentId)) || []
-    );
-    
-    return gameState.talent.filter(t => 
-      t.type === 'actor' && !busyTalentIds.has(t.id)
-    );
-  };
-
-  const getPhaseIcon = (phase: string) => {
-    switch (phase) {
-      case 'pre-production': return <Calendar className="h-4 w-4" />;
-      case 'production': return <Camera className="h-4 w-4" />;
-      case 'post-production': return <Edit className="h-4 w-4" />;
-      case 'ready-to-air': return <CheckCircle className="h-4 w-4" />;
-      default: return <Tv className="h-4 w-4" />;
-    }
-  };
-
-  const getPhaseColor = (phase: string) => {
-    switch (phase) {
-      case 'pre-production': return 'bg-blue-500';
-      case 'production': return 'bg-green-500';
-      case 'post-production': return 'bg-orange-500';
-      case 'ready-to-air': return 'bg-purple-500';
-      default: return 'bg-gray-500';
-    }
-  };
-
-  const projectsInProduction = getProjectsInProduction();
-  const readyToStart = getReadyToStartProjects();
-  const availableTalent = getAvailableTalent();
+  const tvProjects = getTVProjects();
+  const readyScripts = getReadyTVScripts();
 
   return (
     <div className="space-y-6">
-      <div className="flex items-center justify-between">
-        <div>
-          <h2 className="text-2xl font-bold bg-gradient-to-r from-green-600 to-blue-600 bg-clip-text text-transparent">
-            TV Production Management
-          </h2>
-          <p className="text-muted-foreground">Manage television show production from pre-production to completion</p>
-        </div>
-      </div>
-
-      <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
-        {/* Ready to Start Production */}
-        <Card>
-          <CardHeader>
-            <CardTitle className="flex items-center gap-2">
-              <Star className="h-5 w-5" />
-              Ready to Start ({readyToStart.length})
-            </CardTitle>
-          </CardHeader>
-          <CardContent className="space-y-4">
-            {readyToStart.length === 0 ? (
-              <p className="text-muted-foreground text-center py-8">No shows ready for production</p>
-            ) : (
-              readyToStart.map(script => (
-                <Card key={script.id} className="p-4">
-                  <div className="flex items-start justify-between mb-3">
-                    <div>
-                      <h3 className="font-semibold">{script.title}</h3>
-                      <p className="text-sm text-muted-foreground">{script.genre} • {script.format}</p>
+      <Card>
+        <CardHeader>
+          <CardTitle>TV Productions ({tvProjects.length})</CardTitle>
+        </CardHeader>
+        <CardContent>
+          {tvProjects.length === 0 ? (
+            <p className="text-muted-foreground text-center py-8">
+              No TV productions currently in progress
+            </p>
+          ) : (
+            <div className="space-y-4">
+              {tvProjects.map((project) => (
+                <Card key={project.id}>
+                  <CardContent className="p-4">
+                    <h3 className="font-semibold">{project.title}</h3>
+                    <div className="text-sm text-muted-foreground">
+                      {project.script.genre} • ${(project.budget?.total || project.script.budget) / 1000000}M
                     </div>
-                    <Badge className="ml-2">Ready</Badge>
-                  </div>
-                  
-                  <div className="grid grid-cols-2 gap-4 text-sm mb-4">
-                    <div>
-                      <span className="text-muted-foreground">Episodes: </span>
-                      <span>{script.episodeCount}</span>
-                    </div>
-                    <div>
-                      <span className="text-muted-foreground">Quality: </span>
-                      <span>{script.quality.toFixed(0)}%</span>
-                    </div>
-                    <div>
-                      <span className="text-muted-foreground">Per Episode: </span>
-                      <span>${(script.budget.perEpisode / 1000000).toFixed(1)}M</span>
-                    </div>
-                    <div>
-                      <span className="text-muted-foreground">Total Budget: </span>
-                      <span>${(script.budget.totalSeason / 1000000).toFixed(1)}M</span>
-                    </div>
-                  </div>
-
-                  <Button 
-                    onClick={() => startProduction(script)}
-                    disabled={script.budget.totalSeason > gameState.studio.budget}
-                    size="sm"
-                    className="w-full"
-                  >
-                    <Camera className="h-4 w-4 mr-2" />
-                    Start Production
-                  </Button>
+                  </CardContent>
                 </Card>
-              ))
-            )}
-          </CardContent>
-        </Card>
+              ))}
+            </div>
+          )}
+        </CardContent>
+      </Card>
 
-        {/* Projects in Production */}
-        <Card>
-          <CardHeader>
-            <CardTitle className="flex items-center gap-2">
-              <Camera className="h-5 w-5" />
-              In Production ({projectsInProduction.length})
-            </CardTitle>
-          </CardHeader>
-          <CardContent className="space-y-4">
-            {projectsInProduction.length === 0 ? (
-              <p className="text-muted-foreground text-center py-8">No shows in production</p>
-            ) : (
-              projectsInProduction.map(project => (
-                <Card key={project.id} className="p-4">
-                  <div className="flex items-start justify-between mb-3">
-                    <div>
-                      <h3 className="font-semibold">{project.script.title}</h3>
-                      <p className="text-sm text-muted-foreground">
-                        {project.script.genre} • Episode {project.episodeProgress.currentEpisode}/{project.episodeProgress.totalEpisodes}
-                      </p>
-                    </div>
-                    <div className="flex items-center gap-2">
-                      {getPhaseIcon(project.currentPhase)}
-                      <Badge variant="outline">
-                        {project.currentPhase.replace('-', ' ')}
-                      </Badge>
-                    </div>
-                  </div>
-                  
-                  <div className="space-y-2 mb-4">
-                    <div className="flex justify-between text-sm">
-                      <span>Progress</span>
-                      <span>{project.weeksRemaining} weeks remaining</span>
-                    </div>
-                    <Progress 
-                      value={((project.phaseDuration - project.weeksRemaining) / project.phaseDuration) * 100} 
-                      className="h-2" 
-                    />
-                  </div>
-
-                  <div className="grid grid-cols-2 gap-4 text-sm mb-4">
-                    <div>
-                      <span className="text-muted-foreground">Cast: </span>
-                      <span>{project.cast.length}</span>
-                    </div>
-                    <div>
-                      <span className="text-muted-foreground">Quality: </span>
-                      <span>{project.quality.toFixed(0)}%</span>
-                    </div>
-                    <div>
-                      <span className="text-muted-foreground">Spent: </span>
-                      <span>${(project.budget.spent / 1000000).toFixed(1)}M</span>
-                    </div>
-                    <div>
-                      <span className="text-muted-foreground">Remaining: </span>
-                      <span>${(project.budget.remaining / 1000000).toFixed(1)}M</span>
-                    </div>
-                  </div>
-
-                  {project.currentPhase === 'pre-production' && !project.castingConfirmed && (
-                    <div className="mb-4">
-                      <div className="flex items-center gap-2 mb-2">
-                        <AlertCircle className="h-4 w-4 text-orange-500" />
-                        <span className="text-sm font-medium">Cast Needed</span>
+      <Card>
+        <CardHeader>
+          <CardTitle>Ready to Produce ({readyScripts.length})</CardTitle>
+        </CardHeader>
+        <CardContent>
+          {readyScripts.length === 0 ? (
+            <p className="text-muted-foreground text-center py-8">
+              No TV scripts ready for production
+            </p>
+          ) : (
+            <div className="space-y-4">
+              {readyScripts.map((script) => (
+                <Card key={script.id}>
+                  <CardContent className="p-4">
+                    <div className="flex justify-between items-center">
+                      <div>
+                        <h3 className="font-semibold">{script.title}</h3>
+                        <div className="text-sm text-muted-foreground">
+                          {script.genre} • ${script.budget / 1000000}M
+                        </div>
                       </div>
-                      <div className="space-y-2">
-                        {availableTalent.slice(0, 3).map(talent => (
-                          <div key={talent.id} className="flex items-center justify-between p-2 bg-muted rounded text-sm">
-                            <div>
-                              <span className="font-medium">{talent.name}</span>
-                              <span className="text-muted-foreground ml-2">
-                                Rep: {talent.reputation} • ${(talent.marketValue / 1000000).toFixed(1)}M
-                              </span>
-                            </div>
-                            <Button
-                              size="sm"
-                              onClick={() => castTalentInTVShow(project, talent, 'Lead Character')}
-                            >
-                              Cast
-                            </Button>
-                          </div>
-                        ))}
-                      </div>
+                      <Button 
+                        onClick={() => startProduction(script)}
+                        disabled={gameState.studio.budget < script.budget}
+                        size="sm"
+                      >
+                        Start Production
+                      </Button>
                     </div>
-                  )}
-
-                  <Button 
-                    onClick={() => advanceProductionPhase(project)}
-                    disabled={project.currentPhase === 'pre-production' && !project.castingConfirmed}
-                    size="sm"
-                    className="w-full"
-                  >
-                    {project.currentPhase === 'ready-to-air' ? 'Complete Production' : 'Advance Phase'}
-                  </Button>
+                  </CardContent>
                 </Card>
-              ))
-            )}
-          </CardContent>
-        </Card>
-      </div>
+              ))}
+            </div>
+          )}
+        </CardContent>
+      </Card>
     </div>
   );
 };
