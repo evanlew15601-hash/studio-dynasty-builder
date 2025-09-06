@@ -67,17 +67,30 @@ export const TVProductionManagement: React.FC<TVProductionManagementProps> = ({
         milestones: []
       },
       locations: [],
-      distributionStrategy: { platforms: [], territories: ['domestic'] },
+      distributionStrategy: {
+        primary: {
+          platform: 'streaming',
+          type: 'streaming',
+          revenue: {
+            type: 'subscription-share',
+            studioShare: 60
+          }
+        },
+        international: [],
+        windows: [],
+        marketingBudget: script.budget * 0.1
+      },
       status: 'pre-production' as const,
       metrics: {},
       phaseDuration: 8,
       contractedTalent: [],
       developmentProgress: {
-        scriptDevelopment: 100,
-        preProduction: 0,
-        production: 0,
-        postProduction: 0,
-        marketing: 0
+        scriptCompletion: 100,
+        budgetApproval: 100,
+        talentAttached: 0,
+        locationSecured: 0,
+        completionThreshold: 80,
+        issues: []
       }
     };
 
