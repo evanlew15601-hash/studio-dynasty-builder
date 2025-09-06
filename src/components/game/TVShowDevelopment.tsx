@@ -1,57 +1,143 @@
-import React, { useState } from 'react';
-import { GameState, Script, Genre } from '@/types/game';
+import React, { useState, useEffect } from 'react';
+import { GameState, Script, Genre, ScriptCharacteristics } from '@/types/game';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
-import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { Textarea } from '@/components/ui/textarea';
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
+import { Slider } from '@/components/ui/slider';
 import { Badge } from '@/components/ui/badge';
-import { Progress } from '@/components/ui/progress';
-import { Tv, Plus, BookOpen, Star } from 'lucide-react';
 import { useToast } from '@/hooks/use-toast';
+import { ScriptCharacterManager, ScriptCharacter } from './ScriptCharacterManager';
+import { importRolesForScript } from '@/utils/roleImport';
+import { ScriptIcon, BudgetIcon, AwardIcon, ClapperboardIcon } from '@/components/ui/icons';
 
 interface TVShowDevelopmentProps {
   gameState: GameState;
-  onUpdateBudget: (amount: number) => void;
-  onGameStateUpdate: (updates: Partial<GameState>) => void;
+  selectedFranchise?: string | null;
+  selectedPublicDomain?: string | null;
+  onProjectCreate: (script: Script) => void;
+  onScriptUpdate: (script: Script) => void;
 }
 
 export const TVShowDevelopment: React.FC<TVShowDevelopmentProps> = ({
   gameState,
-  onUpdateBudget,
-  onGameStateUpdate
+  selectedFranchise,
+  selectedPublicDomain,
+  onProjectCreate,
+  onScriptUpdate,
 }) => {
   const { toast } = useToast();
+  
   const [isCreating, setIsCreating] = useState(false);
-  const [newScript, setNewScript] = useState<Partial<Script>>({
-    title: '',
-    genre: 'drama',
-    logline: '',
-    writer: gameState.studio.name + ' Writers',
-    pages: 60,
-    quality: 50,
-    budget: 5000000,
-    developmentStage: 'concept',
-    targetAudience: 'general',
-    estimatedRuntime: 45,
-    themes: ['relationships', 'conflict'],
-    characteristics: {
-      tone: 'balanced',
-      pacing: 'steady',
-      dialogue: 'naturalistic',
-      visualStyle: 'realistic',
-      commercialAppeal: 5,
-      criticalPotential: 5,
-      cgiIntensity: 'minimal'
+  const [scriptCharacters, setScriptCharacters] = useState<ScriptCharacter[]>([]);
+  
+  // Auto-fill script based on selected franchise or PD for TV shows
+  const getInitialTVScript = (): Partial<Script> => {
+    if (selectedFranchise) {
+      const franchise = gameState.franchises.find(f => f.id === selectedFranchise);
+      if (franchise) {
+        return {
+          title: `${franchise.title}: The Series`,
+          genre: franchise.genre[0] || 'drama',
+          logline: `${franchise.description || 'A continuation of the beloved franchise'} This TV adaptation explores the rich world in episodic format.`,
+          writer: '',
+          pages: 60, // TV pilot length
+          quality: 50 + (franchise.culturalWeight * 0.3),
+          budget: Math.max(2000000, franchise.culturalWeight * 200000), // Per episode budget
+          developmentStage: 'concept',
+          themes: franchise.franchiseTags.slice(0, 3),
+          targetAudience: franchise.tone === 'light' ? 'family' : 'general',
+          estimatedRuntime: 45, // Standard TV episode
+          characteristics: {
+            tone: franchise.tone === 'dark' ? 'dark' : franchise.tone === 'comedic' ? 'light' : 'balanced',
+            pacing: 'episodic',
+            dialogue: 'naturalistic',
+            visualStyle: franchise.genre.includes('fantasy') || franchise.genre.includes('sci-fi') ? 'stylized' : 'realistic',
+            commercialAppeal: Math.min(10, Math.round(franchise.culturalWeight / 10)),
+            criticalPotential: Math.min(10, Math.round(franchise.averageRating || 5)),
+            cgiIntensity: franchise.genre.includes('action') || franchise.genre.includes('sci-fi') || franchise.genre.includes('fantasy') ? 'heavy' : 'minimal'
+          },
+          sourceType: 'franchise',
+          franchiseId: franchise.id
+        };
+      }
     }
-  });
+    
+    if (selectedPublicDomain) {
+      const pd = gameState.publicDomainIPs.find(p => p.id === selectedPublicDomain);
+      if (pd) {
+        return {
+          title: `${pd.name}: The Series`,
+          genre: pd.genreFlexibility[0] || 'drama',
+          logline: `${pd.description || 'A fresh adaptation of a timeless classic'} This TV adaptation brings serialized storytelling to the beloved property.`,
+          writer: '',
+          pages: 60,
+          quality: 50 + (pd.reputationScore * 0.2),
+          budget: Math.max(1500000, pd.reputationScore * 150000),
+          developmentStage: 'concept',
+          themes: pd.coreElements.slice(0, 3),
+          targetAudience: pd.domainType === 'folklore' ? 'family' : 'general',
+          estimatedRuntime: 45,
+          characteristics: {
+            tone: pd.domainType === 'religious' ? 'dramatic' : 'balanced',
+            pacing: 'episodic',
+            dialogue: pd.domainType === 'literature' ? 'philosophical' : 'naturalistic',
+            visualStyle: pd.domainType === 'mythology' || pd.domainType === 'folklore' ? 'stylized' : 'realistic',
+            commercialAppeal: Math.min(10, Math.round(pd.reputationScore / 10)),
+            criticalPotential: Math.min(10, Math.round(pd.reputationScore / 8)),
+            cgiIntensity: pd.domainType === 'mythology' ? 'heavy' : 'minimal'
+          },
+          sourceType: 'public-domain',
+          publicDomainId: pd.id
+        };
+      }
+    }
+    
+    // Default TV script
+    return {
+      title: '',
+      genre: 'drama',
+      logline: '',
+      writer: '',
+      pages: 60,
+      quality: 50,
+      budget: 2000000, // Per episode
+      developmentStage: 'concept',
+      themes: [],
+      targetAudience: 'general',
+      estimatedRuntime: 45,
+      characteristics: {
+        tone: 'balanced',
+        pacing: 'episodic',
+        dialogue: 'naturalistic',
+        visualStyle: 'realistic',
+        commercialAppeal: 5,
+        criticalPotential: 5,
+        cgiIntensity: 'minimal'
+      }
+    };
+  };
 
-  const createTVScript = () => {
+  const [newScript, setNewScript] = useState<Partial<Script>>(getInitialTVScript());
+
+  useEffect(() => {
+    if (selectedFranchise || selectedPublicDomain) {
+      const initialScript = getInitialTVScript();
+      setNewScript(initialScript);
+      setScriptCharacters([]);
+    } else {
+      setNewScript(getInitialTVScript());
+      setScriptCharacters([]);
+    }
+  }, [selectedFranchise, selectedPublicDomain]);
+
+  const handleCreateTVScript = () => {
     if (!newScript.title || !newScript.logline) {
       toast({
         title: "Missing Information",
-        description: "Please fill in title and logline",
+        description: "Please provide at least a title and logline for your TV show.",
         variant: "destructive"
       });
       return;
@@ -62,279 +148,355 @@ export const TVShowDevelopment: React.FC<TVShowDevelopmentProps> = ({
       title: newScript.title!,
       genre: newScript.genre as Genre,
       logline: newScript.logline!,
-      writer: newScript.writer!,
-      pages: newScript.pages!,
-      quality: newScript.quality!,
-      budget: newScript.budget!,
+      writer: newScript.writer || `${gameState.studio.name} Writing Team`,
+      pages: newScript.pages || 60,
+      quality: newScript.quality || 50,
+      budget: newScript.budget || 2000000,
       developmentStage: 'concept',
+      themes: newScript.themes || [],
       targetAudience: newScript.targetAudience!,
-      estimatedRuntime: newScript.estimatedRuntime!,
-      themes: newScript.themes!,
-      characteristics: newScript.characteristics!,
-      sourceType: 'original'
+      estimatedRuntime: newScript.estimatedRuntime || 45,
+      characteristics: {
+        tone: newScript.characteristics?.tone || 'balanced',
+        pacing: 'episodic',
+        dialogue: newScript.characteristics?.dialogue || 'naturalistic',
+        visualStyle: newScript.characteristics?.visualStyle || 'realistic',
+        commercialAppeal: newScript.characteristics?.commercialAppeal || 5,
+        criticalPotential: newScript.characteristics?.criticalPotential || 5,
+        cgiIntensity: newScript.characteristics?.cgiIntensity || 'minimal'
+      },
+      characters: scriptCharacters,
+      sourceType: newScript.sourceType || 'original',
+      franchiseId: newScript.franchiseId,
+      publicDomainId: newScript.publicDomainId
     };
 
-    const developmentCost = 50000; // Base development cost
-
-    if (gameState.studio.budget < developmentCost) {
-      toast({
-        title: "Insufficient Budget",
-        description: "Not enough budget to start script development",
-        variant: "destructive"
-      });
-      return;
-    }
-
-    const updatedScripts = [...gameState.scripts, script];
-    const updatedBudget = gameState.studio.budget - developmentCost;
-
-    onGameStateUpdate({
-      scripts: updatedScripts,
-      studio: { ...gameState.studio, budget: updatedBudget }
-    });
-
-    toast({
-      title: "Script Created",
-      description: `"${script.title}" has entered development`,
-    });
-
+    onScriptUpdate(script);
     setIsCreating(false);
-    setNewScript({
-      title: '',
-      genre: 'drama',
-      logline: '',
-      writer: gameState.studio.name + ' Writers',
-      pages: 60,
-      quality: 50,
-      budget: 5000000,
-      developmentStage: 'concept',
-      targetAudience: 'general',
-      estimatedRuntime: 45,
-      themes: ['relationships', 'conflict'],
-      characteristics: {
-        tone: 'balanced',
-        pacing: 'steady',
-        dialogue: 'naturalistic',
-        visualStyle: 'realistic',
-        commercialAppeal: 5,
-        criticalPotential: 5,
-        cgiIntensity: 'minimal'
-      }
+    
+    // Reset form to default state
+    setNewScript(getInitialTVScript());
+    setScriptCharacters([]);
+    
+    toast({
+      title: "TV Script Created",
+      description: `"${script.title}" has been added to your development slate with ${scriptCharacters.length} character roles.`,
     });
   };
 
-  const advanceDevelopment = (script: Script) => {
-    const stages = ['concept', 'treatment', 'first-draft', 'polish', 'final'];
-    const currentIndex = stages.indexOf(script.developmentStage);
-    
-    if (currentIndex === stages.length - 1) {
-      toast({
-        title: "Development Complete",
-        description: "This script is already at final stage",
-      });
-      return;
-    }
-
-    const nextStage = stages[currentIndex + 1] as Script['developmentStage'];
-    const cost = (currentIndex + 1) * 25000; // Increasing cost per stage
-
-    if (gameState.studio.budget < cost) {
+  const handleGreenlightTVScript = (script: Script) => {
+    if (gameState.studio.budget < script.budget * 0.1) {
       toast({
         title: "Insufficient Budget",
-        description: `Need $${cost.toLocaleString()} to advance development`,
+        description: "You need at least 10% of the episode budget for development.",
         variant: "destructive"
       });
       return;
     }
 
-    const updatedScripts = gameState.scripts.map(s => 
-      s.id === script.id 
-        ? { ...s, developmentStage: nextStage, quality: Math.min(100, s.quality + 10) }
-        : s
-    );
+    // Create TV project with proper workflow phase
+    const project = {
+      ...script,
+      type: 'series' as const, // Mark as TV series
+      currentPhase: 'development',
+      status: 'in-development',
+      castingConfirmed: false
+    };
 
-    const updatedBudget = gameState.studio.budget - cost;
-
-    onGameStateUpdate({
-      scripts: updatedScripts,
-      studio: { ...gameState.studio, budget: updatedBudget }
-    });
-
+    onProjectCreate(project);
+    
     toast({
-      title: "Development Advanced",
-      description: `"${script.title}" moved to ${nextStage.replace('-', ' ')} stage`,
+      title: "TV Script Greenlit!",
+      description: `"${script.title}" moved to Development phase. Assign cast and crew to proceed to Pre-Production.`,
     });
   };
 
-  const developmentScripts = gameState.scripts?.filter(s => s.developmentStage !== 'final') || [];
-  const readyScripts = gameState.scripts?.filter(s => s.developmentStage === 'final') || [];
-
-  if (isCreating) {
-    return (
-      <Card>
-        <CardHeader>
-          <CardTitle className="flex items-center gap-2">
-            <Plus className="h-5 w-5" />
-            Create TV Show Script
-          </CardTitle>
-        </CardHeader>
-        <CardContent className="space-y-4">
-          <div>
-            <Label htmlFor="title">Title</Label>
-            <Input
-              id="title"
-              value={newScript.title || ''}
-              onChange={(e) => setNewScript(prev => ({ ...prev, title: e.target.value }))}
-              placeholder="Enter show title"
-            />
-          </div>
-
-          <div>
-            <Label htmlFor="genre">Genre</Label>
-            <Select
-              value={newScript.genre}
-              onValueChange={(value) => setNewScript(prev => ({ ...prev, genre: value as Genre }))}
-            >
-              <SelectTrigger>
-                <SelectValue />
-              </SelectTrigger>
-              <SelectContent>
-                <SelectItem value="drama">Drama</SelectItem>
-                <SelectItem value="comedy">Comedy</SelectItem>
-                <SelectItem value="action">Action</SelectItem>
-                <SelectItem value="thriller">Thriller</SelectItem>
-                <SelectItem value="horror">Horror</SelectItem>
-                <SelectItem value="romance">Romance</SelectItem>
-                <SelectItem value="sci-fi">Sci-Fi</SelectItem>
-              </SelectContent>
-            </Select>
-          </div>
-
-          <div>
-            <Label htmlFor="logline">Logline</Label>
-            <Textarea
-              id="logline"
-              value={newScript.logline || ''}
-              onChange={(e) => setNewScript(prev => ({ ...prev, logline: e.target.value }))}
-              placeholder="Brief description of the show concept"
-              rows={3}
-            />
-          </div>
-
-          <div>
-            <Label htmlFor="budget">Season Budget</Label>
-            <Input
-              id="budget"
-              type="number"
-              value={newScript.budget || 0}
-              onChange={(e) => setNewScript(prev => ({ ...prev, budget: parseInt(e.target.value) }))}
-              placeholder="5000000"
-            />
-          </div>
-
-          <div className="flex gap-4">
-            <Button onClick={createTVScript}>
-              Create Script ($50K)
-            </Button>
-            <Button variant="outline" onClick={() => setIsCreating(false)}>
-              Cancel
-            </Button>
-          </div>
-        </CardContent>
-      </Card>
-    );
-  }
+  // Filter TV scripts (could be marked by type or other criteria)
+  const availableTVScripts = gameState.scripts.filter(script => 
+    !gameState.projects.some(project => project.script.id === script.id) &&
+    (script.characteristics.pacing === 'episodic' || script.estimatedRuntime <= 60) // TV-like characteristics
+  );
 
   return (
     <div className="space-y-6">
-      <div className="flex justify-between items-center">
-        <h2 className="text-2xl font-bold">TV Show Development</h2>
-        <Button onClick={() => setIsCreating(true)}>
-          <Plus className="h-4 w-4 mr-2" />
+      {/* Debug info */}
+      {(selectedFranchise || selectedPublicDomain) && (
+        <div className="p-3 bg-blue-50 rounded-lg border border-blue-200">
+          <p className="text-sm text-blue-800">
+            ✨ Auto-filled TV adaptation from {selectedFranchise ? 'franchise' : 'public domain'}: {
+              selectedFranchise 
+                ? gameState.franchises.find(f => f.id === selectedFranchise)?.title 
+                : gameState.publicDomainIPs.find(p => p.id === selectedPublicDomain)?.name
+            }
+          </p>
+        </div>
+      )}
+      
+      {/* Header */}
+      <div className="flex items-center justify-between animate-slide-up">
+        <div>
+          <h2 className="text-3xl font-bold studio-title bg-gradient-to-r from-primary to-accent bg-clip-text text-transparent">
+            TV Show Development
+          </h2>
+          <p className="text-muted-foreground mt-2">Create, refine, and greenlight your television productions</p>
+        </div>
+        <Button 
+          onClick={() => setIsCreating(true)}
+          className="btn-studio animate-glow"
+        >
+          <ScriptIcon className="mr-2" size={18} />
           New TV Script
         </Button>
       </div>
 
-      {/* Scripts in Development */}
+      {/* TV Script Creation Modal */}
+      {isCreating && (
+        <Card className="card-golden animate-slide-up">
+          <CardHeader>
+            <CardTitle className="flex items-center font-studio">
+              <div className="p-2 rounded-lg bg-gradient-to-r from-primary/20 to-accent/20 mr-3">
+                <ScriptIcon className="text-primary" size={20} />
+              </div>
+              TV Script Development Workshop
+            </CardTitle>
+          </CardHeader>
+          <CardContent className="space-y-6">
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+              {/* Basic Info */}
+              <div className="space-y-4">
+                <div>
+                  <Label htmlFor="title">Show Title</Label>
+                  <Input
+                    id="title"
+                    value={newScript.title || ''}
+                    onChange={(e) => setNewScript(prev => ({ ...prev, title: e.target.value }))}
+                    placeholder="Enter your TV show title"
+                    className="mt-1"
+                  />
+                </div>
+
+                <div>
+                  <Label htmlFor="genre">Genre</Label>
+                  <Select
+                    value={newScript.genre}
+                    onValueChange={(value) => setNewScript(prev => ({ ...prev, genre: value as Genre }))}
+                  >
+                    <SelectTrigger className="mt-1">
+                      <SelectValue />
+                    </SelectTrigger>
+                    <SelectContent>
+                      <SelectItem value="drama">Drama</SelectItem>
+                      <SelectItem value="comedy">Comedy</SelectItem>
+                      <SelectItem value="action">Action</SelectItem>
+                      <SelectItem value="thriller">Thriller</SelectItem>
+                      <SelectItem value="horror">Horror</SelectItem>
+                      <SelectItem value="romance">Romance</SelectItem>
+                      <SelectItem value="sci-fi">Sci-Fi</SelectItem>
+                      <SelectItem value="fantasy">Fantasy</SelectItem>
+                      <SelectItem value="documentary">Documentary</SelectItem>
+                    </SelectContent>
+                  </Select>
+                </div>
+
+                <div>
+                  <Label htmlFor="logline">Show Concept</Label>
+                  <Textarea
+                    id="logline"
+                    value={newScript.logline || ''}
+                    onChange={(e) => setNewScript(prev => ({ ...prev, logline: e.target.value }))}
+                    placeholder="Describe your TV show concept and what makes it unique..."
+                    rows={3}
+                    className="mt-1"
+                  />
+                </div>
+
+                <div>
+                  <Label htmlFor="runtime">Episode Runtime (minutes)</Label>
+                  <Input
+                    id="runtime"
+                    type="number"
+                    value={newScript.estimatedRuntime || 45}
+                    onChange={(e) => setNewScript(prev => ({ ...prev, estimatedRuntime: parseInt(e.target.value) }))}
+                    min={15}
+                    max={90}
+                    className="mt-1"
+                  />
+                </div>
+              </div>
+
+              {/* Advanced Options */}
+              <div className="space-y-4">
+                <div>
+                  <Label htmlFor="budget">Per Episode Budget</Label>
+                  <Input
+                    id="budget"
+                    type="number"
+                    value={newScript.budget || 2000000}
+                    onChange={(e) => setNewScript(prev => ({ ...prev, budget: parseInt(e.target.value) }))}
+                    min={100000}
+                    max={20000000}
+                    step={100000}
+                    className="mt-1"
+                  />
+                  <p className="text-xs text-muted-foreground mt-1">
+                    ${((newScript.budget || 2000000) / 1000000).toFixed(1)}M per episode
+                  </p>
+                </div>
+
+                <div>
+                  <Label>Target Audience</Label>
+                  <Select
+                    value={newScript.targetAudience}
+                    onValueChange={(value) => setNewScript(prev => ({ ...prev, targetAudience: value as any }))}
+                  >
+                    <SelectTrigger className="mt-1">
+                      <SelectValue />
+                    </SelectTrigger>
+                    <SelectContent>
+                      <SelectItem value="family">Family</SelectItem>
+                      <SelectItem value="general">General Audience</SelectItem>
+                      <SelectItem value="teen">Teen</SelectItem>
+                      <SelectItem value="mature">Mature</SelectItem>
+                    </SelectContent>
+                  </Select>
+                </div>
+
+                <div>
+                  <Label>Commercial Appeal ({newScript.characteristics?.commercialAppeal || 5}/10)</Label>
+                  <Slider
+                    value={[newScript.characteristics?.commercialAppeal || 5]}
+                    onValueChange={([value]) => setNewScript(prev => ({
+                      ...prev,
+                      characteristics: { ...prev.characteristics!, commercialAppeal: value }
+                    }))}
+                    min={1}
+                    max={10}
+                    step={1}
+                    className="w-full mt-2"
+                  />
+                  <div className="flex justify-between text-xs text-muted-foreground mt-1">
+                    <span>Niche</span>
+                    <span>Mainstream Hit</span>
+                  </div>
+                </div>
+
+                <div>
+                  <Label>Critical Potential ({newScript.characteristics?.criticalPotential || 5}/10)</Label>
+                  <Slider
+                    value={[newScript.characteristics?.criticalPotential || 5]}
+                    onValueChange={([value]) => setNewScript(prev => ({
+                      ...prev,
+                      characteristics: { ...prev.characteristics!, criticalPotential: value }
+                    }))}
+                    min={1}
+                    max={10}
+                    step={1}
+                    className="w-full mt-2"
+                  />
+                  <div className="flex justify-between text-xs text-muted-foreground mt-1">
+                    <span>Popcorn TV</span>
+                    <span>Emmy Bait</span>
+                  </div>
+                </div>
+              </div>
+            </div>
+
+            {/* Character Manager */}
+            <div className="border-t pt-6">
+              <ScriptCharacterManager
+                characters={scriptCharacters}
+                onCharactersChange={setScriptCharacters}
+              />
+            </div>
+
+            <div className="flex justify-end space-x-3">
+              <Button 
+                variant="outline" 
+                onClick={() => {
+                  setIsCreating(false);
+                  setScriptCharacters([]);
+                }}
+              >
+                Cancel
+              </Button>
+              <Button 
+                onClick={handleCreateTVScript}
+                className="btn-studio animate-glow"
+              >
+                <ScriptIcon className="mr-2" size={16} />
+                Create TV Script
+              </Button>
+            </div>
+          </CardContent>
+        </Card>
+      )}
+
+      {/* TV Scripts Library */}
       <Card>
         <CardHeader>
-          <CardTitle className="flex items-center gap-2">
-            <BookOpen className="h-5 w-5" />
-            Scripts in Development
+          <CardTitle className="flex items-center">
+            <span className="mr-2">📺</span>
+            TV Script Library
           </CardTitle>
         </CardHeader>
         <CardContent>
-          {developmentScripts.length === 0 ? (
-            <p className="text-muted-foreground text-center py-8">
-              No scripts currently in development
-            </p>
+          {availableTVScripts.length === 0 ? (
+            <div className="text-center py-8 text-muted-foreground">
+              <div className="text-4xl mb-4">📺</div>
+              <p>No TV scripts in development</p>
+              <p className="text-sm">Create your first TV script to begin building your slate</p>
+            </div>
           ) : (
-            <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-              {developmentScripts.map((script) => (
-                <Card key={script.id}>
-                  <CardContent className="p-4">
-                    <div className="flex justify-between items-start mb-2">
-                      <h3 className="font-semibold">{script.title}</h3>
-                      <Badge variant="outline">
-                        {script.developmentStage.replace('-', ' ')}
+            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
+              {availableTVScripts.map((script) => (
+                <Card 
+                  key={script.id} 
+                  className="border-border hover:border-primary/40 transition-colors"
+                >
+                  <CardHeader className="pb-3">
+                    <CardTitle className="text-base truncate">{script.title}</CardTitle>
+                    <div className="flex items-center space-x-2">
+                      <Badge variant="outline">{script.genre}</Badge>
+                      <Badge variant="secondary" className="text-xs">
+                        {script.developmentStage}
+                      </Badge>
+                      <Badge variant="outline" className="text-xs">
+                        {script.estimatedRuntime}min
                       </Badge>
                     </div>
-                    
-                    <div className="space-y-2 mb-4">
-                      <div className="flex justify-between text-sm">
-                        <span>Quality</span>
-                        <span>{script.quality}%</span>
+                  </CardHeader>
+                  <CardContent>
+                    <div className="space-y-3">
+                      <p className="text-sm text-muted-foreground line-clamp-2">
+                        {script.logline}
+                      </p>
+                      
+                      <div className="space-y-2 text-xs">
+                        <div className="flex justify-between">
+                          <span className="text-muted-foreground">Per Episode:</span>
+                          <span className="font-mono">${(script.budget / 1000000).toFixed(1)}M</span>
+                        </div>
+                        <div className="flex justify-between">
+                          <span className="text-muted-foreground">Commercial:</span>
+                          <span>{script.characteristics.commercialAppeal}/10</span>
+                        </div>
+                        <div className="flex justify-between">
+                          <span className="text-muted-foreground">Critical:</span>
+                          <span>{script.characteristics.criticalPotential}/10</span>
+                        </div>
                       </div>
-                      <Progress value={script.quality} className="h-2" />
-                    </div>
 
-                    <div className="grid grid-cols-2 gap-2 text-sm mb-4">
-                      <div>Genre: {script.genre}</div>
-                      <div>Budget: ${(script.budget / 1000000).toFixed(1)}M</div>
-                    </div>
-
-                    <Button 
-                      onClick={() => advanceDevelopment(script)}
-                      size="sm"
-                      className="w-full"
-                    >
-                      Advance Development
-                    </Button>
-                  </CardContent>
-                </Card>
-              ))}
-            </div>
-          )}
-        </CardContent>
-      </Card>
-
-      {/* Ready for Production */}
-      <Card>
-        <CardHeader>
-          <CardTitle className="flex items-center gap-2">
-            <Star className="h-5 w-5" />
-            Ready for Production
-          </CardTitle>
-        </CardHeader>
-        <CardContent>
-          {readyScripts.length === 0 ? (
-            <p className="text-muted-foreground text-center py-8">
-              No scripts ready for production yet
-            </p>
-          ) : (
-            <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-              {readyScripts.map((script) => (
-                <Card key={script.id} className="border-l-4 border-l-green-500">
-                  <CardContent className="p-4">
-                    <div className="flex justify-between items-start mb-2">
-                      <h3 className="font-semibold">{script.title}</h3>
-                      <Badge variant="default">Ready</Badge>
-                    </div>
-                    
-                    <div className="space-y-1 text-sm text-muted-foreground">
-                      <div>Genre: {script.genre}</div>
-                      <div>Quality: {script.quality}%</div>
-                      <div>Budget: ${(script.budget / 1000000).toFixed(1)}M</div>
+                      <div className="pt-2">
+                        <Button 
+                          size="sm" 
+                          className="w-full"
+                          onClick={() => handleGreenlightTVScript(script)}
+                          disabled={gameState.studio.budget < script.budget * 0.1}
+                        >
+                          <ClapperboardIcon className="w-4 h-4 mr-2" />
+                          Greenlight Series
+                        </Button>
+                      </div>
                     </div>
                   </CardContent>
                 </Card>
