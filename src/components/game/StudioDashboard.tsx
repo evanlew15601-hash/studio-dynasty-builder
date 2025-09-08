@@ -30,14 +30,20 @@ export const StudioDashboard: React.FC<StudioDashboardProps> = ({
   onPhaseChange,
 }) => {
   const activeProjects = gameState.projects.filter(p => p.status !== 'archived');
-  const recentReleases = gameState.projects.filter(p => p.status === 'distribution').slice(0, 3);
+  const releasedProjects = gameState.projects.filter(p => p.status === 'released');
   
-  // Box office calculations
-  const inTheatersProjects = gameState.projects.filter(p => p.metrics?.inTheaters);
+  // Box office calculations for films only
+  const inTheatersProjects = gameState.projects.filter(p => p.metrics?.inTheaters && (p.type === 'feature' || p.type === 'documentary'));
   const totalBoxOfficeThisWeek = inTheatersProjects.reduce((sum, p) => {
     return sum + (p.metrics?.boxOfficeTotal || 0);
   }, 0);
   const totalTheaters = inTheatersProjects.reduce((sum, p) => sum + (p.metrics?.theaterCount || 0), 0);
+
+  // TV metrics for series
+  const airingTVShows = gameState.projects.filter(p => p.status === 'released' && (p.type === 'series' || p.type === 'limited-series'));
+  const totalTVViews = airingTVShows.reduce((sum, p) => sum + (p.metrics?.streaming?.totalViews || 0), 0);
+  const avgAudienceShare = airingTVShows.length > 0 ? 
+    airingTVShows.reduce((sum, p) => sum + (p.metrics?.streaming?.audienceShare || 0), 0) / airingTVShows.length : 0;
 
   return (
     <div className="space-y-6">
@@ -94,6 +100,68 @@ export const StudioDashboard: React.FC<StudioDashboardProps> = ({
                     </span>
                     <span className="studio-mono font-semibold text-primary">
                       ${((project.metrics?.boxOfficeTotal || 0) / 1000000).toFixed(1)}M
+                    </span>
+                  </div>
+                </div>
+              ))}
+            </div>
+          </CardContent>
+        </Card>
+      )}
+
+      {/* TV Shows Performance - Show if any shows airing */}
+      {airingTVShows.length > 0 && (
+        <Card className="card-premium border-2 border-accent/30 bg-gradient-to-r from-accent/5 to-primary/5">
+          <CardHeader>
+            <CardTitle className="flex items-center font-studio text-accent">
+              <div className="p-2 rounded-lg bg-gradient-to-r from-accent/20 to-primary/20 mr-3">
+                <TrendingIcon className="text-accent" size={20} />
+              </div>
+              TV Shows Performance
+              <Badge className="ml-3 bg-accent/20 text-accent border-accent/30">
+                {airingTVShows.length} Show{airingTVShows.length !== 1 ? 's' : ''} Airing
+              </Badge>
+            </CardTitle>
+          </CardHeader>
+          <CardContent>
+            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
+              <div className="p-4 rounded-lg bg-gradient-to-r from-accent/10 to-primary/10 border border-accent/20">
+                <div className="text-sm text-muted-foreground mb-1">Total Views</div>
+                <div className="studio-mono text-2xl font-bold text-accent">
+                  {(totalTVViews / 1000000).toFixed(1)}M
+                </div>
+              </div>
+              <div className="p-4 rounded-lg bg-gradient-to-r from-primary/10 to-accent/10 border border-primary/20">
+                <div className="text-sm text-muted-foreground mb-1">Avg Audience Share</div>
+                <div className="studio-mono text-2xl font-bold text-primary">
+                  {avgAudienceShare.toFixed(1)}%
+                </div>
+              </div>
+              <div className="p-4 rounded-lg bg-gradient-to-r from-success/10 to-accent/10 border border-success/20">
+                <div className="text-sm text-muted-foreground mb-1">Active Shows</div>
+                <div className="studio-mono text-2xl font-bold text-success">
+                  {airingTVShows.length}
+                </div>
+              </div>
+            </div>
+            
+            {/* Individual TV show performance */}
+            <div className="mt-6 space-y-3">
+              <div className="text-sm font-medium text-muted-foreground mb-3">Currently Airing TV Shows:</div>
+              {airingTVShows.map(project => (
+                <div key={project.id} className="flex items-center justify-between p-3 rounded-lg bg-card/50 border border-border/50">
+                  <div className="flex items-center space-x-3">
+                    <Badge variant="outline" className="border-accent/30 text-accent">
+                      Week {project.metrics?.weeksSinceRelease || 0}
+                    </Badge>
+                    <span className="font-medium">{project.title}</span>
+                  </div>
+                  <div className="flex items-center space-x-4 text-sm">
+                    <span className="text-muted-foreground">
+                      {((project.metrics?.streaming?.totalViews || 0) / 1000000).toFixed(1)}M views
+                    </span>
+                    <span className="studio-mono font-semibold text-accent">
+                      {(project.metrics?.streaming?.audienceShare || 0).toFixed(1)}% share
                     </span>
                   </div>
                 </div>

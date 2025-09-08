@@ -87,12 +87,12 @@ export const TVProductionManagement: React.FC<TVProductionManagementProps> = ({
         };
         break;
       case 'post-production':
-        // ADVANCE to marketing phase when button is clicked
+        // ADVANCE to marketing phase when button is clicked - same as films
         updatedProject = {
           ...updatedProject,
           currentPhase: 'marketing',
-          status: 'completed',
-          phaseDuration: -1, // Special value to prevent auto-advancement until marketing campaign starts
+          status: 'ready-for-marketing',
+          phaseDuration: -1, // Manual control until marketing campaign starts
           readyForMarketing: true
         };
         break;
@@ -290,7 +290,7 @@ export const TVProductionManagement: React.FC<TVProductionManagementProps> = ({
                     >
                       {project.currentPhase === 'pre-production' && 'Start Filming'}
                       {project.currentPhase === 'production' && 'Wrap Production'}
-                      {project.currentPhase === 'post-production' && 'Complete Series'}
+                      {project.currentPhase === 'post-production' && 'Move to Marketing'}
                     </Button>
                   </CardContent>
                 </Card>

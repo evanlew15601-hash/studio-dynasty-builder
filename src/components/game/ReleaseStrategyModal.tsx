@@ -34,12 +34,13 @@ export const ReleaseStrategyModal: React.FC<ReleaseStrategyModalProps> = ({
     currentQuarter: Math.ceil(gameState.currentWeek / 13)
   };
 
-  // Get optimal release windows
+  // Get optimal windows - different messaging for TV vs films
+  const isTV = project.type === 'series' || project.type === 'limited-series';
   const optimalWindows = [
-    { week: 20, year: gameState.currentYear, season: 'Summer Blockbuster', multiplier: 1.3 },
-    { week: 47, year: gameState.currentYear, season: 'Holiday Season', multiplier: 1.2 },
-    { week: 8, year: gameState.currentYear + 1, season: 'Early Year', multiplier: 0.9 },
-    { week: 35, year: gameState.currentYear, season: 'Back to School', multiplier: 1.1 }
+    { week: 20, year: gameState.currentYear, season: isTV ? 'Summer TV Season' : 'Summer Blockbuster', multiplier: 1.3 },
+    { week: 47, year: gameState.currentYear, season: isTV ? 'Fall TV Season' : 'Holiday Season', multiplier: 1.2 },
+    { week: 8, year: gameState.currentYear + 1, season: isTV ? 'Winter Premieres' : 'Early Year', multiplier: 0.9 },
+    { week: 35, year: gameState.currentYear, season: isTV ? 'Fall Premieres' : 'Back to School', multiplier: 1.1 }
   ].filter(window => {
     const windowTime = (window.year * 52) + window.week;
     const currentTimeValue = (gameState.currentYear * 52) + gameState.currentWeek;
@@ -91,7 +92,7 @@ export const ReleaseStrategyModal: React.FC<ReleaseStrategyModalProps> = ({
         <DialogHeader>
           <DialogTitle className="flex items-center gap-2">
             <Calendar className="h-5 w-5" />
-            Release Strategy - {project.title}
+            {project.type === 'series' || project.type === 'limited-series' ? 'Air Date Strategy' : 'Release Strategy'} - {project.title}
           </DialogTitle>
         </DialogHeader>
 
@@ -99,7 +100,7 @@ export const ReleaseStrategyModal: React.FC<ReleaseStrategyModalProps> = ({
           {/* Project Status */}
           <Card>
             <CardHeader>
-              <CardTitle className="text-lg">Film Readiness</CardTitle>
+              <CardTitle className="text-lg">{project.type === 'series' || project.type === 'limited-series' ? 'Series Readiness' : 'Film Readiness'}</CardTitle>
             </CardHeader>
             <CardContent>
               <div className="grid grid-cols-2 gap-4">
@@ -146,7 +147,7 @@ export const ReleaseStrategyModal: React.FC<ReleaseStrategyModalProps> = ({
                         </div>
                         <div className="text-right">
                           <Badge variant="outline">
-                            {window.multiplier}x Box Office
+                            {window.multiplier}x {project.type === 'series' || project.type === 'limited-series' ? 'Viewership' : 'Box Office'}
                           </Badge>
                           <p className="text-xs text-muted-foreground mt-1">
                             {((window.year * 52 + window.week) - (gameState.currentYear * 52 + gameState.currentWeek))} weeks away
@@ -197,7 +198,7 @@ export const ReleaseStrategyModal: React.FC<ReleaseStrategyModalProps> = ({
               disabled={!selectedDate}
             >
               <Calendar className="mr-2 h-4 w-4" />
-              Schedule Release
+              {project.type === 'series' || project.type === 'limited-series' ? 'Schedule Air Date' : 'Schedule Release'}
             </Button>
           </div>
         </div>

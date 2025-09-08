@@ -211,6 +211,18 @@ export const ComprehensiveTelevisionSystem: React.FC<ComprehensiveTelevisionSyst
           />
         </TabsContent>
 
+        <TabsContent value="marketing">
+          <MarketingReleaseManagement
+            gameState={gameState}
+            onProjectUpdate={(project, marketingCost) => {
+              handleTVProjectUpdate(project);
+              if (marketingCost) {
+                onUpdateBudget(-marketingCost);
+              }
+            }}
+          />
+        </TabsContent>
+
         <TabsContent value="competition">
           <AITelevisionStudios
             gameState={gameState}
