@@ -23,6 +23,7 @@ import { AIStudioIntegrationTests } from './AIStudioIntegrationTests';
 import { CompetitorMonitor } from './CompetitorMonitor';
 import { TimeSystem, TimeState } from './TimeSystem';
 import { BoxOfficeSystem } from './BoxOfficeSystem';
+import { TVRatingsSystem } from './TVRatingsSystem';
 import { updateProjectFinancials } from './FinancialCalculations';
 import { TalentFilmographyManager } from '@/utils/talentFilmographyManager';
 import { AwardsSystem } from './AwardsSystem';
@@ -712,59 +713,76 @@ export const StudioMagnateGame: React.FC<StudioMagnateGameProps> = ({ onPhaseCha
         const currentAbsoluteWeek = (timeState.currentYear * 52) + timeState.currentWeek;
         const releaseAbsoluteWeek = (project.releaseYear * 52) + project.releaseWeek;
         
-        if (currentAbsoluteWeek === releaseAbsoluteWeek) {
-          console.log(`🎬 RELEASE DATE ARRIVED: ${project.title}`);
-          console.log(`    📊 PRE-RELEASE: boxOfficeTotal = ${project.metrics?.boxOfficeTotal || 0}`);
-          updatedProject = BoxOfficeSystem.initializeRelease(updatedProject, project.releaseWeek, project.releaseYear);
-          console.log(`    📊 POST-RELEASE: boxOfficeTotal = ${updatedProject.metrics?.boxOfficeTotal || 0}`);
-          justReleased = true; // Flag to skip processing on release week
+          if (currentAbsoluteWeek === releaseAbsoluteWeek) {
+            console.log(`🎬 RELEASE DATE ARRIVED: ${project.title}`);
+            console.log(`    📊 PRE-RELEASE: boxOfficeTotal = ${project.metrics?.boxOfficeTotal || 0}`);
+            if (project.type === 'series' || project.type === 'limited-series') {
+              updatedProject = TVRatingsSystem.initializeAiring(updatedProject, project.releaseWeek, project.releaseYear);
+            } else {
+              updatedProject = BoxOfficeSystem.initializeRelease(updatedProject, project.releaseWeek, project.releaseYear);
+            }
+            console.log(`    📊 POST-RELEASE: boxOfficeTotal = ${updatedProject.metrics?.boxOfficeTotal || 0}`);
+            justReleased = true; // Flag to skip processing on release week
 
-          // Update filmography when film is released and show first week modal
-          setGameState(prevState => {
-            const newState = TalentFilmographyManager.updateFilmographyOnRelease(prevState, updatedProject);
-            
-            // Show first week box office modal
-            setFirstWeekModalProject(updatedProject);
-            setShowFirstWeekModal(true);
-            
-            return newState;
-          });
-        }
+            // Update filmography; show box office modal only for films
+            if (!(project.type === 'series' || project.type === 'limited-series')) {
+              setGameState(prevState => {
+                const newState = TalentFilmographyManager.updateFilmographyOnRelease(prevState, updatedProject);
+                // Show first week box office modal
+                setFirstWeekModalProject(updatedProject);
+                setShowFirstWeekModal(true);
+                return newState;
+              });
+            } else {
+              setGameState(prevState => {
+                return TalentFilmographyManager.updateFilmographyOnRelease(prevState, updatedProject);
+              });
+            }
+          }
       }
       
       // Process box office for released films (but skip on the week they just released)
-      if (project.status === 'released' && !justReleased) {
-        console.log(`    💰 PROCESSING BOX OFFICE: ${project.title}`);
-        console.log(`    📊 PRE-REVENUE: boxOfficeTotal = ${updatedProject.metrics?.boxOfficeTotal || 0}`);
-        
-        const previousTotal = updatedProject.metrics?.boxOfficeTotal || 0;
-        
-        updatedProject = BoxOfficeSystem.processWeeklyRevenue(
-          updatedProject, 
-          timeState.currentWeek, 
-          timeState.currentYear
-        );
-        
-        const newTotal = updatedProject.metrics?.boxOfficeTotal || 0;
-        const weeklyBoxOfficeRevenue = newTotal - previousTotal;
-        
-        console.log(`    📊 POST-REVENUE: boxOfficeTotal = ${newTotal}`);
-        console.log(`    💰 WEEKLY BOX OFFICE EARNED: $${weeklyBoxOfficeRevenue.toLocaleString()}`);
-        
-        // Add box office revenue to studio budget (studio keeps percentage after exhibitor cut)
-        if (weeklyBoxOfficeRevenue > 0) {
-          const studioShare = weeklyBoxOfficeRevenue * 0.55; // Studios typically get 55% of domestic box office
-          console.log(`    💰 STUDIO SHARE (55%): $${studioShare.toLocaleString()}`);
-          
-          setGameState(prevState => ({
-            ...prevState,
-            studio: {
-              ...prevState.studio,
-              budget: prevState.studio.budget + studioShare
-            }
-          }));
-        }
-      }
+       if (project.status === 'released' && !justReleased) {
+         if (project.type === 'series' || project.type === 'limited-series') {
+           console.log(`    📺 PROCESSING TV RATINGS: ${project.title}`);
+           updatedProject = TVRatingsSystem.processWeeklyRatings(
+             updatedProject,
+             timeState.currentWeek,
+             timeState.currentYear
+           );
+         } else {
+           console.log(`    💰 PROCESSING BOX OFFICE: ${project.title}`);
+           console.log(`    📊 PRE-REVENUE: boxOfficeTotal = ${updatedProject.metrics?.boxOfficeTotal || 0}`);
+           
+           const previousTotal = updatedProject.metrics?.boxOfficeTotal || 0;
+           
+           updatedProject = BoxOfficeSystem.processWeeklyRevenue(
+             updatedProject, 
+             timeState.currentWeek, 
+             timeState.currentYear
+           );
+           
+           const newTotal = updatedProject.metrics?.boxOfficeTotal || 0;
+           const weeklyBoxOfficeRevenue = newTotal - previousTotal;
+           
+           console.log(`    📊 POST-REVENUE: boxOfficeTotal = ${newTotal}`);
+           console.log(`    💰 WEEKLY BOX OFFICE EARNED: $${weeklyBoxOfficeRevenue.toLocaleString()}`);
+           
+           // Add box office revenue to studio budget (studio keeps percentage after exhibitor cut)
+           if (weeklyBoxOfficeRevenue > 0) {
+             const studioShare = weeklyBoxOfficeRevenue * 0.55; // Studios typically get 55% of domestic box office
+             console.log(`    💰 STUDIO SHARE (55%): $${studioShare.toLocaleString()}`);
+             
+             setGameState(prevState => ({
+               ...prevState,
+               studio: {
+                 ...prevState.studio,
+                 budget: prevState.studio.budget + studioShare
+               }
+             }));
+           }
+         }
+       }
 
   // Process marketing campaigns and advance to release phase when complete
   if (updatedProject.marketingCampaign && updatedProject.marketingCampaign.weeksRemaining > 0) {

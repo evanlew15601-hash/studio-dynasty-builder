@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import { GameState, Project, Script } from '@/types/game';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
@@ -6,6 +6,7 @@ import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { TVShowDevelopment } from './TVShowDevelopment';
 import { TVProductionManagement } from './TVProductionManagement';
 import { AITelevisionStudios } from './AITelevisionStudios';
+import { MarketingReleaseManagement } from './MarketingReleaseManagement';
 import { 
   Tv, 
   Monitor,
@@ -175,7 +176,7 @@ export const ComprehensiveTelevisionSystem: React.FC<ComprehensiveTelevisionSyst
 
       {/* TV Development Tabs */}
       <Tabs defaultValue="development" className="space-y-4">
-        <TabsList className="grid w-full grid-cols-3">
+        <TabsList className="grid w-full grid-cols-4">
           <TabsTrigger value="development" className="flex items-center gap-2">
             <Monitor className="h-4 w-4" />
             Script Development
@@ -183,6 +184,10 @@ export const ComprehensiveTelevisionSystem: React.FC<ComprehensiveTelevisionSyst
           <TabsTrigger value="production" className="flex items-center gap-2">
             <Tv className="h-4 w-4" />
             Production
+          </TabsTrigger>
+          <TabsTrigger value="marketing" className="flex items-center gap-2">
+            <TrendingUp className="h-4 w-4" />
+            Marketing & Release
           </TabsTrigger>
           <TabsTrigger value="competition" className="flex items-center gap-2">
             <Building className="h-4 w-4" />
