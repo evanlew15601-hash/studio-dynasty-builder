@@ -93,7 +93,13 @@ export const TVProductionManagement: React.FC<TVProductionManagementProps> = ({
           currentPhase: 'marketing',
           status: 'ready-for-marketing',
           phaseDuration: -1, // Manual control until marketing campaign starts
-          readyForMarketing: true
+          readyForMarketing: true,
+          // Initialize marketing data for TV - essential for showing budget
+          marketingData: {
+            totalSpent: 0,
+            currentBuzz: 0,
+            campaigns: []
+          }
         };
         break;
     }

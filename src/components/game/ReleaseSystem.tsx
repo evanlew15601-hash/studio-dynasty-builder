@@ -18,37 +18,57 @@ export interface ReleaseResult {
 }
 
 export class ReleaseSystem {
-  static validateFilmForRelease(film: Project): ReleaseValidation {
+  static validateFilmForRelease(project: Project): ReleaseValidation {
     const errors: string[] = [];
     const warnings: string[] = [];
     
-    // Check development status
-    if (film.status !== 'completed') {
-      errors.push(`Film must be completed (currently ${film.status})`);
+    const isTV = project.type === 'series' || project.type === 'limited-series';
+    
+    // Check development status - different for TV vs Films
+    if (isTV) {
+      if (project.status !== 'ready-for-marketing' && project.currentPhase !== 'marketing' && project.currentPhase !== 'release') {
+        errors.push(`TV show must complete post-production (currently ${project.status})`);
+      }
+    } else {
+      if (project.status !== 'completed') {
+        errors.push(`Film must be completed (currently ${project.status})`);
+      }
     }
     
-    // Check script
-    if (!film.script || film.script.pages < 90) {
+    // Check script - different requirements for TV vs Films
+    if (!project.script) {
+      errors.push(isTV ? 'TV show needs a script' : 'Film needs a complete script');
+    } else if (!isTV && project.script.pages < 90) {
       errors.push('Film needs a complete script (min 90 pages)');
+    } else if (isTV && !project.script.quality) {
+      errors.push('TV show script needs quality assessment');
     }
     
     // Check cast
-    if (!film.cast || film.cast.length === 0) {
-      errors.push('Film needs at least one cast member');
+    if (!project.cast || project.cast.length === 0) {
+      errors.push(isTV ? 'TV show needs at least one cast member' : 'Film needs at least one cast member');
     }
     
     // Check budget allocation
-    if (!film.budget || film.budget.total <= 0) {
-      errors.push('Film needs a production budget');
+    if (!project.budget || project.budget.total <= 0) {
+      errors.push(isTV ? 'TV show needs a production budget' : 'Film needs a production budget');
     }
     
-    // Warnings for optimization
-    if (!film.distributionStrategy?.marketingBudget || film.distributionStrategy.marketingBudget < film.budget.total * 0.2) {
-      warnings.push('Low marketing budget may hurt box office performance');
-    }
-    
-    if (film.cast.length < 3) {
-      warnings.push('Small cast may limit audience appeal');
+    // Warnings for optimization - adjusted for TV
+    if (isTV) {
+      if (project.cast && project.cast.length < 2) {
+        warnings.push('Small cast may limit audience appeal for TV');
+      }
+      if (!project.marketingData || !project.marketingData.currentBuzz) {
+        warnings.push('No marketing buzz may hurt premiere ratings');
+      }
+    } else {
+      if (!project.distributionStrategy?.marketingBudget || project.distributionStrategy.marketingBudget < project.budget.total * 0.2) {
+        warnings.push('Low marketing budget may hurt box office performance');
+      }
+      if (project.cast.length < 3) {
+        warnings.push('Small cast may limit audience appeal');
+      }
     }
     
     return {
