@@ -6,6 +6,8 @@ import { Progress } from '@/components/ui/progress';
 import { Badge } from '@/components/ui/badge';
 import { useToast } from '@/hooks/use-toast';
 import { DevelopmentProgressModal } from './DevelopmentProgressModal';
+import { RoleBasedCasting } from './RoleBasedCasting';
+import { Dialog, DialogContent, DialogHeader, DialogTitle } from '@/components/ui/dialog';
 import { 
   ProductionIcon, 
   CalendarIcon, 
@@ -32,6 +34,8 @@ export const TVProductionManagement: React.FC<TVProductionManagementProps> = ({
   const { toast } = useToast();
   const [currentPhase, setCurrentPhase] = useState<'pre' | 'principal' | 'post'>('pre');
   const [selectedDevProject, setSelectedDevProject] = useState<Project | null>(null);
+  const [castingProject, setCastingProject] = useState<Project | null>(null);
+  const [showCastingModal, setShowCastingModal] = useState(false);
 
   const getTVProjectsInProduction = () => {
     return gameState.projects.filter(p => 
@@ -208,6 +212,14 @@ export const TVProductionManagement: React.FC<TVProductionManagementProps> = ({
 
                     <div className="flex gap-2">
                       <Button 
+                        variant="secondary"
+                        size="sm" 
+                        onClick={() => { setCastingProject(project); setShowCastingModal(true); }}
+                        className="flex-1"
+                      >
+                        Cast Roles
+                      </Button>
+                      <Button 
                         size="sm" 
                         onClick={() => advanceTVProductionPhase(project)}
                         disabled={!project.castingConfirmed}
@@ -313,6 +325,45 @@ export const TVProductionManagement: React.FC<TVProductionManagementProps> = ({
           open={!!selectedDevProject}
           onClose={() => setSelectedDevProject(null)}
         />
+      )}
+
+      {/* Casting Modal */}
+      {showCastingModal && castingProject && (
+        <Dialog open={showCastingModal} onOpenChange={() => { setShowCastingModal(false); setCastingProject(null); }}>
+          <DialogContent className="max-w-3xl max-h-[80vh] overflow-y-auto">
+            <DialogHeader>
+              <DialogTitle>Casting - {castingProject.title}</DialogTitle>
+            </DialogHeader>
+            <RoleBasedCasting
+              project={castingProject}
+              gameState={gameState}
+              onCastRole={(characterId, talentId) => {
+                const updatedCharacters = (castingProject.script?.characters || []).map(c =>
+                  c.id === characterId ? { ...c, assignedTalentId: talentId } : c
+                );
+                const hasDirector = updatedCharacters.some(c => c.requiredType === 'director' && c.assignedTalentId);
+                const hasLead = updatedCharacters.some(c => c.importance === 'lead' && c.requiredType === 'actor' && c.assignedTalentId);
+                const updated = { 
+                  ...castingProject, 
+                  script: { ...castingProject.script, characters: updatedCharacters }, 
+                  castingConfirmed: hasDirector && hasLead 
+                };
+                onProjectUpdate(updated);
+              }}
+              onCreateRole={(role) => {
+                const updatedCharacters = [...(castingProject.script?.characters || []), role];
+                const hasDirector = updatedCharacters.some(c => c.requiredType === 'director' && c.assignedTalentId);
+                const hasLead = updatedCharacters.some(c => c.importance === 'lead' && c.requiredType === 'actor' && c.assignedTalentId);
+                const updated = { 
+                  ...castingProject, 
+                  script: { ...castingProject.script, characters: updatedCharacters }, 
+                  castingConfirmed: hasDirector && hasLead 
+                };
+                onProjectUpdate(updated);
+              }}
+            />
+          </DialogContent>
+        </Dialog>
       )}
     </div>
   );
