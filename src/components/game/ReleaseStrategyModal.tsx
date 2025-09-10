@@ -36,6 +36,7 @@ export const ReleaseStrategyModal: React.FC<ReleaseStrategyModalProps> = ({
 
   // Get optimal windows - different messaging for TV vs films
   const isTV = project.type === 'series' || project.type === 'limited-series';
+  const validation = ReleaseSystem.validateFilmForRelease(project);
   const optimalWindows = [
     { week: 20, year: gameState.currentYear, season: isTV ? 'Summer TV Season' : 'Summer Blockbuster', multiplier: 1.3 },
     { week: 47, year: gameState.currentYear, season: isTV ? 'Fall TV Season' : 'Holiday Season', multiplier: 1.2 },
@@ -57,12 +58,24 @@ export const ReleaseStrategyModal: React.FC<ReleaseStrategyModalProps> = ({
       return;
     }
 
+    // Debug: capture state before attempting release
+    console.log('RELEASE_MODAL: scheduling', {
+      projectId: project.id,
+      type: project.type,
+      phase: project.currentPhase,
+      status: project.status,
+      selectedDate,
+      validation
+    });
+
     const result = ReleaseSystem.scheduleRelease(
       project,
       selectedDate.week,
       selectedDate.year,
       currentTime
     );
+
+    console.log('RELEASE_MODAL: schedule result', result);
 
     if (result.success) {
       onProjectUpdate(project.id, {
@@ -78,6 +91,7 @@ export const ReleaseStrategyModal: React.FC<ReleaseStrategyModalProps> = ({
 
       onClose();
     } else {
+      console.error('RELEASE_MODAL: scheduling failed', result);
       toast({
         title: "Release Failed",
         description: result.message,
@@ -122,6 +136,22 @@ export const ReleaseStrategyModal: React.FC<ReleaseStrategyModalProps> = ({
               </div>
             </CardContent>
           </Card>
+
+          {/* Readiness Issues */}
+          {!validation.canRelease && (
+            <Card className="border-destructive/20">
+              <CardHeader>
+                <CardTitle className="text-lg">Readiness Issues</CardTitle>
+              </CardHeader>
+              <CardContent>
+                <ul className="list-disc pl-5 space-y-1">
+                  {validation.errors.map((e, idx) => (
+                    <li key={idx} className="text-sm text-destructive">{e}</li>
+                  ))}
+                </ul>
+              </CardContent>
+            </Card>
+          )}
 
           {/* Optimal Release Windows */}
           <Card>
@@ -198,7 +228,7 @@ export const ReleaseStrategyModal: React.FC<ReleaseStrategyModalProps> = ({
             </Button>
             <Button 
               onClick={handleScheduleRelease}
-              disabled={!selectedDate}
+              disabled={!selectedDate || !validation.canRelease}
             >
               <Calendar className="mr-2 h-4 w-4" />
               {project.type === 'series' || project.type === 'limited-series' ? 'Schedule Air Date' : 'Schedule Release'}

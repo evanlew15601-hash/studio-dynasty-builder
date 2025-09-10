@@ -87,6 +87,15 @@ export class ReleaseSystem {
     // Validate film readiness
     const filmValidation = this.validateFilmForRelease(film);
     if (!filmValidation.canRelease) {
+      console.error('RELEASE_SYSTEM: validation failed', {
+        filmId: film.id,
+        title: film.title,
+        type: film.type,
+        errors: filmValidation.errors,
+        warnings: filmValidation.warnings,
+        phase: (film as any).currentPhase,
+        status: film.status,
+      });
       return {
         success: false,
         message: `Cannot release: ${filmValidation.errors.join(', ')}`
@@ -96,6 +105,14 @@ export class ReleaseSystem {
     // Validate calendar slot
     const calendarValidation = CalendarManager.validateRelease(film.id, targetWeek, targetYear, currentTime);
     if (!calendarValidation.canRelease) {
+      console.error('RELEASE_SYSTEM: calendar validation failed', {
+        filmId: film.id,
+        title: film.title,
+        targetWeek,
+        targetYear,
+        currentTime,
+        reason: calendarValidation.reason,
+      });
       return {
         success: false,
         message: calendarValidation.reason || 'Release date not available'
