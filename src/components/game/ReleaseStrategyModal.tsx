@@ -1,5 +1,5 @@
 import React, { useState } from 'react';
-import { Dialog, DialogContent, DialogHeader, DialogTitle } from '@/components/ui/dialog';
+import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription } from '@/components/ui/dialog';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
@@ -44,7 +44,7 @@ export const ReleaseStrategyModal: React.FC<ReleaseStrategyModalProps> = ({
   ].filter(window => {
     const windowTime = (window.year * 52) + window.week;
     const currentTimeValue = (gameState.currentYear * 52) + gameState.currentWeek;
-    return windowTime > currentTimeValue + 2; // At least 2 weeks in future
+    return windowTime >= currentTimeValue + 4; // At least 4 weeks in future to meet marketing lead time
   });
 
   const handleScheduleRelease = () => {
@@ -88,12 +88,15 @@ export const ReleaseStrategyModal: React.FC<ReleaseStrategyModalProps> = ({
 
   return (
     <Dialog open={isOpen} onOpenChange={onClose}>
-      <DialogContent className="max-w-2xl">
+      <DialogContent className="max-w-2xl max-h-[80vh] overflow-y-auto">
         <DialogHeader>
           <DialogTitle className="flex items-center gap-2">
             <Calendar className="h-5 w-5" />
             {project.type === 'series' || project.type === 'limited-series' ? 'Air Date Strategy' : 'Release Strategy'} - {project.title}
           </DialogTitle>
+          <DialogDescription>
+            {isTV ? 'TV premieres require at least 4 weeks of lead time for marketing.' : 'Films require at least 4 weeks of lead time for marketing.'}
+          </DialogDescription>
         </DialogHeader>
 
         <div className="space-y-4">
