@@ -44,9 +44,33 @@ export class ReleaseSystem {
       errors.push('TV show script needs quality assessment');
     }
     
-    // Check cast
-    if (!project.cast || project.cast.length === 0) {
+    // Check cast - look at script characters with assigned talent (correct data structure)
+    const assignedTalent = project.script?.characters?.filter(c => c.assignedTalentId) || [];
+    const hasDirector = assignedTalent.some(c => c.requiredType === 'director');
+    const hasLead = assignedTalent.some(c => c.importance === 'lead' && c.requiredType === 'actor');
+    
+    console.log('RELEASE_VALIDATION: cast check', {
+      projectId: project.id,
+      title: project.title,
+      type: project.type,
+      legacyCast: project.cast,
+      legacyCastLength: project.cast?.length,
+      scriptCharacters: project.script?.characters?.length,
+      assignedTalent: assignedTalent.length,
+      hasDirector,
+      hasLead,
+    });
+    
+    if (assignedTalent.length === 0) {
       errors.push(isTV ? 'TV show needs at least one cast member' : 'Film needs at least one cast member');
+    } else {
+      // Check for mandatory roles
+      if (!hasDirector) {
+        errors.push(isTV ? 'TV show needs a director' : 'Film needs a director');
+      }
+      if (!hasLead) {
+        errors.push(isTV ? 'TV show needs a lead actor' : 'Film needs a lead actor');
+      }
     }
     
     // Check budget allocation
