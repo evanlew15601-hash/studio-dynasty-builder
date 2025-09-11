@@ -7,7 +7,7 @@ import { Slider } from '@/components/ui/slider';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { useToast } from '@/hooks/use-toast';
 import { Project, GameState } from '@/types/game';
-import { TrendingUp, Target, Zap, Users, Globe, Tv, Radio, Newspaper } from 'lucide-react';
+import { TrendingUp, Target, Zap, Users, Globe, Tv, Radio, Newspaper, Play, Monitor } from 'lucide-react';
 
 interface EnhancedMarketingSystemProps {
   project: Project;
@@ -27,78 +27,132 @@ interface MarketingCampaign {
   icon: React.ComponentType<any>;
 }
 
-const MARKETING_CAMPAIGNS: MarketingCampaign[] = [
-  {
-    id: 'tv',
-    type: 'tv',
-    name: 'Television Campaign',
-    description: 'Prime time TV spots and network partnerships',
-    baseCost: 0.15, // 15% of budget
-    buzzMultiplier: 1.2,
-    audienceReach: 85,
-    icon: Tv
-  },
-  {
-    id: 'digital',
-    type: 'digital',
-    name: 'Digital Advertising',
-    description: 'Social media, streaming, and online video ads',
-    baseCost: 0.10, // 10% of budget
-    buzzMultiplier: 1.5,
-    audienceReach: 75,
-    icon: Globe
-  },
-  {
-    id: 'print',
-    type: 'print',
-    name: 'Print & Publications',
-    description: 'Magazine spreads, newspaper ads, and industry publications',
-    baseCost: 0.08, // 8% of budget
-    buzzMultiplier: 0.8,
-    audienceReach: 45,
-    icon: Newspaper
-  },
-  {
-    id: 'radio',
-    type: 'radio',
-    name: 'Radio Campaign',
-    description: 'Radio spots and podcast sponsorships',
-    baseCost: 0.05, // 5% of budget
-    buzzMultiplier: 0.6,
-    audienceReach: 35,
-    icon: Radio
-  },
-  {
-    id: 'outdoor',
-    type: 'outdoor',
-    name: 'Outdoor Advertising',
-    description: 'Billboards, transit ads, and public displays',
-    baseCost: 0.12, // 12% of budget
-    buzzMultiplier: 1.0,
-    audienceReach: 60,
-    icon: Target
-  },
-  {
-    id: 'premieres',
-    type: 'premieres',
-    name: 'Premieres & Events',
-    description: 'Red carpet events, press screenings, and celebrity appearances',
-    baseCost: 0.20, // 20% of budget
-    buzzMultiplier: 2.0,
-    audienceReach: 95,
-    icon: Users
-  },
-  {
-    id: 'festival',
-    type: 'festival',
-    name: 'Festival Circuit',
-    description: 'Film festival submissions and industry screenings',
-    baseCost: 0.06, // 6% of budget
-    buzzMultiplier: 1.8,
-    audienceReach: 30,
-    icon: Zap
+const getMarketingCampaigns = (projectType: string): MarketingCampaign[] => {
+  const baseCampaigns: MarketingCampaign[] = [
+    {
+      id: 'digital',
+      type: 'digital',
+      name: 'Digital Advertising',
+      description: 'Social media, streaming, and online video ads',
+      baseCost: 0.10,
+      buzzMultiplier: 1.5,
+      audienceReach: 75,
+      icon: Globe
+    },
+    {
+      id: 'print',
+      type: 'print',
+      name: 'Print & Publications',
+      description: 'Magazine spreads, newspaper ads, and industry publications',
+      baseCost: 0.08,
+      buzzMultiplier: 0.8,
+      audienceReach: 45,
+      icon: Newspaper
+    },
+    {
+      id: 'radio',
+      type: 'radio',
+      name: 'Radio Campaign',
+      description: 'Radio spots and podcast sponsorships',
+      baseCost: 0.05,
+      buzzMultiplier: 0.6,
+      audienceReach: 35,
+      icon: Radio
+    },
+    {
+      id: 'outdoor',
+      type: 'outdoor',
+      name: 'Outdoor Advertising',
+      description: 'Billboards, transit ads, and public displays',
+      baseCost: 0.12,
+      buzzMultiplier: 1.0,
+      audienceReach: 60,
+      icon: Target
+    }
+  ];
+
+  // Add project-specific campaigns
+  if (projectType === 'series' || projectType === 'limited-series') {
+    baseCampaigns.unshift(
+      {
+        id: 'season-trailer',
+        type: 'tv',
+        name: 'Season Trailer Campaign',
+        description: 'Cinematic season trailers and character teasers',
+        baseCost: 0.15,
+        buzzMultiplier: 2.2,
+        audienceReach: 85,
+        icon: Tv
+      },
+      {
+        id: 'episode-promos',
+        type: 'tv',
+        name: 'Episode Promos',
+        description: 'Weekly episode previews and "next time" spots',
+        baseCost: 0.08,
+        buzzMultiplier: 1.8,
+        audienceReach: 70,
+        icon: Play
+      },
+      {
+        id: 'streaming-push',
+        type: 'digital',
+        name: 'Streaming Platform Push',
+        description: 'Platform homepage features and algorithm boosts',
+        baseCost: 0.25,
+        buzzMultiplier: 3.0,
+        audienceReach: 95,
+        icon: Monitor
+      },
+      {
+        id: 'binge-marketing',
+        type: 'digital',
+        name: 'Binge-Watch Campaign',
+        description: 'Social media challenges and binge-watch promotions',
+        baseCost: 0.12,
+        buzzMultiplier: 2.5,
+        audienceReach: 80,
+        icon: Users
+      }
+    );
+  } else {
+    // Film campaigns
+    baseCampaigns.unshift(
+      {
+        id: 'tv',
+        type: 'tv',
+        name: 'Television Campaign',
+        description: 'Prime time TV spots and network partnerships',
+        baseCost: 0.15,
+        buzzMultiplier: 1.2,
+        audienceReach: 85,
+        icon: Tv
+      },
+      {
+        id: 'premieres',
+        type: 'premieres',
+        name: 'Premieres & Events',
+        description: 'Red carpet events, press screenings, and celebrity appearances',
+        baseCost: 0.20,
+        buzzMultiplier: 2.0,
+        audienceReach: 95,
+        icon: Users
+      },
+      {
+        id: 'festival',
+        type: 'festival',
+        name: 'Festival Circuit',
+        description: 'Film festival submissions and industry screenings',
+        baseCost: 0.06,
+        buzzMultiplier: 1.8,
+        audienceReach: 30,
+        icon: Zap
+      }
+    );
   }
-];
+
+  return baseCampaigns;
+};
 
 export const EnhancedMarketingSystem: React.FC<EnhancedMarketingSystemProps> = ({
   project,
@@ -111,13 +165,15 @@ export const EnhancedMarketingSystem: React.FC<EnhancedMarketingSystemProps> = (
   const [intensity, setIntensity] = useState<number>(50);
   const [duration, setDuration] = useState<number>(4);
 
+  const availableCampaigns = getMarketingCampaigns(project.type);
+
   const calculateTotalCost = (): number => {
     const baseCost = selectedCampaigns.reduce((sum, campaignId) => {
-      const campaign = MARKETING_CAMPAIGNS.find(c => c.id === campaignId);
+      const campaign = availableCampaigns.find(c => c.id === campaignId);
       return sum + (campaign?.baseCost || 0);
     }, 0);
     
-    const budgetMultiplier = Number(project.budget) || 10000000;
+    const budgetMultiplier = Number(project.budget.total) || 10000000;
     const intensityMultiplier = intensity / 50; // 0.5x to 2x
     const durationMultiplier = duration / 4; // 0.25x to 2.5x
     
@@ -126,20 +182,22 @@ export const EnhancedMarketingSystem: React.FC<EnhancedMarketingSystemProps> = (
 
   const calculateExpectedBuzz = (): number => {
     const campaignBuzz = selectedCampaigns.reduce((sum, campaignId) => {
-      const campaign = MARKETING_CAMPAIGNS.find(c => c.id === campaignId);
+      const campaign = availableCampaigns.find(c => c.id === campaignId);
       return sum + ((campaign?.buzzMultiplier || 0) * (campaign?.audienceReach || 0));
     }, 0);
     
     const intensityBonus = (intensity / 100) * 50; // 0-50 bonus
     const durationBonus = Math.min(duration * 5, 25); // Max 25 bonus
-    const budgetBonus = Math.min((Number(project.budget) || 0) / 1000000, 25); // $1M = 1 point, max 25
+    const budgetBonus = Math.min((Number(project.budget.total) || 0) / 1000000, 25); // $1M = 1 point, max 25
     
-    return Math.min(150, Math.floor(campaignBuzz + intensityBonus + durationBonus + budgetBonus));
+    // Allow buzz to exceed 150 for TV shows with multiple campaign types
+    const maxBuzz = (project.type === 'series' || project.type === 'limited-series') ? 250 : 150;
+    return Math.min(maxBuzz, Math.floor(campaignBuzz + intensityBonus + durationBonus + budgetBonus));
   };
 
   const calculateAudienceReach = (): number => {
     const totalReach = selectedCampaigns.reduce((sum, campaignId) => {
-      const campaign = MARKETING_CAMPAIGNS.find(c => c.id === campaignId);
+      const campaign = availableCampaigns.find(c => c.id === campaignId);
       return Math.max(sum, campaign?.audienceReach || 0);
     }, 0);
     
@@ -177,9 +235,10 @@ export const EnhancedMarketingSystem: React.FC<EnhancedMarketingSystemProps> = (
       return;
     }
 
-    // Update project buzz
+    // Update project buzz (higher limit for TV)
     const currentBuzz = project.marketingData?.currentBuzz || 0;
-    const newBuzz = Math.min(150, currentBuzz + expectedBuzz);
+    const maxBuzz = (project.type === 'series' || project.type === 'limited-series') ? 250 : 150;
+    const newBuzz = Math.min(maxBuzz, currentBuzz + expectedBuzz);
     
     onUpdateProject(project.id, {
       marketingData: {
@@ -233,9 +292,9 @@ export const EnhancedMarketingSystem: React.FC<EnhancedMarketingSystemProps> = (
             <div>
               <label className="text-sm font-medium">Current Buzz</label>
               <div className="flex items-center gap-2">
-                <Progress value={(currentBuzz / 150) * 100} className="flex-1" />
-                <Badge variant={currentBuzz > 100 ? "default" : currentBuzz > 50 ? "secondary" : "outline"}>
-                  {currentBuzz}/150
+                <Progress value={(currentBuzz / ((project.type === 'series' || project.type === 'limited-series') ? 250 : 150)) * 100} className="flex-1" />
+                <Badge variant={currentBuzz > 150 ? "default" : currentBuzz > 100 ? "secondary" : "outline"}>
+                  {currentBuzz}/{(project.type === 'series' || project.type === 'limited-series') ? 250 : 150}
                 </Badge>
               </div>
             </div>
@@ -260,10 +319,10 @@ export const EnhancedMarketingSystem: React.FC<EnhancedMarketingSystemProps> = (
         </CardHeader>
         <CardContent>
           <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
-            {MARKETING_CAMPAIGNS.map((campaign) => {
+            {availableCampaigns.map((campaign) => {
               const Icon = campaign.icon;
               const isSelected = selectedCampaigns.includes(campaign.id);
-              const cost = Math.floor(campaign.baseCost * (Number(project.budget) || 10000000) * (Number(intensity) / 50) * (Number(duration) / 4));
+              const cost = Math.floor(campaign.baseCost * (Number(project.budget.total) || 10000000) * (Number(intensity) / 50) * (Number(duration) / 4));
               
               return (
                 <Card 
