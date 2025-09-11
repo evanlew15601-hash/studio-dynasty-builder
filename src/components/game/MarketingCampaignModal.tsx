@@ -41,7 +41,42 @@ export const MarketingCampaignModal: React.FC<MarketingCampaignModalProps> = ({
 
   if (!project) return null;
 
-  const marketingStrategies = [
+  const isTV = project.type === 'series' || project.type === 'limited-series';
+
+  const marketingStrategies = isTV ? [
+    {
+      type: 'traditional',
+      name: 'Network & Streaming Promos',
+      description: 'On-air promos, episode teases, and platform homepage takeovers',
+      cost: 'High',
+      effectiveness: 'Broad + Timely',
+      channels: ['On-Air Promos', 'Homepage Takeover', 'Pre-Roll on Platform', 'E-mail Blasts']
+    },
+    {
+      type: 'digital',
+      name: 'Social + Creator Push',
+      description: 'TikTok/IG reels, influencer watch parties, meme/hashtag challenges',
+      cost: 'Medium',
+      effectiveness: 'Highly Targeted',
+      channels: ['TikTok', 'Instagram', 'YouTube Shorts', 'Influencers']
+    },
+    {
+      type: 'grassroots',
+      name: 'Fandom Activation',
+      description: 'AMAs, subreddit takeovers, Discord server events, community screenings',
+      cost: 'Low',
+      effectiveness: 'Authentic',
+      channels: ['Reddit AMA', 'Discord', 'Community Screenings', 'Fan Newsletters']
+    },
+    {
+      type: 'premium',
+      name: 'Upfronts & Press Tour',
+      description: 'Talk shows, premiere event, critic screeners, festival showcases',
+      cost: 'Very High',
+      effectiveness: 'Prestige',
+      channels: ['Talk Shows', 'Premiere Event', 'Critic Screeners', 'Festivals']
+    }
+  ] : [
     {
       type: 'traditional',
       name: 'Traditional Marketing',
@@ -76,7 +111,50 @@ export const MarketingCampaignModal: React.FC<MarketingCampaignModalProps> = ({
     }
   ];
 
-  const marketingActivities = [
+  const marketingActivities = isTV ? [
+    {
+      type: 'season-trailer',
+      name: 'Season Trailer',
+      baseCost: 400000,
+      duration: 2,
+      impact: { buzzIncrease: 18, audienceReach: 35, criticalAttention: 8, industryAwareness: 15 }
+    },
+    {
+      type: 'episode-promos',
+      name: 'Episode Promo Spots',
+      baseCost: 1200000,
+      duration: 4,
+      impact: { buzzIncrease: 22, audienceReach: 55, criticalAttention: 6, industryAwareness: 18 }
+    },
+    {
+      type: 'upfronts',
+      name: 'Upfronts Presentation',
+      baseCost: 600000,
+      duration: 1,
+      impact: { buzzIncrease: 12, audienceReach: 20, criticalAttention: 20, industryAwareness: 35 }
+    },
+    {
+      type: 'talk-shows',
+      name: 'Talk Show Circuit',
+      baseCost: 350000,
+      duration: 2,
+      impact: { buzzIncrease: 14, audienceReach: 25, criticalAttention: 22, industryAwareness: 25 }
+    },
+    {
+      type: 'influencer-watch-party',
+      name: 'Influencer Watch Party',
+      baseCost: 500000,
+      duration: 1,
+      impact: { buzzIncrease: 20, audienceReach: 40, criticalAttention: 6, industryAwareness: 12 }
+    },
+    {
+      type: 'homepage-takeover',
+      name: 'Streaming Homepage Takeover',
+      baseCost: 1000000,
+      duration: 1,
+      impact: { buzzIncrease: 24, audienceReach: 60, criticalAttention: 10, industryAwareness: 20 }
+    }
+  ] : [
     {
       type: 'trailer',
       name: 'Official Trailer',

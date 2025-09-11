@@ -22,24 +22,55 @@ export const RoleBasedCasting: React.FC<RoleBasedCastingProps> = ({
 }) => {
   const { toast } = useToast();
 
-  // Import roles when project changes or script updates
+  // Import roles when project changes or script updates (auto-add mandatory TV roles)
   React.useEffect(() => {
-    if (project?.script && (!project.script.characters || project.script.characters.length === 0)) {
-      console.log(`🎭 IMPORTING ROLES for ${project.title}`);
-      const importedRoles = importRolesForScript(project.script, gameState);
-      
-      if (importedRoles.length > 0) {
-        importedRoles.forEach(role => {
-          onCreateRole(role);
-        });
-        
-        toast({
-          title: "Roles Imported",
-          description: `${importedRoles.length} character roles imported for casting`,
-        });
-      }
+    if (!project?.script) return;
+
+    const existing = project.script.characters || [];
+    const importedRoles = (!existing || existing.length === 0)
+      ? importRolesForScript(project.script, gameState)
+      : [];
+
+    // Determine if TV and whether mandatory roles are missing
+    const combined = [...existing, ...importedRoles];
+    const hasDirector = combined.some(c => c.requiredType === 'director');
+    const hasLead = combined.some(c => c.importance === 'lead' && c.requiredType === 'actor');
+
+    const rolesToCreate: ScriptCharacter[] = [];
+
+    // If no roles were imported and none exist, attempt to import and/or seed defaults
+    if ((!existing || existing.length === 0) && importedRoles.length > 0) {
+      rolesToCreate.push(...importedRoles);
     }
-  }, [project?.script?.franchiseId, project?.script?.publicDomainId, project?.id]);
+
+    // Seed mandatory roles if missing (works for TV and films; harmless otherwise)
+    if (!hasDirector) {
+      rolesToCreate.push({
+        id: `director-${Date.now()}`,
+        name: 'Director',
+        importance: 'crew',
+        description: 'Showrunner/Director responsible for creative vision',
+        requiredType: 'director',
+      });
+    }
+    if (!hasLead) {
+      rolesToCreate.push({
+        id: `lead-${Date.now()}`,
+        name: 'Lead Character',
+        importance: 'lead',
+        description: 'Main protagonist of the story',
+        requiredType: 'actor',
+      });
+    }
+
+    if (rolesToCreate.length > 0) {
+      rolesToCreate.forEach(onCreateRole);
+      toast({
+        title: 'Roles Ready',
+        description: `${rolesToCreate.length} role${rolesToCreate.length > 1 ? 's' : ''} prepared (Director/Lead ensured)`,
+      });
+    }
+  }, [project?.id, project?.script?.franchiseId, project?.script?.publicDomainId, project?.script?.characters?.length]);
 
   const getAvailableTalent = (role: ScriptCharacter) => {
     return gameState.talent.filter(talent => {
