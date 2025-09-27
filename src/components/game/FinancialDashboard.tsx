@@ -8,7 +8,7 @@ import { Alert, AlertDescription } from '@/components/ui/alert';
 import { Project } from '@/types/game';
 import { FinancialEngine, Transaction, FinancialSummary } from './FinancialEngine';
 import { LineChart, Line, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer, BarChart, Bar, PieChart, Pie, Cell } from 'recharts';
-import { TrendingUp, TrendingDown, AlertTriangle, DollarSign, Activity, PieChart as PieChartIcon } from 'lucide-react';
+import { TrendingUp, TrendingDown, AlertTriangle, DollarSign, Activity, PieChart as PieChartIcon, Ticket } from 'lucide-react';
 
 interface FinancialDashboardProps {
   currentWeek: number;
@@ -56,6 +56,45 @@ export const FinancialDashboard: React.FC<FinancialDashboardProps> = ({
   };
 
   const weeklyData = getWeeklyData();
+
+  // Touring analytics (category-level)
+  const getTouringWeeklyData = () => {
+    const weeks = selectedTimeframe === '4weeks' ? 4 : selectedTimeframe === '12weeks' ? 12 : 52;
+    const data: Array<{ week: string; touringRevenue: number; touringExpenses: number; net: number }> = [];
+    for (let i = weeks - 1; i >= 0; i--) {
+      let week = currentWeek - i;
+      let year = currentYear;
+      if (week <= 0) {
+        week += 52;
+        year -= 1;
+      }
+      const wf = FinancialEngine.getWeeklyFinancials(week, year);
+      const touring = wf.transactions.filter(t => t.category === 'touring');
+      const rev = touring.filter(t => t.type === 'revenue').reduce((s, t) => s + t.amount, 0);
+      const exp = touring.filter(t => t.type === 'expense').reduce((s, t) => s + t.amount, 0);
+      data.push({
+        week: `Y${year}W${week}`,
+        touringRevenue: rev,
+        touringExpenses: exp,
+        net: rev - exp
+      });
+    }
+    return data;
+  };
+
+  const touringWeeklyData = getTouringWeeklyData();
+
+  const touringSummary = (() => {
+    const totals = touringWeeklyData.reduce(
+      (acc, w) => {
+        acc.revenue += w.touringRevenue;
+        acc.expenses += w.touringExpenses;
+        return acc;
+      },
+      { revenue: 0, expenses: 0 }
+    );
+    return { ...totals, net: totals.revenue - totals.expenses };
+  })();
   
   // Category breakdown for pie chart
   const getCategoryBreakdown = () => {
@@ -233,7 +272,7 @@ export const FinancialDashboard: React.FC<FinancialDashboardProps> = ({
                   <CartesianGrid strokeDasharray="3 3" />
                   <XAxis dataKey="week" />
                   <YAxis />
-                  <Tooltip formatter={(value: number) => [`$${(value/1000).toFixed(0)}k`, 'Cumulative Profit']} />
+                  <Tooltip formatter={(value: number) => [`${(value/1000).toFixed(0)}k`, 'Cumulative Profit']} />
                   <Line 
                     type="monotone" 
                     dataKey="cumulativeProfit" 
@@ -242,6 +281,45 @@ export const FinancialDashboard: React.FC<FinancialDashboardProps> = ({
                     name="Cumulative Profit" 
                   />
                 </LineChart>
+              </ResponsiveContainer>
+            </CardContent>
+          </Card>
+
+          {/* Touring Analytics */}
+          <Card className="card-premium">
+            <CardHeader>
+              <CardTitle className="flex items-center font-studio text-primary">
+                <Ticket className="mr-2" size={20} />
+                Touring Analytics
+              </CardTitle>
+            </CardHeader>
+            <CardContent>
+              <div className="grid grid-cols-1 md:grid-cols-3 gap-4 mb-4">
+                <div className="p-3 rounded border border-border/50">
+                  <div className="text-xs text-muted-foreground">Touring Revenue</div>
+                  <div className="text-lg font-semibold text-green-600">${(touringSummary.revenue / 1000).toFixed(0)}k</div>
+                </div>
+                <div className="p-3 rounded border border-border/50">
+                  <div className="text-xs text-muted-foreground">Touring Expenses</div>
+                  <div className="text-lg font-semibold text-red-600">${(touringSummary.expenses / 1000).toFixed(0)}k</div>
+                </div>
+                <div className="p-3 rounded border border-border/50">
+                  <div className="text-xs text-muted-foreground">Net Touring</div>
+                  <div className={`text-lg font-semibold ${touringSummary.net >= 0 ? 'text-green-700' : 'text-red-700'}`}>
+                    ${(touringSummary.net / 1000).toFixed(0)}k
+                  </div>
+                </div>
+              </div>
+
+              <ResponsiveContainer width="100%" height={220}>
+                <BarChart data={touringWeeklyData}>
+                  <CartesianGrid strokeDasharray="3 3" />
+                  <XAxis dataKey="week" />
+                  <YAxis />
+                  <Tooltip formatter={(value: number, name: string) => [`${(value/1000).toFixed(0)}k`, name === 'touringRevenue' ? 'Revenue' : name === 'touringExpenses' ? 'Expenses' : 'Net']} />
+                  <Bar dataKey="touringRevenue" name="Revenue" fill="#10b981" />
+                  <Bar dataKey="touringExpenses" name="Expenses" fill="#ef4444" />
+                </BarChart>
               </ResponsiveContainer>
             </CardContent>
           </Card>

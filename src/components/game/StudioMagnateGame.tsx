@@ -310,7 +310,7 @@ export const StudioMagnateGame: React.FC<StudioMagnateGameProps> = ({ onPhaseCha
   const genreSaturation = useGenreSaturation(gameState.allReleases.filter((item): item is Project => 'script' in item), gameState.currentWeek);
   const achievements = useAchievements(gameState);
 
-  const [currentPhase, setCurrentPhase] = useState<'dashboard' | 'scripts' | 'casting' | 'talent' | 'franchise' | 'media' | 'production' | 'marketing' | 'distribution' | 'financials' | 'awards' | 'market' | 'topfilms' | 'stats' | 'reputation' | 'loans' | 'competition' | 'television' | 'tv-tests'>('dashboard');
+  const [currentPhase, setCurrentPhase] = useState<'dashboard' | 'scripts' | 'casting' | 'talent' | 'franchise' | 'media' | 'production' | 'marketing' | 'distribution' | 'financials' | 'finance' | 'awards' | 'market' | 'topfilms' | 'stats' | 'reputation' | 'loans' | 'competition' | 'television' | 'tv-tests'>('dashboard');
   const [selectedProject, setSelectedProject] = useState<Project | null>(null);
   const [selectedFranchise, setSelectedFranchise] = useState<string | null>(null);
   const [selectedPublicDomain, setSelectedPublicDomain] = useState<string | null>(null);
@@ -1556,6 +1556,7 @@ export const StudioMagnateGame: React.FC<StudioMagnateGameProps> = ({ onPhaseCha
               { id: 'production', label: 'Production', IconComponent: ProductionIcon },
               { id: 'marketing', label: 'Marketing', IconComponent: MarketingIcon },
               { id: 'distribution', label: 'Distribution', IconComponent: DistributionIcon },
+              { id: 'finance', label: 'Finance', IconComponent: BudgetIcon },
             ].map((tab) => (
               <Button
                 key={tab.id}
@@ -2100,6 +2101,14 @@ export const StudioMagnateGame: React.FC<StudioMagnateGameProps> = ({ onPhaseCha
         )}
         
         {currentPhase === 'financials' && (
+          <FinancialDashboard
+            currentWeek={gameState.currentWeek}
+            currentYear={gameState.currentYear}
+            projects={gameState.projects}
+          />
+        )}
+
+        {currentPhase === 'finance' && (
           <FinancialDashboard
             currentWeek={gameState.currentWeek}
             currentYear={gameState.currentYear}

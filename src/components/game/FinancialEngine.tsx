@@ -4,7 +4,7 @@ export interface Transaction {
   id: string;
   filmId?: string;
   type: 'revenue' | 'expense';
-  category: 'production' | 'marketing' | 'talent' | 'boxoffice' | 'streaming' | 'overhead' | 'licensing';
+  category: 'production' | 'marketing' | 'talent' | 'boxoffice' | 'streaming' | 'overhead' | 'licensing' | 'touring';
   amount: number;
   week: number;
   year: number;
@@ -33,6 +33,41 @@ export interface FinancialSummary {
 export class FinancialEngine {
   private static transactions: Transaction[] = [];
   private static nextTransactionId = 1;
+  private static readonly STORAGE_KEY = 'studio-magnate-ledger';
+
+  // Load any persisted ledger on first import
+  private static ensureLoaded() {
+    if (this.transactions.length === 0) {
+      try {
+        const raw = typeof window !== 'undefined' ? window.localStorage.getItem(this.STORAGE_KEY) : null;
+        if (raw) {
+          const parsed = JSON.parse(raw) as { transactions: Transaction[]; nextId?: number };
+          this.transactions = Array.isArray((parsed as any).transactions) ? parsed.transactions : (parsed as any);
+          // Backward compatibility if only array was stored
+          const lastId = this.transactions.reduce((max, t) => {
+            const n = Number(String(t.id).replace(/[^0-9]/g, '')) || 0;
+            return Math.max(max, n);
+          }, 0);
+          this.nextTransactionId = (parsed as any).nextId || lastId + 1 || 1;
+        }
+      } catch (e) {
+        // If parsing fails, start fresh but don't crash the game
+        this.transactions = [];
+        this.nextTransactionId = 1;
+      }
+    }
+  }
+
+  private static persist() {
+    try {
+      if (typeof window !== 'undefined') {
+        const payload = JSON.stringify({ transactions: this.transactions, nextId: this.nextTransactionId });
+        window.localStorage.setItem(this.STORAGE_KEY, payload);
+      }
+    } catch {
+      // Ignore persistence errors in environments without storage
+    }
+  }
   
   static recordTransaction(
     type: 'revenue' | 'expense',
@@ -43,6 +78,8 @@ export class FinancialEngine {
     description: string,
     filmId?: string
   ): string {
+    this.ensureLoaded();
+
     const transaction: Transaction = {
       id: `txn-${this.nextTransactionId++}`,
       filmId,
@@ -55,7 +92,8 @@ export class FinancialEngine {
     };
     
     this.transactions.push(transaction);
-    console.log(`FINANCE: ${type} of $${amount}k for ${description} (Y${year}W${week})`);
+    this.persist();
+    console.log(`FINANCE: ${type} of ${amount}k for ${description} (Y${year}W${week})`);
     
     return transaction.id;
   }
@@ -71,8 +109,19 @@ export class FinancialEngine {
   static recordStudioOverhead(amount: number, week: number, year: number, description: string): string {
     return this.recordTransaction('expense', 'overhead', amount, week, year, description);
   }
+
+  // Touring helpers for record label/artist touring operations
+  static recordTouringRevenue(amount: number, week: number, year: number, description: string, filmId?: string): string {
+    return this.recordTransaction('revenue', 'touring', amount, week, year, description, filmId);
+  }
+
+  static recordTouringExpense(amount: number, week: number, year: number, description: string, filmId?: string): string {
+    return this.recordTransaction('expense', 'touring', amount, week, year, description, filmId);
+  }
   
   static getWeeklyFinancials(week: number, year: number): WeeklyFinancials {
+    this.ensureLoaded();
+
     const weekTransactions = this.transactions.filter(t => t.week === week && t.year === year);
     
     const totalRevenue = weekTransactions
@@ -94,6 +143,8 @@ export class FinancialEngine {
   }
   
   static getFinancialSummary(currentWeek: number, currentYear: number): FinancialSummary {
+    this.ensureLoaded();
+
     const allRevenue = this.transactions
       .filter(t => t.type === 'revenue')
       .reduce((sum, t) => sum + t.amount, 0);
@@ -148,6 +199,8 @@ export class FinancialEngine {
   }
   
   static getFilmFinancials(filmId: string): { revenue: number; expenses: number; profit: number; transactions: Transaction[] } {
+    this.ensureLoaded();
+
     const filmTransactions = this.transactions.filter(t => t.filmId === filmId);
     
     const revenue = filmTransactions
@@ -167,12 +220,16 @@ export class FinancialEngine {
   }
   
   static getRecentTransactions(count: number = 10): Transaction[] {
+    this.ensureLoaded();
+
     return this.transactions
       .slice(-count)
       .reverse(); // Most recent first
   }
   
   static simulateBoxOfficeWeek(films: { id: string; title: string; weeksSinceRelease: number; budget: number; genre: string }[], currentWeek: number, currentYear: number): void {
+    this.ensureLoaded();
+
     films.forEach(film => {
       if (film.weeksSinceRelease >= 0) {
         // Enhanced box office simulation based on budget and genre
@@ -226,6 +283,8 @@ export class FinancialEngine {
   }
 
   static processWeeklyFinancialEvents(currentWeek: number, currentYear: number, studios: Studio[], projects: Project[]): void {
+    this.ensureLoaded();
+
     // Process studio overhead costs
     studios.forEach(studio => {
       const weeklyOverhead = Math.max(studio.budget * 0.001, 50); // 0.1% of budget or 50k minimum
@@ -270,10 +329,21 @@ export class FinancialEngine {
   }
   
   static clearFilmTransactions(filmId: string): void {
+    this.ensureLoaded();
+
     this.transactions = this.transactions.filter(t => t.filmId !== filmId);
+    this.persist();
+  }
+
+  // Reset entire ledger (useful for new game)
+  static clearAll(): void {
+    this.transactions = [];
+    this.nextTransactionId = 1;
+    this.persist();
   }
   
   static exportLedger(): Transaction[] {
+    this.ensureLoaded();
     return [...this.transactions]; // Return copy for debugging
   }
 }
