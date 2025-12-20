@@ -344,31 +344,9 @@ export const StudioMagnateGame: React.FC<StudioMagnateGameProps> = ({ onPhaseCha
     onPhaseChange?.(phase);
   };
 
-  const handleProjectCreate = async (script: Script) => {
-    // Start loading for project creation
-    startOperation('project-create', 'Creating Project', 2);
-    updateOperation('project-create', 20, 'Validating budget...');
-    
-    const developmentCost = script.budget * 0.1;
-    
-    // Check if studio can afford the project (including potential loan capacity)
-    const maxLoanCapacity = Math.max(0, 50000000 - (gameState.studio.debt || 0)); // $50M max debt
-    const availableFunds = gameState.studio.budget + maxLoanCapacity;
-    
-    if (developmentCost > availableFunds) {
-      updateOperation('project-create', 40, 'Insufficient funds available');
-      completeOperation('project-create');
-      toast({
-        title: "Cannot Greenlight Project",
-        description: "Project cost exceeds studio capacity even with loans.",
-        variant: "destructive"
-      });
-      return;
-    }
-
-    updateOperation('project-create', 60, 'Setting up project structure...');
-
-    const newProject: Project = {
+  // Central helper: build a base project from a script, then apply any overrides
+  const createProjectFromScript = (script: Script, overrides?: Partial<Project>): Project => {
+    const baseProject: Project = {
       id: `project-${Date.now()}`,
       title: script.title,
       script,
@@ -447,17 +425,49 @@ export const StudioMagnateGame: React.FC<StudioMagnateGameProps> = ({ onPhaseCha
       metrics: {}
     };
 
-      // Auto-generate roles only if script has no characters
-      let enrichedProject: Project = newProject;
-      try {
-        const preexisting = newProject.script.characters && newProject.script.characters.length > 0;
-        const roles = preexisting ? newProject.script.characters! : importRolesForScript(newProject.script, gameState);
-        if (roles && roles.length > 0) {
-          enrichedProject = { ...newProject, script: { ...newProject.script, characters: roles } };
-        }
-      } catch (e) {
-        console.warn('Role auto-generation failed', e);
+    // Apply any overrides (for TV/streaming, custom budgets, etc.)
+    return { ...baseProject, ...overrides };
+  };
+
+  const handleProjectCreate = async (script: Script, overrides?: Partial<Project>) => {
+    // Start loading for project creation
+    startOperation('project-create', 'Creating Project', 2);
+    updateOperation('project-create', 20, 'Validating budget...');
+    
+    // Use overridden total budget if provided (e.g. TV season budget), otherwise script budget
+    const totalBudget = overrides?.budget?.total ?? script.budget;
+    const developmentCost = totalBudget * 0.1;
+    
+    // Check if studio can afford the project (including potential loan capacity)
+    const maxLoanCapacity = Math.max(0, 50000000 - (gameState.studio.debt || 0)); // $50M max debt
+    const availableFunds = gameState.studio.budget + maxLoanCapacity;
+    
+    if (developmentCost > availableFunds) {
+      updateOperation('project-create', 40, 'Insufficient funds available');
+      completeOperation('project-create');
+      toast({
+        title: "Cannot Greenlight Project",
+        description: "Project cost exceeds studio capacity even with loans.",
+        variant: "destructive"
+      });
+      return;
+    }
+
+    updateOperation('project-create', 60, 'Setting up project structure...');
+
+    const newProject: Project = createProjectFromScript(script, overrides);
+
+    // Auto-generate roles only if script has no characters
+    let enrichedProject: Project = newProject;
+    try {
+      const preexisting = newProject.script.characters && newProject.script.characters.length > 0;
+      const roles = preexisting ? newProject.script.characters! : importRolesForScript(newProject.script, gameState);
+      if (roles && roles.length > 0) {
+        enrichedProject = { ...newProject, script: { ...newProject.script, characters: roles } };
       }
+    } catch (e) {
+      console.warn('Role auto-generation failed', e);
+    }
 
     updateOperation('project-create', 90, 'Finalizing project...');
 
@@ -471,7 +481,7 @@ export const StudioMagnateGame: React.FC<StudioMagnateGameProps> = ({ onPhaseCha
       finalBudget = 0;
       toast({
         title: "Loan Taken",
-        description: `Borrowed $${Math.abs(newBudget).toLocaleString()} to greenlight project.`,
+        description: `Borrowed ${Math.abs(newBudget).toLocaleString()} to greenlight project.`,
         variant: "default"
       });
     }
@@ -1923,6 +1933,55 @@ export const StudioMagnateGame: React.FC<StudioMagnateGameProps> = ({ onPhaseCha
               }));
             }}
             onGameStateUpdate={(updates) => setGameState(prev => ({ ...prev, ...updates }))}
+            onCreateTVProject={(script) => {
+              // For now, assume a 13-episode season budget for TV series
+              const episodes = 13;
+              const seasonTotalBudget = script.budget * episodes;
+
+              handleProjectCreate(script, {
+                type: 'series',
+                budget: {
+                  total: seasonTotalBudget,
+                  allocated: {
+                    aboveTheLine: seasonTotalBudget * 0.3,
+                    belowTheLine: seasonTotalBudget * 0.4,
+                    postProduction: seasonTotalBudget * 0.15,
+                    marketing: seasonTotalBudget * 0.1,
+                    distribution: seasonTotalBudget * 0.03,
+                    contingency: seasonTotalBudget * 0.02
+                  },
+                  spent: {
+                    aboveTheLine: 0,
+                    belowTheLine: 0,
+                    postProduction: 0,
+                    marketing: 0,
+                    distribution: 0,
+                    contingency: 0
+                  },
+                  overages: {
+                    aboveTheLine: 0,
+                    belowTheLine: 0,
+                    postProduction: 0,
+                    marketing: 0,
+                    distribution: 0,
+                    contingency: 0
+                  }
+                },
+                distributionStrategy: {
+                  primary: {
+                    platform: 'streaming',
+                    type: 'streaming',
+                    revenue: {
+                      type: 'subscription-share',
+                      studioShare: 60
+                    }
+                  },
+                  international: [],
+                  windows: [],
+                  marketingBudget: seasonTotalBudget * 0.1
+                }
+              });
+            }}
           />
         )}
 
