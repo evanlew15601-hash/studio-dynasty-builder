@@ -253,16 +253,43 @@ return {
 
   return (
     <div className="space-y-6">
-      {/* Debug info */}
+      {/* Context banner for pre-selected franchise / IP */}
       {(selectedFranchise || selectedPublicDomain) && (
-        <div className="p-3 bg-blue-50 rounded-lg border border-blue-200">
-          <p className="text-sm text-blue-800">
-            ✨ Auto-filled from {selectedFranchise ? 'franchise' : 'public domain'}: {
-              selectedFranchise 
-                ? gameState.franchises.find(f => f.id === selectedFranchise)?.title 
-                : gameState.publicDomainIPs.find(p => p.id === selectedPublicDomain)?.name
-            }
-          </p>
+        <div className="p-3 bg-blue-50 rounded-lg border border-blue-200 flex items-center justify-between">
+          <div className="text-sm text-blue-800">
+            {selectedFranchise && (() => {
+              const franchise = gameState.franchises.find(f => f.id === selectedFranchise);
+              if (!franchise) return null;
+              const projects = gameState.projects.filter(p => p.script.franchiseId === franchise.id);
+              const filmCount = projects.filter(p => p.type !== 'series' && p.type !== 'limited-series').length;
+              const tvCount = projects.filter(p => p.type === 'series' || p.type === 'limited-series').length;
+              const totalBoxOffice = projects.reduce((sum, p) => sum + (p.metrics?.boxOfficeTotal || 0), 0);
+              const totalStreamingViews = projects.reduce((sum, p) => sum + (p.metrics?.streaming?.totalViews || 0), 0);
+              return (
+                <>
+                  <span className="font-semibold">Franchise:</span> {franchise.title}{' '}
+                  <span className="ml-2 text-xs text-blue-900">
+                    ({filmCount} films, {tvCount} TV projects · ${(
+                      totalBoxOffice / 1_000_000
+                    ).toFixed(1)}
+                    M box office · {(totalStreamingViews / 1_000_000).toFixed(1)}M streams)
+                  </span>
+                </>
+              );
+            })()}
+            {!selectedFranchise && selectedPublicDomain && (() => {
+              const pd = gameState.publicDomainIPs.find(p => p.id === selectedPublicDomain);
+              if (!pd) return null;
+              return (
+                <>
+                  <span className="font-semibold">Public Domain IP:</span> {pd.name}{' '}
+                  <span className="ml-2 text-xs text-blue-900">
+                    ({pd.domainType}, reputation {pd.reputationScore}/100)
+                  </span>
+                </>
+              );
+            })()}
+          </div>
         </div>
       )}
       

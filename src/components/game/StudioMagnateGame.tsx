@@ -1861,7 +1861,14 @@ export const StudioMagnateGame: React.FC<StudioMagnateGameProps> = ({
               onProjectCreate={(script) => {
                 setSelectedFranchise(script.franchiseId || null);
                 setSelectedPublicDomain(script.publicDomainId || null);
-                handlePhaseChange('scripts');
+
+                const isTVScript =
+                  script.characteristics?.pacing === 'episodic' ||
+                  (script.estimatedRuntime && script.estimatedRuntime <= 60);
+
+                // Route to the appropriate development workspace
+                handlePhaseChange(isTVScript ? 'television' : 'scripts');
+
                 setGameState(prev => ({
                   ...prev,
                   scripts: prev.scripts.some(s => s.id === script.id)
@@ -1870,7 +1877,9 @@ export const StudioMagnateGame: React.FC<StudioMagnateGameProps> = ({
                 }));
                 toast({
                   title: 'Script Draft Created',
-                  description: `"${script.title}" is ready in Script Development to customize roles before greenlighting.`,
+                  description: isTVScript
+                    ? `\"${script.title}\" is ready in TV Show Development to customize roles before greenlighting.`
+                    : `\"${script.title}\" is ready in Script Development to customize roles before greenlighting.`,
                 });
               }}
             />
@@ -1968,10 +1977,7 @@ export const StudioMagnateGame: React.FC<StudioMagnateGameProps> = ({
             selectedPublicDomain={selectedPublicDomain}
             onProjectCreate={handleProjectCreate}
             onScriptUpdate={(script) => {
-              // Clear selections after script creation
-              setSelectedFranchise(null);
-              setSelectedPublicDomain(null);
-              
+              // Persist selections so multiple scripts can be created within the same franchise/IP
               setGameState(prev => ({
                 ...prev,
                 scripts: prev.scripts.some(s => s.id === script.id)
