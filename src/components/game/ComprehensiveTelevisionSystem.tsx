@@ -23,6 +23,8 @@ interface ComprehensiveTelevisionSystemProps {
   onGameStateUpdate: (updates: Partial<GameState>) => void;
   onTalentCommitmentChange?: (talentId: string, busy: boolean, project?: string) => void;
   onCreateTVProject: (script: Script) => void;
+  selectedFranchise?: string | null;
+  selectedPublicDomain?: string | null;
 }
 
 export const ComprehensiveTelevisionSystem: React.FC<ComprehensiveTelevisionSystemProps> = ({
@@ -30,7 +32,9 @@ export const ComprehensiveTelevisionSystem: React.FC<ComprehensiveTelevisionSyst
   onUpdateBudget,
   onGameStateUpdate,
   onTalentCommitmentChange,
-  onCreateTVProject
+  onCreateTVProject,
+  selectedFranchise,
+  selectedPublicDomain
 }) => {
   const [selectedProject, setSelectedProject] = useState<Project | null>(null);
 
@@ -110,6 +114,8 @@ export const ComprehensiveTelevisionSystem: React.FC<ComprehensiveTelevisionSyst
         <TabsContent value="development">
           <TVShowDevelopment
             gameState={gameState}
+            selectedFranchise={selectedFranchise}
+            selectedPublicDomain={selectedPublicDomain}
             onProjectCreate={onCreateTVProject}
             onScriptUpdate={handleTVScriptUpdate}
           />

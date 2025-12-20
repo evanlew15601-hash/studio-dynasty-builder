@@ -542,17 +542,34 @@ export const StudioMagnateGame: React.FC<StudioMagnateGameProps> = ({
       });
     }
 
-    setGameState(prev => ({
-      ...prev,
-      projects: [...prev.projects, enrichedProject],
-      studio: {
-        ...prev.studio,
-        budget: finalBudget,
-        debt: newDebt,
-        lastProjectWeek: prev.currentWeek,
-        weeksSinceLastProject: 0
-      }
-    }));
+    setGameState(prev => {
+      // If this project belongs to a franchise, append it to that franchise's entries
+      const franchiseId = enrichedProject.script?.franchiseId;
+      const updatedFranchises = franchiseId
+        ? (prev.franchises || []).map(f => {
+            if (f.id !== franchiseId) return f;
+            const existingEntries = f.entries || [];
+            if (existingEntries.includes(enrichedProject.id)) return f;
+            return {
+              ...f,
+              entries: [...existingEntries, enrichedProject.id],
+            };
+          })
+        : prev.franchises;
+
+      return {
+        ...prev,
+        projects: [...prev.projects, enrichedProject],
+        studio: {
+          ...prev.studio,
+          budget: finalBudget,
+          debt: newDebt,
+          lastProjectWeek: prev.currentWeek,
+          weeksSinceLastProject: 0,
+        },
+        franchises: updatedFranchises,
+      };
+    });
 
     updateOperation('project-create', 100, 'Project created successfully!');
 
@@ -1792,7 +1809,7 @@ export const StudioMagnateGame: React.FC<StudioMagnateGameProps> = ({
               gameState={gameState}
               onUpdateFranchise={handleUpdateFranchise}
               onCreateProject={(franchiseId) => {
-                // Create a basic script for franchise project
+                // Create a basic script for franchise film project
                 const franchise = gameState.franchises.find(f => f.id === franchiseId);
                 const script: Script = {
                   id: `script-${Date.now()}`,
@@ -1820,6 +1837,12 @@ export const StudioMagnateGame: React.FC<StudioMagnateGameProps> = ({
                   budget: 15000000
                 };
                 handleProjectCreate(script);
+              }}
+              onCreateTVProject={(franchiseId) => {
+                // Route to Television & Streaming with this franchise pre-selected
+                setSelectedFranchise(franchiseId);
+                setSelectedPublicDomain(null);
+                handlePhaseChange('television');
               }}
             />
             <EnhancedFranchiseSystem
@@ -2026,7 +2049,9 @@ export const StudioMagnateGame: React.FC<StudioMagnateGameProps> = ({
 
         {currentPhase === 'television' && (
           <ComprehensiveTelevisionSystem 
-            gameState={gameState} 
+            gameState={gameState}
+            selectedFranchise={selectedFranchise}
+            selectedPublicDomain={selectedPublicDomain}
             onUpdateBudget={(amount) => {
               setGameState(prev => ({
                 ...prev,

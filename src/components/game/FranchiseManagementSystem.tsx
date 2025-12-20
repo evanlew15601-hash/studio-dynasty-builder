@@ -250,7 +250,7 @@ export const FranchiseManagementSystem: React.FC<FranchiseManagementSystemProps>
               <CardContent>
                 <div className="grid grid-cols-1 md:grid-cols-3 gap-4 mb-4">
                   <div className="text-center">
-                    <div className="text-sm text-muted-foreground">Films</div>
+                    <div className="text-sm text-muted-foreground">Franchise Projects</div>
                     <div className="text-xl font-bold">{value.entries}</div>
                   </div>
                   <div className="text-center">

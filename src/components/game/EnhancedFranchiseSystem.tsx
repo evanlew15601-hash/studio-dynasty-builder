@@ -276,12 +276,12 @@ export const EnhancedFranchiseSystem: React.FC<EnhancedFranchiseSystemProps> = (
           <CardHeader>
             <CardTitle className="flex items-center gap-2">
               <Film className="h-5 w-5" />
-              Films Eligible for Franchise
+              Projects Eligible for Franchise
             </CardTitle>
           </CardHeader>
           <CardContent>
             <div className="text-sm text-muted-foreground mb-4">
-              Successful films that could spawn franchises based on box office performance and critical reception.
+              Successful projects that could spawn franchises based on box office performance and critical reception.
             </div>
             <div className="grid gap-3">
               {eligibleForFranchise.map(project => (
@@ -337,7 +337,7 @@ export const EnhancedFranchiseSystem: React.FC<EnhancedFranchiseSystemProps> = (
               <CardContent>
                 <div className="grid grid-cols-2 md:grid-cols-4 gap-4 mb-4">
                   <div className="text-center">
-                    <div className="text-sm text-muted-foreground">Films</div>
+                    <div className="text-sm text-muted-foreground">Franchise Projects</div>
                     <div className="text-xl font-bold">{metrics.projectCount}</div>
                   </div>
                   <div className="text-center">
@@ -356,12 +356,12 @@ export const EnhancedFranchiseSystem: React.FC<EnhancedFranchiseSystemProps> = (
                   </div>
                 </div>
 
-                {/* Franchise Films */}
+                {/* Franchise Projects (films & TV) */}
                 {franchiseProjects.length > 0 && (
                   <div>
                     <h4 className="font-medium mb-3 flex items-center gap-2">
                       <Users className="h-4 w-4" />
-                      Franchise Films ({franchiseProjects.length})
+                      Franchise Projects ({franchiseProjects.length})
                     </h4>
                     <div className="grid gap-2">
                       {franchiseProjects
