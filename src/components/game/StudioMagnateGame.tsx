@@ -86,6 +86,7 @@ import { ChevronDown } from 'lucide-react';
 import { RoleDatabase } from '../../data/RoleDatabase';
 import { importRolesForScript } from '@/utils/roleImport';
 import { MediaFinancialIntegration } from './MediaFinancialIntegration';
+import { MediaReputationIntegration } from './MediaReputationIntegration';
 import { saveGame } from '@/utils/saveLoad';
 
 // Ensure AI films have at least a Director and Lead actor so awards/crediting work
@@ -1476,6 +1477,17 @@ export const StudioMagnateGame: React.FC<StudioMagnateGameProps> = ({ onPhaseCha
           }
         });
 
+        // Apply media-driven reputation changes on top of deep reputation
+        try {
+          setGameState(current => {
+            const mutated = { ...current };
+            MediaReputationIntegration.processWeeklyReputationUpdates(mutated);
+            return mutated;
+          });
+        } catch (e) {
+          console.warn('Media reputation integration error', e);
+        }
+
         // Perform memory cleanup for static classes every 10 weeks
         if (newTimeState.currentWeek % 10 === 0) {
           import('./CrisisManagement').then(({ CrisisManagement }) => {
@@ -1514,6 +1526,19 @@ export const StudioMagnateGame: React.FC<StudioMagnateGameProps> = ({ onPhaseCha
           // Apply rewards for all newly unlocked achievements before clearing notifications
           handleAchievementRewards(achievements.recentUnlocks);
           achievements.clearRecentUnlocks();
+        }}
+      />
+
+      {/* Background financial accuracy service */}
+      <EnhancedFinancialAccuracy
+        gameState={gameState}
+        onProjectUpdate={(projectId, updates) => {
+          setGameState(prev => ({
+            ...prev,
+            projects: prev.projects.map(p =>
+              p.id === projectId ? { ...p, ...updates } : p
+            )
+          }));
         }}
       />
 
