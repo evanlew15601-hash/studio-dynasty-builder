@@ -474,6 +474,9 @@ export const StudioMagnateGame: React.FC<StudioMagnateGameProps> = ({
         windows: [],
         marketingBudget: script.budget * 0.5
       },
+      // Franchise & Public Domain Integration
+      franchiseId: script.franchiseId,
+      publicDomainId: script.publicDomainId,
       status: 'development',
       metrics: {}
     };
@@ -584,7 +587,7 @@ export const StudioMagnateGame: React.FC<StudioMagnateGameProps> = ({
     }));
     toast({
       title: "Franchise Created",
-      description: `${franchise.name} franchise has been established`,
+      description: `"${franchise.title}" franchise has been established`,
     });
   };
 
