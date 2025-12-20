@@ -27,6 +27,7 @@ import { TVRatingsSystem } from './TVRatingsSystem';
 import { updateProjectFinancials } from './FinancialCalculations';
 import { TalentFilmographyManager } from '@/utils/talentFilmographyManager';
 import { AwardsSystem } from './AwardsSystem';
+import { EnhancedAwardsSystem } from './EnhancedAwardsSystem';
 import { RoleBasedCasting } from './RoleBasedCasting';
 import { CharacterCastingSystem } from './CharacterCastingSystem';
 import { useAwardsEngine } from '@/hooks/useAwardsEngine';
@@ -135,9 +136,25 @@ interface StudioMagnateGameProps {
     startingBudget: number;
   };
   initialGameState?: GameState;
+  /**
+   * Optional UI-related metadata from a loaded save (e.g., currentPhase).
+   * This allows restoring the player's UI context on load.
+   */
+  initialPhase?: string;
+  /**
+   * Optional list of achievement IDs that were already unlocked when loading.
+   * Prevents double-rewarding when rehydrating achievements on load.
+   */
+  initialUnlockedAchievements?: string[];
 }
 
-export const StudioMagnateGame: React.FC<StudioMagnateGameProps> = ({ onPhaseChange, gameConfig, initialGameState }) => {
+export const StudioMagnateGame: React.FC<StudioMagnateGameProps> = ({
+  onPhaseChange,
+  gameConfig,
+  initialGameState,
+  initialPhase,
+  initialUnlockedAchievements
+}) => {
   const { toast } = useToast();
   const { loading, startOperation, updateOperation, completeOperation } = useLoadingContext();
   
@@ -314,10 +331,18 @@ export const StudioMagnateGame: React.FC<StudioMagnateGameProps> = ({ onPhaseCha
 
   // Market dynamics hooks  
   const talentMarket = useTalentMarket(gameState.talent, gameState.currentWeek);
-  const genreSaturation = useGenreSaturation(gameState.allReleases.filter((item): item is Project => 'script' in item), gameState.currentWeek);
-  const achievements = useAchievements(gameState);
+  const genreSaturation = useGenreSaturation(
+    gameState.allReleases.filter((item): item is Project => 'script' in item),
+    gameState.currentWeek
+  );
+  const [currentPhase, setCurrentPhase] = useState<
+    'dashboard' | 'scripts' | 'casting' | 'talent' | 'franchise' | 'media' |
+    'production' | 'marketing' | 'distribution' | 'financials' | 'finance' |
+    'awards' | 'market' | 'topfilms' | 'stats' | 'reputation' | 'loans' |
+    'competition' | 'television' | 'tv-tests'
+  >((initialPhase as any) || 'dashboard');
 
-  const [currentPhase, setCurrentPhase] = useState<'dashboard' | 'scripts' | 'casting' | 'talent' | 'franchise' | 'media' | 'production' | 'marketing' | 'distribution' | 'financials' | 'finance' | 'awards' | 'market' | 'topfilms' | 'stats' | 'reputation' | 'loans' | 'competition' | 'television' | 'tv-tests'>('dashboard');
+  const achievements = useAchievements(gameState, initialUnlockedAchievements);
   const [selectedProject, setSelectedProject] = useState<Project | null>(null);
   const [selectedFranchise, setSelectedFranchise] = useState<string | null>(null);
   const [selectedPublicDomain, setSelectedPublicDomain] = useState<string | null>(null);
@@ -331,7 +356,7 @@ export const StudioMagnateGame: React.FC<StudioMagnateGameProps> = ({ onPhaseCha
   const [showAwardModal, setShowAwardModal] = useState(false);
 
   // Handle achievement rewards
-  const handleAchievementRewards = (unlockedAchievements: Array<{ reward?: { reputation?: number; budget?: number } }>) => {
+  const handleAchievementRewards = (unlockedAchievements: Array<{ id?: string; reward?: { reputation?: number; budget?: number } }>) => {
     unlockedAchievements.forEach(achievement => {
       if (achievement.reward) {
         setGameState(prev => ({
@@ -348,7 +373,11 @@ export const StudioMagnateGame: React.FC<StudioMagnateGameProps> = ({ onPhaseCha
 
   const handleSaveGame = () => {
     try {
-      saveGame('slot1', gameState);
+      const unlockedIds = achievements.getUnlockedAchievements().map(a => a.id);
+      saveGame('slot1', gameState, {
+        currentPhase,
+        unlockedAchievementIds: unlockedIds
+      });
       toast({
         title: 'Game Saved',
         description: 'Your progress has been saved in this browser.',
@@ -2260,11 +2289,53 @@ export const StudioMagnateGame: React.FC<StudioMagnateGameProps> = ({ onPhaseCha
         )}
         
         {currentPhase === 'awards' && (
-          <AwardsSystem 
-            gameState={gameState}
-            onProjectUpdate={handleProjectUpdate}
-            onStudioUpdate={handleStudioUpdate}
-          />
+          <Tabs defaultValue="core" className="space-y-4">
+            <TabsList>
+              <TabsTrigger value="core">Awards Strategy</TabsTrigger>
+              <TabsTrigger value="season">Awards Season Analytics</TabsTrigger>
+            </TabsList>
+
+            <TabsContent value="core">
+              <AwardsSystem 
+                gameState={gameState}
+                onProjectUpdate={handleProjectUpdate}
+                onStudioUpdate={handleStudioUpdate}
+              />
+            </TabsContent>
+
+            <TabsContent value="season">
+              <EnhancedAwardsSystem
+                gameState={gameState}
+                onReputationUpdate={(studioId, change) => {
+                  if (studioId === gameState.studio.id) {
+                    handleStudioUpdate({
+                      reputation: Math.max(
+                        0,
+                        Math.min(100, gameState.studio.reputation + change)
+                      )
+                    });
+                  }
+                }}
+                onTalentReputationUpdate={(talentId, change) => {
+                  setGameState(prev => ({
+                    ...prev,
+                    talent: prev.talent.map(t =>
+                      t.id === talentId
+                        ? {
+                            ...t,
+                            reputation: (t.reputation || 0) + change,
+                            publicImage: Math.max(
+                              0,
+                              Math.min(100, (t.publicImage || t.reputation || 0) + change)
+                            )
+                          }
+                        : t
+                    )
+                  }));
+                }}
+              />
+            </TabsContent>
+          </Tabs>
         )}
         
         {currentPhase === 'market' && (

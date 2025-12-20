@@ -1,5 +1,5 @@
 import { useState, useEffect } from 'react';
-import { GameState, Project } from '@/types/game';
+import { GameState } from '@/types/game';
 
 export interface Achievement {
   id: string;
@@ -120,8 +120,18 @@ const ACHIEVEMENTS: Achievement[] = [
   }
 ];
 
-export const useAchievements = (gameState: GameState) => {
-  const [achievements, setAchievements] = useState<Achievement[]>(ACHIEVEMENTS);
+export const useAchievements = (gameState: GameState, initialUnlockedIds?: string[]) => {
+  const [achievements, setAchievements] = useState<Achievement[]>(() => {
+    if (!initialUnlockedIds || initialUnlockedIds.length === 0) {
+      return ACHIEVEMENTS;
+    }
+    const set = new Set(initialUnlockedIds);
+    return ACHIEVEMENTS.map(a =>
+      set.has(a.id)
+        ? { ...a, unlocked: true, unlockedAt: a.unlockedAt ?? new Date() }
+        : a
+    );
+  });
   const [recentUnlocks, setRecentUnlocks] = useState<Achievement[]>([]);
 
   useEffect(() => {
@@ -136,11 +146,6 @@ export const useAchievements = (gameState: GameState) => {
           
           // Add to recent unlocks for notification
           setRecentUnlocks(recent => [...recent, unlockedAchievement]);
-          
-          // Apply rewards
-          if (achievement.reward) {
-            // Note: Actual reward application would need to be handled by parent component
-          }
           
           return unlockedAchievement;
         }

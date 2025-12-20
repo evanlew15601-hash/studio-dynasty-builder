@@ -4,11 +4,21 @@ export interface SaveGameMeta {
   savedAt: string;
   version: string;
   note?: string;
+  /**
+   * The UI phase/tab the player was viewing when saving.
+   * Used to restore the UI context on load.
+   */
+  currentPhase?: string;
 }
 
 export interface SaveGameSnapshot {
   gameState: GameState;
   meta: SaveGameMeta;
+  /**
+   * Achievement IDs that were unlocked at the moment of saving.
+   * This prevents double-rewarding when reloading.
+   */
+  unlockedAchievements?: string[];
 }
 
 const SAVE_KEY_PREFIX = 'studio-magnate-save-';
@@ -18,7 +28,15 @@ const CURRENT_SAVE_VERSION = 'alpha-1';
  * Persist a game snapshot to localStorage.
  * Uses a simple slot-based scheme: studio-magnate-save-{slotId}
  */
-export function saveGame(slotId: string, gameState: GameState, note?: string): void {
+export function saveGame(
+  slotId: string,
+  gameState: GameState,
+  options?: {
+    note?: string;
+    currentPhase?: string;
+    unlockedAchievementIds?: string[];
+  }
+): void {
   if (typeof window === 'undefined' || typeof window.localStorage === 'undefined') {
     return;
   }
@@ -28,8 +46,10 @@ export function saveGame(slotId: string, gameState: GameState, note?: string): v
     meta: {
       savedAt: new Date().toISOString(),
       version: CURRENT_SAVE_VERSION,
-      note,
+      note: options?.note,
+      currentPhase: options?.currentPhase,
     },
+    unlockedAchievements: options?.unlockedAchievementIds,
   };
 
   try {

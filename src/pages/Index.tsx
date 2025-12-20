@@ -46,6 +46,8 @@ const Index = () => {
         <StudioMagnateGame 
           gameConfig={gameConfig} 
           initialGameState={loadedSnapshot?.gameState}
+          initialPhase={loadedSnapshot?.meta.currentPhase}
+          initialUnlockedAchievements={loadedSnapshot?.unlockedAchievements}
         />
       )}
     </LoadingProvider>
