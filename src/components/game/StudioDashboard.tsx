@@ -492,7 +492,7 @@ export const StudioDashboard: React.FC<StudioDashboardProps> = ({
             <Button 
               variant="outline" 
               className="h-auto p-4 flex items-center space-x-3 btn-ghost-premium hover:border-primary/50 group"
-              onClick={() => onPhaseChange?.('financials')}
+              onClick={() => onPhaseChange?.('finance')}
             >
               <div className="p-2 rounded-lg bg-gradient-to-r from-primary/10 to-accent/10 group-hover:from-primary/20 group-hover:to-accent/20 transition-all duration-300">
                 <BudgetIcon className="text-primary" size={20} />

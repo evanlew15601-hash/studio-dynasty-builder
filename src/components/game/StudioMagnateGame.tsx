@@ -337,10 +337,10 @@ export const StudioMagnateGame: React.FC<StudioMagnateGameProps> = ({
   );
   const [currentPhase, setCurrentPhase] = useState<
     'dashboard' | 'scripts' | 'casting' | 'talent' | 'franchise' | 'media' |
-    'production' | 'marketing' | 'distribution' | 'financials' | 'finance' |
+    'production' | 'marketing' | 'distribution' | 'finance' |
     'awards' | 'market' | 'topfilms' | 'stats' | 'reputation' | 'loans' |
     'competition' | 'television' | 'tv-tests'
-  >((initialPhase as any) || 'dashboard');
+  >(((initialPhase === 'financials' ? 'finance' : initialPhase) as any) || 'dashboard');
 
   const achievements = useAchievements(gameState, initialUnlockedAchievements);
   const [selectedProject, setSelectedProject] = useState<Project | null>(null);
@@ -1685,7 +1685,7 @@ export const StudioMagnateGame: React.FC<StudioMagnateGameProps> = ({
                 <Button
                   variant="ghost"
                   className={`rounded-none border-b-2 px-4 py-4 font-medium transition-all duration-300 border-transparent hover:border-primary/40 hover:bg-primary/5 btn-ghost-premium ${
-                    ['financials', 'competition', 'market', 'topfilms', 'stats'].includes(currentPhase)
+                    ['finance', 'competition', 'market', 'topfilms', 'stats'].includes(currentPhase)
                       ? 'border-primary bg-gradient-to-t from-primary/20 to-primary/10 text-primary shadow-lg' 
                       : ''
                   }`}
@@ -1696,7 +1696,7 @@ export const StudioMagnateGame: React.FC<StudioMagnateGameProps> = ({
                 </Button>
               </DropdownMenuTrigger>
               <DropdownMenuContent align="start" className="min-w-[200px] bg-background/95 backdrop-blur-md">
-                <DropdownMenuItem onClick={() => handlePhaseChange('financials')}>
+                <DropdownMenuItem onClick={() => handlePhaseChange('finance')}>
                   <BudgetIcon className="mr-2" size={16} />
                   Financials
                 </DropdownMenuItem>
@@ -2264,14 +2264,6 @@ export const StudioMagnateGame: React.FC<StudioMagnateGameProps> = ({
           />
         )}
         
-        {currentPhase === 'financials' && (
-          <FinancialDashboard
-            currentWeek={gameState.currentWeek}
-            currentYear={gameState.currentYear}
-            projects={gameState.projects}
-          />
-        )}
-
         {currentPhase === 'finance' && (
           <FinancialDashboard
             currentWeek={gameState.currentWeek}
