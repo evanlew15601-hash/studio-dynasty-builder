@@ -7,6 +7,8 @@ import { TVShowDevelopment } from './TVShowDevelopment';
 import { TVProductionManagement } from './TVProductionManagement';
 import { AITelevisionStudios } from './AITelevisionStudios';
 import { MarketingReleaseManagement } from './MarketingReleaseManagement';
+import { EpisodeTrackingSystem } from './EpisodeTrackingSystem';
+import { StreamingAnalyticsDashboard } from './StreamingAnalyticsDashboard';
 import { 
   Tv, 
   Monitor,
@@ -19,116 +21,17 @@ interface ComprehensiveTelevisionSystemProps {
   onUpdateBudget: (amount: number) => void;
   onGameStateUpdate: (updates: Partial<GameState>) => void;
   onTalentCommitmentChange?: (talentId: string, busy: boolean, project?: string) => void;
+  onCreateTVProject: (script: Script) => void;
 }
 
 export const ComprehensiveTelevisionSystem: React.FC<ComprehensiveTelevisionSystemProps> = ({
   gameState,
   onUpdateBudget,
   onGameStateUpdate,
-  onTalentCommitmentChange
+  onTalentCommitmentChange,
+  onCreateTVProject
 }) => {
   const [selectedProject, setSelectedProject] = useState<Project | null>(null);
-
-  const handleTVProjectCreate = (script: Script) => {
-    // Create TV project properly integrated with the game system
-    const newProject: Project = {
-      id: `tv-project-${Date.now()}`,
-      title: script.title,
-      script: script,
-      type: 'series',
-      currentPhase: 'development',
-      budget: {
-        total: script.budget * 13, // Season budget (13 episodes)
-        allocated: {
-          aboveTheLine: script.budget * 13 * 0.3,
-          belowTheLine: script.budget * 13 * 0.4,
-          postProduction: script.budget * 13 * 0.15,
-          marketing: script.budget * 13 * 0.1,
-          distribution: script.budget * 13 * 0.03,
-          contingency: script.budget * 13 * 0.02
-        },
-        spent: {
-          aboveTheLine: 0,
-          belowTheLine: 0,
-          postProduction: 0,
-          marketing: 0,
-          distribution: 0,
-          contingency: 0
-        },
-        overages: {
-          aboveTheLine: 0,
-          belowTheLine: 0,
-          postProduction: 0,
-          marketing: 0,
-          distribution: 0,
-          contingency: 0
-        }
-      },
-      cast: [],
-      crew: [],
-      timeline: {
-        preProduction: {
-          start: new Date(),
-          end: new Date(Date.now() + 6 * 7 * 24 * 60 * 60 * 1000) // 6 weeks
-        },
-        principalPhotography: {
-          start: new Date(Date.now() + 6 * 7 * 24 * 60 * 60 * 1000),
-          end: new Date(Date.now() + 18 * 7 * 24 * 60 * 60 * 1000) // 12 weeks
-        },
-        postProduction: {
-          start: new Date(Date.now() + 18 * 7 * 24 * 60 * 60 * 1000),
-          end: new Date(Date.now() + 26 * 7 * 24 * 60 * 60 * 1000) // 8 weeks
-        },
-        release: new Date(Date.now() + 30 * 7 * 24 * 60 * 60 * 1000), // 30 weeks total
-        milestones: []
-      },
-      locations: [],
-      distributionStrategy: {
-        primary: {
-          platform: 'streaming',
-          type: 'streaming',
-          revenue: {
-            type: 'subscription-share',
-            studioShare: 60
-          }
-        },
-        international: [],
-        windows: [],
-        marketingBudget: script.budget * 13 * 0.1
-      },
-      status: 'development',
-      metrics: {},
-      phaseDuration: 8, // 8 weeks in development
-      contractedTalent: [],
-      developmentProgress: {
-        scriptCompletion: 100,
-        budgetApproval: 100,
-        talentAttached: 0,
-        locationSecured: 0,
-        completionThreshold: 80,
-        issues: []
-      },
-      castingConfirmed: false
-    };
-
-    // Deduct development budget (10% of total season budget)
-    const developmentCost = newProject.budget.total * 0.1;
-    
-    if (gameState.studio.budget < developmentCost) {
-      return; // Error handling done in TVShowDevelopment
-    }
-
-    const updatedProjects = [...gameState.projects, newProject];
-    const updatedBudget = gameState.studio.budget - developmentCost;
-
-    onGameStateUpdate({
-      projects: updatedProjects,
-      studio: { ...gameState.studio, budget: updatedBudget }
-    });
-
-    // Also update budget via the prop
-    onUpdateBudget(-developmentCost);
-  };
 
   const handleTVProjectUpdate = (updatedProject: Project) => {
     const updatedProjects = gameState.projects.map(p => 
@@ -176,7 +79,7 @@ export const ComprehensiveTelevisionSystem: React.FC<ComprehensiveTelevisionSyst
 
       {/* TV Development Tabs */}
       <Tabs defaultValue="development" className="space-y-4">
-        <TabsList className="grid w-full grid-cols-4">
+        <TabsList className="grid w-full grid-cols-5">
           <TabsTrigger value="development" className="flex items-center gap-2">
             <Monitor className="h-4 w-4" />
             Script Development
@@ -187,7 +90,11 @@ export const ComprehensiveTelevisionSystem: React.FC<ComprehensiveTelevisionSyst
           </TabsTrigger>
           <TabsTrigger value="marketing" className="flex items-center gap-2">
             <TrendingUp className="h-4 w-4" />
-            Marketing & Release
+            Marketing &amp; Release
+          </TabsTrigger>
+          <TabsTrigger value="episodes" className="flex items-center gap-2">
+            <Tv className="h-4 w-4" />
+            Episodes &amp; Ratings
           </TabsTrigger>
           <TabsTrigger value="competition" className="flex items-center gap-2">
             <Building className="h-4 w-4" />
@@ -198,7 +105,7 @@ export const ComprehensiveTelevisionSystem: React.FC<ComprehensiveTelevisionSyst
         <TabsContent value="development">
           <TVShowDevelopment
             gameState={gameState}
-            onProjectCreate={handleTVProjectCreate}
+            onProjectCreate={onCreateTVProject}
             onScriptUpdate={handleTVScriptUpdate}
           />
         </TabsContent>
@@ -221,6 +128,20 @@ export const ComprehensiveTelevisionSystem: React.FC<ComprehensiveTelevisionSyst
               }
             }}
           />
+        </TabsContent>
+
+        <TabsContent value="episodes">
+          <div className="space-y-6">
+            <EpisodeTrackingSystem
+              gameState={gameState}
+              onProjectUpdate={(projectId, updates) => {
+                const project = gameState.projects.find(p => p.id === projectId);
+                if (!project) return;
+                handleTVProjectUpdate({ ...project, ...updates });
+              }}
+            />
+            <StreamingAnalyticsDashboard gameState={gameState} />
+          </div>
         </TabsContent>
 
         <TabsContent value="competition">

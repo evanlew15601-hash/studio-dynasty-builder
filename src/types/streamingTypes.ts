@@ -146,7 +146,7 @@ export interface StreamingAnalytics {
   industryBuzz: number; // 0-100
 }
 
-import { Project } from './game';
+import type { Project } from './game';
 
 export interface StreamingProject extends Project {
   // Streaming-specific fields

@@ -1,5 +1,7 @@
 // Studio Magnate Core Game Types
 
+import type { SeasonData } from './streamingTypes';
+
 // Franchise System Types
 export interface Franchise {
   id: string;
@@ -290,6 +292,11 @@ export interface Project {
       year: number;
     }>;
   };
+  // TV / Streaming-specific fields (optional)
+  seasons?: SeasonData[];
+  currentSeason?: number;
+  totalOrderedSeasons?: number;
+  releaseFormat?: 'weekly' | 'binge' | 'batch';
 }
 
 export interface ProjectBudget {

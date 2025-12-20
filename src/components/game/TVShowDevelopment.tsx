@@ -185,25 +185,21 @@ export const TVShowDevelopment: React.FC<TVShowDevelopmentProps> = ({
   };
 
   const handleGreenlightTVScript = (script: Script) => {
-    if (gameState.studio.budget < script.budget * 0.1) {
+    // Assume a standard 13-episode season when checking budget so this matches project creation
+    const assumedEpisodeCount = 13;
+    const seasonBudget = script.budget * assumedEpisodeCount;
+
+    if (gameState.studio.budget < seasonBudget * 0.1) {
       toast({
         title: "Insufficient Budget",
-        description: "You need at least 10% of the episode budget for development.",
+        description: "You need at least 10% of the estimated season budget for development.",
         variant: "destructive"
       });
       return;
     }
 
-    // Create TV project with proper workflow phase
-    const project = {
-      ...script,
-      type: 'series' as const, // Mark as TV series
-      currentPhase: 'development',
-      status: 'in-development',
-      castingConfirmed: false
-    };
-
-    onProjectCreate(project);
+    // Let the core game system create the actual TV project from this script
+    onProjectCreate(script);
     
     toast({
       title: "TV Script Greenlit!",
