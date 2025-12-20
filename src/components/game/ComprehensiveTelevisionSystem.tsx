@@ -7,6 +7,8 @@ import { TVShowDevelopment } from './TVShowDevelopment';
 import { TVProductionManagement } from './TVProductionManagement';
 import { AITelevisionStudios } from './AITelevisionStudios';
 import { MarketingReleaseManagement } from './MarketingReleaseManagement';
+import { EpisodeTrackingSystem } from './EpisodeTrackingSystem';
+import { StreamingAnalyticsDashboard } from './StreamingAnalyticsDashboard';
 import { 
   Tv, 
   Monitor,
@@ -77,7 +79,7 @@ export const ComprehensiveTelevisionSystem: React.FC<ComprehensiveTelevisionSyst
 
       {/* TV Development Tabs */}
       <Tabs defaultValue="development" className="space-y-4">
-        <TabsList className="grid w-full grid-cols-4">
+        <TabsList className="grid w-full grid-cols-5">
           <TabsTrigger value="development" className="flex items-center gap-2">
             <Monitor className="h-4 w-4" />
             Script Development
@@ -88,7 +90,11 @@ export const ComprehensiveTelevisionSystem: React.FC<ComprehensiveTelevisionSyst
           </TabsTrigger>
           <TabsTrigger value="marketing" className="flex items-center gap-2">
             <TrendingUp className="h-4 w-4" />
-            Marketing & Release
+            Marketing &amp; Release
+          </TabsTrigger>
+          <TabsTrigger value="episodes" className="flex items-center gap-2">
+            <Tv className="h-4 w-4" />
+            Episodes &amp; Ratings
           </TabsTrigger>
           <TabsTrigger value="competition" className="flex items-center gap-2">
             <Building className="h-4 w-4" />
@@ -122,6 +128,20 @@ export const ComprehensiveTelevisionSystem: React.FC<ComprehensiveTelevisionSyst
               }
             }}
           />
+        </TabsContent>
+
+        <TabsContent value="episodes">
+          <div className="space-y-6">
+            <EpisodeTrackingSystem
+              gameState={gameState}
+              onProjectUpdate={(projectId, updates) => {
+                const project = gameState.projects.find(p => p.id === projectId);
+                if (!project) return;
+                handleTVProjectUpdate({ ...project, ...updates });
+              }}
+            />
+            <StreamingAnalyticsDashboard gameState={gameState} />
+          </div>
         </TabsContent>
 
         <TabsContent value="competition">

@@ -352,6 +352,7 @@ const EpisodeManagementModal: React.FC<EpisodeManagementModalProps> = ({
   };
 
   const canRelease = currentSeason.episodesAired < currentSeason.totalEpisodes;
+  const isStreamingPrimary = project.distributionStrategy?.primary?.type === 'streaming';
 
   return (
     <div className="space-y-6">
@@ -375,7 +376,9 @@ const EpisodeManagementModal: React.FC<EpisodeManagementModalProps> = ({
                   <SelectContent>
                     <SelectItem value="weekly">Weekly (1 episode)</SelectItem>
                     <SelectItem value="batch">Batch (3 episodes)</SelectItem>
-                    <SelectItem value="binge">Binge (Full season)</SelectItem>
+                    <SelectItem value="binge" disabled={!isStreamingPrimary}>
+                      Binge (Full season){!isStreamingPrimary ? ' – streaming only' : ''}
+                    </SelectItem>
                   </SelectContent>
                 </Select>
               </div>
