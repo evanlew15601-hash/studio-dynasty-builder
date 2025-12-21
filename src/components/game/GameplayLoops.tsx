@@ -345,8 +345,8 @@ export class GameplayLoops {
     }
     
     // Record marketing expenses
-    if (marketingBudget > 0) {
-      const weeklyMarketingSpend = marketingBudget / 8; // Spread over 8 weeks
+    const weeklyMarketingSpend = marketingBudget > 0 ? marketingBudget / 8 : 0; // Spread over 8 weeks
+    if (weeklyMarketingSpend > 0) {
       FinancialEngine.recordFilmExpense(
         project.id,
         weeklyMarketingSpend,
@@ -357,11 +357,25 @@ export class GameplayLoops {
       );
     }
     
-    // Check optimal release window (simplified)
-    const hasOptimalDate = true; // Placeholder since CalendarManager interface differs
+    // Check optimal release window using calendar system
+    const calendarTime = {
+      currentWeek: currentTime.week,
+      currentYear: currentTime.year,
+      currentQuarter: Math.ceil(currentTime.week / 13)
+    };
+    const optimalWindows = CalendarManager.getOptimalReleaseWindows(calendarTime);
+    const hasOptimalDate = optimalWindows.length > 0;
+    let recommendedWeek: number | undefined;
+    let recommendedYear: number | undefined;
+    let recommendedReason: string | undefined;
     
     if (!hasOptimalDate) {
-      warnings.push('No optimal release window in next 4 weeks - placeholder warning');
+      warnings.push('No optimal release window in the next 6 months');
+    } else {
+      const bestWindow = optimalWindows[0];
+      recommendedWeek = bestWindow.week;
+      recommendedYear = bestWindow.year;
+      recommendedReason = bestWindow.reason;
     }
     
     return {
@@ -370,8 +384,11 @@ export class GameplayLoops {
       errors,
       warnings,
       marketingBudget,
-      weeklyMarketingSpend: marketingBudget / 8,
-      hasOptimalWindow: hasOptimalDate
+      weeklyMarketingSpend,
+      hasOptimalWindow: hasOptimalDate,
+      recommendedReleaseWeek: recommendedWeek,
+      recommendedReleaseYear: recommendedYear,
+      recommendedReleaseReason: recommendedReason
     };
   }
   
@@ -384,29 +401,46 @@ export class GameplayLoops {
     errors.push(...releaseValidation.errors);
     warnings.push(...releaseValidation.warnings);
     
-    if (releaseValidation.canRelease) {
-      // Find next available release date
-      // const nextDate = ReleaseSystem.getNextAvailableReleaseDate(currentTime);
+    let scheduledWeek: number | undefined;
+    let scheduledYear: number | undefined;
+    let scheduled = false;
+    
+    if (releaseValidation.canRelease && errors.length === 0) {
+      const calendarTime = {
+        currentWeek: currentTime.week,
+        currentYear: currentTime.year,
+        currentQuarter: Math.ceil(currentTime.week / 13)
+      };
       
-      // Schedule release (simplified)
-      // const releaseResult = ReleaseSystem.scheduleRelease(
-      //   project,
-      //   nextDate.week,
-      //   nextDate.year,
-      //   currentTime
-      // );
+      const nextDate = ReleaseSystem.getNextAvailableReleaseDate(calendarTime);
+      const releaseResult = ReleaseSystem.scheduleRelease(
+        project,
+        nextDate.week,
+        nextDate.year,
+        calendarTime
+      );
       
-      // if (!releaseResult.success) {
-      //   errors.push(releaseResult.message);
-      // }
+      if (!releaseResult.success) {
+        errors.push(releaseResult.message);
+      } else {
+        scheduled = true;
+        scheduledWeek = releaseResult.releaseWeek;
+        scheduledYear = releaseResult.releaseYear;
+      }
     }
     
     return {
-      canAdvance: releaseValidation.canRelease && errors.length === 0,
-      nextAction: errors.length > 0 ? 'Fix release issues' : 'Film will be released',
+      canAdvance: scheduled && errors.length === 0,
+      nextAction: errors.length > 0
+        ? 'Fix release issues'
+        : scheduled
+          ? `Release scheduled for week ${scheduledWeek}, ${scheduledYear}`
+          : 'Film ready for release scheduling',
       errors,
       warnings,
-      releaseReady: releaseValidation.canRelease
+      releaseReady: releaseValidation.canRelease,
+      scheduledWeek,
+      scheduledYear
     };
   }
   
@@ -418,6 +452,7 @@ export class GameplayLoops {
     
     // Check performance
     const roi = filmFinancials.profit / Math.max(filmFinancials.expenses, 1) * 100;
+    const weeksSinceRelease = project.metrics?.weeksSinceRelease ?? 0;
     
     if (roi < -50) {
       warnings.push('Film performing poorly - major loss expected');
@@ -426,7 +461,7 @@ export class GameplayLoops {
     }
     
     // Update studio reputation based on performance
-    if ((project as any).weeksSinceRelease === 1) {
+    if (weeksSinceRelease === 1) {
       // First week performance affects reputation immediately
       const performanceImpact = roi > 50 ? 5 : roi > 0 ? 2 : roi > -25 ? -1 : -3;
       
@@ -441,7 +476,7 @@ export class GameplayLoops {
       currentROI: roi,
       totalRevenue: filmFinancials.revenue,
       totalExpenses: filmFinancials.expenses,
-      weeksSinceRelease: (project as any).weeksSinceRelease || 0
+      weeksSinceRelease
     };
   }
   
@@ -467,8 +502,8 @@ export class GameplayLoops {
     }
     
     // Project portfolio analysis
-    const activeProjects = projects.filter(p => 
-      ['development', 'pre-production', 'in-production', 'post-production'].includes(p.status)
+    const activeProjects = projects.filter(p =>
+      ['development', 'pre-production', 'production', 'filming', 'post-production'].includes(p.status)
     );
     const releasedProjects = projects.filter(p => p.status === 'released');
     

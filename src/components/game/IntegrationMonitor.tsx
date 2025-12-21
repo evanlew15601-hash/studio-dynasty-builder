@@ -32,7 +32,19 @@ interface IntegrationMonitorProps {
   onRunLoop?: (projectId: string) => void;
 }
 
-export const IntegrationMonitor: React.FC<IntegrationMonitorProps> = ({ 
+export const IntegrationMonitor: React.FC&lt;IntegrationMonitorProps&gt; = ({ gameState }) =&gt; {
+  const [activeTab, setActiveTab] = useState&lt;'systems' | 'pipelines' | 'ai' | 'media'&gt;('systems');
+  const [loopResults, setLoopResults] = useState&lt;Record&lt;string, GameplayLoopResult&gt;&gt;({});
+  const [isRunning, setIsRunning] = useState(false);
+
+  const integrationStatus = SystemIntegration.runDiagnostics(gameState);
+
+  const calendarTime = {
+    currentWeek: gameState.currentWeek,
+    currentYear: gameState.currentYear,
+    currentQuarter: Math.ceil(gameState.currentWeek / 13)
+  };
+  const upcomingCalendarEvents = CalendarManager.getUpcomingEvents(calendarTime, 12);ntegrationMonitor: React.FC<IntegrationMonitorProps> = ({ 
   gameState, 
   onRunLoop 
 }) => {
@@ -177,9 +189,17 @@ export const IntegrationMonitor: React.FC<IntegrationMonitorProps> = ({
               <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                 {gameState.projects.map(project => {
                   const loopResult = loopResults[project.id];
-                  const progressPhases = ['development', 'pre-production', 'in-production', 'post-production', 'completed', 'ready-for-release', 'released'];
-                  const currentPhaseIndex = progressPhases.indexOf(project.status);
-                  const progress = ((currentPhaseIndex + 1) / progressPhases.length) * 100;
+                  const progressPhases = ['development', 'pre-production', 'production', 'post-production', 'completed', 'ready-for-release', 'released'];
+                  const normalizedStatus =
+                    project.status === 'filming'
+                      ? 'production'
+                      : project.status === 'ready-for-marketing'
+                        ? 'completed'
+                        : project.status === 'scheduled-for-release'
+                          ? 'ready-for-release'
+                          : project.status;
+                  const currentPhaseIndex = progressPhases.indexOf(normalizedStatus as any);
+                  const progress = currentPhaseIndex >= 0 ? ((currentPhaseIndex + 1) / progressPhases.length) * 100 : 0;
                   
                   return (
                     <div key={project.id} className="p-4 border border-border/50 rounded-lg bg-card/50">
@@ -337,7 +357,7 @@ export const IntegrationMonitor: React.FC<IntegrationMonitorProps> = ({
               <CardContent>
                 <div className="text-xs space-y-1">
                   <div>Current: Y{gameState.currentYear}W{gameState.currentWeek}</div>
-                  <div>Events: 0</div>
+                  <div>Upcoming events: {upcomingCalendarEvents.length}</div>
                 </div>
               </CardContent>
             </Card>

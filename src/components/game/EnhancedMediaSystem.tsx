@@ -138,7 +138,7 @@ export const EnhancedMediaSystem: React.FC<EnhancedMediaSystemProps> = ({
     });
 
     // Generate AI studio coverage
-    const aiProjects: any[] = [];
+    const aiProjects: Project[] = gameState.aiStudioProjects || [];
     aiProjects.forEach(project => {
       if (Math.random() < 0.15) { // Less frequent than player studio
         newStories.push(createAIStudioStory(project));
@@ -264,19 +264,21 @@ export const EnhancedMediaSystem: React.FC<EnhancedMediaSystemProps> = ({
     };
   };
 
-  const createAIStudioStory = (project: any): MediaStory => {
+  const createAIStudioStory = (project: Project): MediaStory => {
     const outlet = getRandomOutletByType(['trade']);
+    const studioName = project.studioName || 'AI Studio';
+    const genre = project.script?.genre || (project as any).genre || 'drama';
     const templates = [
-      `${project.studioName} Announces "${project.title}"`,
-      `"${project.title}" Production Underway at ${project.studioName}`,
-      `${project.studioName} Moves Forward with "${project.title}"`
+      `${studioName} Announces "${project.title}"`,
+      `"${project.title}" Production Underway at ${studioName}`,
+      `${studioName} Moves Forward with "${project.title}"`
     ];
     
     return {
       id: `story-${Date.now()}-${Math.random().toString(36).substr(2, 9)}`,
       outlet,
       headline: templates[Math.floor(Math.random() * templates.length)],
-      content: `${project.studioName} continues its production slate with "${project.title}", a ${project.genre} film. The project represents the studio's ongoing commitment to diverse storytelling.`,
+      content: `${studioName} continues its production slate with "${project.title}", a ${genre} film. The project represents the studio's ongoing commitment to diverse storytelling.`,
       sentiment: 'neutral',
       targets: {
         projects: [project.id]

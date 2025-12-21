@@ -7,7 +7,7 @@ interface GenreSaturationState {
   trendingGenres: Genre[];
 }
 
-export const useGenreSaturation = (allReleases: Project[], currentWeek: number) => {
+export const useGenreSaturation = (allReleases: Project[], currentWeek: number, currentYear: number) => {
   const [saturationState, setSaturationState] = useState<GenreSaturationState>({
     saturationLevels: {} as Record<Genre, number>,
     marketPenalties: {} as Record<Genre, number>,
@@ -15,15 +15,19 @@ export const useGenreSaturation = (allReleases: Project[], currentWeek: number) 
   });
 
   // Memoize the releases array to prevent infinite re-renders
-  const memoizedReleases = useMemo(() => allReleases, [allReleases.length, allReleases.map(r => r.id).join(',')]);
+  const memoizedReleases = useMemo(
+    () => allReleases,
+    [allReleases.length, allReleases.map(r => r.id).join(',')]
+  );
   const memoizedCurrentWeek = useMemo(() => currentWeek, [currentWeek]);
+  const memoizedCurrentYear = useMemo(() => currentYear, [currentYear]);
 
   // Calculate genre saturation based on recent releases
   useEffect(() => {
     const recentReleases = memoizedReleases.filter(release => {
       if (!release.releaseWeek || !release.releaseYear) return false;
       const releaseGameWeek = (release.releaseYear * 52) + release.releaseWeek;
-      const currentGameWeek = (2025 * 52) + memoizedCurrentWeek; // Use game year instead of real year
+      const currentGameWeek = (memoizedCurrentYear * 52) + memoizedCurrentWeek;
       return (currentGameWeek - releaseGameWeek) <= 12; // Last 12 weeks
     });
 
@@ -75,7 +79,7 @@ export const useGenreSaturation = (allReleases: Project[], currentWeek: number) 
       trendingGenres
     });
 
-  }, [memoizedReleases, memoizedCurrentWeek]);
+  }, [memoizedReleases, memoizedCurrentWeek, memoizedCurrentYear]);
 
   // Get performance multiplier for a genre
   const getGenreMultiplier = (genre: Genre): number => {
