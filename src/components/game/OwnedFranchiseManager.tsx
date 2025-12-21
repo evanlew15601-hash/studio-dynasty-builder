@@ -10,6 +10,7 @@ import { Dialog, DialogContent, DialogHeader, DialogTitle } from '@/components/u
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { Crown, Edit3, TrendingUp, Users, DollarSign, Star, Calendar } from 'lucide-react';
 import { useToast } from '@/hooks/use-toast';
+import { FinancialEngine } from './FinancialEngine';
 
 interface OwnedFranchiseManagerProps {
   gameState: GameState;
@@ -38,7 +39,8 @@ export const OwnedFranchiseManager: React.FC<OwnedFranchiseManagerProps> = ({
   // Calculate franchise metrics
   const getFranchiseMetrics = (franchise: Franchise) => {
     const franchiseProjects = gameState.projects.filter(p => p.script.franchiseId === franchise.id);
-    const totalBoxOffice = franchiseProjects.reduce((sum, p) => sum + (p.metrics?.boxOfficeTotal || 0), 0);
+    const financials = FinancialEngine.getFranchiseFinancials(franchiseProjects);
+    const totalBoxOffice = financials.boxOfficeRevenue;
     const totalBudget = franchiseProjects.reduce((sum, p) => sum + p.budget.total, 0);
     const avgCriticsScore = franchiseProjects.length > 0 
       ? franchiseProjects.reduce((sum, p) => sum + (p.metrics?.criticsScore || 0), 0) / franchiseProjects.length
@@ -48,9 +50,9 @@ export const OwnedFranchiseManager: React.FC<OwnedFranchiseManagerProps> = ({
       projectCount: franchiseProjects.length,
       totalBoxOffice,
       totalBudget,
-      profitability: totalBudget > 0 ? ((totalBoxOffice - totalBudget) / totalBudget) * 100 : 0,
+      profitability: totalBudget > 0 ? ((financials.totalRevenue - totalBudget) / totalBudget) * 100 : 0,
       avgCriticsScore,
-      franchiseValue: totalBoxOffice * 0.3,
+      franchiseValue: financials.totalRevenue,
       projects: franchiseProjects
     };
   };
@@ -196,12 +198,12 @@ export const OwnedFranchiseManager: React.FC<OwnedFranchiseManagerProps> = ({
                   </div>
                 </div>
 
-                {/* Franchise Films */}
+                {/* Franchise Projects */}
                 {metrics.projects.length > 0 && (
                   <div>
                     <h4 className="font-medium mb-3 flex items-center gap-2">
                       <Users className="h-4 w-4" />
-                      Franchise Films ({metrics.projects.length})
+                      Franchise Projects ({metrics.projects.length})
                     </h4>
                     <div className="grid gap-2">
                       {metrics.projects
@@ -220,9 +222,21 @@ export const OwnedFranchiseManager: React.FC<OwnedFranchiseManagerProps> = ({
                                 </div>
                               </div>
                             </div>
-                            <Badge variant={project.status === 'released' ? "default" : "secondary"}>
-                              {project.status}
-                            </Badge>
+                            <div className="flex flex-col items-end gap-1">
+                              <Badge variant="outline" className="text-xs capitalize">
+                                {project.type === 'feature'
+                                  ? 'Film'
+                                  : project.type === 'documentary'
+                                  ? 'Doc'
+                                  : 'TV'}
+                              </Badge>
+                              <Badge
+                                variant={project.status === 'released' ? "default" : "secondary"}
+                                className="text-xs"
+                              >
+                                {project.status}
+                              </Badge>
+                            </div>
                           </div>
                         ))}
                     </div>

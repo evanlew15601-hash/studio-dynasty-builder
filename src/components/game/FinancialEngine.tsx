@@ -218,6 +218,63 @@ export class FinancialEngine {
       transactions: filmTransactions
     };
   }
+
+  static getFranchiseFinancials(projects: Project[]): {
+    totalRevenue: number;
+    boxOfficeRevenue: number;
+    streamingRevenue: number;
+    otherRevenue: number;
+    totalExpenses: number;
+    netProfit: number;
+  } {
+    this.ensureLoaded();
+
+    if (!projects.length) {
+      return {
+        totalRevenue: 0,
+        boxOfficeRevenue: 0,
+        streamingRevenue: 0,
+        otherRevenue: 0,
+        totalExpenses: 0,
+        netProfit: 0
+      };
+    }
+
+    const projectIds = new Set(projects.map(p => p.id));
+    const relevant = this.transactions.filter(
+      t => t.filmId && projectIds.has(t.filmId)
+    );
+
+    let boxOfficeRevenue = 0;
+    let streamingRevenue = 0;
+    let otherRevenue = 0;
+    let totalExpenses = 0;
+
+    relevant.forEach(t => {
+      if (t.type === 'revenue') {
+        if (t.category === 'boxoffice') {
+          boxOfficeRevenue += t.amount;
+        } else if (t.category === 'streaming') {
+          streamingRevenue += t.amount;
+        } else {
+          otherRevenue += t.amount;
+        }
+      } else {
+        totalExpenses += t.amount;
+      }
+    });
+
+    const totalRevenue = boxOfficeRevenue + streamingRevenue + otherRevenue;
+
+    return {
+      totalRevenue,
+      boxOfficeRevenue,
+      streamingRevenue,
+      otherRevenue,
+      totalExpenses,
+      netProfit: totalRevenue - totalExpenses
+    };
+  }
   
   static getRecentTransactions(count: number = 10): Transaction[] {
     this.ensureLoaded();

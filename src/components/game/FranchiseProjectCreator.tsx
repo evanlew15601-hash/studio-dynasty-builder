@@ -359,8 +359,20 @@ export const FranchiseProjectCreator: React.FC<FranchiseProjectCreatorProps> = (
                     <div className="space-y-1">
                       {franchiseProjects.slice(-3).map(project => (
                         <div key={project.id} className="flex items-center justify-between text-sm">
-                          <span>{project.title}</span>
-                          <Badge variant={project.status === 'released' ? 'default' : 'secondary'}>
+                          <span className="flex items-center gap-2">
+                            {project.title}
+                            <Badge variant="outline" className="text-[10px] uppercase tracking-wide">
+                              {project.type === 'feature'
+                                ? 'Film'
+                                : project.type === 'documentary'
+                                ? 'Doc'
+                                : 'TV'}
+                            </Badge>
+                          </span>
+                          <Badge
+                            variant={project.status === 'released' ? 'default' : 'secondary'}
+                            className="text-xs"
+                          >
                             {project.status}
                           </Badge>
                         </div>
