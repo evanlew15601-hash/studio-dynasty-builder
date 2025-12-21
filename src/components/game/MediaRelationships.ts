@@ -42,6 +42,7 @@ export interface MediaEvent {
 export class MediaRelationships {
   private static relationships: Map<string, MediaRelationship> = new Map();
   private static interactionHistory: MediaInteraction[] = [];
+  private static currentTime: { week: number; year: number } | null = null;
 
   static initialize(mediaSources: MediaSource[], studioId: string): void {
     this.relationships.clear();
@@ -288,6 +289,8 @@ export class MediaRelationships {
   }
 
   static processWeeklyDecay(): void {
+    if (!this.currentTime) return;
+
     // Relationships slowly decay over time without interaction
     this.relationships.forEach(relationship => {
       const weeksSinceInteraction = this.getWeeksSinceLastInteraction(relationship);
@@ -299,10 +302,13 @@ export class MediaRelationships {
       }
     });
   }
-
+  
   private static getWeeksSinceLastInteraction(relationship: MediaRelationship): number {
-    // Simple calculation - in a real implementation, you'd properly calculate weeks
-    return 1; // Placeholder
+    if (!this.currentTime) return 0;
+
+    const currentAbsWeek = this.currentTime.year * 52 + this.currentTime.week;
+    const lastAbsWeek = relationship.lastInteraction.year * 52 + relationship.lastInteraction.week;
+    return Math.max(0, currentAbsWeek - lastAbsWeek);
   }
 
   static getRelationshipSummary(studioId: string): {
@@ -339,8 +345,15 @@ export class MediaRelationships {
     this.interactionHistory = [];
   }
 
+  static updateCurrentTime(week: number, year: number): void {
+    this.currentTime = { week, year };
+  }
+
   // Periodic cleanup to prevent memory leaks
   static performMaintenanceCleanup(currentWeek: number, currentYear: number): void {
+    this.updateCurrentTime(currentWeek, currentYear);
+    this.processWeeklyDecay();
+
     // Remove old interactions (keep last 100 interactions)
     if (this.interactionHistory.length > 100) {
       this.interactionHistory = this.interactionHistory

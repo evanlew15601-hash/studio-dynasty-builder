@@ -26,18 +26,24 @@ export const useTalentMarket = (talent: TalentPerson[], currentWeek: number) => 
     // Apply demand multiplier (success breeds higher prices)
     const demandMultiplier = marketState.demandMultipliers[person.id] || 1;
     
-    // Genre trend bonus
-    const genreBonus = person.specialties.reduce((bonus, genre) => {
-      return bonus + (marketState.genreTrends[genre] || 1);
-    }, 0) / person.specialties.length;
+    // Genre trend bonus (fallback to general genres if specialties not defined)
+    const specialties = (person.specialties && person.specialties.length > 0)
+      ? person.specialties
+      : person.genres || [];
+    const genreBonus =
+      specialties.length > 0
+        ? specialties.reduce((bonus, genre) => bonus + (marketState.genreTrends[genre] || 1), 0) /
+          specialties.length
+        : 1;
     
     // Age factor (peak years are more expensive)
-    const ageFactor = person.type === 'actor' ? 
-      (person.age >= 25 && person.age <= 45 ? 1.2 : 0.9) : 
-      (person.age >= 35 && person.age <= 55 ? 1.1 : 0.95);
+    const ageFactor = person.type === 'actor'
+      ? (person.age >= 25 && person.age <= 45 ? 1.2 : 0.9)
+      : (person.age >= 35 && person.age <= 55 ? 1.1 : 0.95);
     
     // Award winner premium
-    const awardPremium = person.awards.length > 0 ? 1.3 : 1;
+    const awardsCount = person.awards?.length || 0;
+    const awardPremium = awardsCount > 0 ? 1.3 : 1;
     
     return Math.floor(baseValue * demandMultiplier * genreBonus * ageFactor * awardPremium);
   };
