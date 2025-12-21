@@ -1,6 +1,6 @@
 // Studio Magnate Core Game Types
 
-import type { SeasonData } from './streamingTypes';
+import type { SeasonData, StreamingContract } from './streamingTypes';
 
 // Franchise System Types
 export interface Franchise {
@@ -297,6 +297,11 @@ export interface Project {
   currentSeason?: number;
   totalOrderedSeasons?: number;
   releaseFormat?: 'weekly' | 'binge' | 'batch';
+  /**
+   * Optional streaming contract information for TV/streaming projects.
+   * This is used by the StreamingContractSystem and saved as part of GameState.
+   */
+  streamingContract?: StreamingContract;
 }
 
 export interface ProjectBudget {

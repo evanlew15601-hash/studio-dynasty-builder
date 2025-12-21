@@ -213,7 +213,7 @@ export const FranchiseManager: React.FC<FranchiseManagerProps> = ({
 
                   <Button 
                     className="w-full"
-                    onClick={() => onCreateProject(franchise.id, undefined, 0)}
+                    onClick={() => onCreateProject(franchise.id, undefined, franchise.cost)}
                     variant="default"
                   >
                     {franchise.entries.length === 0 ? 'Start Franchise' : 'Create Sequel'}

@@ -25,6 +25,7 @@ interface NewProjectForm {
   tone: string;
   targetAudience: string;
   estimatedRuntime: number;
+  projectType: 'film' | 'tv';
 }
 
 export const FranchiseProjectCreator: React.FC<FranchiseProjectCreatorProps> = ({
@@ -42,7 +43,8 @@ export const FranchiseProjectCreator: React.FC<FranchiseProjectCreatorProps> = (
     timeline: 'standard',
     tone: 'balanced',
     targetAudience: 'general',
-    estimatedRuntime: 120
+    estimatedRuntime: 120,
+    projectType: 'film'
   });
 
   // Get franchises owned by the player
@@ -62,11 +64,12 @@ export const FranchiseProjectCreator: React.FC<FranchiseProjectCreatorProps> = (
       title: `${franchise.title} ${projectCount === 0 ? 'Origins' : projectCount === 1 ? 'Returns' : `Part ${projectCount + 1}`}`,
       description: `A new entry in the ${franchise.title} franchise`,
       genre: franchise.genre?.[0] || 'action',
-      budget: 15000000 + (projectCount * 5000000), // Increasing budgets
+      budget: 15000000 + (projectCount * 5000000), // Increasing budgets for features by default
       timeline: 'standard',
       tone: franchise.tone || 'balanced',
       targetAudience: 'general',
-      estimatedRuntime: 120
+      estimatedRuntime: 120,
+      projectType: 'film'
     });
     setIsCreating(true);
   };
@@ -78,7 +81,7 @@ export const FranchiseProjectCreator: React.FC<FranchiseProjectCreatorProps> = (
     if (projectForm.budget > gameState.studio.budget) {
       toast({
         title: "Insufficient Budget",
-        description: `Need $${(projectForm.budget / 1000000).toFixed(1)}M to develop this project`,
+        description: `Need ${(projectForm.budget / 1000000).toFixed(1)}M to develop this project`,
         variant: "destructive"
       });
       return;
@@ -86,22 +89,28 @@ export const FranchiseProjectCreator: React.FC<FranchiseProjectCreatorProps> = (
 
     const projectCount = getFranchiseProjectCount(selectedFranchise);
     
+    // Derive script fields based on chosen project type (film vs TV)
+    const isTV = projectForm.projectType === 'tv';
+    const pages = isTV ? 60 : 100 + Math.floor(Math.random() * 40);
+    const estimatedRuntime = isTV ? 45 : projectForm.estimatedRuntime;
+    const pacing = isTV ? 'episodic' : 'fast-paced';
+
     const script: Script = {
       id: `script-franchise-${Date.now()}`,
       title: projectForm.title,
       genre: projectForm.genre as any,
       logline: projectForm.description,
       writer: 'Studio Writer',
-      pages: 100 + Math.floor(Math.random() * 40), // 100-140 pages
+      pages,
       quality: 60 + Math.floor(Math.random() * 20), // 60-80 starting quality
       budget: projectForm.budget,
       developmentStage: 'concept',
       themes: selectedFranchise.franchiseTags?.slice(0, 3) || ['adventure'],
       targetAudience: projectForm.targetAudience as any,
-      estimatedRuntime: projectForm.estimatedRuntime,
+      estimatedRuntime: estimatedRuntime,
       characteristics: {
         tone: projectForm.tone as any,
-        pacing: 'fast-paced',
+        pacing: pacing as any,
         dialogue: 'naturalistic',
         visualStyle: 'realistic',
         commercialAppeal: 6 + Math.floor(selectedFranchise.culturalWeight / 20),
@@ -214,7 +223,23 @@ export const FranchiseProjectCreator: React.FC<FranchiseProjectCreatorProps> = (
               />
             </div>
 
-            <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+            <div className="grid grid-cols-1 md:grid-cols-4 gap-4">
+              <div>
+                <Label htmlFor="project-type">Project Type</Label>
+                <Select
+                  value={projectForm.projectType}
+                  onValueChange={(value: any) => setProjectForm(prev => ({ ...prev, projectType: value }))}
+                >
+                  <SelectTrigger>
+                    <SelectValue />
+                  </SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value="film">Feature Film</SelectItem>
+                    <SelectItem value="tv">TV Series</SelectItem>
+                  </SelectContent>
+                </Select>
+              </div>
+
               <div>
                 <Label htmlFor="project-budget">Budget (${(projectForm.budget / 1000000).toFixed(1)}M)</Label>
                 <Input
@@ -249,10 +274,10 @@ export const FranchiseProjectCreator: React.FC<FranchiseProjectCreatorProps> = (
                 <Input
                   id="project-runtime"
                   type="number"
-                  min="90"
-                  max="240"
+                  min={projectForm.projectType === 'tv' ? 20 : 90}
+                  max={projectForm.projectType === 'tv' ? 90 : 240}
                   value={projectForm.estimatedRuntime}
-                  onChange={(e) => setProjectForm(prev => ({ ...prev, estimatedRuntime: parseInt(e.target.value) }))}
+                  onChange={(e) => setProjectForm(prev => ({ ...prev, estimatedRuntime: parseInt(e.target.value) || (prev.projectType === 'tv' ? 45 : 120) }))}
                 />
               </div>
             </div>

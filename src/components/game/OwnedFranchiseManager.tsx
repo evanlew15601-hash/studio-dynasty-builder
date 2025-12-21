@@ -15,12 +15,14 @@ interface OwnedFranchiseManagerProps {
   gameState: GameState;
   onUpdateFranchise: (franchiseId: string, updates: Partial<Franchise>) => void;
   onCreateProject: (franchiseId?: string) => void;
+  onCreateTVProject?: (franchiseId: string) => void;
 }
 
 export const OwnedFranchiseManager: React.FC<OwnedFranchiseManagerProps> = ({
   gameState,
   onUpdateFranchise,
-  onCreateProject
+  onCreateProject,
+  onCreateTVProject
 }) => {
   const { toast } = useToast();
   const [editingFranchise, setEditingFranchise] = useState<Franchise | null>(null);
@@ -142,6 +144,15 @@ export const OwnedFranchiseManager: React.FC<OwnedFranchiseManagerProps> = ({
                     >
                       Add Film
                     </Button>
+                    {onCreateTVProject && (
+                      <Button
+                        size="sm"
+                        variant="outline"
+                        onClick={() => onCreateTVProject(franchise.id)}
+                      >
+                        Add TV Series
+                      </Button>
+                    )}
                   </div>
                 </div>
               </CardHeader>
@@ -150,7 +161,7 @@ export const OwnedFranchiseManager: React.FC<OwnedFranchiseManagerProps> = ({
                 {/* Franchise Metrics */}
                 <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
                   <div className="text-center">
-                    <div className="text-sm text-muted-foreground">Films</div>
+                    <div className="text-sm text-muted-foreground">Franchise Projects</div>
                     <div className="text-xl font-bold">{metrics.projectCount}</div>
                   </div>
                   <div className="text-center">

@@ -6,6 +6,7 @@ import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { ScrollArea } from '@/components/ui/scroll-area';
 import { MediaItem, MediaSource, GameState } from '@/types/game';
 import { MediaEngine } from './MediaEngine';
+import { MediaReputationIntegration } from './MediaReputationIntegration';
 import { 
   Newspaper, 
   TrendingUp, 
@@ -46,6 +47,10 @@ export const MediaDashboard: React.FC<MediaDashboardProps> = ({
     setRecentMedia(media);
     setMediaStats(stats);
   };
+
+  const studioMediaProfile = MediaReputationIntegration.calculateStudioReputationEffects(
+    gameState.studio
+  );
 
   const getFilteredMedia = () => {
     let filtered = recentMedia;
@@ -170,6 +175,48 @@ export const MediaDashboard: React.FC<MediaDashboardProps> = ({
           </CardContent>
         </Card>
       </div>
+
+      {/* Media-driven reputation snapshot */}
+      <Card>
+        <CardHeader>
+          <CardTitle className="flex items-center gap-2">
+            <Star className="h-5 w-5" />
+            Media Reputation Profile
+          </CardTitle>
+        </CardHeader>
+        <CardContent>
+          <div className="grid grid-cols-2 md:grid-cols-4 gap-4 text-sm">
+            <div>
+              <p className="text-muted-foreground mb-1">Industry Reputation</p>
+              <p className="font-semibold">
+                {Math.round(studioMediaProfile.industryReputation)}/100
+              </p>
+            </div>
+            <div>
+              <p className="text-muted-foreground mb-1">Public Reputation</p>
+              <p className="font-semibold">
+                {Math.round(studioMediaProfile.publicReputation)}/100
+              </p>
+            </div>
+            <div>
+              <p className="text-muted-foreground mb-1">Investor Confidence</p>
+              <p className="font-semibold">
+                {Math.round(studioMediaProfile.investorConfidence)}/100
+              </p>
+            </div>
+            <div>
+              <p className="text-muted-foreground mb-1">Media Relations</p>
+              <p className="font-semibold">
+                {Math.round(studioMediaProfile.mediaRelations)}/100
+              </p>
+            </div>
+          </div>
+          <p className="text-xs text-muted-foreground mt-3">
+            These scores are derived from recent coverage and are applied gradually on top of your
+            core reputation each week.
+          </p>
+        </CardContent>
+      </Card>
 
       {/* Controls */}
       <Card>

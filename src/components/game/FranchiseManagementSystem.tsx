@@ -90,12 +90,30 @@ export const FranchiseManagementSystem: React.FC<FranchiseManagementSystemProps>
 
   const getFranchiseValue = (franchise: Franchise) => {
     const entries = gameState.projects.filter(p => p.script.franchiseId === franchise.id);
-    const totalBoxOffice = entries.reduce((sum, p) => sum + (p.metrics?.boxOfficeTotal || 0), 0);
-    const avgRating = entries.length > 0 
-      ? entries.reduce((sum, p) => sum + ((p.metrics?.criticsScore || 0) + (p.metrics?.audienceScore || 0)) / 2, 0) / entries.length
-      : 0;
-    
-    return { entries: entries.length, totalBoxOffice, avgRating };
+    const totalBoxOffice = entries.reduce(
+      (sum, p) => sum + (p.metrics?.boxOfficeTotal || 0),
+      0
+    );
+    const totalStreamingViews = entries.reduce(
+      (sum, p) => sum + (p.metrics?.streaming?.totalViews || 0),
+      0
+    );
+    const avgRating =
+      entries.length > 0
+        ? entries.reduce(
+            (sum, p) =>
+              sum +
+              ((p.metrics?.criticsScore || 0) + (p.metrics?.audienceScore || 0)) / 2,
+            0
+          ) / entries.length
+        : 0;
+
+    return {
+      entries: entries.length,
+      totalBoxOffice,
+      totalStreamingViews,
+      avgRating
+    };
   };
 
   const getCharacterPopularity = (characterId: string) => {
@@ -248,14 +266,20 @@ export const FranchiseManagementSystem: React.FC<FranchiseManagementSystemProps>
                 </div>
               </CardHeader>
               <CardContent>
-                <div className="grid grid-cols-1 md:grid-cols-3 gap-4 mb-4">
+                <div className="grid grid-cols-1 md:grid-cols-4 gap-4 mb-4">
                   <div className="text-center">
-                    <div className="text-sm text-muted-foreground">Films</div>
+                    <div className="text-sm text-muted-foreground">Franchise Projects</div>
                     <div className="text-xl font-bold">{value.entries}</div>
                   </div>
                   <div className="text-center">
                     <div className="text-sm text-muted-foreground">Total Box Office</div>
                     <div className="text-xl font-bold">${(value.totalBoxOffice / 1000000).toFixed(1)}M</div>
+                  </div>
+                  <div className="text-center">
+                    <div className="text-sm text-muted-foreground">Streaming Views</div>
+                    <div className="text-xl font-bold">
+                      {(value.totalStreamingViews / 1000000).toFixed(1)}M
+                    </div>
                   </div>
                   <div className="text-center">
                     <div className="text-sm text-muted-foreground">Avg Rating</div>

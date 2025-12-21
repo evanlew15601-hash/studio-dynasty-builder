@@ -33,7 +33,6 @@ import { CharacterCastingSystem } from './CharacterCastingSystem';
 import { useAwardsEngine } from '@/hooks/useAwardsEngine';
 import { IndividualAwardShowModal, AwardShowCeremony } from './IndividualAwardShowModal';
 import { FirstWeekBoxOfficeModal } from './FirstWeekBoxOfficeModal';
-import { EnhancedReleaseSystem } from './EnhancedReleaseSystem';
 import { EnhancedLoanSystem } from './EnhancedLoanSystem';
 import { MarketCompetition } from './MarketCompetition';
 import { TopFilmsChart } from './TopFilmsChart';
@@ -87,6 +86,9 @@ import {
 import { ChevronDown } from 'lucide-react';
 import { RoleDatabase } from '../../data/RoleDatabase';
 import { importRolesForScript } from '@/utils/roleImport';
+import { MediaFinancialIntegration } from './MediaFinancialIntegration';
+import { MediaReputationIntegration } from './MediaReputationIntegration';
+import { saveGame } from '@/utils/saveLoad';
 
 // Ensure AI films have at least a Director and Lead actor so awards/crediting work
 function attachBasicCastForAI(project: Project, talentPool: TalentPerson[]): Project {
@@ -133,9 +135,26 @@ interface StudioMagnateGameProps {
     difficulty: 'easy' | 'normal' | 'hard' | 'magnate';
     startingBudget: number;
   };
+  initialGameState?: GameState;
+  /**
+   * Optional UI-related metadata from a loaded save (e.g., currentPhase).
+   * This allows restoring the player's UI context on load.
+   */
+  initialPhase?: string;
+  /**
+   * Optional list of achievement IDs that were already unlocked when loading.
+   * Prevents double-rewarding when rehydrating achievements on load.
+   */
+  initialUnlockedAchievements?: string[];
 }
 
-export const StudioMagnateGame: React.FC<StudioMagnateGameProps> = ({ onPhaseChange, gameConfig }) => {
+export const StudioMagnateGame: React.FC<StudioMagnateGameProps> = ({
+  onPhaseChange,
+  gameConfig,
+  initialGameState,
+  initialPhase,
+  initialUnlockedAchievements
+}) => {
   const { toast } = useToast();
   const { loading, startOperation, updateOperation, completeOperation } = useLoadingContext();
   
@@ -153,6 +172,11 @@ export const StudioMagnateGame: React.FC<StudioMagnateGameProps> = ({ onPhaseCha
   };
   
   const [gameState, setGameState] = useState<GameState>(() => {
+    // If we have a loaded game, use it directly and skip heavy init
+    if (initialGameState) {
+      return initialGameState;
+    }
+
     // Start loading for game initialization
     startOperation(LOADING_OPERATIONS.GAME_INIT.id, LOADING_OPERATIONS.GAME_INIT.name, LOADING_OPERATIONS.GAME_INIT.estimatedTime);
     
@@ -307,10 +331,18 @@ export const StudioMagnateGame: React.FC<StudioMagnateGameProps> = ({ onPhaseCha
 
   // Market dynamics hooks  
   const talentMarket = useTalentMarket(gameState.talent, gameState.currentWeek);
-  const genreSaturation = useGenreSaturation(gameState.allReleases.filter((item): item is Project => 'script' in item), gameState.currentWeek);
-  const achievements = useAchievements(gameState);
+  const genreSaturation = useGenreSaturation(
+    gameState.allReleases.filter((item): item is Project => 'script' in item),
+    gameState.currentWeek
+  );
+  const [currentPhase, setCurrentPhase] = useState<
+    'dashboard' | 'scripts' | 'casting' | 'talent' | 'franchise' | 'media' |
+    'production' | 'marketing' | 'distribution' | 'finance' |
+    'awards' | 'market' | 'topfilms' | 'stats' | 'reputation' | 'loans' |
+    'competition' | 'television' | 'tv-tests'
+  >(((initialPhase === 'financials' ? 'finance' : initialPhase) as any) || 'dashboard');
 
-  const [currentPhase, setCurrentPhase] = useState<'dashboard' | 'scripts' | 'casting' | 'talent' | 'franchise' | 'media' | 'production' | 'marketing' | 'distribution' | 'financials' | 'finance' | 'awards' | 'market' | 'topfilms' | 'stats' | 'reputation' | 'loans' | 'competition' | 'television' | 'tv-tests'>('dashboard');
+  const achievements = useAchievements(gameState, initialUnlockedAchievements);
   const [selectedProject, setSelectedProject] = useState<Project | null>(null);
   const [selectedFranchise, setSelectedFranchise] = useState<string | null>(null);
   const [selectedPublicDomain, setSelectedPublicDomain] = useState<string | null>(null);
@@ -324,7 +356,7 @@ export const StudioMagnateGame: React.FC<StudioMagnateGameProps> = ({ onPhaseCha
   const [showAwardModal, setShowAwardModal] = useState(false);
 
   // Handle achievement rewards
-  const handleAchievementRewards = (unlockedAchievements: Array<{ reward?: { reputation?: number; budget?: number } }>) => {
+  const handleAchievementRewards = (unlockedAchievements: Array<{ id?: string; reward?: { reputation?: number; budget?: number } }>) => {
     unlockedAchievements.forEach(achievement => {
       if (achievement.reward) {
         setGameState(prev => ({
@@ -337,6 +369,27 @@ export const StudioMagnateGame: React.FC<StudioMagnateGameProps> = ({ onPhaseCha
         }));
       }
     });
+  };
+
+  const handleSaveGame = () => {
+    try {
+      const unlockedIds = achievements.getUnlockedAchievements().map(a => a.id);
+      saveGame('slot1', gameState, {
+        currentPhase,
+        unlockedAchievementIds: unlockedIds
+      });
+      toast({
+        title: 'Game Saved',
+        description: 'Your progress has been saved in this browser.',
+      });
+    } catch (error) {
+      console.error('Failed to save game', error);
+      toast({
+        title: 'Save Failed',
+        description: 'Unable to save your game. Check browser storage settings.',
+        variant: 'destructive',
+      });
+    }
   };
 
   const handlePhaseChange = (phase: typeof currentPhase) => {
@@ -421,6 +474,9 @@ export const StudioMagnateGame: React.FC<StudioMagnateGameProps> = ({ onPhaseCha
         windows: [],
         marketingBudget: script.budget * 0.5
       },
+      // Franchise & Public Domain Integration
+      franchiseId: script.franchiseId,
+      publicDomainId: script.publicDomainId,
       status: 'development',
       metrics: {}
     };
@@ -486,17 +542,34 @@ export const StudioMagnateGame: React.FC<StudioMagnateGameProps> = ({ onPhaseCha
       });
     }
 
-    setGameState(prev => ({
-      ...prev,
-      projects: [...prev.projects, enrichedProject],
-      studio: {
-        ...prev.studio,
-        budget: finalBudget,
-        debt: newDebt,
-        lastProjectWeek: prev.currentWeek,
-        weeksSinceLastProject: 0
-      }
-    }));
+    setGameState(prev => {
+      // If this project belongs to a franchise, append it to that franchise's entries
+      const franchiseId = enrichedProject.script?.franchiseId;
+      const updatedFranchises = franchiseId
+        ? (prev.franchises || []).map(f => {
+            if (f.id !== franchiseId) return f;
+            const existingEntries = f.entries || [];
+            if (existingEntries.includes(enrichedProject.id)) return f;
+            return {
+              ...f,
+              entries: [...existingEntries, enrichedProject.id],
+            };
+          })
+        : prev.franchises;
+
+      return {
+        ...prev,
+        projects: [...prev.projects, enrichedProject],
+        studio: {
+          ...prev.studio,
+          budget: finalBudget,
+          debt: newDebt,
+          lastProjectWeek: prev.currentWeek,
+          weeksSinceLastProject: 0,
+        },
+        franchises: updatedFranchises,
+      };
+    });
 
     updateOperation('project-create', 100, 'Project created successfully!');
 
@@ -531,7 +604,7 @@ export const StudioMagnateGame: React.FC<StudioMagnateGameProps> = ({ onPhaseCha
     }));
     toast({
       title: "Franchise Created",
-      description: `${franchise.name} franchise has been established`,
+      description: `"${franchise.title}" franchise has been established`,
     });
   };
 
@@ -1444,7 +1517,25 @@ export const StudioMagnateGame: React.FC<StudioMagnateGameProps> = ({ onPhaseCha
           if (newMediaItems.length > 0 || triggeredEvents.length > 0) {
             console.log(`📰 MEDIA: Generated ${newMediaItems.length} articles, triggered ${triggeredEvents.length} events`);
           }
+
+          // Apply financial side-effects from media coverage (lightweight integration)
+          try {
+            MediaFinancialIntegration.applyFinancialEffects(newState);
+          } catch (e) {
+            console.warn('Media financial integration error', e);
+          }
         });
+
+        // Apply media-driven reputation changes on top of deep reputation
+        try {
+          setGameState(current => {
+            const mutated = { ...current };
+            MediaReputationIntegration.processWeeklyReputationUpdates(mutated);
+            return mutated;
+          });
+        } catch (e) {
+          console.warn('Media reputation integration error', e);
+        }
 
         // Perform memory cleanup for static classes every 10 weeks
         if (newTimeState.currentWeek % 10 === 0) {
@@ -1481,8 +1572,22 @@ export const StudioMagnateGame: React.FC<StudioMagnateGameProps> = ({ onPhaseCha
       <AchievementNotifications
         achievements={achievements.recentUnlocks}
         onDismiss={(achievementId) => {
-          achievements.clearRecentUnlocks();
+          // Apply rewards for all newly unlocked achievements before clearing notifications
           handleAchievementRewards(achievements.recentUnlocks);
+          achievements.clearRecentUnlocks();
+        }}
+      />
+
+      {/* Background financial accuracy service */}
+      <EnhancedFinancialAccuracy
+        gameState={gameState}
+        onProjectUpdate={(projectId, updates) => {
+          setGameState(prev => ({
+            ...prev,
+            projects: prev.projects.map(p =>
+              p.id === projectId ? { ...p, ...updates } : p
+            )
+          }));
         }}
       />
 
@@ -1532,13 +1637,24 @@ export const StudioMagnateGame: React.FC<StudioMagnateGameProps> = ({ onPhaseCha
                 </div>
               </div>
               
-              <Button 
-                size="sm" 
-                onClick={skipToPostTheatrical}
+              {import.meta.env.DEV && (
+                <Button 
+                  size="sm" 
+                  onClick={skipToPostTheatrical}
+                  variant="outline"
+                  className="mr-2"
+                >
+                  🚀 Skip to Post-Theatrical Test
+                </Button>
+              )}
+
+              <Button
+                size="sm"
                 variant="outline"
-                className="mr-4"
+                className="mr-2"
+                onClick={handleSaveGame}
               >
-                🚀 Skip to Post-Theatrical Test
+                Save Game
               </Button>
               
               <Button 
@@ -1589,7 +1705,7 @@ export const StudioMagnateGame: React.FC<StudioMagnateGameProps> = ({ onPhaseCha
                 <Button
                   variant="ghost"
                   className={`rounded-none border-b-2 px-4 py-4 font-medium transition-all duration-300 border-transparent hover:border-primary/40 hover:bg-primary/5 btn-ghost-premium ${
-                    ['financials', 'competition', 'market', 'topfilms', 'stats'].includes(currentPhase)
+                    ['finance', 'competition', 'market', 'topfilms', 'stats'].includes(currentPhase)
                       ? 'border-primary bg-gradient-to-t from-primary/20 to-primary/10 text-primary shadow-lg' 
                       : ''
                   }`}
@@ -1600,7 +1716,7 @@ export const StudioMagnateGame: React.FC<StudioMagnateGameProps> = ({ onPhaseCha
                 </Button>
               </DropdownMenuTrigger>
               <DropdownMenuContent align="start" className="min-w-[200px] bg-background/95 backdrop-blur-md">
-                <DropdownMenuItem onClick={() => handlePhaseChange('financials')}>
+                <DropdownMenuItem onClick={() => handlePhaseChange('finance')}>
                   <BudgetIcon className="mr-2" size={16} />
                   Financials
                 </DropdownMenuItem>
@@ -1656,10 +1772,12 @@ export const StudioMagnateGame: React.FC<StudioMagnateGameProps> = ({ onPhaseCha
                    <BarChartIcon className="mr-2" size={16} />
                    Television & Streaming
                  </DropdownMenuItem>
-                 <DropdownMenuItem onClick={() => handlePhaseChange('tv-tests')}>
-                   <BarChartIcon className="mr-2" size={16} />
-                   🧪 TV System Tests
-                 </DropdownMenuItem>
+                 {import.meta.env.DEV && (
+                   <DropdownMenuItem onClick={() => handlePhaseChange('tv-tests')}>
+                     <BarChartIcon className="mr-2" size={16} />
+                     🧪 TV System Tests
+                   </DropdownMenuItem>
+                 )}
                 <DropdownMenuItem onClick={() => handlePhaseChange('awards')}>
                   <ReputationIcon className="mr-2" size={16} />
                   Awards & Recognition
@@ -1691,7 +1809,7 @@ export const StudioMagnateGame: React.FC<StudioMagnateGameProps> = ({ onPhaseCha
               gameState={gameState}
               onUpdateFranchise={handleUpdateFranchise}
               onCreateProject={(franchiseId) => {
-                // Create a basic script for franchise project
+                // Create a basic script for franchise film project
                 const franchise = gameState.franchises.find(f => f.id === franchiseId);
                 const script: Script = {
                   id: `script-${Date.now()}`,
@@ -1720,6 +1838,12 @@ export const StudioMagnateGame: React.FC<StudioMagnateGameProps> = ({ onPhaseCha
                 };
                 handleProjectCreate(script);
               }}
+              onCreateTVProject={(franchiseId) => {
+                // Route to Television & Streaming with this franchise pre-selected
+                setSelectedFranchise(franchiseId);
+                setSelectedPublicDomain(null);
+                handlePhaseChange('television');
+              }}
             />
             <EnhancedFranchiseSystem
               gameState={gameState}
@@ -1737,7 +1861,14 @@ export const StudioMagnateGame: React.FC<StudioMagnateGameProps> = ({ onPhaseCha
               onProjectCreate={(script) => {
                 setSelectedFranchise(script.franchiseId || null);
                 setSelectedPublicDomain(script.publicDomainId || null);
-                handlePhaseChange('scripts');
+
+                const isTVScript =
+                  script.characteristics?.pacing === 'episodic' ||
+                  (script.estimatedRuntime && script.estimatedRuntime <= 60);
+
+                // Route to the appropriate development workspace
+                handlePhaseChange(isTVScript ? 'television' : 'scripts');
+
                 setGameState(prev => ({
                   ...prev,
                   scripts: prev.scripts.some(s => s.id === script.id)
@@ -1746,7 +1877,9 @@ export const StudioMagnateGame: React.FC<StudioMagnateGameProps> = ({ onPhaseCha
                 }));
                 toast({
                   title: 'Script Draft Created',
-                  description: `"${script.title}" is ready in Script Development to customize roles before greenlighting.`,
+                  description: isTVScript
+                    ? `\"${script.title}\" is ready in TV Show Development to customize roles before greenlighting.`
+                    : `\"${script.title}\" is ready in Script Development to customize roles before greenlighting.`,
                 });
               }}
             />
@@ -1844,10 +1977,7 @@ export const StudioMagnateGame: React.FC<StudioMagnateGameProps> = ({ onPhaseCha
             selectedPublicDomain={selectedPublicDomain}
             onProjectCreate={handleProjectCreate}
             onScriptUpdate={(script) => {
-              // Clear selections after script creation
-              setSelectedFranchise(null);
-              setSelectedPublicDomain(null);
-              
+              // Persist selections so multiple scripts can be created within the same franchise/IP
               setGameState(prev => ({
                 ...prev,
                 scripts: prev.scripts.some(s => s.id === script.id)
@@ -1925,7 +2055,9 @@ export const StudioMagnateGame: React.FC<StudioMagnateGameProps> = ({ onPhaseCha
 
         {currentPhase === 'television' && (
           <ComprehensiveTelevisionSystem 
-            gameState={gameState} 
+            gameState={gameState}
+            selectedFranchise={selectedFranchise}
+            selectedPublicDomain={selectedPublicDomain}
             onUpdateBudget={(amount) => {
               setGameState(prev => ({
                 ...prev,
@@ -1985,7 +2117,7 @@ export const StudioMagnateGame: React.FC<StudioMagnateGameProps> = ({ onPhaseCha
           />
         )}
 
-        {currentPhase === 'tv-tests' && (
+        {import.meta.env.DEV && currentPhase === 'tv-tests' && (
           <TelevisionSystemTests 
             gameState={gameState} 
             onUpdateBudget={(amount) => {
@@ -2009,7 +2141,9 @@ export const StudioMagnateGame: React.FC<StudioMagnateGameProps> = ({ onPhaseCha
                 <TabsTrigger value="wellness">Wellness Monitor</TabsTrigger>
                 <TabsTrigger value="chemistry">Chemistry & Relations</TabsTrigger>
                 <TabsTrigger value="top-actors">Top Actors</TabsTrigger>
-                <TabsTrigger value="test">🧪 Integration Test</TabsTrigger>
+                {import.meta.env.DEV && (
+                  <TabsTrigger value="test">🧪 Integration Test</TabsTrigger>
+                )}
               </TabsList>
               
               <TabsContent value="marketplace">
@@ -2066,11 +2200,16 @@ export const StudioMagnateGame: React.FC<StudioMagnateGameProps> = ({ onPhaseCha
                 </Suspense>
               </TabsContent>
               
-              <TabsContent value="test">
-                <Suspense fallback={<div>Loading test suite...</div>}>
-                  {React.createElement(React.lazy(() => import('./AdvancedTalentTestSuite').then(m => ({ default: m.AdvancedTalentTestSuite }))), {})}
-                </Suspense>
-              </TabsContent>
+              {import.meta.env.DEV && (
+                <TabsContent value="test">
+                  <Suspense fallback={<div>Loading test suite...</div>}>
+                    {React.createElement(
+                      React.lazy(() => import('./AdvancedTalentTestSuite').then(m => ({ default: m.AdvancedTalentTestSuite }))),
+                      {}
+                    )}
+                  </Suspense>
+                </TabsContent>
+              )}
             </Tabs>
           </div>
         )}
@@ -2159,14 +2298,6 @@ export const StudioMagnateGame: React.FC<StudioMagnateGameProps> = ({ onPhaseCha
           />
         )}
         
-        {currentPhase === 'financials' && (
-          <FinancialDashboard
-            currentWeek={gameState.currentWeek}
-            currentYear={gameState.currentYear}
-            projects={gameState.projects}
-          />
-        )}
-
         {currentPhase === 'finance' && (
           <FinancialDashboard
             currentWeek={gameState.currentWeek}
@@ -2184,11 +2315,53 @@ export const StudioMagnateGame: React.FC<StudioMagnateGameProps> = ({ onPhaseCha
         )}
         
         {currentPhase === 'awards' && (
-          <AwardsSystem 
-            gameState={gameState}
-            onProjectUpdate={handleProjectUpdate}
-            onStudioUpdate={handleStudioUpdate}
-          />
+          <Tabs defaultValue="core" className="space-y-4">
+            <TabsList>
+              <TabsTrigger value="core">Awards Strategy</TabsTrigger>
+              <TabsTrigger value="season">Awards Season Analytics</TabsTrigger>
+            </TabsList>
+
+            <TabsContent value="core">
+              <AwardsSystem 
+                gameState={gameState}
+                onProjectUpdate={handleProjectUpdate}
+                onStudioUpdate={handleStudioUpdate}
+              />
+            </TabsContent>
+
+            <TabsContent value="season">
+              <EnhancedAwardsSystem
+                gameState={gameState}
+                onReputationUpdate={(studioId, change) => {
+                  if (studioId === gameState.studio.id) {
+                    handleStudioUpdate({
+                      reputation: Math.max(
+                        0,
+                        Math.min(100, gameState.studio.reputation + change)
+                      )
+                    });
+                  }
+                }}
+                onTalentReputationUpdate={(talentId, change) => {
+                  setGameState(prev => ({
+                    ...prev,
+                    talent: prev.talent.map(t =>
+                      t.id === talentId
+                        ? {
+                            ...t,
+                            reputation: (t.reputation || 0) + change,
+                            publicImage: Math.max(
+                              0,
+                              Math.min(100, (t.publicImage || t.reputation || 0) + change)
+                            )
+                          }
+                        : t
+                    )
+                  }));
+                }}
+              />
+            </TabsContent>
+          </Tabs>
         )}
         
         {currentPhase === 'market' && (
@@ -2211,17 +2384,25 @@ export const StudioMagnateGame: React.FC<StudioMagnateGameProps> = ({ onPhaseCha
         )}
         
         {currentPhase === 'reputation' && (
-          <DeepReputationPanel 
-            studio={gameState.studio}
-            projects={gameState.projects}
-            talent={gameState.talent}
-            timeState={{
-              currentWeek: gameState.currentWeek,
-              currentYear: gameState.currentYear,
-              currentQuarter: gameState.currentQuarter
-            }}
-            allStudios={gameState.competitorStudios}
-          />
+          <div className="space-y-6">
+            <DeepReputationPanel 
+              studio={gameState.studio}
+              projects={gameState.projects}
+              talent={gameState.talent}
+              timeState={{
+                currentWeek: gameState.currentWeek,
+                currentYear: gameState.currentYear,
+                currentQuarter: gameState.currentQuarter
+              }}
+              allStudios={gameState.competitorStudios}
+            />
+
+            <AchievementsPanel
+              achievements={achievements.achievements}
+              unlockedCount={achievements.getUnlockedAchievements().length}
+              totalCount={achievements.achievements.length}
+            />
+          </div>
         )}
         
 {currentPhase === 'loans' && (

@@ -9,6 +9,7 @@ import { AITelevisionStudios } from './AITelevisionStudios';
 import { MarketingReleaseManagement } from './MarketingReleaseManagement';
 import { EpisodeTrackingSystem } from './EpisodeTrackingSystem';
 import { StreamingAnalyticsDashboard } from './StreamingAnalyticsDashboard';
+import { StreamingContractSystem } from './StreamingContractSystem';
 import { 
   Tv, 
   Monitor,
@@ -22,6 +23,8 @@ interface ComprehensiveTelevisionSystemProps {
   onGameStateUpdate: (updates: Partial<GameState>) => void;
   onTalentCommitmentChange?: (talentId: string, busy: boolean, project?: string) => void;
   onCreateTVProject: (script: Script) => void;
+  selectedFranchise?: string | null;
+  selectedPublicDomain?: string | null;
 }
 
 export const ComprehensiveTelevisionSystem: React.FC<ComprehensiveTelevisionSystemProps> = ({
@@ -29,7 +32,9 @@ export const ComprehensiveTelevisionSystem: React.FC<ComprehensiveTelevisionSyst
   onUpdateBudget,
   onGameStateUpdate,
   onTalentCommitmentChange,
-  onCreateTVProject
+  onCreateTVProject,
+  selectedFranchise,
+  selectedPublicDomain
 }) => {
   const [selectedProject, setSelectedProject] = useState<Project | null>(null);
 
@@ -79,7 +84,7 @@ export const ComprehensiveTelevisionSystem: React.FC<ComprehensiveTelevisionSyst
 
       {/* TV Development Tabs */}
       <Tabs defaultValue="development" className="space-y-4">
-        <TabsList className="grid w-full grid-cols-5">
+        <TabsList className="grid w-full grid-cols-6">
           <TabsTrigger value="development" className="flex items-center gap-2">
             <Monitor className="h-4 w-4" />
             Script Development
@@ -96,6 +101,10 @@ export const ComprehensiveTelevisionSystem: React.FC<ComprehensiveTelevisionSyst
             <Tv className="h-4 w-4" />
             Episodes &amp; Ratings
           </TabsTrigger>
+          <TabsTrigger value="streaming" className="flex items-center gap-2">
+            <Monitor className="h-4 w-4" />
+            Streaming Deals
+          </TabsTrigger>
           <TabsTrigger value="competition" className="flex items-center gap-2">
             <Building className="h-4 w-4" />
             AI Studios
@@ -105,6 +114,8 @@ export const ComprehensiveTelevisionSystem: React.FC<ComprehensiveTelevisionSyst
         <TabsContent value="development">
           <TVShowDevelopment
             gameState={gameState}
+            selectedFranchise={selectedFranchise}
+            selectedPublicDomain={selectedPublicDomain}
             onProjectCreate={onCreateTVProject}
             onScriptUpdate={handleTVScriptUpdate}
           />
@@ -142,6 +153,18 @@ export const ComprehensiveTelevisionSystem: React.FC<ComprehensiveTelevisionSyst
             />
             <StreamingAnalyticsDashboard gameState={gameState} />
           </div>
+        </TabsContent>
+
+        <TabsContent value="streaming">
+          <StreamingContractSystem
+            gameState={gameState}
+            onProjectUpdate={(projectId, updates) => {
+              const project = gameState.projects.find(p => p.id === projectId);
+              if (!project) return;
+              handleTVProjectUpdate({ ...project, ...updates });
+            }}
+            onUpdateBudget={onUpdateBudget}
+          />
         </TabsContent>
 
         <TabsContent value="competition">
