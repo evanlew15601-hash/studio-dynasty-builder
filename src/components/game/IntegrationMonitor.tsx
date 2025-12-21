@@ -22,6 +22,7 @@ import {
   Film,
   Play
 } from 'lucide-react';
+
 interface TimeState {
   week: number;
   year: number;
@@ -32,25 +33,20 @@ interface IntegrationMonitorProps {
   onRunLoop?: (projectId: string) => void;
 }
 
-export const IntegrationMonitor: React.FC&lt;IntegrationMonitorProps&gt; = ({ gameState }) =&gt; {
-  const [activeTab, setActiveTab] = useState&lt;'systems' | 'pipelines' | 'ai' | 'media'&gt;('systems');
-  const [loopResults, setLoopResults] = useState&lt;Record&lt;string, GameplayLoopResult&gt;&gt;({});
-  const [isRunning, setIsRunning] = useState(false);
-
-  const integrationStatus = SystemIntegration.runDiagnostics(gameState);
-
-  const calendarTime = {
-    currentWeek: gameState.currentWeek,
-    currentYear: gameState.currentYear,
-    currentQuarter: Math.ceil(gameState.currentWeek / 13)
-  };
-  const upcomingCalendarEvents = CalendarManager.getUpcomingEvents(calendarTime, 12);ntegrationMonitor: React.FC<IntegrationMonitorProps> = ({ 
+export const IntegrationMonitor: React.FC<IntegrationMonitorProps> = ({ 
   gameState, 
   onRunLoop 
 }) => {
   const [integrationStatus, setIntegrationStatus] = useState<any>(null);
   const [selectedProject, setSelectedProject] = useState<string>('');
   const [loopResults, setLoopResults] = useState<Record<string, any>>({});
+
+  const calendarTime = {
+    currentWeek: gameState.currentWeek,
+    currentYear: gameState.currentYear,
+    currentQuarter: Math.ceil(gameState.currentWeek / 13)
+  };
+  const upcomingCalendarEvents = CalendarManager.getUpcomingEvents(calendarTime, 12);
   
   useEffect(() => {
     // Run integration verification on mount and when gameState changes
