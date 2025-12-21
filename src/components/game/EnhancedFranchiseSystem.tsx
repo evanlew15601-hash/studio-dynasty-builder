@@ -8,6 +8,7 @@ import { Label } from '@/components/ui/label';
 import { Textarea } from '@/components/ui/textarea';
 import { useToast } from '@/hooks/use-toast';
 import { Crown, Star, Users, Plus, TrendingUp, Film } from 'lucide-react';
+import { FinancialEngine } from './FinancialEngine';
 
 interface EnhancedFranchiseSystemProps {
   gameState: GameState;
@@ -47,10 +48,9 @@ export const EnhancedFranchiseSystem: React.FC<EnhancedFranchiseSystemProps> = (
   // Calculate franchise performance metrics (films + TV/streaming)
   const getFranchiseMetrics = (franchise: Franchise) => {
     const franchiseProjects = gameState.projects.filter(p => p.script.franchiseId === franchise.id);
-    const totalBoxOffice = franchiseProjects.reduce(
-      (sum, p) => sum + (p.metrics?.boxOfficeTotal || 0),
-      0
-    );
+    const financials = FinancialEngine.getFranchiseFinancials(franchiseProjects);
+
+    const totalBoxOffice = financials.boxOfficeRevenue;
     const totalBudget = franchiseProjects.reduce((sum, p) => sum + p.budget.total, 0);
     const avgCriticsScore =
       franchiseProjects.length > 0
@@ -69,19 +69,16 @@ export const EnhancedFranchiseSystem: React.FC<EnhancedFranchiseSystemProps> = (
       0
     );
 
-    // Rough combined valuation: 30% of box office plus value from streaming views
-    const streamingValue = (totalStreamingViews / 1_000_000) * 3_000_000;
-    const franchiseValue = totalBoxOffice * 0.3 + streamingValue;
-
     return {
       projectCount: franchiseProjects.length,
       totalBoxOffice,
       totalBudget,
       totalStreamingViews,
-      profitability: totalBudget > 0 ? ((totalBoxOffice - totalBudget) / totalBudget) * 100 : 0,
+      profitability:
+        totalBudget > 0 ? ((financials.totalRevenue - totalBudget) / totalBudget) * 100 : 0,
       avgCriticsScore,
       avgAudienceScore,
-      franchiseValue
+      franchiseValue: financials.totalRevenue
     };
   };
 
@@ -398,9 +395,21 @@ export const EnhancedFranchiseSystem: React.FC<EnhancedFranchiseSystemProps> = (
                                 </div>
                               </div>
                             </div>
-                            <Badge variant={project.status === 'released' ? "default" : "secondary"}>
-                              {project.status}
-                            </Badge>
+                            <div className="flex flex-col items-end gap-1">
+                              <Badge variant="outline" className="text-xs capitalize">
+                                {project.type === 'feature'
+                                  ? 'Film'
+                                  : project.type === 'documentary'
+                                  ? 'Doc'
+                                  : 'TV'}
+                              </Badge>
+                              <Badge
+                                variant={project.status === 'released' ? "default" : "secondary"}
+                                className="text-xs"
+                              >
+                                {project.status}
+                              </Badge>
+                            </div>
                           </div>
                         ))}
                     </div>

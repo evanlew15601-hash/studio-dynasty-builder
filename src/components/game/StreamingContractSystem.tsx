@@ -8,6 +8,7 @@ import { useToast } from '@/hooks/use-toast';
 import { StreamingContract, StreamingProject } from '@/types/streamingTypes';
 import { GameState, Project } from '@/types/game';
 import { Monitor, DollarSign, Users, TrendingUp, Calendar, Award, AlertTriangle } from 'lucide-react';
+import { FinancialEngine } from './FinancialEngine';
 
 interface StreamingContractSystemProps {
   gameState: GameState;
@@ -147,6 +148,7 @@ export const StreamingContractSystem: React.FC<StreamingContractSystemProps> = (
 
   const signContract = (project: Project, platformId: string) => {
     const contract = generateContract(project, platformId);
+    const platform = STREAMING_PLATFORMS.find(p => p.id === platformId)!;
     
     onProjectUpdate(project.id, {
       streamingContract: contract,
@@ -158,11 +160,20 @@ export const StreamingContractSystem: React.FC<StreamingContractSystemProps> = (
     });
     
     onUpdateBudget(contract.upfrontPayment);
+
+    FinancialEngine.recordTransaction(
+      'revenue',
+      'streaming',
+      contract.upfrontPayment,
+      gameState.currentWeek,
+      gameState.currentYear,
+      `Streaming contract upfront - ${platform.name} - ${project.title}`,
+      project.id
+    );
     
-    const platform = STREAMING_PLATFORMS.find(p => p.id === platformId)!;
     toast({
       title: "Contract Signed!",
-      description: `Signed with ${platform.name} for $${(contract.upfrontPayment / 1000000).toFixed(1)}M upfront + performance bonuses`,
+      description: `Signed with ${platform.name} for ${(contract.upfrontPayment / 1000000).toFixed(1)}M upfront + performance bonuses`,
     });
     
     setSelectedProject(null);
@@ -174,6 +185,7 @@ export const StreamingContractSystem: React.FC<StreamingContractSystemProps> = (
     
     const contract = project.streamingContract;
     const metrics = project.metrics.streaming;
+    const platform = STREAMING_PLATFORMS.find(p => p.id === contract.platform);
     
     // Calculate performance score
     const viewershipScore = Math.min(100, (metrics.totalViews / contract.expectedViewers) * 100);
@@ -207,17 +219,35 @@ export const StreamingContractSystem: React.FC<StreamingContractSystemProps> = (
     
     if (bonusEarned > 0) {
       onUpdateBudget(bonusEarned);
+      FinancialEngine.recordTransaction(
+        'revenue',
+        'streaming',
+        bonusEarned,
+        gameState.currentWeek,
+        gameState.currentYear,
+        `Streaming performance bonus - ${platform?.name ?? contract.platform} - ${project.title}`,
+        project.id
+      );
       toast({
         title: "Performance Bonus!",
-        description: `Earned $${(bonusEarned / 1000000).toFixed(1)}M for exceeding viewership targets`,
+        description: `Earned ${(bonusEarned / 1000000).toFixed(1)}M for exceeding viewership targets`,
       });
     }
     
     if (penalty > 0) {
       onUpdateBudget(-penalty);
+      FinancialEngine.recordTransaction(
+        'expense',
+        'streaming',
+        penalty,
+        gameState.currentWeek,
+        gameState.currentYear,
+        `Streaming contract penalty - ${platform?.name ?? contract.platform} - ${project.title}`,
+        project.id
+      );
       toast({
         title: "Contract Penalty",
-        description: `Penalty of $${(penalty / 1000000).toFixed(1)}M for underperforming`,
+        description: `Penalty of ${(penalty / 1000000).toFixed(1)}M for underperforming`,
         variant: "destructive"
       });
     }
