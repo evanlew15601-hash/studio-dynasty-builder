@@ -31,6 +31,15 @@ export const StudioDashboard: React.FC<StudioDashboardProps> = ({
 }) => {
   const activeProjects = gameState.projects.filter(p => p.status !== 'archived');
   const releasedProjects = gameState.projects.filter(p => p.status === 'released');
+
+  const getBestProjectForCasting = (): Project | null => {
+    const castingCandidates = activeProjects.filter(p =>
+      p.currentPhase === 'development' ||
+      p.currentPhase === 'pre-production' ||
+      p.currentPhase === 'production'
+    );
+    return castingCandidates[0] || activeProjects[0] || null;
+  };
   
   // Box office calculations for films only
   const inTheatersProjects = gameState.projects.filter(p => p.metrics?.inTheaters && (p.type === 'feature' || p.type === 'documentary'));
@@ -458,7 +467,11 @@ export const StudioDashboard: React.FC<StudioDashboardProps> = ({
             <Button 
               variant="outline" 
               className="h-auto p-6 flex flex-col items-center space-y-3 btn-ghost-premium hover:border-accent/50 group"
-              onClick={() => onPhaseChange?.('casting')}
+              onClick={() => {
+                const project = getBestProjectForCasting();
+                onProjectSelect(project);
+                onPhaseChange?.('casting');
+              }}
             >
               <div className="p-3 rounded-lg bg-gradient-to-r from-accent/10 to-primary/10 group-hover:from-accent/20 group-hover:to-primary/20 transition-all duration-300">
                 <CastingIcon className="text-accent" size={24} />

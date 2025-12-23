@@ -31,7 +31,9 @@ export class GameplayLoops {
     const warnings: string[] = [];
     const metrics: Record<string, any> = {};
     
-    console.log(`🎬 PROCESSING FILM LOOP: ${project.title} (${project.status})`);
+    if (import.meta.env.DEV) {
+      console.log(`🎬 PROCESSING FILM LOOP: ${project.title} (${project.status})`);
+    }
     
     // Phase 1: Development
     if (project.status === 'development') {
@@ -465,7 +467,9 @@ export class GameplayLoops {
       // First week performance affects reputation immediately
       const performanceImpact = roi > 50 ? 5 : roi > 0 ? 2 : roi > -25 ? -1 : -3;
       
-      console.log(`📊 REPUTATION IMPACT: ${project.title} performance (ROI: ${roi}%) affects studio reputation by ${performanceImpact}`);
+      if (import.meta.env.DEV) {
+        console.log(`📊 REPUTATION IMPACT: ${project.title} performance (ROI: ${roi}%) affects studio reputation by ${performanceImpact}`);
+      }
     }
     
     return {
@@ -490,7 +494,9 @@ export class GameplayLoops {
     const warnings: string[] = [];
     const metrics: Record<string, any> = {};
     
-    console.log(`🏢 PROCESSING STUDIO LOOP: ${studio.name}`);
+    if (import.meta.env.DEV) {
+      console.log(`🏢 PROCESSING STUDIO LOOP: ${studio.name}`);
+    }
     
     // Financial health check
     const studioFinancials = FinancialEngine.getFinancialSummary(currentTime.week, currentTime.year);
@@ -548,7 +554,9 @@ export class GameplayLoops {
       warnings: [] as string[]
     };
     
-    console.log('🔍 VERIFYING SYSTEM INTEGRATION...');
+    if (import.meta.env.DEV) {
+      console.log('🔍 VERIFYING SYSTEM INTEGRATION...');
+    }
     
     // Verify financial tracking
     projects.forEach(project => {
@@ -566,13 +574,15 @@ export class GameplayLoops {
     // }
     
     // Verify reputation updates
-    studios.forEach(studio => {
+    studios.forEach(studio =&gt; {
       if (studio.reputation === undefined || studio.reputation === 50) {
         results.warnings.push(`${studio.name}: Reputation may not be updating properly`);
       }
     });
     
-    console.log('✅ INTEGRATION VERIFICATION COMPLETE:', results);
+    if (import.meta.env.DEV) {
+      console.log('✅ INTEGRATION VERIFICATION COMPLETE:', results);
+    }
     return results;
   }
 }
