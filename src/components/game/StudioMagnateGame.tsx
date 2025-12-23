@@ -41,6 +41,7 @@ import { PerformanceMetrics } from './PerformanceMetrics';
 import { AchievementNotifications } from './AchievementNotifications';
 import { ReputationPanel } from './ReputationPanel';
 import { DeepReputationPanel } from './DeepReputationPanel';
+import { MediaAnalyticsPanel } from './MediaAnalyticsPanel';
 import { BackgroundSimulation as BackgroundSimulationComponent } from './BackgroundSimulation';
 import { SequelManagement as SequelManagementComponent } from './SequelManagement';
 import { TalentGenerator } from '../../data/TalentGenerator';
@@ -2345,9 +2346,7 @@ export const StudioMagnateGame: React.FC<StudioMagnateGameProps> = ({
               <TabsList>
                 <TabsTrigger value="feed">Media Feed</TabsTrigger>
                 <TabsTrigger value="responses">Response Center</TabsTrigger>
-                {import.meta.env.DEV && (
-                  <TabsTrigger value="analytics">Analytics</TabsTrigger>
-                )}
+                <TabsTrigger value="analytics">Analytics</TabsTrigger>
               </TabsList>
               
               <TabsContent value="feed">
@@ -2380,14 +2379,9 @@ export const StudioMagnateGame: React.FC<StudioMagnateGameProps> = ({
                 })}
               </TabsContent>
               
-              {import.meta.env.DEV && (
-                <TabsContent value="analytics">
-                  <div className="text-center text-muted-foreground py-8">
-                    <h3 className="text-lg font-semibold mb-2">Media Analytics Dashboard</h3>
-                    <p>Advanced analytics and reputation tracking coming soon...</p>
-                  </div>
-                </TabsContent>
-              )}
+              <TabsContent value="analytics">
+                <MediaAnalyticsPanel gameState={gameState} />
+              </TabsContent>
             </Tabs>
           </Suspense>
         )}
