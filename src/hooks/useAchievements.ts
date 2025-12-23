@@ -162,12 +162,17 @@ export const useAchievements = (gameState: GameState, initialUnlockedIds?: strin
 
   const clearRecentUnlocks = () => setRecentUnlocks([]);
 
+  const dismissRecentUnlock = (id: string) => {
+    setRecentUnlocks(prev => prev.filter(a => a.id !== id));
+  };
+
   return {
     achievements,
     recentUnlocks,
     getUnlockedAchievements,
     getLockedAchievements,
     getAchievementsByCategory,
-    clearRecentUnlocks
+    clearRecentUnlocks,
+    dismissRecentUnlock
   };
 };

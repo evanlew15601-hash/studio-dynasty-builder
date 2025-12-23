@@ -105,10 +105,12 @@ export const ComprehensiveTelevisionSystem: React.FC<ComprehensiveTelevisionSyst
             <Monitor className="h-4 w-4" />
             Streaming Deals
           </TabsTrigger>
-          <TabsTrigger value="competition" className="flex items-center gap-2">
-            <Building className="h-4 w-4" />
-            AI Studios
-          </TabsTrigger>
+          {import.meta.env.DEV && (
+            <TabsTrigger value="competition" className="flex items-center gap-2">
+              <Building className="h-4 w-4" />
+              AI Studios
+            </TabsTrigger>
+          )}
         </TabsList>
 
         <TabsContent value="development">
@@ -167,12 +169,14 @@ export const ComprehensiveTelevisionSystem: React.FC<ComprehensiveTelevisionSyst
           />
         </TabsContent>
 
-        <TabsContent value="competition">
-          <AITelevisionStudios
-            gameState={gameState}
-            onGameStateUpdate={onGameStateUpdate}
-          />
-        </TabsContent>
+        {import.meta.env.DEV && (
+          <TabsContent value="competition">
+            <AITelevisionStudios
+              gameState={gameState}
+              onGameStateUpdate={onGameStateUpdate}
+            />
+          </TabsContent>
+        )}
       </Tabs>
     </div>
   );

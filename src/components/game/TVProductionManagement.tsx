@@ -191,8 +191,10 @@ export const TVProductionManagement: React.FC<TVProductionManagementProps> = ({
 
                     <div className="grid grid-cols-2 gap-4 text-sm mb-4">
                       <div>
-                        <span className="text-muted-foreground">Budget: </span>
-                        <span>${(project.budget?.total || project.script.budget) / 1000000}M/ep</span>
+                        <span className="text-muted-foreground">Season Budget: </span>
+                        <span>
+                          ${((project.budget?.total ?? project.script.budget) / 1000000).toFixed(1)}M
+                        </span>
                       </div>
                       <div>
                         <span className="text-muted-foreground">Weeks Left: </span>
