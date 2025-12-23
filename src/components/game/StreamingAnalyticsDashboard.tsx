@@ -19,7 +19,7 @@ export const StreamingAnalyticsDashboard: React.FC<StreamingAnalyticsDashboardPr
   const [timeRange, setTimeRange] = useState<'week' | 'month' | 'season' | 'all'>('month');
 
   // Get streaming projects
-  const getStreamingProjects = () => {
+  const getStreamingProjects = (): Project[] => {
     return gameState.projects.filter(p => 
       (p.type === 'series' || p.type === 'limited-series') &&
       p.status === 'released' &&
@@ -50,11 +50,13 @@ export const StreamingAnalyticsDashboard: React.FC<StreamingAnalyticsDashboardPr
 
   const streaming = project.metrics.streaming;
   const currentSeason = project.seasons?.[0];
+  const contract = project.streamingContract;
+  const streamingRelease = project.postTheatricalReleases?.find(r => r.platform === 'streaming');
+  const weeksSinceRelease = project.metrics?.weeksSinceRelease || 0;
 
   // Calculate key metrics
   const getMetrics = () => {
     const totalViews = streaming.totalViews;
-    const weeksSinceRelease = project.metrics?.weeksSinceRelease || 0;
     const averageWeeklyViews = weeksSinceRelease > 0 ? totalViews / weeksSinceRelease : totalViews;
     
     return {
@@ -70,6 +72,21 @@ export const StreamingAnalyticsDashboard: React.FC<StreamingAnalyticsDashboardPr
   };
 
   const metrics = getMetrics();
+
+  const maxWeeksToShow = (() => {
+    if (weeksSinceRelease <= 0) return 1;
+    switch (timeRange) {
+      case 'week':
+        return Math.min(4, weeksSinceRelease);
+      case 'month':
+        return Math.min(8, weeksSinceRelease);
+      case 'season':
+        return Math.min(12, weeksSinceRelease);
+      case 'all':
+      default:
+        return weeksSinceRelease;
+    }
+  })();
 
   // Generate competitive comparison data
   const getCompetitiveData = () => {
@@ -202,6 +219,7 @@ export const StreamingAnalyticsDashboard: React.FC<StreamingAnalyticsDashboardPr
           <TabsTrigger value="episodes">Episode Breakdown</TabsTrigger>
           <TabsTrigger value="audience">Audience Insights</TabsTrigger>
           <TabsTrigger value="competitive">Competitive Analysis</TabsTrigger>
+          <TabsTrigger value="revenue">Revenue &amp; Contracts</TabsTrigger>
         </TabsList>
 
         <TabsContent value="performance" className="space-y-4">
@@ -217,8 +235,8 @@ export const StreamingAnalyticsDashboard: React.FC<StreamingAnalyticsDashboardPr
               <CardContent>
                 <div className="space-y-4">
                   <div className="flex items-end justify-between h-40">
-                    {/* Simulated weekly data */}
-                    {Array.from({ length: Math.min(12, project.metrics?.weeksSinceRelease || 1) }, (_, i) => {
+                    {/* Simulated weekly data based on selected time range */}
+                    {Array.from({ length: Math.max(1, Math.min(12, maxWeeksToShow)) }, (_, i) => {
                       const weekViews = streaming.viewsFirstWeek! * Math.pow(0.85, i);
                       const height = (weekViews / streaming.viewsFirstWeek!) * 100;
                       return (
@@ -432,6 +450,132 @@ export const StreamingAnalyticsDashboard: React.FC<StreamingAnalyticsDashboardPr
               </Card>
             </div>
           )}
+        </TabsContent>
+
+        <TabsContent value="revenue" className="space-y-4">
+          <div className="grid grid-cols-1 lg:grid-cols-2 gap-4">
+            <Card>
+              <CardHeader>
+                <CardTitle className="flex items-center gap-2">
+                  <TrendingUp className="h-5 w-5" />
+                  Streaming Revenue &amp; Contracts
+                </CardTitle>
+              </CardHeader>
+              <CardContent className="space-y-4">
+                {contract ? (
+                  <>
+                    <div className="grid grid-cols-2 gap-4 text-sm">
+                      <div>
+                        <p className="text-muted-foreground mb-1">Platform</p>
+                        <p className="font-semibold capitalize">{contract.platform}</p>
+                      </div>
+                      <div>
+                        <p className="text-muted-foreground mb-1">Performance Score</p>
+                        <p className="font-semibold">{contract.performanceScore}/100</p>
+                        <Progress value={contract.performanceScore} className="mt-1" />
+                      </div>
+                      <div>
+                        <p className="text-muted-foreground mb-1">Upfront Payment</p>
+                        <p className="font-semibold">
+                          {(contract.upfrontPayment / 1000000).toFixed(1)}M
+                        </p>
+                      </div>
+                      <div>
+                        <p className="text-muted-foreground mb-1">Expected Viewers</p>
+                        <p className="font-semibold">
+                          {(contract.expectedViewers / 1000000).toFixed(1)}M
+                        </p>
+                      </div>
+                    </div>
+                    {streaming && (
+                      <div className="space-y-2 text-sm">
+                        <div className="flex justify-between">
+                          <span className="text-muted-foreground">Views vs Target</span>
+                          <span className="font-semibold">
+                            {contract.expectedViewers > 0
+                              ? ((streaming.totalViews / contract.expectedViewers) * 100).toFixed(0)
+                              : '0'}
+                            %
+                          </span>
+                        </div>
+                        <Progress
+                          value={
+                            contract.expectedViewers > 0
+                              ? Math.min(
+                                  150,
+                                  (streaming.totalViews / contract.expectedViewers) * 100
+                                )
+                              : 0
+                          }
+                        />
+                        <p className="text-xs text-muted-foreground">
+                          Completion and subscriber growth also contribute to performance bonuses.
+                        </p>
+                      </div>
+                    )}
+                  </>
+                ) : (
+                  <p className="text-sm text-muted-foreground">
+                    This series does not currently have a platform contract. Strong analytics make it easier
+                    to negotiate better licensing terms in the Streaming Contracts view.
+                  </p>
+                )}
+              </CardContent>
+            </Card>
+
+            <Card>
+              <CardHeader>
+                <CardTitle className="flex items-center gap-2">
+                  <Award className="h-5 w-5" />
+                  Lifecycle &amp; Long‑Tail Value
+                </CardTitle>
+              </CardHeader>
+              <CardContent className="space-y-4">
+                <div className="grid grid-cols-2 gap-4 text-sm">
+                  <div>
+                    <p className="text-muted-foreground mb-1">Watch‑time per View</p>
+                    <p className="font-semibold">
+                      {streaming.totalViews > 0
+                        ? ((streaming.watchTimeHours * 60) / streaming.totalViews).toFixed(1)
+                        : '–'}{' '}
+                      min
+                    </p>
+                  </div>
+                  <div>
+                    <p className="text-muted-foreground mb-1">Subscriber Conversion</p>
+                    <p className="font-semibold">
+                      {streaming.totalViews > 0
+                        ? ((streaming.subscriberGrowth / streaming.totalViews) * 100).toFixed(2)
+                        : '0.00'}
+                      % per viewer
+                    </p>
+                  </div>
+                </div>
+
+                {streamingRelease && (
+                  <div className="space-y-2 text-sm">
+                    <div className="flex justify-between">
+                      <span className="text-muted-foreground">Post‑Theatrical Streaming Revenue</span>
+                      <span className="font-semibold">
+                        ${(streamingRelease.revenue / 1000000).toFixed(2)}M
+                      </span>
+                    </div>
+                    <div className="flex justify-between text-xs text-muted-foreground">
+                      <span>Status: {streamingRelease.status}</span>
+                      <span>Weeks active: {streamingRelease.weeksActive}</span>
+                    </div>
+                  </div>
+                )}
+
+                {!streamingRelease && (
+                  <p className="text-xs text-muted-foreground">
+                    Use post‑theatrical streaming releases to extend this series’ earnings beyond its first
+                    contract window.
+                  </p>
+                )}
+              </CardContent>
+            </Card>
+          </div>
         </TabsContent>
       </Tabs>
     </div>
