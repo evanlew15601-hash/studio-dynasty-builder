@@ -41,12 +41,14 @@ interface EnhancedAwardsSystemProps {
   gameState: GameState;
   onReputationUpdate?: (studioId: string, change: number) => void;
   onTalentReputationUpdate?: (talentId: string, change: number) => void;
+  onNavigatePhase?: (phase: 'media' | 'distribution') => void;
 }
 
 export const EnhancedAwardsSystem: React.FC<EnhancedAwardsSystemProps> = ({
   gameState,
   onReputationUpdate,
-  onTalentReputationUpdate
+  onTalentReputationUpdate,
+  onNavigatePhase
 }) => {
   const [activeCeremonies, setActiveCeremonies] = useState<AwardsCeremony[]>([]);
   const [viewMode, setViewMode] = useState<'upcoming' | 'nominees' | 'history'>('upcoming');
@@ -482,6 +484,38 @@ export const EnhancedAwardsSystem: React.FC<EnhancedAwardsSystemProps> = ({
             </Card>
           )}
         </div>
+      )}
+
+      {onNavigatePhase && (
+        <Card>
+          <CardHeader>
+            <CardTitle className="flex items-center gap-2">
+              <Award className="h-5 w-5" />
+              Use Awards Momentum Strategically
+            </CardTitle>
+          </CardHeader>
+          <CardContent className="flex flex-col md:flex-row md:items-center md:justify-between gap-4">
+            <p className="text-sm text-muted-foreground md:max-w-md">
+              Convert awards momentum into sustained audience engagement and long-tail earnings via media and post-theatrical releases.
+            </p>
+            <div className="flex flex-wrap gap-2">
+              <Button
+                size="sm"
+                variant="outline"
+                onClick={() => onNavigatePhase('media')}
+              >
+                Open Media Dashboard
+              </Button>
+              <Button
+                size="sm"
+                variant="outline"
+                onClick={() => onNavigatePhase('distribution')}
+              >
+                Post-Theatrical & Distribution
+              </Button>
+            </div>
+          </CardContent>
+        </Card>
       )}
     </div>
   );

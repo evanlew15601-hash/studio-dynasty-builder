@@ -20,12 +20,14 @@ interface AwardsSystemProps {
   gameState: GameState;
   onProjectUpdate: (project: Project) => void;
   onStudioUpdate: (updates: any) => void;
+  onNavigatePhase?: (phase: 'media' | 'distribution') => void;
 }
 
 export const AwardsSystem: React.FC<AwardsSystemProps> = ({ 
   gameState, 
   onProjectUpdate, 
-  onStudioUpdate 
+  onStudioUpdate,
+  onNavigatePhase
 }) => {
   const { toast } = useToast();
   const [showAwardsModal, setShowAwardsModal] = useState(false);
@@ -516,6 +518,38 @@ const aiProjects = gameState.allReleases.filter((release): release is Project =>
                   </div>
                 </div>
               ))}
+            </div>
+          </CardContent>
+        </Card>
+      )}
+
+      {onNavigatePhase && (
+        <Card className="card-premium">
+          <CardHeader>
+            <CardTitle className="flex items-center font-studio text-primary">
+              <TrendingIcon className="mr-2" size={20} />
+              Connect Awards to Media & Distribution
+            </CardTitle>
+          </CardHeader>
+          <CardContent className="flex flex-col md:flex-row md:items-center md:justify-between gap-4">
+            <p className="text-sm text-muted-foreground md:max-w-md">
+              Turn nominations and wins into concrete strategy by driving media coverage and long-tail post-theatrical revenue.
+            </p>
+            <div className="flex flex-wrap gap-2">
+              <Button
+                size="sm"
+                variant="outline"
+                onClick={() => onNavigatePhase('media')}
+              >
+                Open Media Dashboard
+              </Button>
+              <Button
+                size="sm"
+                variant="outline"
+                onClick={() => onNavigatePhase('distribution')}
+              >
+                Manage Post-Theatrical Distribution
+              </Button>
             </div>
           </CardContent>
         </Card>

@@ -2425,6 +2425,7 @@ export const StudioMagnateGame: React.FC<StudioMagnateGameProps> = ({
                 gameState={gameState}
                 onProjectUpdate={handleProjectUpdate}
                 onStudioUpdate={handleStudioUpdate}
+                onNavigatePhase={(phase: 'media' | 'distribution') => handlePhaseChange(phase as any)}
               />
             </TabsContent>
 
@@ -2458,6 +2459,7 @@ export const StudioMagnateGame: React.FC<StudioMagnateGameProps> = ({
                     )
                   }));
                 }}
+                onNavigatePhase={(phase: 'media' | 'distribution') => handlePhaseChange(phase as any)}
               />
             </TabsContent>
           </Tabs>
@@ -2499,6 +2501,7 @@ export const StudioMagnateGame: React.FC<StudioMagnateGameProps> = ({
                 currentQuarter: gameState.currentQuarter
               }}
               allStudios={gameState.competitorStudios}
+              onNavigatePhase={(phase: 'media' | 'distribution') => handlePhaseChange(phase as any)}
             />
 
             <AchievementsPanel
