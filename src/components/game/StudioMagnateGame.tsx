@@ -41,6 +41,7 @@ import { PerformanceMetrics } from './PerformanceMetrics';
 import { AchievementNotifications } from './AchievementNotifications';
 import { ReputationPanel } from './ReputationPanel';
 import { DeepReputationPanel } from './DeepReputationPanel';
+import { MediaAnalyticsPanel } from './MediaAnalyticsPanel';
 import { BackgroundSimulation as BackgroundSimulationComponent } from './BackgroundSimulation';
 import { SequelManagement as SequelManagementComponent } from './SequelManagement';
 import { TalentGenerator } from '../../data/TalentGenerator';
@@ -664,7 +665,9 @@ export const StudioMagnateGame: React.FC<StudioMagnateGameProps> = ({
 
   // CRITICAL: Manual marketing campaign creation (no auto-progression)
   const handleMarketingCampaignCreate = (project: Project, strategy: MarketingStrategy, budget: number, duration: number) => {
-    console.log(`🎯 MANUAL MARKETING START: ${project.title}`);
+    if (import.meta.env.DEV) {
+      console.log(`🎯 MANUAL MARKETING START: ${project.title}`);
+    }
     
     if (project.marketingCampaign && project.marketingCampaign.weeksRemaining > 0) {
       toast({
@@ -720,7 +723,9 @@ export const StudioMagnateGame: React.FC<StudioMagnateGameProps> = ({
 
   // CRITICAL: Manual release strategy creation (no auto-progression)
   const handleReleaseStrategyCreate = (project: Project, strategy: ReleaseStrategy) => {
-    console.log(`🎬 MANUAL RELEASE STRATEGY SET: ${project.title}`);
+    if (import.meta.env.DEV) {
+      console.log(`🎬 MANUAL RELEASE STRATEGY SET: ${project.title}`);
+    }
 
     // Prefer exact game week/year from the modal if provided
     const selectedWeek = (strategy as any).releaseWeek as number | undefined;
@@ -778,11 +783,15 @@ export const StudioMagnateGame: React.FC<StudioMagnateGameProps> = ({
   };
 
   const processWeeklyProjectEffects = (projects: Project[], timeState: TimeState): Project[] => {
-    console.log(`=== WEEKLY PROJECT PROCESSING START ===`);
+    if (import.meta.env.DEV) {
+      console.log(`=== WEEKLY PROJECT PROCESSING START ===`);
+    }
     
     const results = projects.map((project, index) => {
-      console.log(`[${index}] Processing: ${project.title} (${project.currentPhase})`);
-      console.log(`    📊 BEFORE: boxOfficeTotal = ${project.metrics?.boxOfficeTotal || 0}`);
+      if (import.meta.env.DEV) {
+        console.log(`[${index}] Processing: ${project.title} (${project.currentPhase})`);
+        console.log(`    📊 BEFORE: boxOfficeTotal = ${project.metrics?.boxOfficeTotal || 0}`);
+      }
       
       let updatedProject = { ...project };
 
@@ -798,14 +807,18 @@ export const StudioMagnateGame: React.FC<StudioMagnateGameProps> = ({
         const releaseAbsoluteWeek = (project.releaseYear * 52) + project.releaseWeek;
         
           if (currentAbsoluteWeek === releaseAbsoluteWeek) {
-            console.log(`🎬 RELEASE DATE ARRIVED: ${project.title}`);
-            console.log(`    📊 PRE-RELEASE: boxOfficeTotal = ${project.metrics?.boxOfficeTotal || 0}`);
+            if (import.meta.env.DEV) {
+              console.log(`🎬 RELEASE DATE ARRIVED: ${project.title}`);
+              console.log(`    📊 PRE-RELEASE: boxOfficeTotal = ${project.metrics?.boxOfficeTotal || 0}`);
+            }
             if (project.type === 'series' || project.type === 'limited-series') {
               updatedProject = TVRatingsSystem.initializeAiring(updatedProject, project.releaseWeek, project.releaseYear);
             } else {
               updatedProject = BoxOfficeSystem.initializeRelease(updatedProject, project.releaseWeek, project.releaseYear);
             }
-            console.log(`    📊 POST-RELEASE: boxOfficeTotal = ${updatedProject.metrics?.boxOfficeTotal || 0}`);
+            if (import.meta.env.DEV) {
+              console.log(`    📊 POST-RELEASE: boxOfficeTotal = ${updatedProject.metrics?.boxOfficeTotal || 0}`);
+            }
             justReleased = true; // Flag to skip processing on release week
 
             // Update filmography; show box office modal only for films
@@ -828,15 +841,19 @@ export const StudioMagnateGame: React.FC<StudioMagnateGameProps> = ({
       // Process box office for released films (but skip on the week they just released)
        if (project.status === 'released' && !justReleased) {
          if (project.type === 'series' || project.type === 'limited-series') {
-           console.log(`    📺 PROCESSING TV RATINGS: ${project.title}`);
+           if (import.meta.env.DEV) {
+             console.log(`    📺 PROCESSING TV RATINGS: ${project.title}`);
+           }
            updatedProject = TVRatingsSystem.processWeeklyRatings(
              updatedProject,
              timeState.currentWeek,
              timeState.currentYear
            );
          } else {
-           console.log(`    💰 PROCESSING BOX OFFICE: ${project.title}`);
-           console.log(`    📊 PRE-REVENUE: boxOfficeTotal = ${updatedProject.metrics?.boxOfficeTotal || 0}`);
+           if (import.meta.env.DEV) {
+             console.log(`    💰 PROCESSING BOX OFFICE: ${project.title}`);
+             console.log(`    📊 PRE-REVENUE: boxOfficeTotal = ${updatedProject.metrics?.boxOfficeTotal || 0}`);
+           }
            
            const previousTotal = updatedProject.metrics?.boxOfficeTotal || 0;
            
@@ -849,13 +866,17 @@ export const StudioMagnateGame: React.FC<StudioMagnateGameProps> = ({
            const newTotal = updatedProject.metrics?.boxOfficeTotal || 0;
            const weeklyBoxOfficeRevenue = newTotal - previousTotal;
            
-           console.log(`    📊 POST-REVENUE: boxOfficeTotal = ${newTotal}`);
-           console.log(`    💰 WEEKLY BOX OFFICE EARNED: $${weeklyBoxOfficeRevenue.toLocaleString()}`);
+           if (import.meta.env.DEV) {
+             console.log(`    📊 POST-REVENUE: boxOfficeTotal = ${newTotal}`);
+             console.log(`    💰 WEEKLY BOX OFFICE EARNED: ${weeklyBoxOfficeRevenue.toLocaleString()}`);
+           }
            
            // Add box office revenue to studio budget (studio keeps percentage after exhibitor cut)
            if (weeklyBoxOfficeRevenue > 0) {
              const studioShare = weeklyBoxOfficeRevenue * 0.55; // Studios typically get 55% of domestic box office
-             console.log(`    💰 STUDIO SHARE (55%): $${studioShare.toLocaleString()}`);
+             if (import.meta.env.DEV) {
+               console.log(`    💰 STUDIO SHARE (55%): ${studioShare.toLocaleString()}`);
+             }
              
              setGameState(prevState => ({
                ...prevState,
@@ -889,7 +910,9 @@ export const StudioMagnateGame: React.FC<StudioMagnateGameProps> = ({
 
     // When marketing is complete, move to release phase
     if (newWeeksRemaining === 0) {
-      console.log(`🎬 MARKETING COMPLETE: ${project.title} - Moving to release phase`);
+      if (import.meta.env.DEV) {
+        console.log(`🎬 MARKETING COMPLETE: ${project.title} - Moving to release phase`);
+      }
       updatedProject = {
         ...updatedProject,
         currentPhase: 'release',
@@ -901,12 +924,16 @@ export const StudioMagnateGame: React.FC<StudioMagnateGameProps> = ({
 
       // Process post-theatrical releases revenue
       if (updatedProject.postTheatricalReleases && updatedProject.postTheatricalReleases.length > 0) {
-        console.log(`    💰 PROCESSING POST-THEATRICAL: ${updatedProject.title}`);
+        if (import.meta.env.DEV) {
+          console.log(`    💰 PROCESSING POST-THEATRICAL: ${updatedProject.title}`);
+        }
         
         const updatedReleases = updatedProject.postTheatricalReleases.map(release => {
           if (release.status === 'planned') {
             // Start the release
-            console.log(`      🚀 STARTING: ${release.platform} release`);
+            if (import.meta.env.DEV) {
+              console.log(`      🚀 STARTING: ${release.platform} release`);
+            }
             return {
               ...release,
               status: 'active' as const,
@@ -918,7 +945,9 @@ export const StudioMagnateGame: React.FC<StudioMagnateGameProps> = ({
             const newWeeksActive = release.weeksActive + 1;
             const newRevenue = release.revenue + release.weeklyRevenue;
             
-            console.log(`      💰 ${release.platform}: Week ${newWeeksActive}, +$${release.weeklyRevenue.toLocaleString()}, Total: $${newRevenue.toLocaleString()}`);
+            if (import.meta.env.DEV) {
+              console.log(`      💰 ${release.platform}: Week ${newWeeksActive}, +${release.weeklyRevenue.toLocaleString()}, Total: ${newRevenue.toLocaleString()}`);
+            }
             
             return {
               ...release,
@@ -935,7 +964,9 @@ export const StudioMagnateGame: React.FC<StudioMagnateGameProps> = ({
           .reduce((sum, r) => sum + r.weeklyRevenue, 0);
 
         if (weeklyPostTheatricalRevenue > 0) {
-          console.log(`      💰 TOTAL WEEKLY POST-THEATRICAL: +$${weeklyPostTheatricalRevenue.toLocaleString()}`);
+          if (import.meta.env.DEV) {
+            console.log(`      💰 TOTAL WEEKLY POST-THEATRICAL: +${weeklyPostTheatricalRevenue.toLocaleString()}`);
+          }
           
           // Add revenue to studio budget
           setGameState(prevState => ({
@@ -957,14 +988,18 @@ export const StudioMagnateGame: React.FC<StudioMagnateGameProps> = ({
       if (updatedProject.phaseDuration !== undefined && updatedProject.phaseDuration > 0) {
         const newPhaseDuration = updatedProject.phaseDuration - 1;
         
-        console.log(`⏱️ Phase timer for ${updatedProject.title}: ${updatedProject.phaseDuration} -> ${newPhaseDuration} (${updatedProject.currentPhase})`);
+        if (import.meta.env.DEV) {
+          console.log(`⏱️ Phase timer for ${updatedProject.title}: ${updatedProject.phaseDuration} -> ${newPhaseDuration} (${updatedProject.currentPhase})`);
+        }
         
         if (newPhaseDuration === 0) {
           const nextPhase = getNextPhase(updatedProject.currentPhase);
           
           // STOP auto-progression at post-production - stay in post-production until manual marketing
           if (updatedProject.currentPhase === 'post-production') {
-            console.log(`  → POST-PRODUCTION COMPLETE: ${updatedProject.title} ready for marketing`);
+            if (import.meta.env.DEV) {
+              console.log(`  → POST-PRODUCTION COMPLETE: ${updatedProject.title} ready for marketing`);
+            }
             updatedProject = {
               ...updatedProject,
               phaseDuration: 0,
@@ -979,7 +1014,9 @@ export const StudioMagnateGame: React.FC<StudioMagnateGameProps> = ({
           }
           // STOP auto-progression at marketing - only advance when campaign completes
           else if (updatedProject.currentPhase === 'marketing' && updatedProject.marketingCampaign && updatedProject.marketingCampaign.weeksRemaining === 0) {
-            console.log(`  → MARKETING COMPLETE: ${updatedProject.title} ready for release`);
+            if (import.meta.env.DEV) {
+              console.log(`  → MARKETING COMPLETE: ${updatedProject.title} ready for release`);
+            }
             updatedProject = {
               ...updatedProject,
               currentPhase: 'release',
@@ -1063,7 +1100,9 @@ export const StudioMagnateGame: React.FC<StudioMagnateGameProps> = ({
       return updatedProject;
     });
     
-    console.log(`=== WEEKLY PROJECT PROCESSING END ===`);
+    if (import.meta.env.DEV) {
+      console.log(`=== WEEKLY PROJECT PROCESSING END ===`);
+    }
     return results;
   };
 
@@ -1229,7 +1268,9 @@ export const StudioMagnateGame: React.FC<StudioMagnateGameProps> = ({
     const projectCount = projects.filter(p => ['development', 'pre-production', 'production', 'post-production'].includes(p.status)).length;
     const operationalCost = baseOperationalCost + (projectCount * 10000); // $10k per active project
     
-    console.log(`💰 WEEKLY COSTS: Base $${baseOperationalCost.toLocaleString()} + Projects $${(projectCount * 10000).toLocaleString()}`);
+    if (import.meta.env.DEV) {
+      console.log(`💰 WEEKLY COSTS: Base ${baseOperationalCost.toLocaleString()} + Projects ${(projectCount * 10000).toLocaleString()}`);
+    }
     
     // Calculate production phase costs (spread over full phase duration)
     let productionCosts = 0;
@@ -1237,7 +1278,9 @@ export const StudioMagnateGame: React.FC<StudioMagnateGameProps> = ({
       if (project.currentPhase === 'production') {
         const weeklyProductionCost = project.budget.total * 0.7 / getPhaseWeeks('production'); // 70% of budget over production weeks
         productionCosts += weeklyProductionCost;
-        console.log(`🎬 Production cost for ${project.title}: $${weeklyProductionCost.toLocaleString()}`);
+        if (import.meta.env.DEV) {
+          console.log(`🎬 Production cost for ${project.title}: ${weeklyProductionCost.toLocaleString()}`);
+        }
       }
     });
     
@@ -1252,8 +1295,8 @@ export const StudioMagnateGame: React.FC<StudioMagnateGameProps> = ({
       studio.debt = (studio.debt || 0) + loanAmount;
       studio.budget = 0;
       
-      if (loanAmount > 0) {
-        console.log(`💳 Auto-loan: $${loanAmount.toLocaleString()}`);
+      if (loanAmount > 0 && import.meta.env.DEV) {
+        console.log(`💳 Auto-loan: ${loanAmount.toLocaleString()}`);
       }
     }
     
@@ -1262,7 +1305,9 @@ export const StudioMagnateGame: React.FC<StudioMagnateGameProps> = ({
       const debtPayment = Math.min(studio.debt, studio.budget * 0.05);
       studio.debt -= debtPayment;
       studio.budget -= debtPayment;
-      console.log(`💳 Auto debt payment: $${debtPayment.toLocaleString()}. Remaining debt: $${studio.debt.toLocaleString()}`);
+      if (import.meta.env.DEV) {
+        console.log(`💳 Auto debt payment: ${debtPayment.toLocaleString()}. Remaining debt: ${studio.debt.toLocaleString()}`);
+      }
     }
     
     // Very low weekly interest on debt (1% annually = ~0.02% weekly)
@@ -1278,7 +1323,7 @@ export const StudioMagnateGame: React.FC<StudioMagnateGameProps> = ({
     if (studio.weeksSinceLastProject > 12) {
       const reputationLoss = Math.min(1, (studio.weeksSinceLastProject - 12) * 0.25); // Very gentle decay
       studio.reputation = Math.max(0, studio.reputation - reputationLoss);
-      if (reputationLoss > 0) {
+      if (reputationLoss > 0 && import.meta.env.DEV) {
         console.log(`📉 Reputation declined by ${reputationLoss.toFixed(1)} (${studio.weeksSinceLastProject} weeks since last project)`);
       }
     }
@@ -1290,32 +1335,44 @@ export const StudioMagnateGame: React.FC<StudioMagnateGameProps> = ({
         const budget = project.budget.total;
         const profitMargin = (totalRevenue * 0.55) / budget; // Studio share vs budget
         
-        console.log(`📊 Checking reputation for ${project.title}: Profit margin ${(profitMargin * 100).toFixed(0)}%`);
+        if (import.meta.env.DEV) {
+          console.log(`📊 Checking reputation for ${project.title}: Profit margin ${(profitMargin * 100).toFixed(0)}%`);
+        }
         
         if (profitMargin > 2.0) { // 200% return - huge success
           studio.reputation = Math.min(100, studio.reputation + 3);
-          console.log(`📈 Big reputation boost from blockbuster ${project.title} (${(profitMargin * 100).toFixed(0)}% return): ${studio.reputation}`);
+          if (import.meta.env.DEV) {
+            console.log(`📈 Big reputation boost from blockbuster ${project.title} (${(profitMargin * 100).toFixed(0)}% return): ${studio.reputation}`);
+          }
         } else if (profitMargin > 1.2) { // 120% return - solid hit
           studio.reputation = Math.min(100, studio.reputation + 1);
-          console.log(`📈 Reputation boost from successful ${project.title}: ${studio.reputation}`);
+          if (import.meta.env.DEV) {
+            console.log(`📈 Reputation boost from successful ${project.title}: ${studio.reputation}`);
+          }
         } else if (profitMargin < 0.3) { // Less than 30% return - bomb
           studio.reputation = Math.max(0, studio.reputation - 2);
-          console.log(`📉 Reputation hit from bomb ${project.title}: ${studio.reputation}`);
+          if (import.meta.env.DEV) {
+            console.log(`📉 Reputation hit from bomb ${project.title}: ${studio.reputation}`);
+          }
         }
       }
     });
     
-    console.log(`💰 STUDIO STATUS: Budget: $${studio.budget.toLocaleString()}, Debt: $${(studio.debt || 0).toLocaleString()}, Reputation: ${studio.reputation.toFixed(1)}`);
+    if (import.meta.env.DEV) {
+      console.log(`💰 STUDIO STATUS: Budget: ${studio.budget.toLocaleString()}, Debt: ${(studio.debt || 0).toLocaleString()}, Reputation: ${studio.reputation.toFixed(1)}`);
+    }
     
     return { studio };
   };
 
   const handleAdvanceWeek = () => {
-    console.log(`🕐 ADVANCING WEEK: Current Y${gameState.currentYear}W${gameState.currentWeek}`);
-    console.log(`🕐 Projects count: ${gameState.projects.length}`);
-    gameState.projects.forEach((p, i) => {
-      console.log(`   [${i}] ${p.title}: Phase=${p.currentPhase}, Status=${p.status}, PhaseDuration=${p.phaseDuration || 0}`);
-    });
+    if (import.meta.env.DEV) {
+      console.log(`🕐 ADVANCING WEEK: Current Y${gameState.currentYear}W${gameState.currentWeek}`);
+      console.log(`🕐 Projects count: ${gameState.projects.length}`);
+      gameState.projects.forEach((p, i) => {
+        console.log(`   [${i}] ${p.title}: Phase=${p.currentPhase}, Status=${p.status}, PhaseDuration=${p.phaseDuration || 0}`);
+      });
+    }
     
     // Start weekly processing with loading
     startOperation(LOADING_OPERATIONS.WEEKLY_PROCESSING.id, LOADING_OPERATIONS.WEEKLY_PROCESSING.name, LOADING_OPERATIONS.WEEKLY_PROCESSING.estimatedTime);
@@ -1332,7 +1389,9 @@ export const StudioMagnateGame: React.FC<StudioMagnateGameProps> = ({
         currentQuarter: prev.currentQuarter
       });
       
-      console.log(`🕐 NEW TIME STATE: Y${newTimeState.currentYear}W${newTimeState.currentWeek}`);
+      if (import.meta.env.DEV) {
+        console.log(`🕐 NEW TIME STATE: Y${newTimeState.currentYear}W${newTimeState.currentWeek}`);
+      }
       
       // Process AI studio timelines and potential new film starts
       try {
@@ -1434,18 +1493,20 @@ export const StudioMagnateGame: React.FC<StudioMagnateGameProps> = ({
         // Find corresponding studio profile by name
         const studioProfile = studioGenerator.getStudioProfile(randomStudio.name);
         if (studioProfile) {
-          let aiRelease = studioGenerator.generateStudioRelease(studioProfile, newTimeState.currentWeek, newTimeState.currentYear);
-          if (aiRelease) {
-            // Set proper release timing for AI films
-            aiRelease.releaseWeek = newTimeState.currentWeek;
-            aiRelease.releaseYear = newTimeState.currentYear;
-            aiRelease.studioName = studioProfile.name; // Track which AI studio made this
-            aiRelease = attachBasicCastForAI(aiRelease, prev.talent);
-            newAIReleases.push(aiRelease);
-            console.log(`🤖 AI STUDIO: ${studioProfile.name} released "${aiRelease.title}" (${aiRelease.script.genre})`);
+              let aiRelease = studioGenerator.generateStudioRelease(studioProfile, newTimeState.currentWeek, newTimeState.currentYear);
+              if (aiRelease) {
+                // Set proper release timing for AI films
+                aiRelease.releaseWeek = newTimeState.currentWeek;
+                aiRelease.releaseYear = newTimeState.currentYear;
+                aiRelease.studioName = studioProfile.name; // Track which AI studio made this
+                aiRelease = attachBasicCastForAI(aiRelease, prev.talent);
+                newAIReleases.push(aiRelease);
+                if (import.meta.env.DEV) {
+                  console.log(`🤖 AI STUDIO: ${studioProfile.name} released \"${aiRelease.title}\" (${aiRelease.script.genre})`);
+                }
+              }
+            }
           }
-        }
-      }
       
       // Process weekly costs and reputation with deep system
       const weeklyResults = processWeeklyCosts(prev, updatedProjects);
@@ -1460,8 +1521,10 @@ export const StudioMagnateGame: React.FC<StudioMagnateGameProps> = ({
         prev.competitorStudios
       );
       
-      console.log(`📊 Weekly reputation update: ${prev.studio.reputation} -> ${weeklyResults.studio.reputation}`);
-      console.log(`🏆 Deep reputation: Overall ${deepRepResult.reputation.toFixed(1)}`);
+      if (import.meta.env.DEV) {
+        console.log(`📊 Weekly reputation update: ${prev.studio.reputation} -> ${weeklyResults.studio.reputation}`);
+        console.log(`🏆 Deep reputation: Overall ${deepRepResult.reputation.toFixed(1)}`);
+      }
       
       // Apply deep reputation to studio
       const enhancedStudio = {
@@ -1515,7 +1578,7 @@ export const StudioMagnateGame: React.FC<StudioMagnateGameProps> = ({
         import('./MediaEngine').then(({ MediaEngine }) => {
           const newMediaItems = MediaEngine.processMediaEvents(newState);
           const triggeredEvents = MediaEngine.triggerAutomaticEvents(newState, gameState);
-          if (newMediaItems.length > 0 || triggeredEvents.length > 0) {
+          if ((newMediaItems.length > 0 || triggeredEvents.length > 0) && import.meta.env.DEV) {
             console.log(`📰 MEDIA: Generated ${newMediaItems.length} articles, triggered ${triggeredEvents.length} events`);
           }
 
@@ -1573,9 +1636,13 @@ export const StudioMagnateGame: React.FC<StudioMagnateGameProps> = ({
       <AchievementNotifications
         achievements={achievements.recentUnlocks}
         onDismiss={(achievementId) => {
-          // Apply rewards for all newly unlocked achievements before clearing notifications
-          handleAchievementRewards(achievements.recentUnlocks);
-          achievements.clearRecentUnlocks();
+          const achievement = achievements.recentUnlocks.find(a => a.id === achievementId);
+          if (achievement) {
+            handleAchievementRewards([achievement]);
+          }
+          if (typeof achievements.dismissRecentUnlock === 'function') {
+            achievements.dismissRecentUnlock(achievementId);
+          }
         }}
       />
 
@@ -1991,7 +2058,10 @@ export const StudioMagnateGame: React.FC<StudioMagnateGameProps> = ({
         
         {currentPhase === 'casting' && (
           <div className="space-y-6">
-            <Tabs defaultValue="character-casting" className="space-y-4">
+            <Tabs
+              defaultValue={selectedProject ? "character-casting" : "casting-board"}
+              className="space-y-4"
+            >
               <TabsList>
                 <TabsTrigger value="character-casting">Character Casting</TabsTrigger>
                 <TabsTrigger value="role-based">Role-Based System</TabsTrigger>
@@ -1999,40 +2069,58 @@ export const StudioMagnateGame: React.FC<StudioMagnateGameProps> = ({
               </TabsList>
               
               <TabsContent value="character-casting">
-                <CharacterCastingSystem
-                  project={selectedProject!}
-                  gameState={gameState}
-                  onProjectUpdate={handleProjectUpdate}
-                />
+                {selectedProject ? (
+                  <CharacterCastingSystem
+                    project={selectedProject}
+                    gameState={gameState}
+                    onProjectUpdate={handleProjectUpdate}
+                  />
+                ) : (
+                  <div className="p-6 border rounded-lg bg-card text-sm text-muted-foreground">
+                    <p className="font-medium mb-1">No project selected for casting</p>
+                    <p>
+                      Select an active project from the Dashboard, then return here to manage character casting.
+                    </p>
+                  </div>
+                )}
               </TabsContent>
               
               <TabsContent value="role-based">
-                <RoleBasedCasting
-                  project={selectedProject!}
-                  gameState={gameState}
-                  onCastRole={(characterId: string, talentId: string) => {
-                    if (!selectedProject) return;
-                    const updatedCharacters = (selectedProject.script?.characters || []).map(c =>
-                      c.id === characterId ? { ...c, assignedTalentId: talentId } : c
-                    );
-                    const updatedProject = {
-                      ...selectedProject,
-                      script: { ...selectedProject.script!, characters: updatedCharacters }
-                    };
-                    handleProjectUpdate(updatedProject);
-                  }}
-                  onCreateRole={(role) => {
-                    if (!selectedProject) return;
-                    const updatedProject = {
-                      ...selectedProject,
-                      script: {
-                        ...selectedProject.script!,
-                        characters: [...(selectedProject.script?.characters || []), role]
-                      }
-                    };
-                    handleProjectUpdate(updatedProject);
-                  }}
-                />
+                {selectedProject ? (
+                  <RoleBasedCasting
+                    project={selectedProject}
+                    gameState={gameState}
+                    onCastRole={(characterId: string, talentId: string) => {
+                      if (!selectedProject) return;
+                      const updatedCharacters = (selectedProject.script?.characters || []).map(c =>
+                        c.id === characterId ? { ...c, assignedTalentId: talentId } : c
+                      );
+                      const updatedProject = {
+                        ...selectedProject,
+                        script: { ...selectedProject.script!, characters: updatedCharacters }
+                      };
+                      handleProjectUpdate(updatedProject);
+                    }}
+                    onCreateRole={(role) => {
+                      if (!selectedProject) return;
+                      const updatedProject = {
+                        ...selectedProject,
+                        script: {
+                          ...selectedProject.script!,
+                          characters: [...(selectedProject.script?.characters || []), role]
+                        }
+                      };
+                      handleProjectUpdate(updatedProject);
+                    }}
+                  />
+                ) : (
+                  <div className="p-6 border rounded-lg bg-card text-sm text-muted-foreground">
+                    <p className="font-medium mb-1">No project selected for role-based casting</p>
+                    <p>
+                      Select an active project from the Dashboard to define roles and attach talent.
+                    </p>
+                  </div>
+                )}
               </TabsContent>
               
               <TabsContent value="casting-board">
@@ -2224,23 +2312,32 @@ export const StudioMagnateGame: React.FC<StudioMagnateGameProps> = ({
           />
         )}
         
-        {currentPhase === 'marketing' && selectedProject && (
-          <EnhancedMarketingSystem
-            project={selectedProject}
-            gameState={gameState}
-            onUpdateProject={(projectId, updates) => {
-              const project = gameState.projects.find(p => p.id === projectId);
-              if (project) {
-                handleProjectUpdate({ ...project, ...updates });
-              }
-            }}
-            onUpdateBudget={(amount) => {
-              setGameState(prev => ({
-                ...prev,
-                studio: { ...prev.studio, budget: prev.studio.budget + amount }
-              }));
-            }}
-          />
+        {currentPhase === 'marketing' && (
+          selectedProject ? (
+            <EnhancedMarketingSystem
+              project={selectedProject}
+              gameState={gameState}
+              onUpdateProject={(projectId, updates) => {
+                const project = gameState.projects.find(p => p.id === projectId);
+                if (project) {
+                  handleProjectUpdate({ ...project, ...updates });
+                }
+              }}
+              onUpdateBudget={(amount) => {
+                setGameState(prev => ({
+                  ...prev,
+                  studio: { ...prev.studio, budget: prev.studio.budget + amount }
+                }));
+              }}
+            />
+          ) : (
+            <div className="p-6 border rounded-lg bg-card text-sm text-muted-foreground">
+              <p className="font-medium mb-1">No project selected for marketing</p>
+              <p>
+                Select an active project from the Dashboard to plan campaigns and release strategy, then return to this tab.
+              </p>
+            </div>
+          )
         )}
         
         {currentPhase === 'media' && (
@@ -2283,10 +2380,7 @@ export const StudioMagnateGame: React.FC<StudioMagnateGameProps> = ({
               </TabsContent>
               
               <TabsContent value="analytics">
-                <div className="text-center text-muted-foreground py-8">
-                  <h3 className="text-lg font-semibold mb-2">Media Analytics Dashboard</h3>
-                  <p>Advanced analytics and reputation tracking coming soon...</p>
-                </div>
+                <MediaAnalyticsPanel gameState={gameState} />
               </TabsContent>
             </Tabs>
           </Suspense>
@@ -2381,6 +2475,11 @@ export const StudioMagnateGame: React.FC<StudioMagnateGameProps> = ({
               onWorldUpdate={(updates) => setGameState(prev => ({ ...prev, ...updates }))}
               onStudioUpdate={handleStudioUpdate}
             />
+            {import.meta.env.DEV && (
+              <IntegrationMonitor
+                gameState={gameState}
+              />
+            )}
           </div>
         )}
         

@@ -211,68 +211,70 @@ export const TalentMarketplace: React.FC<TalentMarketplaceProps> = ({
       </div>
 
       {/* **CHECKPOINT 2 TEST**: System status for debugging */}
-      <Card className="card-premium border-dashed">
-        <CardHeader>
-          <CardTitle className="text-sm text-muted-foreground">
-            AI Studio System Status (Debug)
-          </CardTitle>
-        </CardHeader>
-        <CardContent>
-          <div className="grid grid-cols-2 md:grid-cols-4 gap-4 text-sm">
-            <div>
-              <div className="font-semibold">Active AI Films</div>
-              <div className="text-muted-foreground">
-                {AIStudioManager.getAllAIFilms().filter(f => f.status !== 'released').length}
+      {import.meta.env.DEV && (
+        <Card className="card-premium border-dashed">
+          <CardHeader>
+            <CardTitle className="text-sm text-muted-foreground">
+              AI Studio System Status (Debug)
+            </CardTitle>
+          </CardHeader>
+          <CardContent>
+            <div className="grid grid-cols-2 md:grid-cols-4 gap-4 text-sm">
+              <div>
+                <div className="font-semibold">Active AI Films</div>
+                <div className="text-muted-foreground">
+                  {AIStudioManager.getAllAIFilms().filter(f => f.status !== 'released').length}
+                </div>
+              </div>
+              <div>
+                <div className="font-semibold">Released AI Films</div>
+                <div className="text-muted-foreground">
+                  {AIStudioManager.getAllAIFilms().filter(f => f.status === 'released').length}
+                </div>
+              </div>
+              <div>
+                <div className="font-semibold">Active Commitments</div>
+                <div className="text-muted-foreground">
+                  {commitments.filter(c => 
+                    c.year === currentYear && 
+                    currentWeek >= c.startWeek && 
+                    currentWeek <= c.endWeek
+                  ).length}
+                </div>
+              </div>
+              <div>
+                <div className="font-semibold">Available Talent</div>
+                <div className="text-muted-foreground">
+                  {talent.filter(t => !AIStudioManager.getTalentCommitment(t.id, currentWeek, currentYear)).length}/{talent.length}
+                </div>
               </div>
             </div>
-            <div>
-              <div className="font-semibold">Released AI Films</div>
-              <div className="text-muted-foreground">
-                {AIStudioManager.getAllAIFilms().filter(f => f.status === 'released').length}
-              </div>
+            
+            <div className="mt-4 flex gap-2">
+              <Button 
+                size="sm" 
+                variant="outline"
+                onClick={() => {
+                  console.log('AI Films:', AIStudioManager.getAllAIFilms());
+                  console.log('Commitments:', AIStudioManager.getAllCommitments());
+                }}
+              >
+                Log AI System Data
+              </Button>
+              <Button 
+                size="sm" 
+                variant="outline"
+                onClick={() => {
+                  AIStudioManager.resetAISystem();
+                  setCommitments([]);
+                }}
+              >
+                Reset AI System
+              </Button>
             </div>
-            <div>
-              <div className="font-semibold">Active Commitments</div>
-              <div className="text-muted-foreground">
-                {commitments.filter(c => 
-                  c.year === currentYear && 
-                  currentWeek >= c.startWeek && 
-                  currentWeek <= c.endWeek
-                ).length}
-              </div>
-            </div>
-            <div>
-              <div className="font-semibold">Available Talent</div>
-              <div className="text-muted-foreground">
-                {talent.filter(t => !AIStudioManager.getTalentCommitment(t.id, currentWeek, currentYear)).length}/{talent.length}
-              </div>
-            </div>
-          </div>
-          
-          <div className="mt-4 flex gap-2">
-            <Button 
-              size="sm" 
-              variant="outline"
-              onClick={() => {
-                console.log('AI Films:', AIStudioManager.getAllAIFilms());
-                console.log('Commitments:', AIStudioManager.getAllCommitments());
-              }}
-            >
-              Log AI System Data
-            </Button>
-            <Button 
-              size="sm" 
-              variant="outline"
-              onClick={() => {
-                AIStudioManager.resetAISystem();
-                setCommitments([]);
-              }}
-            >
-              Reset AI System
-            </Button>
-          </div>
-        </CardContent>
-      </Card>
+          </CardContent>
+        </Card>
+      )}
     </div>
   );
 };
