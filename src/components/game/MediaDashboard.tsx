@@ -116,7 +116,7 @@ export const MediaDashboard: React.FC<MediaDashboardProps> = ({
     updateMediaData();
     onProcessEvents?.();
     
-    if (newItems.length > 0) {
+    if (newItems.length > 0 && import.meta.env.DEV) {
       console.log(`📺 Processed ${newItems.length} media events`);
     }
   };
@@ -231,9 +231,11 @@ export const MediaDashboard: React.FC<MediaDashboardProps> = ({
             <Button onClick={processQueuedEvents}>
               Process Media Events ({mediaStats.queuedEvents || 0})
             </Button>
-            <Button variant="outline" onClick={generateTestEvent}>
-              Generate Test Event
-            </Button>
+            {import.meta.env.DEV && (
+              <Button variant="outline" onClick={generateTestEvent}>
+                Generate Test Event
+              </Button>
+            )}
             <Button variant="outline" onClick={updateMediaData}>
               Refresh Data
             </Button>
