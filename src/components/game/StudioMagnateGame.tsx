@@ -1991,7 +1991,10 @@ export const StudioMagnateGame: React.FC<StudioMagnateGameProps> = ({
         
         {currentPhase === 'casting' && (
           <div className="space-y-6">
-            <Tabs defaultValue="character-casting" className="space-y-4">
+            <Tabs
+              defaultValue={selectedProject ? "character-casting" : "casting-board"}
+              className="space-y-4"
+            >
               <TabsList>
                 <TabsTrigger value="character-casting">Character Casting</TabsTrigger>
                 <TabsTrigger value="role-based">Role-Based System</TabsTrigger>
@@ -1999,40 +2002,58 @@ export const StudioMagnateGame: React.FC<StudioMagnateGameProps> = ({
               </TabsList>
               
               <TabsContent value="character-casting">
-                <CharacterCastingSystem
-                  project={selectedProject!}
-                  gameState={gameState}
-                  onProjectUpdate={handleProjectUpdate}
-                />
+                {selectedProject ? (
+                  <CharacterCastingSystem
+                    project={selectedProject}
+                    gameState={gameState}
+                    onProjectUpdate={handleProjectUpdate}
+                  />
+                ) : (
+                  <div className="p-6 border rounded-lg bg-card text-sm text-muted-foreground">
+                    <p className="font-medium mb-1">No project selected for casting</p>
+                    <p>
+                      Select an active project from the Dashboard, then return here to manage character casting.
+                    </p>
+                  </div>
+                )}
               </TabsContent>
               
               <TabsContent value="role-based">
-                <RoleBasedCasting
-                  project={selectedProject!}
-                  gameState={gameState}
-                  onCastRole={(characterId: string, talentId: string) => {
-                    if (!selectedProject) return;
-                    const updatedCharacters = (selectedProject.script?.characters || []).map(c =>
-                      c.id === characterId ? { ...c, assignedTalentId: talentId } : c
-                    );
-                    const updatedProject = {
-                      ...selectedProject,
-                      script: { ...selectedProject.script!, characters: updatedCharacters }
-                    };
-                    handleProjectUpdate(updatedProject);
-                  }}
-                  onCreateRole={(role) => {
-                    if (!selectedProject) return;
-                    const updatedProject = {
-                      ...selectedProject,
-                      script: {
-                        ...selectedProject.script!,
-                        characters: [...(selectedProject.script?.characters || []), role]
-                      }
-                    };
-                    handleProjectUpdate(updatedProject);
-                  }}
-                />
+                {selectedProject ? (
+                  <RoleBasedCasting
+                    project={selectedProject}
+                    gameState={gameState}
+                    onCastRole={(characterId: string, talentId: string) => {
+                      if (!selectedProject) return;
+                      const updatedCharacters = (selectedProject.script?.characters || []).map(c =>
+                        c.id === characterId ? { ...c, assignedTalentId: talentId } : c
+                      );
+                      const updatedProject = {
+                        ...selectedProject,
+                        script: { ...selectedProject.script!, characters: updatedCharacters }
+                      };
+                      handleProjectUpdate(updatedProject);
+                    }}
+                    onCreateRole={(role) => {
+                      if (!selectedProject) return;
+                      const updatedProject = {
+                        ...selectedProject,
+                        script: {
+                          ...selectedProject.script!,
+                          characters: [...(selectedProject.script?.characters || []), role]
+                        }
+                      };
+                      handleProjectUpdate(updatedProject);
+                    }}
+                  />
+                ) : (
+                  <div className="p-6 border rounded-lg bg-card text-sm text-muted-foreground">
+                    <p className="font-medium mb-1">No project selected for role-based casting</p>
+                    <p>
+                      Select an active project from the Dashboard to define roles and attach talent.
+                    </p>
+                  </div>
+                )}
               </TabsContent>
               
               <TabsContent value="casting-board">
@@ -2224,23 +2245,32 @@ export const StudioMagnateGame: React.FC<StudioMagnateGameProps> = ({
           />
         )}
         
-        {currentPhase === 'marketing' && selectedProject && (
-          <EnhancedMarketingSystem
-            project={selectedProject}
-            gameState={gameState}
-            onUpdateProject={(projectId, updates) => {
-              const project = gameState.projects.find(p => p.id === projectId);
-              if (project) {
-                handleProjectUpdate({ ...project, ...updates });
-              }
-            }}
-            onUpdateBudget={(amount) => {
-              setGameState(prev => ({
-                ...prev,
-                studio: { ...prev.studio, budget: prev.studio.budget + amount }
-              }));
-            }}
-          />
+        {currentPhase === 'marketing' && (
+          selectedProject ? (
+            <EnhancedMarketingSystem
+              project={selectedProject}
+              gameState={gameState}
+              onUpdateProject={(projectId, updates) => {
+                const project = gameState.projects.find(p => p.id === projectId);
+                if (project) {
+                  handleProjectUpdate({ ...project, ...updates });
+                }
+              }}
+              onUpdateBudget={(amount) => {
+                setGameState(prev => ({
+                  ...prev,
+                  studio: { ...prev.studio, budget: prev.studio.budget + amount }
+                }));
+              }}
+            />
+          ) : (
+            <div className="p-6 border rounded-lg bg-card text-sm text-muted-foreground">
+              <p className="font-medium mb-1">No project selected for marketing</p>
+              <p>
+                Select an active project from the Dashboard to plan campaigns and release strategy, then return to this tab.
+              </p>
+            </div>
+          )
         )}
         
         {currentPhase === 'media' && (
