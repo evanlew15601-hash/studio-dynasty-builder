@@ -109,9 +109,13 @@ export const EnhancedAwardsSystem: React.FC<EnhancedAwardsSystemProps> = ({
       status: 'upcoming'
     };
 
+    // Track how often each talent is nominated across categories for this ceremony.
+    // This enables a soft cap so the same person isn't nominated for everything.
+    const talentNominationCounts: Record<string, number> = {};
+
     // Generate nominations for each category
     AWARD_CATEGORIES.forEach(category => {
-      const nominees = generateNominations(category, eligibleProjects);
+      const nominees = generateNominations(category, eligibleProjects, talentNominationCounts);
       ceremony.nominations.push(...nominees);
     });
 
@@ -259,8 +263,18 @@ export const EnhancedAwardsSystem: React.FC<EnhancedAwardsSystemProps> = ({
     return scoredCandidates[0];
   };
 
-  const generateNominations = (category: AwardCategory, eligibleProjects: Project[]): AwardNomination[] => {
+  const generateNominations = (
+    category: AwardCategory,
+    eligibleProjects: Project[],
+    talentNominationCounts?: Record<string, number>
+  ): AwardNomination[] => {
     const nominations: AwardNomination[] = [];
+
+    const isActingCategory =
+      category.id === 'best-actor' ||
+      category.id === 'best-actress' ||
+      category.id === 'best-supporting-actor' ||
+      category.id === 'best-supporting-actress';
 
     eligibleProjects.forEach(project => {
       let score = calculateAwardScore(project, category);
@@ -276,6 +290,21 @@ export const EnhancedAwardsSystem: React.FC<EnhancedAwardsSystemProps> = ({
         // Blend film-level strength with individual performance so acting awards
         // are driven primarily by performances rather than only overall film stats.
         score = Math.min(100, score * 0.4 + candidate.performanceScore * 0.6);
+
+        // Soft cap: if this talent is already heavily nominated in acting
+        // categories this year, gently penalize additional nominations rather
+        // than hard-blocking them.
+        if (
+          isActingCategory &&
+          talentNominationCounts &&
+          talentId
+        ) {
+          const existing = talentNominationCounts[talentId] || 0;
+          if (existing > 0) {
+            const penaltyFactor = 1 - Math.min(0.5, existing * 0.25);
+            score *= penaltyFactor;
+          }
+        }
       }
 
       const passesThreshold = score > 45; // keep previous bar but now performance-weighted
@@ -291,6 +320,9 @@ export const EnhancedAwardsSystem: React.FC<EnhancedAwardsSystemProps> = ({
 
         if (talentId) {
           nomination.talentId = talentId;
+          if (isActingCategory && talentNominationCounts) {
+            talentNominationCounts[talentId] = (talentNominationCounts[talentId] || 0) + 1;
+          }
         }
 
         nominations.push(nomination);
@@ -313,6 +345,18 @@ export const EnhancedAwardsSystem: React.FC<EnhancedAwardsSystemProps> = ({
           }
           talentId = candidate.talentId;
           score = Math.min(100, score * 0.4 + candidate.performanceScore * 0.6);
+
+          if (
+            isActingCategory &&
+            talentNominationCounts &&
+            talentId
+          ) {
+            const existing = talentNominationCounts[talentId] || 0;
+            if (existing > 0) {
+              const penaltyFactor = 1 - Math.min(0.5, existing * 0.25);
+              score *= penaltyFactor;
+            }
+          }
         }
 
         const nomination: AwardNomination = {
@@ -325,6 +369,9 @@ export const EnhancedAwardsSystem: React.FC<EnhancedAwardsSystemProps> = ({
 
         if (talentId) {
           nomination.talentId = talentId;
+          if (isActingCategory && talentNominationCounts) {
+            talentNominationCounts[talentId] = (talentNominationCounts[talentId] || 0) + 1;
+          }
         }
 
         fallback.push(nomination);
