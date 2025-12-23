@@ -4,8 +4,8 @@ import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
 import { Progress } from '@/components/ui/progress';
-import { Project, TalentPerson, Studio, GameState } from '@/types/game';
-import { TimeSystem } from './TimeSystem';
+import { Project, TalentPerson, Studio, GameState, ScriptCharacter } from '@/types/game';
+import { calculateActingPerformanceScore } from '@/utils/actingPerformance';
 import { Trophy, Star, Calendar, Award, Crown, Users } from 'lucide-react';
 
 interface AwardCategory {
@@ -139,13 +139,148 @@ export const EnhancedAwardsSystem: React.FC<EnhancedAwardsSystemProps> = ({
     return [...playerProjects, ...eligibleAIProjects];
   };
 
+  const getTalentCandidateForCategory = (
+    project: Project,
+    categoryId: string
+  ): { talentId: string; performanceScore: number } | undefined => {
+    const characters = project.script?.characters || [];
+    if (characters.length === 0) return undefined;
+
+    const charactersWithTalent: { character: ScriptCharacter; talent: TalentPerson }[] =
+      characters
+        .filter(c => c.assignedTalentId)
+        .map(c => {
+          const talent = gameState.talent.find(t => t.id === c.assignedTalentId);
+          if (!talent) return null;
+          return { character: c, talent };
+        })
+        .filter(
+          (entry): entry is { character: ScriptCharacter; talent: TalentPerson } =>
+            !!entry
+        );
+
+    if (charactersWithTalent.length === 0) return undefined;
+
+    const isActingCategory =
+      categoryId === 'best-actor' ||
+      categoryId === 'best-actress' ||
+      categoryId === 'best-supporting-actor' ||
+      categoryId === 'best-supporting-actress';
+
+    let filtered = charactersWithTalent;
+
+    if (categoryId === 'best-director') {
+      filtered = charactersWithTalent.filter(
+        entry =>
+          entry.character.requiredType === 'director' || entry.talent.type === 'director'
+      );
+    } else if (isActingCategory) {
+      filtered = charactersWithTalent.filter(entry => entry.talent.type === 'actor');
+
+      const byImportance = (importance: ScriptCharacter['importance']) =>
+        filtered.filter(entry => entry.character.importance === importance);
+
+      if (categoryId === 'best-actor') {
+        let pool = byImportance('lead').filter(
+          entry =>
+            !entry.talent.gender || entry.talent.gender.toLowerCase() !== 'female'
+        );
+        if (pool.length === 0) {
+          pool = byImportance('lead');
+        }
+        if (pool.length === 0) {
+          pool = byImportance('supporting');
+        }
+        if (pool.length > 0) {
+          filtered = pool;
+        }
+      } else if (categoryId === 'best-actress') {
+        let pool = byImportance('lead').filter(
+          entry =>
+            entry.talent.gender && entry.talent.gender.toLowerCase() === 'female'
+        );
+        if (pool.length === 0) {
+          pool = byImportance('lead');
+        }
+        if (pool.length === 0) {
+          pool = byImportance('supporting');
+        }
+        if (pool.length > 0) {
+          filtered = pool;
+        }
+      } else if (categoryId === 'best-supporting-actor') {
+        let pool = byImportance('supporting').filter(
+          entry =>
+            !entry.talent.gender || entry.talent.gender.toLowerCase() !== 'female'
+        );
+        if (pool.length === 0) {
+          pool = byImportance('supporting');
+        }
+        if (pool.length === 0) {
+          pool = byImportance('lead');
+        }
+        if (pool.length > 0) {
+          filtered = pool;
+        }
+      } else if (categoryId === 'best-supporting-actress') {
+        let pool = byImportance('supporting').filter(
+          entry =>
+            entry.talent.gender && entry.talent.gender.toLowerCase() === 'female'
+        );
+        if (pool.length === 0) {
+          pool = byImportance('supporting');
+        }
+        if (pool.length === 0) {
+          pool = byImportance('lead');
+        }
+        if (pool.length > 0) {
+          filtered = pool;
+        }
+      }
+    }
+
+    if (filtered.length === 0) {
+      filtered = charactersWithTalent;
+    }
+
+    const scoredCandidates = filtered.map(entry => {
+      const performanceScore =
+        categoryId === 'best-director'
+          ? entry.talent.reputation || 50
+          : calculateActingPerformanceScore(project, entry.character, entry.talent);
+
+      return {
+        talentId: entry.talent.id,
+        performanceScore
+      };
+    });
+
+    scoredCandidates.sort((a, b) => b.performanceScore - a.performanceScore);
+    return scoredCandidates[0];
+  };
+
   const generateNominations = (category: AwardCategory, eligibleProjects: Project[]): AwardNomination[] => {
     const nominations: AwardNomination[] = [];
-    
+
     eligibleProjects.forEach(project => {
-      const score = calculateAwardScore(project, category);
-      
-      if (score > 45) { // lowered threshold from 60 -> 45 to avoid unrealistically high bar
+      let score = calculateAwardScore(project, category);
+      let talentId: string | undefined;
+
+      if (category.type === 'talent') {
+        const candidate = getTalentCandidateForCategory(project, category.id);
+        if (!candidate) {
+          return;
+        }
+        talentId = candidate.talentId;
+
+        // Blend film-level strength with individual performance so acting awards
+        // are driven primarily by performances rather than only overall film stats.
+        score = Math.min(100, score * 0.4 + candidate.performanceScore * 0.6);
+      }
+
+      const passesThreshold = score > 45; // keep previous bar but now performance-weighted
+
+      if (passesThreshold) {
         const nomination: AwardNomination = {
           id: `nom-${category.id}-${project.id}`,
           categoryId: category.id,
@@ -154,17 +289,49 @@ export const EnhancedAwardsSystem: React.FC<EnhancedAwardsSystemProps> = ({
           score
         };
 
-        // Add talent-specific nominations
-        if (category.type === 'talent') {
-          const talentId = getRelevantTalent(project, category.id);
-          if (talentId) {
-            nomination.talentId = talentId;
-          }
+        if (talentId) {
+          nomination.talentId = talentId;
         }
 
         nominations.push(nomination);
       }
     });
+
+    // If no nominations made it past the threshold but we had eligible projects,
+    // fall back to the top-scoring options so categories don't end up empty.
+    if (nominations.length === 0 && eligibleProjects.length > 0) {
+      const fallback: AwardNomination[] = [];
+
+      eligibleProjects.forEach(project => {
+        let score = calculateAwardScore(project, category);
+        let talentId: string | undefined;
+
+        if (category.type === 'talent') {
+          const candidate = getTalentCandidateForCategory(project, category.id);
+          if (!candidate) {
+            return;
+          }
+          talentId = candidate.talentId;
+          score = Math.min(100, score * 0.4 + candidate.performanceScore * 0.6);
+        }
+
+        const nomination: AwardNomination = {
+          id: `nom-${category.id}-${project.id}`,
+          categoryId: category.id,
+          projectId: project.id,
+          year: gameState.currentYear,
+          score
+        };
+
+        if (talentId) {
+          nomination.talentId = talentId;
+        }
+
+        fallback.push(nomination);
+      });
+
+      return fallback.sort((a, b) => b.score - a.score).slice(0, 5);
+    }
 
     // Sort by score and take top 5
     return nominations.sort((a, b) => b.score - a.score).slice(0, 5);
@@ -211,37 +378,8 @@ export const EnhancedAwardsSystem: React.FC<EnhancedAwardsSystemProps> = ({
   };
 
   const getRelevantTalent = (project: Project, categoryId: string): string | undefined => {
-    if (!project.script?.characters) return undefined;
-    
-    // Enhanced talent selection with better diversity
-    const castMembers = project.script.characters.filter(c => c.assignedTalentId);
-    
-    if (castMembers.length === 0) return undefined;
-    
-    // Map category to role type preferences
-    const rolePreferences: Record<string, string[]> = {
-      'best-director': ['director'],
-      'best-actor': ['lead', 'protagonist', 'main'],
-      'best-actress': ['lead', 'protagonist', 'main', 'female'],
-      'best-supporting-actor': ['supporting', 'secondary'],
-      'best-supporting-actress': ['supporting', 'secondary', 'female']
-    };
-    
-    const preferences = rolePreferences[categoryId] || [];
-    
-    // Try to find talent matching role preferences
-    for (const pref of preferences) {
-      const match = castMembers.find(c => 
-        c.name.toLowerCase().includes(pref) || 
-        c.description?.toLowerCase().includes(pref) ||
-        (pref === 'director' && c.requiredType === 'director')
-      );
-      if (match) return match.assignedTalentId;
-    }
-    
-    // Fallback to random cast member to ensure nominations exist
-    const randomMember = castMembers[Math.floor(Math.random() * castMembers.length)];
-    return randomMember.assignedTalentId;
+    const candidate = getTalentCandidateForCategory(project, categoryId);
+    return candidate?.talentId;
   };
 
   const hostAwardsCeremony = (ceremony: AwardsCeremony) => {
