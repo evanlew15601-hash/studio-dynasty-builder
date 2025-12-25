@@ -6,6 +6,7 @@ import { useToast } from '@/hooks/use-toast';
 import { Project, TalentPerson, GameState, ScriptCharacter } from '@/types/game';
 import { Users, User, Crown, Star, CheckCircle } from 'lucide-react';
 import { importRolesForScript } from '@/utils/roleImport';
+import { filterTalentForRole } from '@/utils/castingFilters';
 
 interface RoleBasedCastingProps {
   project: Project;
@@ -73,7 +74,7 @@ export const RoleBasedCasting: React.FC<RoleBasedCastingProps> = ({
   }, [project?.id, project?.script?.franchiseId, project?.script?.publicDomainId, project?.script?.characters?.length]);
 
   const getAvailableTalent = (role: ScriptCharacter) => {
-    return gameState.talent.filter(talent => {
+    const baseCandidates = gameState.talent.filter(talent => {
       if (talent.contractStatus !== 'available') return false;
       if (role.requiredType && talent.type !== role.requiredType) return false;
       if (role.ageRange) {
@@ -82,6 +83,8 @@ export const RoleBasedCasting: React.FC<RoleBasedCastingProps> = ({
       }
       return true;
     });
+
+    return filterTalentForRole(baseCandidates, role);
   };
 
   const handleCastTalent = (character: ScriptCharacter, talent: TalentPerson) => {
