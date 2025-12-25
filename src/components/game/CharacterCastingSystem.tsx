@@ -8,6 +8,7 @@ import { useToast } from '@/hooks/use-toast';
 import { Users, User, Crown, Star, UserCheck, AlertTriangle, Filter, CheckCircle } from 'lucide-react';
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger } from '@/components/ui/dialog';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
+import { filterTalentForRole } from '@/utils/castingFilters';
 
 interface CharacterCastingSystemProps {
   project: Project;
@@ -65,7 +66,7 @@ export const CharacterCastingSystem: React.FC<CharacterCastingSystemProps> = ({
   };
 
   const getEligibleTalent = (character: ScriptCharacter): TalentPerson[] => {
-    return gameState.talent.filter(talent => {
+    const baseCandidates = gameState.talent.filter(talent => {
       // Must be available
       if (talent.contractStatus !== 'available') return false;
       
@@ -90,7 +91,11 @@ export const CharacterCastingSystem: React.FC<CharacterCastingSystemProps> = ({
       if (alreadyCast) return false;
       
       return true;
-    }).sort((a, b) => {
+    });
+
+    const filteredCandidates = filterTalentForRole(baseCandidates, character);
+
+    return filteredCandidates.sort((a, b) => {
       // Sort by genre match first, then reputation
       const aGenreMatch = project.script?.genre && a.genres?.includes(project.script?.genre) ? 1 : 0;
       const bGenreMatch = project.script?.genre && b.genres?.includes(project.script?.genre) ? 1 : 0;
