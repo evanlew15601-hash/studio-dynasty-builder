@@ -22,11 +22,13 @@ import {
 interface MediaDashboardProps {
   gameState: GameState;
   onProcessEvents?: () => void;
+  onNavigatePhase?: (phase: 'reputation' | 'awards') => void;
 }
 
 export const MediaDashboard: React.FC<MediaDashboardProps> = ({
   gameState,
-  onProcessEvents
+  onProcessEvents,
+  onNavigatePhase
 }) => {
   const [recentMedia, setRecentMedia] = useState<MediaItem[]>([]);
   const [mediaStats, setMediaStats] = useState<any>({});
@@ -215,6 +217,25 @@ export const MediaDashboard: React.FC<MediaDashboardProps> = ({
             These scores are derived from recent coverage and are applied gradually on top of your
             core reputation each week.
           </p>
+
+          {onNavigatePhase && (
+            <div className="mt-4 flex flex-wrap gap-2">
+              <Button
+                size="sm"
+                variant="outline"
+                onClick={() => onNavigatePhase('reputation')}
+              >
+                Open Reputation Panel
+              </Button>
+              <Button
+                size="sm"
+                variant="outline"
+                onClick={() => onNavigatePhase('awards')}
+              >
+                Awards & Campaigns
+              </Button>
+            </div>
+          )}
         </CardContent>
       </Card>
 

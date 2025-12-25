@@ -2354,7 +2354,8 @@ export const StudioMagnateGame: React.FC<StudioMagnateGameProps> = ({
                   import('./MediaDashboard').then(m => ({ default: m.MediaDashboard }))
                   .catch(() => import('./MediaNotifications').then(m => ({ default: m.MediaNotifications })))
                 ), {
-                  gameState: gameState
+                  gameState: gameState,
+                  onNavigatePhase: (phase: 'reputation' | 'awards') => handlePhaseChange(phase as any)
                 })}
               </TabsContent>
               
@@ -2380,7 +2381,10 @@ export const StudioMagnateGame: React.FC<StudioMagnateGameProps> = ({
               </TabsContent>
               
               <TabsContent value="analytics">
-                <MediaAnalyticsPanel gameState={gameState} />
+                <MediaAnalyticsPanel
+                  gameState={gameState}
+                  onNavigatePhase={(phase) => handlePhaseChange(phase as any)}
+                />
               </TabsContent>
             </Tabs>
           </Suspense>
@@ -2421,6 +2425,7 @@ export const StudioMagnateGame: React.FC<StudioMagnateGameProps> = ({
                 gameState={gameState}
                 onProjectUpdate={handleProjectUpdate}
                 onStudioUpdate={handleStudioUpdate}
+                onNavigatePhase={(phase: 'media' | 'distribution') => handlePhaseChange(phase as any)}
               />
             </TabsContent>
 
@@ -2454,6 +2459,7 @@ export const StudioMagnateGame: React.FC<StudioMagnateGameProps> = ({
                     )
                   }));
                 }}
+                onNavigatePhase={(phase: 'media' | 'distribution') => handlePhaseChange(phase as any)}
               />
             </TabsContent>
           </Tabs>
@@ -2495,6 +2501,7 @@ export const StudioMagnateGame: React.FC<StudioMagnateGameProps> = ({
                 currentQuarter: gameState.currentQuarter
               }}
               allStudios={gameState.competitorStudios}
+              onNavigatePhase={(phase: 'media' | 'distribution') => handlePhaseChange(phase as any)}
             />
 
             <AchievementsPanel

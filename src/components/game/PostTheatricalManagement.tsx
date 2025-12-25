@@ -1,5 +1,5 @@
 import React, { useState } from 'react';
-import { Project, GameState } from '@/types/game';
+import { Project, GameState, PostTheatricalRelease } from '@/types/game';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
@@ -15,22 +15,11 @@ import {
   TrendingIcon,
   CheckIcon
 } from '@/components/ui/icons';
+import { MediaFinancialIntegration } from './MediaFinancialIntegration';
 
 interface PostTheatricalManagementProps {
   gameState: GameState;
   onProjectUpdate: (project: Project) => void;
-}
-
-interface PostTheatricalRelease {
-  id: string;
-  projectId: string;
-  platform: 'streaming' | 'digital' | 'physical' | 'tv-licensing';
-  releaseDate: Date;
-  revenue: number;
-  weeklyRevenue: number;
-  weeksActive: number;
-  status: 'planned' | 'active' | 'declining' | 'ended';
-  cost: number;
 }
 
 const POST_THEATRICAL_OPTIONS = [
@@ -185,29 +174,60 @@ export const PostTheatricalManagement: React.FC<PostTheatricalManagementProps> =
     const boxOffice = project.metrics.boxOfficeTotal || 0;
     const performance = (project.metrics.criticsScore || 50) + (project.metrics.audienceScore || 50);
     const buzzBonus = (project.marketingCampaign?.buzz || 0) * 0.1;
-    
+
     let revenueMultiplier = 0;
-    
+
     switch (platform) {
       case 'streaming':
-        // High box office = higher licensing fees
-        revenueMultiplier = 0.15 + (performance / 1000) + (buzzBonus / 100);
+        // High box office + strong reviews drive premium licensing
+        revenueMultiplier = 0.12 + performance / 1200 + buzzBonus / 150;
         break;
       case 'digital':
-        // More consistent revenue stream
-        revenueMultiplier = 0.08 + (performance / 1500) + (buzzBonus / 150);
+        // More consistent long-tail revenue
+        revenueMultiplier = 0.07 + performance / 1600 + buzzBonus / 200;
         break;
       case 'physical':
-        // Depends heavily on audience score
-        revenueMultiplier = 0.06 + ((project.metrics.audienceScore || 50) / 1000);
+        // Depends heavily on audience score and collectors
+        revenueMultiplier = 0.05 + (project.metrics.audienceScore || 50) / 1200;
         break;
       case 'tv-licensing':
-        // Lower but steady revenue
-        revenueMultiplier = 0.04 + (performance / 2000);
+        // Lower but steady multi-year revenue
+        revenueMultiplier = 0.035 + performance / 2200;
         break;
     }
-    
-    return Math.floor(boxOffice * revenueMultiplier);
+
+    if (revenueMultiplier === 0 || boxOffice <= 0) {
+      return 0;
+    }
+
+    // Awards on the film meaningfully boost demand in later windows
+    const projectAwards = (gameState.studio.awards || []).filter(
+      award => award.projectId === project.id
+    );
+    const totalPrestige = projectAwards.reduce((sum, award) => sum + award.prestige, 0);
+    const awardsMultiplier = 1 + Math.min(0.5, totalPrestige * 0.03); // up to +50%
+
+    // Studio reputation feeds into deal quality across all platforms
+    const reputationDelta = (gameState.studio.reputation || 50) - 50;
+    const reputationMultiplier = 1 + reputationDelta / 200; // roughly -25% to +25%
+
+    // Media buzz especially helps streaming/digital performance
+    let mediaMultiplier = 1;
+    const baseMediaMultiplier = MediaFinancialIntegration.calculateStreamingMultiplier(
+      project,
+      gameState
+    );
+    if (platform === 'streaming' || platform === 'digital') {
+      mediaMultiplier = baseMediaMultiplier;
+    } else {
+      // Physical and TV licensing are influenced, but less directly
+      mediaMultiplier = 1 + (baseMediaMultiplier - 1) * 0.5;
+    }
+
+    const finalMultiplier =
+      revenueMultiplier * awardsMultiplier * reputationMultiplier * mediaMultiplier;
+
+    return Math.floor(boxOffice * finalMultiplier);
   };
 
   const canReleaseOnPlatform = (project: Project, option: any): { canRelease: boolean; reason: string } => {
@@ -372,6 +392,10 @@ export const PostTheatricalManagement: React.FC<PostTheatricalManagementProps> =
                         {POST_THEATRICAL_OPTIONS.map(option => {
                           const { canRelease, reason } = canReleaseOnPlatform(project, option);
                           const estimatedRevenue = calculatePostTheatricalRevenue(project, option.platform);
+                          const roi =
+                            estimatedRevenue > 0
+                              ? ((estimatedRevenue - option.baseCost) / option.baseCost) * 100
+                              : 0;
                           const IconComponent = option.icon;
 
                           return (
@@ -409,7 +433,19 @@ export const PostTheatricalManagement: React.FC<PostTheatricalManagementProps> =
                                     <span>Duration:</span>
                                     <span>{Math.round(option.duration / 4)} months</span>
                                   </div>
+                                  <div className="flex justify-between">
+                                    <span>ROI:</span>
+                                    <span>
+                                      {estimatedRevenue > 0
+                                        ? `${roi >= 0 ? '+' : ''}${roi.toFixed(0)}%`
+                                        : '—'}
+                                    </span>
+                                  </div>
                                 </div>
+
+                                <p className="mt-2 text-[10px] text-muted-foreground">
+                                  Estimates factor in reviews, awards, reputation and current media buzz.
+                                </p>
 
                                 <Button
                                   onClick={() => launchPostTheatricalRelease(project, option)}

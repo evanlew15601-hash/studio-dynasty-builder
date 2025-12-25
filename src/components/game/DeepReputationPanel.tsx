@@ -4,6 +4,7 @@ import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
 import { Progress } from '@/components/ui/progress';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
+import { Button } from '@/components/ui/button';
 import { DeepReputationSystem } from './DeepReputationSystem';
 import { Studio, Project, TalentPerson } from '@/types/game';
 import { TimeState } from './TimeSystem';
@@ -28,6 +29,7 @@ interface DeepReputationPanelProps {
   talent: TalentPerson[];
   timeState: TimeState;
   allStudios: Studio[];
+  onNavigatePhase?: (phase: 'media' | 'distribution') => void;
 }
 
 export const DeepReputationPanel: React.FC<DeepReputationPanelProps> = ({ 
@@ -35,7 +37,8 @@ export const DeepReputationPanel: React.FC<DeepReputationPanelProps> = ({
   projects, 
   talent, 
   timeState, 
-  allStudios 
+  allStudios,
+  onNavigatePhase
 }) => {
   const repResult = DeepReputationSystem.calculateDeepReputation(
     studio, 
@@ -367,6 +370,38 @@ export const DeepReputationPanel: React.FC<DeepReputationPanelProps> = ({
           </Card>
         </TabsContent>
       </Tabs>
+
+      {onNavigatePhase && (
+        <Card>
+          <CardHeader>
+            <CardTitle className="flex items-center gap-2">
+              <TrendingUp className="w-5 h-5" />
+              Act on Reputation
+            </CardTitle>
+          </CardHeader>
+          <CardContent className="flex flex-col md:flex-row md:items-center md:justify-between gap-4">
+            <p className="text-sm text-muted-foreground md:max-w-md">
+              Use your current standing to drive proactive media coverage and smarter post-theatrical distribution choices.
+            </p>
+            <div className="flex flex-wrap gap-2">
+              <Button
+                size="sm"
+                variant="outline"
+                onClick={() => onNavigatePhase('media')}
+              >
+                Open Media Dashboard
+              </Button>
+              <Button
+                size="sm"
+                variant="outline"
+                onClick={() => onNavigatePhase('distribution')}
+              >
+                Manage Distribution & Post-Theatrical
+              </Button>
+            </div>
+          </CardContent>
+        </Card>
+      )}
     </div>
   );
 };

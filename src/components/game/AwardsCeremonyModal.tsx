@@ -104,11 +104,17 @@ export const AwardsCeremonyModal: React.FC<AwardsCeremonyModalProps> = ({
                 {playerWins.length > 0 && (
                   <div className="mt-4">
                     <h4 className="font-semibold text-yellow-800 mb-2">🏆 Your Wins:</h4>
-                    {playerWins.map((winner, index) => (
-                      <Badge key={index} variant="default" className="mr-2 mb-1">
-                        {winner.categoryName}: {winner.nomination.projectTitle}
-                      </Badge>
-                    ))}
+                    {playerWins.map((winner, index) => {
+                      const hasNamedNominee = !!winner.nomination.nominee;
+                      const label = hasNamedNominee
+                        ? `${winner.categoryName}: ${winner.nomination.nominee}${winner.nomination.projectTitle ? ` (${winner.nomination.projectTitle})` : ''}`
+                        : `${winner.categoryName}: ${winner.nomination.projectTitle}`;
+                      return (
+                        <Badge key={index} variant="default" className="mr-2 mb-1">
+                          {label}
+                        </Badge>
+                      );
+                    })}
                   </div>
                 )}
               </CardContent>
@@ -142,13 +148,18 @@ export const AwardsCeremonyModal: React.FC<AwardsCeremonyModalProps> = ({
                             <div className="flex items-center justify-between">
                               <div>
                                 <div className="font-semibold text-yellow-800">
-                                  🏆 WINNER: {winner.nomination.projectTitle}
+                                  {(() => {
+                                    const hasNamedNominee = !!winner.nomination.nominee;
+                                    if (hasNamedNominee) {
+                                      const filmTitle = winner.nomination.projectTitle;
+                                      const nomineeName = winner.nomination.nominee;
+                                      return `🏆 WINNER: ${nomineeName}${filmTitle ? ` (${filmTitle})` : ''}`;
+                                    }
+                                    return `🏆 WINNER: ${winner.nomination.projectTitle}`;
+                                  })()}
                                 </div>
                                 <div className="text-sm text-yellow-700">
                                   {winner.nomination.studioName}
-                                  {winner.nomination.nominee && (
-                                    <span> • {winner.nomination.nominee}</span>
-                                  )}
                                 </div>
                               </div>
                               <Trophy className="text-yellow-500" size={24} />
@@ -162,19 +173,23 @@ export const AwardsCeremonyModal: React.FC<AwardsCeremonyModalProps> = ({
                               Nominees:
                             </h4>
                             <div className="grid grid-cols-1 md:grid-cols-2 gap-2">
-                              {nominees.map((nominee, index) => (
-                                <div key={index} className="p-2 bg-muted/50 rounded text-sm">
-                                  <div className="font-medium">
-                                    {nominee.nomination.projectTitle}
+                              {nominees.map((nominee, index) => {
+                                const hasNamedNominee = !!nominee.nomination.nominee;
+                                const displayTitle = hasNamedNominee
+                                  ? `${nominee.nomination.nominee}${nominee.nomination.projectTitle ? ` (${nominee.nomination.projectTitle})` : ''}`
+                                  : nominee.nomination.projectTitle;
+
+                                return (
+                                  <div key={index} className="p-2 bg-muted/50 rounded text-sm">
+                                    <div className="font-medium">
+                                      {displayTitle}
+                                    </div>
+                                    <div className="text-muted-foreground">
+                                      {nominee.nomination.studioName}
+                                    </div>
                                   </div>
-                                  <div className="text-muted-foreground">
-                                    {nominee.nomination.studioName}
-                                    {nominee.nomination.nominee && (
-                                      <span> • {nominee.nomination.nominee}</span>
-                                    )}
-                                  </div>
-                                </div>
-                              ))}
+                                );
+                              })}
                             </div>
                           </div>
                         )}
