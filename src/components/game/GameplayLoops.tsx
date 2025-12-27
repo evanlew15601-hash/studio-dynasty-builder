@@ -574,7 +574,7 @@ export class GameplayLoops {
     // }
     
     // Verify reputation updates
-    studios.forEach(studio =&gt; {
+    studios.forEach(studio => {
       if (studio.reputation === undefined || studio.reputation === 50) {
         results.warnings.push(`${studio.name}: Reputation may not be updating properly`);
       }
