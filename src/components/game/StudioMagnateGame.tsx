@@ -2395,10 +2395,19 @@ export const StudioMagnateGame: React.FC<StudioMagnateGameProps> = ({
         )}
         
         {currentPhase === 'distribution' && (() => {
+          const isFilmOrTV = (project: Project) =>
+            project.type === 'feature' ||
+            project.type === 'documentary' ||
+            project.type === 'series' ||
+            project.type === 'limited-series';
+
           const releaseEligibleProjects = gameState.projects.filter(project => {
-            const isFilm = project.type === 'feature' || project.type === 'documentary';
-            if (!isFilm) return false;
-            if (project.status === 'released' || project.status === 'archived' || project.status === 'scheduled-for-release') {
+            if (!isFilmOrTV(project)) return false;
+            if (
+              project.status === 'released' ||
+              project.status === 'archived' ||
+              project.status === 'scheduled-for-release'
+            ) {
               return false;
             }
             const readyViaMarketing = project.status === 'completed' && project.readyForRelease;
@@ -2407,7 +2416,7 @@ export const StudioMagnateGame: React.FC<StudioMagnateGameProps> = ({
           });
 
           const scheduledProjects = gameState.projects.filter(project =>
-            (project.type === 'feature' || project.type === 'documentary') &&
+            isFilmOrTV(project) &&
             project.status === 'scheduled-for-release' &&
             !!project.releaseWeek &&
             !!project.releaseYear
@@ -2421,19 +2430,20 @@ export const StudioMagnateGame: React.FC<StudioMagnateGameProps> = ({
                 <CardHeader>
                   <CardTitle className="flex items-center gap-2">
                     <DistributionIcon className="w-5 h-5" />
-                    Theatrical Release Planning
+                    Release Planning
                   </CardTitle>
                 </CardHeader>
                 <CardContent>
                   {releaseEligibleProjects.length === 0 && scheduledProjects.length === 0 ? (
                     <div className="text-sm text-muted-foreground">
-                      No films are ready for release planning yet. Complete production, confirm casting, and run a marketing campaign in the Marketing tab first.
+                      No films or series are ready for release planning yet. Complete production, confirm casting,
+                      and run a marketing campaign before scheduling theatrical releases or TV premieres.
                     </div>
                   ) : (
                     <div className="space-y-4">
                       {releaseEligibleProjects.length > 0 && (
                         <div>
-                          <div className="text-sm font-medium mb-2">Films Ready To Schedule</div>
+                          <div className="text-sm font-medium mb-2">Projects Ready To Schedule</div>
                           <div className="space-y-2">
                             {releaseEligibleProjects.map(project => (
                               <div
@@ -2443,8 +2453,11 @@ export const StudioMagnateGame: React.FC<StudioMagnateGameProps> = ({
                                 <div>
                                   <div className="font-medium">{project.title}</div>
                                   <div className="text-xs text-muted-foreground">
-                                    {project.script?.genre || 'Unknown'} • $
-                                    {(project.budget.total / 1000000).toFixed(1)}M budget
+                                    {project.script?.genre || 'Unknown'} •{' '}
+                                    {project.type === 'series' || project.type === 'limited-series'
+                                      ? 'TV Series'
+                                      : 'Film'}{' '}
+                                    • ${(project.budget.total / 1000000).toFixed(1)}M budget
                                   </div>
                                 </div>
                                 <Button
@@ -2454,7 +2467,9 @@ export const StudioMagnateGame: React.FC<StudioMagnateGameProps> = ({
                                     setShowReleasePlanningModal(true);
                                   }}
                                 >
-                                  Plan Release
+                                  {project.type === 'series' || project.type === 'limited-series'
+                                    ? 'Schedule Air Date'
+                                    : 'Plan Release'}
                                 </Button>
                               </div>
                             ))}
@@ -2464,7 +2479,7 @@ export const StudioMagnateGame: React.FC<StudioMagnateGameProps> = ({
 
                       {scheduledProjects.length > 0 && (
                         <div>
-                          <div className="text-sm font-medium mb-2">Upcoming Releases</div>
+                          <div className="text-sm font-medium mb-2">Upcoming Releases & Premieres</div>
                           <div className="space-y-2">
                             {scheduledProjects.map(project => {
                               const releaseWeek = project.releaseWeek!;
@@ -2480,7 +2495,10 @@ export const StudioMagnateGame: React.FC<StudioMagnateGameProps> = ({
                                   <div>
                                     <div className="font-medium">{project.title}</div>
                                     <div className="text-xs text-muted-foreground">
-                                      Releases Y{releaseYear}W{releaseWeek} • {weeksUntil} week
+                                      {project.type === 'series' || project.type === 'limited-series'
+                                        ? 'Premieres'
+                                        : 'Releases'}{' '}
+                                      Y{releaseYear}W{releaseWeek} • {weeksUntil} week
                                       {weeksUntil === 1 ? '' : 's'} away
                                     </div>
                                   </div>

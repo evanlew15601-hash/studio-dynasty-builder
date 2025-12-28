@@ -91,11 +91,11 @@ export const TVProductionManagement: React.FC<TVProductionManagementProps> = ({
         };
         break;
       case 'post-production':
-        // ADVANCE to marketing phase when button is clicked - same as films
+        // ADVANCE to marketing phase when button is clicked - align status with films
         updatedProject = {
           ...updatedProject,
           currentPhase: 'marketing',
-          status: 'ready-for-marketing',
+          status: 'completed',
           phaseDuration: -1, // Manual control until marketing campaign starts
           readyForMarketing: true,
           // Initialize marketing data for TV - essential for showing budget
