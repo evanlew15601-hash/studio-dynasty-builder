@@ -217,6 +217,31 @@ export const ReleaseStrategyModal: React.FC<ReleaseStrategyModalProps> = ({
                     </p>
                   </div>
                 </div>
+                {(() => {
+                  const data = project.marketingData;
+                  const budgetBase = project.budget?.total || 0;
+
+                  if (!data || budgetBase <= 0) {
+                    return null;
+                  }
+
+                  const normalizedBuzz = Math.min(200, Math.max(0, data.currentBuzz || 0));
+                  const buzzBonus = (normalizedBuzz / 150) * 0.75;
+
+                  const spendRatio = (data.totalSpent || 0) / budgetBase;
+                  const budgetBonus = Math.min(0.75, Math.max(0, spendRatio * 0.5));
+
+                  const multiplier = 1 + buzzBonus + budgetBonus;
+                  const percentBoost = Math.max(0, Math.round((multiplier - 1) * 100));
+
+                  return (
+                    <p className="mt-3 text-sm text-muted-foreground">
+                      Estimated opening impact:{' '}
+                      <span className="font-semibold text-emerald-600">+{percentBoost}%</span>{' '}
+                      vs minimal marketing.
+                    </p>
+                  );
+                })()}
               </CardContent>
             </Card>
           )}

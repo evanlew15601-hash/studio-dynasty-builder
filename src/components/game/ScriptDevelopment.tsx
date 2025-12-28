@@ -221,29 +221,8 @@ return {
   };
 
   const handleGreenlightScript = (script: Script) => {
-    if (gameState.studio.budget < script.budget * 0.1) {
-      toast({
-        title: "Insufficient Budget",
-        description: "You need at least 10% of the production budget for development.",
-        variant: "destructive"
-      });
-      return;
-    }
-
-    // Create project with proper workflow phase
-    const project = {
-      ...script,
-      currentPhase: 'development',
-      status: 'in-development',
-      castingConfirmed: false
-    };
-
-    onProjectCreate(project);
-    
-    toast({
-      title: "Script Greenlit!",
-      description: `"${script.title}" moved to Development phase. Assign cast and crew to proceed to Pre-Production.`,
-    });
+    // Delegate budget validation and project creation to the core game logic
+    onProjectCreate(script);
   };
 
   // Filter out scripts that are already greenlit as projects
@@ -552,7 +531,6 @@ return {
                           size="sm" 
                           className="w-full"
                           onClick={() => handleGreenlightScript(script)}
-                          disabled={gameState.studio.budget < script.budget * 0.1}
                         >
                           <ClapperboardIcon className="w-4 h-4 mr-2" />
                           Greenlight Project

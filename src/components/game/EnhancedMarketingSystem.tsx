@@ -195,9 +195,9 @@ export const EnhancedMarketingSystem: React.FC<EnhancedMarketingSystemProps> = (
     return Math.min(maxBuzz, Math.floor(campaignBuzz + intensityBonus + durationBonus + budgetBonus));
   };
 
-  const calculateAudienceReach = (): number => {
-    const totalReach = selectedCampaigns.reduce((sum, campaignId) => {
-      const campaign = availableCampaigns.find(c => c.id === campaignId);
+  const calculateAudienceReach = (): number =&gt; {
+    const totalReach = selectedCampaigns.reduce((sum, campaignId) =&gt; {
+      const campaign = availableCampaigns.find(c =&gt; c.id === campaignId);
       return Math.max(sum, campaign?.audienceReach || 0);
     }, 0);
     
@@ -205,10 +205,30 @@ export const EnhancedMarketingSystem: React.FC<EnhancedMarketingSystemProps> = (
     return Math.min(100, Math.floor(totalReach * intensityMultiplier));
   };
 
-  const toggleCampaign = (campaignId: string) => {
-    setSelectedCampaigns(prev => 
+  // Rough preview of how this campaign will affect opening performance compared to no marketing
+  const calculateProjectedOpeningBoost = (): number =&gt; {
+    const currentBuzz = project.marketingData?.currentBuzz || 0;
+    const totalSpent = project.marketingData?.totalSpent || 0;
+
+    const projectedBuzz = currentBuzz + calculateExpectedBuzz();
+    const projectedSpend = totalSpent + calculateTotalCost();
+
+    const maxBuzz = (project.type === 'series' || project.type === 'limited-series') ? 250 : 150;
+    const normalizedBuzz = Math.min(maxBuzz, Math.max(0, projectedBuzz));
+    const buzzBonus = (normalizedBuzz / maxBuzz) * 0.75;
+
+    const budgetBase = project.budget.total || 0;
+    const spendRatio = budgetBase > 0 ? projectedSpend / budgetBase : 0;
+    const budgetBonus = Math.min(0.75, Math.max(0, spendRatio * 0.5));
+
+    const multiplier = 1 + buzzBonus + budgetBonus;
+    return Math.max(0, Math.round((multiplier - 1) * 100));
+  };
+
+  const toggleCampaign = (campaignId: string) =&gt; {
+    setSelectedCampaigns(prev =&gt; 
       prev.includes(campaignId) 
-        ? prev.filter(id => id !== campaignId)
+        ? prev.filter(id =&gt; id !== campaignId)
         : [...prev, campaignId]
     );
   };
@@ -395,7 +415,7 @@ export const EnhancedMarketingSystem: React.FC<EnhancedMarketingSystemProps> = (
             {/* Campaign Summary */}
             <div className="border rounded-lg p-4 bg-accent/20">
               <h4 className="font-medium mb-2">Campaign Summary</h4>
-              <div className="grid grid-cols-2 md:grid-cols-4 gap-4 text-sm">
+              <div className="grid grid-cols-2 md:grid-cols-5 gap-4 text-sm">
                 <div>
                   <span className="text-muted-foreground">Total Cost:</span>
                   <p className="font-medium">${(calculateTotalCost() / 1000000).toFixed(1)}M</p>
@@ -411,6 +431,10 @@ export const EnhancedMarketingSystem: React.FC<EnhancedMarketingSystemProps> = (
                 <div>
                   <span className="text-muted-foreground">Duration:</span>
                   <p className="font-medium">{duration} weeks</p>
+                </div>
+                <div>
+                  <span className="text-muted-foreground">Opening Impact:</span>
+                  <p className="font-medium">+{calculateProjectedOpeningBoost()}%</p>
                 </div>
               </div>
             </div>

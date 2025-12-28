@@ -227,11 +227,23 @@ export class BoxOfficeSystem {
     const criticsMultiplier = Math.max(0.3, (project.metrics?.criticsScore || 50) / 100);
     const audienceMultiplier = Math.max(0.3, (project.metrics?.audienceScore || 50) / 100);
     
-    // Marketing multiplier - decouple from PR state to fix interference bug
+    // Marketing multiplier - use legacy campaigns if present, otherwise fall back to enhanced marketing data
     let marketingMultiplier = 1.0;
     if (project.marketingCampaign) {
       const buzzBonus = Math.max(0, (project.marketingCampaign.buzz || 0) / 100);
-      const budgetBonus = Math.max(0, (project.marketingCampaign.budgetSpent || 0) / 1000000 * 0.1);
+      const budgetBonus = Math.max(0, (project.marketingCampaign.budgetSpent || 0) / 1_000_000 * 0.1);
+      marketingMultiplier = 1 + buzzBonus + budgetBonus;
+    } else if (project.marketingData) {
+      const buzz = project.marketingData.currentBuzz || 0;
+      const spent = project.marketingData.totalSpent || 0;
+
+      const normalizedBuzz = Math.min(200, Math.max(0, buzz));
+      const buzzBonus = (normalizedBuzz / 150) * 0.75; // up to ~+0.75x from buzz alone
+
+      const budgetBase = project.budget?.total || 0;
+      const spendRatio = budgetBase > 0 ? spent / budgetBase : 0;
+      const budgetBonus = Math.min(0.75, Math.max(0, spendRatio * 0.5)); // up to ~+0.5x when spend ≈ budget
+
       marketingMultiplier = 1 + buzzBonus + budgetBonus;
     }
     
