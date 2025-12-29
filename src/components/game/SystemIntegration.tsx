@@ -90,33 +90,36 @@ export class SystemIntegration {
         name: 'Project-Release Pipeline',
         description: 'Verify projects can be scheduled and released',
         test: (gameState) => {
-          const completedProjects = gameState.projects.filter(p => p.status === 'completed');
+          // Only validate projects that the game itself considers ready for release planning
+          const releaseCandidates = gameState.projects.filter(p =>
+            p.readyForRelease &&
+            (p.status === 'completed' || p.status === 'ready-for-release')
+          );
           const releasedProjects = gameState.projects.filter(p => p.status === 'released');
           const scheduledProjects = gameState.projects.filter(p => p.status === 'scheduled-for-release');
           
-          // Check if completed projects can potentially be released
-          let canReleaseCompleted = true;
+          let pipelineHealthy = true;
           let message = 'Release pipeline healthy';
           
-          completedProjects.forEach(project => {
+          releaseCandidates.forEach(project => {
             const validation = ReleaseSystem.validateFilmForRelease(project);
             if (!validation.canRelease && validation.errors.length > 0) {
-              canReleaseCompleted = false;
-              message = `Project "${project.title}" cannot be released: ${validation.errors[0]}`;
+              pipelineHealthy = false;
+              message = `Project \"${project.title}\" cannot be released: ${validation.errors[0]}`;
             }
           });
           
           // Check if scheduled projects have valid release dates
           scheduledProjects.forEach(project => {
             if (!project.releaseWeek || !project.releaseYear) {
-              canReleaseCompleted = false;
-              message = `Scheduled project "${project.title}" missing release date`;
+              pipelineHealthy = false;
+              message = `Scheduled project \"${project.title}\" missing release date`;
             }
           });
           
           return {
-            passed: canReleaseCompleted,
-            message: `${message} (${completedProjects.length} completed, ${scheduledProjects.length} scheduled, ${releasedProjects.length} released)`
+            passed: pipelineHealthy,
+            message: `${message} (${releaseCandidates.length} ready, ${scheduledProjects.length} scheduled, ${releasedProjects.length} released)`
           };
         }
       },

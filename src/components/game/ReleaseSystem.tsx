@@ -72,6 +72,15 @@ export class ReleaseSystem {
         errors.push(isTV ? 'TV show needs a lead actor' : 'Film needs a lead actor');
       }
     }
+
+    // Require explicit casting confirmation so players can't bypass the casting phase
+    if (!project.castingConfirmed) {
+      errors.push(
+        isTV
+          ? 'Casting must be confirmed before scheduling a TV premiere'
+          : 'Casting must be confirmed before scheduling a film release'
+      );
+    }
     
     // Check budget allocation
     if (!project.budget || project.budget.total <= 0) {

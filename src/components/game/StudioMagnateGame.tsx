@@ -57,7 +57,7 @@ import { useGenreSaturation } from '../../hooks/useGenreSaturation';
 import { useAchievements } from '../../hooks/useAchievements';
 import { DeepReputationSystem } from './DeepReputationSystem';
 import { Button } from '@/components/ui/button';
-import { Card } from '@/components/ui/card';
+import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { useToast } from '@/hooks/use-toast';
@@ -120,7 +120,9 @@ function attachBasicCastForAI(project: Project, talentPool: TalentPerson[]): Pro
     return {
       ...project,
       script: { ...project.script, characters },
-      cast: cast.length > 0 ? cast : project.cast
+      cast: cast.length > 0 ? cast : project.cast,
+      // AI-generated projects with a basic cast can safely be treated as fully cast
+      castingConfirmed: project.castingConfirmed ?? (cast.length > 0)
     };
   } catch (e) {
     console.warn('attachBasicCastForAI failed', e);
@@ -356,6 +358,10 @@ export const StudioMagnateGame: React.FC<StudioMagnateGameProps> = ({
   // Award show modal state
   const [currentAwardShow, setCurrentAwardShow] = useState<AwardShowCeremony | null>(null);
   const [showAwardModal, setShowAwardModal] = useState(false);
+
+  // Film release strategy modal state (player theatrical releases)
+  const [releasePlanningProject, setReleasePlanningProject] = useState<Project | null>(null);
+  const [showReleasePlanningModal, setShowReleasePlanningModal] = useState(false);
 
   // Handle achievement rewards
   const handleAchievementRewards = (unlockedAchievements: Array<{ id?: string; reward?: { reputation?: number; budget?: number } }>) => {
@@ -1412,26 +1418,13 @@ export const StudioMagnateGame: React.FC<StudioMagnateGameProps> = ({
         console.warn('AI Studio processing error', e);
       }
       
-      // Process scheduled releases first
+      // Process scheduled releases first via calendar system (side-effects only)
       let updatedProjects = prev.projects;
       
       import('./ReleaseSystem').then(({ ReleaseSystem }) => {
-        const releasingFilms = ReleaseSystem.processReleases(newTimeState);
-        
-        if (releasingFilms.length > 0) {
-          updatedProjects = updatedProjects.map(project => {
-            const releasingFilm = releasingFilms.find(rf => rf.id === project.id);
-            if (releasingFilm) {
-              return {
-                ...project,
-                status: 'released',
-                releaseWeek: newTimeState.currentWeek,
-                releaseYear: newTimeState.currentYear
-              };
-            }
-            return project;
-          });
-        }
+        // Let the release system process calendar events; project state updates are handled
+        // centrally in processWeeklyProjectEffects to avoid desynchronization
+        ReleaseSystem.processReleases(newTimeState);
       });
       
       // Simulate box office for released films
@@ -2390,12 +2383,132 @@ export const StudioMagnateGame: React.FC<StudioMagnateGameProps> = ({
           </Suspense>
         )}
         
-        {currentPhase === 'distribution' && (
-          <PostTheatricalManagement 
-            gameState={gameState}
-            onProjectUpdate={handleProjectUpdate}
-          />
-        )}
+        {currentPhase === 'distribution' && (() => {
+          const isFilmOrTV = (project: Project) =>
+            project.type === 'feature' ||
+            project.type === 'documentary' ||
+            project.type === 'series' ||
+            project.type === 'limited-series';
+
+          const releaseEligibleProjects = gameState.projects.filter(project => {
+            if (!isFilmOrTV(project)) return false;
+            if (
+              project.status === 'released' ||
+              project.status === 'archived' ||
+              project.status === 'scheduled-for-release'
+            ) {
+              return false;
+            }
+            const readyViaMarketing = project.status === 'completed' && project.readyForRelease;
+            const readyViaLegacy = project.status === 'ready-for-release';
+            return readyViaMarketing || readyViaLegacy;
+          });
+
+          const scheduledProjects = gameState.projects.filter(project =>
+            isFilmOrTV(project) &&
+            project.status === 'scheduled-for-release' &&
+            !!project.releaseWeek &&
+            !!project.releaseYear
+          );
+
+          const currentAbsoluteWeek = (gameState.currentYear * 52) + gameState.currentWeek;
+
+          return (
+            <div className="space-y-6">
+              <Card>
+                <CardHeader>
+                  <CardTitle className="flex items-center gap-2">
+                    <DistributionIcon className="w-5 h-5" />
+                    Release Planning
+                  </CardTitle>
+                </CardHeader>
+                <CardContent>
+                  {releaseEligibleProjects.length === 0 && scheduledProjects.length === 0 ? (
+                    <div className="text-sm text-muted-foreground">
+                      No films or series are ready for release planning yet. Complete production, confirm casting,
+                      and run a marketing campaign before scheduling theatrical releases or TV premieres.
+                    </div>
+                  ) : (
+                    <div className="space-y-4">
+                      {releaseEligibleProjects.length > 0 && (
+                        <div>
+                          <div className="text-sm font-medium mb-2">Projects Ready To Schedule</div>
+                          <div className="space-y-2">
+                            {releaseEligibleProjects.map(project => (
+                              <div
+                                key={project.id}
+                                className="flex items-center justify-between rounded border px-3 py-2"
+                              >
+                                <div>
+                                  <div className="font-medium">{project.title}</div>
+                                  <div className="text-xs text-muted-foreground">
+                                    {project.script?.genre || 'Unknown'} •{' '}
+                                    {project.type === 'series' || project.type === 'limited-series'
+                                      ? 'TV Series'
+                                      : 'Film'}{' '}
+                                    • ${(project.budget.total / 1000000).toFixed(1)}M budget
+                                  </div>
+                                </div>
+                                <Button
+                                  size="sm"
+                                  onClick={() => {
+                                    setReleasePlanningProject(project);
+                                    setShowReleasePlanningModal(true);
+                                  }}
+                                >
+                                  {project.type === 'series' || project.type === 'limited-series'
+                                    ? 'Schedule Air Date'
+                                    : 'Plan Release'}
+                                </Button>
+                              </div>
+                            ))}
+                          </div>
+                        </div>
+                      )}
+
+                      {scheduledProjects.length > 0 && (
+                        <div>
+                          <div className="text-sm font-medium mb-2">Upcoming Releases & Premieres</div>
+                          <div className="space-y-2">
+                            {scheduledProjects.map(project => {
+                              const releaseWeek = project.releaseWeek!;
+                              const releaseYear = project.releaseYear!;
+                              const releaseAbsoluteWeek = (releaseYear * 52) + releaseWeek;
+                              const weeksUntil = Math.max(0, releaseAbsoluteWeek - currentAbsoluteWeek);
+
+                              return (
+                                <div
+                                  key={project.id}
+                                  className="flex items-center justify-between rounded border px-3 py-2 text-sm"
+                                >
+                                  <div>
+                                    <div className="font-medium">{project.title}</div>
+                                    <div className="text-xs text-muted-foreground">
+                                      {project.type === 'series' || project.type === 'limited-series'
+                                        ? 'Premieres'
+                                        : 'Releases'}{' '}
+                                      Y{releaseYear}W{releaseWeek} • {weeksUntil} week
+                                      {weeksUntil === 1 ? '' : 's'} away
+                                    </div>
+                                  </div>
+                                </div>
+                              );
+                            })}
+                          </div>
+                        </div>
+                      )}
+                    </div>
+                  )}
+                </CardContent>
+              </Card>
+
+              <PostTheatricalManagement 
+                gameState={gameState}
+                onProjectUpdate={handleProjectUpdate}
+              />
+            </div>
+          );
+        })()}
         
         {currentPhase === 'finance' && (
           <FinancialDashboard
@@ -2538,6 +2651,24 @@ export const StudioMagnateGame: React.FC<StudioMagnateGameProps> = ({
 )}
       </div>
       
+      {/* Film Release Strategy Modal (theatrical planning for player films) */}
+      {releasePlanningProject && (
+        <ReleaseStrategyModal
+          project={releasePlanningProject}
+          isOpen={showReleasePlanningModal}
+          onClose={() => {
+            setShowReleasePlanningModal(false);
+            setReleasePlanningProject(null);
+          }}
+          gameState={gameState}
+          onProjectUpdate={(projectId, updates) => {
+            const project = gameState.projects.find(p => p.id === projectId);
+            if (!project) return;
+            handleProjectUpdate({ ...project, ...updates });
+          }}
+        />
+      )}
+
       {/* First Week Box Office Modal */}
       {firstWeekModalProject && (
         <FirstWeekBoxOfficeModal

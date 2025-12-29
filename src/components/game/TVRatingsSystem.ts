@@ -76,6 +76,18 @@ export class TVRatingsSystem {
       const buzzBonus = Math.max(0, (project.marketingCampaign.buzz || 0) / 100);
       const budgetBonus = Math.max(0, (project.marketingCampaign.budgetSpent || 0) / 1_000_000 * 0.05);
       marketingMultiplier = 1 + buzzBonus + budgetBonus;
+    } else if (project.marketingData) {
+      const buzz = project.marketingData.currentBuzz || 0;
+      const spent = project.marketingData.totalSpent || 0;
+
+      const normalizedBuzz = Math.min(200, Math.max(0, buzz));
+      const buzzBonus = (normalizedBuzz / 150) * 0.5; // a bit softer for TV
+
+      const budgetBase = project.budget?.total || 0;
+      const spendRatio = budgetBase > 0 ? spent / budgetBase : 0;
+      const budgetBonus = Math.min(0.5, Math.max(0, spendRatio * 0.3));
+
+      marketingMultiplier = 1 + buzzBonus + budgetBonus;
     }
 
     // Star power
@@ -95,7 +107,9 @@ export class TVRatingsSystem {
 
   private static getInitialCompletionRate(project: Project): number {
     const base = 55;
-    const quality = (project.metrics?.criticsScore || 50 + project.metrics?.audienceScore || 50) / 2;
+    const critics = project.metrics?.criticsScore ?? 50;
+    const audience = project.metrics?.audienceScore ?? 50;
+    const quality = (critics + audience) / 2;
     return Math.min(95, Math.max(35, Math.floor(base + (quality - 50) * 0.3)));
   }
 

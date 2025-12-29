@@ -36,6 +36,7 @@ export const ReleaseStrategyModal: React.FC<ReleaseStrategyModalProps> = ({
 
   // Get optimal windows - different messaging for TV vs films
   const isTV = project.type === 'series' || project.type === 'limited-series';
+  const maxBuzz = isTV ? 250 : 150;
   const validation = ReleaseSystem.validateFilmForRelease(project);
   const optimalWindows = [
     { week: 20, year: gameState.currentYear, season: isTV ? 'Summer TV Season' : 'Summer Blockbuster', multiplier: 1.3 },
@@ -124,7 +125,7 @@ export const ReleaseStrategyModal: React.FC<ReleaseStrategyModalProps> = ({
                 <div>
                   <p className="text-sm text-muted-foreground">Marketing Buzz</p>
                   <p className="font-semibold">
-                    {project.marketingData?.currentBuzz || 0}/150
+                    {project.marketingData?.currentBuzz || 0}/{maxBuzz}
                   </p>
                 </div>
                 <div>
@@ -213,10 +214,37 @@ export const ReleaseStrategyModal: React.FC<ReleaseStrategyModalProps> = ({
                     <p className="text-sm text-muted-foreground">Current Buzz</p>
                     <p className="font-semibold flex items-center gap-1">
                       <TrendingUp className="h-4 w-4" />
-                      {project.marketingData.currentBuzz}/150
+                      {project.marketingData.currentBuzz}/{maxBuzz}
                     </p>
                   </div>
                 </div>
+                {(() => {
+                  const data = project.marketingData;
+                  const budgetBase = project.budget?.total || 0;
+
+                  if (!data || budgetBase <= 0) {
+                    return null;
+                  }
+
+                  const normalizedBuzz = Math.min(200, Math.max(0, data.currentBuzz || 0));
+                  const buzzBonus = (normalizedBuzz / 150) * (isTV ? 0.5 : 0.75);
+
+                  const spendRatio = (data.totalSpent || 0) / budgetBase;
+                  const budgetBonus = isTV
+                    ? Math.min(0.5, Math.max(0, spendRatio * 0.3))
+                    : Math.min(0.75, Math.max(0, spendRatio * 0.5));
+
+                  const multiplier = 1 + buzzBonus + budgetBonus;
+                  const percentBoost = Math.max(0, Math.round((multiplier - 1) * 100));
+
+                  return (
+                    <p className="mt-3 text-sm text-muted-foreground">
+                      Estimated {isTV ? 'premiere impact' : 'opening impact'}:{' '}
+                      <span className="font-semibold text-emerald-600">+{percentBoost}%</span>{' '}
+                      vs minimal marketing.
+                    </p>
+                  );
+                })()}
               </CardContent>
             </Card>
           )}
