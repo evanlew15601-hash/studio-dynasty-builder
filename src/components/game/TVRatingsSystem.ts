@@ -107,7 +107,9 @@ export class TVRatingsSystem {
 
   private static getInitialCompletionRate(project: Project): number {
     const base = 55;
-    const quality = (project.metrics?.criticsScore || 50 + project.metrics?.audienceScore || 50) / 2;
+    const critics = project.metrics?.criticsScore ?? 50;
+    const audience = project.metrics?.audienceScore ?? 50;
+    const quality = (critics + audience) / 2;
     return Math.min(95, Math.max(35, Math.floor(base + (quality - 50) * 0.3)));
   }
 

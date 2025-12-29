@@ -120,7 +120,9 @@ function attachBasicCastForAI(project: Project, talentPool: TalentPerson[]): Pro
     return {
       ...project,
       script: { ...project.script, characters },
-      cast: cast.length > 0 ? cast : project.cast
+      cast: cast.length > 0 ? cast : project.cast,
+      // AI-generated projects with a basic cast can safely be treated as fully cast
+      castingConfirmed: project.castingConfirmed ?? (cast.length > 0)
     };
   } catch (e) {
     console.warn('attachBasicCastForAI failed', e);
@@ -1416,26 +1418,13 @@ export const StudioMagnateGame: React.FC<StudioMagnateGameProps> = ({
         console.warn('AI Studio processing error', e);
       }
       
-      // Process scheduled releases first
+      // Process scheduled releases first via calendar system (side-effects only)
       let updatedProjects = prev.projects;
       
       import('./ReleaseSystem').then(({ ReleaseSystem }) => {
-        const releasingFilms = ReleaseSystem.processReleases(newTimeState);
-        
-        if (releasingFilms.length > 0) {
-          updatedProjects = updatedProjects.map(project => {
-            const releasingFilm = releasingFilms.find(rf => rf.id === project.id);
-            if (releasingFilm) {
-              return {
-                ...project,
-                status: 'released',
-                releaseWeek: newTimeState.currentWeek,
-                releaseYear: newTimeState.currentYear
-              };
-            }
-            return project;
-          });
-        }
+        // Let the release system process calendar events; project state updates are handled
+        // centrally in processWeeklyProjectEffects to avoid desynchronization
+        ReleaseSystem.processReleases(newTimeState);
       });
       
       // Simulate box office for released films

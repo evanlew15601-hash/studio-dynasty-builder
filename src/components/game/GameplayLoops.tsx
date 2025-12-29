@@ -558,12 +558,58 @@ export class GameplayLoops {
       console.log('🔍 VERIFYING SYSTEM INTEGRATION...');
     }
     
-    // Verify financial tracking
+    // Verify financial tracking and release consistency
     projects.forEach(project => {
       const financials = FinancialEngine.getFilmFinancials(project.id);
-      if (project.status === 'released' && financials.revenue === 0) {
+      const isTV = project.type === 'series' || project.type === 'limited-series';
+      
+      // Films should record revenue in the financial ledger once released
+      if (!isTV && project.status === 'released' && financials.revenue === 0) {
         results.financial = false;
         results.errors.push(`${project.title}: No revenue recorded despite being released`);
+      }
+      
+      // Release state sanity checks
+      if (project.status === 'scheduled-for-release') {
+        if (!project.releaseWeek || !project.releaseYear) {
+          results.release = false;
+          results.errors.push(`${project.title}: scheduled-for-release with no releaseWeek/releaseYear`);
+        } else {
+          const currentAbs = currentTime.year * 52 + currentTime.week;
+          const releaseAbs = project.releaseYear * 52 + project.releaseWeek;
+          if (releaseAbs < currentAbs) {
+            results.release = false;
+            results.errors.push(
+              `${project.title}: scheduled release date is in the past (Y${project.releaseYear}W${project.releaseWeek})`
+            );
+          }
+        }
+      }
+      
+      const isReadyForRelease =
+        project.readyForRelease &&
+        (project.status === 'completed' || project.status === 'ready-for-release');
+      
+      if (isReadyForRelease && (!project.releaseWeek || !project.releaseYear)) {
+        results.warnings.push(
+          `${project.title}: ready for release planning but no release date scheduled`
+        );
+      }
+      
+      if (project.status === 'released') {
+        if (isTV) {
+          const totalViews = project.metrics?.streaming?.totalViews ?? 0;
+          if (totalViews === 0) {
+            results.release = false;
+            results.errors.push(`${project.title}: released TV project with no streaming metrics`);
+          }
+        } else {
+          const boxOfficeTotal = project.metrics?.boxOfficeTotal ?? 0;
+          if (boxOfficeTotal === 0) {
+            results.release = false;
+            results.errors.push(`${project.title}: released film with zero boxOfficeTotal`);
+          }
+        }
       }
     });
     
