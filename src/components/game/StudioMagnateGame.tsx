@@ -89,6 +89,7 @@ import { RoleDatabase } from '../../data/RoleDatabase';
 import { importRolesForScript } from '@/utils/roleImport';
 import { MediaFinancialIntegration } from './MediaFinancialIntegration';
 import { MediaReputationIntegration } from './MediaReputationIntegration';
+import { MediaResponseSystem } from './MediaResponseSystem';
 import { saveGame } from '@/utils/saveLoad';
 
 // Ensure AI films have at least a Director and Lead actor so awards/crediting work
@@ -348,6 +349,7 @@ export const StudioMagnateGame: React.FC<StudioMagnateGameProps> = ({
   const [selectedProject, setSelectedProject] = useState<Project | null>(null);
   const [selectedFranchise, setSelectedFranchise] = useState<string | null>(null);
   const [selectedPublicDomain, setSelectedPublicDomain] = useState<string | null>(null);
+  const [filmReleaseProject, setFilmReleaseProject] = useState<Project | null>(null);
   
   // First week box office modal state
   const [firstWeekModalProject, setFirstWeekModalProject] = useState<Project | null>(null);
@@ -1573,6 +1575,13 @@ export const StudioMagnateGame: React.FC<StudioMagnateGameProps> = ({
         talent: updatedTalent
       };
 
+      // Advance ongoing PR campaigns (Response Center) each week so timers and effects progress
+      try {
+        MediaResponseSystem.processWeeklyCampaigns(newState);
+      } catch (e) {
+        console.warn('Media response campaign processing error', e);
+      }
+
       setTimeout(() => {
         // Process media events and run system integration checks
         import('./MediaEngine').then(({ MediaEngine }) => {
@@ -1877,7 +1886,7 @@ export const StudioMagnateGame: React.FC<StudioMagnateGameProps> = ({
               gameState={gameState}
               onUpdateFranchise={handleUpdateFranchise}
               onCreateProject={(franchiseId) => {
-                // Create a basic script for franchise film project
+                // Create a basic script for a franchise film project and send it to Script Development
                 const franchise = gameState.franchises.find(f => f.id === franchiseId);
                 const script: Script = {
                   id: `script-${Date.now()}`,
@@ -1904,7 +1913,21 @@ export const StudioMagnateGame: React.FC<StudioMagnateGameProps> = ({
                   sourceType: 'franchise',
                   budget: 15000000
                 };
-                handleProjectCreate(script);
+
+                // Route to Script Development instead of immediately greenlighting a project
+                setSelectedFranchise(franchiseId || null);
+                setSelectedPublicDomain(null);
+                handlePhaseChange('scripts');
+
+                setGameState(prev => ({
+                  ...prev,
+                  scripts: [...prev.scripts, script]
+                }));
+
+                toast({
+                  title: 'Script Draft Created',
+                  description: `"${script.title}" has been created from the franchise and is ready for development.`,
+                });
               }}
               onCreateTVProject={(franchiseId) => {
                 // Route to Television & Streaming with this franchise pre-selected
@@ -2314,22 +2337,64 @@ export const StudioMagnateGame: React.FC<StudioMagnateGameProps> = ({
         
         {currentPhase === 'marketing' && (
           selectedProject ? (
-            <EnhancedMarketingSystem
-              project={selectedProject}
-              gameState={gameState}
-              onUpdateProject={(projectId, updates) => {
-                const project = gameState.projects.find(p => p.id === projectId);
-                if (project) {
-                  handleProjectUpdate({ ...project, ...updates });
-                }
-              }}
-              onUpdateBudget={(amount) => {
-                setGameState(prev => ({
-                  ...prev,
-                  studio: { ...prev.studio, budget: prev.studio.budget + amount }
-                }));
-              }}
-            />
+            <div className="space-y-6">
+              <EnhancedMarketingSystem
+                project={selectedProject}
+                gameState={gameState}
+                onUpdateProject={(projectId, updates) => {
+                  const project = gameState.projects.find(p => p.id === projectId);
+                  if (project) {
+                    handleProjectUpdate({ ...project, ...updates });
+                  }
+                }}
+                onUpdateBudget={(amount) => {
+                  setGameState(prev => ({
+                    ...prev,
+                    studio: { ...prev.studio, budget: prev.studio.budget + amount }
+                  }));
+                }}
+              />
+
+              {/* Film release planning entry point (reuses unified ReleaseStrategyModal) */}
+              {selectedProject.type !== 'series' && selectedProject.type !== 'limited-series' && (
+                <Card>
+                  <CardContent className="flex items-center justify-between">
+                    <div>
+                      <p className="text-sm font-medium">Release Planning</p>
+                      <p className="text-xs text-muted-foreground">
+                        Once marketing is in place, choose a theatrical release window for this film.
+                      </p>
+                    </div>
+                    <Button
+                      size="sm"
+                      onClick={() => setFilmReleaseProject(selectedProject)}
+                      disabled={
+                        selectedProject.status !== 'completed' &&
+                        selectedProject.status !== 'ready-for-release'
+                      }
+                    >
+                      Plan Release
+                    </Button>
+                  </CardContent>
+                </Card>
+              )}
+
+              {filmReleaseProject && (
+                <ReleaseStrategyModal
+                  project={filmReleaseProject}
+                  isOpen={!!filmReleaseProject}
+                  onClose={() => setFilmReleaseProject(null)}
+                  gameState={gameState}
+                  onProjectUpdate={(projectId, updates) => {
+                    const project = gameState.projects.find(p => p.id === projectId);
+                    if (project) {
+                      handleProjectUpdate({ ...project, ...updates });
+                    }
+                    setFilmReleaseProject(null);
+                  }}
+                />
+              )}
+            </div>
           ) : (
             <div className="p-6 border rounded-lg bg-card text-sm text-muted-foreground">
               <p className="font-medium mb-1">No project selected for marketing</p>

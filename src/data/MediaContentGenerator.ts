@@ -17,6 +17,13 @@ export class MediaContentGenerator {
       "{ActorName} Spotted on {FilmTitle} Set",
       "FIRST LOOK: {FilmTitle} Production Begins"
     ],
+    production_wrap: [
+      "{FilmTitle} Wraps Production Ahead of Schedule",
+      "{StudioName} Announces Production Wrap on {FilmTitle}",
+      "It's a Wrap: Cast and Crew Finish Work on {FilmTitle}",
+      "{FilmTitle} Completes Filming with {ActorName} in the Lead",
+      "Final Scene Shot on {FilmTitle} as Production Concludes"
+    ],
     box_office: [
       "{FilmTitle} Dominates Box Office with ${Amount}M Opening",
       "{FilmTitle} Exceeds Expectations with {Amount}M Weekend",
@@ -44,6 +51,20 @@ export class MediaContentGenerator {
       "Is {ActorName} Leaving {StudioName}?",
       "Whispers: {FilmTitle} Facing Production Issues",
       "Inside Sources: {ActorName} Demands Changes"
+    ],
+    interview: [
+      "{ActorName} Opens Up in Candid New Interview",
+      "In Conversation with {ActorName} About Career and Craft",
+      "{ActorName} Talks Future Projects and Creative Risks",
+      "Behind the Scenes with {ActorName}",
+      "Spotlight: {ActorName} Reflects on Recent Work"
+    ],
+    exclusive: [
+      "Exclusive: {ActorName} Teases Mysterious New Project",
+      "Exclusive Q&A with {ActorName}",
+      "Exclusive: Inside the World of {ActorName}",
+      "Exclusive Feature: How {ActorName} Chooses Roles",
+      "Exclusive Sit-Down with {ActorName}"
     ]
   };
 
@@ -62,6 +83,16 @@ export class MediaContentGenerator {
       "{FilmTitle} exceeded all expectations this weekend, earning ${Amount}M domestically. The {StudioName} film benefited from strong word-of-mouth and {ActorName}'s star power.",
       "Audiences responded enthusiastically to {FilmTitle}, driving the film to a ${Amount}M opening weekend. {StudioName} executives are calling it a major success for the studio.",
       "With ${Amount}M in ticket sales, {FilmTitle} has proven that {Genre} films still have strong appeal. {ActorName}'s performance is being credited as a major draw."
+    ],
+    interview: [
+      "{ActorName} sat down to discuss their recent work, long-term goals, and how they choose new roles in an ever-changing industry.",
+      "In a wide-ranging conversation, {ActorName} reflected on their path through Hollywood, creative influences, and upcoming collaborations.",
+      "Speaking candidly, {ActorName} shared stories from set, thoughts on the state of the industry, and what fans can expect next."
+    ],
+    exclusive: [
+      "In an exclusive feature, {ActorName} offers a behind-the-scenes look at life on and off set, sharing how they balance fame and craft.",
+      "This exclusive profile of {ActorName} explores their most iconic performances, favorite collaborators, and the risks that defined their career.",
+      "Our exclusive access with {ActorName} reveals new details about upcoming projects and the personal milestones that keep them grounded."
     ]
   };
 
@@ -193,8 +224,13 @@ export class MediaContentGenerator {
       const project = entities.projects[0];
       result = result.replace(/\{FilmTitle\}/g, project.title || 'Untitled Project');
       result = result.replace(/\{Genre\}/g, project.script?.genre || 'drama');
-      result = result.replace(/\{Budget\}/g, `$${(project.budget?.total || 1000000) / 1000000}M`);
+      result = result.replace(/\{Budget\}/g, `${(project.budget?.total || 1000000) / 1000000}M`);
     }
+
+    // Fallbacks so we never leak raw template placeholders into the UI
+    result = result.replace(/\{ActorName\}/g, 'a leading star');
+    result = result.replace(/\{StudioName\}/g, 'the studio');
+    result = result.replace(/\{FilmTitle\}/g, 'the upcoming project');
     
     // Replace generic variables
     result = result.replace(/\{Role\}/g, 'leading');

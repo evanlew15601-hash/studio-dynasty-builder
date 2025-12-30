@@ -90,11 +90,17 @@ export const MediaResponseDashboard: React.FC<MediaResponseDashboardProps> = ({
   };
 
   const launchPRCampaign = () => {
-    const cost = MediaResponseSystem.getCampaignCost(
-      campaignForm.type,
-      campaignForm.duration,
-      1
-    );
+    const cost = Number(campaignForm.budget) || 0;
+
+    if (!campaignForm.name) {
+      alert('Please enter a campaign name first.');
+      return;
+    }
+
+    if (cost <= 0) {
+      alert('Campaign budget must be greater than zero.');
+      return;
+    }
 
     if (gameState.studio.budget < cost) {
       alert('Insufficient budget for this campaign!');
@@ -131,7 +137,7 @@ export const MediaResponseDashboard: React.FC<MediaResponseDashboardProps> = ({
       targetType: 'studio'
     });
 
-    alert(`PR Campaign "${campaignForm.name}" launched! Cost: $${cost.toLocaleString()}`);
+    alert(`PR Campaign \"${campaignForm.name}\" launched! Cost: ${cost.toLocaleString()}`);
   };
 
   const getResponseCost = (action: string, mediaItem: MediaItem) => {
@@ -359,11 +365,7 @@ export const MediaResponseDashboard: React.FC<MediaResponseDashboardProps> = ({
               <div className="flex items-center justify-between pt-4 border-t">
                 <div>
                   <p className="text-sm text-muted-foreground">
-                    Estimated Cost: ${MediaResponseSystem.getCampaignCost(
-                      campaignForm.type,
-                      campaignForm.duration,
-                      1
-                    ).toLocaleString()}
+                    Estimated Cost: ${campaignForm.budget.toLocaleString()}
                   </p>
                   <p className="text-sm text-muted-foreground">
                     Current Budget: ${gameState.studio.budget.toLocaleString()}
@@ -373,11 +375,8 @@ export const MediaResponseDashboard: React.FC<MediaResponseDashboardProps> = ({
                   onClick={launchPRCampaign}
                   disabled={
                     !campaignForm.name || 
-                    gameState.studio.budget < MediaResponseSystem.getCampaignCost(
-                      campaignForm.type,
-                      campaignForm.duration,
-                      1
-                    )
+                    campaignForm.budget <= 0 ||
+                    gameState.studio.budget < campaignForm.budget
                   }
                 >
                   <Megaphone className="h-4 w-4 mr-2" />
