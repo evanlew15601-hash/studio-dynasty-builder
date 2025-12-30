@@ -91,6 +91,7 @@ import { MediaFinancialIntegration } from './MediaFinancialIntegration';
 import { MediaReputationIntegration } from './MediaReputationIntegration';
 import { MediaResponseSystem } from './MediaResponseSystem';
 import { saveGame } from '@/utils/saveLoad';
+import { DebugControlPanel } from './DebugControlPanel';
 
 // Ensure AI films have at least a Director and Lead actor so awards/crediting work
 function attachBasicCastForAI(project: Project, talentPool: TalentPerson[]): Project {
@@ -1637,6 +1638,55 @@ export const StudioMagnateGame: React.FC<StudioMagnateGameProps> = ({
     });
   };
 
+  const handleAdvanceWeeks = (weeks: number) => {
+    const totalWeeks = Math.floor(weeks);
+    if (!Number.isFinite(totalWeeks) || totalWeeks <= 0) return;
+
+    let remaining = totalWeeks;
+
+    const step = () => {
+      if (remaining <= 0) return;
+      handleAdvanceWeek();
+      remaining -= 1;
+      if (remaining > 0) {
+        // Small delay to let weekly processing settle between steps
+        setTimeout(step, 75);
+      }
+    };
+
+    step();
+  };
+
+  const handleAdvanceToDate = (targetWeek: number, targetYear: number) => {
+    const clampedWeek = TimeSystem.getWeekOfYear(targetWeek || 1);
+    const year = targetYear || gameState.currentYear;
+
+    const currentAbsolute = (gameState.currentYear * 52) + gameState.currentWeek;
+    const targetAbsolute = (year * 52) + clampedWeek;
+    const diff = targetAbsolute - currentAbsolute;
+
+    if (diff <= 0) {
+      toast({
+        title: 'Invalid target date',
+        description: 'Target week must be in the future relative to the current game time.',
+        variant: 'destructive',
+      });
+      return;
+    }
+
+    // Prevent excessively long debug runs
+    if (diff > 260) {
+      toast({
+        title: 'Large time skip',
+        description: 'Skipping more than 5 in-game years at once is disabled for stability.',
+        variant: 'destructive',
+      });
+      return;
+    }
+
+    handleAdvanceWeeks(diff);
+  };
+
   return (
     <>
       <LoadingOverlay loading={loading} />
@@ -1746,6 +1796,44 @@ export const StudioMagnateGame: React.FC<StudioMagnateGameProps> = ({
           </div>
         </div>
       </div>
+
+      {/* Debug Tools (development only) */}
+      {import.meta.env.DEV && (
+        <div className="border-b border-border/30 bg-background/80">
+          <div className="container mx-auto px-6 py-3">
+            <DebugControlPanel
+              time={{
+                currentWeek: gameState.currentWeek,
+                currentYear: gameState.currentYear,
+                currentQuarter: gameState.currentQuarter,
+              }}
+              studioBudget={gameState.studio.budget}
+              studioDebt={gameState.studio.debt || 0}
+              studioReputation={gameState.studio.reputation}
+              onAdvanceWeeks={handleAdvanceWeeks}
+              onAdvanceToDate={handleAdvanceToDate}
+              onSetBudget={(budget) =>
+                setGameState((prev) => ({
+                  ...prev,
+                  studio: { ...prev.studio, budget },
+                }))
+              }
+              onSetDebt={(debt) =>
+                setGameState((prev) => ({
+                  ...prev,
+                  studio: { ...prev.studio, debt },
+                }))
+              }
+              onSetReputation={(reputation) =>
+                setGameState((prev) => ({
+                  ...prev,
+                  studio: { ...prev.studio, reputation },
+                }))
+              }
+            />
+          </div>
+        </div>
+      )}
 
       {/* Navigation */}
       <div className="border-b border-border/30 bg-gradient-to-r from-card/80 to-card/60 backdrop-blur-sm">
