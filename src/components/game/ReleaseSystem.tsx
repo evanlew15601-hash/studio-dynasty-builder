@@ -30,7 +30,15 @@ export class ReleaseSystem {
         errors.push(`TV show must complete post-production (currently ${project.status})`);
       }
     } else {
-      if (project.status !== 'completed') {
+      // Films can reach release readiness via two paths:
+      // 1) Modern flow: status === 'completed' and readyForRelease has been set by enhanced marketing
+      // 2) Legacy flow: status === 'ready-for-release' set when a legacy marketingCampaign finishes
+      const filmProductionComplete =
+        project.status === 'completed' ||
+        project.status === 'ready-for-release' ||
+        project.currentPhase === 'release';
+
+      if (!filmProductionComplete) {
         errors.push(`Film must be completed (currently ${project.status})`);
       }
     }
