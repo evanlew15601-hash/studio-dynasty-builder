@@ -7,7 +7,7 @@ import { Badge } from '@/components/ui/badge';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { TimeState } from './TimeSystem';
 import { Project } from '@/types/game';
-import type { SeasonData, EpisodeData } from '@/types/streamingTypes';
+import type { SeasonData, EpisodeData, StreamingContract } from '@/types/streamingTypes';
 import { BoxOfficeSystem } from './BoxOfficeSystem';
 import { TVRatingsSystem } from './TVRatingsSystem';
 import { Clock, FastForward, DollarSign, Star, Settings2, Film, Tv, MonitorPlay } from 'lucide-react';
@@ -24,6 +24,7 @@ interface DebugControlPanelProps {
   onSetDebt: (debt: number) => void;
   onSetReputation: (reputation: number) => void;
   onProjectUpdate: (project: Project) => void;
+  onStreamingContractDebug?: (projectId: string, contract: StreamingContract) => void;
 }
 
 export const DebugControlPanel: React.FC<DebugControlPanelProps> = ({
