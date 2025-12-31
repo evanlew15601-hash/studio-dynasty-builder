@@ -4,19 +4,26 @@ import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Slider } from '@/components/ui/slider';
 import { Badge } from '@/components/ui/badge';
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { TimeState } from './TimeSystem';
-import { Clock, FastForward, DollarSign, Star, Settings2 } from 'lucide-react';
+import { Project } from '@/types/game';
+import type { SeasonData, EpisodeData } from '@/types/streamingTypes';
+import { BoxOfficeSystem } from './BoxOfficeSystem';
+import { TVRatingsSystem } from './TVRatingsSystem';
+import { Clock, FastForward, DollarSign, Star, Settings2, Film, Tv, MonitorPlay } from 'lucide-react';
 
 interface DebugControlPanelProps {
   time: TimeState;
   studioBudget: number;
   studioDebt: number;
   studioReputation: number;
+  projects: Project[];
   onAdvanceWeeks: (weeks: number) => void;
   onAdvanceToDate: (week: number, year: number) => void;
   onSetBudget: (budget: number) => void;
   onSetDebt: (debt: number) => void;
   onSetReputation: (reputation: number) => void;
+  onProjectUpdate: (project: Project) => void;
 }
 
 export const DebugControlPanel: React.FC<DebugControlPanelProps> = ({
@@ -24,11 +31,13 @@ export const DebugControlPanel: React.FC<DebugControlPanelProps> = ({
   studioBudget,
   studioDebt,
   studioReputation,
+  projects,
   onAdvanceWeeks,
   onAdvanceToDate,
   onSetBudget,
   onSetDebt,
   onSetReputation,
+  onProjectUpdate,
 }) => {
   const [weeksInput, setWeeksInput] = useState(4);
   const [targetWeek, setTargetWeek] = useState(time.currentWeek);
@@ -42,6 +51,16 @@ export const DebugControlPanel: React.FC<DebugControlPanelProps> = ({
   const [reputation, setReputation] = useState(
     Math.round(studioReputation)
   );
+  const [selectedProjectId, setSelectedProjectId] = useState<string>('');
+
+  const selectedProject =
+    projects.find((p) => p.id === selectedProjectId) || null;
+  const isTVProject =
+    !!selectedProject &&
+    (selectedProject.type === 'series' || selectedProject.type === 'limited-series');
+  const isFilmProject =
+    !!selectedProject &&
+    !(selectedProject.type === 'series' || selectedProject.type === 'limited-series');
 
   useEffect(() => {
     setTargetWeek(time.currentWeek);
@@ -82,6 +101,181 @@ export const DebugControlPanel: React.FC<DebugControlPanelProps> = ({
   const handleReputationApply = () => {
     const value = Number.isFinite(reputation) ? reputation : 0;
     onSetReputation(Math.max(0, Math.min(100, value)));
+  };
+
+  const createSeasonWithEpisodes = (
+    baseProject: Project,
+    episodesToRelease: number
+  ): Project => {
+    const releaseWeek = time.currentWeek;
+    const releaseYear = time.currentYear;
+
+    // Initialize streaming metrics for the show
+    const airingBase = TVRatingsSystem.initializeAiring(
+      { ...baseProject },
+      releaseWeek,
+      releaseYear
+    );
+
+    const baseViews =
+      airingBase.metrics?.streaming?.viewsFirstWeek || 1_000_000;
+
+    const episodeCount = baseProject.script?.estimatedRuntime
+      ? Math.ceil(baseProject.script.estimatedRuntime / 45)
+      : 10;
+
+    const runtime = baseProject.script?.estimatedRuntime || 45;
+    const episodes: EpisodeData[] = Array.from(
+      { length: episodeCount },
+      (_, i): EpisodeData => ({
+        episodeNumber: i + 1,
+        seasonNumber: 1,
+        title: `Episode ${i + 1}`,
+        runtime,
+        viewers: 0,
+        completionRate: 0,
+        averageWatchTime: 0,
+        replayViews: 0,
+        criticsScore: undefined,
+        audienceScore: undefined,
+        socialMentions: 0,
+        productionCost: (baseProject.budget.total || 0) / episodeCount,
+        weeklyViews: [],
+        cumulativeViews: 0,
+        viewerRetention: 100,
+        airDate: undefined,
+      })
+    );
+
+    // Populate released episodes with basic performance
+    let totalViewers = 0;
+    let totalCompletion = 0;
+
+    for (let i = 0; i < episodeCount; i++) {
+      const episode = episodes[i];
+      if (!episode) continue;
+
+      if (i < episodesToRelease) {
+        const episodeMultiplier =
+          i === 0 ? 1.0 : Math.max(0.6, 1 - i * 0.05);
+        const viewers = Math.floor(baseViews * episodeMultiplier);
+        const completionRate = Math.max(60, 85 - i * 2);
+        const averageWatchTime = Math.floor(
+          episode.runtime * (completionRate / 100)
+        );
+        const replayViews = Math.floor(viewers * 0.15);
+
+        episode.viewers = viewers;
+        episode.completionRate = completionRate;
+        episode.averageWatchTime = averageWatchTime;
+        episode.replayViews = replayViews;
+        episode.cumulativeViews = viewers + replayViews;
+        episode.airDate = { week: releaseWeek, year: releaseYear };
+        episode.weeklyViews = [viewers];
+        episode.viewerRetention =
+          i === 0 ? 100 : Math.max(70, 100 - i * 3);
+        episode.criticsScore = Math.floor(Math.random() * 30) + 60;
+        episode.audienceScore = Math.floor(Math.random() * 30) + 65;
+        episode.socialMentions = Math.floor(viewers / 10_000);
+
+        totalViewers += viewers;
+        totalCompletion += completionRate;
+      } else {
+        // Not yet aired
+        episode.viewers = 0;
+        episode.completionRate = 0;
+        episode.averageWatchTime = 0;
+        episode.replayViews = 0;
+        episode.cumulativeViews = 0;
+        episode.weeklyViews = [];
+        episode.viewerRetention = 0;
+      }
+    }
+
+    const averageViewers =
+      episodesToRelease > 0 ? Math.floor(totalViewers / episodesToRelease) : 0;
+    const seasonCompletionRate =
+      episodesToRelease > 0
+        ? Math.floor(totalCompletion / episodesToRelease)
+        : 0;
+
+    const season: SeasonData = {
+      seasonNumber: 1,
+      totalEpisodes: episodeCount,
+      episodesAired: episodesToRelease,
+      releaseFormat:
+        episodesToRelease >= episodeCount
+          ? 'binge'
+          : episodesToRelease > 1
+          ? 'batch'
+          : 'weekly',
+      averageViewers,
+      seasonCompletionRate,
+      seasonDropoffRate:
+        seasonCompletionRate > 0 ? 100 - seasonCompletionRate : 0,
+      totalBudget: baseProject.budget.total || 0,
+      spentBudget: baseProject.budget.total || 0,
+      productionStatus: 'complete',
+      premiereDate:
+        episodesToRelease > 0
+          ? { week: releaseWeek, year: releaseYear }
+          : undefined,
+      finaleDate:
+        episodesToRelease >= episodeCount
+          ? { week: releaseWeek, year: releaseYear }
+          : undefined,
+      episodes,
+    };
+
+    return {
+      ...airingBase,
+      currentPhase: 'release',
+      status: 'released',
+      phaseDuration: 0,
+      seasons: [season],
+      currentSeason: 1,
+      totalOrderedSeasons: 1,
+      releaseFormat: season.releaseFormat,
+    };
+  };
+
+  const handleSkipToTheatrical = () => {
+    if (!selectedProject || !isFilmProject) return;
+
+    const releaseWeek = time.currentWeek;
+    const releaseYear = time.currentYear;
+
+    let updated = BoxOfficeSystem.initializeRelease(
+      { ...selectedProject },
+      releaseWeek,
+      releaseYear
+    );
+
+    updated = {
+      ...updated,
+      currentPhase: 'release',
+      phaseDuration: 0,
+      readyForRelease: true,
+    } as Project;
+
+    onProjectUpdate(updated);
+  };
+
+  const handleSkipToTvDebut = () => {
+    if (!selectedProject || !isTVProject) return;
+
+    const updated = createSeasonWithEpisodes(selectedProject, 1);
+    onProjectUpdate(updated);
+  };
+
+  const handleSkipToStreamingDebut = () => {
+    if (!selectedProject || !isTVProject) return;
+
+    const episodeCount = selectedProject.script?.estimatedRuntime
+      ? Math.ceil(selectedProject.script.estimatedRuntime / 45)
+      : 10;
+    const updated = createSeasonWithEpisodes(selectedProject, episodeCount);
+    onProjectUpdate(updated);
   };
 
   return (
@@ -259,6 +453,71 @@ export const DebugControlPanel: React.FC<DebugControlPanelProps> = ({
             </div>
           </div>
         </div>
+
+        {/* Project Debug Shortcuts */}
+        {projects.length > 0 && (
+          <div className="pt-2 border-t border-border/40 space-y-2">
+            <div className="flex items-center gap-2 text-xs font-medium text-muted-foreground">
+              <Film size={14} />
+              Project debut shortcuts
+            </div>
+            <div className="grid grid-cols-1 md:grid-cols-3 gap-3">
+              <div className="space-y-1">
+                <Select
+                  value={selectedProjectId}
+                  onValueChange={setSelectedProjectId}
+                >
+                  <SelectTrigger className="h-8 text-xs">
+                    <SelectValue placeholder="Select project" />
+                  </SelectTrigger>
+                  <SelectContent>
+                    {projects.map((p) => (
+                      <SelectItem key={p.id} value={p.id}>
+                        {p.title} •{' '}
+                        {p.type === 'series' || p.type === 'limited-series'
+                          ? 'TV'
+                          : 'Film'}{' '}
+                        • {p.status}
+                      </SelectItem>
+                    ))}
+                  </SelectContent>
+                </Select>
+              </div>
+              <div className="flex flex-wrap gap-2 md:col-span-2">
+                <Button
+                  size="sm"
+                  variant="outline"
+                  className="h-8 text-xs"
+                  disabled={!isFilmProject}
+                  onClick={handleSkipToTheatrical}
+                >
+                  <Film size={12} className="mr-1" />
+                  Skip to theatrical debut
+                </Button>
+                <Button
+                  size="sm"
+                  variant="outline"
+                  className="h-8 text-xs"
+                  disabled={!isTVProject}
+                  onClick={handleSkipToTvDebut}
+                >
+                  <Tv size={12} className="mr-1" />
+                  Skip to TV debut (weekly)
+                </Button>
+                <Button
+                  size="sm"
+                  variant="outline"
+                  className="h-8 text-xs"
+                  disabled={!isTVProject}
+                  onClick={handleSkipToStreamingDebut}
+                >
+                  <MonitorPlay size={12} className="mr-1" />
+                  Skip to streaming debut (season)
+                </Button>
+              </div>
+            </div>
+          </div>
+        )}
       </CardContent>
     </Card>
   );

@@ -1810,6 +1810,7 @@ export const StudioMagnateGame: React.FC<StudioMagnateGameProps> = ({
               studioBudget={gameState.studio.budget}
               studioDebt={gameState.studio.debt || 0}
               studioReputation={gameState.studio.reputation}
+              projects={gameState.projects}
               onAdvanceWeeks={handleAdvanceWeeks}
               onAdvanceToDate={handleAdvanceToDate}
               onSetBudget={(budget) =>
@@ -1830,6 +1831,7 @@ export const StudioMagnateGame: React.FC<StudioMagnateGameProps> = ({
                   studio: { ...prev.studio, reputation },
                 }))
               }
+              onProjectUpdate={(project) => handleProjectUpdate(project)}
             />
           </div>
         </div>
