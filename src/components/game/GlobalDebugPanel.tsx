@@ -25,6 +25,8 @@ import {
   Film,
   RadioTower,
   Users,
+  Trophy,
+  Tv,
 } from 'lucide-react';
 
 interface GlobalDebugPanelProps {
@@ -110,6 +112,85 @@ export const GlobalDebugPanel: React.FC<GlobalDebugPanelProps> = ({
     }
   }, [gameState.currentWeek, gameState.currentYear]);
 
+  const aiStats = useMemo(() => {
+    const competitorCount = gameState.competitorStudios?.length || 0;
+
+    const allReleases = (gameState.allReleases || []).filter(
+      (item): item is Project => 'script' in item
+    );
+
+    const isPlayerStudioRelease = (p: Project) =>
+      !p.studioName || p.studioName === gameState.studio.name;
+
+    const aiReleases = allReleases.filter((p) => !isPlayerStudioRelease(p));
+
+    const aiReleasedThisYear = aiReleases.filter(
+      (p) => p.releaseYear === gameState.currentYear && p.status === 'released'
+    ).length;
+
+    const aiProjectsTracked = (gameState.aiStudioProjects || []).length;
+
+    return {
+      competitorCount,
+      totalAIReleases: aiReleases.length,
+      aiReleasedThisYear,
+      aiProjectsTracked,
+    };
+  }, [gameState]);
+
+  const awardsStats = useMemo(() => {
+    const calendar = gameState.awardsCalendar || [];
+    const eventsThisYear = calendar.filter(
+      (ev) => ev.year === gameState.currentYear
+    );
+    const upcoming = eventsThisYear.filter(
+      (ev) => ev.ceremonyWeek >= gameState.currentWeek
+    );
+    const studioAwards = (gameState.studio.awards || []).length;
+    const talentAwards =
+      gameState.talent?.reduce(
+        (sum, t) => sum + ((t.awards || []).length),
+        0
+      ) || 0;
+
+    return {
+      eventsThisYear: eventsThisYear.length,
+      upcoming: upcoming.length,
+      studioAwards,
+      talentAwards,
+    };
+  }, [gameState]);
+
+  const tvStats = useMemo(() => {
+    const tvProjects = (gameState.projects || []).filter(
+      (p) => p.type === 'series' || p.type === 'limited-series'
+    );
+    const activeTV = tvProjects.filter((p) => p.status !== 'archived').length;
+    const streamingContracts = tvProjects.filter(
+      (p) => p.streamingContract
+    ).length;
+
+    const totalEpisodes = tvProjects.reduce((sum, p) => {
+      const seasons = p.seasons || [];
+      return (
+        sum +
+        seasons.reduce(
+          (seasonSum, season) =>
+            seasonSum +
+            (season.totalEpisodes || season.episodes?.length || 0),
+          0
+        )
+      );
+    }, 0);
+
+    return {
+      totalTV: tvProjects.length,
+      activeTV,
+      streamingContracts,
+      totalEpisodes,
+    };
+  }, [gameState.projects]);
+
   const handleFixCommonIssues = () => {
     onApplyStatePatch((prev) => SystemIntegration.fixCommonIssues(prev));
   };
@@ -181,10 +262,11 @@ export const GlobalDebugPanel: React.FC<GlobalDebugPanelProps> = ({
         </div>
 
         <Tabs defaultValue="overview" className="flex min-h-0 flex-1 flex-col">
-          <TabsList className="grid grid-cols-3">
+          <TabsList className="grid grid-cols-4">
             <TabsTrigger value="overview">Overview</TabsTrigger>
             <TabsTrigger value="systems">Systems</TabsTrigger>
             <TabsTrigger value="media">Media &amp; Market</TabsTrigger>
+            <TabsTrigger value="ai-tv">AI / TV</TabsTrigger>
           </TabsList>
 
           <ScrollArea className="mt-3 flex-1">
@@ -558,6 +640,168 @@ export const GlobalDebugPanel: React.FC<GlobalDebugPanelProps> = ({
                         >
                           <BarChart3 className="mr-1 h-3 w-3" />
                           Top Films
+                        </Button>
+                      </div>
+                    )}
+                  </CardContent>
+                </Card>
+              </TabsContent>
+
+              <TabsContent value="ai-tv" className="space-y-4">
+                <Card className="card-premium">
+                  <CardHeader className="pb-3">
+                    <CardTitle className="flex items-center gap-2 text-sm">
+                      <Users className="h-4 w-4" />
+                      AI Studio Competition
+                    </CardTitle>
+                  </CardHeader>
+                  <CardContent className="grid grid-cols-2 gap-4 text-xs md:grid-cols-4">
+                    <div>
+                      <div className="text-muted-foreground">
+                        Competitor studios
+                      </div>
+                      <div className="font-semibold">
+                        {aiStats.competitorCount}
+                      </div>
+                    </div>
+                    <div>
+                      <div className="text-muted-foreground">
+                        AI releases (all time)
+                      </div>
+                      <div className="font-semibold">
+                        {aiStats.totalAIReleases}
+                      </div>
+                    </div>
+                    <div>
+                      <div className="text-muted-foreground">
+                        AI releases this year
+                      </div>
+                      <div className="font-semibold">
+                        {aiStats.aiReleasedThisYear}
+                      </div>
+                    </div>
+                    <div>
+                      <div className="text-muted-foreground">
+                        AI projects tracked
+                      </div>
+                      <div className="font-semibold">
+                        {aiStats.aiProjectsTracked}
+                      </div>
+                    </div>
+                  </CardContent>
+                </Card>
+
+                <Card className="card-premium">
+                  <CardHeader className="pb-3">
+                    <CardTitle className="flex items-center gap-2 text-sm">
+                      <Trophy className="h-4 w-4" />
+                      Awards &amp; Recognition
+                    </CardTitle>
+                  </CardHeader>
+                  <CardContent className="grid grid-cols-2 gap-4 text-xs md:grid-cols-4">
+                    <div>
+                      <div className="text-muted-foreground">
+                        Events this year
+                      </div>
+                      <div className="font-semibold">
+                        {awardsStats.eventsThisYear}
+                      </div>
+                    </div>
+                    <div>
+                      <div className="text-muted-foreground">
+                        Upcoming ceremonies
+                      </div>
+                      <div className="font-semibold">
+                        {awardsStats.upcoming}
+                      </div>
+                    </div>
+                    <div>
+                      <div className="text-muted-foreground">
+                        Studio awards
+                      </div>
+                      <div className="font-semibold">
+                        {awardsStats.studioAwards}
+                      </div>
+                    </div>
+                    <div>
+                      <div className="text-muted-foreground">
+                        Talent awards
+                      </div>
+                      <div className="font-semibold">
+                        {awardsStats.talentAwards}
+                      </div>
+                    </div>
+                  </CardContent>
+                </Card>
+
+                <Card className="card-premium">
+                  <CardHeader className="pb-3">
+                    <CardTitle className="flex items-center gap-2 text-sm">
+                      <Tv className="h-4 w-4" />
+                      TV &amp; Streaming
+                    </CardTitle>
+                  </CardHeader>
+                  <CardContent className="space-y-3 text-xs">
+                    <div className="grid grid-cols-2 gap-4 md:grid-cols-4">
+                      <div>
+                        <div className="text-muted-foreground">
+                          TV projects
+                        </div>
+                        <div className="font-semibold">
+                          {tvStats.totalTV}
+                        </div>
+                      </div>
+                      <div>
+                        <div className="text-muted-foreground">
+                          Active TV projects
+                        </div>
+                        <div className="font-semibold">
+                          {tvStats.activeTV}
+                        </div>
+                      </div>
+                      <div>
+                        <div className="text-muted-foreground">
+                          Streaming contracts
+                        </div>
+                        <div className="font-semibold">
+                          {tvStats.streamingContracts}
+                        </div>
+                      </div>
+                      <div>
+                        <div className="text-muted-foreground">
+                          Total episodes
+                        </div>
+                        <div className="font-semibold">
+                          {tvStats.totalEpisodes}
+                        </div>
+                      </div>
+                    </div>
+
+                    {onNavigatePhase && (
+                      <div className="flex flex-wrap gap-2">
+                        <Button
+                          size="sm"
+                          variant="outline"
+                          className="h-8 text-xs"
+                          onClick={() => onNavigatePhase('television')}
+                        >
+                          Open TV &amp; Streaming
+                        </Button>
+                        <Button
+                          size="sm"
+                          variant="outline"
+                          className="h-8 text-xs"
+                          onClick={() => onNavigatePhase('tv-tests')}
+                        >
+                          TV System Tests
+                        </Button>
+                        <Button
+                          size="sm"
+                          variant="outline"
+                          className="h-8 text-xs"
+                          onClick={() => onNavigatePhase('awards')}
+                        >
+                          Awards Panel
                         </Button>
                       </div>
                     )}
