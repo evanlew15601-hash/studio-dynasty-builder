@@ -92,6 +92,7 @@ import { MediaReputationIntegration } from './MediaReputationIntegration';
 import { MediaResponseSystem } from './MediaResponseSystem';
 import { saveGame } from '@/utils/saveLoad';
 import { DebugControlPanel } from './DebugControlPanel';
+import { GlobalDebugPanel } from './GlobalDebugPanel';
 
 // Ensure AI films have at least a Director and Lead actor so awards/crediting work
 function attachBasicCastForAI(project: Project, talentPool: TalentPerson[]): Project {
@@ -1773,6 +1774,23 @@ export const StudioMagnateGame: React.FC<StudioMagnateGameProps> = ({
                 >
                   🚀 Skip to Post-Theatrical Test
                 </Button>
+              )}
+
+              {import.meta.env.DEV && (
+                <GlobalDebugPanel
+                  gameState={gameState}
+                  achievementsSummary={{
+                    unlocked: achievements.getUnlockedAchievements().length,
+                    total: achievements.achievements.length,
+                  }}
+                  onAdvanceWeek={handleAdvanceWeek}
+                  onAdvanceWeeks={handleAdvanceWeeks}
+                  onAdvanceToDate={handleAdvanceToDate}
+                  onApplyStatePatch={(updater) =>
+                    setGameState((prev) => updater(prev))
+                  }
+                  onNavigatePhase={(phase) => handlePhaseChange(phase as any)}
+                />
               )}
 
               <Button
