@@ -78,6 +78,14 @@ const aiProjects = gameState.allReleases.filter((release): release is Project =>
     
     // Bonus for profitable films
     if (boxOffice > budget * 1.5) probability += 10;
+
+    // Awards campaign boost (for player projects only)
+    const campaign = project.awardsCampaign as AwardsCampaign | undefined;
+    if (campaign) {
+      const budgetBoost = Math.min(12, campaign.budget / 250_000);
+      const effectivenessBoost = (campaign.effectiveness || 0) * 0.1;
+      probability += budgetBoost * 0.6 + effectivenessBoost * 0.4;
+    }
     
     // Genre bonuses during awards season
     if (isAwardsSeasonActive) {
@@ -435,6 +443,9 @@ const aiProjects = gameState.allReleases.filter((release): release is Project =>
           <CardContent className="space-y-4">
             {eligibleProjects.map(project => {
               const probability = calculateAwardsProbability(project);
+              const isPlayerProject = gameState.projects.some(p => p.id === project.id);
+              const campaign = isPlayerProject ? (project.awardsCampaign as AwardsCampaign | undefined) : undefined;
+
               return (
                 <div key={project.id} className="p-4 rounded-lg border border-border/50 bg-card/50">
                   <div className="flex justify-between items-start mb-3">
@@ -457,33 +468,56 @@ const aiProjects = gameState.allReleases.filter((release): release is Project =>
                     </div>
                     <Progress value={probability} className="h-2" />
                   </div>
+
+                  {campaign && (
+                    <div className="mb-3 flex items-center justify-between text-xs text-muted-foreground">
+                      <div className="flex items-center gap-2">
+                        <Badge variant="outline" className="text-[11px]">
+                          Awards Campaign Active
+                        </Badge>
+                        <span>
+                          Budget ${campaign.budget.toLocaleString()} • Effectiveness {Math.round(campaign.effectiveness).toString()}%
+                        </span>
+                      </div>
+                    </div>
+                  )}
                   
-                  {isAwardsSeasonActive && gameState.projects.some(p => p.id === project.id) && (
-                    <div className="flex space-x-2">
-                      <Button
-                        size="sm"
-                        onClick={() => startAwardsCampaign(project, 500000)}
-                        variant="outline"
-                      >
-                        <DollarIcon className="mr-1" size={14} />
-                        Basic Campaign ($500K)
-                      </Button>
-                      <Button
-                        size="sm"
-                        onClick={() => startAwardsCampaign(project, 1500000)}
-                        variant="outline"
-                      >
-                        <DollarIcon className="mr-1" size={14} />
-                        Premium Campaign ($1.5M)
-                      </Button>
-                      <Button
-                        size="sm"
-                        onClick={() => startAwardsCampaign(project, 3000000)}
-                        variant="outline"
-                      >
-                        <DollarIcon className="mr-1" size={14} />
-                        Prestige Campaign ($3M)
-                      </Button>
+                  {isAwardsSeasonActive && isPlayerProject && (
+                    <div className="flex flex-col gap-2">
+                      <div className="flex flex-wrap gap-2">
+                        <Button
+                          size="sm"
+                          onClick={() => startAwardsCampaign(project, 500000)}
+                          variant="outline"
+                          disabled={!!campaign}
+                        >
+                          <DollarIcon className="mr-1" size={14} />
+                          Basic Campaign ($500K)
+                        </Button>
+                        <Button
+                          size="sm"
+                          onClick={() => startAwardsCampaign(project, 1500000)}
+                          variant="outline"
+                          disabled={!!campaign}
+                        >
+                          <DollarIcon className="mr-1" size={14} />
+                          Premium Campaign ($1.5M)
+                        </Button>
+                        <Button
+                          size="sm"
+                          onClick={() => startAwardsCampaign(project, 3000000)}
+                          variant="outline"
+                          disabled={!!campaign}
+                        >
+                          <DollarIcon className="mr-1" size={14} />
+                          Prestige Campaign ($3M)
+                        </Button>
+                      </div>
+                      {campaign && (
+                        <div className="text-xs text-muted-foreground">
+                          A campaign is already running for this film this season.
+                        </div>
+                      )}
                     </div>
                   )}
                 </div>
