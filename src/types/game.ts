@@ -259,6 +259,7 @@ export interface Project {
   contractedTalent: ContractedTalent[];
   developmentProgress: DevelopmentProgress;
   marketingCampaign?: MarketingCampaign;
+  awardsCampaign?: AwardsCampaign;
   releaseStrategy?: ReleaseStrategy;
   releaseWeek?: number;
   releaseYear?: number;

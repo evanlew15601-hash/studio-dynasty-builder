@@ -111,14 +111,16 @@ const aiProjects = gameState.allReleases.filter((release): release is Project =>
       return;
     }
 
+    const baseEffectiveness = 60 + Math.min(20, Math.floor(budget / 500_000) * 5);
+
     const campaign: AwardsCampaign = {
       projectId: project.id,
       targetCategories: ['Best Picture', 'Best Director', 'Best Actor'],
       budget,
       budgetSpent: 0,
-      duration: 8, // 8 week campaign
+      duration: 8, // 8 week campaign (tracked abstractly for now)
       weeksRemaining: 8,
-      effectiveness: 60,
+      effectiveness: Math.min(100, baseEffectiveness),
       activities: [
         {
           type: 'screenings',
@@ -144,6 +146,12 @@ const aiProjects = gameState.allReleases.filter((release): release is Project =>
       ]
     };
 
+    // Persist campaign on the project so the headless awards engine can see it
+    onProjectUpdate({
+      ...project,
+      awardsCampaign: campaign
+    });
+
     // Deduct budget
     onStudioUpdate({
       budget: gameState.studio.budget - budget
@@ -151,7 +159,7 @@ const aiProjects = gameState.allReleases.filter((release): release is Project =>
 
     toast({
       title: "Awards Campaign Started!",
-      description: `$${budget.toLocaleString()} campaign launched for "${project.title}"`,
+      description: `${budget.toLocaleString()} campaign launched for "${project.title}". This will boost its awards chances this season.`,
     });
   };
 

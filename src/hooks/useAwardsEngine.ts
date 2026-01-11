@@ -49,6 +49,17 @@ const aiProjects = gameState.allReleases.filter((release): release is Project =>
 
     let probability = (criticsScore + audienceScore) / 2;
     if (boxOffice > budget * 1.5) probability += 10;
+
+    // Awards campaign boost (only player projects can have one)
+    const campaign = project.awardsCampaign;
+    if (campaign) {
+      // Budget: up to +12 at ~$3M; smaller campaigns still help.
+      const budgetBoost = Math.min(12, campaign.budget / 250_000);
+      // Effectiveness: up to +8 at 80–100 effectiveness.
+      const effectivenessBoost = (campaign.effectiveness || 0) * 0.1;
+      probability += budgetBoost * 0.6 + effectivenessBoost * 0.4;
+    }
+
     if (isAwardsSeasonActive) {
       if (project.script.genre === 'drama') probability += 15;
       if (project.script.genre === 'biography') probability += 10;
@@ -124,6 +135,8 @@ const aiProjects = gameState.allReleases.filter((release): release is Project =>
     const categoriesMap: Record<string, Array<{ project: Project; score: number }>> = {};
 
     categories.forEach((category) => {
+      const categoryLower = category.toLowerCase();
+
       const ranked = eligible
         .map((project) => {
           const base = calculateAwardsProbability(project);
@@ -131,18 +144,44 @@ const aiProjects = gameState.allReleases.filter((release): release is Project =>
           
           // Enhanced category bias
           let categoryBias = 0;
-          if (category.toLowerCase().includes('director')) categoryBias = 5;
-          else if (category.toLowerCase().includes('actor') || category.toLowerCase().includes('actress')) categoryBias = 3;
-          else if (category.toLowerCase().includes('screenplay')) categoryBias = 4;
-          else if (category.toLowerCase().includes('cinematography') || category.toLowerCase().includes('visual')) categoryBias = 6;
-          else if (category.toLowerCase().includes('editing') || category.toLowerCase().includes('sound')) categoryBias = 2;
+          if (categoryLower.includes('director')) categoryBias = 5;
+          else if (categoryLower.includes('actor') || categoryLower.includes('actress')) categoryBias = 3;
+          else if (categoryLower.includes('screenplay')) categoryBias = 4;
+          else if (categoryLower.includes('cinematography') || categoryLower.includes('visual')) categoryBias = 6;
+          else if (categoryLower.includes('editing') || categoryLower.includes('sound')) categoryBias = 2;
           
           // Genre bonuses for specific categories
-          if (category.toLowerCase().includes('animated') && project.script?.genre !== 'animation') return { project, score: 0 };
-          if (category.toLowerCase().includes('comedy') && project.script?.genre !== 'comedy') categoryBias -= 3;
-          if (category.toLowerCase().includes('drama') && ['drama', 'biography', 'historical'].includes(project.script?.genre || '')) categoryBias += 5;
+          if (categoryLower.includes('animated') && project.script?.genre !== 'animation') return { project, score: 0 };
+          if (categoryLower.includes('comedy') && project.script?.genre !== 'comedy') categoryBias -= 3;
+          if (categoryLower.includes('drama') && ['drama', 'biography', 'historical'].includes(project.script?.genre || '')) categoryBias += 5;
+
+          // Critically acclaimed actor/director boost for individual categories
+          let talentBonus = 0;
+          const isActingCategory = categoryLower.includes('actor') || categoryLower.includes('actress');
+          const isDirectorCategory = categoryLower.includes('director');
+          const isTalentCategory = isActingCategory || isDirectorCategory;
+
+          if (isTalentCategory) {
+            const talent = findRelevantTalent(project, category);
+            if (talent) {
+              const baseRep = talent.reputation || 50;
+              const awardsCount = talent.awards?.length || 0;
+              const fame = talent.fame ?? 0;
+
+              // Reputation above/below 50 pulls score modestly.
+              const repBonus = (baseRep - 50) * 0.4; // max about ±20
+              // Prior awards and fame give additional small boosts.
+              const awardsBonus = Math.min(10, awardsCount * 2);
+              const fameBonus = Math.min(10, fame * 0.1);
+
+              talentBonus = repBonus + awardsBonus + fameBonus;
+            }
+          }
           
-          const score = Math.min(100, base + momentum + categoryBias + (Math.random() * 8 - 4));
+          const score = Math.min(
+            100,
+            base + momentum + categoryBias + talentBonus + (Math.random() * 8 - 4)
+          );
           return { project, score };
         })
         .filter(({ score }) => score > 10) // Filter out clearly ineligible
