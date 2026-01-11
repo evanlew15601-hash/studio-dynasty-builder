@@ -178,7 +178,14 @@ export const IndividualAwardShowModal: React.FC<IndividualAwardShowModalProps> =
                         {((currentWinner.project as any).studioId === 'player' || currentWinner.project.id.includes('player')) && currentWinner.award && (
                           <div className="space-y-2 p-4 rounded-lg bg-green-50 dark:bg-green-900/20">
                             <div className="font-semibold text-green-700 dark:text-green-300">
-                              Congratulations!
+                              {isTalentCategory(currentWinner.category) && (currentWinner as any).talentName
+                                ? `Congratulations to ${(currentWinner as any).talentName}${
+                                    (currentWinner.project as any).studioId === 'player' ||
+                                    currentWinner.project.id.includes('player')
+                                      ? ' and your studio!'
+                                      : '!'
+                                  }`
+                                : 'Congratulations!'}
                             </div>
                             <div className="text-sm">
                               +{currentWinner.award.reputationBoost} Reputation • 
