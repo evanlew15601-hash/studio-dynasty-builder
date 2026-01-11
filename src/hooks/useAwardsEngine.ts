@@ -177,6 +177,7 @@ const aiProjects = gameState.allReleases.filter((release): release is Project =>
 
     const flatForModal: Array<{ project: Project; category: string; won: boolean; award?: StudioAward; talentAward?: TalentAward; talentName?: string }> = [];
     const winnersThisShow: string[] = [];
+    let extraTalentStudioReputation = 0;
 
     categories.forEach((category) => {
       const nominees = nominationsRecord.categories[category] || [];
@@ -232,6 +233,13 @@ const aiProjects = gameState.allReleases.filter((release): release is Project =>
                   marketValue: relevantTalent.marketValue + (talentAward.marketValueBoost || 0),
                   awards: [...currentAwards, talentAward],
                 });
+              }
+
+              // Small studio reputation bump for acting/director wins on player films
+              const isPlayerProject = gameState.projects.some(p => p.id === n.project.id);
+              if (isPlayerProject) {
+                // Much smaller than full StudioAward; treat talent wins as secondary studio prestige.
+                extraTalentStudioReputation += Math.max(1, Math.round(prestige * 0.5));
               }
             }
           } else {
@@ -320,8 +328,9 @@ const aiProjects = gameState.allReleases.filter((release): release is Project =>
         .map((n) => n.award!)
         .filter((a) => gameState.projects.some((p) => p.id === a.projectId));
 
-      if (wonStudioAwards.length > 0) {
-        const totalReputation = wonStudioAwards.reduce((sum, award) => sum + award.reputationBoost, 0);
+      if (wonStudioAwards.length > 0 || extraTalentStudioReputation > 0) {
+        const totalReputationFromAwards = wonStudioAwards.reduce((sum, award) => sum + award.reputationBoost, 0);
+        const totalReputation = totalReputationFromAwards + extraTalentStudioReputation;
         const totalRevenue = wonStudioAwards.reduce((sum, award) => sum + award.revenueBoost, 0);
         onStudioUpdate({
           reputation: Math.min(100, (gameState.studio.reputation || 0) + totalReputation),
