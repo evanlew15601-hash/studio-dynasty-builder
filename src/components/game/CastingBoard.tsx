@@ -1,5 +1,5 @@
 import React, { useState } from 'react';
-import { GameState, Project, TalentPerson, ProductionRole } from '@/types/game';
+import { GameState, Project, TalentPerson, ProductionRole, ScriptCharacter } from '@/types/game';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
@@ -74,7 +74,7 @@ export const CastingBoard: React.FC<CastingBoardProps> = ({
     if (totalCost > gameState.studio.budget) {
       toast({
         title: "Insufficient Budget",
-        description: `Cannot afford ${talent.name} - need $${(totalCost / 1000000).toFixed(0)}M`,
+        description: `Cannot afford ${talent.name} - need ${(totalCost / 1000000).toFixed(0)}M`,
         variant: "destructive"
       });
       return;
@@ -102,12 +102,76 @@ export const CastingBoard: React.FC<CastingBoardProps> = ({
       startWeek: gameState.currentWeek
     };
 
-    const updatedProject = {
+    // Base project updates for legacy cast/crew/contracted structures
+    let updatedProject: Project = {
       ...selectedProject,
       cast: talent.type === 'actor' ? [...selectedProject.cast, newRole] : selectedProject.cast,
       crew: talent.type === 'director' ? [...selectedProject.crew, newRole] : selectedProject.crew,
       contractedTalent: [...selectedProject.contractedTalent, contractedTalent]
     };
+
+    // Keep canonical script character assignments in sync so release/phase validation works
+    if (selectedProject.script) {
+      const existingChars = selectedProject.script.characters || [];
+      let updatedCharacters: ScriptCharacter[] = existingChars;
+
+      if (talent.type === 'director') {
+        // Prefer an existing director role
+        const directorIndex = existingChars.findIndex(c => c.requiredType === 'director');
+        if (directorIndex >= 0) {
+          updatedCharacters = existingChars.map((c, idx) =>
+            idx === directorIndex ? { ...c, assignedTalentId: talent.id } : c
+          );
+        } else {
+          // Seed a simple Director character if none exist
+          const newDirector: ScriptCharacter = {
+            id: `director-${Date.now()}`,
+            name: 'Director',
+            description: 'Film director responsible for creative vision',
+            importance: 'crew',
+            traits: ['mandatory'],
+            requiredType: 'director',
+            assignedTalentId: talent.id,
+          } as any;
+          updatedCharacters = [...existingChars, newDirector];
+        }
+      } else if (talent.type === 'actor') {
+        // Prefer an explicit lead actor role
+        let leadIndex = existingChars.findIndex(
+          c => c.importance === 'lead' && (c.requiredType === 'actor' || !c.requiredType)
+        );
+
+        if (leadIndex >= 0) {
+          updatedCharacters = existingChars.map((c, idx) =>
+            idx === leadIndex
+              ? { ...c, requiredType: c.requiredType || 'actor', assignedTalentId: talent.id }
+              : c
+          );
+        } else {
+          // Seed a generic lead character if none exist
+          const newLead: ScriptCharacter = {
+            id: `lead-${Date.now()}`,
+            name: 'Lead Character',
+            description: 'Main protagonist of the story',
+            importance: 'lead',
+            traits: ['mandatory'],
+            requiredType: 'actor',
+            assignedTalentId: talent.id,
+          } as any;
+          updatedCharacters = [...existingChars, newLead];
+        }
+      }
+
+      if (updatedCharacters !== existingChars) {
+        updatedProject = {
+          ...updatedProject,
+          script: {
+            ...selectedProject.script,
+            characters: updatedCharacters,
+          },
+        };
+      }
+    }
 
     onProjectUpdate(updatedProject);
     
