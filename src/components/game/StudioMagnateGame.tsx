@@ -483,6 +483,7 @@ export const StudioMagnateGame: React.FC<StudioMagnateGameProps> = ({
       // Franchise & Public Domain Integration
       franchiseId: script.franchiseId,
       publicDomainId: script.publicDomainId,
+      adaptationType: script.adaptationType,
       status: 'development',
       metrics: {}
     };

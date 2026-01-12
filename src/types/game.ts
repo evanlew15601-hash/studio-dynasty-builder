@@ -108,6 +108,7 @@ export interface Script {
   sourceType?: 'original' | 'franchise' | 'public-domain' | 'adaptation';
   franchiseId?: string;
   publicDomainId?: string;
+  adaptationType?: 'faithful' | 'modern' | 'reimagined' | 'parody';
 }
 
 export interface ScriptCharacteristics {
