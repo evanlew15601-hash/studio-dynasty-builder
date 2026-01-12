@@ -19,6 +19,8 @@ interface ScriptDevelopmentProps {
   selectedPublicDomain?: string | null;
   onProjectCreate: (script: Script) => void;
   onScriptUpdate: (script: Script) => void;
+  initialScriptIdToEdit?: string | null;
+  onClearInitialScriptToEdit?: () => void;
 }
 
 export const ScriptDevelopment: React.FC<ScriptDevelopmentProps> = ({
@@ -27,10 +29,16 @@ export const ScriptDevelopment: React.FC<ScriptDevelopmentProps> = ({
   selectedPublicDomain,
   onProjectCreate,
   onScriptUpdate,
+  initialScriptIdToEdit,
+  onClearInitialScriptToEdit,
 }) => {
   const { toast } = useToast();
   
   const [isCreating, setIsCreating] = useState(false);
+  const [editingScriptId, setEditingScriptId] = useState<string | null>(null);
+  
+  // Auto-fill script based on selected franchise or PD
+  const getInitialScript = (): Partial&lt;Script&gt; =&gt; {sCreating, setIsCreating] = useState(false);
   
   // Auto-fill script based on selected franchise or PD
   const getInitialScript = (): Partial<Script> => {
@@ -120,12 +128,16 @@ return {
   };
   
   const [newScript, setNewScript] = useState<Partial<Script>>(getInitialScript());
+  const [scriptCharacters, setScriptCharacters] = useState<ScriptCharacter[]>([]);
 
-  // Update script when franchise/PD selection changes and pre-populate roles
+  // When franchise/PD selection changes, refresh template script/roles
+  // but only if we're not currently editing a specific script.
   useEffect(() => {
+    if (editingScriptId) return;
+
     const next = getInitialScript();
     setNewScript(next);
-    // If a source is selected, auto-import curated characters into the creation form
+
     const tempScript: Script = {
       id: `temp-${Date.now()}`,
       title: next.title || 'Temp',
@@ -145,6 +157,7 @@ return {
       publicDomainId: (next as any).publicDomainId,
       characters: []
     };
+
     if (tempScript.sourceType === 'franchise' || tempScript.sourceType === 'public-domain') {
       const imported = importRolesForScript(tempScript, gameState);
       const adapted = imported.map((c): ScriptCharacter => ({
@@ -161,9 +174,61 @@ return {
     } else {
       setScriptCharacters([]);
     }
-  }, [selectedFranchise, selectedPublicDomain]);
+  }, [selectedFranchise, selectedPublicDomain, editingScriptId]);
 
-  const [scriptCharacters, setScriptCharacters] = useState<ScriptCharacter[]>([]);
+  // If a specific script is requested for editing (e.g. from Franchise Manager),
+  // open the creation modal pre-populated with that script.
+  useEffect(() => {
+    if (!initialScriptIdToEdit) return;
+    const existing = gameState.scripts.find(s => s.id === initialScriptIdToEdit);
+    if (!existing) {
+      onClearInitialScriptToEdit?.();
+      return;
+    }
+
+    setIsCreating(true);
+    setEditingScriptId(existing.id);
+
+    setNewScript({
+      id: existing.id,
+      title: existing.title,
+      genre: existing.genre,
+      logline: existing.logline,
+      writer: existing.writer,
+      pages: existing.pages,
+      quality: existing.quality,
+      budget: existing.budget,
+      developmentStage: existing.developmentStage,
+      themes: existing.themes,
+      targetAudience: existing.targetAudience,
+      estimatedRuntime: existing.estimatedRuntime,
+      characteristics: existing.characteristics,
+      sourceType: existing.sourceType,
+      franchiseId: existing.franchiseId,
+      publicDomainId: existing.publicDomainId,
+    });
+
+    const existingChars = existing.characters || [];
+    if (existingChars.length > 0) {
+      const adaptedChars: ScriptCharacter[] = existingChars.map((c, index) => ({
+        id: c.id || `char-${index}-${Date.now()}`,
+        name: c.name,
+        importance: (c.importance === 'crew' ? 'supporting' : c.importance) as any,
+        screenTimeMinutes:
+          (c as any).screenTimeMinutes ??
+          (c.importance === 'lead' ? 60 : c.importance === 'supporting' ? 25 : 0),
+        description: c.description || '',
+        ageRange: c.ageRange || [25, 45],
+        requiredTraits: (c as any).requiredTraits || [],
+        requiredType: c.requiredType,
+      }));
+      setScriptCharacters(adaptedChars);
+    } else {
+      setScriptCharacters([]);
+    }
+
+    onClearInitialScriptToEdit?.();
+  }, [initialScriptIdToEdit, gameState.scripts, onClearInitialScriptToEdit]);
 
   const genres: Genre[] = [
     'action', 'adventure', 'comedy', 'drama', 'horror', 'thriller',
@@ -183,7 +248,7 @@ return {
     }
 
     const script: Script = {
-      id: `script-${Date.now()}`,
+      id: editingScriptId || `script-${Date.now()}`,
       title: newScript.title!,
       genre: newScript.genre!,
       logline: newScript.logline!,
@@ -209,14 +274,15 @@ return {
 
     onScriptUpdate(script);
     setIsCreating(false);
+    setEditingScriptId(null);
     
     // Reset form to default state (clears franchise/PD selection)
     setNewScript(getInitialScript());
     setScriptCharacters([]);
     
     toast({
-      title: "Script Created",
-      description: `"${script.title}" has been added to your development slate with ${scriptCharacters.length} character roles.`,
+      title: editingScriptId ? "Script Updated" : "Script Created",
+      description: `"${script.title}" has been ${editingScriptId ? 'updated' : 'added'} to your development slate with ${scriptCharacters.length} character roles.`,
     });
   };
 
@@ -478,6 +544,7 @@ return {
                 variant="outline" 
                 onClick={() => {
                   setIsCreating(false);
+                  setEditingScriptId(null);
                   setScriptCharacters([]);
                 }}
               >
@@ -488,7 +555,7 @@ return {
                 className="btn-studio animate-glow"
               >
                 <ScriptIcon className="mr-2" size={16} />
-                Create Script
+                {editingScriptId ? 'Save Changes' : 'Create Script'}
               </Button>
             </div>
           </CardContent>

@@ -350,6 +350,7 @@ export const StudioMagnateGame: React.FC<StudioMagnateGameProps> = ({
   const [selectedProject, setSelectedProject] = useState<Project | null>(null);
   const [selectedFranchise, setSelectedFranchise] = useState<string | null>(null);
   const [selectedPublicDomain, setSelectedPublicDomain] = useState<string | null>(null);
+  const [scriptIdToEdit, setScriptIdToEdit] = useState<string | null>(null);
   const [filmReleaseProject, setFilmReleaseProject] = useState<Project | null>(null);
   
   // First week box office modal state
@@ -2013,6 +2014,7 @@ export const StudioMagnateGame: React.FC<StudioMagnateGameProps> = ({
                 // Route to Script Development instead of immediately greenlighting a project
                 setSelectedFranchise(franchiseId || null);
                 setSelectedPublicDomain(null);
+                setScriptIdToEdit(script.id);
                 handlePhaseChange('scripts');
 
                 setGameState(prev => ({
@@ -2077,7 +2079,7 @@ export const StudioMagnateGame: React.FC<StudioMagnateGameProps> = ({
                 if (cost && cost > gameState.studio.budget) {
                   toast({
                     title: "Insufficient Budget",
-                    description: `Cannot afford this franchise - need $${(cost / 1000000).toFixed(1)}M`,
+                    description: `Cannot afford this franchise - need ${(cost / 1000000).toFixed(1)}M`,
                     variant: "destructive"
                   });
                   return;
@@ -2127,13 +2129,14 @@ export const StudioMagnateGame: React.FC<StudioMagnateGameProps> = ({
                   
                   toast({
                     title: "Franchise Acquired!",
-                    description: `Spent $${(cost / 1000000).toFixed(1)}M to license franchise`,
+                    description: `Spent ${(cost / 1000000).toFixed(1)}M to license franchise`,
                   });
                 }
 
                 // Route to Script Development instead of directly greenlighting
                 setSelectedFranchise(franchiseId || null);
                 setSelectedPublicDomain(publicDomainId || null);
+                setScriptIdToEdit(script.id);
                 handlePhaseChange('scripts');
                 setGameState(prev => ({
                   ...prev,
@@ -2147,12 +2150,6 @@ export const StudioMagnateGame: React.FC<StudioMagnateGameProps> = ({
                   description: `"${script.title}" is ready in Script Development to customize roles before greenlighting.`,
                 });
               }}
-            />
-            <SequelManagementComponent
-              gameState={gameState}
-              onProjectCreate={handleProjectCreate}
-              onProjectUpdate={handleProjectUpdate}
-              onCreateFranchise={handleCreateFranchise}
             />
           </div>
         )}
@@ -2172,6 +2169,8 @@ export const StudioMagnateGame: React.FC<StudioMagnateGameProps> = ({
                   : [...prev.scripts, script]
               }));
             }}
+            initialScriptIdToEdit={scriptIdToEdit}
+            onClearInitialScriptToEdit={() => setScriptIdToEdit(null)}
           />
         )}
         
