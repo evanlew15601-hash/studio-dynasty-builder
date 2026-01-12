@@ -2075,7 +2075,7 @@ export const StudioMagnateGame: React.FC<StudioMagnateGameProps> = ({
             />
             <FranchiseManager
               gameState={gameState}
-              onCreateProject={(franchiseId, publicDomainId, cost) => {
+              onCreateProject={(franchiseId, publicDomainId, cost, adaptationType) => {
                 // Use existing handleCreateProject logic but adapted for the new interface
                 if (cost && cost > gameState.studio.budget) {
                   toast({
@@ -2115,6 +2115,9 @@ export const StudioMagnateGame: React.FC<StudioMagnateGameProps> = ({
                   },
                   themes: [],
                   sourceType: franchiseId ? 'franchise' : publicDomainId ? 'public-domain' : 'original',
+                  adaptationType: publicDomainId
+                    ? (adaptationType ?? 'faithful')
+                    : undefined,
                   budget: cost ? 25000000 : 15000000 // Higher budget for licensed franchises
                 };
 

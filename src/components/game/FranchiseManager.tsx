@@ -11,7 +11,12 @@ import { Progress } from '@/components/ui/progress';
 
 interface FranchiseManagerProps {
   gameState: GameState;
-  onCreateProject: (franchiseId?: string, publicDomainId?: string, cost?: number) => void;
+  onCreateProject: (
+    franchiseId?: string,
+    publicDomainId?: string,
+    cost?: number,
+    adaptationType?: 'faithful' | 'modern' | 'reimagined' | 'parody'
+  ) => void;
 }
 
 export const FranchiseManager: React.FC<FranchiseManagerProps> = ({
@@ -21,6 +26,9 @@ export const FranchiseManager: React.FC<FranchiseManagerProps> = ({
   const [searchTerm, setSearchTerm] = useState('');
   const [selectedGenre, setSelectedGenre] = useState<string>('all');
   const [selectedDomain, setSelectedDomain] = useState<string>('all');
+  const [pdAdaptationStyles, setPdAdaptationStyles] = useState<
+    Record<string, 'faithful' | 'modern' | 'reimagined' | 'parody'>
+  >({});
 
   // Check which franchises are owned by player
   const ownedFranchiseIds = gameState.franchises
@@ -226,98 +234,133 @@ export const FranchiseManager: React.FC<FranchiseManagerProps> = ({
 
         <TabsContent value="public-domain" className="space-y-4">
           <div className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-3 gap-4">
-            {filteredPublicDomain.map((ip) => (
-              <Card key={ip.id} className="hover:shadow-lg transition-shadow">
-                <CardHeader className="pb-3">
-                  <div className="flex items-start justify-between">
-                    <div className="flex items-center space-x-2">
-                      {getDomainTypeIcon(ip.domainType)}
-                      <div>
-                        <CardTitle className="text-lg">{ip.name}</CardTitle>
-                        <CardDescription className="mt-1 capitalize">
-                          {ip.domainType}
-                        </CardDescription>
+            {filteredPublicDomain.map((ip) => {
+              const adaptationStyle =
+                pdAdaptationStyles[ip.id] || 'faithful';
+
+              return (
+                <Card key={ip.id} className="hover:shadow-lg transition-shadow">
+                  <CardHeader className="pb-3">
+                    <div className="flex items-start justify-between">
+                      <div className="flex items-center space-x-2">
+                        {getDomainTypeIcon(ip.domainType)}
+                        <div>
+                          <CardTitle className="text-lg">{ip.name}</CardTitle>
+                          <CardDescription className="mt-1 capitalize">
+                            {ip.domainType}
+                          </CardDescription>
+                        </div>
+                      </div>
+                      <div className="flex items-center space-x-1">
+                        <Star className="w-4 h-4 text-yellow-500" />
+                        <span className="text-sm font-mono">{ip.reputationScore}</span>
                       </div>
                     </div>
-                    <div className="flex items-center space-x-1">
-                      <Star className="w-4 h-4 text-yellow-500" />
-                      <span className="text-sm font-mono">{ip.reputationScore}</span>
-                    </div>
-                  </div>
-                </CardHeader>
-                <CardContent className="space-y-4">
-                  <div className="space-y-2">
-                    <div className="flex items-center justify-between text-sm">
-                      <span>Cultural Relevance</span>
-                      <span className="font-mono">{ip.culturalRelevance || ip.reputationScore}/100</span>
-                    </div>
-                    <Progress value={ip.culturalRelevance || ip.reputationScore} className="h-2" />
-                  </div>
-
-                  {ip.adaptationFatigue && ip.adaptationFatigue > 0 && (
+                  </CardHeader>
+                  <CardContent className="space-y-4">
                     <div className="space-y-2">
                       <div className="flex items-center justify-between text-sm">
-                        <span>Adaptation Fatigue</span>
-                        <span className="font-mono text-orange-500">{ip.adaptationFatigue}/100</span>
+                        <span>Cultural Relevance</span>
+                        <span className="font-mono">
+                          {ip.culturalRelevance || ip.reputationScore}/100
+                        </span>
                       </div>
-                      <Progress value={ip.adaptationFatigue} className="h-2" />
+                      <Progress
+                        value={ip.culturalRelevance || ip.reputationScore}
+                        className="h-2"
+                      />
                     </div>
-                  )}
 
-                  <div className="space-y-2">
-                    <div className="text-sm font-medium">Available Genres:</div>
-                    <div className="flex flex-wrap gap-1">
-                      {ip.genreFlexibility.map((genre) => (
-                        <Badge key={genre} variant="secondary" className="text-xs">
-                          {genre}
-                        </Badge>
-                      ))}
+                    {ip.adaptationFatigue && ip.adaptationFatigue > 0 && (
+                      <div className="space-y-2">
+                        <div className="flex items-center justify-between text-sm">
+                          <span>Adaptation Fatigue</span>
+                          <span className="font-mono text-orange-500">
+                            {ip.adaptationFatigue}/100
+                          </span>
+                        </div>
+                        <Progress value={ip.adaptationFatigue} className="h-2" />
+                      </div>
+                    )}
+
+                    <div className="space-y-2">
+                      <div className="text-sm font-medium">Available Genres:</div>
+                      <div className="flex flex-wrap gap-1">
+                        {ip.genreFlexibility.map((genre) => (
+                          <Badge key={genre} variant="secondary" className="text-xs">
+                            {genre}
+                          </Badge>
+                        ))}
+                      </div>
                     </div>
-                  </div>
 
-                  <div className="space-y-2">
-                    <div className="text-sm font-medium">Core Elements:</div>
+                    <div className="space-y-2">
+                      <div className="text-sm font-medium">Core Elements:</div>
+                      <div className="text-xs text-muted-foreground">
+                        {ip.coreElements.slice(0, 3).join(', ')}
+                        {ip.coreElements.length > 3 && '...'}
+                      </div>
+                    </div>
+
+                    <div className="space-y-2">
+                      <div className="text-sm font-medium">Adaptation Style</div>
+                      <Select
+                        value={adaptationStyle}
+                        onValueChange={(value) =>
+                          setPdAdaptationStyles((prev) => ({
+                            ...prev,
+                            [ip.id]: value as 'faithful' | 'modern' | 'reimagined' | 'parody',
+                          }))
+                        }
+                      >
+                        <SelectTrigger>
+                          <SelectValue />
+                        </SelectTrigger>
+                        <SelectContent>
+                          <SelectItem value="faithful">Faithful</SelectItem>
+                          <SelectItem value="modern">Modern</SelectItem>
+                          <SelectItem value="reimagined">Reimagined</SelectItem>
+                          <SelectItem value="parody">Parody / Satire</SelectItem>
+                        </SelectContent>
+                      </Select>
+                    </div>
+
+                    <div className="p-3 bg-muted rounded-lg">
+                      <div className="flex items-center justify-between mb-2">
+                        <div className="flex items-center space-x-2">
+                          <DollarSign className="w-4 h-4" />
+                          <span className="text-sm font-medium">Cost</span>
+                        </div>
+                        <span className="text-lg font-bold text-green-600">FREE</span>
+                      </div>
+                      {ip.description && (
+                        <div className="flex items-start space-x-2 mt-2">
+                          <Info className="w-4 h-4 text-muted-foreground mt-0.5 flex-shrink-0" />
+                          <p className="text-xs text-muted-foreground">{ip.description}</p>
+                        </div>
+                      )}
+                    </div>
+
                     <div className="text-xs text-muted-foreground">
-                      {ip.coreElements.slice(0, 3).join(', ')}
-                      {ip.coreElements.length > 3 && '...'}
+                      Previous adaptations: {ip.notableAdaptations.length}
+                      {ip.lastAdaptationDate && (
+                        <div className="mt-1">
+                          Last adapted: {new Date(ip.lastAdaptationDate).getFullYear()}
+                        </div>
+                      )}
                     </div>
-                  </div>
 
-                  <div className="p-3 bg-muted rounded-lg">
-                    <div className="flex items-center justify-between mb-2">
-                      <div className="flex items-center space-x-2">
-                        <DollarSign className="w-4 h-4" />
-                        <span className="text-sm font-medium">Cost</span>
-                      </div>
-                      <span className="text-lg font-bold text-green-600">FREE</span>
-                    </div>
-                    {ip.description && (
-                      <div className="flex items-start space-x-2 mt-2">
-                        <Info className="w-4 h-4 text-muted-foreground mt-0.5 flex-shrink-0" />
-                        <p className="text-xs text-muted-foreground">{ip.description}</p>
-                      </div>
-                    )}
-                  </div>
-
-                  <div className="text-xs text-muted-foreground">
-                    Previous adaptations: {ip.notableAdaptations.length}
-                    {ip.lastAdaptationDate && (
-                      <div className="mt-1">
-                        Last adapted: {new Date(ip.lastAdaptationDate).getFullYear()}
-                      </div>
-                    )}
-                  </div>
-
-                  <Button 
-                    className="w-full"
-                    onClick={() => onCreateProject(undefined, ip.id, ip.cost)}
-                  >
-                    <TrendingUp className="w-4 h-4 mr-2" />
-                    Adapt Property
-                  </Button>
-                </CardContent>
-              </Card>
-            ))}
+                    <Button
+                      className="w-full"
+                      onClick={() => onCreateProject(undefined, ip.id, ip.cost, adaptationStyle)}
+                    >
+                      <TrendingUp className="w-4 h-4 mr-2" />
+                      Adapt Property
+                    </Button>
+                  </CardContent>
+                </Card>
+              );
+            })}
           </div>
         </TabsContent>
       </Tabs>
