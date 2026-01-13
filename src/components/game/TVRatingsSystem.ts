@@ -3,6 +3,12 @@ import { Project, GameState } from '@/types/game';
 export class TVRatingsSystem {
   // Initialize airing for a TV series: compute first-week views and set metrics
   static initializeAiring(project: Project, releaseWeek: number, releaseYear: number): Project {
+    // If streaming metrics already exist for this released project, avoid resetting them
+    // when additional episodes are dropped.
+    if (project.metrics?.streaming && project.status === 'released') {
+      return project;
+    }
+
     const viewsFirstWeek = this.calculateWeeklyViews(project, 0);
 
     return {
@@ -95,7 +101,9 @@ export class TVRatingsSystem {
 
   private static getInitialCompletionRate(project: Project): number {
     const base = 55;
-    const quality = (project.metrics?.criticsScore || 50 + project.metrics?.audienceScore || 50) / 2;
+    const critics = project.metrics?.criticsScore ?? 50;
+    const audience = project.metrics?.audienceScore ?? 50;
+    const quality = (critics + audience) / 2;
     return Math.min(95, Math.max(35, Math.floor(base + (quality - 50) * 0.3)));
   }
 
