@@ -151,12 +151,22 @@ export const EpisodeTrackingSystem: React.FC<EpisodeTrackingSystemProps> = ({
       }
     }
 
-    // Process initial ratings for new episodes using the canonical premiere date
-    const updatedProject = TVRatingsSystem.initializeAiring(
-      project,
-      premiereWeek!,
-      premiereYear!
-    );
+    // Process initial ratings for new episodes using the canonical premiere date.
+    // Only initialize TV ratings once per series to avoid resetting streaming metrics
+    // when additional episodes are released later.
+    const hasStreamingMetrics = !!project.metrics?.streaming;
+    const hasReleaseDate = !!project.releaseWeek && !!project.releaseYear;
+    const isReleased = project.status === 'released';
+
+    const shouldInitializeNow = !hasStreamingMetrics || !hasReleaseDate || !isReleased;
+
+    const updatedProject = shouldInitializeNow
+      ? TVRatingsSystem.initializeAiring(
+          project,
+          premiereWeek!,
+          premiereYear!
+        )
+      : project;
 
     // Generate episode data for released episodes
     for (let i = startEpisode; i < endEpisode; i++) {
