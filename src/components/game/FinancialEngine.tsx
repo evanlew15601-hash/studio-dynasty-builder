@@ -62,10 +62,78 @@ export class FinancialEngine {
     try {
       if (typeof window !== 'undefined') {
         const payload = JSON.stringify({ transactions: this.transactions, nextId: this.nextTransactionId });
-        window.localStorage.setItem(this.STORAGE_KEY, payload);
+        // Check if payload is too large (>4MB to leave headroom for 5MB limit)
+        if (payload.length > 4 * 1024 * 1024) {
+          console.warn('FinancialEngine: Ledger too large, pruning old transactions');
+          this.pruneOldTransactions(104); // Keep last 2 years
+          const prunedPayload = JSON.stringify({ transactions: this.transactions, nextId: this.nextTransactionId });
+          window.localStorage.setItem(this.STORAGE_KEY, prunedPayload);
+        } else {
+          window.localStorage.setItem(this.STORAGE_KEY, payload);
+        }
       }
-    } catch {
-      // Ignore persistence errors in environments without storage
+    } catch (e) {
+      // Handle localStorage quota exceeded
+      if (e instanceof DOMException && (e.name === 'QuotaExceededError' || e.code === 22)) {
+        console.warn('FinancialEngine: localStorage quota exceeded, pruning old transactions');
+        this.pruneOldTransactions(52); // Keep only last year
+        try {
+          const prunedPayload = JSON.stringify({ transactions: this.transactions, nextId: this.nextTransactionId });
+          window.localStorage.setItem(this.STORAGE_KEY, prunedPayload);
+        } catch {
+          // If still failing, clear and restart
+          window.localStorage.removeItem(this.STORAGE_KEY);
+          console.warn('FinancialEngine: Had to clear ledger due to storage limits');
+        }
+      }
+    }
+  }
+
+  /**
+   * Remove transactions older than the specified number of weeks to free memory.
+   * Called automatically when storage limits are approached.
+   */
+  static pruneOldTransactions(maxAgeWeeks: number): void {
+    if (this.transactions.length === 0) return;
+    
+    // Find the most recent transaction to determine current time
+    const latest = this.transactions.reduce((newest, t) => {
+      const absWeek = (t.year * 52) + t.week;
+      const newestAbs = (newest.year * 52) + newest.week;
+      return absWeek > newestAbs ? t : newest;
+    }, this.transactions[0]);
+    
+    const currentAbsWeek = (latest.year * 52) + latest.week;
+    const cutoffWeek = currentAbsWeek - maxAgeWeeks;
+    
+    const beforeCount = this.transactions.length;
+    this.transactions = this.transactions.filter(t => {
+      const absWeek = (t.year * 52) + t.week;
+      return absWeek >= cutoffWeek;
+    });
+    
+    console.log(`FinancialEngine: Pruned ${beforeCount - this.transactions.length} old transactions (kept ${this.transactions.length})`);
+  }
+
+  /**
+   * Public method to trigger memory cleanup. Called periodically from game loop.
+   */
+  static performMemoryCleanup(currentWeek: number, currentYear: number): void {
+    this.ensureLoaded();
+    const currentAbsWeek = (currentYear * 52) + currentWeek;
+    
+    // Remove transactions older than 3 years (156 weeks)
+    const cutoffWeek = currentAbsWeek - 156;
+    const beforeCount = this.transactions.length;
+    
+    this.transactions = this.transactions.filter(t => {
+      const absWeek = (t.year * 52) + t.week;
+      return absWeek >= cutoffWeek;
+    });
+    
+    if (beforeCount !== this.transactions.length) {
+      console.log(`FinancialEngine: Memory cleanup removed ${beforeCount - this.transactions.length} transactions`);
+      this.persist();
     }
   }
   

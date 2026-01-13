@@ -1564,6 +1564,27 @@ export const StudioMagnateGame: React.FC<StudioMagnateGameProps> = ({
         }
       });
 
+      // Memory management: prune old releases to prevent unbounded growth
+      // Keep only releases from the last 3 in-game years (156 weeks) 
+      const MAX_RELEASE_AGE_WEEKS = 156; // ~3 years
+      const currentAbsoluteWeek = (newTimeState.currentYear * 52) + newTimeState.currentWeek;
+      
+      const prunedReleases = [...prev.allReleases, ...newAIReleases].filter((release) => {
+        if (!('releaseWeek' in release) || !('releaseYear' in release)) return true;
+        const releaseAbsWeek = ((release as Project).releaseYear! * 52) + (release as Project).releaseWeek!;
+        return (currentAbsoluteWeek - releaseAbsWeek) <= MAX_RELEASE_AGE_WEEKS;
+      });
+
+      // Also prune old box office history if it exists
+      const prunedBoxOfficeHistory = (prev.boxOfficeHistory || []).filter((entry: any) => {
+        if (!entry.week || !entry.year) return true;
+        const entryAbsWeek = (entry.year * 52) + entry.week;
+        return (currentAbsoluteWeek - entryAbsWeek) <= MAX_RELEASE_AGE_WEEKS;
+      });
+
+      // Prune old top films history
+      const prunedTopFilmsHistory = (prev.topFilmsHistory || []).slice(-52); // Keep last 52 entries max
+
       const newState = {
         ...prev,
         currentWeek: newTimeState.currentWeek,
@@ -1571,9 +1592,11 @@ export const StudioMagnateGame: React.FC<StudioMagnateGameProps> = ({
         currentQuarter: newTimeState.currentQuarter,
         projects: updatedProjects,
         studio: enhancedStudio,
-        allReleases: [...prev.allReleases, ...newAIReleases],
-        aiStudioProjects: [...prev.allReleases, ...newAIReleases].filter((r): r is Project => 'script' in r),
-        talent: updatedTalent
+        allReleases: prunedReleases,
+        aiStudioProjects: prunedReleases.filter((r): r is Project => 'script' in r),
+        talent: updatedTalent,
+        boxOfficeHistory: prunedBoxOfficeHistory,
+        topFilmsHistory: prunedTopFilmsHistory,
       };
 
       // Advance ongoing PR campaigns (Response Center) each week so timers and effects progress
@@ -1619,6 +1642,9 @@ export const StudioMagnateGame: React.FC<StudioMagnateGameProps> = ({
           import('./MediaRelationships').then(({ MediaRelationships }) => {
             MediaRelationships.performMaintenanceCleanup(newTimeState.currentWeek, newTimeState.currentYear);
           });
+          import('./FinancialEngine').then(({ FinancialEngine }) => {
+            FinancialEngine.performMemoryCleanup(newTimeState.currentWeek, newTimeState.currentYear);
+          });
         }
         
         import('./SystemIntegration').then(({ SystemIntegration }) => {
@@ -1642,15 +1668,28 @@ export const StudioMagnateGame: React.FC<StudioMagnateGameProps> = ({
     const totalWeeks = Math.floor(weeks);
     if (!Number.isFinite(totalWeeks) || totalWeeks <= 0) return;
 
+    // Use requestAnimationFrame for smoother batch processing
+    // and prevent setTimeout stacking that can overwhelm the browser
     let remaining = totalWeeks;
+    let isProcessing = false;
 
     const step = () => {
-      if (remaining <= 0) return;
+      if (remaining <= 0 || isProcessing) return;
+      
+      isProcessing = true;
       handleAdvanceWeek();
       remaining -= 1;
+      
+      // Use requestAnimationFrame to yield to the browser between weeks
+      // This prevents UI freezing and allows garbage collection
       if (remaining > 0) {
-        // Small delay to let weekly processing settle between steps
-        setTimeout(step, 75);
+        requestAnimationFrame(() => {
+          isProcessing = false;
+          // Add small delay to let React state settle
+          setTimeout(step, 50);
+        });
+      } else {
+        isProcessing = false;
       }
     };
 
