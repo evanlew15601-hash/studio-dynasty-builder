@@ -125,11 +125,37 @@ export const EpisodeTrackingSystem: React.FC<EpisodeTrackingSystemProps> = ({
     const startEpisode = currentSeason.episodesAired;
     const endEpisode = Math.min(startEpisode + episodesToRelease, currentSeason.totalEpisodes);
 
-    // Process initial ratings for new episodes
+    // Determine premiere date: respect scheduled calendar release if present
+    let premiereWeek = project.releaseWeek;
+    let premiereYear = project.releaseYear;
+    const hasScheduledPremiere = project.scheduledReleaseWeek && project.scheduledReleaseYear;
+
+    if (!premiereWeek || !premiereYear) {
+      if (hasScheduledPremiere) {
+        const currentAbs = gameState.currentYear * 52 + gameState.currentWeek;
+        const scheduledAbs = project.scheduledReleaseYear! * 52 + project.scheduledReleaseWeek!;
+        if (currentAbs < scheduledAbs) {
+          toast({
+            title: "Show Not Yet Premiered",
+            description: `Episodes can be released after the premiere in Week ${project.scheduledReleaseWeek}, ${project.scheduledReleaseYear}.`,
+            variant: "destructive"
+          });
+          return;
+        }
+        premiereWeek = project.scheduledReleaseWeek!;
+        premiereYear = project.scheduledReleaseYear!;
+      } else {
+        // No schedule set – treat first episode release as the premiere date
+        premiereWeek = gameState.currentWeek;
+        premiereYear = gameState.currentYear;
+      }
+    }
+
+    // Process initial ratings for new episodes using the canonical premiere date
     const updatedProject = TVRatingsSystem.initializeAiring(
-      project, 
-      gameState.currentWeek, 
-      gameState.currentYear
+      project,
+      premiereWeek!,
+      premiereYear!
     );
 
     // Generate episode data for released episodes

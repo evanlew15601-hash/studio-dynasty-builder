@@ -90,33 +90,39 @@ export class SystemIntegration {
         name: 'Project-Release Pipeline',
         description: 'Verify projects can be scheduled and released',
         test: (gameState) => {
-          const completedProjects = gameState.projects.filter(p => p.status === 'completed');
           const releasedProjects = gameState.projects.filter(p => p.status === 'released');
           const scheduledProjects = gameState.projects.filter(p => p.status === 'scheduled-for-release');
+          const releaseReadyProjects = gameState.projects.filter(p =>
+            p.status === 'ready-for-release' ||
+            p.status === 'scheduled-for-release' ||
+            p.currentPhase === 'release'
+          );
           
-          // Check if completed projects can potentially be released
-          let canReleaseCompleted = true;
+          let pipelineHealthy = true;
           let message = 'Release pipeline healthy';
           
-          completedProjects.forEach(project => {
+          // Check if release-ready projects pass unified release validation
+          releaseReadyProjects.forEach(project => {
             const validation = ReleaseSystem.validateFilmForRelease(project);
             if (!validation.canRelease && validation.errors.length > 0) {
-              canReleaseCompleted = false;
-              message = `Project "${project.title}" cannot be released: ${validation.errors[0]}`;
+              pipelineHealthy = false;
+              message = `Release-ready project \"${project.title}\" cannot be released: ${validation.errors[0]}`;
             }
           });
           
-          // Check if scheduled projects have valid release dates
+          // Check if scheduled projects have valid release dates (support both legacy and enhanced fields)
           scheduledProjects.forEach(project => {
-            if (!project.releaseWeek || !project.releaseYear) {
-              canReleaseCompleted = false;
-              message = `Scheduled project "${project.title}" missing release date`;
+            const hasLegacyDate = !!project.releaseWeek && !!project.releaseYear;
+            const hasEnhancedDate = !!project.scheduledReleaseWeek && !!project.scheduledReleaseYear;
+            if (!hasLegacyDate && !hasEnhancedDate) {
+              pipelineHealthy = false;
+              message = `Scheduled project \"${project.title}\" missing release date`;
             }
           });
           
           return {
-            passed: canReleaseCompleted,
-            message: `${message} (${completedProjects.length} completed, ${scheduledProjects.length} scheduled, ${releasedProjects.length} released)`
+            passed: pipelineHealthy,
+            message: `${message} (${releaseReadyProjects.length} release-ready, ${scheduledProjects.length} scheduled, ${releasedProjects.length} released)`
           };
         }
       },
@@ -204,9 +210,31 @@ export class SystemIntegration {
         name: 'Project Phase Progression',
         description: 'Verify projects advance through phases correctly',
         test: (gameState) => {
+          // Use currentPhase to determine in-progress projects
           const projectsInProgress = gameState.projects.filter(p => 
-            ['development', 'pre-production', 'production', 'post-production', 'marketing'].includes(p.status)
+            ['development', 'pre-production', 'production', 'post-production', 'marketing', 'release'].includes(p.currentPhase as any)
           );
+          
+          const getAllowedStatusesForPhase = (phase: string): string[] => {
+            switch (phase) {
+              case 'development':
+                return ['development'];
+              case 'pre-production':
+                return ['pre-production'];
+              case 'production':
+                return ['production', 'filming'];
+              case 'post-production':
+                return ['post-production', 'completed', 'ready-for-marketing'];
+              case 'marketing':
+                return ['marketing', 'ready-for-marketing', 'ready-for-release'];
+              case 'release':
+                return ['release', 'ready-for-release', 'scheduled-for-release', 'released'];
+              case 'distribution':
+                return ['distribution', 'released', 'archived'];
+              default:
+                return [phase];
+            }
+          };
           
           let progressionHealthy = true;
           let message = 'Project progression healthy';
@@ -215,13 +243,16 @@ export class SystemIntegration {
             // Check if project has reasonable phase duration (allow -1 for manual control)
             if (project.phaseDuration !== undefined && project.phaseDuration < -1) {
               progressionHealthy = false;
-              message = `Project "${project.title}" has negative phase duration`;
+              message = `Project \"${project.title}\" has negative phase duration`;
             }
             
-            // Check if project status matches current phase
-            if (project.currentPhase && project.status && project.currentPhase !== project.status) {
-              progressionHealthy = false;
-              message = `Project "${project.title}" has mismatched phase/status`;
+            // Check if project status is compatible with current phase (allow meta-statuses)
+            if (project.currentPhase && project.status) {
+              const allowedStatuses = getAllowedStatusesForPhase(project.currentPhase);
+              if (!allowedStatuses.includes(project.status)) {
+                progressionHealthy = false;
+                message = `Project \"${project.title}\" has mismatched phase/status (${project.currentPhase}/${project.status})`;
+              }
             }
           });
           
@@ -283,14 +314,37 @@ export class SystemIntegration {
       return project;
     });
     
-    // Sync project status with current phase
+    // Sync project status with current phase, but respect meta-statuses like ready-for-marketing / ready-for-release
     fixedState.projects = fixedState.projects.map(project => {
-      if (project.currentPhase && project.status !== project.currentPhase) {
-        console.log(`FIXING: Syncing ${project.title} status to match phase ${project.currentPhase}`);
-        return {
-          ...project,
-          status: project.currentPhase as any
-        };
+      if (project.currentPhase && project.status) {
+        const allowedStatusesForPhase = ((phase: string): string[] => {
+          switch (phase) {
+            case 'development':
+              return ['development'];
+            case 'pre-production':
+              return ['pre-production'];
+            case 'production':
+              return ['production', 'filming'];
+            case 'post-production':
+              return ['post-production', 'completed', 'ready-for-marketing'];
+            case 'marketing':
+              return ['marketing', 'ready-for-marketing', 'ready-for-release'];
+            case 'release':
+              return ['release', 'ready-for-release', 'scheduled-for-release', 'released'];
+            case 'distribution':
+              return ['distribution', 'released', 'archived'];
+            default:
+              return [phase];
+          }
+        })(project.currentPhase);
+        
+        if (!allowedStatusesForPhase.includes(project.status)) {
+          console.log(`FIXING: Syncing ${project.title} status to match phase ${project.currentPhase}`);
+          return {
+            ...project,
+            status: project.currentPhase as any
+          };
+        }
       }
       return project;
     });
