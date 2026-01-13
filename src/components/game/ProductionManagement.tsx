@@ -86,10 +86,14 @@ export const ProductionManagement: React.FC<ProductionManagementProps> = ({
         updatedProject = {
           ...updatedProject,
           currentPhase: 'marketing',
-          status: 'completed',
-          phaseDuration: -1, // Special value to prevent auto-advancement until marketing campaign starts
+          status: 'ready-for-marketing' as any,
+          phaseDuration: -1, // Manual control - wait for marketing campaign
           readyForMarketing: true
         };
+        toast({
+          title: "Post-Production Complete!",
+          description: `${project.title} is ready for marketing. Launch a campaign in the Marketing & Release tab.`,
+        });
         break;
     }
 

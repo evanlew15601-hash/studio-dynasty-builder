@@ -24,14 +24,16 @@ export class ReleaseSystem {
     
     const isTV = project.type === 'series' || project.type === 'limited-series';
     
-    // Check development status - different for TV vs Films
-    if (isTV) {
-      if (project.status !== 'ready-for-marketing' && project.currentPhase !== 'marketing' && project.currentPhase !== 'release') {
-        errors.push(`TV show must complete post-production (currently ${project.status})`);
-      }
-    } else {
-      if (project.status !== 'completed') {
-        errors.push(`Film must be completed (currently ${project.status})`);
+    // Check development status - projects are ready after marketing phase or when marked completed
+    const validStatuses = ['completed', 'ready-for-release', 'ready-for-marketing'];
+    const validPhases = ['marketing', 'release', 'distribution'];
+    const isReady = validStatuses.includes(project.status) || validPhases.includes(project.currentPhase);
+    
+    if (!isReady) {
+      if (isTV) {
+        errors.push(`TV show must complete post-production (currently ${project.status}/${project.currentPhase})`);
+      } else {
+        errors.push(`Film must complete post-production (currently ${project.status}/${project.currentPhase})`);
       }
     }
     
@@ -49,26 +51,38 @@ export class ReleaseSystem {
     const hasDirector = assignedTalent.some(c => c.requiredType === 'director');
     const hasLead = assignedTalent.some(c => c.importance === 'lead' && c.requiredType === 'actor');
     
+    // Also check legacy cast array as fallback
+    const legacyCast = project.cast || [];
+    const legacyHasDirector = legacyCast.some(c => c.role?.toLowerCase().includes('director'));
+    const legacyHasLead = legacyCast.some(c => c.role?.toLowerCase().includes('lead'));
+    
+    const actualHasDirector = hasDirector || legacyHasDirector;
+    const actualHasLead = hasLead || legacyHasLead;
+    
     console.log('RELEASE_VALIDATION: cast check', {
       projectId: project.id,
       title: project.title,
       type: project.type,
+      status: project.status,
+      phase: project.currentPhase,
       legacyCast: project.cast,
       legacyCastLength: project.cast?.length,
       scriptCharacters: project.script?.characters?.length,
       assignedTalent: assignedTalent.length,
-      hasDirector,
-      hasLead,
+      hasDirector: actualHasDirector,
+      hasLead: actualHasLead,
     });
     
-    if (assignedTalent.length === 0) {
+    const hasCast = assignedTalent.length > 0 || legacyCast.length > 0;
+    
+    if (!hasCast) {
       errors.push(isTV ? 'TV show needs at least one cast member' : 'Film needs at least one cast member');
     } else {
       // Check for mandatory roles
-      if (!hasDirector) {
+      if (!actualHasDirector) {
         errors.push(isTV ? 'TV show needs a director' : 'Film needs a director');
       }
-      if (!hasLead) {
+      if (!actualHasLead) {
         errors.push(isTV ? 'TV show needs a lead actor' : 'Film needs a lead actor');
       }
     }
@@ -80,17 +94,17 @@ export class ReleaseSystem {
     
     // Warnings for optimization - adjusted for TV
     if (isTV) {
-      if (project.cast && project.cast.length < 2) {
+      if (legacyCast.length < 2 && assignedTalent.length < 2) {
         warnings.push('Small cast may limit audience appeal for TV');
       }
-      if (!project.marketingData || !project.marketingData.currentBuzz) {
-        warnings.push('No marketing buzz may hurt premiere ratings');
+      if (!project.marketingData && !project.marketingCampaign) {
+        warnings.push('No marketing may hurt premiere ratings');
       }
     } else {
       if (!project.distributionStrategy?.marketingBudget || project.distributionStrategy.marketingBudget < project.budget.total * 0.2) {
         warnings.push('Low marketing budget may hurt box office performance');
       }
-      if (project.cast.length < 3) {
+      if (legacyCast.length < 3 && assignedTalent.length < 3) {
         warnings.push('Small cast may limit audience appeal');
       }
     }

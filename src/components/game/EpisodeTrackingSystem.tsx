@@ -3,12 +3,15 @@ import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
 import { Progress } from '@/components/ui/progress';
+import { Input } from '@/components/ui/input';
+import { Label } from '@/components/ui/label';
+import { Switch } from '@/components/ui/switch';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger } from '@/components/ui/dialog';
 import { useToast } from '@/hooks/use-toast';
 import { EpisodeData, SeasonData, WeeklyStreamingMetrics } from '@/types/streamingTypes';
 import { GameState, Project } from '@/types/game';
-import { Play, Users, Clock, TrendingUp, Calendar, BarChart3, Star } from 'lucide-react';
+import { Play, Users, Clock, TrendingUp, Calendar, BarChart3, Star, Edit, Zap, Settings } from 'lucide-react';
 import { TVRatingsSystem } from './TVRatingsSystem';
 
 interface EpisodeTrackingSystemProps {
@@ -24,21 +27,32 @@ export const EpisodeTrackingSystem: React.FC<EpisodeTrackingSystemProps> = ({
   const [selectedProject, setSelectedProject] = useState<Project | null>(null);
   const [selectedSeason, setSelectedSeason] = useState<number>(1);
   const [releaseFormat, setReleaseFormat] = useState<'weekly' | 'binge' | 'batch'>('weekly');
+  const [autoReleaseEnabled, setAutoReleaseEnabled] = useState<{ [projectId: string]: boolean }>({});
+  const [editingEpisode, setEditingEpisode] = useState<{ projectId: string; episodeIndex: number } | null>(null);
 
-  // Get TV projects with streaming data
+  // Get TV projects - both released AND those in marketing/release phase ready to set up episodes
   const getTVProjects = () => {
     return gameState.projects.filter(p => 
       (p.type === 'series' || p.type === 'limited-series') &&
-      p.status === 'released'
+      (p.status === 'released' || p.currentPhase === 'marketing' || p.currentPhase === 'release' || p.status === 'ready-for-release')
+    );
+  };
+  
+  // Get TV projects ready for episode setup (not yet released)
+  const getPreReleaseProjects = () => {
+    return gameState.projects.filter(p =>
+      (p.type === 'series' || p.type === 'limited-series') &&
+      p.status !== 'released' &&
+      (p.currentPhase === 'marketing' || p.currentPhase === 'release' || p.status === 'ready-for-marketing' || p.status === 'ready-for-release')
     );
   };
 
   // Initialize season data for a project
-  const initializeSeasonData = (project: Project): SeasonData => {
-    const episodeCount = project.script?.estimatedRuntime ? 
-      Math.ceil(project.script.estimatedRuntime / 45) : 10;
+  const initializeSeasonData = (project: Project, episodeCount?: number): SeasonData => {
+    const numEpisodes = episodeCount || (project.script?.estimatedRuntime ? 
+      Math.ceil(project.script.estimatedRuntime / 45) : 10);
     
-    const episodes: EpisodeData[] = Array.from({ length: episodeCount }, (_, i) => ({
+    const episodes: EpisodeData[] = Array.from({ length: numEpisodes }, (_, i) => ({
       episodeNumber: i + 1,
       seasonNumber: 1,
       title: `Episode ${i + 1}`,
@@ -50,13 +64,13 @@ export const EpisodeTrackingSystem: React.FC<EpisodeTrackingSystemProps> = ({
       weeklyViews: [],
       cumulativeViews: 0,
       viewerRetention: 100,
-      productionCost: (project.budget.total || 0) / episodeCount,
+      productionCost: (project.budget.total || 0) / numEpisodes,
       socialMentions: 0
     }));
 
     return {
       seasonNumber: 1,
-      totalEpisodes: episodeCount,
+      totalEpisodes: numEpisodes,
       episodesAired: 0,
       releaseFormat: 'weekly',
       averageViewers: 0,
@@ -67,6 +81,20 @@ export const EpisodeTrackingSystem: React.FC<EpisodeTrackingSystemProps> = ({
       productionStatus: 'complete',
       episodes
     };
+  };
+
+  // Update episode details before release
+  const updateEpisode = (project: Project, episodeIndex: number, updates: Partial<EpisodeData>) => {
+    if (!project.seasons || project.seasons.length === 0) return;
+    
+    const updatedSeasons = [...project.seasons];
+    const season = updatedSeasons[0];
+    if (!season || episodeIndex >= season.episodes.length) return;
+    
+    season.episodes[episodeIndex] = { ...season.episodes[episodeIndex], ...updates };
+    
+    onProjectUpdate(project.id, { seasons: updatedSeasons });
+    toast({ title: "Episode Updated", description: `Episode ${episodeIndex + 1} details saved.` });
   };
 
   // Release episodes based on format
@@ -83,7 +111,7 @@ export const EpisodeTrackingSystem: React.FC<EpisodeTrackingSystemProps> = ({
     let episodesToRelease: number;
     switch (format) {
       case 'binge':
-        episodesToRelease = currentSeason.totalEpisodes;
+        episodesToRelease = currentSeason.totalEpisodes - currentSeason.episodesAired;
         break;
       case 'batch':
         episodesToRelease = Math.min(3, currentSeason.totalEpisodes - currentSeason.episodesAired);
@@ -176,11 +204,20 @@ export const EpisodeTrackingSystem: React.FC<EpisodeTrackingSystemProps> = ({
     });
   };
 
-  // Process weekly updates for all aired episodes
+  // Process weekly updates for all aired episodes AND auto-release if enabled
   const processWeeklyUpdates = () => {
     const tvProjects = getTVProjects();
     
     tvProjects.forEach(project => {
+      // Process auto-release for weekly format
+      if (autoReleaseEnabled[project.id] && project.status === 'released') {
+        const season = project.seasons?.[0];
+        if (season && season.episodesAired < season.totalEpisodes && season.releaseFormat === 'weekly') {
+          // Auto-release next episode each week
+          releaseEpisodes(project, 'weekly');
+        }
+      }
+      
       if (!project.seasons) return;
       
       let hasUpdates = false;
@@ -228,10 +265,94 @@ export const EpisodeTrackingSystem: React.FC<EpisodeTrackingSystemProps> = ({
   }, [gameState.currentWeek]);
 
   const tvProjects = getTVProjects();
+  const preReleaseProjects = getPreReleaseProjects();
 
   return (
     <div className="space-y-6">
-      {/* Project Selection */}
+      {/* Pre-Release Episode Setup */}
+      {preReleaseProjects.length > 0 && (
+        <Card className="border-2 border-accent/30">
+          <CardHeader>
+            <CardTitle className="flex items-center gap-2">
+              <Settings className="h-5 w-5" />
+              Episode Setup (Pre-Release)
+            </CardTitle>
+          </CardHeader>
+          <CardContent>
+            <p className="text-sm text-muted-foreground mb-4">
+              Configure episode titles and details before your show airs. Once released, you can manage episode releases.
+            </p>
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+              {preReleaseProjects.map(project => {
+                // Initialize seasons if not present
+                if (!project.seasons || project.seasons.length === 0) {
+                  const seasonData = initializeSeasonData(project);
+                  onProjectUpdate(project.id, { seasons: [seasonData] });
+                }
+                
+                const currentSeason = project.seasons?.[0];
+                
+                return (
+                  <Card key={project.id} className="border">
+                    <CardContent className="p-4">
+                      <div className="flex items-start justify-between mb-3">
+                        <div>
+                          <h4 className="font-semibold">{project.title}</h4>
+                          <p className="text-sm text-muted-foreground">
+                            {project.script?.genre} • {currentSeason?.totalEpisodes || 10} episodes
+                          </p>
+                        </div>
+                        <Badge variant="outline">Setup</Badge>
+                      </div>
+                      
+                      {currentSeason && (
+                        <div className="space-y-2">
+                          {currentSeason.episodes.slice(0, 3).map((ep, idx) => (
+                            <div key={idx} className="flex items-center gap-2 text-sm">
+                              <span className="text-muted-foreground">Ep {ep.episodeNumber}:</span>
+                              <Input 
+                                value={ep.title}
+                                onChange={(e) => updateEpisode(project, idx, { title: e.target.value })}
+                                className="h-7 text-sm"
+                                placeholder={`Episode ${idx + 1}`}
+                              />
+                            </div>
+                          ))}
+                          {currentSeason.episodes.length > 3 && (
+                            <p className="text-xs text-muted-foreground">
+                              +{currentSeason.episodes.length - 3} more episodes...
+                            </p>
+                          )}
+                        </div>
+                      )}
+                      
+                      <Dialog>
+                        <DialogTrigger asChild>
+                          <Button variant="outline" size="sm" className="w-full mt-3">
+                            <Edit className="h-4 w-4 mr-2" />
+                            Edit All Episodes
+                          </Button>
+                        </DialogTrigger>
+                        <DialogContent className="max-w-3xl max-h-[80vh] overflow-y-auto">
+                          <DialogHeader>
+                            <DialogTitle>{project.title} - Episode Setup</DialogTitle>
+                          </DialogHeader>
+                          <EpisodeSetupPanel 
+                            project={project} 
+                            onUpdateEpisode={(idx, updates) => updateEpisode(project, idx, updates)}
+                          />
+                        </DialogContent>
+                      </Dialog>
+                    </CardContent>
+                  </Card>
+                );
+              })}
+            </div>
+          </CardContent>
+        </Card>
+      )}
+
+      {/* Released TV Projects - Episode Tracking */}
       <Card>
         <CardHeader>
           <CardTitle className="flex items-center gap-2">
@@ -242,13 +363,14 @@ export const EpisodeTrackingSystem: React.FC<EpisodeTrackingSystemProps> = ({
         <CardContent>
           {tvProjects.length === 0 ? (
             <p className="text-muted-foreground text-center py-8">
-              No TV shows available for episode tracking. Release a TV series first.
+              No TV shows available for episode tracking. Complete marketing and set a release date for your TV series.
             </p>
           ) : (
             <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
               {tvProjects.map(project => {
                 const currentSeason = project.seasons?.[0];
                 const hasEpisodes = currentSeason && currentSeason.episodesAired > 0;
+                const isAutoRelease = autoReleaseEnabled[project.id];
                 
                 return (
                   <Card key={project.id} className="border">
@@ -291,6 +413,33 @@ export const EpisodeTrackingSystem: React.FC<EpisodeTrackingSystemProps> = ({
                             value={(currentSeason.episodesAired / currentSeason.totalEpisodes) * 100} 
                             className="mt-2"
                           />
+                          
+                          {/* Auto-release toggle */}
+                          {currentSeason.episodesAired < currentSeason.totalEpisodes && (
+                            <div className="flex items-center justify-between mt-3 p-2 bg-muted/50 rounded">
+                              <div className="flex items-center gap-2">
+                                <Zap className="h-4 w-4 text-primary" />
+                                <span className="text-xs">Auto-release weekly</span>
+                              </div>
+                              <Switch
+                                checked={isAutoRelease || false}
+                                onCheckedChange={(checked) => {
+                                  setAutoReleaseEnabled(prev => ({ ...prev, [project.id]: checked }));
+                                  if (checked) {
+                                    // Set format to weekly when enabling auto-release
+                                    onProjectUpdate(project.id, { 
+                                      releaseFormat: 'weekly',
+                                      seasons: project.seasons?.map(s => ({ ...s, releaseFormat: 'weekly' }))
+                                    });
+                                    toast({ 
+                                      title: "Auto-Release Enabled", 
+                                      description: `${project.title} will release 1 episode per week automatically.` 
+                                    });
+                                  }
+                                }}
+                              />
+                            </div>
+                          )}
                         </div>
                       )}
                       
@@ -300,6 +449,7 @@ export const EpisodeTrackingSystem: React.FC<EpisodeTrackingSystemProps> = ({
                             <Button 
                               variant="outline" 
                               size="sm"
+                              className="flex-1"
                               onClick={() => setSelectedProject(project)}
                             >
                               {hasEpisodes ? 'Manage Episodes' : 'Release Episodes'}
@@ -314,6 +464,7 @@ export const EpisodeTrackingSystem: React.FC<EpisodeTrackingSystemProps> = ({
                               project={project}
                               onRelease={(format) => releaseEpisodes(project, format)}
                               gameState={gameState}
+                              onUpdateEpisode={(idx, updates) => updateEpisode(project, idx, updates)}
                             />
                           </DialogContent>
                         </Dialog>
@@ -330,17 +481,70 @@ export const EpisodeTrackingSystem: React.FC<EpisodeTrackingSystemProps> = ({
   );
 };
 
+// Episode Setup Panel for pre-release editing
+interface EpisodeSetupPanelProps {
+  project: Project;
+  onUpdateEpisode: (episodeIndex: number, updates: Partial<EpisodeData>) => void;
+}
+
+const EpisodeSetupPanel: React.FC<EpisodeSetupPanelProps> = ({ project, onUpdateEpisode }) => {
+  const currentSeason = project.seasons?.[0];
+  if (!currentSeason) return <p>No season data available.</p>;
+  
+  return (
+    <div className="space-y-4">
+      <div className="grid gap-3">
+        {currentSeason.episodes.map((episode, index) => (
+          <Card key={index} className="p-3">
+            <div className="grid grid-cols-12 gap-3 items-center">
+              <div className="col-span-1 text-center font-medium text-muted-foreground">
+                #{episode.episodeNumber}
+              </div>
+              <div className="col-span-5">
+                <Label className="text-xs">Title</Label>
+                <Input 
+                  value={episode.title}
+                  onChange={(e) => onUpdateEpisode(index, { title: e.target.value })}
+                  placeholder={`Episode ${index + 1}`}
+                />
+              </div>
+              <div className="col-span-3">
+                <Label className="text-xs">Runtime (min)</Label>
+                <Input 
+                  type="number"
+                  value={episode.runtime}
+                  onChange={(e) => onUpdateEpisode(index, { runtime: parseInt(e.target.value) || 45 })}
+                  min={15}
+                  max={120}
+                />
+              </div>
+              <div className="col-span-3">
+                <Label className="text-xs">Budget</Label>
+                <div className="text-sm font-medium">
+                  ${(episode.productionCost / 1000000).toFixed(1)}M
+                </div>
+              </div>
+            </div>
+          </Card>
+        ))}
+      </div>
+    </div>
+  );
+};
+
 // Episode Management Modal Component
 interface EpisodeManagementModalProps {
   project: Project;
   onRelease: (format: 'weekly' | 'binge' | 'batch') => void;
   gameState: GameState;
+  onUpdateEpisode?: (episodeIndex: number, updates: Partial<EpisodeData>) => void;
 }
 
 const EpisodeManagementModal: React.FC<EpisodeManagementModalProps> = ({
   project,
   onRelease,
-  gameState
+  gameState,
+  onUpdateEpisode
 }) => {
   const [releaseFormat, setReleaseFormat] = useState<'weekly' | 'binge' | 'batch'>('weekly');
   
