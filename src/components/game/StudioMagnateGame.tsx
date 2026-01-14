@@ -2504,8 +2504,19 @@ export const StudioMagnateGame: React.FC<StudioMagnateGameProps> = ({
                       size="sm"
                       onClick={() => setFilmReleaseProject(selectedProject)}
                       disabled={
-                        selectedProject.status !== 'completed' &&
-                        selectedProject.status !== 'ready-for-release'
+                        !(
+                          // Require at least some marketing investment
+                          (selectedProject.marketingCampaign ||
+                            selectedProject.marketingData?.totalSpent) &&
+                          // Allow planning once the film is in marketing or beyond,
+                          // or explicitly flagged as ready for release
+                          (
+                            selectedProject.currentPhase === 'marketing' ||
+                            selectedProject.currentPhase === 'release' ||
+                            selectedProject.status === 'ready-for-release' ||
+                            selectedProject.readyForRelease
+                          )
+                        )
                       }
                     >
                       Plan Release
