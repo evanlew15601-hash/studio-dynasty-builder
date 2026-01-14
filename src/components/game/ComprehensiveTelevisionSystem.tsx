@@ -134,6 +134,7 @@ export const ComprehensiveTelevisionSystem: React.FC<ComprehensiveTelevisionSyst
         <TabsContent value="marketing">
           <MarketingReleaseManagement
             gameState={gameState}
+            projectTypeFilter="tv"
             onProjectUpdate={(project, marketingCost) => {
               handleTVProjectUpdate(project);
               if (marketingCost) {

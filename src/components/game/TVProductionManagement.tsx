@@ -189,6 +189,40 @@ export const TVProductionManagement: React.FC<TVProductionManagementProps> = ({
                       <Progress value={getPhaseProgress(project)} className="h-2" />
                     </div>
 
+                    {/* Casting Progress Visualization */}
+                    <div className="mb-4 p-3 rounded-lg bg-muted/30 border">
+                      <div className="flex items-center justify-between mb-2">
+                        <span className="text-sm font-medium">Casting Progress</span>
+                        <Badge variant={project.castingConfirmed ? "default" : "destructive"}>
+                          {project.castingConfirmed ? "✓ Ready" : "Incomplete"}
+                        </Badge>
+                      </div>
+                      {(() => {
+                        const characters = project.script?.characters || [];
+                        const castCount = characters.filter(c => c.assignedTalentId).length;
+                        const hasDirector = characters.some(c => c.requiredType === 'director' && c.assignedTalentId);
+                        const hasLead = characters.some(c => c.importance === 'lead' && c.requiredType === 'actor' && c.assignedTalentId);
+                        const progress = characters.length > 0 ? (castCount / characters.length) * 100 : 0;
+                        
+                        return (
+                          <>
+                            <Progress value={progress} className="h-2 mb-2" />
+                            <div className="flex gap-2 text-xs">
+                              <Badge variant={hasDirector ? "default" : "outline"} className="text-xs">
+                                {hasDirector ? "✓" : "○"} Director
+                              </Badge>
+                              <Badge variant={hasLead ? "default" : "outline"} className="text-xs">
+                                {hasLead ? "✓" : "○"} Lead Actor
+                              </Badge>
+                              <span className="text-muted-foreground ml-auto">
+                                {castCount}/{characters.length} roles cast
+                              </span>
+                            </div>
+                          </>
+                        );
+                      })()}
+                    </div>
+
                     <div className="grid grid-cols-2 gap-4 text-sm mb-4">
                       <div>
                         <span className="text-muted-foreground">Season Budget: </span>
@@ -201,14 +235,12 @@ export const TVProductionManagement: React.FC<TVProductionManagementProps> = ({
                         <span>{project.phaseDuration || 0}</span>
                       </div>
                       <div>
-                        <span className="text-muted-foreground">Cast Status: </span>
-                        <span className={project.castingConfirmed ? 'text-green-600' : 'text-orange-600'}>
-                          {project.castingConfirmed ? 'Confirmed' : 'Pending'}
-                        </span>
-                      </div>
-                      <div>
                         <span className="text-muted-foreground">Quality: </span>
                         <span>{project.script.quality}%</span>
+                      </div>
+                      <div>
+                        <span className="text-muted-foreground">Episodes: </span>
+                        <span>{project.seasons?.[0]?.totalEpisodes || 10}</span>
                       </div>
                     </div>
 

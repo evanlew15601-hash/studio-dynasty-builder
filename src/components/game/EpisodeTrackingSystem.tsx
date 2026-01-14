@@ -99,14 +99,23 @@ export const EpisodeTrackingSystem: React.FC<EpisodeTrackingSystemProps> = ({
 
   // Release episodes based on format
   const releaseEpisodes = (project: Project, format: 'weekly' | 'binge' | 'batch') => {
-    if (!project.seasons || project.seasons.length === 0) {
+    // Get fresh project data to avoid stale state
+    const freshProject = gameState.projects.find(p => p.id === project.id) || project;
+    
+    if (!freshProject.seasons || freshProject.seasons.length === 0) {
       // Initialize first season
-      const seasonData = initializeSeasonData(project);
-      project.seasons = [seasonData];
+      const seasonData = initializeSeasonData(freshProject);
+      freshProject.seasons = [seasonData];
     }
 
-    const currentSeason = project.seasons[selectedSeason - 1];
+    const currentSeason = freshProject.seasons[selectedSeason - 1];
     if (!currentSeason) return;
+    
+    // Check if all episodes already aired
+    if (currentSeason.episodesAired >= currentSeason.totalEpisodes) {
+      console.log(`📺 ${freshProject.title}: All ${currentSeason.totalEpisodes} episodes already aired`);
+      return;
+    }
 
     let episodesToRelease: number;
     switch (format) {
@@ -122,28 +131,30 @@ export const EpisodeTrackingSystem: React.FC<EpisodeTrackingSystemProps> = ({
         break;
     }
 
+    console.log(`📺 Releasing ${episodesToRelease} episode(s) for ${freshProject.title} (${currentSeason.episodesAired}/${currentSeason.totalEpisodes} aired)`);
+
     const startEpisode = currentSeason.episodesAired;
     const endEpisode = Math.min(startEpisode + episodesToRelease, currentSeason.totalEpisodes);
 
     // Determine premiere date: respect scheduled calendar release if present
-    let premiereWeek = project.releaseWeek;
-    let premiereYear = project.releaseYear;
-    const hasScheduledPremiere = project.scheduledReleaseWeek && project.scheduledReleaseYear;
+    let premiereWeek = freshProject.releaseWeek;
+    let premiereYear = freshProject.releaseYear;
+    const hasScheduledPremiere = freshProject.scheduledReleaseWeek && freshProject.scheduledReleaseYear;
 
     if (!premiereWeek || !premiereYear) {
       if (hasScheduledPremiere) {
         const currentAbs = gameState.currentYear * 52 + gameState.currentWeek;
-        const scheduledAbs = project.scheduledReleaseYear! * 52 + project.scheduledReleaseWeek!;
+        const scheduledAbs = freshProject.scheduledReleaseYear! * 52 + freshProject.scheduledReleaseWeek!;
         if (currentAbs < scheduledAbs) {
           toast({
             title: "Show Not Yet Premiered",
-            description: `Episodes can be released after the premiere in Week ${project.scheduledReleaseWeek}, ${project.scheduledReleaseYear}.`,
+            description: `Episodes can be released after the premiere in Week ${freshProject.scheduledReleaseWeek}, ${freshProject.scheduledReleaseYear}.`,
             variant: "destructive"
           });
           return;
         }
-        premiereWeek = project.scheduledReleaseWeek!;
-        premiereYear = project.scheduledReleaseYear!;
+        premiereWeek = freshProject.scheduledReleaseWeek!;
+        premiereYear = freshProject.scheduledReleaseYear!;
       } else {
         // No schedule set – treat first episode release as the premiere date
         premiereWeek = gameState.currentWeek;
@@ -154,19 +165,19 @@ export const EpisodeTrackingSystem: React.FC<EpisodeTrackingSystemProps> = ({
     // Process initial ratings for new episodes using the canonical premiere date.
     // Only initialize TV ratings once per series to avoid resetting streaming metrics
     // when additional episodes are released later.
-    const hasStreamingMetrics = !!project.metrics?.streaming;
-    const hasReleaseDate = !!project.releaseWeek && !!project.releaseYear;
-    const isReleased = project.status === 'released';
+    const hasStreamingMetrics = !!freshProject.metrics?.streaming;
+    const hasReleaseDate = !!freshProject.releaseWeek && !!freshProject.releaseYear;
+    const isReleased = freshProject.status === 'released';
 
     const shouldInitializeNow = !hasStreamingMetrics || !hasReleaseDate || !isReleased;
 
     const updatedProject = shouldInitializeNow
       ? TVRatingsSystem.initializeAiring(
-          project,
+          freshProject,
           premiereWeek!,
           premiereYear!
         )
-      : project;
+      : freshProject;
 
     // Generate episode data for released episodes
     for (let i = startEpisode; i < endEpisode; i++) {
@@ -222,10 +233,11 @@ export const EpisodeTrackingSystem: React.FC<EpisodeTrackingSystemProps> = ({
       };
     }
 
-    onProjectUpdate(project.id, {
+    onProjectUpdate(freshProject.id, {
       ...updatedProject,
-      seasons: project.seasons,
-      releaseFormat: format
+      seasons: freshProject.seasons,
+      releaseFormat: format,
+      status: 'released' // Ensure it's marked as released
     });
 
     const formatNames = {
@@ -240,15 +252,25 @@ export const EpisodeTrackingSystem: React.FC<EpisodeTrackingSystemProps> = ({
     });
   };
 
+  // Track last processed week to avoid double-processing
+  const [lastProcessedWeek, setLastProcessedWeek] = useState<string>('');
+
   // Process weekly updates for all aired episodes AND auto-release if enabled
   const processWeeklyUpdates = () => {
+    const weekKey = `${gameState.currentYear}-${gameState.currentWeek}`;
+    if (weekKey === lastProcessedWeek) return; // Prevent double-processing
+    
     const tvProjects = getTVProjects();
+    console.log(`📺 TV Weekly Update: Processing ${tvProjects.length} projects, Week ${gameState.currentWeek}, Year ${gameState.currentYear}`);
     
     tvProjects.forEach(project => {
-      // Process auto-release for weekly format
-      if (autoReleaseEnabled[project.id] && project.status === 'released') {
+      // Process auto-release for weekly format - must be released AND have auto-release enabled
+      if (project.status === 'released') {
         const season = project.seasons?.[0];
-        if (season && season.episodesAired < season.totalEpisodes && season.releaseFormat === 'weekly') {
+        const shouldAutoRelease = autoReleaseEnabled[project.id] || project.releaseFormat === 'weekly';
+        
+        if (season && season.episodesAired < season.totalEpisodes && shouldAutoRelease) {
+          console.log(`📺 Auto-releasing episode for ${project.title}: ${season.episodesAired + 1}/${season.totalEpisodes}`);
           // Auto-release next episode each week
           releaseEpisodes(project, 'weekly');
         }
@@ -293,12 +315,14 @@ export const EpisodeTrackingSystem: React.FC<EpisodeTrackingSystemProps> = ({
         onProjectUpdate(project.id, updatedProject);
       }
     });
+    
+    setLastProcessedWeek(weekKey);
   };
 
-  // Run weekly updates
+  // Run weekly updates when week changes
   useEffect(() => {
     processWeeklyUpdates();
-  }, [gameState.currentWeek]);
+  }, [gameState.currentWeek, gameState.currentYear]);
 
   const tvProjects = getTVProjects();
   const preReleaseProjects = getPreReleaseProjects();
@@ -517,7 +541,7 @@ export const EpisodeTrackingSystem: React.FC<EpisodeTrackingSystemProps> = ({
   );
 };
 
-// Episode Setup Panel for pre-release editing
+// Episode Setup Panel for pre-release editing - FULL customization
 interface EpisodeSetupPanelProps {
   project: Project;
   onUpdateEpisode: (episodeIndex: number, updates: Partial<EpisodeData>) => void;
@@ -529,35 +553,69 @@ const EpisodeSetupPanel: React.FC<EpisodeSetupPanelProps> = ({ project, onUpdate
   
   return (
     <div className="space-y-4">
-      <div className="grid gap-3">
+      <div className="p-3 bg-muted/30 rounded-lg mb-4">
+        <p className="text-sm text-muted-foreground">
+          <strong>Customize your episodes before release.</strong> Set titles, runtime, descriptions, and assign directors/writers for each episode.
+        </p>
+      </div>
+      <div className="grid gap-4">
         {currentSeason.episodes.map((episode, index) => (
-          <Card key={index} className="p-3">
-            <div className="grid grid-cols-12 gap-3 items-center">
-              <div className="col-span-1 text-center font-medium text-muted-foreground">
-                #{episode.episodeNumber}
+          <Card key={index} className="p-4 border-l-4 border-l-primary/50">
+            <div className="space-y-3">
+              <div className="flex items-center justify-between">
+                <Badge variant="outline" className="text-sm">
+                  Episode {episode.episodeNumber}
+                </Badge>
+                <span className="text-xs text-muted-foreground">
+                  ${(episode.productionCost / 1000000).toFixed(1)}M budget
+                </span>
               </div>
-              <div className="col-span-5">
-                <Label className="text-xs">Title</Label>
-                <Input 
-                  value={episode.title}
-                  onChange={(e) => onUpdateEpisode(index, { title: e.target.value })}
-                  placeholder={`Episode ${index + 1}`}
-                />
-              </div>
-              <div className="col-span-3">
-                <Label className="text-xs">Runtime (min)</Label>
-                <Input 
-                  type="number"
-                  value={episode.runtime}
-                  onChange={(e) => onUpdateEpisode(index, { runtime: parseInt(e.target.value) || 45 })}
-                  min={15}
-                  max={120}
-                />
-              </div>
-              <div className="col-span-3">
-                <Label className="text-xs">Budget</Label>
-                <div className="text-sm font-medium">
-                  ${(episode.productionCost / 1000000).toFixed(1)}M
+              
+              <div className="grid grid-cols-2 gap-3">
+                <div className="col-span-2">
+                  <Label className="text-xs mb-1">Episode Title</Label>
+                  <Input 
+                    value={episode.title}
+                    onChange={(e) => onUpdateEpisode(index, { title: e.target.value })}
+                    placeholder={`Episode ${index + 1} Title`}
+                    className="font-medium"
+                  />
+                </div>
+                <div>
+                  <Label className="text-xs mb-1">Runtime (minutes)</Label>
+                  <Input 
+                    type="number"
+                    value={episode.runtime}
+                    onChange={(e) => onUpdateEpisode(index, { runtime: parseInt(e.target.value) || 45 })}
+                    min={15}
+                    max={120}
+                  />
+                </div>
+                <div>
+                  <Label className="text-xs mb-1">Director</Label>
+                  <Input 
+                    value={episode.director || ''}
+                    onChange={(e) => onUpdateEpisode(index, { director: e.target.value })}
+                    placeholder="Episode Director"
+                  />
+                </div>
+                <div>
+                  <Label className="text-xs mb-1">Writer</Label>
+                  <Input 
+                    value={episode.writer || ''}
+                    onChange={(e) => onUpdateEpisode(index, { writer: e.target.value })}
+                    placeholder="Episode Writer"
+                  />
+                </div>
+                <div>
+                  <Label className="text-xs mb-1">Guest Stars (comma-separated)</Label>
+                  <Input 
+                    value={episode.guestStars?.join(', ') || ''}
+                    onChange={(e) => onUpdateEpisode(index, { 
+                      guestStars: e.target.value.split(',').map(s => s.trim()).filter(Boolean)
+                    })}
+                    placeholder="Guest actors"
+                  />
                 </div>
               </div>
             </div>
@@ -646,19 +704,65 @@ const EpisodeManagementModal: React.FC<EpisodeManagementModalProps> = ({
               return (
                 <div 
                   key={episode.episodeNumber}
-                  className={`p-4 border rounded-lg ${!isAired ? 'opacity-50' : ''}`}
+                  className={`p-4 border rounded-lg ${!isAired ? 'bg-muted/30 border-dashed' : ''}`}
                 >
                   <div className="flex items-start justify-between mb-2">
-                    <div>
-                      <h4 className="font-medium">
-                        Episode {episode.episodeNumber}: {episode.title}
-                      </h4>
-                      <p className="text-sm text-muted-foreground">
-                        {episode.runtime} minutes
-                        {episode.airDate && (
-                          <> • Aired Week {episode.airDate.week}, {episode.airDate.year}</>
-                        )}
-                      </p>
+                    <div className="flex-1">
+                      {/* Editable title for unreleased episodes */}
+                      {!isAired && onUpdateEpisode ? (
+                        <div className="space-y-2">
+                          <Input
+                            value={episode.title}
+                            onChange={(e) => onUpdateEpisode(index, { title: e.target.value })}
+                            className="font-medium h-8"
+                            placeholder={`Episode ${episode.episodeNumber} Title`}
+                          />
+                          <div className="grid grid-cols-3 gap-2">
+                            <div>
+                              <Label className="text-xs">Runtime</Label>
+                              <Input
+                                type="number"
+                                value={episode.runtime}
+                                onChange={(e) => onUpdateEpisode(index, { runtime: parseInt(e.target.value) || 45 })}
+                                className="h-7 text-xs"
+                                min={15}
+                                max={120}
+                              />
+                            </div>
+                            <div>
+                              <Label className="text-xs">Director</Label>
+                              <Input
+                                value={episode.director || ''}
+                                onChange={(e) => onUpdateEpisode(index, { director: e.target.value })}
+                                className="h-7 text-xs"
+                                placeholder="Director"
+                              />
+                            </div>
+                            <div>
+                              <Label className="text-xs">Writer</Label>
+                              <Input
+                                value={episode.writer || ''}
+                                onChange={(e) => onUpdateEpisode(index, { writer: e.target.value })}
+                                className="h-7 text-xs"
+                                placeholder="Writer"
+                              />
+                            </div>
+                          </div>
+                        </div>
+                      ) : (
+                        <>
+                          <h4 className="font-medium">
+                            Episode {episode.episodeNumber}: {episode.title}
+                          </h4>
+                          <p className="text-sm text-muted-foreground">
+                            {episode.runtime} minutes
+                            {episode.director && <> • Dir: {episode.director}</>}
+                            {episode.airDate && (
+                              <> • Aired Week {episode.airDate.week}, {episode.airDate.year}</>
+                            )}
+                          </p>
+                        </>
+                      )}
                     </div>
                     <div className="flex gap-2">
                       {isAired && (
