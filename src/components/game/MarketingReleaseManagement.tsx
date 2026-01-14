@@ -23,30 +23,42 @@ interface MarketingReleaseManagementProps {
   onProjectUpdate: (project: Project, marketingCost?: number) => void;
   onMarketingCampaignCreate?: (project: Project, strategy: MarketingStrategy, budget: number, duration: number) => void;
   onReleaseStrategyCreate?: (project: Project, strategy: ReleaseStrategy) => void;
+  // Filter to only show TV or only show films - undefined shows all
+  projectTypeFilter?: 'tv' | 'film';
 }
 
 export const MarketingReleaseManagement: React.FC<MarketingReleaseManagementProps> = ({
   gameState,
   onProjectUpdate,
   onMarketingCampaignCreate,
-  onReleaseStrategyCreate
+  onReleaseStrategyCreate,
+  projectTypeFilter
 }) => {
   const { toast } = useToast();
   const [selectedProject, setSelectedProject] = useState<Project | null>(null);
   const [showMarketingModal, setShowMarketingModal] = useState(false);
   const [showReleaseModal, setShowReleaseModal] = useState(false);
 
+  // Helper to check if project matches type filter
+  const matchesTypeFilter = (p: Project) => {
+    if (!projectTypeFilter) return true;
+    const isTVProject = p.type === 'series' || p.type === 'limited-series';
+    return projectTypeFilter === 'tv' ? isTVProject : !isTVProject;
+  };
+
   const getProjectsInMarketing = () => {
     return gameState.projects.filter(p => 
       p.currentPhase === 'marketing' && 
-      p.status !== 'released' // Exclude released films/TV
+      p.status !== 'released' &&
+      matchesTypeFilter(p)
     );
   };
 
   const getProjectsInRelease = () => {
     return gameState.projects.filter(p => 
       p.currentPhase === 'release' && 
-      p.status !== 'released' // Exclude released films/TV
+      p.status !== 'released' &&
+      matchesTypeFilter(p)
     );
   };
 
@@ -54,6 +66,7 @@ export const MarketingReleaseManagement: React.FC<MarketingReleaseManagementProp
     // Only show released projects that have ended their theatrical run
     return gameState.projects.filter(p => {
       if (p.status !== 'released') return false;
+      if (!matchesTypeFilter(p)) return false;
       
       // Check if theatrical run has ended
       const weeksSinceRelease = p.releaseWeek && p.releaseYear ? 
