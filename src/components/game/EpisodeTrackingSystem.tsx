@@ -97,6 +97,75 @@ export const EpisodeTrackingSystem: React.FC<EpisodeTrackingSystemProps> = ({
     toast({ title: "Episode Updated", description: `Episode ${episodeIndex + 1} details saved.` });
   };
 
+  // Update total number of episodes for the first season (pre-release)
+  const updateEpisodeCount = (project: Project, newTotal: number) => {
+    if (!project.seasons || project.seasons.length === 0) return;
+
+    const rawTotal = Math.floor(newTotal);
+    if (!Number.isFinite(rawTotal)) return;
+
+    // Keep seasons in a sensible TV range
+    const clampedTotal = Math.max(1, Math.min(26, rawTotal));
+
+    const updatedSeasons = [...project.seasons];
+    const seasonIndex = 0;
+    const season = { ...updatedSeasons[seasonIndex] };
+
+    const existingEpisodes = season.episodes || [];
+    if (clampedTotal === existingEpisodes.length) return;
+
+    const totalBudget = season.totalBudget || project.budget.total || 0;
+    const perEpisodeBudget = totalBudget > 0 ? totalBudget / clampedTotal : 0;
+    const baseRuntime = existingEpisodes[0]?.runtime || 45;
+
+    // Start with trimmed existing episodes
+    let episodes: EpisodeData[] = existingEpisodes
+      .slice(0, clampedTotal)
+      .map((ep, idx) => ({
+        ...ep,
+        episodeNumber: idx + 1,
+        productionCost: perEpisodeBudget,
+      }));
+
+    // Add new blank episodes if season is being extended
+    if (clampedTotal > existingEpisodes.length) {
+      const episodesToAdd = clampedTotal - existingEpisodes.length;
+      const startIndex = existingEpisodes.length;
+
+      for (let i = 0; i < episodesToAdd; i++) {
+        const episodeNumber = startIndex + i + 1;
+        episodes.push({
+          episodeNumber,
+          seasonNumber: season.seasonNumber || 1,
+          title: `Episode ${episodeNumber}`,
+          runtime: baseRuntime,
+          viewers: 0,
+          completionRate: 0,
+          averageWatchTime: 0,
+          replayViews: 0,
+          weeklyViews: [],
+          cumulativeViews: 0,
+          viewerRetention: 100,
+          productionCost: perEpisodeBudget,
+          socialMentions: 0,
+        });
+      }
+    } else if (season.episodesAired > clampedTotal) {
+      // If we reduced the order, clamp aired episodes to the new total
+      season.episodesAired = clampedTotal;
+    }
+
+    season.totalEpisodes = clampedTotal;
+    season.episodes = episodes;
+    updatedSeasons[seasonIndex] = season;
+
+    onProjectUpdate(project.id, { seasons: updatedSeasons });
+    toast({
+      title: "Season Updated",
+      description: `Season now has ${clampedTotal} episode${clampedTotal === 1 ? '' : 's'}.`,
+    });
+  };
+
   // Release episodes based on format
   const releaseEpisodes = (project: Project, format: 'weekly' | 'binge' | 'batch') => {
     // Get fresh project data to avoid stale state
@@ -400,6 +469,7 @@ export const EpisodeTrackingSystem: React.FC<EpisodeTrackingSystemProps> = ({
                           <EpisodeSetupPanel 
                             project={project} 
                             onUpdateEpisode={(idx, updates) => updateEpisode(project, idx, updates)}
+                            onUpdateEpisodeCount={(newTotal) => updateEpisodeCount(project, newTotal)}
                           />
                         </DialogContent>
                       </Dialog>
@@ -545,9 +615,10 @@ export const EpisodeTrackingSystem: React.FC<EpisodeTrackingSystemProps> = ({
 interface EpisodeSetupPanelProps {
   project: Project;
   onUpdateEpisode: (episodeIndex: number, updates: Partial<EpisodeData>) => void;
+  onUpdateEpisodeCount?: (newTotal: number) => void;
 }
 
-const EpisodeSetupPanel: React.FC<EpisodeSetupPanelProps> = ({ project, onUpdateEpisode }) => {
+const EpisodeSetupPanel: React.FC<EpisodeSetupPanelProps> = ({ project, onUpdateEpisode, onUpdateEpisodeCount }) => {
   const currentSeason = project.seasons?.[0];
   if (!currentSeason) return <p>No season data available.</p>;
   
@@ -558,6 +629,39 @@ const EpisodeSetupPanel: React.FC<EpisodeSetupPanelProps> = ({ project, onUpdate
           <strong>Customize your episodes before release.</strong> Set titles, runtime, descriptions, and assign directors/writers for each episode.
         </p>
       </div>
+
+      <div className="flex items-center justify-between mb-2">
+        <div>
+          <p className="text-sm font-medium">
+            Season {currentSeason.seasonNumber} • {currentSeason.totalEpisodes} episode{currentSeason.totalEpisodes === 1 ? '' : 's'}
+          </p>
+          <p className="text-xs text-muted-foreground">
+            Adjust the episode count before airing to match your season order.
+          </p>
+        </div>
+        {onUpdateEpisodeCount && (
+          <div className="flex items-center gap-2">
+            <Label htmlFor="episode-count" className="text-xs">
+              Episodes
+            </Label>
+            <Input
+              id="episode-count"
+              type="number"
+              min={1}
+              max={26}
+              value={currentSeason.totalEpisodes}
+              onChange={(e) => {
+                const next = parseInt(e.target.value, 10);
+                if (!Number.isNaN(next)) {
+                  onUpdateEpisodeCount(next);
+                }
+              }}
+              className="w-20 h-8 text-xs"
+            />
+          </div>
+        )}
+      </div>
+
       <div className="grid gap-4">
         {currentSeason.episodes.map((episode, index) => (
           <Card key={index} className="p-4 border-l-4 border-l-primary/50">
