@@ -1,4 +1,5 @@
-import { Project, GameState } from '@/types/game';
+import { Project } from '@/types/game';
+import { rng } from '@/utils/rng';
 
 export class TVRatingsSystem {
   // Initialize airing for a TV series: compute first-week views and set metrics
@@ -23,12 +24,19 @@ export class TVRatingsSystem {
           totalViews: viewsFirstWeek,
           completionRate: this.getInitialCompletionRate(project),
           audienceShare: this.getInitialAudienceShare(project),
-          watchTimeHours: Math.max(1000, Math.floor(viewsFirstWeek * (project.script?.estimatedRuntime || 45) / 60)),
+          watchTimeHours: Math.max(
+            1000,
+            Math.floor(viewsFirstWeek * (project.script?.estimatedRuntime || 45) / 60)
+          ),
           subscriberGrowth: this.getInitialSubscriberGrowth(project)
         },
         weeksSinceRelease: 0,
-        criticsScore: project.metrics?.criticsScore ?? Math.floor(Math.random() * 40) + 50,
-        audienceScore: project.metrics?.audienceScore ?? Math.floor(Math.random() * 40) + 50
+        criticsScore:
+          project.metrics?.criticsScore ??
+          Math.floor(rng.next() * 40) + 50,
+        audienceScore:
+          project.metrics?.audienceScore ??
+          Math.floor(rng.next() * 40) + 50
       }
     };
   }

@@ -175,8 +175,25 @@ export const StudioMagnateGame: React.FC<StudioMagnateGameProps> = ({
   };
   
   const [gameState, setGameState] = useState<GameState>(() => {
-    // If we have a loaded game, use it directly and skip heavy init
+    // If we have a loaded game, rehydrate singleton systems and use it directly
     if (initialGameState) {
+      // Reset or rehydrate static systems so they don't carry over state from a previous session
+      try {
+        FinancialEngine.resetForLoadedGame();
+      } catch (e) {
+        console.warn('FinancialEngine.resetForLoadedGame failed', e);
+      }
+      try {
+        CalendarManager.rehydrateFromGameState(initialGameState);
+      } catch (e) {
+        console.warn('CalendarManager.rehydrateFromGameState failed', e);
+      }
+      try {
+        AIStudioManager.resetAISystem();
+      } catch (e) {
+        console.warn('AIStudioManager.resetAISystem failed', e);
+      }
+
       return initialGameState;
     }
 

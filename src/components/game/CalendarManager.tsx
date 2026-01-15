@@ -1,6 +1,7 @@
 // Unified Calendar Management System - Single source of truth for all game time
 import { TimeState, TimeSystem } from './TimeSystem';
 import { getEarliestEligibleShowForRelease, isWithinAwardCooldown } from '@/data/AwardsSchedule';
+import type { GameState } from '@/types/game';
 
 export interface CalendarEvent {
   id: string;
@@ -20,6 +21,35 @@ export interface CalendarValidation {
 
 export class CalendarManager {
   private static events: CalendarEvent[] = [];
+
+  /**
+   * Clear all scheduled calendar events.
+   * Intended for new games or when rehydrating from a loaded save.
+   */
+  static reset(): void {
+    this.events = [];
+  }
+
+  /**
+   * Rebuild release events from a loaded GameState.
+   * This ensures the calendar reflects the projects' scheduled or actual release dates
+   * instead of relying on in-memory events from a previous session.
+   */
+  static rehydrateFromGameState(gameState: GameState): void {
+    this.reset();
+
+    if (!Array.isArray(gameState.projects)) {
+      return;
+    }
+
+    gameState.projects.forEach(project => {
+      const week = project.scheduledReleaseWeek || project.releaseWeek;
+      const year = project.scheduledReleaseYear || project.releaseYear;
+      if (!week || !year) return;
+
+      this.scheduleRelease(project.id, project.title, week, year);
+    });
+  }
   
   static isAwardsSeason(week: number): boolean {
     // Awards season: weeks 1-12 (Jan-March) and weeks 44-52 (Nov-Dec)
