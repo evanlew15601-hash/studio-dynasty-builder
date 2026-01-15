@@ -4,14 +4,14 @@ import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
 import { Progress } from '@/components/ui/progress';
 import { useToast } from '@/hooks/use-toast';
-import { GameState, TalentPerson } from '@/types/game';
-import { 
-  Tv, 
-  Play, 
-  Users, 
-  DollarSign, 
-  CheckCircle, 
-  XCircle, 
+import { GameState } from '@/types/game';
+import {
+  Tv,
+  Play,
+  Users,
+  DollarSign,
+  CheckCircle,
+  XCircle,
   AlertCircle,
   Monitor,
   Wifi,
@@ -19,6 +19,9 @@ import {
   Star,
   TrendingUp
 } from 'lucide-react';
+
+const TV_SHOWS_STORAGE_KEY = 'television-shows';
+const TV_NETWORKS_STORAGE_KEY = 'television-networks';
 
 interface TestResult {
   id: string;
@@ -106,13 +109,15 @@ export const TelevisionSystemTests: React.FC<TelevisionSystemTestsProps> = ({
       }
 
       // Test that show can be created and stored
-      const showsData = localStorage.getItem('television-shows');
+      const showsData = typeof window !== 'undefined' ? localStorage.getItem(TV_SHOWS_STORAGE_KEY) : null;
       const shows = showsData ? JSON.parse(showsData) : [];
       shows.push(testShow);
-      localStorage.setItem('television-shows', JSON.stringify(shows));
+      if (typeof window !== 'undefined') {
+        localStorage.setItem(TV_SHOWS_STORAGE_KEY, JSON.stringify(shows));
+      }
 
       await sleep(500);
-      updateTestResult('tv-show-creation', 'passed', `Show "${testShow.title}" created successfully`);
+      updateTestResult('tv-show-creation', 'passed', `Show \"${testShow.title}\" created successfully`);
     } catch (error) {
       updateTestResult('tv-show-creation', 'failed', undefined, error instanceof Error ? error.message : 'Unknown error');
     }
@@ -158,10 +163,12 @@ export const TelevisionSystemTests: React.FC<TelevisionSystemTestsProps> = ({
       }
 
       // Test storage
-      const networksData = localStorage.getItem('television-networks');
+      const networksData = typeof window !== 'undefined' ? localStorage.getItem(TV_NETWORKS_STORAGE_KEY) : null;
       const networks = networksData ? JSON.parse(networksData) : [];
       networks.push(testStreamingService, testCableNetwork);
-      localStorage.setItem('television-networks', JSON.stringify(networks));
+      if (typeof window !== 'undefined') {
+        localStorage.setItem(TV_NETWORKS_STORAGE_KEY, JSON.stringify(networks));
+      }
 
       await sleep(500);
       updateTestResult('network-creation', 'passed', 'Streaming service and cable network created successfully');
@@ -634,14 +641,29 @@ export const TelevisionSystemTests: React.FC<TelevisionSystemTestsProps> = ({
     setCurrentTest(null);
     setIsRunning(false);
 
-    const passed = testResults.filter(t => t.status === 'passed').length;
-    const failed = testResults.filter(t => t.status === 'failed').length;
+    // Use the latest results from state when computing summary
+    setTestResults(prev => {
+      const passed = prev.filter(t => t.status === 'passed').length;
+      const failed = prev.filter(t => t.status === 'failed').length;
 
-    toast({
-      title: "Television System Tests Complete",
-      description: `${passed} passed, ${failed} failed`,
-      variant: failed > 0 ? "destructive" : "default"
+      toast({
+        title: "Television System Tests Complete",
+        description: `${passed} passed, ${failed} failed`,
+        variant: failed > 0 ? "destructive" : "default"
+      });
+
+      return prev;
     });
+
+    // Clean up any test data written to localStorage
+    if (typeof window !== 'undefined') {
+      try {
+        window.localStorage.removeItem(TV_SHOWS_STORAGE_KEY);
+        window.localStorage.removeItem(TV_NETWORKS_STORAGE_KEY);
+      } catch {
+        // Ignore storage cleanup errors
+      }
+    }
   };
 
   const getStatusIcon = (status: TestResult['status']) => {

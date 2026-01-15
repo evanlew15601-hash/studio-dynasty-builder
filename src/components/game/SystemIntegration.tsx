@@ -37,16 +37,17 @@ export class SystemIntegration {
     tests.forEach(test => {
       try {
         const result = test.test(gameState);
-        
+
         const healthCheck: SystemHealthCheck = {
           system: test.name,
           status: result.passed ? 'healthy' : 'error',
           message: result.message,
           lastChecked: Date.now()
         };
-        
-        this.healthChecks.push(healthCheck);
-        
+
+        // Keep only a bounded history of recent health checks to avoid unbounded growth
+        this.healthChecks = [...this.healthChecks.slice(-19), healthCheck];
+
         if (!result.passed) {
           errors.push(`${test.name}: ${result.message}`);
         }
