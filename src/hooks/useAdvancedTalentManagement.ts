@@ -133,7 +133,7 @@ export const useAdvancedTalentManagement = (
     const loyaltyBonus = getLoyaltyScore(talentId, studioId) * 0.3;
     
     const successChance = baseSuccess + powerBonus + reputationBonus + loyaltyBonus;
-    const success = rng.next() * 100 &lt; successChance;
+    const success = rng.next() * 100 < successChance;
     
     if (success) {
       const baseCost = person.marketValue * (agent.commission / 100);
@@ -173,7 +173,7 @@ export const useAdvancedTalentManagement = (
     }));
 
     // Random chemistry events between talent
-    if (rng.next() &lt; 0.1) { // 10% chance per week
+    if (rng.next() < 0.1) { // 10% chance per week
       const availableTalent = talent.filter(t => t.contractStatus === 'contracted');
       if (availableTalent.length >= 2) {
         const talent1 = availableTalent[rng.int(availableTalent.length)];
