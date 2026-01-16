@@ -5,6 +5,7 @@ import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
 import { Progress } from '@/components/ui/progress';
 import { Tv, Monitor, Clock, Users, TrendingUp, Calendar } from 'lucide-react';
+import { rng } from '@/utils/rng';
 
 interface TelevisionStreamingProps {
   gameState: GameState;
@@ -65,27 +66,27 @@ const generateTVConcept = (): TVShowConcept => {
   const formats = ['series', 'limited-series', 'miniseries', 'anthology'] as const;
   const platforms = ['network', 'cable', 'streaming', 'premium'] as const;
   
-  const genre = genres[Math.floor(Math.random() * genres.length)];
-  const format = formats[Math.floor(Math.random() * formats.length)];
-  const platform = platforms[Math.floor(Math.random() * platforms.length)];
+  const genre = genres[rng.int(genres.length)];
+  const format = formats[rng.int(formats.length)];
+  const platform = platforms[rng.int(platforms.length)];
   
   const episodeCounts = {
-    'series': 10 + Math.floor(Math.random() * 12), // 10-22 episodes
-    'limited-series': 6 + Math.floor(Math.random() * 4), // 6-10 episodes
-    'miniseries': 4 + Math.floor(Math.random() * 3), // 4-6 episodes
-    'anthology': 8 + Math.floor(Math.random() * 6) // 8-14 episodes
+    'series': 10 + rng.int(12), // 10-22 episodes
+    'limited-series': 6 + rng.int(4), // 6-10 episodes
+    'miniseries': 4 + rng.int(3), // 4-6 episodes
+    'anthology': 8 + rng.int(6) // 8-14 episodes
   };
 
   const episodeLengths = {
     'network': 42, // Network TV with commercials
     'cable': 48, // Cable TV
-    'streaming': 35 + Math.floor(Math.random() * 25), // 35-60 minutes
-    'premium': 50 + Math.floor(Math.random() * 20) // 50-70 minutes
+    'streaming': 35 + rng.int(25), // 35-60 minutes
+    'premium': 50 + rng.int(20) // 50-70 minutes
   };
 
   const episodes = episodeCounts[format];
   const episodeLength = episodeLengths[platform];
-  const seasons = format === 'series' ? 1 + Math.floor(Math.random() * 5) : 1;
+  const seasons = format === 'series' ? 1 + rng.int(5) : 1;
   
   const baseBudgetPerEpisode = {
     'network': 1500000,
@@ -94,7 +95,7 @@ const generateTVConcept = (): TVShowConcept => {
     'premium': 4000000
   }[platform];
 
-  const seasonBudget = episodes * baseBudgetPerEpisode * (0.8 + Math.random() * 0.4);
+  const seasonBudget = episodes * baseBudgetPerEpisode * (0.8 + rng.next() * 0.4);
   const totalBudget = seasonBudget * seasons;
 
   const titles = [
@@ -122,8 +123,8 @@ const generateTVConcept = (): TVShowConcept => {
   ];
 
   return {
-    id: `tv-${Date.now()}-${Math.random()}`,
-    title: titles[Math.floor(Math.random() * titles.length)],
+    id: `tv-${Date.now()}-${rng.next()}`,
+    title: titles[rng.int(titles.length)],
     genre,
     format,
     platform,
@@ -132,12 +133,12 @@ const generateTVConcept = (): TVShowConcept => {
     seasons,
     seasonBudget,
     totalBudget,
-    targetDemographic: demographics[Math.floor(Math.random() * demographics.length)],
-    premise: premises[Math.floor(Math.random() * premises.length)],
+    targetDemographic: demographics[rng.int(demographics.length)],
+    premise: premises[rng.int(premises.length)],
     developmentStage: 'pitch',
-    renewalPotential: 40 + Math.floor(Math.random() * 40),
-    criticalExpectations: 50 + Math.floor(Math.random() * 40),
-    commercialExpectations: 50 + Math.floor(Math.random() * 40)
+    renewalPotential: 40 + rng.int(40),
+    criticalExpectations: 50 + rng.int(40),
+    commercialExpectations: 50 + rng.int(40)
   };
 };
 
@@ -148,9 +149,9 @@ const generateStreamingFeature = (): StreamingFeature => {
   const productionValues = ['low', 'medium', 'high', 'premium'] as const;
   const releaseStrategies = ['global', 'regional', 'limited'] as const;
 
-  const type = types[Math.floor(Math.random() * types.length)];
-  const platform = platforms[Math.floor(Math.random() * platforms.length)];
-  const productionValue = productionValues[Math.floor(Math.random() * productionValues.length)];
+  const type = types[rng.int(types.length)];
+  const platform = platforms[rng.int(platforms.length)];
+  const productionValue = productionValues[rng.int(productionValues.length)];
   
   const budgetRanges = {
     'low': [500000, 2000000],
@@ -160,13 +161,13 @@ const generateStreamingFeature = (): StreamingFeature => {
   };
 
   const [minBudget, maxBudget] = budgetRanges[productionValue];
-  const budget = minBudget + Math.floor(Math.random() * (maxBudget - minBudget));
+  const budget = minBudget + Math.floor(rng.next() * (maxBudget - minBudget));
 
   const runtimes = {
-    'feature': 90 + Math.floor(Math.random() * 60), // 90-150 minutes
-    'documentary': 75 + Math.floor(Math.random() * 45), // 75-120 minutes
-    'special': 60 + Math.floor(Math.random() * 30), // 60-90 minutes
-    'concert': 90 + Math.floor(Math.random() * 60) // 90-150 minutes
+    'feature': 90 + rng.int(60), // 90-150 minutes
+    'documentary': 75 + rng.int(45), // 75-120 minutes
+    'special': 60 + rng.int(30), // 60-90 minutes
+    'concert': 90 + rng.int(60) // 90-150 minutes
   };
 
   const titles = [
@@ -182,20 +183,20 @@ const generateStreamingFeature = (): StreamingFeature => {
   ];
 
   return {
-    id: `stream-${Date.now()}-${Math.random()}`,
-    title: titles[Math.floor(Math.random() * titles.length)],
-    genre: genres[Math.floor(Math.random() * genres.length)],
+    id: `stream-${Date.now()}-${rng.next()}`,
+    title: titles[rng.int(titles.length)],
+    genre: genres[rng.int(genres.length)],
     type,
     platform,
     budget,
     runtime: runtimes[type],
-    targetAudience: audiences[Math.floor(Math.random() * audiences.length)],
-    releaseStrategy: releaseStrategies[Math.floor(Math.random() * releaseStrategies.length)],
+    targetAudience: audiences[rng.int(audiences.length)],
+    releaseStrategy: releaseStrategies[rng.int(releaseStrategies.length)],
     productionValue,
     developmentStage: 'concept',
-    expectedViews: 1000000 + Math.floor(Math.random() * 20000000),
-    subscriptionImpact: Math.floor(Math.random() * 500000),
-    globalAppeal: 40 + Math.floor(Math.random() * 50)
+    expectedViews: 1000000 + rng.int(20000000),
+    subscriptionImpact: rng.int(500000),
+    globalAppeal: 40 + rng.int(50)
   };
 };
 
@@ -213,7 +214,7 @@ export const TelevisionStreamingSystem: React.FC<TelevisionStreamingProps> = ({
   useEffect(() => {
     const generateBackgroundContent = () => {
       // Generate TV concepts weekly
-      if (Math.random() < 0.3) { // 30% chance per week
+      if (rng.next() < 0.3) { // 30% chance per week
         setTvConcepts(prev => {
           const newConcept = generateTVConcept();
           return [...prev.slice(-9), newConcept]; // Keep last 10
@@ -221,7 +222,7 @@ export const TelevisionStreamingSystem: React.FC<TelevisionStreamingProps> = ({
       }
 
       // Generate streaming features
-      if (Math.random() < 0.2) { // 20% chance per week
+      if (rng.next() < 0.2) { // 20% chance per week
         setStreamingFeatures(prev => {
           const newFeature = generateStreamingFeature();
           return [...prev.slice(-14), newFeature]; // Keep last 15

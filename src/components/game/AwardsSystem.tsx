@@ -1,4 +1,13 @@
-import React, { useState } from 'react';
+import React, { useState, useMemo } from 'react';
+import { GameState, Project, Studio } from '@/types/game';
+import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
+import { Button } from '@/components/ui/button';
+import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
+import { Badge } from '@/components/ui/badge';
+import { Progress } from '@/components/ui/progress';
+import { useToast } from '@/hooks/use-toast';
+import { Award, Film, FilmRoll, Star, TrendingUp, Calendar, Users, Sparkles, Zap, BarChart2 } from 'lucide-react';
+import { rng } from '@/utils/rng';eact, { useState } from 'react';
 import { GameState, Project, AwardsEvent, AwardsCampaign, StudioAward } from '@/types/game';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
@@ -272,7 +281,7 @@ const aiProjects = gameState.allReleases.filter((release): release is Project =>
       // Winner: weighted pick favoring top nominee with randomness
       const weighted = nominees.map((n, idx) => ({ ...n, weight: (nominees.length - idx) * 1.5 + (seasonMomentum[n.project.id] || 0) / 10 }));
       const totalWeight = weighted.reduce((s, w) => s + w.weight, 0);
-      let r = Math.random() * totalWeight;
+      let r = rng.next() * totalWeight;
       let winner = weighted[0];
       for (const w of weighted) { r -= w.weight; if (r <= 0) { winner = w; break; } }
 
@@ -280,7 +289,7 @@ const aiProjects = gameState.allReleases.filter((release): release is Project =>
         const won = n.project.id === winner.project.id;
         const award: StudioAward | undefined = won
           ? {
-              id: `award-${Date.now()}-${Math.random()}`,
+              id: `award-${Date.now()}-${rng.next()}`,
               projectId: n.project.id,
               category,
               ceremony: ceremonyName,
