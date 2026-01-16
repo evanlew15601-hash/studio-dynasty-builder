@@ -1,4 +1,5 @@
 import { MediaSource, MediaItem, MediaEvent, MediaMemory, MediaCampaign, Genre } from '@/types/game';
+import { rng } from '@/utils/rng';
 
 export class MediaSourceGenerator {
   private static sources: MediaSource[] = [];
@@ -184,7 +185,7 @@ export class MediaSourceGenerator {
 
   static getRandomSource(): MediaSource {
     const sources = this.generateMediaSources();
-    return sources[Math.floor(Math.random() * sources.length)];
+    return sources[rng.int(sources.length)];
   }
 
   static getSourceForEvent(eventType: string, preferHighCredibility: boolean = false): MediaSource {
@@ -192,7 +193,7 @@ export class MediaSourceGenerator {
     
     if (preferHighCredibility) {
       const credibleSources = sources.filter(s => s.credibility >= 80);
-      return credibleSources[Math.floor(Math.random() * credibleSources.length)];
+      return credibleSources[rng.int(credibleSources.length)];
     }
 
     // Different sources for different types of stories
@@ -200,19 +201,19 @@ export class MediaSourceGenerator {
       case 'scandal':
       case 'rumor':
         const gossipSources = sources.filter(s => s.credibility < 70);
-        return gossipSources[Math.floor(Math.random() * gossipSources.length)];
+        return gossipSources[rng.int(gossipSources.length)];
       
       case 'award_win':
       case 'box_office':
         const tradeSources = sources.filter(s => s.type === 'trade_publication');
-        return tradeSources[Math.floor(Math.random() * tradeSources.length)];
+        return tradeSources[rng.int(tradeSources.length)];
       
       case 'casting_announcement':
       case 'interview':
         const entertainmentSources = sources.filter(s => 
           s.type === 'magazine' || s.type === 'blog'
         );
-        return entertainmentSources[Math.floor(Math.random() * entertainmentSources.length)];
+        return entertainmentSources[rng.int(entertainmentSources.length)];
       
       default:
         return this.getRandomSource();

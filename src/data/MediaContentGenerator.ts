@@ -1,5 +1,6 @@
 import { MediaItem, MediaEvent, MediaSource, TalentPerson, Project, Studio } from '@/types/game';
 import { MediaSourceGenerator } from '@/data/MediaSourceGenerator';
+import { rng } from '@/utils/rng';
 
 export class MediaContentGenerator {
   private static headlines = {
@@ -108,7 +109,7 @@ export class MediaContentGenerator {
     const sentiment = this.determineSentiment(event, source);
     
     return {
-      id: `media_${Date.now()}_${Math.random().toString(36).substr(2, 9)}`,
+      id: `media_${Date.now()}_${rng.next().toString(36).substr(2, 9)}`,
       source,
       type: 'news', // Simplified for now
       headline: this.generateHeadline(event, entities, source),
@@ -162,7 +163,7 @@ export class MediaContentGenerator {
     baseSentiment += source.bias;
     
     // Add random variance
-    baseSentiment += (Math.random() - 0.5) * 40;
+    baseSentiment += (rng.next() - 0.5) * 40;
     
     if (baseSentiment > 20) return 'positive';
     if (baseSentiment < -20) return 'negative';
@@ -175,7 +176,7 @@ export class MediaContentGenerator {
     source: MediaSource
   ): string {
     const templates = this.headlines[event.type as keyof typeof this.headlines] || this.headlines.casting_announcement;
-    const template = templates[Math.floor(Math.random() * templates.length)];
+    const template = templates[rng.int(templates.length)];
     
     return this.replaceVariables(template, event, entities);
   }
@@ -187,7 +188,7 @@ export class MediaContentGenerator {
     sentiment: 'positive' | 'neutral' | 'negative'
   ): string {
     const templates = this.contentTemplates[event.type as keyof typeof this.contentTemplates] || this.contentTemplates.casting_announcement;
-    const template = templates[Math.floor(Math.random() * templates.length)];
+    const template = templates[rng.int(templates.length)];
     
     let content = this.replaceVariables(template, event, entities);
     
@@ -234,7 +235,7 @@ export class MediaContentGenerator {
     
     // Replace generic variables
     result = result.replace(/\{Role\}/g, 'leading');
-    result = result.replace(/\{Amount\}/g, (Math.random() * 50 + 10).toFixed(1));
+    result = result.replace(/\{Amount\}/g, (rng.next() * 50 + 10).toFixed(1));
     result = result.replace(/\{Location\}/g, 'Los Angeles');
     result = result.replace(/\{TimeFrame\}/g, 'later this year');
     result = result.replace(/\{Description\}/g, 'an engaging story');

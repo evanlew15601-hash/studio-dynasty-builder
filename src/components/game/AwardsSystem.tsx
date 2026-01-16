@@ -238,7 +238,7 @@ const aiProjects = gameState.allReleases.filter((release): release is Project =>
           const momentum = seasonMomentum[project.id] || 0;
           // Slight category bias: technical vs acting vs picture kept simple
           const categoryBias = category.toLowerCase().includes('director') ? 5 : category.toLowerCase().includes('actor') ? 3 : 0;
-          const score = Math.min(100, base + momentum + categoryBias + (Math.random() * 6 - 3));
+          const score = Math.min(100, base + momentum + categoryBias + (rng.next() * 6 - 3));
           return { project, score };
         })
         .sort((a, b) => b.score - a.score)

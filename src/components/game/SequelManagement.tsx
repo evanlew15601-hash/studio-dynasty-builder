@@ -9,6 +9,7 @@ import { Textarea } from '@/components/ui/textarea';
 import { useToast } from '@/hooks/use-toast';
 import { Crown, Film, Users, TrendingUp, Plus, ArrowRight, Star } from 'lucide-react';
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger } from '@/components/ui/dialog';
+import { rng } from '@/utils/rng';
 
 interface SequelManagementProps {
   gameState: GameState;
@@ -135,7 +136,7 @@ export const SequelManagement: React.FC<SequelManagementProps> = ({
       `Everything you loved, taken further`
     ];
     
-    return hooks[Math.floor(Math.random() * hooks.length)];
+    return hooks[rng.int(hooks.length)];
   };
 
   // Negotiate with returning cast member
@@ -147,12 +148,12 @@ export const SequelManagement: React.FC<SequelManagementProps> = ({
     
     // Simple negotiation simulation
     const originalCharacter = selectedProject?.script?.characters?.find(c => c.id === characterId);
-    const sequelSuccess = Math.random();
+    const sequelSuccess = rng.next();
     
     let status: 'accepted' | 'declined' | 'renegotiating' = 'accepted';
     
     // Factors affecting negotiation
-    if (talent.reputation > 80 && Math.random() < 0.3) {
+    if (talent.reputation > 80 && rng.next() < 0.3) {
       status = 'renegotiating'; // High-profile talent wants better terms
     } else if (sequelSuccess < 0.15) {
       status = 'declined'; // 15% chance of declining
@@ -251,7 +252,7 @@ export const SequelManagement: React.FC<SequelManagementProps> = ({
       },
       characters: (selectedProject.script?.characters || []).map(char => ({
         ...char,
-        id: `sequel-char-${Date.now()}-${Math.random().toString(36).substr(2, 9)}`,
+        id: `sequel-char-${Date.now()}-${rng.next().toString(36).substr(2, 9)}`,
         // Keep assigned talent if they're confirmed for sequel
         assignedTalentId: sequelPlan.returningCast.find(cast => 
           cast.characterId === char.id && cast.confirmed

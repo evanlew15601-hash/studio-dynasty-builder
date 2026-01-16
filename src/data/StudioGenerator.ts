@@ -1,5 +1,6 @@
 // AI Studio System - Generates competing studios and their autonomous film releases
 import { Studio, Genre, Project, Script } from '@/types/game';
+import { rng } from '@/utils/rng';
 
 interface StudioProfile {
   name: string;
@@ -160,6 +161,28 @@ export class StudioGenerator {
     let title: string;
 
     do {
+      const structure = rng.next();
+      
+      if (structure &lt; 0.3) {
+        // Single word titles
+        title = keywords[rng.int(keywords.length)];
+      } else if (structure &lt; 0.6) {
+        // Modifier + Keyword
+        const modifier = TITLE_MODIFIERS[rng.int(TITLE_MODIFIERS.length)];
+        const keyword = keywords[rng.int(keywords.length)];
+        title = `${modifier} ${keyword}`;
+      } else {
+        // Keyword + Suffix
+        const keyword = keywords[rng.int(keywords.length)];
+        const suffix = TITLE_SUFFIXES[rng.int(TITLE_SUFFIXES.length)];
+        title = `${keyword} ${suffix}`;
+      }
+      
+      attempts++;
+    } while (this.usedTitles.has(title) &amp;&amp; attempts &lt; 50);ttempts = 0;
+    let title: string;
+
+    do {
       const structure = Math.random();
       
       if (structure < 0.3) {
@@ -197,24 +220,24 @@ export class StudioGenerator {
     };
 
     const range = budgetRanges[studioProfile.riskTolerance];
-    const budgetMultiplier = range.min + Math.random() * (range.max - range.min);
+    const budgetMultiplier = range.min + rng.next() * (range.max - range.min);
     const projectBudget = studioProfile.budget * budgetMultiplier;
 
     const title = this.generateFilmTitle(genre, studioProfile.name);
 
     return {
-      id: `script-${Date.now()}-${Math.random().toString(36).substr(2, 9)}`,
+      id: `script-${Date.now()}-${rng.next().toString(36).substr(2, 9)}`,
       title,
       genre,
       logline: this.generateLogline(genre, title),
       writer: this.generateWriterName(),
-      pages: 90 + Math.floor(Math.random() * 40),
-      quality: 30 + Math.floor(Math.random() * 70),
+      pages: 90 + rng.int(40),
+      quality: 30 + rng.int(70),
       budget: projectBudget,
       developmentStage: 'final',
       themes: this.generateThemes(genre),
       targetAudience: this.selectTargetAudience(genre),
-      estimatedRuntime: 85 + Math.floor(Math.random() * 50),
+      estimatedRuntime: 85 + rng.int(50),
       characteristics: this.generateCharacteristics(genre, studioProfile)
     };
   }
@@ -240,7 +263,7 @@ export class StudioGenerator {
       'a troubled veteran', 'a young prodigy', 'a mysterious stranger', 'a desperate parent',
       'an ambitious lawyer', 'a retired assassin', 'a gifted artist', 'a hardened criminal'
     ];
-    return characters[Math.floor(Math.random() * characters.length)];
+    return characters[rng.int(characters.length)];
   }
 
   private getRandomAction(): string {
@@ -248,7 +271,7 @@ export class StudioGenerator {
       'save their family', 'stop a conspiracy', 'clear their name', 'find the truth',
       'protect the innocent', 'uncover secrets', 'prevent disaster', 'seek revenge'
     ];
-    return actions[Math.floor(Math.random() * actions.length)];
+    return actions[rng.int(actions.length)];
   }
 
   private getRandomTwist(): string {
@@ -256,7 +279,7 @@ export class StudioGenerator {
       'nothing is as it seems', 'their enemy is closer than they think', 'the real threat lies within',
       'their past holds the key', 'time is running out', 'they are not alone'
     ];
-    return twists[Math.floor(Math.random() * twists.length)];
+    return twists[rng.int(twists.length)];
   }
 
   private getRandomGoal(): string {
@@ -264,7 +287,7 @@ export class StudioGenerator {
       'reconnect with their estranged child', 'overcome their fears', 'find redemption',
       'save their business', 'honor their legacy', 'discover their true identity'
     ];
-    return goals[Math.floor(Math.random() * goals.length)];
+    return goals[rng.int(goals.length)];
   }
 
   private getRandomObstacle(): string {
@@ -272,7 +295,7 @@ export class StudioGenerator {
       'family disapproval', 'financial ruin', 'social prejudice', 'personal demons',
       'professional rivalry', 'health challenges', 'legal troubles', 'cultural differences'
     ];
-    return obstacles[Math.floor(Math.random() * obstacles.length)];
+    return obstacles[rng.int(obstacles.length)];
   }
 
   private getRandomSituation(): string {
@@ -280,7 +303,7 @@ export class StudioGenerator {
       'a case of mistaken identity', 'an unexpected inheritance', 'a social media mix-up',
       'a workplace mishap', 'a travel disaster', 'a family reunion', 'a blind date gone wrong'
     ];
-    return situations[Math.floor(Math.random() * situations.length)];
+    return situations[rng.int(situations.length)];
   }
 
   private getRandomOutcome(): string {
@@ -288,7 +311,7 @@ export class StudioGenerator {
       'hilarious consequences', 'unexpected romance', 'personal growth', 'family bonding',
       'new friendships', 'career opportunities', 'life-changing revelations'
     ];
-    return outcomes[Math.floor(Math.random() * outcomes.length)];
+    return outcomes[rng.int(outcomes.length)];
   }
 
   private getRandomThreat(): string {
@@ -296,7 +319,7 @@ export class StudioGenerator {
       'an ancient curse', 'a supernatural entity', 'a serial killer', 'paranormal activity',
       'a deadly virus', 'demonic possession', 'a haunted location', 'mysterious disappearances'
     ];
-    return threats[Math.floor(Math.random() * threats.length)];
+    return threats[rng.int(threats.length)];
   }
 
   private getRandomLocation(): string {
@@ -304,7 +327,7 @@ export class StudioGenerator {
       'an isolated cabin', 'an abandoned hospital', 'a small town', 'an old mansion',
       'a remote island', 'a dark forest', 'a subway tunnel', 'a college campus'
     ];
-    return locations[Math.floor(Math.random() * locations.length)];
+    return locations[rng.int(locations.length)];
   }
 
   private getRandomLovers(): string {
@@ -312,7 +335,7 @@ export class StudioGenerator {
       'star-crossed lovers', 'childhood friends', 'business rivals', 'unlikely partners',
       'opposites', 'former enemies', 'coworkers', 'neighbors'
     ];
-    return lovers[Math.floor(Math.random() * lovers.length)];
+    return lovers[rng.int(lovers.length)];
   }
 
   private getRandomEnding(): string {
@@ -320,7 +343,7 @@ export class StudioGenerator {
       'true love', 'happiness', 'their destiny', 'a new beginning',
       'forgiveness', 'acceptance', 'their soulmate', 'peace'
     ];
-    return endings[Math.floor(Math.random() * endings.length)];
+    return endings[rng.int(endings.length)];
   }
 
   private getRandomFuture(): string {
@@ -328,7 +351,7 @@ export class StudioGenerator {
       'a dystopian future', 'the year 2087', 'a post-apocalyptic world', 'a space colony',
       'a cyberpunk city', 'an alternate timeline', 'a virtual reality', 'a parallel universe'
     ];
-    return futures[Math.floor(Math.random() * futures.length)];
+    return futures[rng.int(futures.length)];
   }
 
   private getRandomTechnology(): string {
@@ -336,7 +359,7 @@ export class StudioGenerator {
       'a dangerous AI', 'time travel', 'mind control technology', 'alien contact',
       'genetic manipulation', 'interdimensional travel', 'consciousness transfer', 'reality manipulation'
     ];
-    return tech[Math.floor(Math.random() * tech.length)];
+    return tech[rng.int(tech.length)];
   }
 
   private getRandomDangerousSituation(): string {
@@ -344,7 +367,7 @@ export class StudioGenerator {
       'a deadly game', 'a conspiracy', 'a terrorist plot', 'a murder scheme',
       'a kidnapping', 'corporate espionage', 'witness protection failure', 'identity theft'
     ];
-    return situations[Math.floor(Math.random() * situations.length)];
+    return situations[rng.int(situations.length)];
   }
 
   private getRandomQuest(): string {
@@ -352,7 +375,7 @@ export class StudioGenerator {
       'a perilous journey', 'a sacred mission', 'a heroic quest', 'a magical adventure',
       'a dangerous expedition', 'a noble cause', 'a divine calling', 'an epic voyage'
     ];
-    return quests[Math.floor(Math.random() * quests.length)];
+    return quests[rng.int(quests.length)];
   }
 
   private getRandomMagicalWorld(): string {
@@ -360,15 +383,15 @@ export class StudioGenerator {
       'a forgotten realm', 'an enchanted kingdom', 'a mystical land', 'a magical dimension',
       'an ancient world', 'a fairy tale kingdom', 'a legendary empire', 'a mythical realm'
     ];
-    return worlds[Math.floor(Math.random() * worlds.length)];
+    return worlds[rng.int(worlds.length)];
   }
 
   private generateWriterName(): string {
     const firstNames = ['Alex', 'Jordan', 'Casey', 'Morgan', 'Riley', 'Avery', 'Quinn', 'Taylor'];
     const lastNames = ['Mitchell', 'Parker', 'Collins', 'Reed', 'Hayes', 'Brooks', 'Stone', 'Wells'];
     
-    const firstName = firstNames[Math.floor(Math.random() * firstNames.length)];
-    const lastName = lastNames[Math.floor(Math.random() * lastNames.length)];
+    const firstName = firstNames[rng.int(firstNames.length)];
+    const lastName = lastNames[rng.int(lastNames.length)];
     
     return `${firstName} ${lastName}`;
   }
@@ -386,7 +409,7 @@ export class StudioGenerator {
     };
 
     const themes = themeMap[genre] || themeMap.drama;
-    return themes.slice(0, 2 + Math.floor(Math.random() * 2));
+    return themes.slice(0, 2 + rng.int(2));
   }
 
   private selectTargetAudience(genre: Genre): 'general' | 'mature' | 'teen' | 'family' {
@@ -477,7 +500,7 @@ export class StudioGenerator {
     const weeksPerRelease = Math.floor(52 / studioProfile.releaseFrequency);
     
     // Add some randomness
-    const threshold = weeksPerRelease + Math.floor(Math.random() * 4) - 2;
+    const threshold = weeksPerRelease + rng.int(4) - 2;
     
     return weeksSinceLastRelease >= threshold;
   }
@@ -494,11 +517,11 @@ export class StudioGenerator {
     this.studioReleaseSchedules.set(studioProfile.name, 0);
 
     // Select genre based on studio specialties
-    const genre = studioProfile.specialties[Math.floor(Math.random() * studioProfile.specialties.length)];
+    const genre = studioProfile.specialties[rng.int(studioProfile.specialties.length)];
     const script = this.generateScript(genre, studioProfile);
 
     const project: Project = {
-      id: `ai-project-${Date.now()}-${Math.random().toString(36).substr(2, 9)}`,
+      id: `ai-project-${Date.now()}-${rng.next().toString(36).substr(2, 9)}`,
       title: script.title,
       script,
       type: 'feature',
@@ -598,7 +621,7 @@ export class StudioGenerator {
       name: profile.name,
       reputation: profile.reputation,
       budget: profile.budget,
-      founded: 2010 + Math.floor(Math.random() * 10),
+      founded: 2010 + rng.int(10),
       specialties: profile.specialties,
       debt: 0,
       lastProjectWeek: 0,
@@ -613,15 +636,15 @@ export class StudioGenerator {
   private generateBoxOfficeTotal(budget: number, genre: Genre): number {
     // Generate realistic box office based on budget and genre
     const multiplier = this.getGenreMultiplier(genre);
-    const basePerformance = 1.5 + (Math.random() * 3); // 1.5x to 4.5x budget
+    const basePerformance = 1.5 + (rng.next() * 3); // 1.5x to 4.5x budget
     return Math.floor(budget * basePerformance * multiplier);
   }
 
   private generateTheaterCount(studioSize: string): number {
     const sizeMap = {
-      'major': 2500 + Math.floor(Math.random() * 1500), // 2500-4000 theaters
-      'mid-tier': 1000 + Math.floor(Math.random() * 1000), // 1000-2000 theaters
-      'independent': 200 + Math.floor(Math.random() * 300) // 200-500 theaters
+      'major': 2500 + rng.int(1500), // 2500-4000 theaters
+      'mid-tier': 1000 + rng.int(1000), // 1000-2000 theaters
+      'independent': 200 + rng.int(300) // 200-500 theaters
     };
     return sizeMap[studioSize as keyof typeof sizeMap] || 1500;
   }
@@ -642,7 +665,7 @@ export class StudioGenerator {
     }[genre] || 65;
 
     const reputationBonus = (studioReputation - 50) * 0.3; // ±15 points based on rep
-    const randomness = (Math.random() - 0.5) * 20; // ±10 points random
+    const randomness = (rng.next() - 0.5) * 20; // ±10 points random
     
     return Math.max(30, Math.min(95, Math.floor(genreBase + reputationBonus + randomness)));
   }
@@ -663,7 +686,7 @@ export class StudioGenerator {
     }[genre] || 72;
 
     const reputationBonus = (studioReputation - 50) * 0.2; // ±10 points based on rep
-    const randomness = (Math.random() - 0.5) * 25; // ±12.5 points random
+    const randomness = (rng.next() - 0.5) * 25; // ±12.5 points random
     
     return Math.max(40, Math.min(95, Math.floor(genreBase + reputationBonus + randomness)));
   }

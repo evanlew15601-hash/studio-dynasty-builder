@@ -1,5 +1,6 @@
 // Comprehensive Talent Generation System
 import { TalentPerson, Genre, TalentAgent } from '@/types/game';
+import { rng } from '@/utils/rng';
 
 interface BiographyTemplate {
   careerPath: string;
@@ -155,8 +156,8 @@ export class TalentGenerator {
     
     do {
       const firstNames = gender === 'female' ? FIRST_NAMES_FEMALE : FIRST_NAMES_MALE;
-      const firstName = firstNames[Math.floor(Math.random() * firstNames.length)];
-      const lastName = LAST_NAMES[Math.floor(Math.random() * LAST_NAMES.length)];
+      const firstName = firstNames[rng.int(firstNames.length)];
+      const lastName = LAST_NAMES[rng.int(LAST_NAMES.length)];
       name = `${firstName} ${lastName}`;
       attempts++;
     } while (this.usedNames.has(name) && attempts < 100);
@@ -184,11 +185,11 @@ export class TalentGenerator {
     // Add reputation-based content
     if (reputation > 80) {
       bio += `Industry colleagues consistently praise their professionalism. `;
-      if (Math.random() < 0.3) {
-        bio += `Recently ${CONTROVERSY_TEMPLATES[Math.floor(Math.random() * CONTROVERSY_TEMPLATES.length)]} personal matters, demonstrating resilience. `;
+      if (rng.next() < 0.3) {
+        bio += `Recently ${CONTROVERSY_TEMPLATES[rng.int(CONTROVERSY_TEMPLATES.length)]} personal matters, demonstrating resilience. `;
       }
     } else if (reputation < 40) {
-      bio += `Working to rebuild industry relationships after ${CONTROVERSY_TEMPLATES[Math.floor(Math.random() * CONTROVERSY_TEMPLATES.length)]} past controversies. `;
+      bio += `Working to rebuild industry relationships after ${CONTROVERSY_TEMPLATES[rng.int(CONTROVERSY_TEMPLATES.length)]} past controversies. `;
     }
     
     bio += `Currently ${template.currentStatus} and is ${template.personality}.`;
@@ -197,7 +198,7 @@ export class TalentGenerator {
     let finalBio = bio;
     let attempts = 0;
     while (this.usedBiographies.has(finalBio) && attempts < 10) {
-      finalBio = bio + ` Known for ${PERSONALITY_TRAITS[Math.floor(Math.random() * PERSONALITY_TRAITS.length)].toLowerCase()} approach to character development.`;
+      finalBio = bio + ` Known for ${PERSONALITY_TRAITS[rng.int(PERSONALITY_TRAITS.length)].toLowerCase()} approach to character development.`;
       attempts++;
     }
     
@@ -229,7 +230,7 @@ export class TalentGenerator {
     baseValue *= Math.max(0.3, ageFactor);
     
     // Add randomness
-    baseValue *= (0.8 + Math.random() * 0.4);
+    baseValue *= (0.8 + rng.next() * 0.4);
     
     // Cap values
     return Math.min(baseValue, type === 'director' ? 15000000 : 20000000);
@@ -245,26 +246,23 @@ export class TalentGenerator {
       'legend': 0.95
     }[careerStage];
     
-    if (Math.random() < awardProbability) {
-      const numAwards = Math.floor(Math.random() * 3) + 1;
+    if (rng.next() < awardProbability) {
+      const numAwards = rng.int(3) + 1;
       const availableAwards = [...AWARDS_LIST];
       
       for (let i = 0; i < numAwards && availableAwards.length > 0; i++) {
-        const index = Math.floor(Math.random() * availableAwards.length);
+        const index = rng.int(availableAwards.length);
         awards.push(availableAwards.splice(index, 1)[0]);
       }
     }
-    
-    return awards;
-  }
 
   generateTraits(personality: string[], careerStage: typeof CAREER_STAGES[number]): string[] {
-    const numTraits = Math.floor(Math.random() * 4) + 2;
+    const numTraits = rng.int(4) + 2;
     const availableTraits = [...PERSONALITY_TRAITS];
     const traits: string[] = [];
     
     for (let i = 0; i < numTraits && availableTraits.length > 0; i++) {
-      const index = Math.floor(Math.random() * availableTraits.length);
+      const index = rng.int(availableTraits.length);
       traits.push(availableTraits.splice(index, 1)[0]);
     }
     
@@ -272,24 +270,24 @@ export class TalentGenerator {
   }
 
   generateActor(): TalentPerson {
-    const gender = Math.random() < 0.5 ? 'male' : 'female';
-    const age = 18 + Math.floor(Math.random() * 47); // 18-65
-    const experience = Math.min(age - 16, Math.floor(Math.random() * 25));
-    const reputation = Math.max(10, Math.floor(Math.random() * 90) + (experience * 2));
+    const gender = rng.next() < 0.5 ? 'male' : 'female';
+    const age = 18 + rng.int(47); // 18-65
+    const experience = Math.min(age - 16, rng.int(25));
+    const reputation = Math.max(10, rng.int(90) + (experience * 2));
     const careerStage = this.determineCareerStage(age, experience, reputation);
     
     const name = this.generateName(gender);
-    const genres = this.selectGenres(2 + Math.floor(Math.random() * 3));
+    const genres = this.selectGenres(2 + rng.int(3));
     const marketValue = this.generateMarketValue(age, experience, reputation, 'actor');
     const awards: any[] = [];
     const traits = this.generateTraits([], careerStage);
     
-    const template = BIOGRAPHY_TEMPLATES[Math.floor(Math.random() * BIOGRAPHY_TEMPLATES.length)];
+    const template = BIOGRAPHY_TEMPLATES[rng.int(BIOGRAPHY_TEMPLATES.length)];
     
     const fame = Math.min(100, Math.round(reputation * 0.7 + (awards.length * 5)));
     
     const actor: TalentPerson = {
-      id: `actor-${Date.now()}-${Math.random().toString(36).substr(2, 9)}`,
+      id: `actor-${Date.now()}-${rng.next().toString(36).substr(2, 9)}`,
       name,
       type: 'actor',
       gender: gender === 'male' ? 'Male' : 'Female',
@@ -325,24 +323,24 @@ export class TalentGenerator {
   }
 
   generateDirector(): TalentPerson {
-    const gender = Math.random() < 0.7 ? 'male' : 'female'; // Industry reality
-    const age = 25 + Math.floor(Math.random() * 35); // 25-60
-    const experience = Math.min(age - 20, Math.floor(Math.random() * 30));
-    const reputation = Math.max(20, Math.floor(Math.random() * 80) + (experience * 3));
+    const gender = rng.next() < 0.7 ? 'male' : 'female'; // Industry reality
+    const age = 25 + rng.int(35); // 25-60
+    const experience = Math.min(age - 20, rng.int(30));
+    const reputation = Math.max(20, rng.int(80) + (experience * 3));
     const careerStage = this.determineCareerStage(age, experience, reputation);
     
     const name = this.generateName(gender);
-    const genres = this.selectGenres(1 + Math.floor(Math.random() * 2));
+    const genres = this.selectGenres(1 + rng.int(2));
     const marketValue = this.generateMarketValue(age, experience, reputation, 'director');
     const awards: any[] = [];
     const traits = this.generateTraits([], careerStage);
     
-    const template = BIOGRAPHY_TEMPLATES[Math.floor(Math.random() * BIOGRAPHY_TEMPLATES.length)];
+    const template = BIOGRAPHY_TEMPLATES[rng.int(BIOGRAPHY_TEMPLATES.length)];
     
     const fame = Math.min(100, Math.round(reputation * 0.6 + (awards.length * 4)));
     
     const director: TalentPerson = {
-      id: `director-${Date.now()}-${Math.random().toString(36).substr(2, 9)}`,
+      id: `director-${Date.now()}-${rng.next().toString(36).substr(2, 9)}`,
       name,
       type: 'director',
       gender: gender === 'male' ? 'Male' : 'Female',
@@ -392,7 +390,7 @@ export class TalentGenerator {
     const available = [...allGenres];
     
     for (let i = 0; i < count && available.length > 0; i++) {
-      const index = Math.floor(Math.random() * available.length);
+      const index = rng.int(available.length);
       selected.push(available.splice(index, 1)[0]);
     }
     
@@ -417,19 +415,19 @@ export class TalentGenerator {
       'Robert Taylor', 'Jennifer Martinez', 'Christopher Lee', 'Rachel Davis'
     ];
     
-    const agency = agencies[Math.floor(Math.random() * agencies.length)];
-    const agentName = agentNames[Math.floor(Math.random() * agentNames.length)];
+    const agency = agencies[rng.int(agencies.length)];
+    const agentName = agentNames[rng.int(agentNames.length)];
     
     return {
-      id: `agent_${Math.random().toString(36).substr(2, 9)}`,
+      id: `agent_${rng.next().toString(36).substr(2, 9)}`,
       name: agentName,
       agency: agency.name,
-      powerLevel: agency.powerLevel + Math.floor(Math.random() * 2) - 1, // ±1 variation
+      powerLevel: agency.powerLevel + rng.int(2) - 1, // ±1 variation
       commission: agency.commission,
-      specialties: this.selectGenres(Math.floor(Math.random() * 3) + 1),
+      specialties: this.selectGenres(rng.int(3) + 1),
       clientList: [], // Will be populated later
-      reputation: Math.floor(Math.random() * 50) + 50, // 50-100
-      connectionStrength: Math.floor(Math.random() * 40) + 60 // 60-100
+      reputation: rng.int(50) + 50, // 50-100
+      connectionStrength: rng.int(40) + 60 // 60-100
     };
   }
 
@@ -439,7 +437,7 @@ export class TalentGenerator {
       'Classical Narrative', 'Experimental', 'Genre Specialist', 'Character-Driven',
       'Action Choreographer', 'Intimate Realist', 'Epic Scope', 'Minimalist'
     ];
-    return styles[Math.floor(Math.random() * styles.length)];
+    return styles[rng.int(styles.length)];
   }
 
   private selectTemperament(): string {
@@ -448,7 +446,7 @@ export class TalentGenerator {
       'Easygoing', 'Visionary Dreamer', 'Practical Problem-Solver', 'Inspiring Leader',
       'Detail-Oriented', 'Big Picture Thinker', 'Patient Teacher', 'Decisive Commander'
     ];
-    return temperaments[Math.floor(Math.random() * temperaments.length)];
+    return temperaments[rng.int(temperaments.length)];
   }
 
   private selectBudgetApproach(): string {
@@ -456,7 +454,7 @@ export class TalentGenerator {
       'Fiscally Responsible', 'Creative Over Cost', 'Efficient Operator', 'Value Maximizer',
       'Big Spender', 'Penny Pincher', 'Strategic Investor', 'Resource Optimizer'
     ];
-    return approaches[Math.floor(Math.random() * approaches.length)];
+    return approaches[rng.int(approaches.length)];
   }
 
   generateTalentPool(actorCount: number = 300, directorCount: number = 50): TalentPerson[] {
