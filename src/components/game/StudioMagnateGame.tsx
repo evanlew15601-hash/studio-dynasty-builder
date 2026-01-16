@@ -92,6 +92,7 @@ import { MediaReputationIntegration } from './MediaReputationIntegration';
 import { MediaResponseSystem } from './MediaResponseSystem';
 import { saveGame } from '@/utils/saveLoad';
 import { DebugControlPanel } from './DebugControlPanel';
+import { rng } from '@/utils/rng';
 
 // Ensure AI films have at least a Director and Lead actor so awards/crediting work
 function attachBasicCastForAI(project: Project, talentPool: TalentPerson[]): Project {
@@ -786,8 +787,8 @@ export const StudioMagnateGame: React.FC<StudioMagnateGameProps> = ({
       phaseDuration: -1, // prevent auto-advancement until release week
       metrics: {
         ...project.metrics,
-        criticsScore: Math.floor(Math.random() * 40) + 50,
-        audienceScore: Math.floor(Math.random() * 40) + 50,
+        criticsScore: Math.floor(rng.next() * 40) + 50,
+        audienceScore: Math.floor(rng.next() * 40) + 50,
       }
     };
 

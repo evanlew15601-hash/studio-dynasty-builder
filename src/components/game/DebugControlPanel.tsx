@@ -11,6 +11,7 @@ import type { SeasonData, EpisodeData, StreamingContract } from '@/types/streami
 import { BoxOfficeSystem } from './BoxOfficeSystem';
 import { TVRatingsSystem } from './TVRatingsSystem';
 import { Clock, FastForward, DollarSign, Star, Settings2, Film, Tv, MonitorPlay } from 'lucide-react';
+import { rng } from '@/utils/rng';
 
 interface DebugControlPanelProps {
   time: TimeState;
@@ -53,6 +54,10 @@ export const DebugControlPanel: React.FC<DebugControlPanelProps> = ({
     Math.round(studioReputation)
   );
   const [selectedProjectId, setSelectedProjectId] = useState<string>('');
+  const [rngSeedInput, setRngSeedInput] = useState<string>(() => {
+    const current = rng.getSeed();
+    return current != null ? String(current) : '';
+  });
 
   const selectedProject =
     projects.find((p) => p.id === selectedProjectId) || null;
@@ -102,6 +107,18 @@ export const DebugControlPanel: React.FC<DebugControlPanelProps> = ({
   const handleReputationApply = () => {
     const value = Number.isFinite(reputation) ? reputation : 0;
     onSetReputation(Math.max(0, Math.min(100, value)));
+  };
+
+  const handleRngSeedApply = () => {
+    const parsed = parseInt(rngSeedInput, 10);
+    if (!Number.isNaN(parsed)) {
+      rng.seed(parsed);
+    }
+  };
+
+  const handleRngSeedClear = () => {
+    rng.clearSeed();
+    setRngSeedInput('');
   };
 
   const createSeasonWithEpisodes = (
@@ -519,6 +536,41 @@ export const DebugControlPanel: React.FC<DebugControlPanelProps> = ({
             </div>
           </div>
         )}
+
+        {/* Simulation RNG controls */}
+        <div className="pt-2 border-t border-border/40 space-y-2">
+          <div className="flex items-center justify-between text-xs font-medium text-muted-foreground">
+            <span>Simulation RNG seed</span>
+            <Badge variant="outline">
+              {rng.getSeed() == null ? 'Unseeded (Math.random)' : `Seed ${rng.getSeed()}`}
+            </Badge>
+          </div>
+          <div className="flex items-center gap-2">
+            <Input
+              type="number"
+              value={rngSeedInput}
+              onChange={(e) => setRngSeedInput(e.target.value)}
+              placeholder="Enter seed"
+              className="h-8 w-32 text-xs"
+            />
+            <Button
+              size="sm"
+              variant="outline"
+              className="h-8 text-xs"
+              onClick={handleRngSeedApply}
+            >
+              Apply seed
+            </Button>
+            <Button
+              size="sm"
+              variant="ghost"
+              className="h-8 text-xs"
+              onClick={handleRngSeedClear}
+            >
+              Clear
+            </Button>
+          </div>
+        </div>
       </CardContent>
     </Card>
   );

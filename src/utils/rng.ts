@@ -20,6 +20,14 @@ export class RNG {
   }
 
   /**
+   * Clear the current seed and return to Math.random()-backed behavior.
+   */
+  clearSeed(): void {
+    this.seed = null;
+    this.state = 0;
+  }
+
+  /**
    * Core random generator.
    * If a seed has been set, uses a simple LCG for deterministic values.
    * Otherwise, delegates to Math.random().
