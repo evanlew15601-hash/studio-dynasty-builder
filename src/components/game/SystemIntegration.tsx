@@ -5,6 +5,7 @@ import { CalendarManager } from './CalendarManager';
 import { FinancialEngine } from './FinancialEngine';
 import { ReleaseSystem } from './ReleaseSystem';
 import { ReputationSystem } from './ReputationSystem';
+import { getAllowedStatusesForPhase, isPhaseStatusCombinationValid } from '@/utils/projectState';
 
 export interface SystemHealthCheck {
   system: string;
@@ -216,27 +217,6 @@ export class SystemIntegration {
             ['development', 'pre-production', 'production', 'post-production', 'marketing', 'release'].includes(p.currentPhase as any)
           );
           
-          const getAllowedStatusesForPhase = (phase: string): string[] => {
-            switch (phase) {
-              case 'development':
-                return ['development'];
-              case 'pre-production':
-                return ['pre-production'];
-              case 'production':
-                return ['production', 'filming'];
-              case 'post-production':
-                return ['post-production', 'completed', 'ready-for-marketing'];
-              case 'marketing':
-                return ['marketing', 'ready-for-marketing', 'ready-for-release'];
-              case 'release':
-                return ['release', 'ready-for-release', 'scheduled-for-release', 'released'];
-              case 'distribution':
-                return ['distribution', 'released', 'archived'];
-              default:
-                return [phase];
-            }
-          };
-          
           let progressionHealthy = true;
           let message = 'Project progression healthy';
           
@@ -248,12 +228,9 @@ export class SystemIntegration {
             }
             
             // Check if project status is compatible with current phase (allow meta-statuses)
-            if (project.currentPhase && project.status) {
-              const allowedStatuses = getAllowedStatusesForPhase(project.currentPhase);
-              if (!allowedStatuses.includes(project.status)) {
-                progressionHealthy = false;
-                message = `Project \"${project.title}\" has mismatched phase/status (${project.currentPhase}/${project.status})`;
-              }
+            if (!isPhaseStatusCombinationValid(project)) {
+              progressionHealthy = false;
+              message = `Project \"${project.title}\" has mismatched phase/status (${project.currentPhase}/${project.status})`;
             }
           });
           
@@ -318,26 +295,7 @@ export class SystemIntegration {
     // Sync project status with current phase, but respect meta-statuses like ready-for-marketing / ready-for-release
     fixedState.projects = fixedState.projects.map(project => {
       if (project.currentPhase && project.status) {
-        const allowedStatusesForPhase = ((phase: string): string[] => {
-          switch (phase) {
-            case 'development':
-              return ['development'];
-            case 'pre-production':
-              return ['pre-production'];
-            case 'production':
-              return ['production', 'filming'];
-            case 'post-production':
-              return ['post-production', 'completed', 'ready-for-marketing'];
-            case 'marketing':
-              return ['marketing', 'ready-for-marketing', 'ready-for-release'];
-            case 'release':
-              return ['release', 'ready-for-release', 'scheduled-for-release', 'released'];
-            case 'distribution':
-              return ['distribution', 'released', 'archived'];
-            default:
-              return [phase];
-          }
-        })(project.currentPhase);
+        const allowedStatusesForPhase = getAllowedStatusesForPhase(project.currentPhase);
         
         if (!allowedStatusesForPhase.includes(project.status)) {
           console.log(`FIXING: Syncing ${project.title} status to match phase ${project.currentPhase}`);
