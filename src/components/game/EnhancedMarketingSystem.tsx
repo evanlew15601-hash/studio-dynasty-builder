@@ -239,8 +239,8 @@ export const EnhancedMarketingSystem: React.FC<EnhancedMarketingSystemProps> = (
     const currentBuzz = project.marketingData?.currentBuzz || 0;
     const maxBuzz = (project.type === 'series' || project.type === 'limited-series') ? 250 : 150;
     const newBuzz = Math.min(maxBuzz, currentBuzz + expectedBuzz);
-    
-    onUpdateProject(project.id, {
+
+    const baseUpdates: Partial<Project> = {
       marketingData: {
         ...project.marketingData,
         currentBuzz: newBuzz,
@@ -258,7 +258,19 @@ export const EnhancedMarketingSystem: React.FC<EnhancedMarketingSystemProps> = (
       },
       // Mark as ready for release planning when marketing completed
       readyForRelease: true
-    });
+    };
+
+    // For films, also explicitly move into release-ready status so the release planner unlocks
+    const updates: Partial<Project> =
+      project.type === 'series' || project.type === 'limited-series'
+        ? baseUpdates
+        : {
+            ...baseUpdates,
+            status: 'ready-for-release' as any,
+            currentPhase: 'release' as any
+          };
+
+    onUpdateProject(project.id, updates);
 
     // Deduct budget
     onUpdateBudget(-totalCost);

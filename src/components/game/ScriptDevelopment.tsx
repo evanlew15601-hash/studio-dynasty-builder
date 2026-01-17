@@ -230,16 +230,9 @@ return {
       return;
     }
 
-    // Create project with proper workflow phase
-    const project = {
-      ...script,
-      currentPhase: 'development',
-      status: 'in-development',
-      castingConfirmed: false
-    };
+    // Delegate project creation to the central handler using the script as the single source of truth
+    onProjectCreate(script);
 
-    onProjectCreate(project);
-    
     toast({
       title: "Script Greenlit!",
       description: `"${script.title}" moved to Development phase. Assign cast and crew to proceed to Pre-Production.`,

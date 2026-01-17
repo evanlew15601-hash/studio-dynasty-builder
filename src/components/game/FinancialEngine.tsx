@@ -466,6 +466,19 @@ export class FinancialEngine {
     this.nextTransactionId = 1;
     this.persist();
   }
+
+  /**
+   * Reset the ledger when loading a saved game.
+   *
+   * For now we prefer clearing any prior-session ledger data so that financial analytics
+   * reflect only transactions recorded after the save was loaded, rather than mixing
+   * multiple game histories together.
+   *
+   * In the future this could be extended to reconstruct a ledger from GameState snapshots.
+   */
+  static resetForLoadedGame(): void {
+    this.clearAll();
+  }
   
   static exportLedger(): Transaction[] {
     this.ensureLoaded();

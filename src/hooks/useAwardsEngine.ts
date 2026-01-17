@@ -3,6 +3,7 @@ import { GameState, Project, Studio, StudioAward, TalentAward, TalentPerson } fr
 import { getAwardShowsForYear } from '@/data/AwardsSchedule';
 import { useToast } from '@/hooks/use-toast';
 import { AwardShowCeremony } from '@/components/game/IndividualAwardShowModal';
+import { rng } from '@/utils/rng';
 
 // Headless awards season engine: runs nominations and ceremonies regardless of UI phase
 export function useAwardsEngine(
@@ -180,7 +181,7 @@ const aiProjects = gameState.allReleases.filter((release): release is Project =>
           
           const score = Math.min(
             100,
-            base + momentum + categoryBias + talentBonus + (Math.random() * 8 - 4)
+            base + momentum + categoryBias + talentBonus + (rng.next() * 8 - 4)
           );
           return { project, score };
         })
@@ -226,7 +227,7 @@ const aiProjects = gameState.allReleases.filter((release): release is Project =>
         weight: (nominees.length - idx) * 1.5 + (seasonMomentum[n.project.id] || 0) / 10,
       }));
       const totalWeight = weighted.reduce((s, w) => s + (w as any).weight, 0);
-      let r = Math.random() * totalWeight;
+      let r = rng.next() * totalWeight;
       let winner = weighted[0] as any;
       for (const w of weighted as any[]) {
         r -= w.weight;
@@ -252,7 +253,7 @@ const aiProjects = gameState.allReleases.filter((release): release is Project =>
             const relevantTalent = findRelevantTalent(n.project, category);
             if (relevantTalent) {
               talentAward = {
-                id: `talent-award-${Date.now()}-${Math.random()}`,
+                id: `talent-award-${Date.now()}-${rng.next()}`,
                 talentId: relevantTalent.id,
                 projectId: n.project.id,
                 category,
@@ -284,7 +285,7 @@ const aiProjects = gameState.allReleases.filter((release): release is Project =>
           } else {
             // Studio award for non-talent categories
             studioAward = {
-              id: `award-${Date.now()}-${Math.random()}`,
+              id: `award-${Date.now()}-${rng.next()}`,
               projectId: n.project.id,
               category,
               ceremony: ceremonyName,

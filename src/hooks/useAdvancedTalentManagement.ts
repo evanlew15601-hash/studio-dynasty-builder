@@ -1,5 +1,6 @@
 import { useState, useEffect, useCallback } from 'react';
 import { TalentPerson, TalentAgent, TalentHold, ChemistryEvent, BurnoutCalculation } from '@/types/game';
+import { rng } from '@/utils/rng';
 
 interface AdvancedTalentState {
   agents: TalentAgent[];
@@ -104,36 +105,13 @@ export const useAdvancedTalentManagement = (
     }));
   }, []);
 
-  // Add chemistry event
+  // Add chemistry event (kept purely in hook state to avoid mutating external talent arrays)
   const addChemistryEvent = useCallback((event: ChemistryEvent) => {
     setState(prev => ({
       ...prev,
       chemistryEvents: [...prev.chemistryEvents, event]
     }));
-
-    // Update talent chemistry scores
-    const talent1 = talent.find(t => t.id === event.talent1Id);
-    const talent2 = talent.find(t => t.id === event.talent2Id);
-    
-    if (talent1 && talent2) {
-      const currentChemistry1 = talent1.chemistry?.[event.talent2Id] || 0;
-      const currentChemistry2 = talent2.chemistry?.[event.talent1Id] || 0;
-      
-      const change = event.interactionType === 'positive' ? event.magnitude : 
-                    event.interactionType === 'negative' ? -event.magnitude : 0;
-      
-      // Update both talent's chemistry scores
-      talent1.chemistry = {
-        ...talent1.chemistry,
-        [event.talent2Id]: Math.max(-100, Math.min(100, currentChemistry1 + change))
-      };
-      
-      talent2.chemistry = {
-        ...talent2.chemistry,
-        [event.talent1Id]: Math.max(-100, Math.min(100, currentChemistry2 + change))
-      };
-    }
-  }, [talent]);
+  }, []);
 
   // Negotiate with agent
   const negotiateWithAgent = useCallback((
@@ -155,7 +133,7 @@ export const useAdvancedTalentManagement = (
     const loyaltyBonus = getLoyaltyScore(talentId, studioId) * 0.3;
     
     const successChance = baseSuccess + powerBonus + reputationBonus + loyaltyBonus;
-    const success = Math.random() * 100 < successChance;
+    const success = rng.next() * 100 < successChance;
     
     if (success) {
       const baseCost = person.marketValue * (agent.commission / 100);
@@ -195,15 +173,15 @@ export const useAdvancedTalentManagement = (
     }));
 
     // Random chemistry events between talent
-    if (Math.random() < 0.1) { // 10% chance per week
+    if (rng.next() < 0.1) { // 10% chance per week
       const availableTalent = talent.filter(t => t.contractStatus === 'contracted');
       if (availableTalent.length >= 2) {
-        const talent1 = availableTalent[Math.floor(Math.random() * availableTalent.length)];
-        const talent2 = availableTalent[Math.floor(Math.random() * availableTalent.length)];
+        const talent1 = availableTalent[rng.int(availableTalent.length)];
+        const talent2 = availableTalent[rng.int(availableTalent.length)];
         
         if (talent1.id !== talent2.id) {
           const eventTypes = ['positive', 'negative', 'neutral'] as const;
-          const eventType = eventTypes[Math.floor(Math.random() * eventTypes.length)];
+          const eventType = eventTypes[rng.int(eventTypes.length)];
           
           const event: ChemistryEvent = {
             id: `chemistry_${Date.now()}`,
@@ -211,7 +189,7 @@ export const useAdvancedTalentManagement = (
             talent2Id: talent2.id,
             projectId: 'random_interaction',
             interactionType: eventType,
-            magnitude: Math.floor(Math.random() * 10) + 5,
+            magnitude: rng.int(10) + 5,
             description: eventType === 'positive' ? 'Had great working chemistry on set' :
                         eventType === 'negative' ? 'Experienced creative differences' :
                         'Worked together professionally',
@@ -222,8 +200,7 @@ export const useAdvancedTalentManagement = (
           addChemistryEvent(event);
         }
       }
-    }
-  }, [currentWeek, currentYear, talent, addChemistryEvent]);
+    }, [currentWeek, currentYear, talent, addChemistryEvent]);
 
   return {
     // State

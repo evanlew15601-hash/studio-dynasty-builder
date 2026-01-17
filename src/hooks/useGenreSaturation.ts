@@ -1,4 +1,4 @@
-import { useState, useEffect, useMemo } from 'react';
+import { useState, useEffect } from 'react';
 import { Genre, Project } from '@/types/game';
 
 interface GenreSaturationState {
@@ -14,28 +14,23 @@ export const useGenreSaturation = (allReleases: Project[], currentWeek: number, 
     trendingGenres: []
   });
 
-  // Memoize the releases array to prevent infinite re-renders
-  const memoizedReleases = useMemo(
-    () => allReleases,
-    [allReleases.length, allReleases.map(r => r.id).join(',')]
-  );
-  const memoizedCurrentWeek = useMemo(() => currentWeek, [currentWeek]);
-  const memoizedCurrentYear = useMemo(() => currentYear, [currentYear]);
-
   // Calculate genre saturation based on recent releases
   useEffect(() => {
-    const recentReleases = memoizedReleases.filter(release => {
+    const currentGameWeek = currentYear * 52 + currentWeek;
+
+    const recentReleases = allReleases.filter(release => {
       if (!release.releaseWeek || !release.releaseYear) return false;
-      const releaseGameWeek = (release.releaseYear * 52) + release.releaseWeek;
-      const currentGameWeek = (memoizedCurrentYear * 52) + memoizedCurrentWeek;
-      return (currentGameWeek - releaseGameWeek) <= 12; // Last 12 weeks
+      const releaseGameWeek = release.releaseYear * 52 + release.releaseWeek;
+      return currentGameWeek - releaseGameWeek <= 12; // Last 12 weeks
     });
 
     // Count releases by genre
     const genreCounts: Record<Genre, number> = {} as Record<Genre, number>;
-    const allGenres: Genre[] = ['action', 'adventure', 'animation', 'biography', 'comedy', 'crime', 
-                               'documentary', 'drama', 'family', 'fantasy', 'horror', 'musical', 
-                               'mystery', 'romance', 'sci-fi', 'thriller', 'war', 'western'];
+    const allGenres: Genre[] = [
+      'action', 'adventure', 'animation', 'biography', 'comedy', 'crime',
+      'documentary', 'drama', 'family', 'fantasy', 'horror', 'musical',
+      'mystery', 'romance', 'sci-fi', 'thriller', 'war', 'western'
+    ];
 
     // Initialize counts
     allGenres.forEach(genre => {
@@ -52,16 +47,16 @@ export const useGenreSaturation = (allReleases: Project[], currentWeek: number, 
     // Calculate saturation levels (0-1, where 1 is completely saturated)
     const newSaturationLevels: Record<Genre, number> = {} as Record<Genre, number>;
     const newMarketPenalties: Record<Genre, number> = {} as Record<Genre, number>;
-    
+
     allGenres.forEach(genre => {
       const count = genreCounts[genre];
       // Saturation based on release frequency (more than 3 releases in 12 weeks = saturated)
       const saturation = Math.min(1, count / 3);
       newSaturationLevels[genre] = saturation;
-      
+
       // Market penalty increases exponentially with saturation
       if (saturation > 0.5) {
-        newMarketPenalties[genre] = 0.7 - (saturation * 0.4); // 70% to 30% performance
+        newMarketPenalties[genre] = 0.7 - saturation * 0.4; // 70% to 30% performance
       } else {
         newMarketPenalties[genre] = 1; // No penalty
       }
@@ -78,8 +73,7 @@ export const useGenreSaturation = (allReleases: Project[], currentWeek: number, 
       marketPenalties: newMarketPenalties,
       trendingGenres
     });
-
-  }, [memoizedReleases, memoizedCurrentWeek, memoizedCurrentYear]);
+  }, [allReleases, currentWeek, currentYear]);
 
   // Get performance multiplier for a genre
   const getGenreMultiplier = (genre: Genre): number => {
@@ -91,20 +85,20 @@ export const useGenreSaturation = (allReleases: Project[], currentWeek: number, 
   // Get market advice for genre selection
   const getGenreAdvice = (): string => {
     const { trendingGenres, saturationLevels } = saturationState;
-    
+
     if (trendingGenres.length > 0) {
       return `Trending: ${trendingGenres.join(', ')}. Avoid oversaturated markets.`;
     }
-    
+
     const oversaturated = Object.entries(saturationLevels)
       .filter(([_, level]) => level > 0.7)
-      .map(([genre, _]) => genre);
-      
+      .map(([genre]) => genre);
+
     if (oversaturated.length > 0) {
       return `Oversaturated: ${oversaturated.join(', ')}. Consider alternative genres.`;
     }
-    
-    return "Market is balanced. Good time for diverse content.";
+
+    return 'Market is balanced. Good time for diverse content.';
   };
 
   return {

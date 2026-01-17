@@ -91,7 +91,7 @@ export const TVProductionManagement: React.FC<TVProductionManagementProps> = ({
         };
         break;
       case 'post-production':
-        // ADVANCE to marketing phase when button is clicked - same as films
+        // ADVANCE to marketing phase when button is clicked - same semantics as original implementation
         updatedProject = {
           ...updatedProject,
           currentPhase: 'marketing',

@@ -92,6 +92,8 @@ import { MediaReputationIntegration } from './MediaReputationIntegration';
 import { MediaResponseSystem } from './MediaResponseSystem';
 import { saveGame } from '@/utils/saveLoad';
 import { DebugControlPanel } from './DebugControlPanel';
+import { rng } from '@/utils/rng';
+import { advanceProjectState } from '@/utils/projectState';
 
 // Ensure AI films have at least a Director and Lead actor so awards/crediting work
 function attachBasicCastForAI(project: Project, talentPool: TalentPerson[]): Project {
@@ -175,8 +177,25 @@ export const StudioMagnateGame: React.FC<StudioMagnateGameProps> = ({
   };
   
   const [gameState, setGameState] = useState<GameState>(() => {
-    // If we have a loaded game, use it directly and skip heavy init
+    // If we have a loaded game, rehydrate singleton systems and use it directly
     if (initialGameState) {
+      // Reset or rehydrate static systems so they don't carry over state from a previous session
+      try {
+        FinancialEngine.resetForLoadedGame();
+      } catch (e) {
+        console.warn('FinancialEngine.resetForLoadedGame failed', e);
+      }
+      try {
+        CalendarManager.rehydrateFromGameState(initialGameState);
+      } catch (e) {
+        console.warn('CalendarManager.rehydrateFromGameState failed', e);
+      }
+      try {
+        AIStudioManager.resetAISystem();
+      } catch (e) {
+        console.warn('AIStudioManager.resetAISystem failed', e);
+      }
+
       return initialGameState;
     }
 
@@ -769,8 +788,8 @@ export const StudioMagnateGame: React.FC<StudioMagnateGameProps> = ({
       phaseDuration: -1, // prevent auto-advancement until release week
       metrics: {
         ...project.metrics,
-        criticsScore: Math.floor(Math.random() * 40) + 50,
-        audienceScore: Math.floor(Math.random() * 40) + 50,
+        criticsScore: Math.floor(rng.next() * 40) + 50,
+        audienceScore: Math.floor(rng.next() * 40) + 50,
       }
     };
 
@@ -892,7 +911,7 @@ export const StudioMagnateGame: React.FC<StudioMagnateGameProps> = ({
          }
        }
 
-  // Process marketing campaigns and advance to release phase when complete
+  // Process marketing campaigns (weekly tick); actual phase transition is handled by the shared state helper
   if (updatedProject.marketingCampaign && updatedProject.marketingCampaign.weeksRemaining > 0) {
     const updatedActivities = updatedProject.marketingCampaign.activities.map(activity => ({
       ...activity,
@@ -911,17 +930,8 @@ export const StudioMagnateGame: React.FC<StudioMagnateGameProps> = ({
       }
     };
 
-    // When marketing is complete, move to release phase
-    if (newWeeksRemaining === 0) {
-      if (import.meta.env.DEV) {
-        console.log(`🎬 MARKETING COMPLETE: ${project.title} - Moving to release phase`);
-      }
-      updatedProject = {
-        ...updatedProject,
-        currentPhase: 'release',
-        status: 'ready-for-release',
-        readyForRelease: true
-      };
+    if (import.meta.env.DEV && newWeeksRemaining === 0) {
+      console.log(`🎬 MARKETING COMPLETE: ${project.title} - Campaign finished, awaiting release gating`);
     }
   }
 
@@ -1003,12 +1013,7 @@ export const StudioMagnateGame: React.FC<StudioMagnateGameProps> = ({
             if (import.meta.env.DEV) {
               console.log(`  → POST-PRODUCTION COMPLETE: ${updatedProject.title} ready for marketing`);
             }
-            updatedProject = {
-              ...updatedProject,
-              phaseDuration: 0,
-              status: 'ready-for-marketing' as any,
-              readyForMarketing: true
-            };
+            updatedProject = advanceProjectState(updatedProject, 'markReadyForMarketing');
             
             toast({
               title: "Post-Production Complete!",
@@ -1020,13 +1025,7 @@ export const StudioMagnateGame: React.FC<StudioMagnateGameProps> = ({
             if (import.meta.env.DEV) {
               console.log(`  → MARKETING COMPLETE: ${updatedProject.title} ready for release`);
             }
-            updatedProject = {
-              ...updatedProject,
-              currentPhase: 'release',
-              phaseDuration: 0,
-              status: 'ready-for-release' as any,
-              readyForRelease: true
-            };
+            updatedProject = advanceProjectState(updatedProject, 'markReadyForRelease');
             
             toast({
               title: "Marketing Campaign Complete!",
@@ -1045,14 +1044,15 @@ export const StudioMagnateGame: React.FC<StudioMagnateGameProps> = ({
                 updatedProject = { ...updatedProject, phaseDuration: 2 };
                 toast({ title: 'Roles Required', description: `${updatedProject.title} needs characters imported before pre-production`, variant: 'destructive' });
               } else {
-                updatedProject = {
+                const advanced = advanceProjectState({
                   ...updatedProject,
                   script: { ...updatedProject.script!, characters: roles },
-                  currentPhase: nextPhase,
-                  phaseDuration: getPhaseWeeks(nextPhase),
-                  status: nextPhase as any
+                }, 'advancePhase');
+                updatedProject = {
+                  ...advanced,
+                  phaseDuration: getPhaseWeeks(advanced.currentPhase),
                 };
-                toast({ title: 'Phase Complete!', description: `${updatedProject.title} advanced to ${nextPhase.replace('-', ' ')}` });
+                toast({ title: 'Phase Complete!', description: `${updatedProject.title} advanced to ${advanced.currentPhase.replace('-', ' ')}` });
               }
             }
             // Gate: require Director + Lead actor before entering production
@@ -1065,25 +1065,23 @@ export const StudioMagnateGame: React.FC<StudioMagnateGameProps> = ({
                 updatedProject = { ...updatedProject, phaseDuration: 2 };
                 toast({ title: 'Cast Required', description: 'Attach a Director and Lead before production', variant: 'destructive' });
               } else {
+                const advanced = advanceProjectState(updatedProject, 'advancePhase');
                 updatedProject = {
-                  ...updatedProject,
-                  currentPhase: nextPhase,
-                  phaseDuration: getPhaseWeeks(nextPhase),
-                  status: nextPhase as any
+                  ...advanced,
+                  phaseDuration: getPhaseWeeks(advanced.currentPhase),
                 };
-                toast({ title: 'Phase Complete!', description: `${updatedProject.title} advanced to ${nextPhase.replace('-', ' ')}` });
+                toast({ title: 'Phase Complete!', description: `${updatedProject.title} advanced to ${advanced.currentPhase.replace('-', ' ')}` });
               }
             }
             // Other early phases progress normally
             else {
-              const nextDuration = getPhaseWeeks(nextPhase);
+              const advanced = advanceProjectState(updatedProject, 'advancePhase');
+              const nextDuration = getPhaseWeeks(advanced.currentPhase);
               updatedProject = {
-                ...updatedProject,
-                currentPhase: nextPhase,
+                ...advanced,
                 phaseDuration: nextDuration,
-                status: nextPhase as any
               };
-              toast({ title: 'Phase Complete!', description: `${updatedProject.title} advanced to ${nextPhase.replace('-', ' ')}` });
+              toast({ title: 'Phase Complete!', description: `${updatedProject.title} advanced to ${advanced.currentPhase.replace('-', ' ')}` });
             }
           }
         } else {
@@ -1400,9 +1398,9 @@ export const StudioMagnateGame: React.FC<StudioMagnateGameProps> = ({
       try {
         AIStudioManager.processWeeklyAIFilms(newTimeState.currentWeek, newTimeState.currentYear);
         if (prev.competitorStudios.length > 0) {
-          const shouldStartAIFilm = (newTimeState.currentWeek % 4 === 1) || Math.random() < 0.35;
+          const shouldStartAIFilm = (newTimeState.currentWeek % 4 === 1) || rng.next() < 0.35;
           if (shouldStartAIFilm) {
-            const randomStudio = prev.competitorStudios[Math.floor(Math.random() * prev.competitorStudios.length)];
+            const randomStudio = prev.competitorStudios[rng.int(prev.competitorStudios.length)];
             AIStudioManager.createAIFilm(
               randomStudio,
               newTimeState.currentWeek,
@@ -1425,9 +1423,9 @@ export const StudioMagnateGame: React.FC<StudioMagnateGameProps> = ({
           updatedProjects = updatedProjects.map(project => {
             const releasingFilm = releasingFilms.find(rf => rf.id === project.id);
             if (releasingFilm) {
+              const premiered = advanceProjectState(project, 'premiere');
               return {
-                ...project,
-                status: 'released',
+                ...premiered,
                 releaseWeek: newTimeState.currentWeek,
                 releaseYear: newTimeState.currentYear
               };
@@ -1485,14 +1483,14 @@ export const StudioMagnateGame: React.FC<StudioMagnateGameProps> = ({
       updatedProjects = processWeeklyProjectEffects(updatedProjects, newTimeState);
 
       // Generate AI studio releases every 2-4 weeks
-      const shouldGenerateRelease = Math.random() < 0.3; // 30% chance each week
+      const shouldGenerateRelease = rng.next() < 0.3; // 30% chance each week
       let newAIReleases: Project[] = [];
       
       updateOperation(LOADING_OPERATIONS.WEEKLY_PROCESSING.id, 90, 'Finalizing updates...');
       
       if (shouldGenerateRelease && prev.competitorStudios.length > 0) {
         const studioGenerator = new StudioGenerator();
-        const randomStudio = prev.competitorStudios[Math.floor(Math.random() * prev.competitorStudios.length)];
+        const randomStudio = prev.competitorStudios[rng.int(prev.competitorStudios.length)];
         // Find corresponding studio profile by name
         const studioProfile = studioGenerator.getStudioProfile(randomStudio.name);
         if (studioProfile) {

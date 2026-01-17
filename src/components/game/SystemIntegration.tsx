@@ -5,6 +5,7 @@ import { CalendarManager } from './CalendarManager';
 import { FinancialEngine } from './FinancialEngine';
 import { ReleaseSystem } from './ReleaseSystem';
 import { ReputationSystem } from './ReputationSystem';
+import { getAllowedStatusesForPhase, isPhaseStatusCombinationValid } from '@/utils/projectState';
 
 export interface SystemHealthCheck {
   system: string;
@@ -37,16 +38,17 @@ export class SystemIntegration {
     tests.forEach(test => {
       try {
         const result = test.test(gameState);
-        
+
         const healthCheck: SystemHealthCheck = {
           system: test.name,
           status: result.passed ? 'healthy' : 'error',
           message: result.message,
           lastChecked: Date.now()
         };
-        
-        this.healthChecks.push(healthCheck);
-        
+
+        // Keep only a bounded history of recent health checks to avoid unbounded growth
+        this.healthChecks = [...this.healthChecks.slice(-19), healthCheck];
+
         if (!result.passed) {
           errors.push(`${test.name}: ${result.message}`);
         }
@@ -172,20 +174,70 @@ export class SystemIntegration {
             // Check if film has box office metrics
             if (!film.metrics?.boxOfficeTotal || film.metrics.boxOfficeTotal <= 0) {
               revenueFlowWorking = false;
-              message = `Film "${film.title}" has no box office revenue despite being released`;
+              message = `Film \"${film.title}\" has no box office revenue despite being released`;
             }
             
             // Check if financial transactions exist for this film
             const filmFinancials = FinancialEngine.getFilmFinancials(film.id);
             if (filmFinancials.revenue <= 0 && film.metrics?.boxOfficeTotal && film.metrics.boxOfficeTotal > 0) {
               revenueFlowWorking = false;
-              message = `Film "${film.title}" has box office but no financial transactions`;
+              message = `Film \"${film.title}\" has box office but no financial transactions`;
             }
           });
           
           return {
             passed: revenueFlowWorking,
             message: `${message} (${releasedFilms.length} released films)`
+          };
+        }
+      },
+
+      {
+        name: 'Financial Reconciliation',
+        description: 'Cross-check project financial metrics with ledger data',
+        test: (gameState) => {
+          const filmsWithMetrics = gameState.projects.filter(
+            p => p.status === 'released' && !!p.metrics?.financials
+          );
+
+          if (filmsWithMetrics.length === 0) {
+            return {
+              passed: true,
+              message: 'No released films with financial metrics to reconcile'
+            };
+          }
+
+          let reconciliationHealthy = true;
+          let message = 'Ledger and project financials broadly consistent';
+
+          filmsWithMetrics.forEach(project => {
+            const ledger = FinancialEngine.getFilmFinancials(project.id);
+            const metricsNet = project.metrics!.financials!.netProfit;
+
+            // If either side has essentially zero, skip strict comparison
+            const nearZeroLedger = Math.abs(ledger.profit) < project.budget.total * 0.05;
+            const nearZeroMetrics = Math.abs(metricsNet) < project.budget.total * 0.05;
+
+            if (nearZeroLedger && nearZeroMetrics) {
+              return;
+            }
+
+            // If signs disagree and discrepancy is material relative to budget, flag it
+            const signsDiffer = Math.sign(ledger.profit || 0) !== Math.sign(metricsNet || 0);
+            const discrepancy = Math.abs((ledger.profit || 0) - (metricsNet || 0));
+            const materialThreshold = project.budget.total * 0.25;
+
+            if (signsDiffer && discrepancy > materialThreshold) {
+              reconciliationHealthy = false;
+              message = `Financial mismatch for \"${project.title}\": metrics net ${metricsNet.toFixed(
+                0
+              )}k vs ledger ${ledger.profit.toFixed(0)}k`;
+            }
+          });
+
+          return {
+            passed: reconciliationHealthy,
+            message: `${message} (${filmsWithMetrics.length} films checked)`
           };
         }
       },
@@ -215,27 +267,6 @@ export class SystemIntegration {
             ['development', 'pre-production', 'production', 'post-production', 'marketing', 'release'].includes(p.currentPhase as any)
           );
           
-          const getAllowedStatusesForPhase = (phase: string): string[] => {
-            switch (phase) {
-              case 'development':
-                return ['development'];
-              case 'pre-production':
-                return ['pre-production'];
-              case 'production':
-                return ['production', 'filming'];
-              case 'post-production':
-                return ['post-production', 'completed', 'ready-for-marketing'];
-              case 'marketing':
-                return ['marketing', 'ready-for-marketing', 'ready-for-release'];
-              case 'release':
-                return ['release', 'ready-for-release', 'scheduled-for-release', 'released'];
-              case 'distribution':
-                return ['distribution', 'released', 'archived'];
-              default:
-                return [phase];
-            }
-          };
-          
           let progressionHealthy = true;
           let message = 'Project progression healthy';
           
@@ -247,12 +278,9 @@ export class SystemIntegration {
             }
             
             // Check if project status is compatible with current phase (allow meta-statuses)
-            if (project.currentPhase && project.status) {
-              const allowedStatuses = getAllowedStatusesForPhase(project.currentPhase);
-              if (!allowedStatuses.includes(project.status)) {
-                progressionHealthy = false;
-                message = `Project \"${project.title}\" has mismatched phase/status (${project.currentPhase}/${project.status})`;
-              }
+            if (!isPhaseStatusCombinationValid(project)) {
+              progressionHealthy = false;
+              message = `Project \"${project.title}\" has mismatched phase/status (${project.currentPhase}/${project.status})`;
             }
           });
           
@@ -317,26 +345,7 @@ export class SystemIntegration {
     // Sync project status with current phase, but respect meta-statuses like ready-for-marketing / ready-for-release
     fixedState.projects = fixedState.projects.map(project => {
       if (project.currentPhase && project.status) {
-        const allowedStatusesForPhase = ((phase: string): string[] => {
-          switch (phase) {
-            case 'development':
-              return ['development'];
-            case 'pre-production':
-              return ['pre-production'];
-            case 'production':
-              return ['production', 'filming'];
-            case 'post-production':
-              return ['post-production', 'completed', 'ready-for-marketing'];
-            case 'marketing':
-              return ['marketing', 'ready-for-marketing', 'ready-for-release'];
-            case 'release':
-              return ['release', 'ready-for-release', 'scheduled-for-release', 'released'];
-            case 'distribution':
-              return ['distribution', 'released', 'archived'];
-            default:
-              return [phase];
-          }
-        })(project.currentPhase);
+        const allowedStatusesForPhase = getAllowedStatusesForPhase(project.currentPhase);
         
         if (!allowedStatusesForPhase.includes(project.status)) {
           console.log(`FIXING: Syncing ${project.title} status to match phase ${project.currentPhase}`);

@@ -5,6 +5,7 @@ import { Button } from '@/components/ui/button';
 import { GameState, Project, TalentPerson, MediaItem } from '@/types/game';
 import { MediaEngine } from './MediaEngine';
 import { Newspaper, TrendingUp, MessageSquare, Eye, Users, Zap } from 'lucide-react';
+import { rng } from '@/utils/rng';
 
 interface MediaOutlet {
   id: string;
@@ -122,17 +123,17 @@ export const EnhancedMediaSystem: React.FC<EnhancedMediaSystemProps> = ({
     // Generate stories based on current game events
     gameState.projects.forEach(project => {
       // Production updates
-      if (project.currentPhase === 'production' && Math.random() < 0.3) {
+      if (project.currentPhase === 'production' && rng.next() < 0.3) {
         newStories.push(createProductionStory(project));
       }
       
       // Release coverage
-      if (project.status === 'released' && Math.random() < 0.6) {
+      if (project.status === 'released' && rng.next() < 0.6) {
         newStories.push(createBoxOfficeStory(project));
       }
       
       // Casting news
-      if (project.cast && project.cast.length > 0 && Math.random() < 0.2) {
+      if (project.cast && project.cast.length > 0 && rng.next() < 0.2) {
         newStories.push(createCastingStory(project));
       }
     });
@@ -140,18 +141,18 @@ export const EnhancedMediaSystem: React.FC<EnhancedMediaSystemProps> = ({
     // Generate AI studio coverage
     const aiProjects: Project[] = gameState.aiStudioProjects || [];
     aiProjects.forEach(project => {
-      if (Math.random() < 0.15) { // Less frequent than player studio
+      if (rng.next() < 0.15) { // Less frequent than player studio
         newStories.push(createAIStudioStory(project));
       }
     });
 
     // Random industry stories
-    if (Math.random() < 0.4) {
+    if (rng.next() < 0.4) {
       newStories.push(createRandomIndustryStory());
     }
 
     // Random talent stories
-    if (Math.random() < 0.3) {
+    if (rng.next() < 0.3) {
       newStories.push(createTalentStory());
     }
 
@@ -169,16 +170,16 @@ export const EnhancedMediaSystem: React.FC<EnhancedMediaSystemProps> = ({
     ];
     
     return {
-      id: `story-${Date.now()}-${Math.random().toString(36).substr(2, 9)}`,
+      id: `story-${Date.now()}-${rng.next().toString(36).substr(2, 9)}`,
       outlet,
-      headline: templates[Math.floor(Math.random() * templates.length)],
+      headline: templates[Math.floor(rng.next() * templates.length)],
       content: generateStoryContent(project, 'production'),
-      sentiment: Math.random() > 0.2 ? 'positive' : 'neutral',
+      sentiment: rng.next() > 0.2 ? 'positive' : 'neutral',
       targets: {
         studios: [gameState.studio.id],
         projects: [project.id]
       },
-      virality: Math.floor(Math.random() * 30) + 20,
+      virality: Math.floor(rng.next() * 30) + 20,
       week: gameState.currentWeek,
       year: gameState.currentYear,
       storyType: 'production'
@@ -214,18 +215,20 @@ export const EnhancedMediaSystem: React.FC<EnhancedMediaSystemProps> = ({
                      performance === 'modest' ? 'neutral' : 'negative';
     
     return {
-      id: `story-${Date.now()}-${Math.random().toString(36).substr(2, 9)}`,
+      id: `story-${Date.now()}-${rng.next().toString(36).substr(2, 9)}`,
       outlet,
-      headline: templates[performance][Math.floor(Math.random() * templates[performance].length)],
+      headline: templates[performance][Math.floor(rng.next() * templates[performance].length)],
       content: generateBoxOfficeContent(project, performance),
       sentiment,
       targets: {
         studios: [gameState.studio.id],
         projects: [project.id]
       },
-      virality: performance === 'hit' ? Math.floor(Math.random() * 40) + 40 : 
-                performance === 'disappointing' ? Math.floor(Math.random() * 50) + 30 : 
-                Math.floor(Math.random() * 25) + 15,
+      virality: performance === 'hit'
+        ? Math.floor(rng.next() * 40) + 40
+        : performance === 'disappointing'
+        ? Math.floor(rng.next() * 50) + 30
+        : Math.floor(rng.next() * 25) + 15,
       week: gameState.currentWeek,
       year: gameState.currentYear,
       storyType: 'boxoffice'
@@ -234,7 +237,7 @@ export const EnhancedMediaSystem: React.FC<EnhancedMediaSystemProps> = ({
 
   const createCastingStory = (project: Project): MediaStory => {
     const outlet = getRandomOutletByType(['trade', 'mainstream', 'online']);
-    const castMember = project.cast[Math.floor(Math.random() * project.cast.length)];
+    const castMember = project.cast[rng.int(project.cast.length)];
     const talent = gameState.talent.find(t => t.id === castMember.talentId);
     
     if (!talent) return createRandomIndustryStory(); // Fallback
@@ -247,9 +250,9 @@ export const EnhancedMediaSystem: React.FC<EnhancedMediaSystemProps> = ({
     ];
     
     return {
-      id: `story-${Date.now()}-${Math.random().toString(36).substr(2, 9)}`,
+      id: `story-${Date.now()}-${rng.next().toString(36).substr(2, 9)}`,
       outlet,
-      headline: templates[Math.floor(Math.random() * templates.length)],
+      headline: templates[Math.floor(rng.next() * templates.length)],
       content: generateCastingContent(project, talent),
       sentiment: 'positive',
       targets: {
@@ -257,7 +260,7 @@ export const EnhancedMediaSystem: React.FC<EnhancedMediaSystemProps> = ({
         projects: [project.id],
         talent: [talent.id]
       },
-      virality: Math.floor(talent.reputation / 2) + Math.floor(Math.random() * 20),
+      virality: Math.floor(talent.reputation / 2) + Math.floor(rng.next() * 20),
       week: gameState.currentWeek,
       year: gameState.currentYear,
       storyType: 'casting'
@@ -275,15 +278,15 @@ export const EnhancedMediaSystem: React.FC<EnhancedMediaSystemProps> = ({
     ];
     
     return {
-      id: `story-${Date.now()}-${Math.random().toString(36).substr(2, 9)}`,
+      id: `story-${Date.now()}-${rng.next().toString(36).substr(2, 9)}`,
       outlet,
-      headline: templates[Math.floor(Math.random() * templates.length)],
+      headline: templates[Math.floor(rng.next() * templates.length)],
       content: `${studioName} continues its production slate with "${project.title}", a ${genre} film. The project represents the studio's ongoing commitment to diverse storytelling.`,
       sentiment: 'neutral',
       targets: {
         projects: [project.id]
       },
-      virality: Math.floor(Math.random() * 15) + 10,
+      virality: Math.floor(rng.next() * 15) + 10,
       week: gameState.currentWeek,
       year: gameState.currentYear,
       storyType: 'production'
@@ -301,13 +304,13 @@ export const EnhancedMediaSystem: React.FC<EnhancedMediaSystemProps> = ({
     ];
     
     return {
-      id: `story-${Date.now()}-${Math.random().toString(36).substr(2, 9)}`,
+      id: `story-${Date.now()}-${rng.next().toString(36).substr(2, 9)}`,
       outlet,
-      headline: templates[Math.floor(Math.random() * templates.length)],
+      headline: templates[Math.floor(rng.next() * templates.length)],
       content: 'Industry insiders discuss the latest trends and developments affecting the entertainment landscape.',
       sentiment: 'neutral',
       targets: {},
-      virality: Math.floor(Math.random() * 20) + 10,
+      virality: Math.floor(rng.next() * 20) + 10,
       week: gameState.currentWeek,
       year: gameState.currentYear,
       storyType: 'interview'
@@ -315,11 +318,11 @@ export const EnhancedMediaSystem: React.FC<EnhancedMediaSystemProps> = ({
   };
 
   const createTalentStory = (): MediaStory => {
-    const talent = gameState.talent[Math.floor(Math.random() * gameState.talent.length)];
+    const talent = gameState.talent[rng.int(gameState.talent.length)];
     const outlet = getRandomOutletByType(['tabloid', 'mainstream', 'online']);
     
     const storyTypes = outlet.type === 'tabloid' ? ['scandal', 'rumor'] : ['interview', 'profile'];
-    const storyType = storyTypes[Math.floor(Math.random() * storyTypes.length)];
+    const storyType = storyTypes[rng.int(storyTypes.length)];
     
     const templates = {
       interview: [
@@ -343,15 +346,15 @@ export const EnhancedMediaSystem: React.FC<EnhancedMediaSystemProps> = ({
                      storyType === 'rumor' ? 'neutral' : 'positive';
     
     return {
-      id: `story-${Date.now()}-${Math.random().toString(36).substr(2, 9)}`,
+      id: `story-${Date.now()}-${rng.next().toString(36).substr(2, 9)}`,
       outlet,
-      headline: templates[storyType as keyof typeof templates][Math.floor(Math.random() * templates[storyType as keyof typeof templates].length)],
+      headline: templates[storyType as keyof typeof templates][Math.floor(rng.next() * templates[storyType as keyof typeof templates].length)],
       content: generateTalentContent(talent, storyType),
       sentiment,
       targets: {
         talent: [talent.id]
       },
-      virality: Math.floor(talent.reputation / 3) + Math.floor(Math.random() * 30),
+      virality: Math.floor(talent.reputation / 3) + Math.floor(rng.next() * 30),
       week: gameState.currentWeek,
       year: gameState.currentYear,
       storyType: storyType as any
@@ -360,7 +363,7 @@ export const EnhancedMediaSystem: React.FC<EnhancedMediaSystemProps> = ({
 
   const getRandomOutletByType = (types: string[]): MediaOutlet => {
     const validOutlets = MEDIA_OUTLETS.filter(outlet => types.includes(outlet.type));
-    return validOutlets[Math.floor(Math.random() * validOutlets.length)];
+    return validOutlets[rng.int(validOutlets.length)];
   };
 
   const generateStoryContent = (project: Project, type: string): string => {
