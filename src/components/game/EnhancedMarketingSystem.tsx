@@ -8,6 +8,7 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@
 import { useToast } from '@/hooks/use-toast';
 import { Project, GameState } from '@/types/game';
 import { TrendingUp, Target, Zap, Users, Globe, Tv, Radio, Newspaper, Play, Monitor } from 'lucide-react';
+import { advanceProjectState } from '@/utils/projectState';
 
 interface EnhancedMarketingSystemProps {
   project: Project;
@@ -256,19 +257,24 @@ export const EnhancedMarketingSystem: React.FC<EnhancedMarketingSystemProps> = (
           }))
         ]
       },
-      // Mark as ready for release planning when marketing completed
+      // Mark as ready for release planning once sufficient marketing has been run
       readyForRelease: true
     };
 
-    // For films, also explicitly move into release-ready status so the release planner unlocks
+    // For films, move into the canonical "ready-for-release" state via the shared helper
     const updates: Partial<Project> =
       project.type === 'series' || project.type === 'limited-series'
         ? baseUpdates
-        : {
-            ...baseUpdates,
-            status: 'ready-for-release' as any,
-            currentPhase: 'release' as any
-          };
+        : (() => {
+            const advanced = advanceProjectState(project, 'markReadyForRelease');
+            return {
+              ...baseUpdates,
+              currentPhase: advanced.currentPhase,
+              status: advanced.status,
+              readyForRelease: advanced.readyForRelease,
+              phaseDuration: advanced.phaseDuration
+            };
+          })();
 
     onUpdateProject(project.id, updates);
 
