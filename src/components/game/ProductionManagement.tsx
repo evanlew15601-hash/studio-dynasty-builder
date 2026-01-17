@@ -17,6 +17,7 @@ import {
   ScriptIcon,
   AlertIcon
 } from '@/components/ui/icons';
+import { advanceProjectState } from '@/utils/projectState';
 
 interface ProductionManagementProps {
   gameState: GameState;
@@ -59,36 +60,28 @@ export const ProductionManagement: React.FC<ProductionManagementProps> = ({
           return;
         }
         updatedProject = {
-          ...updatedProject,
-          currentPhase: 'pre-production',
-          status: 'pre-production',
+          ...advanceProjectState(updatedProject, 'advancePhase'),
           phaseDuration: 4 // 4 weeks for pre-production
         };
         break;
       case 'pre-production':
         updatedProject = {
-          ...updatedProject,
-          currentPhase: 'production',
-          status: 'filming',
+          ...advanceProjectState(updatedProject, 'advancePhase'),
           phaseDuration: 8 // 8 weeks for production
         };
         break;
       case 'production':
         updatedProject = {
-          ...updatedProject,
-          currentPhase: 'post-production',
-          status: 'post-production',
+          ...advanceProjectState(updatedProject, 'advancePhase'),
           phaseDuration: 6 // 6 weeks for post-production
         };
         break;
       case 'post-production':
         // ADVANCE to marketing phase when button is clicked
+        updatedProject = advanceProjectState(updatedProject, 'markReadyForMarketing');
         updatedProject = {
           ...updatedProject,
-          currentPhase: 'marketing',
-          status: 'ready-for-marketing' as any,
           phaseDuration: -1, // Manual control - wait for marketing campaign
-          readyForMarketing: true
         };
         toast({
           title: "Post-Production Complete!",

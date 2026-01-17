@@ -19,6 +19,7 @@ import {
   ScriptIcon,
   AlertIcon
 } from '@/components/ui/icons';
+import { advanceProjectState } from '@/utils/projectState';
 
 interface TVProductionManagementProps {
   gameState: GameState;
@@ -67,6 +68,7 @@ export const TVProductionManagement: React.FC<TVProductionManagementProps> = ({
           });
           return;
         }
+        // TV: keep manual phase transition semantics
         updatedProject = {
           ...updatedProject,
           currentPhase: 'pre-production',
@@ -91,13 +93,11 @@ export const TVProductionManagement: React.FC<TVProductionManagementProps> = ({
         };
         break;
       case 'post-production':
-        // ADVANCE to marketing phase when button is clicked - same as films
+        // ADVANCE to marketing phase when button is clicked - shared helper for ready-for-marketing meta-state
+        updatedProject = advanceProjectState(updatedProject, 'markReadyForMarketing');
         updatedProject = {
           ...updatedProject,
-          currentPhase: 'marketing',
-          status: 'ready-for-marketing',
           phaseDuration: -1, // Manual control until marketing campaign starts
-          readyForMarketing: true,
           // Initialize marketing data for TV - essential for showing budget
           marketingData: {
             totalSpent: 0,
