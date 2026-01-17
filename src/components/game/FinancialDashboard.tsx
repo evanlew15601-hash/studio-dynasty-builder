@@ -95,6 +95,38 @@ export const FinancialDashboard: React.FC<FinancialDashboardProps> = ({
     );
     return { ...totals, net: totals.revenue - totals.expenses };
   })();
+
+  // Reconciliation between ledger and project-level financial metrics
+  const reconciliationRows = projects
+    .filter(p => p.status === 'released' && p.metrics?.financials)
+    .map(p => {
+      const ledger = FinancialEngine.getFilmFinancials(p.id);
+      const metricsNet = p.metrics!.financials!.netProfit;
+      const budget = p.budget?.total || p.script?.budget || 0;
+
+      const nearZeroLedger = budget > 0 ? Math.abs(ledger.profit) < budget * 0.05 : Math.abs(ledger.profit) < 1_000;
+      const nearZeroMetrics = budget > 0 ? Math.abs(metricsNet) < budget * 0.05 : Math.abs(metricsNet) < 1_000;
+
+      const signsDiffer =
+        Math.sign(ledger.profit || 0) !== Math.sign(metricsNet || 0);
+      const discrepancy = Math.abs((ledger.profit || 0) - (metricsNet || 0));
+      const materialThreshold = budget > 0 ? budget * 0.25 : 5_000_000;
+
+      const flagged =
+        !nearZeroLedger &&
+        !nearZeroMetrics &&
+        signsDiffer &&
+        discrepancy > materialThreshold;
+
+      return {
+        project: p,
+        ledgerProfit: ledger.profit,
+        metricsNet,
+        discrepancy,
+        flagged,
+      };
+    })
+    .sort((a, b) => Math.abs(b.discrepancy) - Math.abs(a.discrepancy));
   
   // Category breakdown for pie chart
   const getCategoryBreakdown = () => {
@@ -351,7 +383,7 @@ export const FinancialDashboard: React.FC<FinancialDashboardProps> = ({
                     <Cell key={`cell-${index}`} fill={COLORS[index % COLORS.length]} />
                   ))}
                 </Pie>
-                <Tooltip formatter={(value: number) => [`$${(value/1000).toFixed(0)}k`, '']} />
+                <Tooltip formatter={(value: number) => [`${(value/1000).toFixed(0)}k`, '']} />
               </PieChart>
             </ResponsiveContainer>
           </CardContent>
@@ -388,6 +420,52 @@ export const FinancialDashboard: React.FC<FinancialDashboardProps> = ({
           </CardContent>
         </Card>
       </div>
+
+      {/* Ledger vs Metrics Reconciliation */}
+      {reconciliationRows.length > 0 && (
+        <Card className="card-premium">
+          <CardHeader>
+            <CardTitle className="flex items-center font-studio text-primary">
+              <Activity className="mr-2" size={20} />
+              Financial Reconciliation (Ledger vs Metrics)
+            </CardTitle>
+          </CardHeader>
+          <CardContent>
+            <div className="space-y-2 max-h-64 overflow-y-auto text-xs">
+              {reconciliationRows.slice(0, 12).map(row => (
+                <div
+                  key={row.project.id}
+                  className={`flex justify-between items-center p-2 rounded border ${
+                    row.flagged
+                      ? 'border-red-500/60 bg-red-50/60'
+                      : 'border-border/50 bg-card/50'
+                  }`}
+                >
+                  <div className="truncate max-w-[60%]">
+                    <div className="font-medium truncate">
+                      {row.project.title}
+                    </div>
+                    <div className="text-muted-foreground">
+                      Metrics net: ${(row.metricsNet / 1000).toFixed(0)}k • Ledger profit:{' '}
+                      ${(row.ledgerProfit / 1000).toFixed(0)}k
+                    </div>
+                  </div>
+                  {row.flagged && (
+                    <Badge variant="destructive" className="ml-2">
+                      Mismatch
+                    </Badge>
+                  )}
+                </div>
+              ))}
+              {reconciliationRows.filter(r => r.flagged).length === 0 && (
+                <div className="text-muted-foreground">
+                  No material sign mismatches between ledger profits and project metrics.
+                </div>
+              )}
+            </div>
+          </CardContent>
+        </Card>
+      )}
 
       {/* Debug Panel */}
       <Card className="card-premium border-dashed">
