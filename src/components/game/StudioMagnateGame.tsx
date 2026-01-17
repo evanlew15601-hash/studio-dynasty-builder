@@ -1432,9 +1432,9 @@ export const StudioMagnateGame: React.FC<StudioMagnateGameProps> = ({
           updatedProjects = updatedProjects.map(project => {
             const releasingFilm = releasingFilms.find(rf => rf.id === project.id);
             if (releasingFilm) {
+              const premiered = advanceProjectState(project, 'premiere');
               return {
-                ...project,
-                status: 'released',
+                ...premiered,
                 releaseWeek: newTimeState.currentWeek,
                 releaseYear: newTimeState.currentYear
               };

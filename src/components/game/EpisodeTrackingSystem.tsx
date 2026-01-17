@@ -14,6 +14,7 @@ import { GameState, Project } from '@/types/game';
 import { Play, Users, Clock, TrendingUp, Calendar, BarChart3, Star, Edit, Zap, Settings } from 'lucide-react';
 import { TVRatingsSystem } from './TVRatingsSystem';
 import { rng } from '@/utils/rng';
+import { advanceProjectState } from '@/utils/projectState';
 
 interface EpisodeTrackingSystemProps {
   gameState: GameState;
@@ -235,10 +236,9 @@ export const EpisodeTrackingSystem: React.FC<EpisodeTrackingSystemProps> = ({
     }
 
     onProjectUpdate(freshProject.id, {
-      ...updatedProject,
+      ...advanceProjectState(updatedProject, 'premiere'),
       seasons: freshProject.seasons,
-      releaseFormat: format,
-      status: 'released' // Ensure it's marked as released
+      releaseFormat: format
     });
 
     const formatNames = {
