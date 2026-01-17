@@ -7,6 +7,7 @@ import { Calendar, Target, DollarSign, TrendingUp, Tv } from 'lucide-react';
 import { Project, GameState } from '@/types/game';
 import { ReleaseSystem } from './ReleaseSystem';
 import { useToast } from '@/hooks/use-toast';
+import { advanceProjectState } from '@/utils/projectState';
 
 interface ReleaseStrategyModalProps {
   project: Project | null;
@@ -78,10 +79,16 @@ export const ReleaseStrategyModal: React.FC<ReleaseStrategyModalProps> = ({
     console.log('RELEASE_MODAL: schedule result', result);
 
     if (result.success) {
+      // Use shared state helper so phase/status stay consistent with the global state machine
+      const advanced = advanceProjectState(project, 'scheduleRelease');
+
       onProjectUpdate(project.id, {
+        currentPhase: advanced.currentPhase,
+        status: advanced.status,
+        readyForRelease: advanced.readyForRelease,
+        phaseDuration: advanced.phaseDuration,
         releaseWeek: result.releaseWeek,
-        releaseYear: result.releaseYear,
-        status: 'scheduled-for-release'
+        releaseYear: result.releaseYear
       });
 
       toast({

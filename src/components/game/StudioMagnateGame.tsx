@@ -911,7 +911,7 @@ export const StudioMagnateGame: React.FC<StudioMagnateGameProps> = ({
          }
        }
 
-  // Process marketing campaigns and advance to release phase when complete
+  // Process marketing campaigns (weekly tick); actual phase transition is handled by the shared state helper
   if (updatedProject.marketingCampaign && updatedProject.marketingCampaign.weeksRemaining > 0) {
     const updatedActivities = updatedProject.marketingCampaign.activities.map(activity => ({
       ...activity,
@@ -930,17 +930,8 @@ export const StudioMagnateGame: React.FC<StudioMagnateGameProps> = ({
       }
     };
 
-    // When marketing is complete, move to release phase
-    if (newWeeksRemaining === 0) {
-      if (import.meta.env.DEV) {
-        console.log(`🎬 MARKETING COMPLETE: ${project.title} - Moving to release phase`);
-      }
-      updatedProject = {
-        ...updatedProject,
-        currentPhase: 'release',
-        status: 'ready-for-release',
-        readyForRelease: true
-      };
+    if (import.meta.env.DEV && newWeeksRemaining === 0) {
+      console.log(`🎬 MARKETING COMPLETE: ${project.title} - Campaign finished, awaiting release gating`);
     }
   }
 

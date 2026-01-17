@@ -17,6 +17,7 @@ import {
   BoxOfficeIcon,
   AwardIcon
 } from '@/components/ui/icons';
+import { advanceProjectState } from '@/utils/projectState';
 
 interface MarketingReleaseManagementProps {
   gameState: GameState;
@@ -356,9 +357,14 @@ export const MarketingReleaseManagement: React.FC<MarketingReleaseManagementProp
             if (onMarketingCampaignCreate) {
               onMarketingCampaignCreate(selectedProject, strategy, budget, duration);
             } else {
-              // Fallback handling
+              // Fallback handling: start marketing phase when a campaign is created
+              const marketingStarted = advanceProjectState(
+                selectedProject,
+                'startMarketing'
+              );
+
               const updatedProject = {
-                ...selectedProject,
+                ...marketingStarted,
                 marketingCampaign: {
                   id: `campaign-${Date.now()}`,
                   strategy,
