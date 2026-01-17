@@ -174,20 +174,70 @@ export class SystemIntegration {
             // Check if film has box office metrics
             if (!film.metrics?.boxOfficeTotal || film.metrics.boxOfficeTotal <= 0) {
               revenueFlowWorking = false;
-              message = `Film "${film.title}" has no box office revenue despite being released`;
+              message = `Film \"${film.title}\" has no box office revenue despite being released`;
             }
             
             // Check if financial transactions exist for this film
             const filmFinancials = FinancialEngine.getFilmFinancials(film.id);
             if (filmFinancials.revenue <= 0 && film.metrics?.boxOfficeTotal && film.metrics.boxOfficeTotal > 0) {
               revenueFlowWorking = false;
-              message = `Film "${film.title}" has box office but no financial transactions`;
+              message = `Film \"${film.title}\" has box office but no financial transactions`;
             }
           });
           
           return {
             passed: revenueFlowWorking,
             message: `${message} (${releasedFilms.length} released films)`
+          };
+        }
+      },
+
+      {
+        name: 'Financial Reconciliation',
+        description: 'Cross-check project financial metrics with ledger data',
+        test: (gameState) => {
+          const filmsWithMetrics = gameState.projects.filter(
+            p => p.status === 'released' && !!p.metrics?.financials
+          );
+
+          if (filmsWithMetrics.length === 0) {
+            return {
+              passed: true,
+              message: 'No released films with financial metrics to reconcile'
+            };
+          }
+
+          let reconciliationHealthy = true;
+          let message = 'Ledger and project financials broadly consistent';
+
+          filmsWithMetrics.forEach(project => {
+            const ledger = FinancialEngine.getFilmFinancials(project.id);
+            const metricsNet = project.metrics!.financials!.netProfit;
+
+            // If either side has essentially zero, skip strict comparison
+            const nearZeroLedger = Math.abs(ledger.profit) < project.budget.total * 0.05;
+            const nearZeroMetrics = Math.abs(metricsNet) < project.budget.total * 0.05;
+
+            if (nearZeroLedger && nearZeroMetrics) {
+              return;
+            }
+
+            // If signs disagree and discrepancy is material relative to budget, flag it
+            const signsDiffer = Math.sign(ledger.profit || 0) !== Math.sign(metricsNet || 0);
+            const discrepancy = Math.abs((ledger.profit || 0) - (metricsNet || 0));
+            const materialThreshold = project.budget.total * 0.25;
+
+            if (signsDiffer && discrepancy > materialThreshold) {
+              reconciliationHealthy = false;
+              message = `Financial mismatch for \"${project.title}\": metrics net ${metricsNet.toFixed(
+                0
+              )}k vs ledger ${ledger.profit.toFixed(0)}k`;
+            }
+          });
+
+          return {
+            passed: reconciliationHealthy,
+            message: `${message} (${filmsWithMetrics.length} films checked)`
           };
         }
       },
