@@ -31,7 +31,29 @@ export const TVShowDevelopment: React.FC<TVShowDevelopmentProps> = ({
   const { toast } = useToast();
   
   const [isCreating, setIsCreating] = useState(false);
+  const [editingScript, setEditingScript] = useState<Script | null>(null);
   const [scriptCharacters, setScriptCharacters] = useState<ScriptCharacter[]>([]);
+
+  const stageOrder: Script['developmentStage'][] = ['concept', 'treatment', 'first-draft', 'polish', 'final'];
+
+  const handleEditTVScript = (script: Script) => {
+    setEditingScript(script);
+    setNewScript({
+      ...script,
+    });
+    setScriptCharacters((script.characters || []).map(c => ({
+      id: c.id,
+      name: c.name,
+      description: c.description || '',
+      importance: (c.importance === 'minor' ? 'supporting' : c.importance) as 'lead' | 'supporting' | 'crew',
+      traits: c.traits || [],
+      requiredType: c.requiredType,
+      ageRange: (c as any).ageRange || [20, 60] as [number, number],
+      screenTimeMinutes: (c as any).screenTimeMinutes || 10,
+      requiredTraits: (c as any).requiredTraits || [],
+    })));
+    setIsCreating(true);
+  };
   
   // Auto-fill script based on selected franchise or PD for TV shows
   const getInitialTVScript = (): Partial<Script> => {
@@ -144,7 +166,7 @@ export const TVShowDevelopment: React.FC<TVShowDevelopmentProps> = ({
     }
 
     const script: Script = {
-      id: `tv-script-${Date.now()}`,
+      id: editingScript ? editingScript.id : `tv-script-${Date.now()}`,
       title: newScript.title!,
       genre: newScript.genre as Genre,
       logline: newScript.logline!,
@@ -152,7 +174,7 @@ export const TVShowDevelopment: React.FC<TVShowDevelopmentProps> = ({
       pages: newScript.pages || 60,
       quality: newScript.quality || 50,
       budget: newScript.budget || 2000000,
-      developmentStage: 'concept',
+      developmentStage: newScript.developmentStage || 'concept',
       themes: newScript.themes || [],
       targetAudience: newScript.targetAudience!,
       estimatedRuntime: newScript.estimatedRuntime || 45,
@@ -173,18 +195,31 @@ export const TVShowDevelopment: React.FC<TVShowDevelopmentProps> = ({
 
     onScriptUpdate(script);
     setIsCreating(false);
+    setEditingScript(null);
     
     // Reset form to default state
     setNewScript(getInitialTVScript());
     setScriptCharacters([]);
     
     toast({
-      title: "TV Script Created",
-      description: `"${script.title}" has been added to your development slate with ${scriptCharacters.length} character roles.`,
+      title: editingScript ? "TV Script Updated" : "TV Script Created",
+      description: editingScript
+        ? `"${script.title}" has been updated. Continue refining or greenlight when ready.`
+        : `"${script.title}" has been added to your development slate with ${scriptCharacters.length} character roles.`,
     });
   };
 
   const handleGreenlightTVScript = (script: Script) => {
+    // Enforce script refinement gate — same as film scripts
+    if (script.developmentStage !== 'final') {
+      toast({
+        title: "Script Not Ready",
+        description: "Refine the TV script to 'Final' stage before greenlighting. Edit the script to advance its stage.",
+        variant: "destructive"
+      });
+      return;
+    }
+
     // Assume a standard 13-episode season when checking budget so this matches project creation
     const assumedEpisodeCount = 13;
     const seasonBudget = script.budget * assumedEpisodeCount;
@@ -424,6 +459,31 @@ export const TVShowDevelopment: React.FC<TVShowDevelopmentProps> = ({
               </div>
             </div>
 
+            {/* Development Stage (for editing) */}
+            {editingScript && (
+              <div className="border-t pt-4">
+                <Label>Development Stage</Label>
+                <Select 
+                  value={newScript.developmentStage || 'concept'} 
+                  onValueChange={(value) => setNewScript(prev => ({ ...prev, developmentStage: value as Script['developmentStage'] }))}
+                >
+                  <SelectTrigger>
+                    <SelectValue />
+                  </SelectTrigger>
+                  <SelectContent>
+                    {stageOrder.map(stage => (
+                      <SelectItem key={stage} value={stage} className="capitalize">
+                        {stage.replace('-', ' ')}
+                      </SelectItem>
+                    ))}
+                  </SelectContent>
+                </Select>
+                <p className="text-xs text-muted-foreground mt-1">
+                  Scripts must reach "Final" stage before they can be greenlit into production.
+                </p>
+              </div>
+            )}
+
             {/* Character Manager */}
             <div className="border-t pt-6">
               <ScriptCharacterManager
@@ -437,6 +497,7 @@ export const TVShowDevelopment: React.FC<TVShowDevelopmentProps> = ({
                 variant="outline" 
                 onClick={() => {
                   setIsCreating(false);
+                  setEditingScript(null);
                   setScriptCharacters([]);
                 }}
               >
@@ -447,7 +508,7 @@ export const TVShowDevelopment: React.FC<TVShowDevelopmentProps> = ({
                 className="btn-studio animate-glow"
               >
                 <ScriptIcon className="mr-2" size={16} />
-                Create TV Script
+                {editingScript ? 'Update TV Script' : 'Create TV Script'}
               </Button>
             </div>
           </CardContent>
@@ -471,7 +532,12 @@ export const TVShowDevelopment: React.FC<TVShowDevelopmentProps> = ({
             </div>
           ) : (
             <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
-              {availableTVScripts.map((script) => (
+              {availableTVScripts.map((script) => {
+                const stageIndex = stageOrder.indexOf(script.developmentStage || 'concept');
+                const stageProgress = ((stageIndex + 1) / stageOrder.length) * 100;
+                const isReadyToGreenlight = script.developmentStage === 'final';
+
+                return (
                 <Card 
                   key={script.id} 
                   className="border-border hover:border-primary/40 transition-colors"
@@ -480,8 +546,8 @@ export const TVShowDevelopment: React.FC<TVShowDevelopmentProps> = ({
                     <CardTitle className="text-base truncate">{script.title}</CardTitle>
                     <div className="flex items-center space-x-2">
                       <Badge variant="outline">{script.genre}</Badge>
-                      <Badge variant="secondary" className="text-xs">
-                        {script.developmentStage}
+                      <Badge variant={isReadyToGreenlight ? 'default' : 'secondary'} className="text-xs capitalize">
+                        {(script.developmentStage || 'concept').replace('-', ' ')}
                       </Badge>
                       <Badge variant="outline" className="text-xs">
                         {script.estimatedRuntime}min
@@ -493,6 +559,20 @@ export const TVShowDevelopment: React.FC<TVShowDevelopmentProps> = ({
                       <p className="text-sm text-muted-foreground line-clamp-2">
                         {script.logline}
                       </p>
+
+                      {/* Development Stage Progress */}
+                      <div className="space-y-1">
+                        <div className="flex justify-between text-xs text-muted-foreground">
+                          <span>Script Stage</span>
+                          <span className="capitalize">{(script.developmentStage || 'concept').replace('-', ' ')}</span>
+                        </div>
+                        <div className="w-full bg-muted rounded-full h-1.5">
+                          <div 
+                            className="bg-primary rounded-full h-1.5 transition-all" 
+                            style={{ width: `${stageProgress}%` }}
+                          />
+                        </div>
+                      </div>
                       
                       <div className="space-y-2 text-xs">
                         <div className="flex justify-between">
@@ -509,21 +589,36 @@ export const TVShowDevelopment: React.FC<TVShowDevelopmentProps> = ({
                         </div>
                       </div>
 
-                      <div className="pt-2">
+                      <div className="pt-2 flex gap-2">
                         <Button 
                           size="sm" 
-                          className="w-full"
+                          variant="outline"
+                          className="flex-1"
+                          onClick={() => handleEditTVScript(script)}
+                        >
+                          ✏️ Edit
+                        </Button>
+                        <Button 
+                          size="sm" 
+                          className={`flex-1 ${!isReadyToGreenlight ? 'opacity-60' : ''}`}
                           onClick={() => handleGreenlightTVScript(script)}
                           disabled={gameState.studio.budget < script.budget * 0.1}
+                          title={!isReadyToGreenlight ? 'Refine the script to "final" stage before greenlighting' : ''}
                         >
-                          <ClapperboardIcon className="w-4 h-4 mr-2" />
-                          Greenlight Series
+                          <ClapperboardIcon className="w-4 h-4 mr-1" />
+                          {isReadyToGreenlight ? 'Greenlight' : 'Not Ready'}
                         </Button>
                       </div>
+                      {!isReadyToGreenlight && (
+                        <p className="text-xs text-muted-foreground text-center">
+                          Edit and advance to "final" stage to greenlight
+                        </p>
+                      )}
                     </div>
                   </CardContent>
                 </Card>
-              ))}
+                );
+              })}
             </div>
           )}
         </CardContent>

@@ -2189,7 +2189,24 @@ export const StudioMagnateGame: React.FC<StudioMagnateGameProps> = ({
             />
             <SequelManagementComponent
               gameState={gameState}
-              onProjectCreate={handleProjectCreate}
+              onProjectCreate={(script) => {
+                // Route sequel scripts to Script Development for refinement instead of instant project creation
+                setSelectedFranchise(script.franchiseId || null);
+                setSelectedPublicDomain(null);
+                handlePhaseChange('scripts');
+
+                setGameState(prev => ({
+                  ...prev,
+                  scripts: prev.scripts.some(s => s.id === script.id)
+                    ? prev.scripts.map(s => s.id === script.id ? script : s)
+                    : [...prev.scripts, script]
+                }));
+
+                toast({
+                  title: 'Sequel Script Created',
+                  description: `"${script.title}" has been added to Script Development. Refine it to "final" stage before greenlighting.`,
+                });
+              }}
               onProjectUpdate={handleProjectUpdate}
               onCreateFranchise={handleCreateFranchise}
             />
