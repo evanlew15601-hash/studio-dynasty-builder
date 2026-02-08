@@ -31,6 +31,7 @@ export const ScriptDevelopment: React.FC<ScriptDevelopmentProps> = ({
   const { toast } = useToast();
   
   const [isCreating, setIsCreating] = useState(false);
+  const [editingScript, setEditingScript] = useState<Script | null>(null);
   
   // Auto-fill script based on selected franchise or PD
   const getInitialScript = (): Partial<Script> => {
@@ -172,6 +173,22 @@ return {
     'superhero', 'family', 'sports', 'historical'
   ];
 
+  const handleEditScript = (script: Script) => {
+    setEditingScript(script);
+    setNewScript({ ...script });
+    setScriptCharacters(script.characters?.map(c => ({
+      id: c.id,
+      name: c.name,
+      importance: c.importance === 'crew' ? 'supporting' : c.importance as any,
+      screenTimeMinutes: c.importance === 'lead' ? 60 : 25,
+      description: c.description || '',
+      ageRange: (c.ageRange as [number, number]) || [25, 45],
+      requiredTraits: [],
+      requiredType: c.requiredType,
+    })) || []);
+    setIsCreating(true);
+  };
+
   const handleCreateScript = () => {
     if (!newScript.title || !newScript.logline) {
       toast({
@@ -183,7 +200,7 @@ return {
     }
 
     const script: Script = {
-      id: `script-${Date.now()}`,
+      id: editingScript?.id || `script-${Date.now()}`,
       title: newScript.title!,
       genre: newScript.genre!,
       logline: newScript.logline!,
@@ -204,23 +221,38 @@ return {
         criticalPotential: 5,
         cgiIntensity: 'minimal'
       },
-      characters: scriptCharacters
+      characters: scriptCharacters,
+      sourceType: newScript.sourceType as any,
+      franchiseId: newScript.franchiseId as any,
+      publicDomainId: newScript.publicDomainId as any,
     };
 
     onScriptUpdate(script);
     setIsCreating(false);
+    setEditingScript(null);
     
-    // Reset form to default state (clears franchise/PD selection)
+    // Reset form to default state
     setNewScript(getInitialScript());
     setScriptCharacters([]);
     
     toast({
-      title: "Script Created",
-      description: `"${script.title}" has been added to your development slate with ${scriptCharacters.length} character roles.`,
+      title: editingScript ? "Script Updated" : "Script Created",
+      description: editingScript
+        ? `"${script.title}" has been updated. Continue refining or greenlight when ready.`
+        : `"${script.title}" has been added to your development slate with ${scriptCharacters.length} character roles.`,
     });
   };
 
   const handleGreenlightScript = (script: Script) => {
+    if (script.developmentStage !== 'final') {
+      toast({
+        title: "Script Not Ready",
+        description: "Refine the script to 'Final' stage before greenlighting. Edit the script to advance its stage.",
+        variant: "destructive"
+      });
+      return;
+    }
+
     if (gameState.studio.budget < script.budget * 0.1) {
       toast({
         title: "Insufficient Budget",
@@ -318,7 +350,7 @@ return {
               <div className="p-2 rounded-lg bg-gradient-to-r from-primary/20 to-accent/20 mr-3">
                 <ScriptIcon className="text-primary" size={20} />
               </div>
-              Script Development Workshop
+              {editingScript ? `Editing: ${editingScript.title}` : 'Script Development Workshop'}
             </CardTitle>
           </CardHeader>
           <CardContent className="space-y-6">
@@ -376,6 +408,28 @@ return {
                       ))}
                     </SelectContent>
                   </Select>
+                </div>
+
+                <div>
+                  <Label htmlFor="stage">Development Stage</Label>
+                  <Select
+                    value={newScript.developmentStage || 'concept'}
+                    onValueChange={(value) => setNewScript(prev => ({ ...prev, developmentStage: value as Script['developmentStage'] }))}
+                  >
+                    <SelectTrigger className="mt-1">
+                      <SelectValue />
+                    </SelectTrigger>
+                    <SelectContent>
+                      <SelectItem value="concept">Concept</SelectItem>
+                      <SelectItem value="treatment">Treatment</SelectItem>
+                      <SelectItem value="first-draft">First Draft</SelectItem>
+                      <SelectItem value="polish">Polish</SelectItem>
+                      <SelectItem value="final">Final</SelectItem>
+                    </SelectContent>
+                  </Select>
+                  <p className="text-xs text-muted-foreground mt-1">
+                    Scripts must reach "Final" stage to be greenlit
+                  </p>
                 </div>
               </div>
 
@@ -478,6 +532,7 @@ return {
                 variant="outline" 
                 onClick={() => {
                   setIsCreating(false);
+                  setEditingScript(null);
                   setScriptCharacters([]);
                 }}
               >
@@ -488,7 +543,7 @@ return {
                 className="btn-studio animate-glow"
               >
                 <ScriptIcon className="mr-2" size={16} />
-                Create Script
+                {editingScript ? 'Save Changes' : 'Create Script'}
               </Button>
             </div>
           </CardContent>
@@ -512,18 +567,33 @@ return {
             </div>
           ) : (
             <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
-              {availableScripts.map((script) => (
+              {availableScripts.map((script) => {
+                const stageOrder = ['concept', 'treatment', 'first-draft', 'polish', 'final'];
+                const stageIndex = stageOrder.indexOf(script.developmentStage);
+                const stageProgress = ((stageIndex + 1) / stageOrder.length) * 100;
+                const isReadyToGreenlight = script.developmentStage === 'final';
+
+                return (
                 <Card 
                   key={script.id} 
-                  className="border-border hover:border-primary/40 transition-colors"
+                  className={`border-border hover:border-primary/40 transition-colors ${isReadyToGreenlight ? 'ring-1 ring-primary/30' : ''}`}
                 >
                   <CardHeader className="pb-3">
                     <CardTitle className="text-base truncate">{script.title}</CardTitle>
-                    <div className="flex items-center space-x-2">
+                    <div className="flex items-center space-x-2 flex-wrap gap-1">
                       <Badge variant="outline">{script.genre}</Badge>
-                      <Badge variant="secondary" className="text-xs">
+                      <Badge 
+                        variant={isReadyToGreenlight ? 'default' : 'secondary'} 
+                        className="text-xs"
+                      >
                         {script.developmentStage}
                       </Badge>
+                      {script.sourceType === 'franchise' && (
+                        <Badge variant="outline" className="text-xs border-primary/40 text-primary">Franchise</Badge>
+                      )}
+                      {script.sourceType === 'public-domain' && (
+                        <Badge variant="outline" className="text-xs border-accent/40 text-accent">Public Domain</Badge>
+                      )}
                     </div>
                   </CardHeader>
                   <CardContent>
@@ -531,6 +601,20 @@ return {
                       <p className="text-sm text-muted-foreground line-clamp-2">
                         {script.logline}
                       </p>
+
+                      {/* Development Stage Progress */}
+                      <div className="space-y-1">
+                        <div className="flex justify-between text-xs text-muted-foreground">
+                          <span>Script Stage</span>
+                          <span>{stageOrder[stageIndex]?.replace('-', ' ')}</span>
+                        </div>
+                        <div className="w-full bg-muted rounded-full h-1.5">
+                          <div 
+                            className="bg-primary rounded-full h-1.5 transition-all" 
+                            style={{ width: `${stageProgress}%` }}
+                          />
+                        </div>
+                      </div>
                       
                       <div className="space-y-2 text-xs">
                         <div className="flex justify-between">
@@ -545,23 +629,44 @@ return {
                           <span className="text-muted-foreground">Critical:</span>
                           <span>{script.characteristics.criticalPotential}/10</span>
                         </div>
+                        {script.characters && script.characters.length > 0 && (
+                          <div className="flex justify-between">
+                            <span className="text-muted-foreground">Roles:</span>
+                            <span>{script.characters.length} characters</span>
+                          </div>
+                        )}
                       </div>
 
-                      <div className="pt-2">
+                      <div className="pt-2 flex gap-2">
                         <Button 
                           size="sm" 
-                          className="w-full"
+                          variant="outline"
+                          className="flex-1"
+                          onClick={() => handleEditScript(script)}
+                        >
+                          ✏️ Edit
+                        </Button>
+                        <Button 
+                          size="sm" 
+                          className={`flex-1 ${!isReadyToGreenlight ? 'opacity-60' : ''}`}
                           onClick={() => handleGreenlightScript(script)}
                           disabled={gameState.studio.budget < script.budget * 0.1}
+                          title={!isReadyToGreenlight ? 'Refine the script to "final" stage before greenlighting' : ''}
                         >
-                          <ClapperboardIcon className="w-4 h-4 mr-2" />
-                          Greenlight Project
+                          <ClapperboardIcon className="w-4 h-4 mr-1" />
+                          {isReadyToGreenlight ? 'Greenlight' : 'Not Ready'}
                         </Button>
                       </div>
+                      {!isReadyToGreenlight && (
+                        <p className="text-xs text-muted-foreground text-center">
+                          Edit and advance to "final" stage to greenlight
+                        </p>
+                      )}
                     </div>
                   </CardContent>
                 </Card>
-              ))}
+                );
+              })}
             </div>
           )}
         </CardContent>
