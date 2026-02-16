@@ -1,4 +1,5 @@
 import React, { useState } from 'react';
+import type { ScriptCharacter as GameScriptCharacter } from '@/types/game';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
@@ -6,17 +7,11 @@ import { Label } from '@/components/ui/label';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { Slider } from '@/components/ui/slider';
 import { Badge } from '@/components/ui/badge';
-import { Trash2, Plus, Users } from 'lucide-react';
+import { Trash2, Plus, Users, Lock } from 'lucide-react';
 
-export interface ScriptCharacter {
-  id: string;
-  name: string;
-  importance: 'lead' | 'supporting' | 'crew';
-  screenTimeMinutes: number;
-  description: string;
-  ageRange: [number, number];
-  requiredTraits: string[];
-  requiredType?: 'actor' | 'director';
+// UI-layer type: keep the core game character fields, but allow extra UI helpers.
+export interface ScriptCharacter extends GameScriptCharacter {
+  screenTimeMinutes?: number;
 }
 
 interface ScriptCharacterManagerProps {
@@ -35,13 +30,14 @@ export const ScriptCharacterManager: React.FC<ScriptCharacterManagerProps> = ({
     screenTimeMinutes: 15,
     description: '',
     ageRange: [25, 45],
-    requiredTraits: []
+    traits: []
   });
 
-  const importanceTypes = [
+  const importanceTypes: Array<{ value: ScriptCharacter['importance']; label: string; screenTime: number }> = [
     { value: 'lead', label: 'Lead Role', screenTime: 60 },
     { value: 'supporting', label: 'Supporting Role', screenTime: 25 },
-    { value: 'crew', label: 'Crew Role', screenTime: 0 }
+    { value: 'minor', label: 'Minor / Cameo', screenTime: 5 },
+    { value: 'crew', label: 'Crew (Director)', screenTime: 0 }
   ];
 
   const commonTraits = [
@@ -54,15 +50,16 @@ export const ScriptCharacterManager: React.FC<ScriptCharacterManagerProps> = ({
   const handleAddCharacter = () => {
     if (!newCharacter.name) return;
 
+    const importance = newCharacter.importance || 'supporting';
     const character: ScriptCharacter = {
       id: `char-${Date.now()}`,
       name: newCharacter.name,
-      importance: newCharacter.importance || 'supporting',
-      screenTimeMinutes: newCharacter.screenTimeMinutes || 15,
+      importance,
+      screenTimeMinutes: newCharacter.screenTimeMinutes ?? (importanceTypes.find(r => r.value === importance)?.screenTime ?? 15),
       description: newCharacter.description || '',
       ageRange: newCharacter.ageRange || [25, 45],
-      requiredTraits: newCharacter.requiredTraits || [],
-      requiredType: newCharacter.requiredType
+      traits: newCharacter.traits || [],
+      requiredType: newCharacter.requiredType || (importance === 'crew' ? 'director' : 'actor'),
     };
 
     onCharactersChange([...characters, character]);
@@ -72,7 +69,7 @@ export const ScriptCharacterManager: React.FC<ScriptCharacterManagerProps> = ({
       screenTimeMinutes: 15,
       description: '',
       ageRange: [25, 45],
-      requiredTraits: []
+      traits: []
     });
     setIsAdding(false);
   };
@@ -88,15 +85,15 @@ export const ScriptCharacterManager: React.FC<ScriptCharacterManagerProps> = ({
   };
 
   const toggleTrait = (trait: string) => {
-    const current = newCharacter.requiredTraits || [];
+    const current = newCharacter.traits || [];
     const updated = current.includes(trait)
       ? current.filter(t => t !== trait)
       : [...current, trait];
-    setNewCharacter(prev => ({ ...prev, requiredTraits: updated }));
+    setNewCharacter(prev => ({ ...prev, traits: updated }));
   };
 
   const getTotalScreenTime = () => {
-    return characters.reduce((total, char) => total + char.screenTimeMinutes, 0);
+    return characters.reduce((total, char) => total + (char.screenTimeMinutes || 0), 0);
   };
 
   return (
@@ -191,9 +188,9 @@ export const ScriptCharacterManager: React.FC<ScriptCharacterManagerProps> = ({
                   <Label>Screen Time: {newCharacter.screenTimeMinutes} minutes</Label>
                   <div className="mt-2">
                     <Slider
-                      value={[newCharacter.screenTimeMinutes || 15]}
+                      value={[newCharacter.screenTimeMinutes ?? 15]}
                       onValueChange={([value]) => setNewCharacter(prev => ({ ...prev, screenTimeMinutes: value }))}
-                      min={1}
+                      min={0}
                       max={90}
                       step={1}
                       className="w-full"
@@ -202,12 +199,12 @@ export const ScriptCharacterManager: React.FC<ScriptCharacterManagerProps> = ({
                 </div>
 
                 <div className="md:col-span-2">
-                  <Label>Required Traits</Label>
+                  <Label>Traits</Label>
                   <div className="flex flex-wrap gap-2 mt-2">
                     {commonTraits.map((trait) => (
                       <Badge
                         key={trait}
-                        variant={(newCharacter.requiredTraits || []).includes(trait) ? "default" : "outline"}
+                        variant={(newCharacter.traits || []).includes(trait) ? "default" : "outline"}
                         className="cursor-pointer"
                         onClick={() => toggleTrait(trait)}
                       >
@@ -237,41 +234,48 @@ export const ScriptCharacterManager: React.FC<ScriptCharacterManagerProps> = ({
               <CardContent className="pt-4">
                 <div className="flex items-start justify-between">
                   <div className="flex-1">
-                    <div className="flex items-center space-x-2 mb-2">
+                    <div className="flex items-center space-x-2 mb-2 flex-wrap gap-y-1">
                       <h4 className="font-semibold">{character.name}</h4>
                       <Badge variant="outline" className="capitalize">
                         {character.importance}
                       </Badge>
-                      <Badge variant="secondary">
-                        {character.screenTimeMinutes} min
-                      </Badge>
-                      <Badge variant="outline">
-                        Age {character.ageRange[0]}-{character.ageRange[1]}
-                      </Badge>
+                      {typeof character.screenTimeMinutes === 'number' && (
+                        <Badge variant="secondary">{character.screenTimeMinutes} min</Badge>
+                      )}
+                      {character.ageRange && (
+                        <Badge variant="outline">
+                          Age {character.ageRange[0]}-{character.ageRange[1]}
+                        </Badge>
+                      )}
+                      {character.locked && (
+                        <Badge variant="secondary" className="flex items-center gap-1">
+                          <Lock className="w-3 h-3" /> Imported
+                        </Badge>
+                      )}
                     </div>
-                    
+
                     {character.description && (
-                      <p className="text-sm text-muted-foreground mb-2">
-                        {character.description}
-                      </p>
+                      <p className="text-sm text-muted-foreground mb-2">{character.description}</p>
                     )}
-                    
-                     {character.requiredTraits.length > 0 && (
-                       <div className="flex flex-wrap gap-1">
-                         {character.requiredTraits.map((trait) => (
-                           <Badge key={trait} variant="secondary" className="text-xs">
-                             {trait}
-                           </Badge>
-                         ))}
-                       </div>
-                     )}
+
+                    {(character.traits || []).length > 0 && (
+                      <div className="flex flex-wrap gap-1">
+                        {(character.traits || []).map((trait) => (
+                          <Badge key={trait} variant="secondary" className="text-xs">
+                            {trait}
+                          </Badge>
+                        ))}
+                      </div>
+                    )}
                   </div>
-                  
+
                   <Button
                     variant="ghost"
                     size="sm"
                     onClick={() => handleRemoveCharacter(character.id)}
                     className="text-destructive hover:text-destructive"
+                    disabled={!!character.locked}
+                    title={character.locked ? 'Imported roles are locked' : 'Remove role'}
                   >
                     <Trash2 size={16} />
                   </Button>

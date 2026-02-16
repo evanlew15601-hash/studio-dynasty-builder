@@ -11,6 +11,7 @@ import { Badge } from '@/components/ui/badge';
 import { useToast } from '@/hooks/use-toast';
 import { ScriptCharacterManager, ScriptCharacter } from './ScriptCharacterManager';
 import { importRolesForScript } from '@/utils/roleImport';
+import { finalizeScriptForGreenlight, getScriptGreenlightReport } from '@/utils/scriptFinalization';
 import { ScriptIcon, BudgetIcon, AwardIcon, ClapperboardIcon } from '@/components/ui/icons';
 
 interface ScriptDevelopmentProps {
@@ -149,14 +150,13 @@ return {
     if (tempScript.sourceType === 'franchise' || tempScript.sourceType === 'public-domain') {
       const imported = importRolesForScript(tempScript, gameState);
       const adapted = imported.map((c): ScriptCharacter => ({
-        id: c.id,
-        name: c.name,
-        importance: c.importance === 'crew' ? 'supporting' : (c.importance as any),
-        screenTimeMinutes: c.importance === 'lead' ? 60 : c.importance === 'supporting' ? 25 : 0,
+        ...c,
         description: c.description || '',
         ageRange: (c.ageRange as [number, number]) || [25, 45],
-        requiredTraits: [],
-        requiredType: c.requiredType,
+        requiredType: c.requiredType || (c.importance === 'crew' ? 'director' : 'actor'),
+        screenTimeMinutes:
+          (c as any).screenTimeMinutes ??
+          (c.importance === 'lead' ? 60 : c.importance === 'supporting' ? 25 : c.importance === 'minor' ? 5 : 0),
       }));
       setScriptCharacters(adapted);
     } else {
@@ -173,19 +173,80 @@ return {
     'superhero', 'family', 'sports', 'historical'
   ];
 
+  const canAffordDevelopmentCost = (script: Script): boolean => {
+    const developmentCost = script.budget * 0.1;
+    const maxLoanCapacity = Math.max(0, 50000000 - (gameState.studio.debt || 0));
+    const availableFunds = gameState.studio.budget + maxLoanCapacity;
+    return developmentCost <= availableFunds;
+  };
+
+  const finalizeScriptForSave = (script: Script): { script: Script; report?: ReturnType<typeof getScriptGreenlightReport> } => {
+    const shouldAutoImportRoles =
+      (script.sourceType === 'franchise' || script.sourceType === 'public-domain') &&
+      (!script.characters || script.characters.length === 0);
+
+    if (script.developmentStage !== 'final' && !shouldAutoImportRoles) {
+      return { script };
+    }
+
+    const { script: finalized, report } = finalizeScriptForGreenlight(script, gameState);
+
+    // If the user tried to set Final but the script is still failing validation,
+    // keep it in polish so the UI doesn't imply it's greenlight-ready.
+    if (script.developmentStage === 'final' && !report.canFinalize) {
+      return { script: { ...finalized, developmentStage: 'polish' }, report };
+    }
+
+    return { script: finalized, report };
+  };
+
+  const handleFinalizeScript = (script: Script) => {
+    const { script: finalized, report } = finalizeScriptForGreenlight(script, gameState);
+
+    if (!report.canFinalize) {
+      toast({
+        title: 'Cannot Finalize',
+        description: report.issues.filter(i => i.level === 'error').map(i => i.message).join(' '),
+        variant: 'destructive',
+      });
+      return;
+    }
+
+    onScriptUpdate(finalized);
+
+    toast({
+      title: 'Script Finalized',
+      description: report.fixesApplied.length > 0
+        ? `${finalized.title}: ${report.fixesApplied.join(', ')}`
+        : `${finalized.title} is ready for greenlight.`,
+    });
+  };
+
   const handleEditScript = (script: Script) => {
+    const shouldSeedRoles =
+      (!script.characters || script.characters.length === 0) &&
+      (script.sourceType === 'franchise' || script.sourceType === 'public-domain');
+
+    const seededCharacters = shouldSeedRoles ? importRolesForScript(script, gameState) : (script.characters || []);
+
+    // Persist the seeded roles so this script carries them forward.
+    if (shouldSeedRoles && seededCharacters.length > 0) {
+      onScriptUpdate({ ...script, characters: seededCharacters });
+    }
+
     setEditingScript(script);
     setNewScript({ ...script });
-    setScriptCharacters(script.characters?.map(c => ({
-      id: c.id,
-      name: c.name,
-      importance: c.importance === 'crew' ? 'supporting' : c.importance as any,
-      screenTimeMinutes: c.importance === 'lead' ? 60 : 25,
-      description: c.description || '',
-      ageRange: (c.ageRange as [number, number]) || [25, 45],
-      requiredTraits: [],
-      requiredType: c.requiredType,
-    })) || []);
+    setScriptCharacters(
+      seededCharacters.map((c) => ({
+        ...c,
+        description: c.description || '',
+        ageRange: (c.ageRange as [number, number]) || [25, 45],
+        requiredType: c.requiredType || (c.importance === 'crew' ? 'director' : 'actor'),
+        screenTimeMinutes:
+          (c as any).screenTimeMinutes ??
+          (c.importance === 'lead' ? 60 : c.importance === 'supporting' ? 25 : c.importance === 'minor' ? 5 : 0),
+      }))
+    );
     setIsCreating(true);
   };
 
@@ -221,13 +282,23 @@ return {
         criticalPotential: 5,
         cgiIntensity: 'minimal'
       },
-      characters: scriptCharacters,
+      // Strip UI-only fields before persisting to game state
+      characters: scriptCharacters.map(({ screenTimeMinutes, ...c }) => c),
       sourceType: newScript.sourceType as any,
       franchiseId: newScript.franchiseId as any,
       publicDomainId: newScript.publicDomainId as any,
     };
 
-    onScriptUpdate(script);
+    const { script: finalized, report } = finalizeScriptForSave(script);
+
+    onScriptUpdate(finalized);
+
+    if (report && report.fixesApplied.length > 0) {
+      toast({
+        title: 'Finalization Updates',
+        description: report.fixesApplied.join(', '),
+      });
+    }
     setIsCreating(false);
     setEditingScript(null);
     
@@ -238,43 +309,46 @@ return {
     toast({
       title: editingScript ? "Script Updated" : "Script Created",
       description: editingScript
-        ? `"${script.title}" has been updated. Continue refining or greenlight when ready.`
-        : `"${script.title}" has been added to your development slate with ${scriptCharacters.length} character roles.`,
+        ? `"${finalized.title}" has been updated. Continue refining or greenlight when ready.`
+        : `"${finalized.title}" has been added to your development slate with ${(finalized.characters || []).length} character roles.`,
     });
   };
 
   const handleGreenlightScript = (script: Script) => {
+    const report = getScriptGreenlightReport(script, gameState);
+
     if (script.developmentStage !== 'final') {
       toast({
-        title: "Script Not Ready",
-        description: "Refine the script to 'Final' stage before greenlighting. Edit the script to advance its stage.",
-        variant: "destructive"
+        title: 'Script Not Ready',
+        description: 'Finalize the script before greenlighting.',
+        variant: 'destructive',
       });
       return;
     }
 
-    if (gameState.studio.budget < script.budget * 0.1) {
+    if (!report.canGreenlight) {
       toast({
-        title: "Insufficient Budget",
-        description: "You need at least 10% of the production budget for development.",
-        variant: "destructive"
+        title: 'Script Not Ready',
+        description: report.issues.filter(i => i.level === 'error').map(i => i.message).join(' '),
+        variant: 'destructive',
       });
       return;
     }
 
-    // Create project with proper workflow phase
-    const project = {
-      ...script,
-      currentPhase: 'development',
-      status: 'in-development',
-      castingConfirmed: false
-    };
+    if (!canAffordDevelopmentCost(script)) {
+      toast({
+        title: 'Insufficient Budget',
+        description: 'Project cost exceeds studio capacity even with loans.',
+        variant: 'destructive',
+      });
+      return;
+    }
 
-    onProjectCreate(project);
-    
+    onProjectCreate(script);
+
     toast({
-      title: "Script Greenlit!",
-      description: `"${script.title}" moved to Development phase. Assign cast and crew to proceed to Pre-Production.`,
+      title: 'Script Greenlit!',
+      description: `"${script.title}" has entered development.`,
     });
   };
 
@@ -571,23 +645,31 @@ return {
                 const stageOrder = ['concept', 'treatment', 'first-draft', 'polish', 'final'];
                 const stageIndex = stageOrder.indexOf(script.developmentStage);
                 const stageProgress = ((stageIndex + 1) / stageOrder.length) * 100;
-                const isReadyToGreenlight = script.developmentStage === 'final';
+                const greenlightReport = getScriptGreenlightReport(script, gameState);
+                const canAfford = canAffordDevelopmentCost(script);
+                const isFinalized = script.developmentStage === 'final' && greenlightReport.canFinalize;
+                const canGreenlight = isFinalized && canAfford;
 
                 return (
                 <Card 
                   key={script.id} 
-                  className={`border-border hover:border-primary/40 transition-colors ${isReadyToGreenlight ? 'ring-1 ring-primary/30' : ''}`}
+                  className={`border-border hover:border-primary/40 transition-colors ${canGreenlight ? 'ring-1 ring-primary/30' : ''}`}
                 >
                   <CardHeader className="pb-3">
                     <CardTitle className="text-base truncate">{script.title}</CardTitle>
                     <div className="flex items-center space-x-2 flex-wrap gap-1">
                       <Badge variant="outline">{script.genre}</Badge>
                       <Badge 
-                        variant={isReadyToGreenlight ? 'default' : 'secondary'} 
+                        variant={script.developmentStage === 'final' && greenlightReport.canFinalize ? 'default' : 'secondary'} 
                         className="text-xs"
                       >
                         {script.developmentStage}
                       </Badge>
+                      {script.developmentStage === 'final' && !greenlightReport.canFinalize && (
+                        <Badge variant="outline" className="text-xs border-destructive/40 text-destructive">
+                          Needs Checks
+                        </Badge>
+                      )}
                       {script.sourceType === 'franchise' && (
                         <Badge variant="outline" className="text-xs border-primary/40 text-primary">Franchise</Badge>
                       )}
@@ -648,18 +730,27 @@ return {
                         </Button>
                         <Button 
                           size="sm" 
-                          className={`flex-1 ${!isReadyToGreenlight ? 'opacity-60' : ''}`}
-                          onClick={() => handleGreenlightScript(script)}
-                          disabled={gameState.studio.budget < script.budget * 0.1}
-                          title={!isReadyToGreenlight ? 'Refine the script to "final" stage before greenlighting' : ''}
+                          className={`flex-1 ${!canGreenlight ? 'opacity-90' : ''}`}
+                          variant={canGreenlight ? 'default' : 'secondary'}
+                          onClick={() => (canGreenlight ? handleGreenlightScript(script) : handleFinalizeScript(script))}
+                          disabled={isFinalized && !canAfford}
+                          title={
+                            canGreenlight
+                              ? ''
+                              : isFinalized
+                                ? 'Insufficient funds to greenlight'
+                                : greenlightReport.issues.filter(i => i.level === 'error').map(i => i.message).join(' ')
+                          }
                         >
                           <ClapperboardIcon className="w-4 h-4 mr-1" />
-                          {isReadyToGreenlight ? 'Greenlight' : 'Not Ready'}
+                          {canGreenlight ? 'Greenlight' : isFinalized ? 'Financing Needed' : 'Finalize'}
                         </Button>
                       </div>
-                      {!isReadyToGreenlight && (
+                      {!canGreenlight && (
                         <p className="text-xs text-muted-foreground text-center">
-                          Edit and advance to "final" stage to greenlight
+                          {isFinalized
+                            ? (canAfford ? 'Run final checks to greenlight' : 'Secure financing to greenlight')
+                            : 'Finalize to set stage to "final" and run required checks'}
                         </p>
                       )}
                     </div>

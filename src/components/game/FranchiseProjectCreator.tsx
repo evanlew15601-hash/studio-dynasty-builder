@@ -10,6 +10,7 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger } from '@/components/ui/dialog';
 import { useToast } from '@/hooks/use-toast';
 import { Plus, Film, Crown, TrendingUp } from 'lucide-react';
+import { finalizeScriptForSave } from '@/utils/scriptFinalization';
 
 interface FranchiseProjectCreatorProps {
   gameState: GameState;
@@ -117,12 +118,14 @@ export const FranchiseProjectCreator: React.FC<FranchiseProjectCreatorProps> = (
         criticalPotential: 5 + Math.floor(selectedFranchise.culturalWeight / 25),
         cgiIntensity: 'moderate'
       },
-      characters: [], // Will be populated by character system
+      characters: [],
       franchiseId: selectedFranchise.id,
       sourceType: 'franchise'
     };
 
-    onProjectCreate(script);
+    const finalized = finalizeScriptForSave(script, gameState);
+
+    onProjectCreate(finalized);
     
     toast({
       title: "Franchise Project Started",
