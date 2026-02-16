@@ -50,6 +50,7 @@ function mergeWithOverrides(existing: ScriptCharacter | undefined, incoming: Scr
     description: overrides.description || incoming.description,
     traits: overrides.traits || incoming.traits,
     ageRange: overrides.ageRange || incoming.ageRange,
+    screenTimeMinutes: existing.screenTimeMinutes ?? incoming.screenTimeMinutes,
     assignedTalentId: existing.assignedTalentId,
     locked: true,
     franchiseId: incoming.franchiseId,
@@ -63,7 +64,9 @@ export function importRolesForScript(script: Script, gameState: GameState): Scri
   const existing = script.characters || [];
   const characters: ScriptCharacter[] = [];
 
-  if (script.sourceType === 'franchise' && script.franchiseId) {
+  // Back-compat: some saves/scripts may use sourceType "adaptation".
+  // Treat it as an IP-backed script when either franchiseId or publicDomainId is present.
+  if ((script.sourceType === 'franchise' || script.sourceType === 'adaptation') && script.franchiseId) {
     const franchise = gameState.franchises.find(f => f.id === script.franchiseId);
     const dbKey = script.franchiseId;
     let defs = FRANCHISE_CHARACTER_DB[dbKey];
@@ -99,7 +102,7 @@ export function importRolesForScript(script: Script, gameState: GameState): Scri
     ensureDirector(characters);
   }
 
-  if (script.sourceType === 'public-domain' && script.publicDomainId) {
+  if ((script.sourceType === 'public-domain' || script.sourceType === 'adaptation') && script.publicDomainId) {
     const pdRoles = RoleDatabase.getRolesForSource('public-domain', script.publicDomainId, gameState);
     pdRoles.forEach(role => {
       const incoming: ScriptCharacter = {

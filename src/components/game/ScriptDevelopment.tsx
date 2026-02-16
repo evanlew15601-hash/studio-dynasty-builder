@@ -11,7 +11,7 @@ import { Badge } from '@/components/ui/badge';
 import { useToast } from '@/hooks/use-toast';
 import { ScriptCharacterManager, ScriptCharacter } from './ScriptCharacterManager';
 import { importRolesForScript } from '@/utils/roleImport';
-import { finalizeScriptForGreenlight, getScriptGreenlightReport } from '@/utils/scriptFinalization';
+import { finalizeScriptForSave, finalizeScriptForGreenlight, getScriptGreenlightReport } from '@/utils/scriptFinalization';
 import { ScriptIcon, BudgetIcon, AwardIcon, ClapperboardIcon } from '@/components/ui/icons';
 
 interface ScriptDevelopmentProps {
@@ -147,7 +147,7 @@ return {
       publicDomainId: (next as any).publicDomainId,
       characters: []
     };
-    if (tempScript.sourceType === 'franchise' || tempScript.sourceType === 'public-domain') {
+    if (tempScript.sourceType === 'franchise' || tempScript.sourceType === 'public-domain' || tempScript.sourceType === 'adaptation') {
       const imported = importRolesForScript(tempScript, gameState);
       const adapted = imported.map((c): ScriptCharacter => ({
         ...c,
@@ -180,20 +180,20 @@ return {
     return developmentCost <= availableFunds;
   };
 
-  const finalizeScriptForSave = (script: Script): { script: Script; report?: ReturnType<typeof getScriptGreenlightReport> } => {
-    const shouldAutoImportRoles =
-      (script.sourceType === 'franchise' || script.sourceType === 'public-domain') &&
-      (!script.characters || script.characters.length === 0);
+  const prepareScriptForSave = (script: Script): { script: Script; report?: ReturnType<typeof getScriptGreenlightReport> } => {
+    // Always normalize/import roles & defaults without changing the stage.
+    const normalized = finalizeScriptForSave(script, gameState);
 
-    if (script.developmentStage !== 'final' && !shouldAutoImportRoles) {
-      return { script };
+    // Only run the stricter greenlight finalization when the user explicitly marks it Final.
+    if (normalized.developmentStage !== 'final') {
+      return { script: normalized };
     }
 
-    const { script: finalized, report } = finalizeScriptForGreenlight(script, gameState);
+    const { script: finalized, report } = finalizeScriptForGreenlight(normalized, gameState);
 
     // If the user tried to set Final but the script is still failing validation,
     // keep it in polish so the UI doesn't imply it's greenlight-ready.
-    if (script.developmentStage === 'final' && !report.canFinalize) {
+    if (!report.canFinalize) {
       return { script: { ...finalized, developmentStage: 'polish' }, report };
     }
 
@@ -225,7 +225,7 @@ return {
   const handleEditScript = (script: Script) => {
     const shouldSeedRoles =
       (!script.characters || script.characters.length === 0) &&
-      (script.sourceType === 'franchise' || script.sourceType === 'public-domain');
+      (script.sourceType === 'franchise' || script.sourceType === 'public-domain' || script.sourceType === 'adaptation');
 
     const seededCharacters = shouldSeedRoles ? importRolesForScript(script, gameState) : (script.characters || []);
 
@@ -282,14 +282,14 @@ return {
         criticalPotential: 5,
         cgiIntensity: 'minimal'
       },
-      // Strip UI-only fields before persisting to game state
-      characters: scriptCharacters.map(({ screenTimeMinutes, ...c }) => c),
+      // Persist roles as part of the script (includes optional screenTimeMinutes)
+      characters: scriptCharacters,
       sourceType: newScript.sourceType as any,
       franchiseId: newScript.franchiseId as any,
       publicDomainId: newScript.publicDomainId as any,
     };
 
-    const { script: finalized, report } = finalizeScriptForSave(script);
+    const { script: finalized, report } = prepareScriptForSave(script);
 
     onScriptUpdate(finalized);
 
@@ -675,6 +675,9 @@ return {
                       )}
                       {script.sourceType === 'public-domain' && (
                         <Badge variant="outline" className="text-xs border-accent/40 text-accent">Public Domain</Badge>
+                      )}
+                      {script.sourceType === 'adaptation' && (
+                        <Badge variant="outline" className="text-xs border-muted-foreground/40 text-muted-foreground">Adaptation</Badge>
                       )}
                     </div>
                   </CardHeader>

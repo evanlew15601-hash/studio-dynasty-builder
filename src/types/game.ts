@@ -82,6 +82,11 @@ export interface ScriptCharacter {
   assignedTalentId?: string;
   requiredType?: 'actor' | 'director';
   ageRange?: [number, number];
+  /**
+   * Optional per-role screen time estimate (minutes).
+   * Used by script role planning UI and can be leveraged by performance systems.
+   */
+  screenTimeMinutes?: number;
   // Franchise/IP linkage for imported roles
   franchiseId?: string; // Global franchise this role belongs to (immutable linkage)
   franchiseCharacterId?: string; // Stable character_id from franchise DB

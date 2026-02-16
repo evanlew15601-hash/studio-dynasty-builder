@@ -40,7 +40,7 @@ export const TVShowDevelopment: React.FC<TVShowDevelopmentProps> = ({
   const handleEditTVScript = (script: Script) => {
     const shouldSeedRoles =
       (!script.characters || script.characters.length === 0) &&
-      (script.sourceType === 'franchise' || script.sourceType === 'public-domain');
+      (script.sourceType === 'franchise' || script.sourceType === 'public-domain' || script.sourceType === 'adaptation');
 
     const seededCharacters = shouldSeedRoles ? importRolesForScript(script, gameState) : (script.characters || []);
 
@@ -180,7 +180,7 @@ export const TVShowDevelopment: React.FC<TVShowDevelopmentProps> = ({
       characters: []
     };
 
-    if (tempScript.sourceType === 'franchise' || tempScript.sourceType === 'public-domain') {
+    if (tempScript.sourceType === 'franchise' || tempScript.sourceType === 'public-domain' || tempScript.sourceType === 'adaptation') {
       const imported = importRolesForScript(tempScript, gameState);
       const adapted = imported.map((c): ScriptCharacter => ({
         ...c,
@@ -228,8 +228,8 @@ export const TVShowDevelopment: React.FC<TVShowDevelopmentProps> = ({
         criticalPotential: newScript.characteristics?.criticalPotential || 5,
         cgiIntensity: newScript.characteristics?.cgiIntensity || 'minimal'
       },
-      // Strip UI-only fields before persisting to game state
-      characters: scriptCharacters.map(({ screenTimeMinutes, ...c }) => c),
+      // Persist roles as part of the script (includes optional screenTimeMinutes)
+      characters: scriptCharacters,
       sourceType: newScript.sourceType || 'original',
       franchiseId: newScript.franchiseId,
       publicDomainId: newScript.publicDomainId

@@ -124,11 +124,11 @@ function getRolesForPublicDomain(ip: PublicDomainIP): ScriptCharacter[] {
 export const RoleDatabase = {
   getRolesForProject(project: Project, gameState: GameState): ScriptCharacter[] {
     const sourceType = project.script?.sourceType;
-    if (sourceType === 'franchise' && project.script.franchiseId) {
+    if ((sourceType === 'franchise' || sourceType === 'adaptation') && project.script.franchiseId) {
       const franchise = gameState.franchises.find(f => f.id === project.script.franchiseId);
       return franchise ? getRolesForFranchise(franchise) : [];
     }
-    if (sourceType === 'public-domain' && project.script.publicDomainId) {
+    if ((sourceType === 'public-domain' || sourceType === 'adaptation') && project.script.publicDomainId) {
       const ip = gameState.publicDomainIPs.find(p => p.id === project.script.publicDomainId);
       return ip ? getRolesForPublicDomain(ip) : [];
     }

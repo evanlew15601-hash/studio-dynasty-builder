@@ -162,4 +162,40 @@ describe('script finalization', () => {
     expect(report.fixesApplied).toContain('Added a Lead role');
     expect(report.fixesApplied).toContain('Added a Minor/Cameo role');
   });
+
+  it('imports public-domain roles when sourceType is "adaptation"', () => {
+    vi.spyOn(Date, 'now').mockReturnValue(2222);
+
+    const gameState = makeBaseGameState();
+    gameState.publicDomainIPs = [
+      {
+        id: 'pd-1',
+        name: 'Sherlock Holmes',
+        domainType: 'literature',
+        dateEnteredDomain: '1900-01-01',
+        coreElements: ['logic', 'friendship'],
+        genreFlexibility: ['mystery'],
+        notableAdaptations: [],
+        reputationScore: 70,
+        cost: 0,
+        suggestedCharacters: [
+          { id: 'holmes', name: 'Sherlock Holmes', importance: 'lead', requiredType: 'actor', ageRange: [28, 55] },
+          { id: 'watson', name: 'Dr. John Watson', importance: 'supporting', requiredType: 'actor', ageRange: [28, 55] },
+        ],
+      },
+    ];
+
+    const script = makeValidScript({
+      genre: 'mystery',
+      sourceType: 'adaptation',
+      publicDomainId: 'pd-1',
+      characters: [],
+      developmentStage: 'polish',
+    });
+
+    const { script: finalized, report } = finalizeScriptForGreenlight(script, gameState);
+
+    expect(finalized.characters?.some(c => c.id === 'holmes')).toBe(true);
+    expect(report.fixesApplied).toContain('Imported roles from source IP');
+  });
 });

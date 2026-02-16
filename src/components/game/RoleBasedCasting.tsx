@@ -139,9 +139,12 @@ export const RoleBasedCasting: React.FC<RoleBasedCastingProps> = ({
     const toAdd = imported.filter(r => !existingIds.has(r.id));
     toAdd.forEach(onCreateRole);
     if (toAdd.length > 0) {
-      const sourceLabel = script.sourceType === 'franchise'
+      const sourceLabel = script.franchiseId
         ? gameState.franchises.find(f => f.id === script.franchiseId)?.title
-        : gameState.publicDomainIPs.find(p => p.id === script.publicDomainId)?.name;
+        : script.publicDomainId
+          ? gameState.publicDomainIPs.find(p => p.id === script.publicDomainId)?.name
+          : undefined;
+
       toast({
         title: 'Roles Imported',
         description: `Added ${toAdd.length} predefined roles${sourceLabel ? ` from ${sourceLabel}` : ''}`

@@ -161,4 +161,38 @@ describe('importRolesForScript', () => {
     expect(hero?.assignedTalentId).toBe('talent-1');
     expect(hero?.locked).toBe(true);
   });
+
+  it('treats sourceType="adaptation" as public-domain when publicDomainId is present', () => {
+    vi.spyOn(Date, 'now').mockReturnValue(777);
+
+    const gameState = makeBaseGameState();
+    gameState.publicDomainIPs = [
+      {
+        id: 'pd-1',
+        name: 'Sherlock Holmes',
+        domainType: 'literature',
+        dateEnteredDomain: '1900-01-01',
+        coreElements: ['logic', 'friendship'],
+        genreFlexibility: ['mystery'],
+        notableAdaptations: [],
+        reputationScore: 70,
+        cost: 0,
+        suggestedCharacters: [
+          { id: 'holmes', name: 'Sherlock Holmes', importance: 'lead', requiredType: 'actor', ageRange: [28, 55] },
+          { id: 'watson', name: 'Dr. John Watson', importance: 'supporting', requiredType: 'actor', ageRange: [28, 55] },
+        ],
+      },
+    ];
+
+    const script = makeBaseScript({
+      sourceType: 'adaptation',
+      publicDomainId: 'pd-1',
+      characters: [],
+    });
+
+    const imported = importRolesForScript(script, gameState);
+
+    expect(imported.some(c => c.id === 'holmes' && c.name === 'Sherlock Holmes')).toBe(true);
+    expect(imported.some(c => c.requiredType === 'director')).toBe(true);
+  });
 });

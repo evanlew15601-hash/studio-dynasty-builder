@@ -127,7 +127,11 @@ function validateRoles(chars: ScriptCharacter[]): ScriptFinalizationIssue[] {
 export function finalizeScriptForSave(input: Script, gameState: GameState): Script {
   let characters = [...(input.characters || [])];
 
-  if ((input.sourceType === 'franchise' && input.franchiseId) || (input.sourceType === 'public-domain' && input.publicDomainId)) {
+  if (
+    (input.sourceType === 'franchise' && input.franchiseId) ||
+    (input.sourceType === 'public-domain' && input.publicDomainId) ||
+    (input.sourceType === 'adaptation' && (input.franchiseId || input.publicDomainId))
+  ) {
     characters = importRolesForScript({ ...input, characters }, gameState);
   }
 
@@ -145,8 +149,12 @@ export function finalizeScriptForGreenlight(input: Script, gameState: GameState)
   // Start from existing roles.
   let characters = [...(input.characters || [])];
 
-  // If this is a franchise or public domain script, import/merge curated roles.
-  if ((input.sourceType === 'franchise' && input.franchiseId) || (input.sourceType === 'public-domain' && input.publicDomainId)) {
+  // If this is a franchise/public-domain/adaptation script, import/merge curated roles.
+  if (
+    (input.sourceType === 'franchise' && input.franchiseId) ||
+    (input.sourceType === 'public-domain' && input.publicDomainId) ||
+    (input.sourceType === 'adaptation' && (input.franchiseId || input.publicDomainId))
+  ) {
     const beforeCount = characters.length;
     characters = importRolesForScript({ ...input, characters }, gameState);
     if (characters.length !== beforeCount) {
