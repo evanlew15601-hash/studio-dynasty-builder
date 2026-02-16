@@ -11,6 +11,7 @@ import { Badge } from '@/components/ui/badge';
 import { useToast } from '@/hooks/use-toast';
 import { ScriptCharacterManager, ScriptCharacter } from './ScriptCharacterManager';
 import { importRolesForScript } from '@/utils/roleImport';
+import { finalizeScriptForSave } from '@/utils/scriptFinalization';
 import { ScriptIcon, BudgetIcon, AwardIcon, ClapperboardIcon } from '@/components/ui/icons';
 
 interface TVShowDevelopmentProps {
@@ -37,21 +38,32 @@ export const TVShowDevelopment: React.FC<TVShowDevelopmentProps> = ({
   const stageOrder: Script['developmentStage'][] = ['concept', 'treatment', 'first-draft', 'polish', 'final'];
 
   const handleEditTVScript = (script: Script) => {
+    const shouldSeedRoles =
+      (!script.characters || script.characters.length === 0) &&
+      (script.sourceType === 'franchise' || script.sourceType === 'public-domain');
+
+    const seededCharacters = shouldSeedRoles ? importRolesForScript(script, gameState) : (script.characters || []);
+
+    // Persist the seeded roles so this script carries them forward.
+    if (shouldSeedRoles && seededCharacters.length > 0) {
+      onScriptUpdate({ ...script, characters: seededCharacters });
+    }
+
     setEditingScript(script);
     setNewScript({
       ...script,
     });
-    setScriptCharacters((script.characters || []).map(c => ({
-      id: c.id,
-      name: c.name,
-      description: c.description || '',
-      importance: (c.importance === 'minor' ? 'supporting' : c.importance) as 'lead' | 'supporting' | 'crew',
-      traits: c.traits || [],
-      requiredType: c.requiredType,
-      ageRange: (c as any).ageRange || [20, 60] as [number, number],
-      screenTimeMinutes: (c as any).screenTimeMinutes || 10,
-      requiredTraits: (c as any).requiredTraits || [],
-    })));
+    setScriptCharacters(
+      seededCharacters.map((c) => ({
+        ...c,
+        description: c.description || '',
+        ageRange: (c.ageRange as [number, number]) || [20, 60],
+        requiredType: c.requiredType || (c.importance === 'crew' ? 'director' : 'actor'),
+        screenTimeMinutes:
+          (c as any).screenTimeMinutes ??
+          (c.importance === 'lead' ? 60 : c.importance === 'supporting' ? 25 : c.importance === 'minor' ? 5 : 0),
+      }))
+    );
     setIsCreating(true);
   };
   
@@ -145,12 +157,41 @@ export const TVShowDevelopment: React.FC<TVShowDevelopmentProps> = ({
   const [newScript, setNewScript] = useState<Partial<Script>>(getInitialTVScript());
 
   useEffect(() => {
-    if (selectedFranchise || selectedPublicDomain) {
-      const initialScript = getInitialTVScript();
-      setNewScript(initialScript);
-      setScriptCharacters([]);
+    const initial = getInitialTVScript();
+    setNewScript(initial);
+
+    const tempScript: Script = {
+      id: `temp-${Date.now()}`,
+      title: initial.title || 'Temp',
+      genre: (initial.genre as any) || 'drama',
+      logline: initial.logline || '',
+      writer: initial.writer || '',
+      pages: initial.pages || 60,
+      quality: initial.quality || 50,
+      budget: initial.budget || 2000000,
+      developmentStage: (initial.developmentStage as any) || 'concept',
+      themes: initial.themes || [],
+      targetAudience: (initial.targetAudience as any) || 'general',
+      estimatedRuntime: initial.estimatedRuntime || 45,
+      characteristics: (initial.characteristics as any) || { tone: 'balanced', pacing: 'episodic', dialogue: 'naturalistic', visualStyle: 'realistic', commercialAppeal: 5, criticalPotential: 5, cgiIntensity: 'minimal' },
+      sourceType: (initial as any).sourceType,
+      franchiseId: (initial as any).franchiseId,
+      publicDomainId: (initial as any).publicDomainId,
+      characters: []
+    };
+
+    if (tempScript.sourceType === 'franchise' || tempScript.sourceType === 'public-domain') {
+      const imported = importRolesForScript(tempScript, gameState);
+      const adapted = imported.map((c): ScriptCharacter => ({
+        ...c,
+        importance: c.importance as any,
+        screenTimeMinutes: c.importance === 'lead' ? 60 : c.importance === 'supporting' ? 25 : c.importance === 'minor' ? 5 : 0,
+        description: c.description || '',
+        ageRange: c.ageRange || [20, 60],
+        traits: c.traits || [],
+      }));
+      setScriptCharacters(adapted);
     } else {
-      setNewScript(getInitialTVScript());
       setScriptCharacters([]);
     }
   }, [selectedFranchise, selectedPublicDomain]);
@@ -187,13 +228,16 @@ export const TVShowDevelopment: React.FC<TVShowDevelopmentProps> = ({
         criticalPotential: newScript.characteristics?.criticalPotential || 5,
         cgiIntensity: newScript.characteristics?.cgiIntensity || 'minimal'
       },
-      characters: scriptCharacters,
+      // Strip UI-only fields before persisting to game state
+      characters: scriptCharacters.map(({ screenTimeMinutes, ...c }) => c),
       sourceType: newScript.sourceType || 'original',
       franchiseId: newScript.franchiseId,
       publicDomainId: newScript.publicDomainId
     };
 
-    onScriptUpdate(script);
+    const finalized = finalizeScriptForSave(script, gameState);
+
+    onScriptUpdate(finalized);
     setIsCreating(false);
     setEditingScript(null);
     
@@ -204,8 +248,8 @@ export const TVShowDevelopment: React.FC<TVShowDevelopmentProps> = ({
     toast({
       title: editingScript ? "TV Script Updated" : "TV Script Created",
       description: editingScript
-        ? `"${script.title}" has been updated. Continue refining or greenlight when ready.`
-        : `"${script.title}" has been added to your development slate with ${scriptCharacters.length} character roles.`,
+        ? `"${finalized.title}" has been updated. Continue refining or greenlight when ready.`
+        : `"${finalized.title}" has been added to your development slate with ${(finalized.characters || []).length} character roles.`,
     });
   };
 

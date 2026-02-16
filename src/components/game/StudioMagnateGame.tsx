@@ -87,6 +87,7 @@ import {
 import { ChevronDown } from 'lucide-react';
 import { RoleDatabase } from '../../data/RoleDatabase';
 import { importRolesForScript } from '@/utils/roleImport';
+import { finalizeScriptForSave } from '@/utils/scriptFinalization';
 import { MediaFinancialIntegration } from './MediaFinancialIntegration';
 import { MediaReputationIntegration } from './MediaReputationIntegration';
 import { MediaResponseSystem } from './MediaResponseSystem';
@@ -2046,8 +2047,11 @@ export const StudioMagnateGame: React.FC<StudioMagnateGameProps> = ({
                   },
                   themes: [],
                   sourceType: 'franchise',
-                  budget: 15000000
+                  budget: 15000000,
+                  characters: [],
                 };
+
+                const finalized = finalizeScriptForSave(script, gameState);
 
                 // Route to Script Development instead of immediately greenlighting a project
                 setSelectedFranchise(franchiseId || null);
@@ -2056,12 +2060,12 @@ export const StudioMagnateGame: React.FC<StudioMagnateGameProps> = ({
 
                 setGameState(prev => ({
                   ...prev,
-                  scripts: [...prev.scripts, script]
+                  scripts: [...prev.scripts, finalized]
                 }));
 
                 toast({
                   title: 'Script Draft Created',
-                  description: `"${script.title}" has been created from the franchise and is ready for development.`,
+                  description: `"${finalized.title}" has been created from the franchise and is ready for development.`,
                 });
               }}
               onCreateTVProject={(franchiseId) => {
@@ -2085,27 +2089,29 @@ export const StudioMagnateGame: React.FC<StudioMagnateGameProps> = ({
             <FranchiseProjectCreator
               gameState={gameState}
               onProjectCreate={(script) => {
-                setSelectedFranchise(script.franchiseId || null);
-                setSelectedPublicDomain(script.publicDomainId || null);
+                const finalized = finalizeScriptForSave(script, gameState);
+
+                setSelectedFranchise(finalized.franchiseId || null);
+                setSelectedPublicDomain(finalized.publicDomainId || null);
 
                 const isTVScript =
-                  script.characteristics?.pacing === 'episodic' ||
-                  (script.estimatedRuntime && script.estimatedRuntime <= 60);
+                  finalized.characteristics?.pacing === 'episodic' ||
+                  (finalized.estimatedRuntime && finalized.estimatedRuntime <= 60);
 
                 // Route to the appropriate development workspace
                 handlePhaseChange(isTVScript ? 'television' : 'scripts');
 
                 setGameState(prev => ({
                   ...prev,
-                  scripts: prev.scripts.some(s => s.id === script.id)
-                    ? prev.scripts.map(s => (s.id === script.id ? script : s))
-                    : [...prev.scripts, script]
+                  scripts: prev.scripts.some(s => s.id === finalized.id)
+                    ? prev.scripts.map(s => (s.id === finalized.id ? finalized : s))
+                    : [...prev.scripts, finalized]
                 }));
                 toast({
                   title: 'Script Draft Created',
                   description: isTVScript
-                    ? `\"${script.title}\" is ready in TV Show Development to customize roles before greenlighting.`
-                    : `\"${script.title}\" is ready in Script Development to customize roles before greenlighting.`,
+                    ? `\"${finalized.title}\" is ready in TV Show Development to customize roles before greenlighting.`
+                    : `\"${finalized.title}\" is ready in Script Development to customize roles before greenlighting.`,
                 });
               }}
             />
@@ -2151,8 +2157,11 @@ export const StudioMagnateGame: React.FC<StudioMagnateGameProps> = ({
                   },
                   themes: [],
                   sourceType: franchiseId ? 'franchise' : publicDomainId ? 'public-domain' : 'original',
-                  budget: cost ? 25000000 : 15000000 // Higher budget for licensed franchises
+                  budget: cost ? 25000000 : 15000000, // Higher budget for licensed franchises
+                  characters: [],
                 };
+
+                const finalized = finalizeScriptForSave(script, gameState);
 
                 // Deduct franchise cost if applicable
                 if (cost) {
@@ -2176,14 +2185,14 @@ export const StudioMagnateGame: React.FC<StudioMagnateGameProps> = ({
                 handlePhaseChange('scripts');
                 setGameState(prev => ({
                   ...prev,
-                  scripts: prev.scripts.some(s => s.id === script.id)
-                    ? prev.scripts.map(s => s.id === script.id ? script : s)
-                    : [...prev.scripts, script]
+                  scripts: prev.scripts.some(s => s.id === finalized.id)
+                    ? prev.scripts.map(s => s.id === finalized.id ? finalized : s)
+                    : [...prev.scripts, finalized]
                 }));
 
                 toast({
                   title: "Script Draft Created",
-                  description: `"${script.title}" is ready in Script Development to customize roles before greenlighting.`,
+                  description: `"${finalized.title}" is ready in Script Development to customize roles before greenlighting.`,
                 });
               }}
             />
