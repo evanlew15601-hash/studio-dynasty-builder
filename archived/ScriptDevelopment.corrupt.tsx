@@ -16,9 +16,8 @@ import { Dialog, DialogContent, DialogHeader, DialogTitle } from '@/components/u
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Textarea } from '@/components/ui/textarea';
-import { ScriptIcon } from '@/components/ui/icons';
 import { useToast } from '@/hooks/use-toast';
-
+import { ScriptIcon } from '@/components/ui/icons';
 import {
   DevelopmentStageControl,
   SCRIPT_STAGE_DESCRIPTION,
@@ -26,7 +25,6 @@ import {
 } from './DevelopmentStageControl';
 import { ScriptCoveragePanel } from './ScriptCoveragePanel';
 import { ScriptCharacterManager, ScriptCharacter } from './ScriptCharacterManager';
-
 import {
   createDefaultScriptCoverage,
   ensureScriptCoverageData,
@@ -88,7 +86,10 @@ function getCoverageGateForFinal(coverage: ScriptCoverage | undefined | null): {
   };
 }
 
-function applyRevisionToScript(script: Script, type: ScriptCoverageRevisionType): Script {
+function applyRevisionToScript(
+  script: Script,
+  type: ScriptCoverageRevisionType
+): Script {
   const effect = REVISION_EFFECTS[type];
 
   return {
@@ -141,8 +142,8 @@ export const ScriptDevelopment: React.FC<ScriptDevelopmentProps> = ({
     if (publicDomain) {
       return {
         title: `${publicDomain.name} Adaptation`,
-        genre: (publicDomain.genreFlexibility?.[0] as Genre) || 'drama',
-        logline: publicDomain.description || `An adaptation of ${publicDomain.name}.`,
+        genre: 'drama' as Genre,
+        logline: `An adaptation of ${publicDomain.name}.`,
         sourceType: 'public-domain' as const,
         publicDomainId: publicDomain.id,
       };
@@ -155,6 +156,56 @@ export const ScriptDevelopment: React.FC<ScriptDevelopmentProps> = ({
       sourceType: 'original' as const,
     };
   }, [gameState.franchises, gameState.publicDomainIPs, selectedFranchise, selectedPublicDomain]);
+
+  useEffect(() => {
+    if (!isCreating) return;
+    // When opening the modal, seed the form.
+    setDraft((prev) => ({
+      ...initialDraft,
+      // Preserve explicit edits if they already exist.
+      ...prev,
+      developmentStage: (prev.developmentStage as Script['developmentStage']) || 'concept',
+      budget: prev.budget || 5_000_000,
+      quality: prev.quality ?? 50,
+      characteristics: (prev.characteristics as ScriptCharacteristics) || DEFAULT_CHARACTERISTICS,
+      pages: prev.pages || 120,
+      targetAudience: prev.targetAudience || 'general',
+      estimatedRuntime: prev.estimatedRuntime || 120,
+      themes: prev.themes || [],
+    }));
+    setDraftCoverage((prev) => (prev ? prev : createDefaultScriptCoverage()));
+  }, [initialDraft, isCreating]);
+
+  useEffect(() => {
+    if (!isCreating) return;
+    if (editingScript) return;
+    if (scriptCharacters.length > 0) return;
+
+    const sourceType = (draft.sourceType || initialDraft.sourceType) as Script['sourceType'];
+    const franchiseId = (draft.franchiseId || (initialDraft as any).franchiseId) as string | undefined;
+    const publicDomainId = (draft.publicDomainId || (initialDraft as any).publicDomainId) as string | undefined;
+
+    if (sourceType !== 'franchise' && sourceType !== 'public-domain') return;
+
+    const tempScript = {
+      ...buildScriptFromDraft(),
+      sourceType,
+      franchiseId,
+      publicDomainId,
+      characters: [],
+    };
+
+    const imported = importRolesForScript(tempScript, gameState);
+    if (!imported || imported.length === 0) return;
+
+    setScriptCharacters(
+      imported.map((c) => ({
+        ...c,
+        screenTimeMinutes:
+          c.importance === 'lead' ? 60 : c.importance === 'supporting' ? 25 : c.importance === 'minor' ? 5 : 0,
+      }))
+    );
+  }, [draft.franchiseId, draft.publicDomainId, draft.sourceType, editingScript, gameState, initialDraft, isCreating, scriptCharacters.length]);
 
   const coverageScript = coverageScriptId
     ? gameState.scripts.find((s) => s.id === coverageScriptId) || null
@@ -178,71 +229,14 @@ export const ScriptDevelopment: React.FC<ScriptDevelopmentProps> = ({
       estimatedRuntime: draft.estimatedRuntime || 120,
       characteristics: (draft.characteristics as ScriptCharacteristics) || DEFAULT_CHARACTERISTICS,
       coverage: ensureScriptCoverageData(draftCoverage),
-      characters: scriptCharacters.map(({ screenTimeMinutes, ...c }) => c),
+      characters: scriptCharacters.length
+        ? scriptCharacters.map(({ screenTimeMinutes, ...c }) => c)
+        : editingScript?.characters || draft.characters || [],
       sourceType: (draft.sourceType as any) || 'original',
       franchiseId: draft.franchiseId as any,
       publicDomainId: draft.publicDomainId as any,
     };
   };
-
-  const resetForm = () => {
-    setIsCreating(false);
-    setEditingScript(null);
-    setDraft({});
-    setDraftCoverage(createDefaultScriptCoverage());
-    setScriptCharacters([]);
-    setDraftId(`script-${Date.now()}`);
-  };
-
-  // Seed base fields when opening create modal.
-  useEffect(() => {
-    if (!isCreating) return;
-
-    setDraft((prev) => ({
-      ...initialDraft,
-      ...prev,
-      developmentStage: (prev.developmentStage as Script['developmentStage']) || 'concept',
-      budget: prev.budget || 5_000_000,
-      quality: prev.quality ?? 50,
-      characteristics: (prev.characteristics as ScriptCharacteristics) || DEFAULT_CHARACTERISTICS,
-      pages: prev.pages || 120,
-      targetAudience: prev.targetAudience || 'general',
-      estimatedRuntime: prev.estimatedRuntime || 120,
-      themes: prev.themes || [],
-    }));
-  }, [initialDraft, isCreating]);
-
-  // Auto-import roles for franchise/public-domain scripts (only if user hasn't started editing roles).
-  useEffect(() => {
-    if (!isCreating) return;
-    if (editingScript) return;
-    if (scriptCharacters.length > 0) return;
-
-    const sourceType = (draft.sourceType || initialDraft.sourceType) as Script['sourceType'];
-    const franchiseId = (draft.franchiseId || (initialDraft as any).franchiseId) as string | undefined;
-    const publicDomainId = (draft.publicDomainId || (initialDraft as any).publicDomainId) as string | undefined;
-
-    if (sourceType !== 'franchise' && sourceType !== 'public-domain') return;
-
-    const tempScript: Script = {
-      ...buildScriptFromDraft(),
-      sourceType,
-      franchiseId,
-      publicDomainId,
-      characters: [],
-    };
-
-    const imported = importRolesForScript(tempScript, gameState);
-    if (!imported || imported.length === 0) return;
-
-    setScriptCharacters(
-      imported.map((c) => ({
-        ...c,
-        screenTimeMinutes:
-          c.importance === 'lead' ? 60 : c.importance === 'supporting' ? 25 : c.importance === 'minor' ? 5 : 0,
-      }))
-    );
-  }, [draft.franchiseId, draft.publicDomainId, draft.sourceType, editingScript, gameState, initialDraft, isCreating, scriptCharacters.length]);
 
   const finalizationPreview = useMemo(() => {
     if (!isCreating) return null;
@@ -253,18 +247,21 @@ export const ScriptDevelopment: React.FC<ScriptDevelopmentProps> = ({
       return null;
     }
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [isCreating, draft, draftCoverage, scriptCharacters, gameState]);
+  }, [isCreating, draft, draftCoverage, gameState]);
+
+  const canSpend = (cost: number) => gameState.studio.budget >= cost;
 
   const trySpendBudget = (cost: number, label: string): boolean => {
     if (cost <= 0) return true;
-    if (gameState.studio.budget < cost) {
+    if (!canSpend(cost)) {
       toast({
         title: 'Insufficient Budget',
-        description: `Need ${(cost / 1000).toFixed(0)}k for ${label}.`,
+        description: 'Need $' + (cost / 1000).toFixed(0) + 'k for ' + label + '.',
         variant: 'destructive',
       });
       return false;
     }
+
     onSpendBudget?.(cost);
     return true;
   };
@@ -275,7 +272,11 @@ export const ScriptDevelopment: React.FC<ScriptDevelopmentProps> = ({
     if (base.developmentStage === 'final') {
       const coverageGate = getCoverageGateForFinal(base.coverage);
       if (!coverageGate.allowed) {
-        toast({ title: 'Coverage Incomplete', description: coverageGate.reason, variant: 'destructive' });
+        toast({
+          title: 'Coverage Incomplete',
+          description: coverageGate.reason,
+          variant: 'destructive',
+        });
         return;
       }
 
@@ -286,25 +287,44 @@ export const ScriptDevelopment: React.FC<ScriptDevelopmentProps> = ({
           description: report.issues.filter((i) => i.level === 'error').map((i) => i.message).join(' '),
           variant: 'destructive',
         });
+        // Drop back to polish, so player can keep iterating.
         setDraft((prev) => ({ ...prev, developmentStage: 'polish' }));
         return;
       }
 
       onScriptUpdate(finalized);
-      toast({ title: 'Script Finalized' });
-      resetForm();
-      return;
+
+      toast({
+        title: 'Script Finalized',
+        description:
+          report.fixesApplied.length > 0
+            ? `${finalized.title}: ${report.fixesApplied.join(', ')}`
+            : `${finalized.title} is ready for greenlight.`,
+      });
+    } else {
+      const script = finalizeScriptForSave(base, gameState);
+      onScriptUpdate(script);
+
+      toast({
+        title: editingScript ? 'Script Updated' : 'Script Created',
+        description: script.title ? `Saved ${script.title}.` : undefined,
+      });
     }
 
-    const saved = finalizeScriptForSave(base, gameState);
-    onScriptUpdate(saved);
-    toast({ title: editingScript ? 'Script Updated' : 'Script Created' });
-    resetForm();
+    setIsCreating(false);
+    setEditingScript(null);
+    setDraft({});
+    setDraftCoverage(createDefaultScriptCoverage());
+    setScriptCharacters([]);
+    setDraftId(`script-${Date.now()}`);
   };
 
   const handleEditScript = (script: Script) => {
     setEditingScript(script);
-    setDraft({ ...script, characteristics: { ...script.characteristics } });
+    setDraft({
+      ...script,
+      characteristics: { ...script.characteristics },
+    });
     setDraftCoverage(ensureScriptCoverageData(script.coverage));
     setScriptCharacters(
       (script.characters || []).map((c) => ({
@@ -316,32 +336,14 @@ export const ScriptDevelopment: React.FC<ScriptDevelopmentProps> = ({
     setIsCreating(true);
   };
 
-  const handleFinalizeScript = (script: Script) => {
-    const coverageGate = getCoverageGateForFinal(script.coverage);
-    if (!coverageGate.allowed) {
-      toast({ title: 'Coverage Incomplete', description: coverageGate.reason, variant: 'destructive' });
-      return;
-    }
-
-    const { script: finalized, report } = finalizeScriptForGreenlight(script, gameState);
-
-    if (!report.canFinalize) {
-      toast({
-        title: 'Cannot Finalize',
-        description: report.issues.filter((i) => i.level === 'error').map((i) => i.message).join(' '),
-        variant: 'destructive',
-      });
-      return;
-    }
-
-    onScriptUpdate(finalized);
-    toast({ title: 'Script Finalized' });
-  };
-
   const handleGreenlightScript = (script: Script) => {
     const coverageGate = getCoverageGateForFinal(script.coverage);
     if (!coverageGate.allowed) {
-      toast({ title: 'Coverage Incomplete', description: coverageGate.reason, variant: 'destructive' });
+      toast({
+        title: 'Coverage Incomplete',
+        description: coverageGate.reason,
+        variant: 'destructive',
+      });
       return;
     }
 
@@ -358,6 +360,39 @@ export const ScriptDevelopment: React.FC<ScriptDevelopmentProps> = ({
 
     onScriptUpdate(finalized);
     onProjectCreate(finalized);
+  };
+
+  const handleFinalizeScript = (script: Script) => {
+    const coverageGate = getCoverageGateForFinal(script.coverage);
+    if (!coverageGate.allowed) {
+      toast({
+        title: 'Coverage Incomplete',
+        description: coverageGate.reason,
+        variant: 'destructive',
+      });
+      return;
+    }
+
+    const { script: finalized, report } = finalizeScriptForGreenlight(script, gameState);
+
+    if (!report.canFinalize) {
+      toast({
+        title: 'Cannot Finalize',
+        description: report.issues.filter((i) => i.level === 'error').map((i) => i.message).join(' '),
+        variant: 'destructive',
+      });
+      return;
+    }
+
+    onScriptUpdate(finalized);
+
+    toast({
+      title: 'Script Finalized',
+      description:
+        report.fixesApplied.length > 0
+          ? `${finalized.title}: ${report.fixesApplied.join(', ')}`
+          : `${finalized.title} is ready for greenlight.`,
+    });
   };
 
   const availableScripts = useMemo(
@@ -387,10 +422,13 @@ export const ScriptDevelopment: React.FC<ScriptDevelopmentProps> = ({
       <Dialog
         open={isCreating}
         onOpenChange={(open) => {
-          if (open) {
-            setIsCreating(true);
-          } else {
-            resetForm();
+          setIsCreating(open);
+          if (!open) {
+            setEditingScript(null);
+            setDraft({});
+            setDraftCoverage(createDefaultScriptCoverage());
+            setScriptCharacters([]);
+            setDraftId(`script-${Date.now()}`);
           }
         }}
       >
@@ -459,7 +497,11 @@ export const ScriptDevelopment: React.FC<ScriptDevelopmentProps> = ({
                   if (next === 'final') {
                     const coverageGate = getCoverageGateForFinal(draftCoverage);
                     if (!coverageGate.allowed) {
-                      toast({ title: 'Coverage Incomplete', description: coverageGate.reason, variant: 'destructive' });
+                      toast({
+                        title: 'Coverage Incomplete',
+                        description: coverageGate.reason,
+                        variant: 'destructive',
+                      });
                       return;
                     }
 
@@ -494,10 +536,10 @@ export const ScriptDevelopment: React.FC<ScriptDevelopmentProps> = ({
                   if (!trySpendBudget(effect.cost, effect.label)) return;
 
                   setDraftCoverage(nextCoverage);
-
                   setDraft((prev) => {
                     const quality = clampQuality((prev.quality ?? 50) + effect.qualityDelta);
                     const chars = (prev.characteristics as ScriptCharacteristics) || DEFAULT_CHARACTERISTICS;
+
                     return {
                       ...prev,
                       quality,
@@ -519,11 +561,24 @@ export const ScriptDevelopment: React.FC<ScriptDevelopmentProps> = ({
             </div>
 
             <div className="border-t pt-4">
-              <ScriptCharacterManager characters={scriptCharacters} onCharactersChange={setScriptCharacters} />
+              <ScriptCharacterManager
+                characters={scriptCharacters}
+                onCharactersChange={setScriptCharacters}
+              />
             </div>
 
             <div className="flex justify-end gap-2">
-              <Button variant="outline" onClick={resetForm}>
+              <Button
+                variant="outline"
+                onClick={() => {
+                  setIsCreating(false);
+                  setEditingScript(null);
+                  setDraft({});
+                  setDraftCoverage(createDefaultScriptCoverage());
+                  setScriptCharacters([]);
+                  setDraftId(`script-${Date.now()}`);
+                }}
+              >
                 Cancel
               </Button>
               <Button onClick={handleSaveScript}>
@@ -578,7 +633,12 @@ export const ScriptDevelopment: React.FC<ScriptDevelopmentProps> = ({
                           </Button>
                         </div>
 
-                        <Button size="sm" variant="ghost" className="w-full" onClick={() => setCoverageScriptId(script.id)}>
+                        <Button
+                          size="sm"
+                          variant="ghost"
+                          className="w-full"
+                          onClick={() => setCoverageScriptId(script.id)}
+                        >
                           📝 Coverage & Notes
                         </Button>
                       </div>
@@ -621,7 +681,148 @@ export const ScriptDevelopment: React.FC<ScriptDevelopmentProps> = ({
 
                 toast({
                   title: effect.label,
-                  description: effect.cost > 0 ? `Spent ${(effect.cost / 1000).toFixed(0)}k.` : undefined,
+                  description: effect.cost > 0 ? `Spent $${(effect.cost / 1000).toFixed(0)}k.` : undefined,
+                });
+              }}
+              defaultStage={coverageScript.developmentStage}
+            />
+          ) : (
+            <div className="text-sm text-muted-foreground">No script selected.</div>
+          )}
+        </DialogContent>
+      </Dialog>
+    </div>
+  );
+};
+ + (effect.cost / 1000).toFixed(0) + 'k.' : undefined,
+                  });
+                }}
+                defaultStage={((draft.developmentStage as Script['developmentStage']) || 'concept')}
+              />
+            </div>
+
+            <div className="border-t pt-4">
+              <ScriptCharacterManager
+                characters={scriptCharacters}
+                onCharactersChange={setScriptCharacters}
+              />
+            </div>
+
+            <div className="flex justify-end gap-2">
+              <Button
+                variant="outline"
+                onClick={() => {
+                  setIsCreating(false);
+                  setEditingScript(null);
+                  setDraft({});
+                  setDraftCoverage(createDefaultScriptCoverage());
+                  setScriptCharacters([]);
+                  setDraftId(`script-${Date.now()}`);
+                }}
+              >
+                Cancel
+              </Button>
+              <Button onClick={handleSaveScript}>
+                <ScriptIcon className="mr-2" size={16} />
+                {editingScript ? 'Save Changes' : 'Create Script'}
+              </Button>
+            </div>
+          </div>
+        </DialogContent>
+      </Dialog>
+
+      <Card>
+        <CardHeader>
+          <CardTitle>Script Library</CardTitle>
+        </CardHeader>
+        <CardContent>
+          {availableScripts.length === 0 ? (
+            <div className="text-sm text-muted-foreground">No scripts in development.</div>
+          ) : (
+            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
+              {availableScripts.map((script) => {
+                const report = getScriptGreenlightReport(script, gameState);
+
+                return (
+                  <Card key={script.id} className="border-border">
+                    <CardHeader className="pb-3">
+                      <CardTitle className="text-base truncate">{script.title}</CardTitle>
+                      <div className="flex flex-wrap gap-2">
+                        <Badge variant="outline" className="text-xs">
+                          {script.genre}
+                        </Badge>
+                        <Badge variant="secondary" className="text-xs">
+                          {script.developmentStage}
+                        </Badge>
+                      </div>
+                    </CardHeader>
+                    <CardContent>
+                      <div className="space-y-3">
+                        <p className="text-sm text-muted-foreground line-clamp-2">{script.logline}</p>
+
+                        <div className="flex gap-2">
+                          <Button size="sm" variant="outline" className="flex-1" onClick={() => handleEditScript(script)}>
+                            ✏️ Edit
+                          </Button>
+                          <Button
+                            size="sm"
+                            variant={report.canGreenlight ? 'default' : 'secondary'}
+                            className="flex-1"
+                            onClick={() => (report.canGreenlight ? handleGreenlightScript(script) : handleFinalizeScript(script))}
+                          >
+                            {report.canGreenlight ? 'Greenlight' : 'Finalize'}
+                          </Button>
+                        </div>
+
+                        <Button
+                          size="sm"
+                          variant="ghost"
+                          className="w-full"
+                          onClick={() => setCoverageScriptId(script.id)}
+                        >
+                          📝 Coverage & Notes
+                        </Button>
+                      </div>
+                    </CardContent>
+                  </Card>
+                );
+              })}
+            </div>
+          )}
+        </CardContent>
+      </Card>
+
+      <Dialog
+        open={Boolean(coverageScriptId)}
+        onOpenChange={(open) => {
+          if (!open) setCoverageScriptId(null);
+        }}
+      >
+        <DialogContent className="max-w-3xl">
+          <DialogHeader>
+            <DialogTitle>Coverage & Notes{coverageScript ? `: ${coverageScript.title}` : ''}</DialogTitle>
+          </DialogHeader>
+          {coverageScript ? (
+            <ScriptCoveragePanel
+              coverage={ensureScriptCoverageData(coverageScript.coverage)}
+              onCoverageChange={(next) => onScriptUpdate({ ...coverageScript, coverage: next })}
+              onRevisionAction={(nextCoverage, info) => {
+                const effect = REVISION_EFFECTS[info.type];
+                if (!trySpendBudget(effect.cost, effect.label)) return;
+
+                const nextScript = applyRevisionToScript(
+                  {
+                    ...coverageScript,
+                    coverage: nextCoverage,
+                  },
+                  info.type
+                );
+
+                onScriptUpdate(nextScript);
+
+                toast({
+                  title: effect.label,
+                  description: effect.cost > 0 ? `Spent $${(effect.cost / 1000).toFixed(0)}k.` : undefined,
                 });
               }}
               defaultStage={coverageScript.developmentStage}

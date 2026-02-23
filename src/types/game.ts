@@ -108,6 +108,7 @@ export interface Script {
   sourceType?: 'original' | 'franchise' | 'public-domain' | 'adaptation';
   franchiseId?: string;
   publicDomainId?: string;
+  coverage?: ScriptCoverage;
 }
 
 export interface ScriptCharacteristics {
@@ -118,6 +119,41 @@ export interface ScriptCharacteristics {
   commercialAppeal: number; // 1-10
   criticalPotential: number; // 1-10
   cgiIntensity: 'practical' | 'minimal' | 'moderate' | 'heavy';
+}
+
+export interface ScriptCoverageChecklistItem {
+  id: string;
+  label: string;
+  completed: boolean;
+}
+
+export interface ScriptStageCoverage {
+  notes: string;
+  checklist: ScriptCoverageChecklistItem[];
+  lastUpdatedAt?: number;
+}
+
+export type ScriptCoverageRevisionType =
+  | 'coverage_requested'
+  | 'coverage_received'
+  | 'minor_revision'
+  | 'major_revision'
+  | 'polish_pass'
+  | 'table_read'
+  | 'notes_applied';
+
+export interface ScriptRevisionAction {
+  id: string;
+  stage: Script['developmentStage'];
+  type: ScriptCoverageRevisionType;
+  note?: string;
+  createdAt: number;
+}
+
+export interface ScriptCoverage {
+  version: number;
+  stages: Record<Script['developmentStage'], ScriptStageCoverage>;
+  revisionActions: ScriptRevisionAction[];
 }
 
 export interface TalentPerson {

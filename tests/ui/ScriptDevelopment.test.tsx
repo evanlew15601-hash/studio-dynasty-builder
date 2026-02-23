@@ -5,6 +5,7 @@ import userEvent from '@testing-library/user-event';
 
 import type { Franchise, GameState, Script } from '@/types/game';
 import { ScriptDevelopment } from '@/components/game/ScriptDevelopment';
+import { createDefaultScriptCoverage } from '@/utils/scriptCoverage';
 
 const { toast } = vi.hoisted(() => ({
   toast: vi.fn(),
@@ -53,6 +54,22 @@ function makeBaseGameState(overrides: Partial<GameState> = {}): GameState {
   };
 }
 
+function makeReadyCoverage(): Script['coverage'] {
+  const base = createDefaultScriptCoverage();
+
+  const markAll = (stage: keyof typeof base.stages) => {
+    base.stages[stage] = {
+      ...base.stages[stage],
+      checklist: base.stages[stage].checklist.map((item) => ({ ...item, completed: true })),
+    };
+  };
+
+  markAll('polish');
+  markAll('final');
+
+  return base;
+}
+
 function makeScript(overrides: Partial<Script> = {}): Script {
   return {
     id: 'script-1',
@@ -76,6 +93,7 @@ function makeScript(overrides: Partial<Script> = {}): Script {
       criticalPotential: 5,
       cgiIntensity: 'minimal',
     },
+    coverage: makeReadyCoverage(),
     ...overrides,
   };
 }
@@ -200,6 +218,43 @@ describe('ScriptDevelopment - stage switching and finalization gating', () => {
     expect(toast).toHaveBeenCalledWith(
       expect.objectContaining({
         title: 'Script Finalized',
+      })
+    );
+  });
+
+  it('blocks finalization when coverage checklists are incomplete and shows a destructive toast', async () => {
+    const user = userEvent.setup();
+
+    const onProjectCreate = vi.fn();
+    const onScriptUpdate = vi.fn();
+
+    const script = makeScript({
+      id: 'coverage-blocked',
+      title: 'Coverage Blocked',
+      coverage: createDefaultScriptCoverage(),
+    });
+
+    render(
+      <ScriptDevelopment
+        gameState={makeBaseGameState({ scripts: [script] })}
+        onProjectCreate={onProjectCreate}
+        onScriptUpdate={onScriptUpdate}
+      />
+    );
+
+    const heading = screen.getByRole('heading', { name: 'Coverage Blocked' });
+    const scriptCard = heading.closest('div')?.parentElement;
+    expect(scriptCard).toBeTruthy();
+
+    await user.click(within(scriptCard as HTMLElement).getByRole('button', { name: /finalize/i }));
+
+    expect(onScriptUpdate).not.toHaveBeenCalled();
+    expect(onProjectCreate).not.toHaveBeenCalled();
+
+    expect(toast).toHaveBeenCalledWith(
+      expect.objectContaining({
+        title: 'Coverage Incomplete',
+        variant: 'destructive',
       })
     );
   });

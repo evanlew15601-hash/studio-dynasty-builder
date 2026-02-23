@@ -2237,6 +2237,15 @@ export const StudioMagnateGame: React.FC<StudioMagnateGameProps> = ({
                   : [...prev.scripts, script]
               }));
             }}
+            onSpendBudget={(amount) => {
+              setGameState(prev => ({
+                ...prev,
+                studio: {
+                  ...prev.studio,
+                  budget: prev.studio.budget - amount,
+                },
+              }));
+            }}
           />
         )}
         

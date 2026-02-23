@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from 'react';
-import { GameState, Script, Genre, ScriptCharacteristics } from '@/types/game';
+import { GameState, Script, Genre, ScriptCharacteristics, ScriptCoverage } from '@/types/game';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
@@ -8,9 +8,12 @@ import { Textarea } from '@/components/ui/textarea';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { Slider } from '@/components/ui/slider';
 import { Badge } from '@/components/ui/badge';
+import { Dialog, DialogContent, DialogHeader, DialogTitle } from '@/components/ui/dialog';
 import { useToast } from '@/hooks/use-toast';
 import { ScriptCharacterManager, ScriptCharacter } from './ScriptCharacterManager';
+import { ScriptCoveragePanel } from './ScriptCoveragePanel';
 import { importRolesForScript } from '@/utils/roleImport';
+import { createDefaultScriptCoverage, ensureScriptCoverageData, getStageChecklistProgress } from '@/utils/scriptCoverage';
 import { finalizeScriptForSave } from '@/utils/scriptFinalization';
 import { ScriptIcon, BudgetIcon, AwardIcon, ClapperboardIcon } from '@/components/ui/icons';
 
@@ -34,6 +37,8 @@ export const TVShowDevelopment: React.FC<TVShowDevelopmentProps> = ({
   const [isCreating, setIsCreating] = useState(false);
   const [editingScript, setEditingScript] = useState<Script | null>(null);
   const [scriptCharacters, setScriptCharacters] = useState<ScriptCharacter[]>([]);
+  const [scriptCoverage, setScriptCoverage] = useState<ScriptCoverage>(() => createDefaultScriptCoverage());
+  const [coverageScriptId, setCoverageScriptId] = useState<string | null>(null);
 
   const stageOrder: Script['developmentStage'][] = ['concept', 'treatment', 'first-draft', 'polish', 'final'];
 
@@ -53,6 +58,7 @@ export const TVShowDevelopment: React.FC<TVShowDevelopmentProps> = ({
     setNewScript({
       ...script,
     });
+    setScriptCoverage(ensureScriptCoverageData(script.coverage));
     setScriptCharacters(
       seededCharacters.map((c) => ({
         ...c,
@@ -159,6 +165,7 @@ export const TVShowDevelopment: React.FC<TVShowDevelopmentProps> = ({
   useEffect(() => {
     const initial = getInitialTVScript();
     setNewScript(initial);
+    setScriptCoverage(createDefaultScriptCoverage());
 
     const tempScript: Script = {
       id: `temp-${Date.now()}`,
@@ -228,6 +235,7 @@ export const TVShowDevelopment: React.FC<TVShowDevelopmentProps> = ({
         criticalPotential: newScript.characteristics?.criticalPotential || 5,
         cgiIntensity: newScript.characteristics?.cgiIntensity || 'minimal'
       },
+      coverage: scriptCoverage,
       // Strip UI-only fields before persisting to game state
       characters: scriptCharacters.map(({ screenTimeMinutes, ...c }) => c),
       sourceType: newScript.sourceType || 'original',
@@ -244,6 +252,7 @@ export const TVShowDevelopment: React.FC<TVShowDevelopmentProps> = ({
     // Reset form to default state
     setNewScript(getInitialTVScript());
     setScriptCharacters([]);
+    setScriptCoverage(createDefaultScriptCoverage());
     
     toast({
       title: editingScript ? "TV Script Updated" : "TV Script Created",
@@ -291,6 +300,10 @@ export const TVShowDevelopment: React.FC<TVShowDevelopmentProps> = ({
     !gameState.projects.some(project => project.script.id === script.id) &&
     (script.characteristics.pacing === 'episodic' || script.estimatedRuntime <= 60) // TV-like characteristics
   );
+
+  const coverageScript = coverageScriptId
+    ? gameState.scripts.find(s => s.id === coverageScriptId) || null
+    : null;
 
   return (
     <div className="space-y-6">
@@ -536,6 +549,16 @@ export const TVShowDevelopment: React.FC<TVShowDevelopmentProps> = ({
               />
             </div>
 
+            {/* Coverage & Notes (lightweight) */}
+            <div className="border-t pt-6">
+              <ScriptCoveragePanel
+                coverage={scriptCoverage}
+                onCoverageChange={setScriptCoverage}
+                defaultStage={(newScript.developmentStage || 'concept') as Script['developmentStage']}
+                showRevisionActions={false}
+              />
+            </div>
+
             <div className="flex justify-end space-x-3">
               <Button 
                 variant="outline" 
@@ -543,6 +566,7 @@ export const TVShowDevelopment: React.FC<TVShowDevelopmentProps> = ({
                   setIsCreating(false);
                   setEditingScript(null);
                   setScriptCharacters([]);
+                  setScriptCoverage(createDefaultScriptCoverage());
                 }}
               >
                 Cancel
@@ -581,6 +605,9 @@ export const TVShowDevelopment: React.FC<TVShowDevelopmentProps> = ({
                 const stageProgress = ((stageIndex + 1) / stageOrder.length) * 100;
                 const isReadyToGreenlight = script.developmentStage === 'final';
 
+                const coverageData = ensureScriptCoverageData(script.coverage);
+                const coverageProgress = getStageChecklistProgress(coverageData, script.developmentStage || 'concept');
+
                 return (
                 <Card 
                   key={script.id} 
@@ -614,6 +641,22 @@ export const TVShowDevelopment: React.FC<TVShowDevelopmentProps> = ({
                           <div 
                             className="bg-primary rounded-full h-1.5 transition-all" 
                             style={{ width: `${stageProgress}%` }}
+                          />
+                        </div>
+                      </div>
+
+                      {/* Coverage Progress */}
+                      <div className="space-y-1">
+                        <div className="flex justify-between text-xs text-muted-foreground">
+                          <span>Coverage</span>
+                          <span>
+                            {coverageProgress.completed}/{coverageProgress.total}
+                          </span>
+                        </div>
+                        <div className="w-full bg-muted rounded-full h-1.5">
+                          <div
+                            className="bg-accent rounded-full h-1.5 transition-all"
+                            style={{ width: `${coverageProgress.percent}%` }}
                           />
                         </div>
                       </div>
@@ -653,6 +696,16 @@ export const TVShowDevelopment: React.FC<TVShowDevelopmentProps> = ({
                           {isReadyToGreenlight ? 'Greenlight' : 'Not Ready'}
                         </Button>
                       </div>
+
+                      <Button
+                        size="sm"
+                        variant="ghost"
+                        className="w-full"
+                        onClick={() => setCoverageScriptId(script.id)}
+                      >
+                        📝 Coverage & Notes
+                      </Button>
+
                       {!isReadyToGreenlight && (
                         <p className="text-xs text-muted-foreground text-center">
                           Edit and advance to "final" stage to greenlight
@@ -667,6 +720,29 @@ export const TVShowDevelopment: React.FC<TVShowDevelopmentProps> = ({
           )}
         </CardContent>
       </Card>
+
+      <Dialog
+        open={Boolean(coverageScriptId)}
+        onOpenChange={(open) => {
+          if (!open) setCoverageScriptId(null);
+        }}
+      >
+        <DialogContent className="max-w-3xl">
+          <DialogHeader>
+            <DialogTitle>Coverage & Notes{coverageScript ? `: ${coverageScript.title}` : ''}</DialogTitle>
+          </DialogHeader>
+          {coverageScript ? (
+            <ScriptCoveragePanel
+              coverage={ensureScriptCoverageData(coverageScript.coverage)}
+              onCoverageChange={(next) => onScriptUpdate({ ...coverageScript, coverage: next })}
+              defaultStage={coverageScript.developmentStage}
+              showRevisionActions={false}
+            />
+          ) : (
+            <div className="text-sm text-muted-foreground">No script selected.</div>
+          )}
+        </DialogContent>
+      </Dialog>
     </div>
   );
 };
