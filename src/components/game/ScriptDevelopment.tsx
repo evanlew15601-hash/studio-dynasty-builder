@@ -11,8 +11,10 @@ import { Badge } from '@/components/ui/badge';
 import { useToast } from '@/hooks/use-toast';
 import { ScriptCharacterManager, ScriptCharacter } from './ScriptCharacterManager';
 import { importRolesForScript } from '@/utils/roleImport';
-import { finalizeScriptForGreenlight, getScriptGreenlightReport } from '@/utils/scriptFinalization';
+import { finalizeScriptForSave as finalizeScriptForSaveUtil, finalizeScriptForGreenlight, getScriptGreenlightReport } from '@/utils/scriptFinalization';
 import { ScriptIcon, BudgetIcon, AwardIcon, ClapperboardIcon } from '@/components/ui/icons';
+import { Alert, AlertDescription, AlertTitle } from '@/components/ui/alert';
+import { DevelopmentStageControl, SCRIPT_STAGE_DESCRIPTION, SCRIPT_STAGE_LABEL, SCRIPT_STAGE_ORDER } from './DevelopmentStageControl';
 
 interface ScriptDevelopmentProps {
   gameState: GameState;
@@ -33,6 +35,7 @@ export const ScriptDevelopment: React.FC<ScriptDevelopmentProps> = ({
   
   const [isCreating, setIsCreating] = useState(false);
   const [editingScript, setEditingScript] = useState<Script | null>(null);
+  const [draftScriptId, setDraftScriptId] = useState<string>(() => `script-${Date.now()}`);
   
   // Auto-fill script based on selected franchise or PD
   const getInitialScript = (): Partial<Script> => {
@@ -123,15 +126,16 @@ return {
   
   const [newScript, setNewScript] = useState<Partial<Script>>(getInitialScript());
 
-  // Update script when franchise/PD selection changes and pre-populate roles
-  useEffect(() => {
-    const next = getInitialScript();
+  const [scriptCharacters, setScriptCharacters] = useState<ScriptCharacter[]>([]);
+
+  const applyInitialScript = (next: Partial<Script>) => {
     setNewScript(next);
+
     // If a source is selected, auto-import curated characters into the creation form
     const tempScript: Script = {
       id: `temp-${Date.now()}`,
       title: next.title || 'Temp',
-      genre: next.genre as any || 'drama',
+      genre: (next.genre as any) || 'drama',
       logline: next.logline || '',
       writer: next.writer || '',
       pages: next.pages || 120,
@@ -141,12 +145,23 @@ return {
       themes: next.themes || [],
       targetAudience: (next.targetAudience as any) || 'general',
       estimatedRuntime: next.estimatedRuntime || 120,
-      characteristics: next.characteristics as any || { tone: 'balanced', pacing: 'steady', dialogue: 'naturalistic', visualStyle: 'realistic', commercialAppeal: 5, criticalPotential: 5, cgiIntensity: 'minimal' },
+      characteristics:
+        (next.characteristics as any) ||
+        ({
+          tone: 'balanced',
+          pacing: 'steady',
+          dialogue: 'naturalistic',
+          visualStyle: 'realistic',
+          commercialAppeal: 5,
+          criticalPotential: 5,
+          cgiIntensity: 'minimal',
+        } as any),
       sourceType: (next as any).sourceType,
       franchiseId: (next as any).franchiseId,
       publicDomainId: (next as any).publicDomainId,
-      characters: []
+      characters: [],
     };
+
     if (tempScript.sourceType === 'franchise' || tempScript.sourceType === 'public-domain') {
       const imported = importRolesForScript(tempScript, gameState);
       const adapted = imported.map((c): ScriptCharacter => ({
@@ -162,9 +177,12 @@ return {
     } else {
       setScriptCharacters([]);
     }
-  }, [selectedFranchise, selectedPublicDomain]);
+  };
 
-  const [scriptCharacters, setScriptCharacters] = useState<ScriptCharacter[]>([]);
+  // Update script when franchise/PD selection changes and pre-populate roles
+  useEffect(() => {
+    applyInitialScript(getInitialScript());
+  }, [selectedFranchise, selectedPublicDomain]);
 
   const genres: Genre[] = [
     'action', 'adventure', 'comedy', 'drama', 'horror', 'thriller',
@@ -180,25 +198,49 @@ return {
     return developmentCost <= availableFunds;
   };
 
-  const finalizeScriptForSave = (script: Script): { script: Script; report?: ReturnType<typeof getScriptGreenlightReport> } => {
-    const shouldAutoImportRoles =
-      (script.sourceType === 'franchise' || script.sourceType === 'public-domain') &&
-      (!script.characters || script.characters.length === 0);
+  const buildDraftScript = (): Script => {
+    const stage = (newScript.developmentStage as Script['developmentStage']) || 'concept';
 
-    if (script.developmentStage !== 'final' && !shouldAutoImportRoles) {
-      return { script };
-    }
-
-    const { script: finalized, report } = finalizeScriptForGreenlight(script, gameState);
-
-    // If the user tried to set Final but the script is still failing validation,
-    // keep it in polish so the UI doesn't imply it's greenlight-ready.
-    if (script.developmentStage === 'final' && !report.canFinalize) {
-      return { script: { ...finalized, developmentStage: 'polish' }, report };
-    }
-
-    return { script: finalized, report };
+    return {
+      id: editingScript?.id || newScript.id || draftScriptId,
+      title: newScript.title || '',
+      genre: (newScript.genre as Genre) || 'drama',
+      logline: newScript.logline || '',
+      writer: newScript.writer || 'In-house',
+      pages: newScript.pages || 120,
+      quality: newScript.quality || 50,
+      budget: newScript.budget || 5_000_000,
+      developmentStage: stage,
+      themes: newScript.themes || [],
+      targetAudience: (newScript.targetAudience as any) || 'general',
+      estimatedRuntime: newScript.estimatedRuntime || 120,
+      characteristics: newScript.characteristics || {
+        tone: 'balanced',
+        pacing: 'steady',
+        dialogue: 'naturalistic',
+        visualStyle: 'realistic',
+        commercialAppeal: 5,
+        criticalPotential: 5,
+        cgiIntensity: 'minimal',
+      },
+      // Strip UI-only fields before persisting to game state
+      characters: scriptCharacters.map(({ screenTimeMinutes, ...c }) => c),
+      sourceType: newScript.sourceType as any,
+      franchiseId: newScript.franchiseId as any,
+      publicDomainId: newScript.publicDomainId as any,
+    };
   };
+
+  const finalizationPreview = isCreating
+    ? (() => {
+        try {
+          const { report } = finalizeScriptForGreenlight(buildDraftScript(), gameState);
+          return report;
+        } catch (e) {
+          return null;
+        }
+      })()
+    : null;
 
   const handleFinalizeScript = (script: Script) => {
     const { script: finalized, report } = finalizeScriptForGreenlight(script, gameState);
@@ -253,64 +295,68 @@ return {
   const handleCreateScript = () => {
     if (!newScript.title || !newScript.logline) {
       toast({
-        title: "Incomplete Script",
-        description: "Please provide at least a title and logline.",
-        variant: "destructive"
+        title: 'Incomplete Script',
+        description: 'Please provide at least a title and logline.',
+        variant: 'destructive',
       });
       return;
     }
 
-    const script: Script = {
-      id: editingScript?.id || `script-${Date.now()}`,
-      title: newScript.title!,
-      genre: newScript.genre!,
-      logline: newScript.logline!,
-      writer: newScript.writer || 'In-house',
-      pages: newScript.pages || 120,
-      quality: newScript.quality || 50,
-      budget: newScript.budget || 5000000,
-      developmentStage: newScript.developmentStage || 'concept',
-      themes: newScript.themes || [],
-      targetAudience: newScript.targetAudience || 'general',
-      estimatedRuntime: newScript.estimatedRuntime || 120,
-      characteristics: newScript.characteristics || {
-        tone: 'balanced',
-        pacing: 'steady',
-        dialogue: 'naturalistic',
-        visualStyle: 'realistic',
-        commercialAppeal: 5,
-        criticalPotential: 5,
-        cgiIntensity: 'minimal'
-      },
-      // Strip UI-only fields before persisting to game state
-      characters: scriptCharacters.map(({ screenTimeMinutes, ...c }) => c),
-      sourceType: newScript.sourceType as any,
-      franchiseId: newScript.franchiseId as any,
-      publicDomainId: newScript.publicDomainId as any,
-    };
+    const draft = buildDraftScript();
 
-    const { script: finalized, report } = finalizeScriptForSave(script);
+    // Always do "safe" save finalization (role import + requiredType defaults).
+    const scriptForSave = finalizeScriptForSaveUtil(draft, gameState);
 
-    onScriptUpdate(finalized);
+    // If the user set the stage to Final, treat "Save" as an attempt to finalize.
+    if (draft.developmentStage === 'final') {
+      const { script: finalized, report } = finalizeScriptForGreenlight(scriptForSave, gameState);
 
-    if (report && report.fixesApplied.length > 0) {
+      if (!report.canFinalize) {
+        toast({
+          title: 'Cannot Finalize',
+          description: report.issues.filter(i => i.level === 'error').map(i => i.message).join(' '),
+          variant: 'destructive',
+        });
+        // Keep the editor open and move them back to a non-final stage so the UI stays honest.
+        setNewScript(prev => ({ ...prev, developmentStage: 'polish' }));
+        return;
+      }
+
+      onScriptUpdate(finalized);
+
+      if (report.fixesApplied.length > 0) {
+        toast({
+          title: 'Finalization Updates',
+          description: report.fixesApplied.join(', '),
+        });
+      }
+
+      setIsCreating(false);
+      setEditingScript(null);
+      applyInitialScript(getInitialScript());
+      setDraftScriptId(`script-${Date.now()}`);
+
       toast({
-        title: 'Finalization Updates',
-        description: report.fixesApplied.join(', '),
+        title: editingScript ? 'Script Updated' : 'Script Created',
+        description: editingScript
+          ? `"${finalized.title}" has been updated and finalized. You can now greenlight it.`
+          : `"${finalized.title}" has been finalized and is ready for greenlight.`,
       });
+      return;
     }
+
+    onScriptUpdate(scriptForSave);
+
     setIsCreating(false);
     setEditingScript(null);
-    
-    // Reset form to default state
-    setNewScript(getInitialScript());
-    setScriptCharacters([]);
-    
+    applyInitialScript(getInitialScript());
+    setDraftScriptId(`script-${Date.now()}`);
+
     toast({
-      title: editingScript ? "Script Updated" : "Script Created",
+      title: editingScript ? 'Script Updated' : 'Script Created',
       description: editingScript
-        ? `"${finalized.title}" has been updated. Continue refining or greenlight when ready.`
-        : `"${finalized.title}" has been added to your development slate with ${(finalized.characters || []).length} character roles.`,
+        ? `"${scriptForSave.title}" has been updated. Current stage: ${SCRIPT_STAGE_LABEL[scriptForSave.developmentStage]}.`
+        : `"${scriptForSave.title}" has been added to your development slate with ${(scriptForSave.characters || []).length} character roles.`,
     });
   };
 
@@ -408,7 +454,12 @@ return {
           <p className="text-muted-foreground mt-2">Create, refine, and greenlight your next productions</p>
         </div>
         <Button 
-          onClick={() => setIsCreating(true)}
+          onClick={() => {
+            setDraftScriptId(`script-${Date.now()}`);
+            setEditingScript(null);
+            applyInitialScript(getInitialScript());
+            setIsCreating(true);
+          }}
           className="btn-studio animate-glow"
         >
           <ScriptIcon className="mr-2" size={18} />
@@ -484,26 +535,118 @@ return {
                   </Select>
                 </div>
 
-                <div>
-                  <Label htmlFor="stage">Development Stage</Label>
-                  <Select
-                    value={newScript.developmentStage || 'concept'}
-                    onValueChange={(value) => setNewScript(prev => ({ ...prev, developmentStage: value as Script['developmentStage'] }))}
-                  >
-                    <SelectTrigger className="mt-1">
-                      <SelectValue />
-                    </SelectTrigger>
-                    <SelectContent>
-                      <SelectItem value="concept">Concept</SelectItem>
-                      <SelectItem value="treatment">Treatment</SelectItem>
-                      <SelectItem value="first-draft">First Draft</SelectItem>
-                      <SelectItem value="polish">Polish</SelectItem>
-                      <SelectItem value="final">Final</SelectItem>
-                    </SelectContent>
-                  </Select>
-                  <p className="text-xs text-muted-foreground mt-1">
-                    Scripts must reach "Final" stage to be greenlit
+                <div className="space-y-2">
+                  <div className="flex items-center justify-between">
+                    <Label>Development Stage</Label>
+                    <Badge
+                      variant={
+                        (newScript.developmentStage || 'concept') === 'final' && finalizationPreview?.canFinalize
+                          ? 'default'
+                          : 'secondary'
+                      }
+                      className="text-xs"
+                    >
+                      {SCRIPT_STAGE_LABEL[(newScript.developmentStage || 'concept') as Script['developmentStage']]}
+                    </Badge>
+                  </div>
+
+                  <DevelopmentStageControl
+                    value={(newScript.developmentStage || 'concept') as Script['developmentStage']}
+                    onValueChange={(next) => {
+                      if (next === 'final' && finalizationPreview && !finalizationPreview.canFinalize) {
+                        toast({
+                          title: 'Not Ready for Final',
+                          description: finalizationPreview.issues
+                            .filter(i => i.level === 'error')
+                            .map(i => i.message)
+                            .join(' '),
+                          variant: 'destructive',
+                        });
+                        return;
+                      }
+                      setNewScript(prev => ({ ...prev, developmentStage: next }));
+                    }}
+                    gate={(stage) => {
+                      if (stage !== 'final') return { allowed: true };
+                      if (!finalizationPreview) return { allowed: true };
+                      if (finalizationPreview.canFinalize) return { allowed: true };
+                      const msg = finalizationPreview.issues
+                        .filter(i => i.level === 'error')
+                        .map(i => i.message)
+                        .join(' ');
+                      return {
+                        allowed: false,
+                        reason: msg || 'Fix required fields before finalizing.',
+                      };
+                    }}
+                  />
+
+                  <p className="text-xs text-muted-foreground">
+                    {SCRIPT_STAGE_DESCRIPTION[(newScript.developmentStage || 'concept') as Script['developmentStage']]}
                   </p>
+
+                  <div className="flex flex-wrap items-center gap-2 pt-1">
+                    <Button
+                      type="button"
+                      size="sm"
+                      variant="outline"
+                      onClick={() => {
+                        const current = (newScript.developmentStage || 'concept') as Script['developmentStage'];
+                        const idx = SCRIPT_STAGE_ORDER.indexOf(current);
+                        if (idx <= 0) return;
+                        setNewScript(prev => ({ ...prev, developmentStage: SCRIPT_STAGE_ORDER[idx - 1] }));
+                      }}
+                      disabled={SCRIPT_STAGE_ORDER.indexOf((newScript.developmentStage || 'concept') as Script['developmentStage']) <= 0}
+                    >
+                      Back
+                    </Button>
+                    <Button
+                      type="button"
+                      size="sm"
+                      variant="secondary"
+                      onClick={() => {
+                        const current = (newScript.developmentStage || 'concept') as Script['developmentStage'];
+                        const idx = SCRIPT_STAGE_ORDER.indexOf(current);
+                        const next = SCRIPT_STAGE_ORDER[idx + 1];
+                        if (!next) return;
+                        if (next === 'final' && finalizationPreview && !finalizationPreview.canFinalize) {
+                          toast({
+                            title: 'Not Ready for Final',
+                            description: finalizationPreview.issues
+                              .filter(i => i.level === 'error')
+                              .map(i => i.message)
+                              .join(' '),
+                            variant: 'destructive',
+                          });
+                          return;
+                        }
+                        setNewScript(prev => ({ ...prev, developmentStage: next }));
+                      }}
+                      disabled={SCRIPT_STAGE_ORDER.indexOf((newScript.developmentStage || 'concept') as Script['developmentStage']) >= SCRIPT_STAGE_ORDER.length - 1}
+                    >
+                      Advance
+                    </Button>
+                    <span className="text-xs text-muted-foreground ml-1">
+                      Scripts must reach <span className="font-medium">Final</span> stage to be greenlit.
+                    </span>
+                  </div>
+
+                  {finalizationPreview &&
+                    (newScript.developmentStage === 'final' || newScript.developmentStage === 'polish') &&
+                    !finalizationPreview.canFinalize && (
+                      <Alert variant="destructive">
+                        <AlertTitle>Fix before finalizing</AlertTitle>
+                        <AlertDescription>
+                          <ul className="list-disc pl-4">
+                            {finalizationPreview.issues
+                              .filter(i => i.level === 'error')
+                              .map(i => (
+                                <li key={i.message}>{i.message}</li>
+                              ))}
+                          </ul>
+                        </AlertDescription>
+                      </Alert>
+                    )}
                 </div>
               </div>
 
@@ -607,7 +750,8 @@ return {
                 onClick={() => {
                   setIsCreating(false);
                   setEditingScript(null);
-                  setScriptCharacters([]);
+                  applyInitialScript(getInitialScript());
+                  setDraftScriptId(`script-${Date.now()}`);
                 }}
               >
                 Cancel
