@@ -215,6 +215,7 @@ export const TVShowDevelopment: React.FC<TVShowDevelopmentProps> = ({
 
     const script: Script = {
       id: editingScript ? editingScript.id : `tv-script-${Date.now()}`,
+      format: 'tv',
       title: newScript.title!,
       genre: newScript.genre as Genre,
       logline: newScript.logline!,
@@ -295,11 +296,14 @@ export const TVShowDevelopment: React.FC<TVShowDevelopmentProps> = ({
     });
   };
 
-  // Filter TV scripts (could be marked by type or other criteria)
-  const availableTVScripts = gameState.scripts.filter(script => 
-    !gameState.projects.some(project => project.script.id === script.id) &&
-    (script.characteristics.pacing === 'episodic' || script.estimatedRuntime <= 60) // TV-like characteristics
-  );
+  // Filter TV scripts (prefer explicit `script.format`, fallback to heuristics for legacy saves)
+  const availableTVScripts = gameState.scripts.filter((script) => {
+    const isTV =
+      script.format === 'tv' ||
+      (!script.format && (script.characteristics.pacing === 'episodic' || script.estimatedRuntime <= 60));
+
+    return isTV && !gameState.projects.some((project) => project.script.id === script.id);
+  });
 
   const coverageScript = coverageScriptId
     ? gameState.scripts.find(s => s.id === coverageScriptId) || null
@@ -431,7 +435,13 @@ export const TVShowDevelopment: React.FC<TVShowDevelopmentProps> = ({
                     id="runtime"
                     type="number"
                     value={newScript.estimatedRuntime || 45}
-                    onChange={(e) => setNewScript(prev => ({ ...prev, estimatedRuntime: parseInt(e.target.value) }))}
+                    onChange={(e) => {
+                      const value = Number(e.target.value);
+                      setNewScript((prev) => ({
+                        ...prev,
+                        estimatedRuntime: Number.isFinite(value) && value > 0 ? value : 45,
+                      }));
+                    }}
                     min={15}
                     max={90}
                     className="mt-1"
@@ -447,7 +457,13 @@ export const TVShowDevelopment: React.FC<TVShowDevelopmentProps> = ({
                     id="budget"
                     type="number"
                     value={newScript.budget || 2000000}
-                    onChange={(e) => setNewScript(prev => ({ ...prev, budget: parseInt(e.target.value) }))}
+                    onChange={(e) => {
+                      const value = Number(e.target.value);
+                      setNewScript((prev) => ({
+                        ...prev,
+                        budget: Number.isFinite(value) && value > 0 ? Math.round(value) : 2_000_000,
+                      }));
+                    }}
                     min={100000}
                     max={20000000}
                     step={100000}
@@ -689,7 +705,7 @@ export const TVShowDevelopment: React.FC<TVShowDevelopmentProps> = ({
                           size="sm" 
                           className={`flex-1 ${!isReadyToGreenlight ? 'opacity-60' : ''}`}
                           onClick={() => handleGreenlightTVScript(script)}
-                          disabled={gameState.studio.budget < script.budget * 0.1}
+                          disabled={gameState.studio.budget < script.budget * 13 * 0.1}
                           title={!isReadyToGreenlight ? 'Refine the script to "final" stage before greenlighting' : ''}
                         >
                           <ClapperboardIcon className="w-4 h-4 mr-1" />

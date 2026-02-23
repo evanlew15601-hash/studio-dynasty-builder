@@ -98,6 +98,7 @@ export const FranchiseProjectCreator: React.FC<FranchiseProjectCreatorProps> = (
 
     const script: Script = {
       id: `script-franchise-${Date.now()}`,
+      format: isTV ? 'tv' : 'film',
       title: projectForm.title,
       genre: projectForm.genre as any,
       logline: projectForm.description,

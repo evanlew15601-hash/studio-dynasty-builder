@@ -1,4 +1,4 @@
-import React, { useEffect, useMemo, useState } from 'react';
+import React, { useEffect, useId, useMemo, useState } from 'react';
 import type { Script, ScriptCoverage, ScriptCoverageRevisionType } from '@/types/game';
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
@@ -52,6 +52,7 @@ export const ScriptCoveragePanel: React.FC<ScriptCoveragePanelProps> = ({
   showRevisionActions = true,
 }) => {
   const normalized = useMemo(() => ensureScriptCoverageData(coverage), [coverage]);
+  const uid = useId();
 
   const [activeStage, setActiveStage] = useState<Script['developmentStage']>(defaultStage || 'concept');
   const [newActionType, setNewActionType] = useState<ScriptCoverageRevisionType>('coverage_received');
@@ -96,32 +97,36 @@ export const ScriptCoveragePanel: React.FC<ScriptCoveragePanelProps> = ({
       <div className="space-y-2">
         <Label className="text-sm">{SCRIPT_STAGE_LABEL[activeStage]} checklist</Label>
         <div className="space-y-2">
-          {stageCoverage.checklist.map((item) => (
-            <div key={item.id} className="flex items-start gap-2">
-              <Checkbox
-                id={item.id}
-                checked={item.completed}
-                onCheckedChange={() =>
-                  onCoverageChange(toggleChecklistItem(normalized, activeStage, item.id))
-                }
-              />
-              <Label
-                htmlFor={item.id}
-                className={`text-sm leading-snug ${item.completed ? 'line-through text-muted-foreground' : ''}`}
-              >
-                {item.label}
-              </Label>
-            </div>
-          ))}
+          {stageCoverage.checklist.map((item) => {
+            const checkboxId = `${uid}-${activeStage}-${item.id}`;
+
+            return (
+              <div key={item.id} className="flex items-start gap-2">
+                <Checkbox
+                  id={checkboxId}
+                  checked={item.completed}
+                  onCheckedChange={() =>
+                    onCoverageChange(toggleChecklistItem(normalized, activeStage, item.id))
+                  }
+                />
+                <Label
+                  htmlFor={checkboxId}
+                  className={`text-sm leading-snug ${item.completed ? 'line-through text-muted-foreground' : ''}`}
+                >
+                  {item.label}
+                </Label>
+              </div>
+            );
+          })}
         </div>
       </div>
 
       <div className="space-y-2">
-        <Label htmlFor="coverage-notes" className="text-sm">
+        <Label htmlFor={`${uid}-coverage-notes`} className="text-sm">
           Stage notes
         </Label>
         <Textarea
-          id="coverage-notes"
+          id={`${uid}-coverage-notes`}
           value={stageCoverage.notes}
           onChange={(e) => onCoverageChange(updateStageNotes(normalized, activeStage, e.target.value))}
           rows={4}
@@ -169,8 +174,8 @@ export const ScriptCoveragePanel: React.FC<ScriptCoveragePanelProps> = ({
                 <Button
                   type="button"
                   onClick={() => {
-                    const nextCoverage = addRevisionAction(normalized, activeStage, newActionType, newActionNote);
                     const note = newActionNote?.trim() ? newActionNote.trim() : undefined;
+                    const nextCoverage = addRevisionAction(normalized, activeStage, newActionType, note);
 
                     if (onRevisionAction) {
                       onRevisionAction(nextCoverage, { stage: activeStage, type: newActionType, note });

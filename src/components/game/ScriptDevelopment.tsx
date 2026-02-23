@@ -165,6 +165,7 @@ export const ScriptDevelopment: React.FC<ScriptDevelopmentProps> = ({
 
     return {
       id: editingScript?.id || draft.id || draftId,
+      format: (draft.format as Script['format']) || editingScript?.format || 'film',
       title: draft.title || '',
       genre: (draft.genre as Genre) || 'drama',
       logline: draft.logline || '',
@@ -176,7 +177,9 @@ export const ScriptDevelopment: React.FC<ScriptDevelopmentProps> = ({
       themes: draft.themes || [],
       targetAudience: (draft.targetAudience as any) || 'general',
       estimatedRuntime: draft.estimatedRuntime || 120,
-      characteristics: (draft.characteristics as ScriptCharacteristics) || DEFAULT_CHARACTERISTICS,
+      characteristics: draft.characteristics
+        ? (draft.characteristics as ScriptCharacteristics)
+        : { ...DEFAULT_CHARACTERISTICS },
       coverage: ensureScriptCoverageData(draftCoverage),
       characters: scriptCharacters.map(({ screenTimeMinutes, ...c }) => c),
       sourceType: (draft.sourceType as any) || 'original',
@@ -201,10 +204,13 @@ export const ScriptDevelopment: React.FC<ScriptDevelopmentProps> = ({
     setDraft((prev) => ({
       ...initialDraft,
       ...prev,
+      format: (prev.format as Script['format']) || 'film',
       developmentStage: (prev.developmentStage as Script['developmentStage']) || 'concept',
       budget: prev.budget || 5_000_000,
       quality: prev.quality ?? 50,
-      characteristics: (prev.characteristics as ScriptCharacteristics) || DEFAULT_CHARACTERISTICS,
+      characteristics: prev.characteristics
+        ? (prev.characteristics as ScriptCharacteristics)
+        : { ...DEFAULT_CHARACTERISTICS },
       pages: prev.pages || 120,
       targetAudience: prev.targetAudience || 'general',
       estimatedRuntime: prev.estimatedRuntime || 120,
@@ -360,10 +366,14 @@ export const ScriptDevelopment: React.FC<ScriptDevelopmentProps> = ({
     onProjectCreate(finalized);
   };
 
-  const availableScripts = useMemo(
-    () => gameState.scripts.filter((s) => !gameState.projects.some((p) => p.script.id === s.id)),
-    [gameState.projects, gameState.scripts]
-  );
+  const availableScripts = useMemo(() => {
+    const isTV = (s: Script) =>
+      s.format === 'tv' || (!s.format && (s.characteristics?.pacing === 'episodic' || s.estimatedRuntime <= 60));
+
+    return gameState.scripts.filter(
+      (s) => !isTV(s) && !gameState.projects.some((p) => p.script.id === s.id)
+    );
+  }, [gameState.projects, gameState.scripts]);
 
   return (
     <div className="space-y-6">

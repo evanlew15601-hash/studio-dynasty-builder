@@ -54,7 +54,12 @@ export const DevelopmentStageControl: React.FC<DevelopmentStageControlProps> = (
       onValueChange={(next) => {
         // Radix ToggleGroup returns '' when clicking the selected item.
         if (!next) return;
-        onValueChange(next as Script['developmentStage']);
+
+        const stage = next as Script['developmentStage'];
+        const g = gate?.(stage) || { allowed: true };
+        if (!g.allowed) return;
+
+        onValueChange(stage);
       }}
       className={cn('flex flex-wrap justify-start gap-2', className)}
     >

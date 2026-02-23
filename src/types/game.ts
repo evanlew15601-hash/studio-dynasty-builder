@@ -92,6 +92,8 @@ export interface ScriptCharacter {
 
 export interface Script {
   id: string;
+  /** Distinguish film vs TV scripts (used for routing/library filtering). */
+  format?: 'film' | 'tv';
   title: string;
   genre: Genre;
   logline: string;
