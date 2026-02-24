@@ -75,13 +75,51 @@ export function importRolesForScript(script: Script, gameState: GameState): Scri
   if (script.sourceType === 'franchise' && script.franchiseId) {
     const franchise = gameState.franchises.find(f => f.id === script.franchiseId);
 
+    const currentAbsWeek = (gameState.currentYear * 52) + gameState.currentWeek;
+
     // Signature casting + persistent roster state.
     const franchiseStates = franchise ? ensureFranchiseCharacterStates(franchise, gameState) : [];
+    const franchiseStateById = new Map(franchiseStates.map(s => [s.franchiseCharacterId, s] as const));
+
     const signatureById = new Map(
       franchiseStates
         .filter(s => !!s.signatureTalentId)
         .map(s => [s.franchiseCharacterId, s.signatureTalentId!] as const)
     );
+
+    const resolveSignatureTalentId = (franchiseCharacterId: string, requiredType?: string): string | undefined => {
+      // Contracts take priority and are allowed to apply even if the talent is not "available".
+      const state = franchiseStateById.get(franchiseCharacterId);
+      const contract = state?.signatureContract;
+
+      // If a contract exists, it is authoritative: only apply while active + in-date.
+      // (Even if signatureTalentId is still set, do not fall back to legacy behavior.)
+      if (contract) {
+        if (contract.status === 'active') {
+          const startAbsWeek = (contract.startYear * 52) + contract.startWeek;
+          const endAbsWeek = (contract.endYear * 52) + contract.endWeek;
+          const active = currentAbsWeek >= startAbsWeek && currentAbsWeek <= endAbsWeek;
+
+          if (active) {
+            const talent = gameState.talent.find(t => t.id === contract.talentId);
+            if (talent && talent.contractStatus !== 'retired') {
+              return contract.talentId;
+            }
+          }
+        }
+
+        return undefined;
+      }
+
+      // Back-compat: if no explicit contract, use signatureTalentId but only when the talent is available.
+      const legacySignature = signatureById.get(franchiseCharacterId);
+      if (!legacySignature) return undefined;
+
+      const legacyTalent = gameState.talent.find(t => t.id === legacySignature);
+      if (!legacyTalent || legacyTalent.contractStatus !== 'available') return undefined;
+
+      return legacySignature;
+    };
 
     const dbKey = script.franchiseId;
     let defs = FRANCHISE_CHARACTER_DB[dbKey];
@@ -91,11 +129,8 @@ export function importRolesForScript(script: Script, gameState: GameState): Scri
 
     if (defs && defs.length > 0) {
       for (const def of defs) {
-        const signature = signatureById.get(def.character_id);
-        const signatureAvailable = signature && gameState.talent.some(t => t.id === signature && t.contractStatus === 'available')
-          ? signature
-          : undefined;
-        const incoming = toScriptCharacter(def, script.franchiseId, franchise?.parodySource, signatureAvailable);
+        const signatureTalentId = resolveSignatureTalentId(def.character_id, def.requiredType);
+        const incoming = toScriptCharacter(def, script.franchiseId, franchise?.parodySource, signatureTalentId);
         const match = existing.find(c => c.franchiseCharacterId === def.character_id || (c.name === incoming.name && c.requiredType === def.requiredType));
         if (!match) {
           characters.push(incoming);
@@ -112,15 +147,16 @@ export function importRolesForScript(script: Script, gameState: GameState): Scri
         const prefixedId = makeFallbackFranchiseCharacterId(franchise, role.id);
         const franchiseCharacterId = existing.some(c => c.franchiseCharacterId === legacyId) ? legacyId : prefixedId;
 
-        const signature = signatureById.get(franchiseCharacterId);
-        const signatureAvailable = signature && gameState.talent.some(t => t.id === signature && t.contractStatus === 'available')
-          ? signature
-          : undefined;
+        // Try both ids when resolving signature (older saves may have stored either).
+        const signatureTalentId =
+          resolveSignatureTalentId(franchiseCharacterId, role.requiredType) ||
+          resolveSignatureTalentId(legacyId, role.requiredType);
+
         const incoming: ScriptCharacter = {
           ...role,
           franchiseId: script.franchiseId,
           franchiseCharacterId,
-          assignedTalentId: signatureAvailable,
+          assignedTalentId: signatureTalentId,
           locked: role.requiredType === 'director' ? true : (role.importance !== 'minor'),
         };
         const match = existing.find(c => c.franchiseCharacterId === incoming.franchiseCharacterId || (c.name === incoming.name && c.requiredType === incoming.requiredType));

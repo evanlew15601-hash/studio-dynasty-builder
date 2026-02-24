@@ -1,5 +1,5 @@
 import { afterEach, describe, expect, it, vi } from 'vitest';
-import type { Franchise, GameState, PublicDomainIP, Script } from '@/types/game';
+import type { Franchise, FranchiseCharacterState, GameState, PublicDomainIP, Script } from '@/types/game';
 import { importRolesForScript } from '@/utils/roleImport';
 
 function makeBaseGameState(): GameState {
@@ -160,6 +160,136 @@ describe('importRolesForScript', () => {
     expect(hero?.description).toBe('A custom description');
     expect(hero?.assignedTalentId).toBe('talent-1');
     expect(hero?.locked).toBe(true);
+  });
+
+  it('applies active signature casting contracts even if the talent is currently busy', () => {
+    vi.spyOn(Date, 'now').mockReturnValue(1000);
+
+    const gameState = makeBaseGameState();
+    gameState.currentYear = 2024;
+    gameState.currentWeek = 10;
+    gameState.talent = [
+      {
+        id: 'talent-busy',
+        name: 'Busy Star',
+        type: 'actor',
+        contractStatus: 'busy',
+      } as any,
+    ];
+
+    const contractState: FranchiseCharacterState = {
+      franchiseCharacterId: 'char_hero_pilot',
+      name: 'Luke Starwalker',
+      roleTemplateId: 'lead',
+      importance: 'lead',
+      requiredType: 'actor',
+      popularity: 0,
+      popularitySamples: 0,
+      signatureContract: {
+        talentId: 'talent-busy',
+        startWeek: 1,
+        startYear: 2024,
+        endWeek: 52,
+        endYear: 2024,
+        sequelOptions: 1,
+        status: 'active',
+        cost: 5_000_000,
+      },
+    };
+
+    const franchise: Franchise = {
+      id: 'f-contract',
+      title: 'Space Saga',
+      originDate: '2024-01-01',
+      creatorStudioId: 'studio-1',
+      genre: ['sci-fi'],
+      tone: 'epic',
+      parodySource: 'Star Wars',
+      entries: [],
+      status: 'active',
+      franchiseTags: [],
+      culturalWeight: 50,
+      cost: 0,
+      characterStates: [contractState],
+    };
+
+    gameState.franchises = [franchise];
+
+    const script = makeBaseScript({
+      sourceType: 'franchise',
+      franchiseId: franchise.id,
+      characters: [],
+    });
+
+    const imported = importRolesForScript(script, gameState);
+    const hero = imported.find(c => c.franchiseCharacterId === 'char_hero_pilot');
+
+    expect(hero?.assignedTalentId).toBe('talent-busy');
+  });
+
+  it('does not apply signature contracts that are past their end date (even if status is still "active")', () => {
+    vi.spyOn(Date, 'now').mockReturnValue(1001);
+
+    const gameState = makeBaseGameState();
+    gameState.currentYear = 2024;
+    gameState.currentWeek = 20;
+    gameState.talent = [
+      {
+        id: 'talent-expired',
+        name: 'Expired Star',
+        type: 'actor',
+        contractStatus: 'busy',
+      } as any,
+    ];
+
+    const contractState: FranchiseCharacterState = {
+      franchiseCharacterId: 'char_hero_pilot',
+      name: 'Luke Starwalker',
+      roleTemplateId: 'lead',
+      importance: 'lead',
+      requiredType: 'actor',
+      popularity: 0,
+      popularitySamples: 0,
+      signatureContract: {
+        talentId: 'talent-expired',
+        startWeek: 1,
+        startYear: 2024,
+        endWeek: 10,
+        endYear: 2024,
+        sequelOptions: 1,
+        status: 'active',
+        cost: 5_000_000,
+      },
+    };
+
+    const franchise: Franchise = {
+      id: 'f-expired',
+      title: 'Space Saga',
+      originDate: '2024-01-01',
+      creatorStudioId: 'studio-1',
+      genre: ['sci-fi'],
+      tone: 'epic',
+      parodySource: 'Star Wars',
+      entries: [],
+      status: 'active',
+      franchiseTags: [],
+      culturalWeight: 50,
+      cost: 0,
+      characterStates: [contractState],
+    };
+
+    gameState.franchises = [franchise];
+
+    const script = makeBaseScript({
+      sourceType: 'franchise',
+      franchiseId: franchise.id,
+      characters: [],
+    });
+
+    const imported = importRolesForScript(script, gameState);
+    const hero = imported.find(c => c.franchiseCharacterId === 'char_hero_pilot');
+
+    expect(hero?.assignedTalentId).toBeUndefined();
   });
 
   it('imports public-domain suggested roles and guarantees a director + minor cameo (idempotent)', () => {

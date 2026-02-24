@@ -11,19 +11,22 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@
 import { Crown, Edit3, TrendingUp, Users, DollarSign, Star, Calendar } from 'lucide-react';
 import { useToast } from '@/hooks/use-toast';
 import { FinancialEngine } from './FinancialEngine';
+import { FranchiseCastingContracts } from './FranchiseCastingContracts';
 
 interface OwnedFranchiseManagerProps {
   gameState: GameState;
   onUpdateFranchise: (franchiseId: string, updates: Partial<Franchise>) => void;
   onCreateProject: (franchiseId?: string) => void;
   onCreateTVProject?: (franchiseId: string) => void;
+  onSpendBudget?: (amount: number, reason?: string) => boolean;
 }
 
 export const OwnedFranchiseManager: React.FC<OwnedFranchiseManagerProps> = ({
   gameState,
   onUpdateFranchise,
   onCreateProject,
-  onCreateTVProject
+  onCreateTVProject,
+  onSpendBudget
 }) => {
   const { toast } = useToast();
   const [editingFranchise, setEditingFranchise] = useState<Franchise | null>(null);
@@ -132,6 +135,14 @@ export const OwnedFranchiseManager: React.FC<OwnedFranchiseManagerProps> = ({
                     </p>
                   </div>
                   <div className="flex gap-2">
+                    <FranchiseCastingContracts
+                      franchise={franchise}
+                      gameState={gameState}
+                      onUpdateFranchise={onUpdateFranchise}
+                      onSpendBudget={onSpendBudget}
+                      triggerVariant="outline"
+                      triggerSize="sm"
+                    />
                     <Button
                       variant="outline"
                       size="sm"

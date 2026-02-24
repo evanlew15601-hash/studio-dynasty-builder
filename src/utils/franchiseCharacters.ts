@@ -82,29 +82,69 @@ export function computeCharacterPopularity(franchiseId: string, franchiseCharact
   return Math.round(avg);
 }
 
+function absWeek(week: number, year: number): number {
+  return (year * 52) + week;
+}
+
+function absToWeekYear(abs: number): { week: number; year: number } {
+  const year = Math.floor((abs - 1) / 52);
+  const week = ((abs - 1) % 52) + 1;
+  return { week, year };
+}
+
 export function recomputeFranchiseCharacterStates(gameState: GameState): Franchise[] {
+  const currentAbsWeek = absWeek(gameState.currentWeek, gameState.currentYear);
+
   return (gameState.franchises || []).map(franchise => {
     const states = ensureFranchiseCharacterStates(franchise, gameState);
 
     const updated = states.map(state => {
       const popularity = computeCharacterPopularity(franchise.id, state.franchiseCharacterId, gameState.projects);
 
-      // If signature casting isn't set yet, infer it from the most recent project portrayal.
-      let signatureTalentId = state.signatureTalentId;
-      if (!signatureTalentId) {
-        const mostRecent = [...gameState.projects]
-          .filter(p => p.script?.franchiseId === franchise.id)
-          .sort((a, b) => ((b.releaseYear || 0) * 52 + (b.releaseWeek || 0)) - ((a.releaseYear || 0) * 52 + (a.releaseWeek || 0)))
-          .find(p => (p.script?.characters || []).some(c => c.franchiseCharacterId === state.franchiseCharacterId && !!c.assignedTalentId));
+      // If a signature contract exists, it controls whether signature casting is active.
+      const contract = state.signatureContract;
+      let nextContract = contract;
+      let signatureTalentId: string | undefined = undefined;
 
-        const talentId = mostRecent?.script?.characters?.find(c => c.franchiseCharacterId === state.franchiseCharacterId)?.assignedTalentId;
-        if (talentId) signatureTalentId = talentId;
+      if (contract) {
+        const endAbs = absWeek(contract.endWeek, contract.endYear);
+        let status = contract.status;
+        if (status === 'active' && currentAbsWeek > endAbs) status = 'expired';
+
+        if (status !== contract.status) {
+          nextContract = { ...contract, status };
+        }
+
+        if (status === 'active') {
+          signatureTalentId = contract.talentId;
+        }
+      } else {
+        // Back-compat: if signature casting isn't set yet, infer it from the most recent project portrayal.
+        signatureTalentId = state.signatureTalentId;
+        if (!signatureTalentId) {
+          const mostRecent = [...gameState.projects]
+            .filter(p => p.script?.franchiseId === franchise.id)
+            .sort((a, b) => ((b.releaseYear || 0) * 52 + (b.releaseWeek || 0)) - ((a.releaseYear || 0) * 52 + (a.releaseWeek || 0)))
+            .find(p => (p.script?.characters || []).some(c => c.franchiseCharacterId === state.franchiseCharacterId && !!c.assignedTalentId));
+
+          const talentId = mostRecent?.script?.characters?.find(c => c.franchiseCharacterId === state.franchiseCharacterId)?.assignedTalentId;
+          if (talentId) signatureTalentId = talentId;
+        }
+      }
+
+      // Keep end date coherent on older saves that may have been written before helper existed.
+      if (nextContract && (!nextContract.endWeek || !nextContract.endYear)) {
+        const startAbs = absWeek(nextContract.startWeek, nextContract.startYear);
+        const termWeeks = Math.max(1, absWeek(nextContract.endWeek || nextContract.startWeek, nextContract.endYear || nextContract.startYear) - startAbs + 1);
+        const end = absToWeekYear(startAbs + termWeeks - 1);
+        nextContract = { ...nextContract, endWeek: end.week, endYear: end.year };
       }
 
       return {
         ...state,
         popularity,
         signatureTalentId,
+        signatureContract: nextContract,
       };
     });
 
@@ -160,7 +200,8 @@ export function updateFranchiseSignatureFromProject(franchise: Franchise, projec
     base.ageRange = c.ageRange ?? base.ageRange;
 
     // Signature casting: only for non-minor on-screen roles.
-    if (c.assignedTalentId && c.requiredType !== 'director' && c.importance !== 'minor') {
+    // If a signature contract exists, keep it authoritative (don't overwrite via project casting).
+    if (!base.signatureContract && c.assignedTalentId && c.requiredType !== 'director' && c.importance !== 'minor') {
       base.signatureTalentId = c.assignedTalentId;
     }
 

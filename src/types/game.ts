@@ -31,6 +31,19 @@ export interface Franchise {
   characterStates?: FranchiseCharacterState[];
 }
 
+export interface FranchiseCastingContract {
+  talentId: string;
+  startWeek: number;
+  startYear: number;
+  endWeek: number;
+  endYear: number;
+  sequelOptions: number;
+  status: 'active' | 'expired' | 'terminated';
+  cost: number;
+  terminatedWeek?: number;
+  terminatedYear?: number;
+}
+
 export interface FranchiseCharacterState {
   /** Stable character id (either from FranchiseCharacterDB or synthesized for originals). */
   franchiseCharacterId: string;
@@ -49,6 +62,9 @@ export interface FranchiseCharacterState {
 
   /** "Signature" casting for sequels (treated as an implicit franchise contract). */
   signatureTalentId?: string;
+
+  /** Explicit franchise contract controlling how long signature casting is locked in. */
+  signatureContract?: FranchiseCastingContract;
 }
 
 // Public Domain System Types
