@@ -540,7 +540,7 @@ export const TVShowDevelopment: React.FC<TVShowDevelopmentProps> = ({
                   value={newScript.developmentStage || 'concept'} 
                   onValueChange={(value) => setNewScript(prev => ({ ...prev, developmentStage: value as Script['developmentStage'] }))}
                 >
-                  <SelectTrigger>
+                  <SelectTrigger aria-label="Development Stage">
                     <SelectValue />
                   </SelectTrigger>
                   <SelectContent>

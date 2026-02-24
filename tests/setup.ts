@@ -1,8 +1,10 @@
-import { vi } from 'vitest';
+import { beforeAll, vi } from 'vitest';
 
 // Only apply DOM-specific setup when running in jsdom.
 if (typeof window !== 'undefined') {
-  await import('@testing-library/jest-dom/vitest');
+  beforeAll(async () => {
+    await import('@testing-library/jest-dom/vitest');
+  });
 
   // Radix UI components (Select/Popover/etc) rely on these browser APIs.
   if (!('ResizeObserver' in window)) {
