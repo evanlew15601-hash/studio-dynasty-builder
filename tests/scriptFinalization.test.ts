@@ -163,6 +163,30 @@ describe('script finalization', () => {
     expect(report.fixesApplied).toContain('Added a Minor/Cameo role');
   });
 
+  it('treats excluded roles as non-participating for role validation (spin-offs)', () => {
+    vi.spyOn(Date, 'now').mockReturnValue(3333);
+
+    const gameState = makeBaseGameState();
+
+    const script = makeValidScript({
+      sourceType: 'original',
+      developmentStage: 'polish',
+      characters: [
+        { id: 'director', name: 'Director', importance: 'crew', requiredType: 'director', excluded: true },
+        { id: 'lead', name: 'Old Lead', importance: 'lead', requiredType: 'actor', excluded: true },
+      ],
+    });
+
+    const { script: finalized, report } = finalizeScriptForGreenlight(script, gameState);
+
+    expect(report.canFinalize).toBe(true);
+    expect(finalized.developmentStage).toBe('final');
+
+    expect(finalized.characters?.some(c => !c.excluded && c.requiredType === 'director')).toBe(true);
+    expect(finalized.characters?.some(c => !c.excluded && c.requiredType !== 'director' && c.importance === 'lead')).toBe(true);
+    expect(finalized.characters?.some(c => !c.excluded && c.importance === 'minor')).toBe(true);
+  });
+
   it('imports public-domain roles when sourceType is "adaptation"', () => {
     vi.spyOn(Date, 'now').mockReturnValue(2222);
 

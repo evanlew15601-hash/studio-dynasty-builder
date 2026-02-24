@@ -47,7 +47,7 @@ export class ReleaseSystem {
     }
     
     // Check cast - look at script characters with assigned talent (correct data structure)
-    const assignedTalent = project.script?.characters?.filter(c => c.assignedTalentId) || [];
+    const assignedTalent = project.script?.characters?.filter(c => !c.excluded && c.assignedTalentId) || [];
     const hasDirector = assignedTalent.some(c => c.requiredType === 'director');
     const hasLead = assignedTalent.some(c => c.importance === 'lead' && c.requiredType === 'actor');
     
@@ -56,8 +56,10 @@ export class ReleaseSystem {
     const legacyHasDirector = legacyCast.some(c => c.role?.toLowerCase().includes('director'));
     const legacyHasLead = legacyCast.some(c => c.role?.toLowerCase().includes('lead'));
     
-    const actualHasDirector = hasDirector || legacyHasDirector;
-    const actualHasLead = hasLead || legacyHasLead;
+    const useLegacyCastFallback = (project.script?.characters?.length || 0) === 0;
+
+    const actualHasDirector = useLegacyCastFallback ? (hasDirector || legacyHasDirector) : hasDirector;
+    const actualHasLead = useLegacyCastFallback ? (hasLead || legacyHasLead) : hasLead;
     
     console.log('RELEASE_VALIDATION: cast check', {
       projectId: project.id,
@@ -73,7 +75,7 @@ export class ReleaseSystem {
       hasLead: actualHasLead,
     });
     
-    const hasCast = assignedTalent.length > 0 || legacyCast.length > 0;
+    const hasCast = useLegacyCastFallback ? (assignedTalent.length > 0 || legacyCast.length > 0) : assignedTalent.length > 0;
     
     if (!hasCast) {
       errors.push(isTV ? 'TV show needs at least one cast member' : 'Film needs at least one cast member');

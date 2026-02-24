@@ -107,8 +107,8 @@ function attachBasicCastForAI(project: Project, talentPool: TalentPerson[]): Pro
 
     const baseChars = project.script.characters || [];
     const characters = baseChars.length > 0 ? baseChars.map(c => {
-      if (c.requiredType === 'director' && !c.assignedTalentId && director) return { ...c, assignedTalentId: director.id };
-      if (c.importance === 'lead' && c.requiredType !== 'director' && !c.assignedTalentId && lead) return { ...c, assignedTalentId: lead.id };
+      if (!c.excluded && c.requiredType === 'director' && !c.assignedTalentId && director) return { ...c, assignedTalentId: director.id };
+      if (!c.excluded && c.importance === 'lead' && c.requiredType !== 'director' && !c.assignedTalentId && lead) return { ...c, assignedTalentId: lead.id };
       return c;
     }) : [
       { id: `${project.id}-dir`, name: 'Director', description: 'Director', requiredType: 'director', importance: 'lead', traits: ['mandatory'], assignedTalentId: director?.id } as any,

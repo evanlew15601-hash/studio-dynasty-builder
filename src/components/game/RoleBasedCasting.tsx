@@ -32,9 +32,9 @@ export const RoleBasedCasting: React.FC<RoleBasedCastingProps> = ({
       : [];
 
     // Determine if TV and whether mandatory roles are missing
-    const combined = [...existing, ...importedRoles];
-    const hasDirector = combined.some(c => c.requiredType === 'director');
-    const hasLead = combined.some(c => c.importance === 'lead' && c.requiredType === 'actor');
+    const combinedActive = [...existing, ...importedRoles].filter(c => !c.excluded);
+    const hasDirector = combinedActive.some(c => c.requiredType === 'director');
+    const hasLead = combinedActive.some(c => c.importance === 'lead' && c.requiredType === 'actor');
 
     const rolesToCreate: ScriptCharacter[] = [];
 
@@ -153,17 +153,18 @@ export const RoleBasedCasting: React.FC<RoleBasedCastingProps> = ({
   };
 
   const getCastingProgress = () => {
-    const totalRoles = project.script?.characters?.length || 0;
-    const castRoles = project.script?.characters?.filter(c => c.assignedTalentId).length || 0;
+    const active = (project.script?.characters || []).filter(c => !c.excluded);
+    const totalRoles = active.length;
+    const castRoles = active.filter(c => c.assignedTalentId).length;
     return { cast: castRoles, total: totalRoles };
   };
 
   const { cast, total } = getCastingProgress();
   const hasDirector = project.script?.characters?.some(c => 
-    c.requiredType === 'director' && c.assignedTalentId
+    !c.excluded && c.requiredType === 'director' && c.assignedTalentId
   );
   const hasLead = project.script?.characters?.some(c => 
-    c.importance === 'lead' && c.requiredType === 'actor' && c.assignedTalentId
+    !c.excluded && c.importance === 'lead' && c.requiredType === 'actor' && c.assignedTalentId
   );
   const canProceed = hasDirector && hasLead;
 
@@ -218,7 +219,9 @@ export const RoleBasedCasting: React.FC<RoleBasedCastingProps> = ({
 
       {/* Character Roles */}
       <div className="grid gap-4">
-        {project.script?.characters?.map((character) => {
+        {(project.script?.characters || [])
+          .filter(character => !character.excluded || !!character.assignedTalentId)
+          .map((character) => {
           const availableTalent = getAvailableTalent(character);
           const castTalent = character.assignedTalentId 
             ? gameState.talent.find(t => t.id === character.assignedTalentId)
@@ -244,6 +247,9 @@ export const RoleBasedCasting: React.FC<RoleBasedCastingProps> = ({
                     <Badge variant="outline" className="capitalize">
                       {character.requiredType || 'actor'}
                     </Badge>
+                    {character.excluded && (
+                      <Badge variant="secondary">Excluded</Badge>
+                    )}
                     {castTalent && (
                       <Badge variant="default" className="flex items-center gap-1">
                         <CheckCircle className="h-3 w-3" />

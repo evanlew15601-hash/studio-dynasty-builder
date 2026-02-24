@@ -242,6 +242,7 @@ export const CharacterPopularitySystem: React.FC<CharacterPopularityProps> = ({
 
     completedProjects.forEach(project => {
       project.script.characters?.forEach(character => {
+        if (character.excluded) return;
         if (character.assignedTalentId) {
           const talent = gameState.talent.find(t => t.id === character.assignedTalentId);
           if (talent) {

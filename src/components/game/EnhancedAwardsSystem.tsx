@@ -152,7 +152,7 @@ export const EnhancedAwardsSystem: React.FC<EnhancedAwardsSystemProps> = ({
 
     const charactersWithTalent: { character: ScriptCharacter; talent: TalentPerson }[] =
       characters
-        .filter(c => c.assignedTalentId)
+        .filter(c => !c.excluded && c.assignedTalentId)
         .map(c => {
           const talent = gameState.talent.find(t => t.id === c.assignedTalentId);
           if (!talent) return null;

@@ -92,6 +92,11 @@ export interface ScriptCharacter {
   franchiseCharacterId?: string; // Stable character_id from franchise DB
   roleTemplateId?: string; // Template mapping for casting/awards
   locked?: boolean; // Prevent accidental deletion for imported characters
+  /**
+   * Exclude a role from production/casting without deleting it.
+   * Useful for spin-offs, reimaginings, and pruning imported role lists.
+   */
+  excluded?: boolean;
   localOverrides?: Partial<Pick<ScriptCharacter, 'name' | 'description' | 'traits' | 'ageRange'>>; // Stored separately from global DB
 }
 

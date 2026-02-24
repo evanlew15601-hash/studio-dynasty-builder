@@ -31,7 +31,7 @@ function ensureRequiredType(chars: ScriptCharacter[]): ScriptCharacter[] {
 }
 
 function ensureDirector(chars: ScriptCharacter[], fixesApplied: string[]): ScriptCharacter[] {
-  if (chars.some(c => c.requiredType === 'director')) return chars;
+  if (chars.some(c => !c.excluded && c.requiredType === 'director')) return chars;
   fixesApplied.push('Added a Director role');
   return [
     ...chars,
@@ -47,7 +47,7 @@ function ensureDirector(chars: ScriptCharacter[], fixesApplied: string[]): Scrip
 }
 
 function ensureLeadActor(chars: ScriptCharacter[], fixesApplied: string[]): ScriptCharacter[] {
-  const hasLead = chars.some(c => c.requiredType !== 'director' && c.importance === 'lead');
+  const hasLead = chars.some(c => !c.excluded && c.requiredType !== 'director' && c.importance === 'lead');
   if (hasLead) return chars;
   fixesApplied.push('Added a Lead role');
   return [
@@ -63,6 +63,8 @@ function ensureLeadActor(chars: ScriptCharacter[], fixesApplied: string[]): Scri
 }
 
 function ensureMinor(chars: ScriptCharacter[], fixesApplied: string[]): ScriptCharacter[] {
+  // Only add a minor/cameo role if none exists at all.
+  // If the player excluded a cameo for a spin-off, we shouldn't keep re-adding new ones.
   const hasMinor = chars.some(c => c.importance === 'minor');
   if (hasMinor) return chars;
   fixesApplied.push('Added a Minor/Cameo role');
@@ -104,20 +106,22 @@ function validateScriptBasics(script: Script): ScriptFinalizationIssue[] {
 function validateRoles(chars: ScriptCharacter[]): ScriptFinalizationIssue[] {
   const issues: ScriptFinalizationIssue[] = [];
 
-  if (chars.length === 0) {
-    issues.push({ level: 'error', message: 'At least one role is required.' });
+  const active = chars.filter(c => !c.excluded);
+
+  if (active.length === 0) {
+    issues.push({ level: 'error', message: 'At least one active role is required.' });
     return issues;
   }
 
-  if (!chars.some(c => c.requiredType === 'director')) {
+  if (!active.some(c => c.requiredType === 'director')) {
     issues.push({ level: 'error', message: 'Missing Director role.' });
   }
 
-  if (!chars.some(c => c.requiredType !== 'director' && c.importance === 'lead')) {
+  if (!active.some(c => c.requiredType !== 'director' && c.importance === 'lead')) {
     issues.push({ level: 'error', message: 'Missing Lead role.' });
   }
 
-  if (!chars.some(c => c.importance === 'minor')) {
+  if (!active.some(c => c.importance === 'minor')) {
     issues.push({ level: 'warning', message: 'No minor/cameo roles; adding at least one improves casting depth.' });
   }
 

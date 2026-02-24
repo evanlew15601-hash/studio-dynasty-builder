@@ -52,6 +52,7 @@ function mergeWithOverrides(existing: ScriptCharacter | undefined, incoming: Scr
     ageRange: overrides.ageRange || incoming.ageRange,
     screenTimeMinutes: existing.screenTimeMinutes ?? incoming.screenTimeMinutes,
     assignedTalentId: existing.assignedTalentId,
+    excluded: existing.excluded,
     locked: typeof incoming.locked === 'boolean' ? incoming.locked : existing.locked,
     franchiseId: incoming.franchiseId,
     franchiseCharacterId: incoming.franchiseCharacterId,
@@ -69,6 +70,7 @@ function asLockedImportedRole(role: ScriptCharacter): ScriptCharacter {
 
 function addDefaultCameo(chars: ScriptCharacter[]) {
   // Guarantee at least one minor cameo for depth
+  // If the player explicitly excluded a cameo/minor role, don't re-add another one on every import.
   if (!chars.some(r => r.importance === 'minor')) {
     chars.push({
       id: `cameo-${Date.now()}`,
@@ -118,8 +120,6 @@ export function importRolesForScript(script: Script, gameState: GameState): Scri
         if (!match) characters.push(incoming); else characters.push(mergeWithOverrides(match, incoming));
       });
     }
-
-    ensureDirector(characters);
   }
 
   if ((script.sourceType === 'public-domain' || script.sourceType === 'adaptation') && script.publicDomainId) {
@@ -133,7 +133,6 @@ export function importRolesForScript(script: Script, gameState: GameState): Scri
       const match = existing.find(c => c.franchiseCharacterId === incoming.franchiseCharacterId || (c.name === incoming.name && c.requiredType === incoming.requiredType));
       if (!match) characters.push(incoming); else characters.push(mergeWithOverrides(match, incoming));
     });
-    ensureDirector(characters);
   }
 
   // Idempotency: remove duplicates by franchiseCharacterId/name+type
@@ -153,6 +152,7 @@ export function importRolesForScript(script: Script, gameState: GameState): Scri
   const manual = existing.filter(c => !c.locked && !c.franchiseCharacterId);
   const finalList = [...Array.from(keyed.values()), ...manual];
 
+  ensureDirector(finalList);
   addDefaultCameo(finalList);
 
   return finalList;

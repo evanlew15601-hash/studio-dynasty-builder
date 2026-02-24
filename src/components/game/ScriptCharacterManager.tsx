@@ -7,7 +7,7 @@ import { Label } from '@/components/ui/label';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { Slider } from '@/components/ui/slider';
 import { Badge } from '@/components/ui/badge';
-import { Trash2, Plus, Users, Lock } from 'lucide-react';
+import { Trash2, Plus, Users, Lock, EyeOff, Eye } from 'lucide-react';
 
 export type ScriptCharacter = GameScriptCharacter;
 
@@ -90,8 +90,10 @@ export const ScriptCharacterManager: React.FC<ScriptCharacterManagerProps> = ({
   };
 
   const getTotalScreenTime = () => {
-    return characters.reduce((total, char) => total + (char.screenTimeMinutes || 0), 0);
+    return characters.reduce((total, char) => total + (!char.excluded ? (char.screenTimeMinutes || 0) : 0), 0);
   };
+
+  const activeRoleCount = characters.filter(c => !c.excluded).length;
 
   return (
     <Card className="card-premium">
@@ -103,7 +105,7 @@ export const ScriptCharacterManager: React.FC<ScriptCharacterManagerProps> = ({
           </div>
           <div className="flex items-center space-x-2">
             <Badge variant="outline">
-              {characters.length} roles • {getTotalScreenTime()} min total
+              {activeRoleCount}/{characters.length} active roles • {getTotalScreenTime()} min
             </Badge>
             <Button size="sm" onClick={() => setIsAdding(true)}>
               <Plus size={14} className="mr-1" />
@@ -227,7 +229,10 @@ export const ScriptCharacterManager: React.FC<ScriptCharacterManagerProps> = ({
         {/* Existing Characters */}
         <div className="space-y-3">
           {characters.map((character) => (
-            <Card key={character.id} className="border-l-4 border-l-primary">
+            <Card
+              key={character.id}
+              className={`border-l-4 ${character.excluded ? 'border-l-border opacity-75' : 'border-l-primary'}`}
+            >
               <CardContent className="pt-4">
                 <div className="flex items-start justify-between">
                   <div className="flex-1">
@@ -249,6 +254,11 @@ export const ScriptCharacterManager: React.FC<ScriptCharacterManagerProps> = ({
                           <Lock className="w-3 h-3" /> Imported
                         </Badge>
                       )}
+                      {character.excluded && (
+                        <Badge variant="secondary" className="flex items-center gap-1">
+                          <EyeOff className="w-3 h-3" /> Excluded
+                        </Badge>
+                      )}
                     </div>
 
                     {character.description && (
@@ -266,16 +276,27 @@ export const ScriptCharacterManager: React.FC<ScriptCharacterManagerProps> = ({
                     )}
                   </div>
 
-                  <Button
-                    variant="ghost"
-                    size="sm"
-                    onClick={() => handleRemoveCharacter(character.id)}
-                    className="text-destructive hover:text-destructive"
-                    disabled={!!character.locked}
-                    title={character.locked ? 'Imported roles are locked' : 'Remove role'}
-                  >
-                    <Trash2 size={16} />
-                  </Button>
+                  <div className="flex items-center gap-1">
+                    <Button
+                      variant="ghost"
+                      size="sm"
+                      onClick={() => handleUpdateCharacter(character.id, { excluded: !character.excluded })}
+                      title={character.excluded ? 'Include in production' : 'Exclude from production'}
+                    >
+                      {character.excluded ? <Eye className="w-4 h-4" /> : <EyeOff className="w-4 h-4" />}
+                    </Button>
+
+                    <Button
+                      variant="ghost"
+                      size="sm"
+                      onClick={() => handleRemoveCharacter(character.id)}
+                      className="text-destructive hover:text-destructive"
+                      disabled={!!character.locked}
+                      title={character.locked ? 'Imported roles are locked' : 'Remove role'}
+                    >
+                      <Trash2 size={16} />
+                    </Button>
+                  </div>
                 </div>
               </CardContent>
             </Card>

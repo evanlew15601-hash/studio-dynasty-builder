@@ -413,9 +413,15 @@ const aiProjects = gameState.allReleases.filter((release): release is Project =>
   const findRelevantTalent = (project: Project, category: string): TalentPerson | undefined => {
     const categoryLower = category.toLowerCase();
 
-    // Prefer explicit cast list first
-    const castEntries = project.cast || [];
     const characters = project.script?.characters || [];
+
+    // Prefer explicit cast list first, but ignore cast entries that only belong to excluded roles.
+    const activeCharacters = characters.filter(c => !c.excluded);
+    const activeTalentIds = new Set(activeCharacters.map(c => c.assignedTalentId).filter(Boolean) as string[]);
+
+    const castEntries = activeTalentIds.size > 0
+      ? (project.cast || []).filter(c => activeTalentIds.has(c.talentId))
+      : (project.cast || []);
 
     const getTalentById = (id?: string) => gameState.talent.find(t => t.id === id);
 
@@ -428,7 +434,7 @@ const aiProjects = gameState.allReleases.filter((release): release is Project =>
         if (t && t.type === 'director') return t;
       }
       // Fallback to script characters
-      const charDir = characters.find(c => c.requiredType === 'director');
+      const charDir = characters.find(c => !c.excluded && c.requiredType === 'director');
       const t = getTalentById(charDir?.assignedTalentId);
       if (t && t.type === 'director') return t;
       return undefined;
@@ -479,6 +485,7 @@ const aiProjects = gameState.allReleases.filter((release): release is Project =>
 
     // Final fallback to script characters
     const char = characters.find(ch => {
+      if (ch.excluded) return false;
       if (ch.requiredType === 'director') return false;
       const talent = getTalentById(ch.assignedTalentId);
       if (!talent || talent.type !== 'actor') return false;

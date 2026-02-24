@@ -13,7 +13,7 @@ export const TalentFilmographyManager = {
     const updatedTalent = gameState.talent.map(talent => {
       // Find if this talent was cast in the project
       const castCharacter = project.script!.characters!.find(
-        char => char.assignedTalentId === talent.id
+        char => !char.excluded && char.assignedTalentId === talent.id
       );
 
       if (!castCharacter) return talent;

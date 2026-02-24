@@ -116,8 +116,8 @@ export const CastingBoard: React.FC<CastingBoardProps> = ({
       let updatedCharacters: ScriptCharacter[] = existingChars;
 
       if (talent.type === 'director') {
-        // Prefer an existing director role
-        const directorIndex = existingChars.findIndex(c => c.requiredType === 'director');
+        // Prefer an existing director role (ignore excluded roles)
+        const directorIndex = existingChars.findIndex(c => !c.excluded && c.requiredType === 'director');
         if (directorIndex >= 0) {
           updatedCharacters = existingChars.map((c, idx) =>
             idx === directorIndex ? { ...c, assignedTalentId: talent.id } : c
@@ -136,9 +136,9 @@ export const CastingBoard: React.FC<CastingBoardProps> = ({
           updatedCharacters = [...existingChars, newDirector];
         }
       } else if (talent.type === 'actor') {
-        // Prefer an explicit lead actor role
+        // Prefer an explicit lead actor role (ignore excluded roles)
         let leadIndex = existingChars.findIndex(
-          c => c.importance === 'lead' && (c.requiredType === 'actor' || !c.requiredType)
+          c => !c.excluded && c.importance === 'lead' && (c.requiredType === 'actor' || !c.requiredType)
         );
 
         if (leadIndex >= 0) {

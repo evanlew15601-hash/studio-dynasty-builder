@@ -50,6 +50,8 @@ export const CastingRoleManager: React.FC<CastingRoleManagerProps> = ({
     if (project.script?.characters) {
       project.script.characters.forEach(character => {
         const existingCast = project.cast?.find(c => c.role === character.name);
+        if (character.excluded && !existingCast) return;
+
         roles.push({
           characterId: character.id,
           characterName: character.name,
