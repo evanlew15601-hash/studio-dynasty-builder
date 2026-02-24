@@ -1,5 +1,5 @@
 import React, { useState } from 'react';
-import { GameState, Franchise, ScriptCharacter } from '@/types/game';
+import { GameState, Franchise, FranchiseCharacterState, ScriptCharacter } from '@/types/game';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
@@ -233,7 +233,15 @@ export const FranchiseManagementSystem: React.FC<FranchiseManagementSystemProps>
       <div className="grid gap-4">
         {ownedFranchises.map(franchise => {
           const value = getFranchiseValue(franchise);
-          const characters = gameState.projects
+          type DisplayCharacter = {
+            franchiseCharacterId: string;
+            name: string;
+            importance: ScriptCharacter['importance'];
+            popularity: number;
+            signatureTalentId?: string;
+          };
+
+          const projectCharacters = gameState.projects
             .filter(p => p.script.franchiseId === franchise.id)
             .flatMap(p => p.script.characters || [])
             .filter(c => c.franchiseCharacterId)
@@ -243,6 +251,24 @@ export const FranchiseManagementSystem: React.FC<FranchiseManagementSystemProps>
               }
               return acc;
             }, [] as ScriptCharacter[]);
+
+          const characters: DisplayCharacter[] = (franchise.characterStates && franchise.characterStates.length > 0)
+            ? franchise.characterStates
+                .filter((c) => c.requiredType !== 'director')
+                .map((c: FranchiseCharacterState) => ({
+                  franchiseCharacterId: c.franchiseCharacterId,
+                  name: c.name,
+                  importance: c.importance,
+                  popularity: typeof c.popularity === 'number' ? c.popularity : getCharacterPopularity(c.franchiseCharacterId),
+                  signatureTalentId: c.signatureTalentId,
+                }))
+            : projectCharacters.map(c => ({
+                franchiseCharacterId: c.franchiseCharacterId!,
+                name: c.name,
+                importance: c.importance,
+                popularity: getCharacterPopularity(c.franchiseCharacterId!),
+                signatureTalentId: c.assignedTalentId,
+              }));
 
           return (
             <Card key={franchise.id} className="border-2 border-primary/30">
@@ -296,11 +322,10 @@ export const FranchiseManagementSystem: React.FC<FranchiseManagementSystemProps>
                     </h4>
                     <div className="grid gap-2">
                       {characters.map(character => {
-                        const popularity = getCharacterPopularity(character.franchiseCharacterId!);
-                        const assignedTalent = character.assignedTalentId 
-                          ? gameState.talent.find(t => t.id === character.assignedTalentId)
+                        const assignedTalent = character.signatureTalentId
+                          ? gameState.talent.find(t => t.id === character.signatureTalentId)
                           : null;
-                        
+
                         return (
                           <div key={character.franchiseCharacterId} className="flex items-center justify-between p-3 border rounded">
                             <div className="flex items-center gap-3">
@@ -310,18 +335,18 @@ export const FranchiseManagementSystem: React.FC<FranchiseManagementSystemProps>
                                 <div className="font-medium">{character.name}</div>
                                 {assignedTalent && (
                                   <div className="text-sm text-muted-foreground">
-                                    Played by {assignedTalent.name}
+                                    Signature cast: {assignedTalent.name}
                                   </div>
                                 )}
                               </div>
                             </div>
                             <div className="flex items-center gap-2">
-                              <Badge variant={popularity >= 70 ? "default" : popularity >= 40 ? "secondary" : "outline"}>
-                                {popularity}% Popular
+                              <Badge variant={character.popularity >= 70 ? "default" : character.popularity >= 40 ? "secondary" : "outline"}>
+                                {character.popularity}% Popular
                               </Badge>
                               {assignedTalent && (
                                 <Badge variant="outline" className="text-xs">
-                                  Under Contract
+                                  Returning Cast
                                 </Badge>
                               )}
                             </div>

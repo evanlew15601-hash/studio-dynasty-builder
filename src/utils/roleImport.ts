@@ -2,14 +2,22 @@ import { GameState, Script, ScriptCharacter } from '@/types/game';
 import { FRANCHISE_CHARACTER_DB, FranchiseCharacterDef } from '@/data/FranchiseCharacterDB';
 import { RoleDatabase } from '@/data/RoleDatabase';
 import { PARODY_CHARACTER_NAME_MAP } from '@/data/ParodyCharacterNames';
+import { ensureFranchiseCharacterStates, makeFallbackFranchiseCharacterId } from '@/utils/franchiseCharacters';
 
-function toScriptCharacter(def: FranchiseCharacterDef, franchiseId?: string, parodySource?: string): ScriptCharacter {
+function toScriptCharacter(
+  def: FranchiseCharacterDef,
+  franchiseId?: string,
+  parodySource?: string,
+  signatureTalentId?: string
+): ScriptCharacter {
   // Prefer recognizable names from parody source mapping when available
   let resolvedName = def.name;
   if (parodySource) {
     const map = PARODY_CHARACTER_NAME_MAP[parodySource];
     if (map) {
-      resolvedName = map.byCharacterId?.[def.character_id] || map.byTemplateId?.[def.role_template_id] || def.name;
+      // Prefer stable per-character mappings to avoid accidentally renaming/duplicating roles
+      // when templates evolve over time.
+      resolvedName = map.byCharacterId?.[def.character_id] || def.name;
     }
   }
   return {
@@ -23,6 +31,7 @@ function toScriptCharacter(def: FranchiseCharacterDef, franchiseId?: string, par
     franchiseId,
     franchiseCharacterId: def.character_id,
     roleTemplateId: def.role_template_id,
+    assignedTalentId: signatureTalentId,
     locked: true,
   };
 }
@@ -51,7 +60,7 @@ function mergeWithOverrides(existing: ScriptCharacter | undefined, incoming: Scr
     traits: overrides.traits || incoming.traits,
     ageRange: overrides.ageRange || incoming.ageRange,
     assignedTalentId: existing.assignedTalentId,
-    locked: true,
+    locked: incoming.locked ?? existing.locked,
     franchiseId: incoming.franchiseId,
     franchiseCharacterId: incoming.franchiseCharacterId,
     roleTemplateId: incoming.roleTemplateId,
@@ -65,6 +74,15 @@ export function importRolesForScript(script: Script, gameState: GameState): Scri
 
   if (script.sourceType === 'franchise' && script.franchiseId) {
     const franchise = gameState.franchises.find(f => f.id === script.franchiseId);
+
+    // Signature casting + persistent roster state.
+    const franchiseStates = franchise ? ensureFranchiseCharacterStates(franchise, gameState) : [];
+    const signatureById = new Map(
+      franchiseStates
+        .filter(s => !!s.signatureTalentId)
+        .map(s => [s.franchiseCharacterId, s.signatureTalentId!] as const)
+    );
+
     const dbKey = script.franchiseId;
     let defs = FRANCHISE_CHARACTER_DB[dbKey];
     if (!defs && franchise?.parodySource) {
@@ -73,7 +91,11 @@ export function importRolesForScript(script: Script, gameState: GameState): Scri
 
     if (defs && defs.length > 0) {
       for (const def of defs) {
-        const incoming = toScriptCharacter(def, script.franchiseId, franchise?.parodySource);
+        const signature = signatureById.get(def.character_id);
+        const signatureAvailable = signature && gameState.talent.some(t => t.id === signature && t.contractStatus === 'available')
+          ? signature
+          : undefined;
+        const incoming = toScriptCharacter(def, script.franchiseId, franchise?.parodySource, signatureAvailable);
         const match = existing.find(c => c.franchiseCharacterId === def.character_id || (c.name === incoming.name && c.requiredType === def.requiredType));
         if (!match) {
           characters.push(incoming);
@@ -81,14 +103,24 @@ export function importRolesForScript(script: Script, gameState: GameState): Scri
           characters.push(mergeWithOverrides(match, incoming));
         }
       }
-    } else {
+    } else if (franchise) {
       // Fallback to curated role database
       const fallback = RoleDatabase.getRolesForSource('franchise', script.franchiseId, gameState);
       fallback.forEach(role => {
+        // Back-compat: older saves may have used raw role.id as franchiseCharacterId.
+        const legacyId = role.id;
+        const prefixedId = makeFallbackFranchiseCharacterId(franchise, role.id);
+        const franchiseCharacterId = existing.some(c => c.franchiseCharacterId === legacyId) ? legacyId : prefixedId;
+
+        const signature = signatureById.get(franchiseCharacterId);
+        const signatureAvailable = signature && gameState.talent.some(t => t.id === signature && t.contractStatus === 'available')
+          ? signature
+          : undefined;
         const incoming: ScriptCharacter = {
           ...role,
           franchiseId: script.franchiseId,
-          franchiseCharacterId: role.id,
+          franchiseCharacterId,
+          assignedTalentId: signatureAvailable,
           locked: role.requiredType === 'director' ? true : (role.importance !== 'minor'),
         };
         const match = existing.find(c => c.franchiseCharacterId === incoming.franchiseCharacterId || (c.name === incoming.name && c.requiredType === incoming.requiredType));
@@ -106,7 +138,7 @@ export function importRolesForScript(script: Script, gameState: GameState): Scri
         ...role,
         franchiseId: undefined,
         franchiseCharacterId: role.id,
-        locked: role.requiredType === 'director',
+        locked: role.requiredType === 'director' ? true : (role.importance !== 'minor'),
       };
       const match = existing.find(c => c.franchiseCharacterId === incoming.franchiseCharacterId || (c.name === incoming.name && c.requiredType === incoming.requiredType));
       if (!match) characters.push(incoming); else characters.push(mergeWithOverrides(match, incoming));
@@ -114,16 +146,16 @@ export function importRolesForScript(script: Script, gameState: GameState): Scri
     ensureDirector(characters);
   }
 
-  // Idempotency: remove duplicates by franchiseCharacterId/name+type
+  const keyFor = (c: ScriptCharacter) => c.franchiseCharacterId || c.roleTemplateId || `${c.name}:${c.requiredType || 'actor'}`;
+
+  // Idempotency: remove duplicates while preferring freshly imported/merged roles.
   const keyed = new Map<string, ScriptCharacter>();
-  for (const c of [...existing.filter(c => c.locked), ...characters]) {
-    const key = c.franchiseCharacterId || `${c.name}:${c.requiredType || 'actor'}`;
+  for (const c of [...characters, ...existing]) {
+    const key = keyFor(c);
     if (!keyed.has(key)) keyed.set(key, c);
   }
 
-  // Merge with existing manual roles (unlocked)
-  const manual = existing.filter(c => !c.locked);
-  const finalList = [...Array.from(keyed.values()), ...manual];
+  const finalList = Array.from(keyed.values());
 
   // Guarantee at least one minor cameo for depth
   if (!finalList.some(r => r.importance === 'minor')) {

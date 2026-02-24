@@ -423,7 +423,13 @@ export class FinancialEngine {
 
     // Process ongoing production costs
     projects.forEach(project => {
-      if (project.status === 'production' || project.status === 'post-production') {
+      const inProduction =
+        project.currentPhase === 'production' ||
+        project.currentPhase === 'post-production' ||
+        project.status === 'production' ||
+        project.status === 'post-production';
+
+      if (inProduction) {
         const weeklyProductionCost = project.budget.total * 0.02; // 2% of budget per week
         this.recordFilmExpense(
           project.id,

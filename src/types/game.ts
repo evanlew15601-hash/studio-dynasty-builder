@@ -23,6 +23,32 @@ export interface Franchise {
   criticalFatigue?: number; // 0-100, increases with poor sequels
   description?: string; // Bio/background for player familiarity
   cost: number; // Cost to license/use franchise based on cultural weight
+
+  /**
+   * Persistent per-character franchise state (casting continuity + popularity).
+   * Optional and safe for old saves.
+   */
+  characterStates?: FranchiseCharacterState[];
+}
+
+export interface FranchiseCharacterState {
+  /** Stable character id (either from FranchiseCharacterDB or synthesized for originals). */
+  franchiseCharacterId: string;
+  name: string;
+  roleTemplateId?: string;
+  importance: ScriptCharacter['importance'];
+  requiredType?: ScriptCharacter['requiredType'];
+  description?: string;
+  traits?: string[];
+  ageRange?: [number, number];
+
+  /** 0-100, derived from released projects. */
+  popularity?: number;
+  /** How many released projects have been counted for popularity. */
+  popularitySamples?: number;
+
+  /** "Signature" casting for sequels (treated as an implicit franchise contract). */
+  signatureTalentId?: string;
 }
 
 // Public Domain System Types
@@ -92,6 +118,8 @@ export interface ScriptCharacter {
 
 export interface Script {
   id: string;
+  /** Distinguish film vs TV scripts (used for routing/library filtering). */
+  format?: 'film' | 'tv';
   title: string;
   genre: Genre;
   logline: string;
@@ -108,6 +136,7 @@ export interface Script {
   sourceType?: 'original' | 'franchise' | 'public-domain' | 'adaptation';
   franchiseId?: string;
   publicDomainId?: string;
+  coverage?: ScriptCoverage;
 }
 
 export interface ScriptCharacteristics {
@@ -118,6 +147,41 @@ export interface ScriptCharacteristics {
   commercialAppeal: number; // 1-10
   criticalPotential: number; // 1-10
   cgiIntensity: 'practical' | 'minimal' | 'moderate' | 'heavy';
+}
+
+export interface ScriptCoverageChecklistItem {
+  id: string;
+  label: string;
+  completed: boolean;
+}
+
+export interface ScriptStageCoverage {
+  notes: string;
+  checklist: ScriptCoverageChecklistItem[];
+  lastUpdatedAt?: number;
+}
+
+export type ScriptCoverageRevisionType =
+  | 'coverage_requested'
+  | 'coverage_received'
+  | 'minor_revision'
+  | 'major_revision'
+  | 'polish_pass'
+  | 'table_read'
+  | 'notes_applied';
+
+export interface ScriptRevisionAction {
+  id: string;
+  stage: Script['developmentStage'];
+  type: ScriptCoverageRevisionType;
+  note?: string;
+  createdAt: number;
+}
+
+export interface ScriptCoverage {
+  version: number;
+  stages: Record<Script['developmentStage'], ScriptStageCoverage>;
+  revisionActions: ScriptRevisionAction[];
 }
 
 export interface TalentPerson {

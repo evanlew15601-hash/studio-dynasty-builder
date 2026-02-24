@@ -1,5 +1,5 @@
 import { afterEach, describe, expect, it, vi } from 'vitest';
-import type { Franchise, GameState, Script } from '@/types/game';
+import type { Franchise, GameState, PublicDomainIP, Script } from '@/types/game';
 import { finalizeScriptForGreenlight, getScriptGreenlightReport } from '@/utils/scriptFinalization';
 
 function makeBaseGameState(): GameState {
@@ -128,6 +128,49 @@ describe('script finalization', () => {
     expect(report.canFinalize).toBe(false);
     expect(out.developmentStage).toBe('polish');
     expect(report.issues.some(i => i.level === 'error')).toBe(true);
+  });
+
+  it('finalizes a valid public-domain script and imports roles from the IP', () => {
+    vi.spyOn(Date, 'now').mockReturnValue(1001);
+
+    const publicDomain: PublicDomainIP = {
+      id: 'pd-1',
+      name: 'Frankenstein',
+      domainType: 'literature',
+      dateEnteredDomain: '1800-01-01',
+      coreElements: ['science', 'creation', 'monster'],
+      genreFlexibility: ['horror', 'drama'],
+      notableAdaptations: [],
+      reputationScore: 90,
+      cost: 0,
+      suggestedCharacters: [
+        {
+          id: 'the-creature',
+          name: 'The Creature',
+          importance: 'lead',
+          requiredType: 'actor',
+        },
+      ],
+    };
+
+    const gameState = makeBaseGameState();
+    gameState.publicDomainIPs = [publicDomain];
+
+    const script = makeValidScript({
+      genre: 'horror',
+      sourceType: 'public-domain',
+      publicDomainId: publicDomain.id,
+      characters: [],
+      developmentStage: 'polish',
+    });
+
+    const { script: finalized, report } = finalizeScriptForGreenlight(script, gameState);
+    expect(report.canFinalize).toBe(true);
+    expect(report.canGreenlight).toBe(true);
+    expect(finalized.developmentStage).toBe('final');
+    expect(finalized.characters?.some(c => c.id === 'the-creature')).toBe(true);
+    expect(finalized.characters?.some(c => c.requiredType === 'director')).toBe(true);
+    expect(report.fixesApplied).toContain('Imported roles from source IP');
   });
 
   it('adds missing director/lead/minor roles for an original script and ensures requiredType defaults', () => {

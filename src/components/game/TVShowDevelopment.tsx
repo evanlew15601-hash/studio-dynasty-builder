@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from 'react';
-import { GameState, Script, Genre, ScriptCharacteristics } from '@/types/game';
+import { GameState, Script, Genre, ScriptCharacteristics, ScriptCoverage } from '@/types/game';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
@@ -8,9 +8,12 @@ import { Textarea } from '@/components/ui/textarea';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { Slider } from '@/components/ui/slider';
 import { Badge } from '@/components/ui/badge';
+import { Dialog, DialogContent, DialogHeader, DialogTitle } from '@/components/ui/dialog';
 import { useToast } from '@/hooks/use-toast';
 import { ScriptCharacterManager, ScriptCharacter } from './ScriptCharacterManager';
+import { ScriptCoveragePanel } from './ScriptCoveragePanel';
 import { importRolesForScript } from '@/utils/roleImport';
+import { createDefaultScriptCoverage, ensureScriptCoverageData, getStageChecklistProgress } from '@/utils/scriptCoverage';
 import { finalizeScriptForSave } from '@/utils/scriptFinalization';
 import { ScriptIcon, BudgetIcon, AwardIcon, ClapperboardIcon } from '@/components/ui/icons';
 
@@ -34,6 +37,8 @@ export const TVShowDevelopment: React.FC<TVShowDevelopmentProps> = ({
   const [isCreating, setIsCreating] = useState(false);
   const [editingScript, setEditingScript] = useState<Script | null>(null);
   const [scriptCharacters, setScriptCharacters] = useState<ScriptCharacter[]>([]);
+  const [scriptCoverage, setScriptCoverage] = useState<ScriptCoverage>(() => createDefaultScriptCoverage());
+  const [coverageScriptId, setCoverageScriptId] = useState<string | null>(null);
 
   const stageOrder: Script['developmentStage'][] = ['concept', 'treatment', 'first-draft', 'polish', 'final'];
 
@@ -53,6 +58,7 @@ export const TVShowDevelopment: React.FC<TVShowDevelopmentProps> = ({
     setNewScript({
       ...script,
     });
+    setScriptCoverage(ensureScriptCoverageData(script.coverage));
     setScriptCharacters(
       seededCharacters.map((c) => ({
         ...c,
@@ -159,6 +165,7 @@ export const TVShowDevelopment: React.FC<TVShowDevelopmentProps> = ({
   useEffect(() => {
     const initial = getInitialTVScript();
     setNewScript(initial);
+    setScriptCoverage(createDefaultScriptCoverage());
 
     const tempScript: Script = {
       id: `temp-${Date.now()}`,
@@ -208,6 +215,7 @@ export const TVShowDevelopment: React.FC<TVShowDevelopmentProps> = ({
 
     const script: Script = {
       id: editingScript ? editingScript.id : `tv-script-${Date.now()}`,
+      format: 'tv',
       title: newScript.title!,
       genre: newScript.genre as Genre,
       logline: newScript.logline!,
@@ -228,6 +236,7 @@ export const TVShowDevelopment: React.FC<TVShowDevelopmentProps> = ({
         criticalPotential: newScript.characteristics?.criticalPotential || 5,
         cgiIntensity: newScript.characteristics?.cgiIntensity || 'minimal'
       },
+      coverage: scriptCoverage,
       // Strip UI-only fields before persisting to game state
       characters: scriptCharacters.map(({ screenTimeMinutes, ...c }) => c),
       sourceType: newScript.sourceType || 'original',
@@ -244,6 +253,7 @@ export const TVShowDevelopment: React.FC<TVShowDevelopmentProps> = ({
     // Reset form to default state
     setNewScript(getInitialTVScript());
     setScriptCharacters([]);
+    setScriptCoverage(createDefaultScriptCoverage());
     
     toast({
       title: editingScript ? "TV Script Updated" : "TV Script Created",
@@ -286,11 +296,18 @@ export const TVShowDevelopment: React.FC<TVShowDevelopmentProps> = ({
     });
   };
 
-  // Filter TV scripts (could be marked by type or other criteria)
-  const availableTVScripts = gameState.scripts.filter(script => 
-    !gameState.projects.some(project => project.script.id === script.id) &&
-    (script.characteristics.pacing === 'episodic' || script.estimatedRuntime <= 60) // TV-like characteristics
-  );
+  // Filter TV scripts (prefer explicit `script.format`, fallback to heuristics for legacy saves)
+  const availableTVScripts = gameState.scripts.filter((script) => {
+    const isTV =
+      script.format === 'tv' ||
+      (!script.format && (script.characteristics.pacing === 'episodic' || script.estimatedRuntime <= 60));
+
+    return isTV && !gameState.projects.some((project) => project.script.id === script.id);
+  });
+
+  const coverageScript = coverageScriptId
+    ? gameState.scripts.find(s => s.id === coverageScriptId) || null
+    : null;
 
   return (
     <div className="space-y-6">
@@ -418,7 +435,13 @@ export const TVShowDevelopment: React.FC<TVShowDevelopmentProps> = ({
                     id="runtime"
                     type="number"
                     value={newScript.estimatedRuntime || 45}
-                    onChange={(e) => setNewScript(prev => ({ ...prev, estimatedRuntime: parseInt(e.target.value) }))}
+                    onChange={(e) => {
+                      const value = Number(e.target.value);
+                      setNewScript((prev) => ({
+                        ...prev,
+                        estimatedRuntime: Number.isFinite(value) && value > 0 ? value : 45,
+                      }));
+                    }}
                     min={15}
                     max={90}
                     className="mt-1"
@@ -434,7 +457,13 @@ export const TVShowDevelopment: React.FC<TVShowDevelopmentProps> = ({
                     id="budget"
                     type="number"
                     value={newScript.budget || 2000000}
-                    onChange={(e) => setNewScript(prev => ({ ...prev, budget: parseInt(e.target.value) }))}
+                    onChange={(e) => {
+                      const value = Number(e.target.value);
+                      setNewScript((prev) => ({
+                        ...prev,
+                        budget: Number.isFinite(value) && value > 0 ? Math.round(value) : 2_000_000,
+                      }));
+                    }}
                     min={100000}
                     max={20000000}
                     step={100000}
@@ -511,7 +540,7 @@ export const TVShowDevelopment: React.FC<TVShowDevelopmentProps> = ({
                   value={newScript.developmentStage || 'concept'} 
                   onValueChange={(value) => setNewScript(prev => ({ ...prev, developmentStage: value as Script['developmentStage'] }))}
                 >
-                  <SelectTrigger>
+                  <SelectTrigger aria-label="Development Stage">
                     <SelectValue />
                   </SelectTrigger>
                   <SelectContent>
@@ -536,6 +565,16 @@ export const TVShowDevelopment: React.FC<TVShowDevelopmentProps> = ({
               />
             </div>
 
+            {/* Coverage & Notes (lightweight) */}
+            <div className="border-t pt-6">
+              <ScriptCoveragePanel
+                coverage={scriptCoverage}
+                onCoverageChange={setScriptCoverage}
+                defaultStage={(newScript.developmentStage || 'concept') as Script['developmentStage']}
+                showRevisionActions={false}
+              />
+            </div>
+
             <div className="flex justify-end space-x-3">
               <Button 
                 variant="outline" 
@@ -543,6 +582,7 @@ export const TVShowDevelopment: React.FC<TVShowDevelopmentProps> = ({
                   setIsCreating(false);
                   setEditingScript(null);
                   setScriptCharacters([]);
+                  setScriptCoverage(createDefaultScriptCoverage());
                 }}
               >
                 Cancel
@@ -581,6 +621,9 @@ export const TVShowDevelopment: React.FC<TVShowDevelopmentProps> = ({
                 const stageProgress = ((stageIndex + 1) / stageOrder.length) * 100;
                 const isReadyToGreenlight = script.developmentStage === 'final';
 
+                const coverageData = ensureScriptCoverageData(script.coverage);
+                const coverageProgress = getStageChecklistProgress(coverageData, script.developmentStage || 'concept');
+
                 return (
                 <Card 
                   key={script.id} 
@@ -617,6 +660,22 @@ export const TVShowDevelopment: React.FC<TVShowDevelopmentProps> = ({
                           />
                         </div>
                       </div>
+
+                      {/* Coverage Progress */}
+                      <div className="space-y-1">
+                        <div className="flex justify-between text-xs text-muted-foreground">
+                          <span>Coverage</span>
+                          <span>
+                            {coverageProgress.completed}/{coverageProgress.total}
+                          </span>
+                        </div>
+                        <div className="w-full bg-muted rounded-full h-1.5">
+                          <div
+                            className="bg-accent rounded-full h-1.5 transition-all"
+                            style={{ width: `${coverageProgress.percent}%` }}
+                          />
+                        </div>
+                      </div>
                       
                       <div className="space-y-2 text-xs">
                         <div className="flex justify-between">
@@ -646,13 +705,23 @@ export const TVShowDevelopment: React.FC<TVShowDevelopmentProps> = ({
                           size="sm" 
                           className={`flex-1 ${!isReadyToGreenlight ? 'opacity-60' : ''}`}
                           onClick={() => handleGreenlightTVScript(script)}
-                          disabled={gameState.studio.budget < script.budget * 0.1}
+                          disabled={gameState.studio.budget < script.budget * 13 * 0.1}
                           title={!isReadyToGreenlight ? 'Refine the script to "final" stage before greenlighting' : ''}
                         >
                           <ClapperboardIcon className="w-4 h-4 mr-1" />
                           {isReadyToGreenlight ? 'Greenlight' : 'Not Ready'}
                         </Button>
                       </div>
+
+                      <Button
+                        size="sm"
+                        variant="ghost"
+                        className="w-full"
+                        onClick={() => setCoverageScriptId(script.id)}
+                      >
+                        📝 Coverage & Notes
+                      </Button>
+
                       {!isReadyToGreenlight && (
                         <p className="text-xs text-muted-foreground text-center">
                           Edit and advance to "final" stage to greenlight
@@ -667,6 +736,29 @@ export const TVShowDevelopment: React.FC<TVShowDevelopmentProps> = ({
           )}
         </CardContent>
       </Card>
+
+      <Dialog
+        open={Boolean(coverageScriptId)}
+        onOpenChange={(open) => {
+          if (!open) setCoverageScriptId(null);
+        }}
+      >
+        <DialogContent className="max-w-3xl">
+          <DialogHeader>
+            <DialogTitle>Coverage & Notes{coverageScript ? `: ${coverageScript.title}` : ''}</DialogTitle>
+          </DialogHeader>
+          {coverageScript ? (
+            <ScriptCoveragePanel
+              coverage={ensureScriptCoverageData(coverageScript.coverage)}
+              onCoverageChange={(next) => onScriptUpdate({ ...coverageScript, coverage: next })}
+              defaultStage={coverageScript.developmentStage}
+              showRevisionActions={false}
+            />
+          ) : (
+            <div className="text-sm text-muted-foreground">No script selected.</div>
+          )}
+        </DialogContent>
+      </Dialog>
     </div>
   );
 };
