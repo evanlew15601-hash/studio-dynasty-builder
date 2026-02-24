@@ -102,7 +102,7 @@ export const SequelManagement: React.FC<SequelManagementProps> = ({
     
     // Get returning cast from original
     const returningCast = (originalProject.script?.characters || [])
-      .filter(char => char.assignedTalentId && char.importance !== 'minor')
+      .filter(char => !char.excluded && char.assignedTalentId && char.importance !== 'minor')
       .map(char => ({
         characterId: char.id,
         talentId: char.assignedTalentId!,

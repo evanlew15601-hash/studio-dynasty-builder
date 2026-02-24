@@ -56,7 +56,10 @@ export class ReleaseSystem {
     const legacyHasDirector = legacyCast.some(c => c.role?.toLowerCase().includes('director'));
     const legacyHasLead = legacyCast.some(c => c.role?.toLowerCase().includes('lead'));
     
-    const useLegacyCastFallback = (project.script?.characters?.length || 0) === 0;
+    // Legacy cast fallback is needed for older saves where cast assignments lived in project.cast.
+    // Once you start using role exclusion, treat script characters as the source of truth.
+    const hasAnyExcluded = (project.script?.characters || []).some(c => c.excluded);
+    const useLegacyCastFallback = !hasAnyExcluded && (project.script?.characters?.length || 0) === 0;
 
     const actualHasDirector = useLegacyCastFallback ? (hasDirector || legacyHasDirector) : hasDirector;
     const actualHasLead = useLegacyCastFallback ? (hasLead || legacyHasLead) : hasLead;

@@ -41,16 +41,20 @@ export const CharacterCastingSystem: React.FC<CharacterCastingSystemProps> = ({
   }
 
   const createCastingSlots = (): CastingSlot[] => {
-    const characters = project.script?.characters || [];
-    
+    const allCharacters = project.script?.characters || [];
+    // Hide excluded roles unless already assigned (so existing contracts remain visible)
+    const characters = allCharacters.filter(c => !c.excluded || !!c.assignedTalentId);
+
     return characters.map(character => {
       const talent = character.assignedTalentId 
         ? gameState.talent.find(t => t.id === character.assignedTalentId)
         : null;
       
-      const isRequired = (character.traits?.includes('mandatory')) || 
-                        character.importance === 'lead' || 
-                        character.requiredType === 'director';
+      const isRequired = !character.excluded && (
+        (character.traits?.includes('mandatory')) ||
+        character.importance === 'lead' ||
+        character.requiredType === 'director'
+      );
       
       const baseMarketValue = talent?.marketValue || 5000000; // Default market value
       const contractCost = (baseMarketValue * 0.1) + (baseMarketValue * 0.05 * (character.importance === 'lead' ? 2 : character.importance === 'supporting' ? 1.5 : 1));
@@ -160,15 +164,17 @@ export const CharacterCastingSystem: React.FC<CharacterCastingSystemProps> = ({
 
   const getCastingProgress = () => {
     const slots = createCastingSlots();
-    const requiredSlots = slots.filter(s => s.isRequired);
+    const activeSlots = slots.filter(s => !s.character.excluded);
+
+    const requiredSlots = activeSlots.filter(s => s.isRequired);
     const castRequired = requiredSlots.filter(s => s.talent).length;
-    const totalCast = slots.filter(s => s.talent).length;
-    
+    const totalCast = activeSlots.filter(s => s.talent).length;
+
     return {
       requiredCast: castRequired,
       requiredTotal: requiredSlots.length,
       totalCast,
-      totalSlots: slots.length,
+      totalSlots: activeSlots.length,
       canProceed: castRequired === requiredSlots.length
     };
   };
@@ -181,7 +187,7 @@ export const CharacterCastingSystem: React.FC<CharacterCastingSystemProps> = ({
 
   const handleConfirmCasting = () => {
     const slots = createCastingSlots();
-    const requiredSlots = slots.filter(s => s.isRequired);
+    const requiredSlots = slots.filter(s => !s.character.excluded && s.isRequired);
     const castRequired = requiredSlots.filter(s => s.talent).length;
     if (castRequired !== requiredSlots.length) {
       toast({ title: 'Cannot Confirm', description: 'Director and Lead roles must be cast', variant: 'destructive' });

@@ -60,7 +60,7 @@ export const FilmStatsModal: React.FC<FilmStatsModalProps> = ({
   const getCastInfo = () => {
     if (!project.script?.characters) return [];
     return project.script.characters
-      .filter(char => char.assignedTalentId)
+      .filter(char => !char.excluded && char.assignedTalentId)
       .map(char => {
         const talent = gameState.talent.find(t => t.id === char.assignedTalentId);
         return {
