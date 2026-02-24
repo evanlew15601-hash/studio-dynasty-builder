@@ -93,6 +93,7 @@ import { MediaFinancialIntegration } from './MediaFinancialIntegration';
 import { MediaReputationIntegration } from './MediaReputationIntegration';
 import { MediaResponseSystem } from './MediaResponseSystem';
 import { saveGame } from '@/utils/saveLoad';
+import { recomputeFranchiseCharacterStates, updateFranchiseSignatureFromProject } from '@/utils/franchiseCharacters';
 import { DebugControlPanel } from './DebugControlPanel';
 
 // Ensure AI films have at least a Director and Lead actor so awards/crediting work
@@ -611,10 +612,14 @@ export const StudioMagnateGame: React.FC<StudioMagnateGameProps> = ({
   };
 
   const handleCreateFranchise = (franchise: any) => {
-    setGameState(prev => ({
-      ...prev,
-      franchises: [...(prev.franchises || []), franchise]
-    }));
+    setGameState(prev => {
+      const next: GameState = {
+        ...prev,
+        franchises: [...(prev.franchises || []), franchise]
+      };
+      next.franchises = recomputeFranchiseCharacterStates(next);
+      return next;
+    });
     toast({
       title: "Franchise Created",
       description: `"${franchise.title}" franchise has been established`,
@@ -622,12 +627,16 @@ export const StudioMagnateGame: React.FC<StudioMagnateGameProps> = ({
   };
 
   const handleUpdateFranchise = (franchiseId: string, updates: any) => {
-    setGameState(prev => ({
-      ...prev,
-      franchises: (prev.franchises || []).map(f => 
-        f.id === franchiseId ? { ...f, ...updates } : f
-      )
-    }));
+    setGameState(prev => {
+      const next: GameState = {
+        ...prev,
+        franchises: (prev.franchises || []).map(f => 
+          f.id === franchiseId ? { ...f, ...updates } : f
+        )
+      };
+      next.franchises = recomputeFranchiseCharacterStates(next);
+      return next;
+    });
   };
 
   // Handle award show triggers
@@ -642,7 +651,7 @@ export const StudioMagnateGame: React.FC<StudioMagnateGameProps> = ({
   const handleProjectUpdate = (project: Project, marketingCost?: number) => {
     setGameState(prev => {
       const prevProject = prev.projects.find(p => p.id === project.id);
-      const nextState = {
+      const nextState: GameState = {
         ...prev,
         projects: prev.projects.map(p => p.id === project.id ? project : p),
         studio: marketingCost ? {
@@ -665,6 +674,14 @@ export const StudioMagnateGame: React.FC<StudioMagnateGameProps> = ({
             busyUntilWeek
           };
         });
+      }
+
+      // Franchise continuity: persist signature casting + recompute popularity.
+      if (project.script?.franchiseId) {
+        nextState.franchises = (nextState.franchises || []).map(f =>
+          f.id === project.script!.franchiseId ? updateFranchiseSignatureFromProject(f, project, nextState) : f
+        );
+        nextState.franchises = recomputeFranchiseCharacterStates(nextState);
       }
 
       return nextState;
@@ -1596,7 +1613,7 @@ export const StudioMagnateGame: React.FC<StudioMagnateGameProps> = ({
       // Prune old top films history
       const prunedTopFilmsHistory = (prev.topFilmsHistory || []).slice(-52); // Keep last 52 entries max
 
-      const newState = {
+      const newState: GameState = {
         ...prev,
         currentWeek: newTimeState.currentWeek,
         currentYear: newTimeState.currentYear,
@@ -1609,6 +1626,9 @@ export const StudioMagnateGame: React.FC<StudioMagnateGameProps> = ({
         boxOfficeHistory: prunedBoxOfficeHistory,
         topFilmsHistory: prunedTopFilmsHistory,
       };
+
+      // Franchise continuity: keep per-character popularity + signature casting up to date.
+      newState.franchises = recomputeFranchiseCharacterStates(newState);
 
       // Advance ongoing PR campaigns (Response Center) each week so timers and effects progress
       try {

@@ -23,6 +23,32 @@ export interface Franchise {
   criticalFatigue?: number; // 0-100, increases with poor sequels
   description?: string; // Bio/background for player familiarity
   cost: number; // Cost to license/use franchise based on cultural weight
+
+  /**
+   * Persistent per-character franchise state (casting continuity + popularity).
+   * Optional and safe for old saves.
+   */
+  characterStates?: FranchiseCharacterState[];
+}
+
+export interface FranchiseCharacterState {
+  /** Stable character id (either from FranchiseCharacterDB or synthesized for originals). */
+  franchiseCharacterId: string;
+  name: string;
+  roleTemplateId?: string;
+  importance: ScriptCharacter['importance'];
+  requiredType?: ScriptCharacter['requiredType'];
+  description?: string;
+  traits?: string[];
+  ageRange?: [number, number];
+
+  /** 0-100, derived from released projects. */
+  popularity?: number;
+  /** How many released projects have been counted for popularity. */
+  popularitySamples?: number;
+
+  /** "Signature" casting for sequels (treated as an implicit franchise contract). */
+  signatureTalentId?: string;
 }
 
 // Public Domain System Types

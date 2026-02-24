@@ -15,130 +15,254 @@ interface FranchiseTemplate {
 const FRANCHISE_TEMPLATES: FranchiseTemplate[] = [
   // Sci-Fi Franchises
   {
-    titlePatterns: ['Star Enforcers', 'Galactic Guardians', 'Space Riders', 'Quantum Rebels'],
+    titlePatterns: ['Star Enforcers', 'Galactic Guardians', 'Space Riders', 'Quantum Rebels', 'Laser Monks', 'The Twin Suns Saga'],
     genre: ['sci-fi', 'action'],
     tone: 'pulpy',
     parodySource: 'Star Wars',
-    tags: ['space', 'laser weapons', 'alien rebellion', 'chosen one'],
+    tags: ['space', 'laser blades', 'mystic order', 'rebellion', 'evil empire', 'chosen one'],
     culturalWeight: 92,
-    description: 'Epic space opera featuring galactic conflicts, mystical powers, and the eternal struggle between good and evil across the cosmos.'
+    description: 'A swashbuckling space opera where farm kids become legends, roguish pilots gamble with their lives, and a mystical order argues about destiny while starships explode in the background.'
   },
   {
-    titlePatterns: ['Future Shock', 'Cyber Knights', 'Digital Dawn', 'Neural Network'],
+    titlePatterns: ['Future Shock', 'Cyber Knights', 'Digital Dawn', 'Neural Network', 'Rain-Slick City', 'Neon Replicants'],
     genre: ['sci-fi', 'thriller'],
     tone: 'dark',
     parodySource: 'Blade Runner',
-    tags: ['cyberpunk', 'AI', 'dystopia', 'corporate conspiracy'],
+    tags: ['cyberpunk', 'synthetics', 'noir', 'dystopia', 'corporate conspiracy', 'identity'],
     culturalWeight: 78,
-    description: 'Cyberpunk thriller exploring the dark future where AI and humanity blur, set in neon-soaked dystopian cities ruled by mega-corporations.'
+    description: 'Neon-noir detective fiction in a city that never stops raining. A weary hunter chases synthetic runaways and discovers the real mystery is whether "human" is a brand, a feeling, or a receipt.'
   },
   {
-    titlePatterns: ['Alien Hunter', 'Cosmic Horror', 'Deep Space', 'Void Walkers'],
+    titlePatterns: ['Alien Hunter', 'Cosmic Horror', 'Deep Space', 'Void Walkers', 'Airlock Panic', 'Derelict Signal'],
     genre: ['sci-fi', 'horror'],
     tone: 'dark',
     parodySource: 'Alien',
-    tags: ['space horror', 'survival', 'isolation', 'alien threat'],
+    tags: ['space horror', 'survival', 'isolation', 'alien threat', 'corporate greed', 'claustrophobic'],
     culturalWeight: 85,
-    description: 'Terrifying space horror where isolated crews face unknown alien threats in the vast emptiness of space with nowhere to run.'
+    description: 'A blue-collar crew answers a suspicious distress call and learns the company handbook has a chapter titled "Expendable." Something is loose in the vents and it is not paying rent.'
   },
-  
+  {
+    titlePatterns: ['Prime Directive', 'Star Explorers', 'The Unity Frontier', 'Warpbound', 'The Strange New Worlds Show'],
+    genre: ['sci-fi', 'adventure'],
+    tone: 'serious',
+    parodySource: 'Star Trek',
+    tags: ['starship', 'exploration', 'diplomacy', 'science', 'crew ensemble', 'moral dilemmas'],
+    culturalWeight: 90,
+    description: 'Optimistic starship adventures where a charismatic captain and a bickering crew try to solve ethical puzzles at light speed, usually minutes before the ship is vaporized (again).'
+  },
+  {
+    titlePatterns: ['The Code Awakens', 'Neon Reality', 'Simulacrum', 'Goggles of Truth', 'Red Pill Weekend'],
+    genre: ['sci-fi', 'action'],
+    tone: 'dark',
+    parodySource: 'The Matrix',
+    tags: ['simulation', 'martial arts', 'leather coats', 'reality bending', 'chosen hacker', 'agents'],
+    culturalWeight: 88,
+    description: 'A philosophical punch-fest where reality is a UI bug. Hackers in long coats dodge bullets, argue about destiny, and crash a digital world maintained by customer support with no escalation path.'
+  },
+  {
+    titlePatterns: ['Tomorrow’s Hunter', 'Steel Salvation', 'Time’s Last Warning', 'Chrono Kill Unit', 'The Future That Hates You'],
+    genre: ['sci-fi', 'action'],
+    tone: 'serious',
+    parodySource: 'Terminator',
+    tags: ['time travel', 'killer android', 'human resistance', 'chase thriller', 'apocalypse'],
+    culturalWeight: 86,
+    description: 'A relentless chase across decades: someone is sent back to prevent the future, someone else is sent back to prevent that, and the audience is sent back to the concession stand for more popcorn.'
+  },
+
   // Fantasy Franchises
   {
-    titlePatterns: ['Ring of Destiny', 'Crown Bearers', 'The Last Kingdom', 'Shadow Realm'],
+    titlePatterns: ['Ring of Destiny', 'Crown Bearers', 'The Last Kingdom', 'Shadow Realm', 'The Long Walk to Doom', 'Songs of Stone and Leaf'],
     genre: ['fantasy', 'adventure'],
     tone: 'epic',
     parodySource: 'Lord of the Rings',
-    tags: ['medieval', 'magic', 'quest', 'dark lord'],
+    tags: ['medieval', 'magic', 'quest', 'dark lord', 'fellowship', 'maps', 'endless walking'],
     culturalWeight: 95,
-    description: 'Epic medieval fantasy following heroes on a grand quest to save their world from ancient evil, featuring rich mythology and magical realms.'
+    description: 'A sweeping quest of unlikely heroes, suspicious rings, and an evil presence that is mostly offscreen but somehow still exhausting. Also: mountains, songs, and a lot of walking.'
   },
   {
-    titlePatterns: ['Wizard Academy', 'Spell Casters', 'Magic School', 'Arcane Arts'],
+    titlePatterns: ['Wizard Academy', 'Spell Casters', 'Magic School', 'Arcane Arts', 'Broomstick Varsity', 'Detention in the Dungeon'],
     genre: ['fantasy', 'family'],
     tone: 'light',
     parodySource: 'Harry Potter',
-    tags: ['magic school', 'coming of age', 'friendship', 'dark wizard'],
+    tags: ['magic school', 'coming of age', 'friendship', 'dark wizard', 'secret houses', 'enchanted sports'],
     culturalWeight: 98,
-    description: 'Coming-of-age magical adventure following young wizards learning their craft while facing dark forces threatening their magical world.',
-    predefinedRoles: [
-      { id: 'young-wizard', name: 'Young Wizard', importance: 'lead', requiredType: 'actor', ageRange: [11, 18] },
-      { id: 'mentor', name: 'Wise Mentor', importance: 'supporting', requiredType: 'actor', ageRange: [45, 70] },
-      { id: 'dark-wizard', name: 'Dark Wizard', importance: 'supporting', requiredType: 'actor', ageRange: [30, 60] },
-      { id: 'best-friend', name: 'Best Friend', importance: 'supporting', requiredType: 'actor', ageRange: [11, 18] }
-    ]
+    description: 'A magical school saga where homework is dangerous, the cafeteria has opinions, and teenagers keep saving the world between exams. A shadowy villain returns every semester like clockwork.'
   },
-  
+  {
+    titlePatterns: ['Throne of Thorns', 'Kingdoms at War', 'Winter is Punctual', 'The Ironish Seat', 'Banners & Betrayals'],
+    genre: ['fantasy', 'drama'],
+    tone: 'dark',
+    parodySource: 'Game of Thrones',
+    tags: ['political intrigue', 'dynasties', 'betrayal', 'dragons', 'grim medieval', 'multiple leads'],
+    culturalWeight: 93,
+    description: 'A grim fantasy chess match where everyone is a protagonist until they are not. Noble houses trade alliances like coupons, winter refuses to leave, and dragons keep showing up to ruin budgets.'
+  },
+  {
+    titlePatterns: ['Monster Contract', 'The Witchblade Ledger', 'Potion Problems', 'Coins for Creatures', 'The Grumpy Sellsword Chronicles'],
+    genre: ['fantasy', 'action'],
+    tone: 'serious',
+    parodySource: 'The Witcher',
+    tags: ['monster hunter', 'grim fairy tales', 'alchemy', 'politics', 'destiny', 'bards'],
+    culturalWeight: 84,
+    description: 'A cynical monster-hunter takes messy jobs in a messy world. Every contract comes with a moral headache, a catchy tavern ballad, and at least one cursed aristocrat who deserves it.'
+  },
+
   // Superhero Franchises
   {
-    titlePatterns: ['Hero Collective', 'Champions Universe', 'Legendary Alliance', 'Guardian Legacy'],
+    titlePatterns: ['Hero Collective', 'Champions Universe', 'Legendary Alliance', 'Guardian Legacy', 'The Crossover Crisis', 'Phase Infinity'],
     genre: ['action', 'adventure'],
     tone: 'pulpy',
     parodySource: 'Marvel/DC Superhero Universe',
-    tags: ['superheroes', 'team up', 'world threat', 'powers', 'mythology', 'interconnected'],
+    tags: ['superheroes', 'team up', 'world threat', 'powers', 'mythology', 'interconnected', 'post-credits'],
     culturalWeight: 95,
-    description: 'A sprawling superhero universe featuring interconnected stories of heroes with extraordinary powers who must unite to face cosmic threats while dealing with personal struggles and complex moral choices.'
+    description: 'A sprawling caped universe where every incident becomes a crossover, every city has a vigilante, and cosmic entities keep trying to delete Earth like a corrupted save file.'
   },
-  
+  {
+    titlePatterns: ['The Dark Vigil', 'Night Justice', 'Gotham-ish Tales', 'Cowl & Consequences', 'The Brooding Protector'],
+    genre: ['action', 'crime'],
+    tone: 'dark',
+    parodySource: 'Batman',
+    tags: ['vigilante', 'no-kill rule', 'gadgets', 'corruption', 'masked rogues', 'noir'],
+    culturalWeight: 91,
+    description: 'A grim urban crusade powered by trauma, gadgets, and an impossible jawline. A masked detective fights crime, corruption, and the occasional clown-themed philosophical argument.'
+  },
+
   // Horror Franchises
   {
-    titlePatterns: ['Nightmare Street', 'Terror Lane', 'Fear Drive', 'Horror Heights'],
+    titlePatterns: ['Nightmare Street', 'Terror Lane', 'Fear Drive', 'Horror Heights', 'Sleep Debt', 'Dream Stalker'],
     genre: ['horror'],
     tone: 'dark',
     parodySource: 'A Nightmare on Elm Street',
-    tags: ['supernatural killer', 'dreams', 'teenagers', 'recurring villain'],
+    tags: ['supernatural killer', 'dreams', 'teenagers', 'recurring villain', 'sleep', 'one-liners'],
     culturalWeight: 76,
-    description: 'Supernatural horror featuring an unstoppable killer who hunts victims through their dreams, blurring the line between nightmare and reality.'
+    description: 'A dream-haunting slasher where falling asleep is a plot twist and caffeine is a supporting character. If you die in your dreams, you die in real life (and your alarm clock is useless).'
   },
   {
-    titlePatterns: ['The Mask Killer', 'Silent Stalker', 'Halloween Terror', 'The Shape'],
+    titlePatterns: ['The Mask Killer', 'Silent Stalker', 'Halloween Terror', 'The Shape', 'Harvest Night', 'October’s Shadow'],
     genre: ['horror', 'thriller'],
     tone: 'dark',
     parodySource: 'Halloween',
-    tags: ['slasher', 'unstoppable killer', 'final girl', 'holiday horror'],
+    tags: ['slasher', 'unstoppable killer', 'final girl', 'holiday horror', 'small town'],
     culturalWeight: 74,
-    description: 'Classic slasher horror with a relentless masked killer stalking victims on specific nights, creating an atmosphere of dread and inevitability.'
+    description: 'A classic slow-burn slasher: a silent figure in a cheap mask returns on a specific calendar date to remind everyone that locking doors is an optional game mechanic.'
   },
-  
-  // Action Franchises
   {
-    titlePatterns: ['Speed Racers', 'Fast Lane', 'Velocity', 'Turbo Squad'],
+    titlePatterns: ['Camp Bloodwater', 'Lake Knife Massacre', 'Friday the 14th', 'The Cabin Counting Game', 'Counselor Panic'],
+    genre: ['horror'],
+    tone: 'dark',
+    parodySource: 'Friday the 13th',
+    tags: ['camp slasher', 'urban legend', 'body count', 'masked killer', 'sequel machine'],
+    culturalWeight: 72,
+    description: 'A summer camp legend that refuses to stay buried. Teen counselors break every safety rule, ominous music plays, and a mysterious figure turns a weekend job into a franchise.'
+  },
+
+  // Action / Adventure Franchises
+  {
+    titlePatterns: ['Speed Racers', 'Fast Lane', 'Velocity', 'Turbo Squad', 'Family Overdrive', 'Heist Horizon'],
     genre: ['action', 'crime'],
     tone: 'pulpy',
     parodySource: 'Fast & Furious',
-    tags: ['cars', 'heists', 'family', 'impossible stunts'],
+    tags: ['cars', 'heists', 'found family', 'impossible stunts', 'rival-turned-ally'],
     culturalWeight: 83,
-    description: 'High-octane action featuring street racers turned unlikely heroes, combining family bonds with spectacular car chases and impossible heists.'
+    description: 'Street racers graduate into international operatives without ever filling out paperwork. The stakes escalate from pink slips to satellites, but the real superpower is saying “family” convincingly.'
   },
   {
-    titlePatterns: ['Mission Critical', 'Impossible Task', 'Agent Protocol', 'Operation Ghost'],
+    titlePatterns: ['Mission Critical', 'Impossible Task', 'Agent Protocol', 'Operation Ghost', 'Mask & Mirror', 'The Wire That Wasn’t There'],
     genre: ['action', 'thriller'],
     tone: 'serious',
     parodySource: 'Mission: Impossible',
-    tags: ['spy', 'gadgets', 'infiltration', 'death-defying stunts'],
+    tags: ['spy', 'gadgets', 'infiltration', 'double-cross', 'teamwork', 'death-defying stunts'],
     culturalWeight: 87,
-    description: 'Spy thriller featuring elite agents using cutting-edge technology and death-defying stunts to complete seemingly impossible missions.'
+    description: 'An elite team pulls off clean operations in messy rooms. There are face-masks, impossible lockpicks, and at least one scene where physics politely looks away.'
   },
-  
+  {
+    titlePatterns: ['Agent Double-Zeroish', 'Operation Tuxedo', 'Licensed to Quip', 'Specter-ish', 'The Astonishing Gadget'],
+    genre: ['action', 'thriller'],
+    tone: 'serious',
+    parodySource: 'James Bond',
+    tags: ['spy', 'tuxedo', 'gadgets', 'globetrotting', 'megalomaniac', 'one-liners'],
+    culturalWeight: 89,
+    description: 'A suave super-spy saves the world between martinis, improvised disguises, and product-placement closeups. The villain always has a lair, a plan, and a dramatic monologue budget.'
+  },
+  {
+    titlePatterns: ['Relic Raiders', 'Professor Peril', 'Temple of Mild Inconvenience', 'The Lost Artifact Department', 'Whip & Wit'],
+    genre: ['adventure', 'action'],
+    tone: 'pulpy',
+    parodySource: 'Indiana Jones',
+    tags: ['archaeology', 'curses', 'traps', 'globe-trotting', 'ancient relics'],
+    culturalWeight: 85,
+    description: 'A daredevil academic hunts ancient relics in increasingly unsafe locations. Every door is trapped, every idol is cursed, and the museum insurance policy is written in tears.'
+  },
+  {
+    titlePatterns: ['Pirates of the Cola-Seas', 'The Cursed Compass', 'Skull & Sails', 'The Blackish Pearl', 'Rum & Riddles'],
+    genre: ['adventure', 'comedy'],
+    tone: 'pulpy',
+    parodySource: 'Pirates of the Caribbean',
+    tags: ['pirates', 'curses', 'sea battles', 'treasure', 'eccentric captain'],
+    culturalWeight: 82,
+    description: 'Swashbuckling chaos on the high seas: a charmingly unreliable captain chases treasure, curses, and his own reputation while everyone else tries to have a sensible plot.'
+  },
+
+  // Monster / Spectacle
+  {
+    titlePatterns: ['Dino Disaster Park', 'Prehistoric Panic', 'Jurassic-ish World', 'Genetic Safari', 'Raptor Run'],
+    genre: ['adventure', 'sci-fi'],
+    tone: 'pulpy',
+    parodySource: 'Jurassic Park',
+    tags: ['dinosaurs', 'theme park', 'science gone wrong', 'survival', 'corporate hubris'],
+    culturalWeight: 88,
+    description: 'A theme park built on ambition, DNA, and bad signage. The dinosaurs are incredible, the safety systems are decorative, and someone inevitably says: “We spared no expense.”'
+  },
+  {
+    titlePatterns: ['Auto-Morph Armada', 'Gear Giants', 'Robots in Disguise-ish', 'Chrome Conflict', 'The Car That Talks Back'],
+    genre: ['action', 'sci-fi'],
+    tone: 'pulpy',
+    parodySource: 'Transformers',
+    tags: ['giant robots', 'alien war', 'spectacle', 'explosions', 'human sidekick', 'merch'],
+    culturalWeight: 80,
+    description: 'An ancient robot war crashes into modern life, mostly into city blocks. Vehicles become warriors, dialogue becomes optional, and the merchandise potential becomes a core theme.'
+  },
+
+  // YA / Romance
+  {
+    titlePatterns: ['The Tribute Trials', 'Arena of Ash', 'Capitol Games', 'District Drift', 'The Sponsor’s Choice'],
+    genre: ['thriller', 'sci-fi'],
+    tone: 'serious',
+    parodySource: 'The Hunger Games',
+    tags: ['dystopia', 'survival games', 'rebellion', 'media spectacle', 'teen lead'],
+    culturalWeight: 81,
+    description: 'A glossy televised death game fuels a brittle empire. A reluctant hero navigates propaganda, alliances, and the horrifying realization that the audience has favorite murders.'
+  },
+  {
+    titlePatterns: ['Moonlit High', 'The Forever Bite', 'Midnight Romance Club', 'Vampires & Varsity', 'Team Bat vs Team Dog'],
+    genre: ['romance', 'fantasy'],
+    tone: 'light',
+    parodySource: 'Twilight',
+    tags: ['teen romance', 'vampires', 'werewolves', 'love triangle', 'melodrama'],
+    culturalWeight: 77,
+    description: 'A small-town romance spirals into supernatural melodrama where everyone is intensely serious about prom, immortality, and questionable age gaps. The rain has its own billing.'
+  },
+
   // Comedy Franchises
   {
-    titlePatterns: ['Campus Comedy', 'College Chaos', 'Dorm Life', 'Party Animals'],
+    titlePatterns: ['Campus Comedy', 'College Chaos', 'Dorm Life', 'Party Animals', 'Senior Year Shenanigans', 'The Awkward Pact'],
     genre: ['comedy'],
     tone: 'comedic',
     parodySource: 'American Pie',
-    tags: ['coming of age', 'raunchy humor', 'teenagers', 'school'],
+    tags: ['coming of age', 'raunchy humor', 'teenagers', 'school', 'friend group'],
     culturalWeight: 65,
-    description: 'Raunchy teen comedy exploring the awkward and hilarious journey of young adults navigating relationships, parties, and growing up.'
+    description: 'A chaotic coming-of-age farce where hormones are the villain, friendships are tested by bad decisions, and the true moral is “never make a pact before finals.”'
   },
-  
+
   // Crime Franchises
   {
-    titlePatterns: ['Family Business', 'The Brotherhood', 'Honor Code', 'Blood Ties'],
+    titlePatterns: ['Family Business', 'The Brotherhood', 'Honor Code', 'Blood Ties', 'An Offer You Can’t Refuse-ish', 'Sunday Dinner Syndicate'],
     genre: ['crime', 'drama'],
     tone: 'serious',
     parodySource: 'The Godfather',
-    tags: ['organized crime', 'family loyalty', 'power struggle', 'corruption'],
+    tags: ['organized crime', 'family loyalty', 'power struggle', 'corruption', 'legacy'],
     culturalWeight: 97,
-    description: 'Epic crime saga exploring the complex dynamics of organized crime families, their codes of honor, and the price of power and loyalty.'
+    description: 'A generational crime saga where respect is currency, dinners are negotiations, and power reshapes people. Everyone says it’s “just business” while doing the least businesslike things imaginable.'
   }
 ];
 
