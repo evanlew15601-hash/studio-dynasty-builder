@@ -1,4 +1,4 @@
-import { ScriptCharacter, PublicDomainIP } from '@/types/game';
+import { Genre, ScriptCharacter, PublicDomainIP } from '@/types/game';
 
 const getRandomElement = <T>(array: T[]): T => {
   return array[Math.floor(Math.random() * array.length)];
@@ -8,7 +8,8 @@ export interface PublicDomainSource {
   id: string;
   title: string;
   author: string;
-  genre: string[];
+  domainType: PublicDomainIP['domainType'];
+  genre: Genre[];
   description: string;
   difficulty: 'easy' | 'medium' | 'hard';
   estimatedBudget: { min: number; max: number };
@@ -24,7 +25,8 @@ export const generatePublicDomainSources = (): PublicDomainSource[] => {
       id: 'pd-1',
       title: 'Sherlock Holmes',
       author: 'Arthur Conan Doyle',
-      genre: ['Mystery', 'Crime', 'Thriller'],
+      domainType: 'literature',
+      genre: ['mystery', 'crime', 'thriller'],
       description: 'Brilliant detective solves intricate cases in Victorian/Edwardian London.' ,
       difficulty: 'medium',
       estimatedBudget: { min: 20000000, max: 70000000 },
@@ -44,7 +46,8 @@ export const generatePublicDomainSources = (): PublicDomainSource[] => {
       id: 'pd-2',
       title: 'Dracula',
       author: 'Bram Stoker',
-      genre: ['Horror', 'Gothic'],
+      domainType: 'literature',
+      genre: ['horror', 'thriller'],
       description: 'A Transylvanian count brings terror to Victorian society.',
       difficulty: 'medium',
       estimatedBudget: { min: 25000000, max: 90000000 },
@@ -64,7 +67,8 @@ export const generatePublicDomainSources = (): PublicDomainSource[] => {
       id: 'pd-3',
       title: 'Frankenstein',
       author: 'Mary Shelley',
-      genre: ['Horror', 'Drama', 'Sci-Fi'],
+      domainType: 'literature',
+      genre: ['horror', 'drama', 'sci-fi'],
       description: 'A scientist creates life and faces the consequences.',
       difficulty: 'easy',
       estimatedBudget: { min: 15000000, max: 60000000 },
@@ -83,7 +87,8 @@ export const generatePublicDomainSources = (): PublicDomainSource[] => {
       id: 'pd-4',
       title: 'Robin Hood',
       author: 'Medieval English Folklore',
-      genre: ['Adventure', 'Action'],
+      domainType: 'folklore',
+      genre: ['adventure', 'action'],
       description: 'Outlaw hero steals from the rich to give to the poor.',
       difficulty: 'medium',
       estimatedBudget: { min: 30000000, max: 120000000 },
@@ -103,7 +108,8 @@ export const generatePublicDomainSources = (): PublicDomainSource[] => {
       id: 'pd-5',
       title: 'King Arthur',
       author: 'British Legend',
-      genre: ['Fantasy', 'Adventure'],
+      domainType: 'mythology',
+      genre: ['fantasy', 'adventure'],
       description: 'The knights of the Round Table and the search for honor.',
       difficulty: 'hard',
       estimatedBudget: { min: 60000000, max: 180000000 },
@@ -123,7 +129,8 @@ export const generatePublicDomainSources = (): PublicDomainSource[] => {
       id: 'pd-6',
       title: 'Alice in Wonderland',
       author: 'Lewis Carroll',
-      genre: ['Fantasy', 'Family'],
+      domainType: 'literature',
+      genre: ['fantasy', 'family'],
       description: 'A curious girl journeys into a bizarre world.',
       difficulty: 'medium',
       estimatedBudget: { min: 30000000, max: 150000000 },
@@ -142,7 +149,8 @@ export const generatePublicDomainSources = (): PublicDomainSource[] => {
       id: 'pd-7',
       title: 'The Wizard of Oz',
       author: 'L. Frank Baum',
-      genre: ['Fantasy', 'Family', 'Adventure'],
+      domainType: 'literature',
+      genre: ['fantasy', 'family', 'adventure'],
       description: 'A girl travels to a magical land to find her way home.',
       difficulty: 'medium',
       estimatedBudget: { min: 40000000, max: 160000000 },
@@ -162,7 +170,8 @@ export const generatePublicDomainSources = (): PublicDomainSource[] => {
       id: 'pd-8',
       title: 'Peter Pan',
       author: 'J. M. Barrie',
-      genre: ['Fantasy', 'Family', 'Adventure'],
+      domainType: 'literature',
+      genre: ['fantasy', 'family', 'adventure'],
       description: 'The boy who never grows up whisks kids to Neverland.',
       difficulty: 'medium',
       estimatedBudget: { min: 30000000, max: 120000000 },
@@ -181,7 +190,8 @@ export const generatePublicDomainSources = (): PublicDomainSource[] => {
       id: 'pd-9',
       title: 'Moby-Dick',
       author: 'Herman Melville',
-      genre: ['Adventure', 'Drama'],
+      domainType: 'literature',
+      genre: ['adventure', 'drama'],
       description: 'Captain Ahab obsessively hunts the white whale.',
       difficulty: 'hard',
       estimatedBudget: { min: 40000000, max: 140000000 },
@@ -200,7 +210,8 @@ export const generatePublicDomainSources = (): PublicDomainSource[] => {
       id: 'pd-10',
       title: 'The Odyssey',
       author: 'Homer',
-      genre: ['Mythology', 'Adventure', 'Fantasy'],
+      domainType: 'mythology',
+      genre: ['adventure', 'fantasy', 'historical'],
       description: 'Odysseus journeys home through perilous trials.',
       difficulty: 'hard',
       estimatedBudget: { min: 70000000, max: 200000000 },
@@ -219,7 +230,8 @@ export const generatePublicDomainSources = (): PublicDomainSource[] => {
       id: 'pd-11',
       title: 'Pride and Prejudice',
       author: 'Jane Austen',
-      genre: ['Romance', 'Drama'],
+      domainType: 'literature',
+      genre: ['romance', 'drama'],
       description: 'Elizabeth Bennet navigates love and society.',
       difficulty: 'easy',
       estimatedBudget: { min: 15000000, max: 40000000 },
@@ -238,7 +250,8 @@ export const generatePublicDomainSources = (): PublicDomainSource[] => {
       id: 'pd-12',
       title: 'Huckleberry Finn',
       author: 'Mark Twain',
-      genre: ['Adventure', 'Drama'],
+      domainType: 'literature',
+      genre: ['adventure', 'drama'],
       description: 'A boy and a runaway navigate the Mississippi River.',
       difficulty: 'easy',
       estimatedBudget: { min: 12000000, max: 35000000 },
@@ -270,10 +283,10 @@ export class PublicDomainGenerator {
     const mapped: PublicDomainIP[] = sources.map((s) => ({
       id: s.id,
       name: s.title,
-      domainType: 'literature',
+      domainType: s.domainType,
       dateEnteredDomain: '1900-01-01',
       coreElements: s.themes,
-      genreFlexibility: (s.genre as any) || ['drama'],
+      genreFlexibility: s.genre.length > 0 ? s.genre : ['drama'],
       notableAdaptations: [],
       reputationScore: 70,
       adaptationFatigue: 0,

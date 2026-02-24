@@ -535,22 +535,18 @@ export const StudioMagnateGame: React.FC<StudioMagnateGameProps> = ({
     updateOperation('project-create', 90, 'Finalizing project...');
 
     // Deduct development cost and handle loan if needed.
-    // Do the math inside the state updater so we don't rely on potentially stale closures.
-    let borrowed = 0;
+    // NOTE: avoid mutating external variables from inside the state updater.
+    const expectedBorrowed = Math.max(0, developmentCost - gameState.studio.budget);
 
     setGameState((prev) => {
       const startingBudget = prev.studio.budget;
       const startingDebt = prev.studio.debt || 0;
 
       const budgetAfterDev = startingBudget - developmentCost;
-      let nextBudget = budgetAfterDev;
-      let nextDebt = startingDebt;
+      const borrowed = budgetAfterDev < 0 ? Math.abs(budgetAfterDev) : 0;
 
-      if (budgetAfterDev < 0) {
-        borrowed = Math.abs(budgetAfterDev);
-        nextDebt += borrowed;
-        nextBudget = 0;
-      }
+      const nextBudget = Math.max(0, budgetAfterDev);
+      const nextDebt = startingDebt + borrowed;
 
       // If this project belongs to a franchise, append it to that franchise's entries
       const franchiseId = enrichedProject.script?.franchiseId;
@@ -580,10 +576,10 @@ export const StudioMagnateGame: React.FC<StudioMagnateGameProps> = ({
       };
     });
 
-    if (borrowed > 0) {
+    if (expectedBorrowed > 0) {
       toast({
         title: 'Loan Taken',
-        description: `Borrowed ${borrowed.toLocaleString()} to greenlight project.`,
+        description: `Borrowed ${expectedBorrowed.toLocaleString()} to greenlight project.`,
         variant: 'default',
       });
     }
@@ -2030,90 +2026,213 @@ export const StudioMagnateGame: React.FC<StudioMagnateGameProps> = ({
         )}
         
         {currentPhase === 'franchise' && (
-          <div className="space-y-6">
-            <OwnedFranchiseManager
-              gameState={gameState}
-              onUpdateFranchise={handleUpdateFranchise}
-              onCreateProject={(franchiseId) => {
-                // Create a basic script for an owned franchise film project and route it to Script Development.
-                const franchise = franchiseId ? gameState.franchises.find((f) => f.id === franchiseId) : null;
+          <Tabs defaultValue="owned" className="space-y-6">
+            <TabsList>
+              <TabsTrigger value="owned">Owned IP</TabsTrigger>
+              <TabsTrigger value="acquire">Acquire & Public Domain</TabsTrigger>
+            </TabsList>
 
-                const script: Script = {
-                  id: `script-${Date.now()}`,
-                  format: 'film',
-                  title: franchise ? `${franchise.title} Entry` : 'New Franchise Film',
-                  logline: '',
-                  writer: 'Studio Writer',
-                  pages: 100,
-                  quality: 50,
-                  developmentStage: 'concept',
-                  genre: (franchise?.genre?.[0] as Genre) || 'drama',
-                  targetAudience: 'general',
-                  estimatedRuntime: 120,
-                  franchiseId,
-                  characteristics: {
-                    tone: 'light',
-                    pacing: 'steady',
-                    dialogue: 'naturalistic',
-                    visualStyle: 'realistic',
-                    commercialAppeal: 6,
-                    criticalPotential: 5,
-                    cgiIntensity: 'minimal',
-                  },
-                  themes: franchise?.franchiseTags?.slice(0, 3) || [],
-                  sourceType: franchiseId ? 'franchise' : 'original',
-                  budget: 15_000_000,
-                  characters: [],
-                };
+            <TabsContent value="owned" className="space-y-6">
+              <OwnedFranchiseManager
+                gameState={gameState}
+                onUpdateFranchise={handleUpdateFranchise}
+                onCreateProject={(franchiseId) => {
+                  // Create a basic script for an owned franchise film project and route it to Script Development.
+                  const franchise = franchiseId ? gameState.franchises.find((f) => f.id === franchiseId) : null;
 
-                const finalized = finalizeScriptForSave(script, gameState);
+                  const existingCount = franchiseId
+                    ? gameState.scripts.filter((s) => s.franchiseId === franchiseId).length +
+                      gameState.projects.filter((p) => p.script?.franchiseId === franchiseId).length
+                    : 0;
 
-                setSelectedFranchise(franchiseId || null);
-                setSelectedPublicDomain(null);
-                handlePhaseChange('scripts');
+                  const baseTitle = franchise ? `${franchise.title} Entry` : 'New Franchise Film';
+                  const title = franchise
+                    ? existingCount === 0
+                      ? baseTitle
+                      : `${baseTitle} ${existingCount + 1}`
+                    : baseTitle;
 
-                setGameState((prev) => ({
-                  ...prev,
-                  scripts: prev.scripts.some((s) => s.id === finalized.id)
-                    ? prev.scripts.map((s) => (s.id === finalized.id ? finalized : s))
-                    : [...prev.scripts, finalized],
-                }));
+                  const script: Script = {
+                    id: `script-${Date.now()}`,
+                    format: 'film',
+                    title,
+                    logline: '',
+                    writer: 'Studio Writer',
+                    pages: 100,
+                    quality: 50,
+                    developmentStage: 'concept',
+                    genre: (franchise?.genre?.[0] as Genre) || 'drama',
+                    targetAudience: 'general',
+                    estimatedRuntime: 120,
+                    franchiseId,
+                    characteristics: {
+                      tone: 'light',
+                      pacing: 'steady',
+                      dialogue: 'naturalistic',
+                      visualStyle: 'realistic',
+                      commercialAppeal: 6,
+                      criticalPotential: 5,
+                      cgiIntensity: 'minimal',
+                    },
+                    themes: franchise?.franchiseTags?.slice(0, 3) || [],
+                    sourceType: franchiseId ? 'franchise' : 'original',
+                    budget: 15_000_000,
+                    characters: [],
+                  };
 
-                toast({
-                  title: 'Script Draft Created',
-                  description: `"${finalized.title}" is ready in Script Development to customize roles before greenlighting.`,
-                });
-              }}
-              onCreateTVProject={(franchiseId) => {
-                setSelectedFranchise(franchiseId);
-                setSelectedPublicDomain(null);
-                handlePhaseChange('television');
-              }}
-            />
-            <SequelManagementComponent
-              gameState={gameState}
-              onProjectCreate={(script) => {
-                // Route sequel scripts to Script Development for refinement instead of instant project creation
-                setSelectedFranchise(script.franchiseId || null);
-                setSelectedPublicDomain(null);
-                handlePhaseChange('scripts');
+                  const finalized = finalizeScriptForSave(script, gameState);
 
-                setGameState(prev => ({
-                  ...prev,
-                  scripts: prev.scripts.some(s => s.id === script.id)
-                    ? prev.scripts.map(s => s.id === script.id ? script : s)
-                    : [...prev.scripts, script]
-                }));
+                  setSelectedFranchise(franchiseId || null);
+                  setSelectedPublicDomain(null);
+                  handlePhaseChange('scripts');
 
-                toast({
-                  title: 'Sequel Script Created',
-                  description: `"${script.title}" has been added to Script Development. Refine it to "final" stage before greenlighting.`,
-                });
-              }}
-              onProjectUpdate={handleProjectUpdate}
-              onCreateFranchise={handleCreateFranchise}
-            />
-          </div>
+                  setGameState((prev) => ({
+                    ...prev,
+                    scripts: prev.scripts.some((s) => s.id === finalized.id)
+                      ? prev.scripts.map((s) => (s.id === finalized.id ? finalized : s))
+                      : [...prev.scripts, finalized],
+                  }));
+
+                  toast({
+                    title: 'Script Draft Created',
+                    description: `"${finalized.title}" is ready in Script Development to customize roles before greenlighting.`,
+                  });
+                }}
+                onCreateTVProject={(franchiseId) => {
+                  setSelectedFranchise(franchiseId);
+                  setSelectedPublicDomain(null);
+                  handlePhaseChange('television');
+                }}
+              />
+              <SequelManagementComponent
+                gameState={gameState}
+                onProjectCreate={(script) => {
+                  // Route sequel scripts to Script Development for refinement instead of instant project creation
+                  setSelectedFranchise(script.franchiseId || null);
+                  setSelectedPublicDomain(null);
+                  handlePhaseChange('scripts');
+
+                  setGameState(prev => ({
+                    ...prev,
+                    scripts: prev.scripts.some(s => s.id === script.id)
+                      ? prev.scripts.map(s => s.id === script.id ? script : s)
+                      : [...prev.scripts, script]
+                  }));
+
+                  toast({
+                    title: 'Sequel Script Created',
+                    description: `"${script.title}" has been added to Script Development. Refine it to "final" stage before greenlighting.`,
+                  });
+                }}
+                onProjectUpdate={handleProjectUpdate}
+                onCreateFranchise={handleCreateFranchise}
+              />
+            </TabsContent>
+
+            <TabsContent value="acquire">
+              <FranchiseManager
+                gameState={gameState}
+                onCreateProject={(franchiseId, publicDomainId, cost) => {
+                  if (franchiseId) {
+                    const franchise = gameState.franchises.find((f) => f.id === franchiseId);
+                    if (!franchise) return;
+
+                    const licenseCost = cost ?? franchise.cost ?? 0;
+                    if (licenseCost > gameState.studio.budget) {
+                      toast({
+                        title: 'Insufficient Budget',
+                        description: `Need ${(licenseCost / 1000000).toFixed(1)}M to acquire this franchise.`,
+                        variant: 'destructive',
+                      });
+                      return;
+                    }
+
+                    setGameState((prev) => ({
+                      ...prev,
+                      studio: {
+                        ...prev.studio,
+                        budget: prev.studio.budget - licenseCost,
+                      },
+                      franchises: (prev.franchises || []).map((f) =>
+                        f.id === franchiseId
+                          ? {
+                              ...f,
+                              creatorStudioId: prev.studio.id,
+                              cost: 0,
+                            }
+                          : f
+                      ),
+                    }));
+
+                    toast({
+                      title: 'Franchise Acquired',
+                      description: `You now own "${franchise.title}".`,
+                    });
+
+                    return;
+                  }
+
+                  if (publicDomainId) {
+                    const ip = gameState.publicDomainIPs.find((p) => p.id === publicDomainId);
+                    if (!ip) return;
+
+                    const existingCount =
+                      gameState.scripts.filter((s) => s.publicDomainId === publicDomainId).length +
+                      gameState.projects.filter((p) => p.script?.publicDomainId === publicDomainId).length;
+
+                    const baseTitle = `${ip.name} Adaptation`;
+                    const title = existingCount === 0 ? baseTitle : `${baseTitle} ${existingCount + 1}`;
+
+                    const script: Script = {
+                      id: `script-${Date.now()}`,
+                      format: 'film',
+                      title,
+                      logline: ip.description || `An adaptation of ${ip.name}.`,
+                      writer: 'Studio Writer',
+                      pages: 110,
+                      quality: 50,
+                      developmentStage: 'concept',
+                      genre: (ip.genreFlexibility?.[0] as Genre) || 'drama',
+                      targetAudience: 'general',
+                      estimatedRuntime: 120,
+                      publicDomainId,
+                      characteristics: {
+                        tone: 'light',
+                        pacing: 'steady',
+                        dialogue: 'naturalistic',
+                        visualStyle: 'realistic',
+                        commercialAppeal: 6,
+                        criticalPotential: 5,
+                        cgiIntensity: 'minimal',
+                      },
+                      themes: ip.coreElements?.slice(0, 3) || [],
+                      sourceType: 'public-domain',
+                      budget: 12_000_000,
+                      characters: [],
+                    };
+
+                    const finalized = finalizeScriptForSave(script, gameState);
+
+                    setSelectedFranchise(null);
+                    setSelectedPublicDomain(publicDomainId);
+                    handlePhaseChange('scripts');
+
+                    setGameState((prev) => ({
+                      ...prev,
+                      scripts: prev.scripts.some((s) => s.id === finalized.id)
+                        ? prev.scripts.map((s) => (s.id === finalized.id ? finalized : s))
+                        : [...prev.scripts, finalized],
+                    }));
+
+                    toast({
+                      title: 'Script Draft Created',
+                      description: `"${finalized.title}" is ready in Script Development.`,
+                    });
+                  }
+                }}
+              />
+            </TabsContent>
+          </Tabs>
         )}
         
         {currentPhase === 'scripts' && (

@@ -3,7 +3,7 @@ import { beforeEach, describe, expect, it, vi } from 'vitest';
 import { render, screen, within } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
 
-import type { Franchise, GameState, Script } from '@/types/game';
+import type { Franchise, GameState, PublicDomainIP, Script } from '@/types/game';
 import { ScriptDevelopment } from '@/components/game/ScriptDevelopment';
 import { createDefaultScriptCoverage } from '@/utils/scriptCoverage';
 
@@ -173,6 +173,58 @@ describe('ScriptDevelopment - stage switching and finalization gating', () => {
         developmentStage: 'treatment',
         sourceType: 'franchise',
         franchiseId: franchise.id,
+      })
+    );
+
+    expect(onProjectCreate).not.toHaveBeenCalled();
+  });
+
+  it('persists stage selection when creating a public-domain script (does not auto-force final)', async () => {
+    const user = userEvent.setup();
+
+    const onProjectCreate = vi.fn();
+    const onScriptUpdate = vi.fn();
+
+    const publicDomain: PublicDomainIP = {
+      id: 'pd-1',
+      name: 'Frankenstein',
+      domainType: 'literature',
+      dateEnteredDomain: '1800-01-01',
+      coreElements: ['science', 'creation', 'monster'],
+      genreFlexibility: ['horror', 'drama'],
+      notableAdaptations: [],
+      reputationScore: 90,
+      cost: 0,
+      suggestedCharacters: [
+        {
+          id: 'the-creature',
+          name: 'The Creature',
+          importance: 'lead',
+          requiredType: 'actor',
+        },
+      ],
+    };
+
+    render(
+      <ScriptDevelopment
+        gameState={makeBaseGameState({ publicDomainIPs: [publicDomain] })}
+        selectedPublicDomain={publicDomain.id}
+        onProjectCreate={onProjectCreate}
+        onScriptUpdate={onScriptUpdate}
+      />
+    );
+
+    await user.click(screen.getByRole('button', { name: /new script/i }));
+
+    await user.click(screen.getByLabelText('Treatment'));
+    await user.click(screen.getByRole('button', { name: /create script/i }));
+
+    expect(onScriptUpdate).toHaveBeenCalledTimes(1);
+    expect(onScriptUpdate.mock.calls[0][0]).toEqual(
+      expect.objectContaining({
+        developmentStage: 'treatment',
+        sourceType: 'public-domain',
+        publicDomainId: publicDomain.id,
       })
     );
 

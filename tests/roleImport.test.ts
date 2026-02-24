@@ -1,5 +1,5 @@
 import { afterEach, describe, expect, it, vi } from 'vitest';
-import type { Franchise, GameState, Script } from '@/types/game';
+import type { Franchise, GameState, PublicDomainIP, Script } from '@/types/game';
 import { importRolesForScript } from '@/utils/roleImport';
 
 function makeBaseGameState(): GameState {
@@ -160,5 +160,47 @@ describe('importRolesForScript', () => {
     expect(hero?.description).toBe('A custom description');
     expect(hero?.assignedTalentId).toBe('talent-1');
     expect(hero?.locked).toBe(true);
+  });
+
+  it('imports public-domain suggested roles and guarantees a director + minor cameo (idempotent)', () => {
+    vi.spyOn(Date, 'now').mockReturnValue(789);
+
+    const publicDomain: PublicDomainIP = {
+      id: 'pd-1',
+      name: 'Frankenstein',
+      domainType: 'literature',
+      dateEnteredDomain: '1800-01-01',
+      coreElements: ['science', 'creation', 'monster'],
+      genreFlexibility: ['horror', 'drama'],
+      notableAdaptations: [],
+      reputationScore: 90,
+      cost: 0,
+      suggestedCharacters: [
+        {
+          id: 'the-creature',
+          name: 'The Creature',
+          importance: 'lead',
+          requiredType: 'actor',
+        },
+      ],
+    };
+
+    const gameState = makeBaseGameState();
+    gameState.publicDomainIPs = [publicDomain];
+
+    const script = makeBaseScript({
+      sourceType: 'public-domain',
+      publicDomainId: publicDomain.id,
+      characters: [],
+    });
+
+    const imported = importRolesForScript(script, gameState);
+
+    expect(imported.some(c => c.id === 'the-creature' && c.name === 'The Creature')).toBe(true);
+    expect(imported.some(c => c.requiredType === 'director')).toBe(true);
+    expect(imported.some(c => c.importance === 'minor')).toBe(true);
+
+    const importedAgain = importRolesForScript({ ...script, characters: imported }, gameState);
+    expect(importedAgain).toHaveLength(imported.length);
   });
 });

@@ -51,7 +51,7 @@ function mergeWithOverrides(existing: ScriptCharacter | undefined, incoming: Scr
     traits: overrides.traits || incoming.traits,
     ageRange: overrides.ageRange || incoming.ageRange,
     assignedTalentId: existing.assignedTalentId,
-    locked: true,
+    locked: incoming.locked ?? existing.locked,
     franchiseId: incoming.franchiseId,
     franchiseCharacterId: incoming.franchiseCharacterId,
     roleTemplateId: incoming.roleTemplateId,
@@ -106,7 +106,7 @@ export function importRolesForScript(script: Script, gameState: GameState): Scri
         ...role,
         franchiseId: undefined,
         franchiseCharacterId: role.id,
-        locked: role.requiredType === 'director',
+        locked: role.requiredType === 'director' ? true : (role.importance !== 'minor'),
       };
       const match = existing.find(c => c.franchiseCharacterId === incoming.franchiseCharacterId || (c.name === incoming.name && c.requiredType === incoming.requiredType));
       if (!match) characters.push(incoming); else characters.push(mergeWithOverrides(match, incoming));
@@ -114,16 +114,16 @@ export function importRolesForScript(script: Script, gameState: GameState): Scri
     ensureDirector(characters);
   }
 
-  // Idempotency: remove duplicates by franchiseCharacterId/name+type
+  const keyFor = (c: ScriptCharacter) => c.franchiseCharacterId || c.roleTemplateId || `${c.name}:${c.requiredType || 'actor'}`;
+
+  // Idempotency: remove duplicates while preferring freshly imported/merged roles.
   const keyed = new Map<string, ScriptCharacter>();
-  for (const c of [...existing.filter(c => c.locked), ...characters]) {
-    const key = c.franchiseCharacterId || `${c.name}:${c.requiredType || 'actor'}`;
+  for (const c of [...characters, ...existing]) {
+    const key = keyFor(c);
     if (!keyed.has(key)) keyed.set(key, c);
   }
 
-  // Merge with existing manual roles (unlocked)
-  const manual = existing.filter(c => !c.locked);
-  const finalList = [...Array.from(keyed.values()), ...manual];
+  const finalList = Array.from(keyed.values());
 
   // Guarantee at least one minor cameo for depth
   if (!finalList.some(r => r.importance === 'minor')) {
