@@ -11,7 +11,7 @@ import { Badge } from '@/components/ui/badge';
 import { useToast } from '@/hooks/use-toast';
 import { ScriptCharacterManager, ScriptCharacter } from './ScriptCharacterManager';
 import { importRolesForScript } from '@/utils/roleImport';
-import { finalizeScriptForSave } from '@/utils/scriptFinalization';
+import { finalizeScriptForGreenlight, finalizeScriptForSave } from '@/utils/scriptFinalization';
 import { ScriptIcon, BudgetIcon, AwardIcon, ClapperboardIcon } from '@/components/ui/icons';
 
 interface TVShowDevelopmentProps {
@@ -264,9 +264,20 @@ export const TVShowDevelopment: React.FC<TVShowDevelopmentProps> = ({
       return;
     }
 
+    const { script: finalized, report } = finalizeScriptForGreenlight(script, gameState);
+
+    if (!report.canFinalize) {
+      toast({
+        title: 'Script Not Ready',
+        description: report.issues.filter(i => i.level === 'error').map(i => i.message).join(' '),
+        variant: 'destructive',
+      });
+      return;
+    }
+
     // Assume a standard 13-episode season when checking budget so this matches project creation
     const assumedEpisodeCount = 13;
-    const seasonBudget = script.budget * assumedEpisodeCount;
+    const seasonBudget = finalized.budget * assumedEpisodeCount;
 
     if (gameState.studio.budget < seasonBudget * 0.1) {
       toast({
@@ -277,12 +288,15 @@ export const TVShowDevelopment: React.FC<TVShowDevelopmentProps> = ({
       return;
     }
 
+    // Persist any finalization fixes (roles, requiredType defaults) so the script and resulting project are consistent.
+    onScriptUpdate(finalized);
+
     // Let the core game system create the actual TV project from this script
-    onProjectCreate(script);
-    
+    onProjectCreate(finalized);
+
     toast({
       title: "TV Script Greenlit!",
-      description: `"${script.title}" moved to Development phase. Assign cast and crew to proceed to Pre-Production.`,
+      description: `"${finalized.title}" moved to Development phase. Assign cast and crew to proceed to Pre-Production.`,
     });
   };
 

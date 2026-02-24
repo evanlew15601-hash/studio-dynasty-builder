@@ -9,10 +9,7 @@ import { Slider } from '@/components/ui/slider';
 import { Badge } from '@/components/ui/badge';
 import { Trash2, Plus, Users, Lock } from 'lucide-react';
 
-// UI-layer type: keep the core game character fields, but allow extra UI helpers.
-export interface ScriptCharacter extends GameScriptCharacter {
-  screenTimeMinutes?: number;
-}
+export type ScriptCharacter = GameScriptCharacter;
 
 interface ScriptCharacterManagerProps {
   characters: ScriptCharacter[];

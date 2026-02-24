@@ -195,4 +195,47 @@ describe('importRolesForScript', () => {
     expect(imported.some(c => c.id === 'holmes' && c.name === 'Sherlock Holmes')).toBe(true);
     expect(imported.some(c => c.requiredType === 'director')).toBe(true);
   });
+
+  it('prefers freshly imported/merged roles over stale locked roles already on the script', () => {
+    vi.spyOn(Date, 'now').mockReturnValue(888);
+
+    const gameState = makeBaseGameState();
+    gameState.publicDomainIPs = [
+      {
+        id: 'pd-1',
+        name: 'Sherlock Holmes',
+        domainType: 'literature',
+        dateEnteredDomain: '1900-01-01',
+        coreElements: ['logic', 'friendship'],
+        genreFlexibility: ['mystery'],
+        notableAdaptations: [],
+        reputationScore: 70,
+        cost: 0,
+        suggestedCharacters: [
+          { id: 'holmes', name: 'Sherlock Holmes', importance: 'lead', requiredType: 'actor', ageRange: [28, 55] },
+        ],
+      },
+    ];
+
+    const script = makeBaseScript({
+      sourceType: 'public-domain',
+      publicDomainId: 'pd-1',
+      characters: [
+        {
+          id: 'holmes',
+          name: 'Old Holmes',
+          importance: 'lead',
+          requiredType: 'actor',
+          franchiseCharacterId: 'holmes',
+          locked: true,
+        },
+      ],
+    });
+
+    const imported = importRolesForScript(script, gameState);
+    const holmes = imported.find(c => c.franchiseCharacterId === 'holmes');
+
+    expect(holmes?.name).toBe('Sherlock Holmes');
+    expect(holmes?.locked).toBe(true);
+  });
 });

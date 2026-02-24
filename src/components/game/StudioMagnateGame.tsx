@@ -176,9 +176,25 @@ export const StudioMagnateGame: React.FC<StudioMagnateGameProps> = ({
   };
   
   const [gameState, setGameState] = useState<GameState>(() => {
-    // If we have a loaded game, use it directly and skip heavy init
+    // If we have a loaded game, normalize scripts/projects to the latest data shape.
     if (initialGameState) {
-      return initialGameState;
+      const base: GameState = {
+        ...initialGameState,
+        franchises: (initialGameState as any).franchises || [],
+        publicDomainIPs: (initialGameState as any).publicDomainIPs || (initialGameState as any).publicDomainSources || [],
+      };
+
+      const scripts = (base.scripts || []).map(s => finalizeScriptForSave(s, base));
+      const projects = (base.projects || []).map(p => ({
+        ...p,
+        script: finalizeScriptForSave(p.script, base),
+      }));
+
+      return {
+        ...base,
+        scripts,
+        projects,
+      };
     }
 
     // Start loading for game initialization
