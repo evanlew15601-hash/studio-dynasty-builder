@@ -235,15 +235,45 @@ export const EnhancedMarketingSystem: React.FC<EnhancedMarketingSystemProps> = (
       return;
     }
 
-    // Update project buzz (higher limit for TV)
-    const currentBuzz = project.marketingData?.currentBuzz || 0;
-    const maxBuzz = (project.type === 'series' || project.type === 'limited-series') ? 250 : 150;
-    const newBuzz = Math.min(maxBuzz, currentBuzz + expectedBuzz);
-    
+    // Create a proper marketingCampaign object that progresses weekly
+    // Do NOT apply buzz instantly — let the weekly loop handle it
+    const campaignActivities = selectedCampaigns.map(id => {
+      const campaign = availableCampaigns.find(c => c.id === id);
+      return {
+        id: `activity-${id}-${Date.now()}`,
+        type: 'social-campaign' as const,
+        name: campaign?.name || id,
+        cost: totalCost / selectedCampaigns.length,
+        duration: duration,
+        weeksRemaining: duration,
+        impact: {
+          buzzIncrease: (expectedBuzz / selectedCampaigns.length),
+          audienceReach: campaign?.audienceReach || 50,
+          criticalAttention: 10
+        },
+        status: 'active' as const
+      };
+    });
+
     onUpdateProject(project.id, {
+      currentPhase: 'marketing' as any,
+      status: 'marketing' as any,
+      phaseDuration: -1, // Manual control — campaign duration drives this
+      marketingCampaign: {
+        id: `campaign-${Date.now()}`,
+        strategy: { type: 'digital', channels: [], targeting: { demographic: [], psychographic: [], geographic: [], platforms: [] } } as any,
+        budgetAllocated: totalCost,
+        budgetSpent: 0,
+        duration: duration,
+        weeksRemaining: duration,
+        activities: campaignActivities,
+        buzz: 0, // Will grow each week
+        effectiveness: 50,
+        targetAudience: ['general']
+      },
       marketingData: {
         ...project.marketingData,
-        currentBuzz: newBuzz,
+        currentBuzz: project.marketingData?.currentBuzz || 0,
         totalSpent: (project.marketingData?.totalSpent || 0) + totalCost,
         campaigns: [
           ...(project.marketingData?.campaigns || []),
@@ -255,9 +285,7 @@ export const EnhancedMarketingSystem: React.FC<EnhancedMarketingSystemProps> = (
             year: gameState.currentYear
           }))
         ]
-      },
-      // Mark as ready for release planning when marketing completed
-      readyForRelease: true
+      }
     });
 
     // Deduct budget
@@ -270,7 +298,7 @@ export const EnhancedMarketingSystem: React.FC<EnhancedMarketingSystemProps> = (
 
     toast({
       title: "Campaign Launched!",
-      description: `Spent $${(totalCost / 1000000).toFixed(1)}M, gained ${expectedBuzz} buzz points. Project ready for release planning.`,
+      description: `$${(totalCost / 1000000).toFixed(1)}M campaign running for ${duration} weeks. Buzz will build each week. You can plan release now.`,
     });
   };
 
