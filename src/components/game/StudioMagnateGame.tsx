@@ -806,9 +806,12 @@ export const StudioMagnateGame: React.FC<StudioMagnateGameProps> = ({
       
       // Handle scheduled releases when their date arrives
       let justReleased = false;
-      if (project.status === 'scheduled-for-release' && project.releaseWeek && project.releaseYear) {
+      // Check both releaseWeek/Year (from ReleaseStrategyModal) and scheduledReleaseWeek/Year (from EnhancedReleaseSystem)
+      const effectiveReleaseWeek = project.releaseWeek || project.scheduledReleaseWeek;
+      const effectiveReleaseYear = project.releaseYear || project.scheduledReleaseYear;
+      if (project.status === 'scheduled-for-release' && effectiveReleaseWeek && effectiveReleaseYear) {
         const currentAbsoluteWeek = (timeState.currentYear * 52) + timeState.currentWeek;
-        const releaseAbsoluteWeek = (project.releaseYear * 52) + project.releaseWeek;
+        const releaseAbsoluteWeek = (effectiveReleaseYear * 52) + effectiveReleaseWeek;
         
           if (currentAbsoluteWeek === releaseAbsoluteWeek) {
             if (import.meta.env.DEV) {
@@ -919,6 +922,13 @@ export const StudioMagnateGame: React.FC<StudioMagnateGameProps> = ({
         buzz: newBuzz,
         budgetSpent: Math.min(campaignBudget, newBudgetSpent),
         effectiveness: Math.min(100, (updatedProject.marketingCampaign.effectiveness || 50) + 2)
+      },
+      // CRITICAL: Sync buzz to marketingData so UI and release validation can see it
+      marketingData: {
+        ...updatedProject.marketingData,
+        currentBuzz: newBuzz,
+        totalSpent: updatedProject.marketingData?.totalSpent || campaignBudget,
+        campaigns: updatedProject.marketingData?.campaigns || []
       }
     };
 
