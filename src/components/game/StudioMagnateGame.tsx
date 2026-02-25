@@ -903,12 +903,22 @@ export const StudioMagnateGame: React.FC<StudioMagnateGameProps> = ({
 
     const newWeeksRemaining = Math.max(0, updatedProject.marketingCampaign.weeksRemaining - 1);
 
+    // Calculate weekly buzz growth from campaign spending
+    const campaignBudget = updatedProject.marketingCampaign.budgetAllocated || 0;
+    const weeklySpend = campaignBudget / updatedProject.marketingCampaign.duration;
+    const weeklyBuzzGrowth = Math.max(2, Math.floor(weeklySpend / 500000)); // ~2-10 buzz per week
+    const newBuzz = Math.min(100, (updatedProject.marketingCampaign.buzz || 0) + weeklyBuzzGrowth);
+    const newBudgetSpent = (updatedProject.marketingCampaign.budgetSpent || 0) + weeklySpend;
+
     updatedProject = {
       ...updatedProject,
       marketingCampaign: {
         ...updatedProject.marketingCampaign,
         activities: updatedActivities,
-        weeksRemaining: newWeeksRemaining
+        weeksRemaining: newWeeksRemaining,
+        buzz: newBuzz,
+        budgetSpent: Math.min(campaignBudget, newBudgetSpent),
+        effectiveness: Math.min(100, (updatedProject.marketingCampaign.effectiveness || 50) + 2)
       }
     };
 
@@ -2531,7 +2541,11 @@ export const StudioMagnateGame: React.FC<StudioMagnateGameProps> = ({
                       onClick={() => setFilmReleaseProject(selectedProject)}
                       disabled={
                         selectedProject.status !== 'completed' &&
-                        selectedProject.status !== 'ready-for-release'
+                        selectedProject.status !== 'ready-for-release' &&
+                        selectedProject.status !== 'ready-for-marketing' &&
+                        selectedProject.status !== 'marketing' &&
+                        selectedProject.currentPhase !== 'marketing' &&
+                        selectedProject.currentPhase !== 'release'
                       }
                     >
                       Plan Release

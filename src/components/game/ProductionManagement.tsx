@@ -65,14 +65,28 @@ export const ProductionManagement: React.FC<ProductionManagementProps> = ({
           phaseDuration: 4 // 4 weeks for pre-production
         };
         break;
-      case 'pre-production':
+      case 'pre-production': {
+        // Gate: require Director + Lead Actor before entering production
+        const chars = project.script?.characters || [];
+        const hasDirector = chars.some(c => c.requiredType === 'director' && c.assignedTalentId);
+        const hasLead = chars.some(c => c.importance === 'lead' && c.requiredType !== 'director' && c.assignedTalentId);
+        if (!hasDirector || !hasLead) {
+          toast({
+            title: 'Cast Required',
+            description: `Attach a Director${!hasDirector ? '' : ' ✓'} and Lead Actor${!hasLead ? '' : ' ✓'} before production can begin.`,
+            variant: 'destructive'
+          });
+          return;
+        }
         updatedProject = {
           ...updatedProject,
           currentPhase: 'production',
           status: 'filming',
+          castingConfirmed: true,
           phaseDuration: 8 // 8 weeks for production
         };
         break;
+      }
       case 'production':
         updatedProject = {
           ...updatedProject,

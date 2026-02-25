@@ -25,7 +25,7 @@ export class ReleaseSystem {
     const isTV = project.type === 'series' || project.type === 'limited-series';
     
     // Check development status - projects are ready after marketing phase or when marked completed
-    const validStatuses = ['completed', 'ready-for-release', 'ready-for-marketing'];
+    const validStatuses = ['completed', 'ready-for-release', 'ready-for-marketing', 'marketing', 'scheduled-for-release'];
     const validPhases = ['marketing', 'release', 'distribution'];
     const isReady = validStatuses.includes(project.status) || validPhases.includes(project.currentPhase);
     
@@ -49,7 +49,7 @@ export class ReleaseSystem {
     // Check cast - look at script characters with assigned talent (correct data structure)
     const assignedTalent = project.script?.characters?.filter(c => c.assignedTalentId) || [];
     const hasDirector = assignedTalent.some(c => c.requiredType === 'director');
-    const hasLead = assignedTalent.some(c => c.importance === 'lead' && c.requiredType === 'actor');
+    const hasLead = assignedTalent.some(c => c.importance === 'lead' && c.requiredType !== 'director');
     
     // Also check legacy cast array as fallback
     const legacyCast = project.cast || [];
