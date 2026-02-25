@@ -111,4 +111,29 @@ describe('ReleaseSystem.validateFilmForRelease - excluded roles', () => {
     const res = ReleaseSystem.validateFilmForRelease(project);
     expect(res.canRelease).toBe(true);
   });
+
+  it('falls back to legacy project.cast when script characters are absent (back-compat)', () => {
+    const project = makeProject({
+      script: makeScript({
+        characters: [],
+      }),
+      cast: [
+        {
+          talentId: 't1',
+          role: 'Director',
+          salary: 0,
+          contractTerms: { duration: new Date(), exclusivity: false, merchandising: false, sequelOptions: 0 },
+        },
+        {
+          talentId: 't2',
+          role: 'Lead - Hero',
+          salary: 0,
+          contractTerms: { duration: new Date(), exclusivity: false, merchandising: false, sequelOptions: 0 },
+        },
+      ] as any,
+    });
+
+    const res = ReleaseSystem.validateFilmForRelease(project);
+    expect(res.canRelease).toBe(true);
+  });
 });

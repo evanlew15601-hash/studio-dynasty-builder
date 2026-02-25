@@ -459,9 +459,10 @@ export const SequelManagement: React.FC<SequelManagementProps> = ({
                       <span className="text-muted-foreground">Cast Available:</span>
                       <span className="ml-1 font-medium">
                         {(project.script?.characters || []).filter(c => 
+                          !c.excluded &&
                           c.assignedTalentId && 
                           gameState.talent.find(t => t.id === c.assignedTalentId)?.contractStatus === 'available'
-                        ).length}/{(project.script?.characters || []).filter(c => c.assignedTalentId).length}
+                        ).length}/{(project.script?.characters || []).filter(c => !c.excluded && c.assignedTalentId).length}
                       </span>
                     </div>
                     

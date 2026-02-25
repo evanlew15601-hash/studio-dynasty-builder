@@ -87,6 +87,7 @@ import {
 import { ChevronDown } from 'lucide-react';
 import { RoleDatabase } from '../../data/RoleDatabase';
 import { importRolesForScript } from '@/utils/roleImport';
+import { getMandatoryCastingStatus } from '@/utils/castingRequirements';
 import { finalizeScriptForSave } from '@/utils/scriptFinalization';
 import { MediaFinancialIntegration } from './MediaFinancialIntegration';
 import { MediaReputationIntegration } from './MediaReputationIntegration';
@@ -1075,8 +1076,7 @@ export const StudioMagnateGame: React.FC<StudioMagnateGameProps> = ({
             // Gate: require Director + Lead actor before entering production
             else if (updatedProject.currentPhase === 'pre-production' && nextPhase === 'production') {
               const chars = updatedProject.script?.characters || [];
-              const hasDirector = chars.some(c => c.requiredType === 'director' && c.assignedTalentId);
-              const hasLead = chars.some(c => c.importance === 'lead' && c.requiredType !== 'director' && c.assignedTalentId);
+              const { hasDirector, hasLead } = getMandatoryCastingStatus(chars);
               if (!hasDirector || !hasLead) {
                 console.warn(`⛔ Cannot advance ${updatedProject.title}: missing mandatory cast (director=${hasDirector}, lead=${hasLead})`);
                 updatedProject = { ...updatedProject, phaseDuration: 2 };

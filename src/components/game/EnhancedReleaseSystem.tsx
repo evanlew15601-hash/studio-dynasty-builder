@@ -28,28 +28,43 @@ export const EnhancedReleaseSystem: React.FC<EnhancedReleaseSystemProps> = ({
     const warnings: string[] = [];
 
     // Check casting requirements
-    const hasDirector = project.cast?.some(c => 
+    const characters = project.script?.characters || [];
+    const activeCharacters = characters.filter(c => !c.excluded);
+    const assignedTalent = activeCharacters.filter(c => !!c.assignedTalentId);
+
+    const hasDirector = assignedTalent.some(c => c.requiredType === 'director');
+    const hasLeadActor = assignedTalent.some(c => c.importance === 'lead' && c.requiredType === 'actor');
+
+    // Legacy fallback (older saves where casting lived in project.cast)
+    const legacyCast = project.cast || [];
+    const legacyHasDirector = legacyCast.some(c =>
       c.role === 'Director' || c.role.toLowerCase().includes('director')
     );
-    
-    if (!hasDirector) {
-      errors.push("Director must be assigned before release");
-    }
-    
-    const hasLeadActor = project.cast?.some(c => 
+    const legacyHasLeadActor = legacyCast.some(c =>
       c.role.toLowerCase().includes('lead') || c.role.toLowerCase().includes('protagonist')
     );
-    
-    if (!hasLeadActor) {
+
+    const hasAnyExcluded = characters.some(c => c.excluded);
+    const useLegacyCastFallback = !hasAnyExcluded && characters.length === 0;
+
+    const actualHasDirector = useLegacyCastFallback ? legacyHasDirector : hasDirector;
+    const actualHasLeadActor = useLegacyCastFallback ? legacyHasLeadActor : hasLeadActor;
+
+    if (!actualHasDirector) {
+      errors.push("Director must be assigned before release");
+    }
+
+    if (!actualHasLeadActor) {
       errors.push("At least one lead actor must be cast before release");
     }
-    
+
     // Check casting confirmation
-    if (!project.castingConfirmed) {
+    if (!project.castingConfirmed && !(actualHasDirector && actualHasLeadActor)) {
       errors.push("Casting must be confirmed before release");
     }
-    
-    if (project.cast && project.cast.length < 2) {
+
+    const castCount = useLegacyCastFallback ? legacyCast.length : assignedTalent.length;
+    if (castCount < 2) {
       warnings.push("Very small cast - consider adding more roles");
     }
 

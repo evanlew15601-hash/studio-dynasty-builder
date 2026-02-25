@@ -5,6 +5,7 @@ import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
 import { Avatar, AvatarFallback } from '@/components/ui/avatar';
 import { useToast } from '@/hooks/use-toast';
+import { getCastingProgressStatus } from '@/utils/castingRequirements';
 import { Users, User, Crown, Star, UserCheck, AlertTriangle, Filter, CheckCircle } from 'lucide-react';
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger } from '@/components/ui/dialog';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
@@ -163,40 +164,27 @@ export const CharacterCastingSystem: React.FC<CharacterCastingSystemProps> = ({
   };
 
   const getCastingProgress = () => {
-    const slots = createCastingSlots();
-    const activeSlots = slots.filter(s => !s.character.excluded);
-
-    const requiredSlots = activeSlots.filter(s => s.isRequired);
-    const castRequired = requiredSlots.filter(s => s.talent).length;
-    const totalCast = activeSlots.filter(s => s.talent).length;
-
-    return {
-      requiredCast: castRequired,
-      requiredTotal: requiredSlots.length,
-      totalCast,
-      totalSlots: activeSlots.length,
-      canProceed: castRequired === requiredSlots.length
-    };
+    return getCastingProgressStatus(project.script?.characters || []);
   };
 
   const getTotalCastingCost = () => {
     return createCastingSlots()
-      .filter(slot => slot.talent)
+      .filter(slot => slot.talent && !slot.character.excluded)
       .reduce((sum, slot) => sum + slot.contractCost, 0);
   };
 
   const handleConfirmCasting = () => {
     const slots = createCastingSlots();
-    const requiredSlots = slots.filter(s => !s.character.excluded && s.isRequired);
-    const castRequired = requiredSlots.filter(s => s.talent).length;
-    if (castRequired !== requiredSlots.length) {
+
+    const progress = getCastingProgressStatus(project.script?.characters || []);
+    if (!progress.canProceed) {
       toast({ title: 'Cannot Confirm', description: 'Director and Lead roles must be cast', variant: 'destructive' });
       return;
     }
 
     // Build cast entries and compute star power
     const castEntries = slots
-      .filter(s => s.talent)
+      .filter(s => s.talent && !s.character.excluded)
       .map(s => ({
         talentId: (s.talent as TalentPerson).id,
         role: s.character.requiredType === 'director'
@@ -214,7 +202,7 @@ export const CharacterCastingSystem: React.FC<CharacterCastingSystemProps> = ({
         }
       }));
 
-    const assignedTalents = slots.filter(s => s.talent).map(s => s.talent!) as TalentPerson[];
+    const assignedTalents = slots.filter(s => s.talent && !s.character.excluded).map(s => s.talent!) as TalentPerson[];
     const fameScores = assignedTalents
       .filter(t => t.type === 'actor' || t.type === 'director')
       .map(t => t.fame ?? Math.min(100, Math.round(t.reputation)));
@@ -224,7 +212,7 @@ export const CharacterCastingSystem: React.FC<CharacterCastingSystemProps> = ({
 const totalCost = getTotalCastingCost();
 
 const contracted = slots
-  .filter(s => s.talent)
+  .filter(s => s.talent && !s.character.excluded)
   .map(s => ({
     talentId: (s.talent as TalentPerson).id,
     role: s.character.requiredType === 'director'
