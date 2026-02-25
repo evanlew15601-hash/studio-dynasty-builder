@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useEffect, useState } from 'react';
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription } from '@/components/ui/dialog';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
@@ -25,6 +25,12 @@ export const ReleaseStrategyModal: React.FC<ReleaseStrategyModalProps> = ({
 }) => {
   const { toast } = useToast();
   const [selectedDate, setSelectedDate] = useState<{ week: number; year: number } | null>(null);
+
+  useEffect(() => {
+    if (isOpen) {
+      setSelectedDate(null);
+    }
+  }, [isOpen, project?.id]);
   
   if (!project) return null;
 
@@ -51,51 +57,56 @@ export const ReleaseStrategyModal: React.FC<ReleaseStrategyModalProps> = ({
   const handleScheduleRelease = () => {
     if (!selectedDate) {
       toast({
-        title: "No Date Selected",
-        description: "Please select a release date first.",
-        variant: "destructive"
+        title: 'No Date Selected',
+        description: 'Please select a release date first.',
+        variant: 'destructive',
       });
       return;
     }
 
-    // Debug: capture state before attempting release
-    console.log('RELEASE_MODAL: scheduling', {
-      projectId: project.id,
-      type: project.type,
-      phase: project.currentPhase,
-      status: project.status,
-      selectedDate,
-      validation
-    });
+    if (import.meta.env.DEV) {
+      console.log('RELEASE_MODAL: scheduling', {
+        projectId: project.id,
+        type: project.type,
+        phase: project.currentPhase,
+        status: project.status,
+        selectedDate,
+        validation,
+      });
+    }
 
-    const result = ReleaseSystem.scheduleRelease(
-      project,
-      selectedDate.week,
-      selectedDate.year,
-      currentTime
-    );
+    const result = ReleaseSystem.scheduleRelease(project, selectedDate.week, selectedDate.year, currentTime);
 
-    console.log('RELEASE_MODAL: schedule result', result);
+    if (import.meta.env.DEV) {
+      console.log('RELEASE_MODAL: schedule result', result);
+    }
 
     if (result.success) {
       onProjectUpdate(project.id, {
         releaseWeek: result.releaseWeek,
         releaseYear: result.releaseYear,
-        status: 'scheduled-for-release'
+        scheduledReleaseWeek: result.releaseWeek,
+        scheduledReleaseYear: result.releaseYear,
+        status: 'scheduled-for-release',
+        currentPhase: 'release',
+        phaseDuration: -1,
+        readyForRelease: false,
       });
 
       toast({
-        title: "Release Scheduled!",
+        title: 'Release Scheduled!',
         description: result.message,
       });
 
       onClose();
     } else {
-      console.error('RELEASE_MODAL: scheduling failed', result);
+      if (import.meta.env.DEV) {
+        console.error('RELEASE_MODAL: scheduling failed', result);
+      }
       toast({
-        title: "Release Failed",
+        title: 'Release Failed',
         description: result.message,
-        variant: "destructive"
+        variant: 'destructive',
       });
     }
   };
@@ -124,7 +135,7 @@ export const ReleaseStrategyModal: React.FC<ReleaseStrategyModalProps> = ({
                 <div>
                   <p className="text-sm text-muted-foreground">Marketing Buzz</p>
                   <p className="font-semibold">
-                    {project.marketingData?.currentBuzz || 0}/150
+                    {project.marketingData?.currentBuzz ?? project.marketingCampaign?.buzz ?? 0}/150
                   </p>
                 </div>
                 <div>
@@ -195,7 +206,7 @@ export const ReleaseStrategyModal: React.FC<ReleaseStrategyModalProps> = ({
           </Card>
 
           {/* Marketing Summary */}
-          {project.marketingData && (
+          {(project.marketingData || project.marketingCampaign) && (
             <Card>
               <CardHeader>
                 <CardTitle className="text-lg">Marketing Summary</CardTitle>
@@ -206,14 +217,14 @@ export const ReleaseStrategyModal: React.FC<ReleaseStrategyModalProps> = ({
                     <p className="text-sm text-muted-foreground">Total Spent</p>
                     <p className="font-semibold flex items-center gap-1">
                       <DollarSign className="h-4 w-4" />
-                      ${(project.marketingData.totalSpent / 1000000).toFixed(1)}M
+                      ${(((project.marketingData?.totalSpent ?? project.marketingCampaign?.budgetSpent ?? 0) as number) / 1000000).toFixed(1)}M
                     </p>
                   </div>
                   <div>
                     <p className="text-sm text-muted-foreground">Current Buzz</p>
                     <p className="font-semibold flex items-center gap-1">
                       <TrendingUp className="h-4 w-4" />
-                      {project.marketingData.currentBuzz}/150
+                      {(project.marketingData?.currentBuzz ?? project.marketingCampaign?.buzz ?? 0)}/150
                     </p>
                   </div>
                 </div>

@@ -64,19 +64,21 @@ export class ReleaseSystem {
     const actualHasDirector = useLegacyCastFallback ? (hasDirector || legacyHasDirector) : hasDirector;
     const actualHasLead = useLegacyCastFallback ? (hasLead || legacyHasLead) : hasLead;
     
-    console.log('RELEASE_VALIDATION: cast check', {
-      projectId: project.id,
-      title: project.title,
-      type: project.type,
-      status: project.status,
-      phase: project.currentPhase,
-      legacyCast: project.cast,
-      legacyCastLength: project.cast?.length,
-      scriptCharacters: project.script?.characters?.length,
-      assignedTalent: assignedTalent.length,
-      hasDirector: actualHasDirector,
-      hasLead: actualHasLead,
-    });
+    if ((import.meta as any).env?.DEV) {
+      console.log('RELEASE_VALIDATION: cast check', {
+        projectId: project.id,
+        title: project.title,
+        type: project.type,
+        status: project.status,
+        phase: project.currentPhase,
+        legacyCast: project.cast,
+        legacyCastLength: project.cast?.length,
+        scriptCharacters: project.script?.characters?.length,
+        assignedTalent: assignedTalent.length,
+        hasDirector: actualHasDirector,
+        hasLead: actualHasLead,
+      });
+    }
     
     const hasCast = useLegacyCastFallback ? (assignedTalent.length > 0 || legacyCast.length > 0) : assignedTalent.length > 0;
     
@@ -127,6 +129,7 @@ export class ReleaseSystem {
     targetYear: number, 
     currentTime: TimeState
   ): ReleaseResult {
+    const safeTargetWeek = Math.max(1, Math.min(52, targetWeek));
     // Validate film readiness
     const filmValidation = this.validateFilmForRelease(film);
     if (!filmValidation.canRelease) {
@@ -146,7 +149,7 @@ export class ReleaseSystem {
     }
     
     // Validate calendar slot
-    const calendarValidation = CalendarManager.validateRelease(film.id, targetWeek, targetYear, currentTime);
+    const calendarValidation = CalendarManager.validateRelease(film.id, safeTargetWeek, targetYear, currentTime);
     if (!calendarValidation.canRelease) {
       console.error('RELEASE_SYSTEM: calendar validation failed', {
         filmId: film.id,
@@ -163,13 +166,13 @@ export class ReleaseSystem {
     }
     
     // Schedule the release
-    CalendarManager.scheduleRelease(film.id, film.title, targetWeek, targetYear);
+    CalendarManager.scheduleRelease(film.id, film.title, safeTargetWeek, targetYear);
     
     // Record marketing expenses (spread over 4 weeks leading up to release)
     if (film.distributionStrategy?.marketingBudget) {
       const weeklyMarketingSpend = film.distributionStrategy.marketingBudget / 4;
       for (let i = 1; i <= 4; i++) {
-        let marketingWeek = targetWeek - i;
+        let marketingWeek = safeTargetWeek - i;
         let marketingYear = targetYear;
         if (marketingWeek <= 0) {
           marketingWeek += 52;
@@ -187,13 +190,13 @@ export class ReleaseSystem {
       }
     }
     
-    console.log(`RELEASE: Scheduled ${film.title} for Y${targetYear}W${targetWeek}`);
-    
+    console.log(`RELEASE: Scheduled ${film.title} for Y${targetYear}W${safeTargetWeek}`);
+
     return {
       success: true,
-      message: `${film.title} scheduled for release in Year ${targetYear}, Week ${targetWeek}`,
-      releaseWeek: targetWeek,
-      releaseYear: targetYear
+      message: `${film.title} scheduled for release in Year ${targetYear}, Week ${safeTargetWeek}`,
+      releaseWeek: safeTargetWeek,
+      releaseYear: targetYear,
     };
   }
   

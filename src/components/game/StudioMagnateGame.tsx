@@ -1,4 +1,4 @@
-import React, { useState, Suspense } from 'react';
+import React, { useEffect, useState, Suspense } from 'react';
 import { GameState, Studio, Project, Script, TalentPerson, BoxOfficeWeek, BoxOfficeRelease, Genre, MarketingStrategy, ReleaseStrategy, ProductionPhase, ScriptCharacter } from '@/types/game';
 import { useLoadingContext } from '@/contexts/LoadingContext';
 import { LoadingOverlay } from '@/components/ui/loading-overlay';
@@ -16,6 +16,8 @@ import { StudioStats } from './StudioStats';
 import { FinancialReporting } from './FinancialReporting';
 import { FinancialDashboard } from './FinancialDashboard';
 import { GameplayLoops } from './GameplayLoops';
+import { ReleaseSystem } from './ReleaseSystem';
+import { CalendarManager } from './CalendarManager';
 import { IntegrationMonitor } from './IntegrationMonitor';
 import { AwardsCalendar } from './AwardsCalendar';
 import { AIStudioManager } from './AIStudioManager';
@@ -190,6 +192,9 @@ export const StudioMagnateGame: React.FC<StudioMagnateGameProps> = ({
         ...p,
         script: finalizeScriptForSave(p.script, base),
       }));
+
+      // Restore in-memory calendar state from persisted projects (e.g., scheduled releases)
+      CalendarManager.syncReleasesFromProjects(projects);
 
       return {
         ...base,
@@ -369,6 +374,33 @@ export const StudioMagnateGame: React.FC<StudioMagnateGameProps> = ({
   const [selectedFranchise, setSelectedFranchise] = useState<string | null>(null);
   const [selectedPublicDomain, setSelectedPublicDomain] = useState<string | null>(null);
   const [filmReleaseProject, setFilmReleaseProject] = useState<Project | null>(null);
+
+  // Keep CalendarManager's in-memory events hydrated from persisted project state.
+  // (CalendarManager stores events in a module-level singleton, so it needs re-hydration on reload.)
+  useEffect(() => {
+    CalendarManager.syncReleasesFromProjects(gameState.projects || []);
+  }, [gameState.projects]);
+
+  const selectedFilmReleaseValidation =
+    selectedProject && selectedProject.type !== 'series' && selectedProject.type !== 'limited-series'
+      ? ReleaseSystem.validateFilmForRelease(selectedProject)
+      : null;
+
+  const selectedFilmHasMarketing =
+    !!selectedProject?.marketingCampaign || ((selectedProject?.marketingData?.totalSpent ?? 0) > 0);
+
+  const selectedFilmStatusAllowsReleasePlanning =
+    !!selectedProject &&
+    ['ready-for-release', 'scheduled-for-release', 'completed'].includes(selectedProject.status as any);
+
+  const canPlanSelectedFilmRelease =
+    !!selectedFilmReleaseValidation?.canRelease && (selectedFilmHasMarketing || selectedFilmStatusAllowsReleasePlanning);
+
+  const releasePlanningDisabledReason = !selectedFilmReleaseValidation?.canRelease
+    ? 'Complete prerequisites (script + director + lead) first'
+    : !selectedFilmHasMarketing && !selectedFilmStatusAllowsReleasePlanning
+      ? 'Run a marketing campaign first'
+      : undefined;
   
   // First week box office modal state
   const [firstWeekModalProject, setFirstWeekModalProject] = useState<Project | null>(null);
@@ -823,19 +855,23 @@ export const StudioMagnateGame: React.FC<StudioMagnateGameProps> = ({
       
       // Handle scheduled releases when their date arrives
       let justReleased = false;
-      if (project.status === 'scheduled-for-release' && project.releaseWeek && project.releaseYear) {
-        const currentAbsoluteWeek = (timeState.currentYear * 52) + timeState.currentWeek;
-        const releaseAbsoluteWeek = (project.releaseYear * 52) + project.releaseWeek;
-        
+      if (project.status === 'scheduled-for-release') {
+        const scheduledWeek = project.scheduledReleaseWeek ?? project.releaseWeek;
+        const scheduledYear = project.scheduledReleaseYear ?? project.releaseYear;
+
+        if (scheduledWeek && scheduledYear) {
+          const currentAbsoluteWeek = (timeState.currentYear * 52) + timeState.currentWeek;
+          const releaseAbsoluteWeek = (scheduledYear * 52) + scheduledWeek;
+
           if (currentAbsoluteWeek === releaseAbsoluteWeek) {
             if (import.meta.env.DEV) {
               console.log(`🎬 RELEASE DATE ARRIVED: ${project.title}`);
               console.log(`    📊 PRE-RELEASE: boxOfficeTotal = ${project.metrics?.boxOfficeTotal || 0}`);
             }
             if (project.type === 'series' || project.type === 'limited-series') {
-              updatedProject = TVRatingsSystem.initializeAiring(updatedProject, project.releaseWeek, project.releaseYear);
+              updatedProject = TVRatingsSystem.initializeAiring(updatedProject, scheduledWeek, scheduledYear);
             } else {
-              updatedProject = BoxOfficeSystem.initializeRelease(updatedProject, project.releaseWeek, project.releaseYear);
+              updatedProject = BoxOfficeSystem.initializeRelease(updatedProject, scheduledWeek, scheduledYear);
             }
             if (import.meta.env.DEV) {
               console.log(`    📊 POST-RELEASE: boxOfficeTotal = ${updatedProject.metrics?.boxOfficeTotal || 0}`);
@@ -857,6 +893,7 @@ export const StudioMagnateGame: React.FC<StudioMagnateGameProps> = ({
               });
             }
           }
+        }
       }
       
       // Process box office for released films (but skip on the week they just released)
@@ -934,11 +971,15 @@ export const StudioMagnateGame: React.FC<StudioMagnateGameProps> = ({
       if (import.meta.env.DEV) {
         console.log(`🎬 MARKETING COMPLETE: ${project.title} - Moving to release phase`);
       }
+
+      const isAlreadyScheduled = updatedProject.status === 'scheduled-for-release';
+
       updatedProject = {
         ...updatedProject,
         currentPhase: 'release',
-        status: 'ready-for-release',
-        readyForRelease: true
+        phaseDuration: isAlreadyScheduled ? -1 : 0,
+        status: isAlreadyScheduled ? updatedProject.status : 'ready-for-release',
+        readyForRelease: isAlreadyScheduled ? false : true
       };
     }
   }
@@ -1432,29 +1473,13 @@ export const StudioMagnateGame: React.FC<StudioMagnateGameProps> = ({
         console.warn('AI Studio processing error', e);
       }
       
-      // Process scheduled releases first
       let updatedProjects = prev.projects;
       
-      import('./ReleaseSystem').then(({ ReleaseSystem }) => {
-        const releasingFilms = ReleaseSystem.processReleases(newTimeState);
-        
-        if (releasingFilms.length > 0) {
-          updatedProjects = updatedProjects.map(project => {
-            const releasingFilm = releasingFilms.find(rf => rf.id === project.id);
-            if (releasingFilm) {
-              return {
-                ...project,
-                status: 'released',
-                releaseWeek: newTimeState.currentWeek,
-                releaseYear: newTimeState.currentYear
-              };
-            }
-            return project;
-          });
-        }
-      });
+      updateOperation(LOADING_OPERATIONS.WEEKLY_PROCESSING.id, 70, 'Calculating finances...');
       
-      // Simulate box office for released films
+      updatedProjects = processWeeklyProjectEffects(updatedProjects, newTimeState);
+
+      // Simulate box office and ledger entries for released films (player + AI)
       import('./FinancialEngine').then(({ FinancialEngine }) => {
         const playerReleased = updatedProjects
           .filter(p => p.status === 'released' && !!p.releaseWeek && !!p.releaseYear)
@@ -1470,6 +1495,7 @@ export const StudioMagnateGame: React.FC<StudioMagnateGameProps> = ({
             budget: p.budget?.total || 10000000,
             genre: p.script?.genre || 'drama'
           }));
+
         const aiReleased = prev.allReleases
           .filter((r): r is Project => 'script' in r && (r as any).status === 'released' && !!r.releaseWeek && !!r.releaseYear)
           .map(r => ({
@@ -1484,10 +1510,11 @@ export const StudioMagnateGame: React.FC<StudioMagnateGameProps> = ({
             budget: (r as any).budget?.total || (r as any).budget || 10000000,
             genre: (r as any).script?.genre || (r as any).genre || 'drama'
           }));
+
         const releasedFilms = [...playerReleased, ...aiReleased];
-        
+
         FinancialEngine.simulateBoxOfficeWeek(releasedFilms, newTimeState.currentWeek, newTimeState.currentYear);
-        
+
         // Process weekly financial events
         FinancialEngine.processWeeklyFinancialEvents(
           newTimeState.currentWeek,
@@ -1496,10 +1523,6 @@ export const StudioMagnateGame: React.FC<StudioMagnateGameProps> = ({
           updatedProjects
         );
       });
-      
-      updateOperation(LOADING_OPERATIONS.WEEKLY_PROCESSING.id, 70, 'Calculating finances...');
-      
-      updatedProjects = processWeeklyProjectEffects(updatedProjects, newTimeState);
 
       // Generate AI studio releases every 2-4 weeks
       const shouldGenerateRelease = Math.random() < 0.3; // 30% chance each week
@@ -2539,16 +2562,14 @@ export const StudioMagnateGame: React.FC<StudioMagnateGameProps> = ({
                     <div>
                       <p className="text-sm font-medium">Release Planning</p>
                       <p className="text-xs text-muted-foreground">
-                        Once marketing is in place, choose a theatrical release window for this film.
+                        Once casting and marketing are in place, choose a theatrical release window.
                       </p>
                     </div>
                     <Button
                       size="sm"
                       onClick={() => setFilmReleaseProject(selectedProject)}
-                      disabled={
-                        selectedProject.status !== 'completed' &&
-                        selectedProject.status !== 'ready-for-release'
-                      }
+                      disabled={!canPlanSelectedFilmRelease}
+                      title={releasePlanningDisabledReason}
                     >
                       Plan Release
                     </Button>
