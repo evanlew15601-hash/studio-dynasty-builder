@@ -2362,6 +2362,26 @@ export const StudioMagnateGame: React.FC<StudioMagnateGameProps> = ({
                       };
                       handleProjectUpdate(updatedProject);
                     }}
+                    onUpdateRole={(characterId, updates) => {
+                      if (!selectedProject) return;
+                      const updatedCharacters = (selectedProject.script?.characters || []).map(c =>
+                        c.id === characterId ? { ...c, ...updates } : c
+                      );
+                      const updatedProject = {
+                        ...selectedProject,
+                        script: { ...selectedProject.script!, characters: updatedCharacters }
+                      };
+                      handleProjectUpdate(updatedProject);
+                    }}
+                    onRemoveRole={(characterId) => {
+                      if (!selectedProject) return;
+                      const updatedCharacters = (selectedProject.script?.characters || []).filter(c => c.id !== characterId);
+                      const updatedProject = {
+                        ...selectedProject,
+                        script: { ...selectedProject.script!, characters: updatedCharacters }
+                      };
+                      handleProjectUpdate(updatedProject);
+                    }}
                   />
                 ) : (
                   <div className="p-6 border rounded-lg bg-card text-sm text-muted-foreground">

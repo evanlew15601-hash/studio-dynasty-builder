@@ -21,6 +21,7 @@ export const ScriptCharacterManager: React.FC<ScriptCharacterManagerProps> = ({
   onCharactersChange
 }) => {
   const [isAdding, setIsAdding] = useState(false);
+  const [showExcluded, setShowExcluded] = useState(false);
   const [newCharacter, setNewCharacter] = useState<Partial<ScriptCharacter>>({
     name: '',
     importance: 'supporting',
@@ -94,6 +95,9 @@ export const ScriptCharacterManager: React.FC<ScriptCharacterManagerProps> = ({
   };
 
   const activeRoleCount = characters.filter(c => !c.excluded).length;
+  const excludedRoleCount = characters.filter(c => !!c.excluded).length;
+
+  const visibleCharacters = characters.filter(c => !c.excluded || !!c.assignedTalentId || showExcluded);
 
   return (
     <Card className="card-premium">
@@ -107,6 +111,16 @@ export const ScriptCharacterManager: React.FC<ScriptCharacterManagerProps> = ({
             <Badge variant="outline">
               {activeRoleCount}/{characters.length} active roles • {getTotalScreenTime()} min
             </Badge>
+            {excludedRoleCount > 0 && (
+              <Button
+                size="sm"
+                variant="outline"
+                onClick={() => setShowExcluded(v => !v)}
+                title={showExcluded ? 'Hide excluded roles' : 'Show excluded roles'}
+              >
+                {showExcluded ? <EyeOff className="w-4 h-4" /> : <Eye className="w-4 h-4" />}
+              </Button>
+            )}
             <Button size="sm" onClick={() => setIsAdding(true)}>
               <Plus size={14} className="mr-1" />
               Add Role
@@ -227,8 +241,7 @@ export const ScriptCharacterManager: React.FC<ScriptCharacterManagerProps> = ({
         )}
 
         {/* Existing Characters */}
-        <div className="space-y-3">
-          {characters.map((character) => (
+        {visibleCharacters.map((character) => (
             <Card
               key={character.id}
               className={`border-l-4 ${character.excluded ? 'border-l-border opacity-75' : 'border-l-primary'}`}
@@ -278,9 +291,16 @@ export const ScriptCharacterManager: React.FC<ScriptCharacterManagerProps> = ({
 
                   <div className="flex items-center gap-1">
                     <Button
-                      variant="ghost"
+                      variant={character.excluded ? "outline" : "secondary"}
                       size="sm"
-                      onClick={() => handleUpdateCharacter(character.id, { excluded: !character.excluded })}
+                      onClick={() =>
+                        handleUpdateCharacter(
+                          character.id,
+                          character.excluded
+                            ? { excluded: false }
+                            : { excluded: true, assignedTalentId: undefined }
+                        )
+                      }
                       title={character.excluded ? 'Include in production' : 'Exclude from production'}
                     >
                       {character.excluded ? <Eye className="w-4 h-4" /> : <EyeOff className="w-4 h-4" />}

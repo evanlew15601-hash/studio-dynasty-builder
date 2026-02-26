@@ -53,7 +53,8 @@ function mergeWithOverrides(existing: ScriptCharacter | undefined, incoming: Scr
     traits: overrides.traits ?? existing.traits ?? incoming.traits,
     ageRange: overrides.ageRange || incoming.ageRange,
     screenTimeMinutes: existing.screenTimeMinutes ?? incoming.screenTimeMinutes,
-    assignedTalentId: existing.assignedTalentId,
+    // Excluded roles should not retain talent assignments.
+    assignedTalentId: existing.excluded ? undefined : existing.assignedTalentId,
     excluded: existing.excluded,
     locked: typeof incoming.locked === 'boolean' ? incoming.locked : existing.locked,
     franchiseId: incoming.franchiseId,

@@ -1,8 +1,12 @@
 import { Project, GameState, MediaItem, MediaMemory } from '@/types/game';
-import { getProjectAssignedTalentIds } from '
+import { getProjectAssignedTalentIds } from '@/utils/projectCasting';
+import { MediaEngine } from './MediaEngine';
+
 export class MediaFinancialIntegration {
-  // Calculate how media coveexport class MediaFinancialIntegrati  sta  // Calculate how media coverage affects box office performance
-  static calculateMediaBoxOfficeMultipli    factors: string[];
+  // Calculate how media coverage affects box office performance
+  static calculateMediaBoxOfficeMultiplier(project: Project, gameState: GameState): {
+    multiplier: number;
+    factors: string[];
     breakdown: {
       baseMultiplier: number;
       mediaBonus: number;
@@ -20,8 +24,10 @@ export class MediaFinancialIntegration {
     let studioBonus = 0;
 
     // Project-specific media coverage
-    const projectMemory = Media    // Project-specific media cover        const projectMemo      const projectSentiment = this.calculate    if (projectMemory) {
-      const projectSentiment = this.calculateRecentSentiment      
+    const projectMemory = MediaEngine.getMediaMemory(project.id);
+    if (projectMemory) {
+      const projectSentiment = this.calculateRecentSentiment(projectMemory);
+      const projectBuzz = projectMemory.currentBuzz;      
       // Positive media coverage boosts box office
       if (projectSentiment > 0) {
         const sentimentBonus = (projectSentiment / 100) * 0.4; // Up to 40% bonus
@@ -287,7 +293,5 @@ export class MediaFinancialIntegration {
     });
     
     console.log('💰 Applied media financial effects to all projects');
-  }
-}lied media financial effects to all projects');
   }
 }

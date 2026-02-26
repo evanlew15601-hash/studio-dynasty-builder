@@ -397,6 +397,32 @@ export const TVProductionManagement: React.FC<TVProductionManagementProps> = ({
                 };
                 onProjectUpdate(updated);
               }}
+              onUpdateRole={(characterId, updates) => {
+                const updatedCharacters = (castingProject.script?.characters || []).map(c =>
+                  c.id === characterId ? { ...c, ...updates } : c
+                );
+                const active = updatedCharacters.filter(c => !c.excluded);
+                const hasDirector = active.some(c => c.requiredType === 'director' && c.assignedTalentId);
+                const hasLead = active.some(c => c.importance === 'lead' && c.requiredType === 'actor' && c.assignedTalentId);
+                const updated = { 
+                  ...castingProject, 
+                  script: { ...castingProject.script, characters: updatedCharacters }, 
+                  castingConfirmed: hasDirector && hasLead 
+                };
+                onProjectUpdate(updated);
+              }}
+              onRemoveRole={(characterId) => {
+                const updatedCharacters = (castingProject.script?.characters || []).filter(c => c.id !== characterId);
+                const active = updatedCharacters.filter(c => !c.excluded);
+                const hasDirector = active.some(c => c.requiredType === 'director' && c.assignedTalentId);
+                const hasLead = active.some(c => c.importance === 'lead' && c.requiredType === 'actor' && c.assignedTalentId);
+                const updated = { 
+                  ...castingProject, 
+                  script: { ...castingProject.script, characters: updatedCharacters }, 
+                  castingConfirmed: hasDirector && hasLead 
+                };
+                onProjectUpdate(updated);
+              }}
             />
           </DialogContent>
         </Dialog>

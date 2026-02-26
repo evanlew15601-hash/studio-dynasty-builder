@@ -1,6 +1,6 @@
 import React, { useState } from 'react';
 import { GameState, Project, TalentPerson, ProductionRole, ScriptCharacter } from '@/types/game';
-import { getProjectRoleAssignments } from '@/utils/projectCasting';
+import { getProjectRoleAssignmentsForDisplay } from '@/utils/projectCasting';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
@@ -237,14 +237,14 @@ export const CastingBoard: React.FC<CastingBoardProps> = ({
               </div>
 
               {/* Current Cast */}
-              {getProjectRoleAssignments(selectedProject).length > 0 && (
+              {getProjectRoleAssignmentsForDisplay(selectedProject).length > 0 && (
                 <div className="space-y-2">
                   <h4 className="font-semibold flex items-center">
                     <TalentIcon className="mr-2" size={16} />
                     Current Cast
                   </h4>
                   <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
-                    {getProjectRoleAssignments(selectedProject).map((assignment, index) => {
+                    {getProjectRoleAssignmentsForDisplay(selectedProject).map((assignment, index) => {
                       const talent = gameState.talent.find(t => t.id === assignment.talentId);
                       const contract = [...(selectedProject.cast || []), ...(selectedProject.crew || [])].find(
                         r => r.talentId === assignment.talentId

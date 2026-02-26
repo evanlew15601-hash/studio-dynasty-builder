@@ -35,7 +35,9 @@ function normalizeCharacterRequiredType(character: ScriptCharacter): 'actor' | '
 
 export function getProjectCastingSource(project: Project): CastingSource {
   const chars = project.script?.characters;
-  return chars && chars.length > 0 ? 'script' : 'legacy';
+  // Treat excluded roles as non-participating: scripts with only excluded characters should fall back
+  // to legacy cast arrays for back-compat.
+  return chars && chars.some(c => !c.excluded) ? 'script' : 'legacy';
 }
 
 export function getProjectActiveCharacters(project: Project): ScriptCharacter[] {
@@ -75,6 +77,26 @@ export function getProjectRoleAssignments(project: Project): ProjectRoleAssignme
       importance: inferImportanceFromRoleName(r.role),
       source,
     }));
+}
+
+export function getProjectRoleAssignmentsForDisplay(project: Project): ProjectRoleAssignment[] {
+  const source = getProjectCastingSource(project);
+
+  if (source === 'script') {
+    return (project.script.characters || [])
+      .filter(c => !!c.assignedTalentId)
+      .map(c => ({
+        talentId: c.assignedTalentId!,
+        role: c.name,
+        requiredType: normalizeCharacterRequiredType(c),
+        importance: c.importance,
+        characterId: c.id,
+        excluded: c.excluded,
+        source,
+      }));
+  }
+
+  return getProjectRoleAssignments(project);
 }
 
 export function getProjectAssignedTalentIds(project: Project): string[] {

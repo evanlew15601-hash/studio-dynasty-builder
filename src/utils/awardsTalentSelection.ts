@@ -19,7 +19,7 @@ export function findRelevantTalentForAwardsCategory({
 
   const activeCharacters = characters.filter(c => !c.excluded);
 
-  // Canonical rule: when script.characters is non-empty, ignore legacy project.cast
+  // Canonical rule: when script.characters has at least one active (non-excluded) role, ignore legacy project.cast
   // and derive all acting/directing picks from character assignments.
   const castEntries = hasCharacters ? [] : (project.cast || []);
 
