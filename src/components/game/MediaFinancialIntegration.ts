@@ -1,11 +1,8 @@
 import { Project, GameState, MediaItem, MediaMemory } from '@/types/game';
-import { MediaEngine } from './MediaEngine';
-
+import { getProjectAssignedTalentIds } from '
 export class MediaFinancialIntegration {
-  // Calculate how media coverage affects box office performance
-  static calculateMediaBoxOfficeMultiplier(project: Project, gameState: GameState): {
-    multiplier: number;
-    factors: string[];
+  // Calculate how media coveexport class MediaFinancialIntegrati  sta  // Calculate how media coverage affects box office performance
+  static calculateMediaBoxOfficeMultipli    factors: string[];
     breakdown: {
       baseMultiplier: number;
       mediaBonus: number;
@@ -23,11 +20,8 @@ export class MediaFinancialIntegration {
     let studioBonus = 0;
 
     // Project-specific media coverage
-    const projectMemory = MediaEngine.getMediaMemory(project.id);
-    if (projectMemory) {
-      const projectSentiment = this.calculateRecentSentiment(projectMemory);
-      const projectBuzz = projectMemory.currentBuzz;
-      
+    const projectMemory = Media    // Project-specific media cover        const projectMemo      const projectSentiment = this.calculate    if (projectMemory) {
+      const projectSentiment = this.calculateRecentSentiment      
       // Positive media coverage boosts box office
       if (projectSentiment > 0) {
         const sentimentBonus = (projectSentiment / 100) * 0.4; // Up to 40% bonus
@@ -47,28 +41,29 @@ export class MediaFinancialIntegration {
       }
     }
 
-    // Cast media coverage affects box office
-    if (project.cast) {
+    // Cast media coverage affects box office (respect role exclusion + script.characters source of truth)
+    {
       let totalCastSentiment = 0;
       let castMembersWithMedia = 0;
-      
-      project.cast.forEach(castMember => {
-        const talent = gameState.talent.find(t => t.id === castMember.talentId);
-        if (talent) {
-          const talentMemory = MediaEngine.getMediaMemory(talent.id);
-          if (talentMemory) {
-            const talentSentiment = this.calculateRecentSentiment(talentMemory);
-            totalCastSentiment += talentSentiment;
-            castMembersWithMedia++;
-            
-            // Major scandals hurt more than positive buzz helps
-            if (talentMemory.lastMajorStory?.type === 'scandal' && 
-                talentMemory.lastMajorStory?.sentiment === 'negative') {
-              const scandalPenalty = -0.15;
-              castBonus += scandalPenalty;
-              factors.push(`${talent.name} scandal (${(scandalPenalty * 100).toFixed(1)}%)`);
-            }
-          }
+
+      const castTalentIds = getProjectAssignedTalentIds(project);
+
+      castTalentIds.forEach(talentId => {
+        const talent = gameState.talent.find(t => t.id === talentId);
+        if (!talent) return;
+
+        const talentMemory = MediaEngine.getMediaMemory(talent.id);
+        if (!talentMemory) return;
+
+        const talentSentiment = this.calculateRecentSentiment(talentMemory);
+        totalCastSentiment += talentSentiment;
+        castMembersWithMedia++;
+
+        // Major scandals hurt more than positive buzz helps
+        if (talentMemory.lastMajorStory?.type === 'scandal' && talentMemory.lastMajorStory?.sentiment === 'negative') {
+          const scandalPenalty = -0.15;
+          castBonus += scandalPenalty;
+          factors.push(`${talent.name} scandal (${(scandalPenalty * 100).toFixed(1)}%)`);
         }
       });
       
@@ -292,5 +287,7 @@ export class MediaFinancialIntegration {
     });
     
     console.log('💰 Applied media financial effects to all projects');
+  }
+}lied media financial effects to all projects');
   }
 }

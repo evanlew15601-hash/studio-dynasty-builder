@@ -1,4 +1,5 @@
 import { MediaEvent, MediaItem, MediaMemory, GameState, TalentPerson, Project, Studio } from '@/types/game';
+import { getProjectAssignedTalentIds } from '@/utils/projectCasting';
 import { MediaSourceGenerator } from '@/data/MediaSourceGenerator';
 import { MediaContentGenerator } from '@/data/MediaContentGenerator';
 
@@ -86,7 +87,7 @@ class MediaEngine {
           entities: {
             studios: [gameState.studio.id],
             projects: [project.id],
-            talent: project.cast?.map(c => c.talentId) || []
+            talent: getProjectAssignedTalentIds(project)
           },
           eventData: { project },
           week: gameState.currentWeek,
@@ -109,7 +110,7 @@ class MediaEngine {
           entities: {
             studios: [gameState.studio.id],
             projects: [project.id],
-            talent: project.cast?.map(c => c.talentId) || []
+            talent: getProjectAssignedTalentIds(project)
           },
           eventData: { project },
           week: gameState.currentWeek,
@@ -300,7 +301,7 @@ class MediaEngine {
       entities: {
         studios: [gameState.studio.id],
         projects: [project.id],
-        talent: project.cast?.map(c => c.talentId) || []
+        talent: getProjectAssignedTalentIds(project)
       },
       eventData: { project, earnings },
       week: gameState.currentWeek,

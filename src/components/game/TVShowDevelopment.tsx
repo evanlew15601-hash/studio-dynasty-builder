@@ -249,7 +249,7 @@ export const TVShowDevelopment: React.FC<TVShowDevelopmentProps> = ({
       title: editingScript ? "TV Script Updated" : "TV Script Created",
       description: editingScript
         ? `"${finalized.title}" has been updated. Continue refining or greenlight when ready.`
-        : `"${finalized.title}" has been added to your development slate with ${(finalized.characters || []).length} character roles.`,
+        : `"${finalized.title}" has been added to your development slate with ${(finalized.characters || []).filter(c => !c.excluded).length} character roles.`,
     });
   };
 

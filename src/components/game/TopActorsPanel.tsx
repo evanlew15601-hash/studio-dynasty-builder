@@ -18,7 +18,7 @@ export const TopActorsPanel: React.FC<TopActorsPanelProps> = ({ gameState }) => 
     // Check player projects
     for (const p of gameState.projects) {
       const roles = p.script?.characters || [];
-      if (roles.some(r => r.assignedTalentId === actorId)) count++;
+      if (roles.some(r => !r.excluded && r.assignedTalentId === actorId)) count++;
     }
     // Check talent's own filmography
     const talent = gameState.talent.find(t => t.id === actorId);

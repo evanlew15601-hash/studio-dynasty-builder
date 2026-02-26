@@ -5,7 +5,7 @@ const getBaseScreenTime = (character: ScriptCharacter): number => {
     lead: 90,
     supporting: 45,
     minor: 15,
-    crew: 5
+    crew: 5,
   };
 
   return baseMap[character.importance] ?? 15;
@@ -20,12 +20,21 @@ export const estimateScreenTimeMinutes = (
   project: Project
 ): number => {
   const baseTime = getBaseScreenTime(character);
-  const budgetMultiplier = Math.min(
-    1.5,
-    (project.budget.total / 50_000_000) * 0.5 + 0.5
-  );
+  const budgetMultiplier = Math.min(1.5, (project.budget.total / 50_000_000) * 0.5 + 0.5);
 
   return Math.round(baseTime * budgetMultiplier);
+};
+
+/**
+ * Canonical screen-time getter: respects explicit per-role overrides when present,
+ * otherwise falls back to a budget-scaled estimate.
+ */
+export const getCharacterScreenTimeMinutes = (
+  character: ScriptCharacter,
+  project: Project
+): number => {
+  if (typeof character.screenTimeMinutes === 'number') return character.screenTimeMinutes;
+  return estimateScreenTimeMinutes(character, project);
 };
 
 /**
@@ -47,7 +56,7 @@ export const calculateActingPerformanceScore = (
   const profit = project.metrics?.boxOffice?.profit ?? 0;
   const projectSuccess = profit > 0 ? 75 : 50;
 
-  const screenTimeMinutes = estimateScreenTimeMinutes(character, project);
+  const screenTimeMinutes = getCharacterScreenTimeMinutes(character, project);
   const screenTimeBonus = Math.min(20, screenTimeMinutes / 10);
 
   const rawScore = basePerformance + projectSuccess * 0.3 + screenTimeBonus;

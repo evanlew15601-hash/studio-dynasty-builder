@@ -1,5 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import { Project, GameState } from '@/types/game';
+import { getProjectCastingSummary } from '@/utils/projectCasting';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
@@ -27,28 +28,11 @@ export const EnhancedReleaseSystem: React.FC<EnhancedReleaseSystemProps> = ({
     const errors: string[] = [];
     const warnings: string[] = [];
 
-    // Check casting requirements
-    const characters = project.script?.characters || [];
-    const activeCharacters = characters.filter(c => !c.excluded);
-    const assignedTalent = activeCharacters.filter(c => !!c.assignedTalentId);
+    // Casting/cast requirements: script.characters is the source of truth when present and non-empty.
+    const casting = getProjectCastingSummary(project);
 
-    const hasDirector = assignedTalent.some(c => c.requiredType === 'director');
-    const hasLeadActor = assignedTalent.some(c => c.importance === 'lead' && c.requiredType === 'actor');
-
-    // Legacy fallback (older saves where casting lived in project.cast)
-    const legacyCast = project.cast || [];
-    const legacyHasDirector = legacyCast.some(c =>
-      c.role === 'Director' || c.role.toLowerCase().includes('director')
-    );
-    const legacyHasLeadActor = legacyCast.some(c =>
-      c.role.toLowerCase().includes('lead') || c.role.toLowerCase().includes('protagonist')
-    );
-
-    const hasAnyExcluded = characters.some(c => c.excluded);
-    const useLegacyCastFallback = !hasAnyExcluded && characters.length === 0;
-
-    const actualHasDirector = useLegacyCastFallback ? legacyHasDirector : hasDirector;
-    const actualHasLeadActor = useLegacyCastFallback ? legacyHasLeadActor : hasLeadActor;
+    const actualHasDirector = casting.hasDirector;
+    const actualHasLeadActor = casting.hasLead;
 
     if (!actualHasDirector) {
       errors.push("Director must be assigned before release");
@@ -63,7 +47,7 @@ export const EnhancedReleaseSystem: React.FC<EnhancedReleaseSystemProps> = ({
       errors.push("Casting must be confirmed before release");
     }
 
-    const castCount = useLegacyCastFallback ? legacyCast.length : assignedTalent.length;
+    const castCount = casting.assignedCount;
     if (castCount < 2) {
       warnings.push("Very small cast - consider adding more roles");
     }

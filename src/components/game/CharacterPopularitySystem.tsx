@@ -4,6 +4,7 @@ import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
 import { Progress } from '@/components/ui/progress';
 import { Star, TrendingUp, Users, Award, Crown } from 'lucide-react';
+import { getCharacterScreenTimeMinutes } from '@/utils/actingPerformance';
 
 interface CharacterPopularityProps {
   gameState: GameState;
@@ -79,7 +80,7 @@ export const CharacterPopularitySystem: React.FC<CharacterPopularityProps> = ({
   ): CharacterPerformance => {
     const basePerformance = talent.reputation || 50;
     const projectSuccess = (project.metrics?.boxOffice?.profit || 0) > 0 ? 75 : 50;
-    const screenTime = calculateScreenTime(character, project);
+    const screenTime = getCharacterScreenTimeMinutes(character, project);
     const screenTimeBonus = Math.min(20, screenTime / 10); // Up to 20 point bonus
     
     const performanceScore = Math.min(100, basePerformance + (projectSuccess * 0.3) + screenTimeBonus);
@@ -107,17 +108,7 @@ export const CharacterPopularitySystem: React.FC<CharacterPopularityProps> = ({
     };
   };
 
-  const calculateScreenTime = (character: ScriptCharacter, project: Project): number => {
-    const baseTime = {
-      'lead': 90,
-      'supporting': 45,
-      'minor': 15,
-      'crew': 5
-    }[character.importance] || 15;
-    
-    const budgetMultiplier = Math.min(1.5, (project.budget.total / 50000000) * 0.5 + 0.5);
-    return Math.round(baseTime * budgetMultiplier);
-  };
+  // Screen time is calculated via getCharacterScreenTimeMinutes()
 
   const calculateBoxOfficeImpact = (
     performanceScore: number, 
@@ -234,7 +225,7 @@ export const CharacterPopularitySystem: React.FC<CharacterPopularityProps> = ({
   useEffect(() => {
     const completedProjects = gameState.projects.filter(p => 
       p.status === 'released' && 
-      p.script?.characters?.length > 0 &&
+      p.script?.characters?.some(c => !c.excluded && !!c.assignedTalentId) &&
       !characterPopularities.some(cp => 
         cp.performances.some(perf => perf.projectId === p.id)
       )

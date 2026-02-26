@@ -1,5 +1,6 @@
 // Unified Release System - Handles all film release logic
 import { Project } from '../../types/game';
+import { getProjectCastingSummary } from '@/utils/projectCasting';
 import { TimeState } from './TimeSystem';
 import { CalendarManager } from './CalendarManager';
 import { FinancialEngine } from './FinancialEngine';
@@ -46,24 +47,13 @@ export class ReleaseSystem {
       errors.push('TV show script needs quality assessment');
     }
     
-    // Check cast - look at script characters with assigned talent (correct data structure)
-    const assignedTalent = project.script?.characters?.filter(c => !c.excluded && c.assignedTalentId) || [];
-    const hasDirector = assignedTalent.some(c => c.requiredType === 'director');
-    const hasLead = assignedTalent.some(c => c.importance === 'lead' && c.requiredType === 'actor');
-    
-    // Also check legacy cast array as fallback
-    const legacyCast = project.cast || [];
-    const legacyHasDirector = legacyCast.some(c => c.role?.toLowerCase().includes('director'));
-    const legacyHasLead = legacyCast.some(c => c.role?.toLowerCase().includes('lead'));
-    
-    // Legacy cast fallback is needed for older saves where cast assignments lived in project.cast.
-    // Once you start using role exclusion, treat script characters as the source of truth.
-    const hasAnyExcluded = (project.script?.characters || []).some(c => c.excluded);
-    const useLegacyCastFallback = !hasAnyExcluded && (project.script?.characters?.length || 0) === 0;
+    // Casting/cast requirements: script.characters is the source of truth when present and non-empty.
+    // Only fall back to legacy project.cast/crew when script.characters is missing or empty.
+    const casting = getProjectCastingSummary(project);
 
-    const actualHasDirector = useLegacyCastFallback ? (hasDirector || legacyHasDirector) : hasDirector;
-    const actualHasLead = useLegacyCastFallback ? (hasLead || legacyHasLead) : hasLead;
-    
+    const actualHasDirector = casting.hasDirector;
+    const actualHasLead = casting.hasLead;
+
     if ((import.meta as any).env?.DEV) {
       console.log('RELEASE_VALIDATION: cast check', {
         projectId: project.id,
@@ -71,16 +61,15 @@ export class ReleaseSystem {
         type: project.type,
         status: project.status,
         phase: project.currentPhase,
-        legacyCast: project.cast,
-        legacyCastLength: project.cast?.length,
+        castingSource: casting.source,
         scriptCharacters: project.script?.characters?.length,
-        assignedTalent: assignedTalent.length,
+        assignedRoles: casting.assignedCount,
         hasDirector: actualHasDirector,
         hasLead: actualHasLead,
       });
     }
-    
-    const hasCast = useLegacyCastFallback ? (assignedTalent.length > 0 || legacyCast.length > 0) : assignedTalent.length > 0;
+
+    const hasCast = casting.assignedCount > 0;
     
     if (!hasCast) {
       errors.push(isTV ? 'TV show needs at least one cast member' : 'Film needs at least one cast member');
@@ -101,7 +90,7 @@ export class ReleaseSystem {
     
     // Warnings for optimization - adjusted for TV
     if (isTV) {
-      if (legacyCast.length < 2 && assignedTalent.length < 2) {
+      if (casting.assignedCount < 2) {
         warnings.push('Small cast may limit audience appeal for TV');
       }
       if (!project.marketingData && !project.marketingCampaign) {
@@ -111,7 +100,7 @@ export class ReleaseSystem {
       if (!project.distributionStrategy?.marketingBudget || project.distributionStrategy.marketingBudget < project.budget.total * 0.2) {
         warnings.push('Low marketing budget may hurt box office performance');
       }
-      if (legacyCast.length < 3 && assignedTalent.length < 3) {
+      if (casting.assignedCount < 3) {
         warnings.push('Small cast may limit audience appeal');
       }
     }

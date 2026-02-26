@@ -310,7 +310,7 @@ return {
       title: editingScript ? "Script Updated" : "Script Created",
       description: editingScript
         ? `"${finalized.title}" has been updated. Continue refining or greenlight when ready.`
-        : `"${finalized.title}" has been added to your development slate with ${(finalized.characters || []).length} character roles.`,
+        : `"${finalized.title}" has been added to your development slate with ${(finalized.characters || []).filter(c => !c.excluded).length} character roles.`,
     });
   };
 
@@ -717,7 +717,7 @@ return {
                         {script.characters && script.characters.length > 0 && (
                           <div className="flex justify-between">
                             <span className="text-muted-foreground">Roles:</span>
-                            <span>{script.characters.length} characters</span>
+                            <span>{script.characters.filter(c => !c.excluded).length} active</span>
                           </div>
                         )}
                       </div>

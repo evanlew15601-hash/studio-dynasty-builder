@@ -303,7 +303,7 @@ export const RoleBasedCasting: React.FC<RoleBasedCastingProps> = ({
         })}
       </div>
 
-      {(!project.script?.characters || project.script.characters.length === 0) && (
+      {(project.script?.characters || []).filter(c => !c.excluded).length === 0 && (
         <Card>
           <CardContent className="text-center py-8">
             <Users className="mx-auto h-12 w-12 text-muted-foreground mb-4" />

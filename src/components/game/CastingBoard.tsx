@@ -1,5 +1,6 @@
 import React, { useState } from 'react';
 import { GameState, Project, TalentPerson, ProductionRole, ScriptCharacter } from '@/types/game';
+import { getProjectRoleAssignments } from '@/utils/projectCasting';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
@@ -236,26 +237,31 @@ export const CastingBoard: React.FC<CastingBoardProps> = ({
               </div>
 
               {/* Current Cast */}
-              {selectedProject.cast.length > 0 && (
+              {getProjectRoleAssignments(selectedProject).length > 0 && (
                 <div className="space-y-2">
                   <h4 className="font-semibold flex items-center">
                     <TalentIcon className="mr-2" size={16} />
                     Current Cast
                   </h4>
                   <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
-                    {selectedProject.cast.map((role, index) => {
-                      const talent = gameState.talent.find(t => t.id === role.talentId);
+                    {getProjectRoleAssignments(selectedProject).map((assignment, index) => {
+                      const talent = gameState.talent.find(t => t.id === assignment.talentId);
+                      const contract = [...(selectedProject.cast || []), ...(selectedProject.crew || [])].find(
+                        r => r.talentId === assignment.talentId
+                      );
+                      const salary = contract?.salary;
+
                       return talent ? (
-                        <div key={index} className="flex items-center space-x-3 p-3 rounded-lg bg-card border">
+                        <div key={`${assignment.talentId}-${index}`} className="flex items-center space-x-3 p-3 rounded-lg bg-card border">
                           <Avatar>
                             <AvatarFallback>{talent.name.split(' ').map(n => n[0]).join('')}</AvatarFallback>
                           </Avatar>
                           <div className="flex-1">
                             <p className="font-medium">{talent.name}</p>
-                            <p className="text-sm text-muted-foreground">{role.role}</p>
+                            <p className="text-sm text-muted-foreground">{assignment.role}</p>
                           </div>
                           <div className="text-right">
-                            <p className="text-sm font-medium">{formatCurrency(role.salary)}</p>
+                            <p className="text-sm font-medium">{salary != null ? formatCurrency(salary) : 'N/A'}</p>
                           </div>
                         </div>
                       ) : null;

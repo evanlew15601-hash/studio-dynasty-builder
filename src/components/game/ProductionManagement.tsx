@@ -1,5 +1,6 @@
 import React, { useState } from 'react';
 import { GameState, Project } from '@/types/game';
+import { getProjectCastingSummary } from '@/utils/projectCasting';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Progress } from '@/components/ui/progress';
@@ -241,7 +242,7 @@ export const ProductionManagement: React.FC<ProductionManagementProps> = ({
                             </Badge>
                           </div>
                           <p className="text-sm text-muted-foreground mb-3">
-                            ${(project.budget.total / 1000000).toFixed(1)}M • {project.cast.length} cast
+                            ${(project.budget.total / 1000000).toFixed(1)}M • {getProjectCastingSummary(project).assignedCount} cast
                           </p>
                           <Button
                             size="sm"

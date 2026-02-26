@@ -48,7 +48,9 @@ function mergeWithOverrides(existing: ScriptCharacter | undefined, incoming: Scr
     id: existing.id || incoming.id,
     name: overrides.name || incoming.name,
     description: overrides.description || incoming.description,
-    traits: overrides.traits || incoming.traits,
+    // Back-compat: older saves stored traits directly on the role without populating localOverrides.
+    // Don't discard persisted traits when re-importing roles.
+    traits: overrides.traits ?? existing.traits ?? incoming.traits,
     ageRange: overrides.ageRange || incoming.ageRange,
     screenTimeMinutes: existing.screenTimeMinutes ?? incoming.screenTimeMinutes,
     assignedTalentId: existing.assignedTalentId,

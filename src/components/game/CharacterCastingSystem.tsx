@@ -90,7 +90,7 @@ export const CharacterCastingSystem: React.FC<CharacterCastingSystemProps> = ({
       
       // Check if already cast in this project
       const alreadyCast = (project.script?.characters || []).some(c => 
-        c.assignedTalentId === talent.id && c.id !== character.id
+        !c.excluded && c.assignedTalentId === talent.id && c.id !== character.id
       );
       if (alreadyCast) return false;
       

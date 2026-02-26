@@ -55,33 +55,34 @@ export const PersistentCharacterCasting: React.FC<PersistentCharacterCastingProp
   // Get character casting history from all previous projects
   const getCharacterHistory = (): CharacterHistory[] => {
     const history: CharacterHistory[] = [];
-    
+
     // Check all completed projects for character casting
     gameState.projects
       .filter(p => p.status === 'released' && p.script?.characters)
       .forEach(pastProject => {
         pastProject.script?.characters?.forEach(character => {
-          if (character.assignedTalentId) {
-            const talent = gameState.talent.find(t => t.id === character.assignedTalentId);
-            if (talent) {
-              history.push({
-                characterName: character.name,
-                talentId: talent.id,
-                talentName: talent.name,
-                projectId: pastProject.id,
-                projectTitle: pastProject.title,
-                performance: {
-                  boxOffice: pastProject.metrics?.boxOfficeTotal,
-                  criticsScore: pastProject.metrics?.criticsScore,
-                  audienceScore: pastProject.metrics?.audienceScore
-                },
-                releaseYear: pastProject.releaseYear
-              });
-            }
-          }
+          if (character.excluded) return;
+          if (!character.assignedTalentId) return;
+
+          const talent = gameState.talent.find(t => t.id === character.assignedTalentId);
+          if (!talent) return;
+
+          history.push({
+            characterName: character.name,
+            talentId: talent.id,
+            talentName: talent.name,
+            projectId: pastProject.id,
+            projectTitle: pastProject.title,
+            performance: {
+              boxOffice: pastProject.metrics?.boxOfficeTotal,
+              criticsScore: pastProject.metrics?.criticsScore,
+              audienceScore: pastProject.metrics?.audienceScore
+            },
+            releaseYear: pastProject.releaseYear
+          });
         });
       });
-    
+
     return history;
   };
 
@@ -100,7 +101,7 @@ export const PersistentCharacterCasting: React.FC<PersistentCharacterCastingProp
     // Look for similar character types and importance levels
     return history.filter(h => {
       const pastProject = gameState.projects.find(p => p.id === h.projectId);
-      const pastCharacter = pastProject?.script?.characters?.find(c => c.name === h.characterName);
+      const pastCharacter = pastProject?.script?.characters?.find(c => !c.excluded && c.name === h.characterName);
       
       if (!pastCharacter) return false;
       
@@ -197,7 +198,7 @@ export const PersistentCharacterCasting: React.FC<PersistentCharacterCastingProp
     setSelectedCharacter(character);
   };
 
-  const characterHistory = getCharacterHistory();
+  
 
   return (
     <div className="space-y-6">
@@ -227,7 +228,7 @@ export const PersistentCharacterCasting: React.FC<PersistentCharacterCastingProp
 
       {/* Character Casting with History */}
       <div className="space-y-4">
-        {(project.script?.characters || []).map(character => {
+        {(project.script?.characters || []).filter(c => !c.excluded || !!c.assignedTalentId).map(character => {
           const returningActors = findReturningActors(character);
           const currentTalent = character.assignedTalentId ? 
             gameState.talent.find(t => t.id === character.assignedTalentId) : null;
