@@ -1,5 +1,5 @@
 import type { Project, TalentPerson } from '@/types/game';
-import { hasNonEmptyScriptCharacters } from '@/utils/scriptCharacters';
+import { hasExplicitScriptCharacters, shouldUseLegacyCastFallback } from '@/utils/scriptCharacters';
 
 export function findRelevantTalentForAwardsCategory({
   project,
@@ -14,14 +14,15 @@ export function findRelevantTalentForAwardsCategory({
 }): TalentPerson | undefined {
   const categoryLower = category.toLowerCase();
 
-  const hasCharacters = hasNonEmptyScriptCharacters(project.script);
+  const hasCharacters = hasExplicitScriptCharacters(project.script);
   const characters = hasCharacters ? project.script.characters : [];
 
   const activeCharacters = characters.filter(c => !c.excluded);
 
-  // Canonical rule: when script.characters has at least one active (non-excluded) role, ignore legacy project.cast
-  // and derive all acting/directing picks from character assignments.
-  const castEntries = hasCharacters ? [] : (project.cast || []);
+  // Canonical rule: when script.characters is present and non-empty, it is the source of truth
+  // (even if all roles are excluded). Only fall back to legacy cast arrays when characters are
+  // missing or empty.
+  const castEntries = shouldUseLegacyCastFallback(project.script) ? (project.cast || []) : [];
 
   const getTalentById = (id?: string) => talentPool.find(t => t.id === id);
 
@@ -42,43 +43,38 @@ export function findRelevantTalentForAwardsCategory({
   const isActress = categoryLower.includes('actress');
   const isSupporting = categoryLower.includes('supporting');
 
+  const matchesActingCategory = (talent?: TalentPerson) => {
+    if (!talent || talent.type !== 'actor') return false;
+    if (isActress) return talent.gender === 'Female';
+    return talent.gender !== 'Female';
+  };
+
   if (isSupporting) {
-    const supportingCast = castEntries.filter(c =>
-      (c.role || '').toLowerCase().includes('supporting') &&
-      (!isActress || getTalentById(c.talentId)?.gender === 'Female')
-    );
+    const supportingCast = castEntries.filter(c => {
+      const role = (c.role || '').toLowerCase();
+      if (!role.includes('supporting')) return false;
+      return matchesActingCategory(getTalentById(c.talentId));
+    });
 
     if (supportingCast.length > 0) {
       const idx = Math.floor(random() * supportingCast.length);
-      const talent = getTalentById(supportingCast[idx].talentId);
-      if (talent && talent.type === 'actor') return talent;
+      return getTalentById(supportingCast[idx].talentId);
     }
   } else {
     const leadCast = castEntries.filter(c => {
       const role = (c.role || '').toLowerCase();
-      return (
-        (role.includes('lead') || role.includes('actor') || role.includes('actress')) &&
-        !role.includes('supporting') &&
-        (!isActress || getTalentById(c.talentId)?.gender === 'Female')
-      );
+      if (!(role.includes('lead') || role.includes('actor') || role.includes('actress'))) return false;
+      if (role.includes('supporting')) return false;
+      return matchesActingCategory(getTalentById(c.talentId));
     });
 
     if (leadCast.length > 0) {
       const idx = Math.floor(random() * leadCast.length);
-      const talent = getTalentById(leadCast[idx].talentId);
-      if (talent && talent.type === 'actor') return talent;
+      return getTalentById(leadCast[idx].talentId);
     }
   }
 
-  const anyActorCast = castEntries.filter(c => {
-    const talent = getTalentById(c.talentId);
-    return (
-      !!talent &&
-      talent.type === 'actor' &&
-      (!isActress || talent.gender === 'Female') &&
-      (isActress || talent.gender !== 'Female')
-    );
-  });
+  const anyActorCast = castEntries.filter(c => matchesActingCategory(getTalentById(c.talentId)));
 
   if (anyActorCast.length > 0) {
     const idx = Math.floor(random() * anyActorCast.length);

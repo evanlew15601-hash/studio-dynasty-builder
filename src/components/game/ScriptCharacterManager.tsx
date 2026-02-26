@@ -242,86 +242,85 @@ export const ScriptCharacterManager: React.FC<ScriptCharacterManagerProps> = ({
 
         {/* Existing Characters */}
         {visibleCharacters.map((character) => (
-            <Card
-              key={character.id}
-              className={`border-l-4 ${character.excluded ? 'border-l-border opacity-75' : 'border-l-primary'}`}
-            >
-              <CardContent className="pt-4">
-                <div className="flex items-start justify-between">
-                  <div className="flex-1">
-                    <div className="flex items-center space-x-2 mb-2 flex-wrap gap-y-1">
-                      <h4 className="font-semibold">{character.name}</h4>
-                      <Badge variant="outline" className="capitalize">
-                        {character.importance}
+          <Card
+            key={character.id}
+            className={`border-l-4 ${character.excluded ? 'border-l-border opacity-75' : 'border-l-primary'}`}
+          >
+            <CardContent className="pt-4">
+              <div className="flex items-start justify-between">
+                <div className="flex-1">
+                  <div className="flex items-center space-x-2 mb-2 flex-wrap gap-y-1">
+                    <h4 className="font-semibold">{character.name}</h4>
+                    <Badge variant="outline" className="capitalize">
+                      {character.importance}
+                    </Badge>
+                    {typeof character.screenTimeMinutes === 'number' && (
+                      <Badge variant="secondary">{character.screenTimeMinutes} min</Badge>
+                    )}
+                    {character.ageRange && (
+                      <Badge variant="outline">
+                        Age {character.ageRange[0]}-{character.ageRange[1]}
                       </Badge>
-                      {typeof character.screenTimeMinutes === 'number' && (
-                        <Badge variant="secondary">{character.screenTimeMinutes} min</Badge>
-                      )}
-                      {character.ageRange && (
-                        <Badge variant="outline">
-                          Age {character.ageRange[0]}-{character.ageRange[1]}
+                    )}
+                    {character.locked && (
+                      <Badge variant="secondary" className="flex items-center gap-1">
+                        <Lock className="w-3 h-3" /> Imported
+                      </Badge>
+                    )}
+                    {character.excluded && (
+                      <Badge variant="secondary" className="flex items-center gap-1">
+                        <EyeOff className="w-3 h-3" /> Excluded
+                      </Badge>
+                    )}
+                  </div>
+
+                  {character.description && (
+                    <p className="text-sm text-muted-foreground mb-2">{character.description}</p>
+                  )}
+
+                  {(character.traits || []).length > 0 && (
+                    <div className="flex flex-wrap gap-1">
+                      {(character.traits || []).map((trait) => (
+                        <Badge key={trait} variant="secondary" className="text-xs">
+                          {trait}
                         </Badge>
-                      )}
-                      {character.locked && (
-                        <Badge variant="secondary" className="flex items-center gap-1">
-                          <Lock className="w-3 h-3" /> Imported
-                        </Badge>
-                      )}
-                      {character.excluded && (
-                        <Badge variant="secondary" className="flex items-center gap-1">
-                          <EyeOff className="w-3 h-3" /> Excluded
-                        </Badge>
-                      )}
+                      ))}
                     </div>
-
-                    {character.description && (
-                      <p className="text-sm text-muted-foreground mb-2">{character.description}</p>
-                    )}
-
-                    {(character.traits || []).length > 0 && (
-                      <div className="flex flex-wrap gap-1">
-                        {(character.traits || []).map((trait) => (
-                          <Badge key={trait} variant="secondary" className="text-xs">
-                            {trait}
-                          </Badge>
-                        ))}
-                      </div>
-                    )}
-                  </div>
-
-                  <div className="flex items-center gap-1">
-                    <Button
-                      variant={character.excluded ? "outline" : "secondary"}
-                      size="sm"
-                      onClick={() =>
-                        handleUpdateCharacter(
-                          character.id,
-                          character.excluded
-                            ? { excluded: false }
-                            : { excluded: true, assignedTalentId: undefined }
-                        )
-                      }
-                      title={character.excluded ? 'Include in production' : 'Exclude from production'}
-                    >
-                      {character.excluded ? <Eye className="w-4 h-4" /> : <EyeOff className="w-4 h-4" />}
-                    </Button>
-
-                    <Button
-                      variant="ghost"
-                      size="sm"
-                      onClick={() => handleRemoveCharacter(character.id)}
-                      className="text-destructive hover:text-destructive"
-                      disabled={!!character.locked}
-                      title={character.locked ? 'Imported roles are locked' : 'Remove role'}
-                    >
-                      <Trash2 size={16} />
-                    </Button>
-                  </div>
+                  )}
                 </div>
-              </CardContent>
-            </Card>
-          ))}
-        </div>
+
+                <div className="flex items-center gap-1">
+                  <Button
+                    variant={character.excluded ? "outline" : "secondary"}
+                    size="sm"
+                    onClick={() =>
+                      handleUpdateCharacter(
+                        character.id,
+                        character.excluded
+                          ? { excluded: false }
+                          : { excluded: true }
+                      )
+                    }
+                    title={character.excluded ? 'Include in production' : 'Exclude from production'}
+                  >
+                    {character.excluded ? <Eye className="w-4 h-4" /> : <EyeOff className="w-4 h-4" />}
+                  </Button>
+
+                  <Button
+                    variant="ghost"
+                    size="sm"
+                    onClick={() => handleRemoveCharacter(character.id)}
+                    className="text-destructive hover:text-destructive"
+                    disabled={!!character.locked}
+                    title={character.locked ? 'Imported roles are locked' : 'Remove role'}
+                  >
+                    <Trash2 size={16} />
+                  </Button>
+                </div>
+              </div>
+            </CardContent>
+          </Card>
+        ))}
 
         {characters.length === 0 && !isAdding && (
           <div className="text-center py-8 text-muted-foreground">

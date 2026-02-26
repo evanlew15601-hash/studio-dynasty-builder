@@ -74,7 +74,7 @@ describe('findRelevantTalentForAwardsCategory - excluded roles', () => {
     expect(picked?.id).toBe('dir-ok');
   });
 
-  it('falls back to legacy cast when all script roles are excluded (treated as non-participating)', () => {
+  it('does not fall back to legacy cast when script.characters is non-empty, even if all roles are excluded', () => {
     const project = {
       script: makeScript({
         characters: [
@@ -99,6 +99,6 @@ describe('findRelevantTalentForAwardsCategory - excluded roles', () => {
       random: () => 0,
     });
 
-    expect(picked?.id).toBe('dir-legacy');
+    expect(picked).toBeUndefined();
   });
 });

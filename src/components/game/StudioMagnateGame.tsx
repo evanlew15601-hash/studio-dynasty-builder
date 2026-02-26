@@ -6,7 +6,7 @@ import { LOADING_OPERATIONS, delay, simulateProgress } from '@/utils/loadingUtil
 import { FranchiseGenerator } from '@/data/FranchiseGenerator';
 import { PublicDomainGenerator } from '@/data/PublicDomainGenerator';
 import { ScriptDevelopment } from './ScriptDevelopment';
-import { CastingBoard } from './CastingBoard';
+
 import { ProductionManagement } from './ProductionManagement';
 import { DistributionDashboard } from './DistributionDashboard';
 import { MarketingReleaseManagement } from './MarketingReleaseManagement';
@@ -32,7 +32,7 @@ import { getProjectCastingSummary, getProjectRoleAssignments } from '@/utils/pro
 import { AwardsSystem } from './AwardsSystem';
 import { EnhancedAwardsSystem } from './EnhancedAwardsSystem';
 import { RoleBasedCasting } from './RoleBasedCasting';
-import { CharacterCastingSystem } from './CharacterCastingSystem';
+
 import { useAwardsEngine } from '@/hooks/useAwardsEngine';
 import { IndividualAwardShowModal, AwardShowCeremony } from './IndividualAwardShowModal';
 import { FirstWeekBoxOfficeModal } from './FirstWeekBoxOfficeModal';
@@ -89,7 +89,7 @@ import {
 } from '@/components/ui/icons';
 import { ChevronDown } from 'lucide-react';
 import { RoleDatabase } from '../../data/RoleDatabase';
-import { importRolesForScript } from '@/utils/roleImport';
+
 import { getMandatoryCastingStatus } from '@/utils/castingRequirements';
 import { finalizeScriptForSave } from '@/utils/scriptFinalization';
 import { MediaFinancialIntegration } from './MediaFinancialIntegration';
@@ -557,19 +557,6 @@ export const StudioMagnateGame: React.FC<StudioMagnateGameProps> = ({
 
     const newProject: Project = createProjectFromScript(normalizedScript, overrides);
 
-    // Auto-generate roles only if script has no characters
-    let enrichedProject: Project = newProject;
-    try {
-      const preexisting = newProject.script.characters && newProject.script.characters.length > 0;
-      const roles = preexisting ? newProject.script.characters! : importRolesForScript(newProject.script, gameState);
-      const normalized = finalizeScriptForSave({ ...newProject.script, characters: roles }, gameState);
-      if (normalized.characters && normalized.characters.length > 0) {
-        enrichedProject = { ...newProject, script: normalized };
-      }
-    } catch (e) {
-      console.warn('Role auto-generation failed', e);
-    }
-
     updateOperation('project-create', 90, 'Finalizing project...');
 
     // Deduct development cost and handle loan if needed
@@ -589,22 +576,22 @@ export const StudioMagnateGame: React.FC<StudioMagnateGameProps> = ({
 
     setGameState(prev => {
       // If this project belongs to a franchise, append it to that franchise's entries
-      const franchiseId = enrichedProject.script?.franchiseId;
+      const franchiseId = newProject.script?.franchiseId;
       const updatedFranchises = franchiseId
         ? (prev.franchises || []).map(f => {
             if (f.id !== franchiseId) return f;
             const existingEntries = f.entries || [];
-            if (existingEntries.includes(enrichedProject.id)) return f;
+            if (existingEntries.includes(newProject.id)) return f;
             return {
               ...f,
-              entries: [...existingEntries, enrichedProject.id],
+              entries: [...existingEntries, newProject.id],
             };
           })
         : prev.franchises;
 
       return {
         ...prev,
-        projects: [...prev.projects, enrichedProject],
+        projects: [...prev.projects, newProject],
         studio: {
           ...prev.studio,
           budget: finalBudget,
@@ -1099,23 +1086,14 @@ export const StudioMagnateGame: React.FC<StudioMagnateGameProps> = ({
           else if (['development', 'pre-production', 'production'].includes(updatedProject.currentPhase)) {
             // Gate: ensure roles imported before leaving development
             if (updatedProject.currentPhase === 'development' && nextPhase === 'pre-production') {
-              const existingRoles = updatedProject.script?.characters || [];
-              const hasActiveExisting = existingRoles.some(c => !c.excluded);
-              const roles = hasActiveExisting
-                ? existingRoles
-                : importRolesForScript(updatedProject.script!, gameState);
+              const normalizedScript = finalizeScriptForSave(updatedProject.script!, gameState);
+              const activeRoles = (normalizedScript.characters || []).filter(c => !c.excluded);
 
-              const hasAnyActiveRole = (roles || []).some(c => !c.excluded);
-              if (!roles || roles.length === 0 || !hasAnyActiveRole) {
+              if (activeRoles.length === 0) {
                 console.warn(`⛔ Cannot advance ${updatedProject.title}: no active roles available`);
                 updatedProject = { ...updatedProject, phaseDuration: 2 };
                 toast({ title: 'Roles Required', description: `${updatedProject.title} needs at least one active (non-excluded) role before pre-production`, variant: 'destructive' });
               } else {
-                const normalizedScript = finalizeScriptForSave(
-                  { ...updatedProject.script!, characters: roles },
-                  gameState
-                );
-
                 updatedProject = {
                   ...updatedProject,
                   script: normalizedScript,
@@ -2091,7 +2069,7 @@ export const StudioMagnateGame: React.FC<StudioMagnateGameProps> = ({
                   writer: 'Studio Writer',
                   pages: 100,
                   quality: 50,
-                  developmentStage: 'concept',
+                  developmentStage: 'draft',
                   genre: 'drama',
                   targetAudience: 'general',
                   estimatedRuntime: 120,
@@ -2200,7 +2178,7 @@ export const StudioMagnateGame: React.FC<StudioMagnateGameProps> = ({
                   writer: 'Studio Writer',
                   pages: 100,
                   quality: 50,
-                  developmentStage: 'concept',
+                  developmentStage: 'draft',
                   genre: 'drama',
                   targetAudience: 'general',
                   estimatedRuntime: 120,
@@ -2308,107 +2286,64 @@ export const StudioMagnateGame: React.FC<StudioMagnateGameProps> = ({
         
         {currentPhase === 'casting' && (
           <div className="space-y-6">
-            <Tabs
-              defaultValue={selectedProject ? "character-casting" : "casting-board"}
-              className="space-y-4"
-            >
-              <TabsList>
-                <TabsTrigger value="character-casting">Character Casting</TabsTrigger>
-                <TabsTrigger value="role-based">Role-Based System</TabsTrigger>
-                <TabsTrigger value="casting-board">Talent Marketplace</TabsTrigger>
-              </TabsList>
-              
-              <TabsContent value="character-casting">
-                {selectedProject ? (
-                  <CharacterCastingSystem
-                    project={selectedProject}
-                    gameState={gameState}
-                    onProjectUpdate={handleProjectUpdate}
-                  />
-                ) : (
-                  <div className="p-6 border rounded-lg bg-card text-sm text-muted-foreground">
-                    <p className="font-medium mb-1">No project selected for casting</p>
-                    <p>
-                      Select an active project from the Dashboard, then return here to manage character casting.
-                    </p>
-                  </div>
-                )}
-              </TabsContent>
-              
-              <TabsContent value="role-based">
-                {selectedProject ? (
-                  <RoleBasedCasting
-                    project={selectedProject}
-                    gameState={gameState}
-                    onCastRole={(characterId: string, talentId: string) => {
-                      if (!selectedProject) return;
-                      const updatedCharacters = (selectedProject.script?.characters || []).map(c =>
-                        c.id === characterId ? { ...c, assignedTalentId: talentId } : c
-                      );
-                      const updatedProject = {
-                        ...selectedProject,
-                        script: { ...selectedProject.script!, characters: updatedCharacters }
-                      };
-                      handleProjectUpdate(updatedProject);
-                    }}
-                    onCreateRole={(role) => {
-                      if (!selectedProject) return;
-                      const updatedProject = {
-                        ...selectedProject,
-                        script: {
-                          ...selectedProject.script!,
-                          characters: [...(selectedProject.script?.characters || []), role]
-                        }
-                      };
-                      handleProjectUpdate(updatedProject);
-                    }}
-                    onUpdateRole={(characterId, updates) => {
-                      if (!selectedProject) return;
-                      const updatedCharacters = (selectedProject.script?.characters || []).map(c =>
-                        c.id === characterId ? { ...c, ...updates } : c
-                      );
-                      const updatedProject = {
-                        ...selectedProject,
-                        script: { ...selectedProject.script!, characters: updatedCharacters }
-                      };
-                      handleProjectUpdate(updatedProject);
-                    }}
-                    onRemoveRole={(characterId) => {
-                      if (!selectedProject) return;
-                      const updatedCharacters = (selectedProject.script?.characters || []).filter(c => c.id !== characterId);
-                      const updatedProject = {
-                        ...selectedProject,
-                        script: { ...selectedProject.script!, characters: updatedCharacters }
-                      };
-                      handleProjectUpdate(updatedProject);
-                    }}
-                  />
-                ) : (
-                  <div className="p-6 border rounded-lg bg-card text-sm text-muted-foreground">
-                    <p className="font-medium mb-1">No project selected for role-based casting</p>
-                    <p>
-                      Select an active project from the Dashboard to define roles and attach talent.
-                    </p>
-                  </div>
-                )}
-              </TabsContent>
-              
-              <TabsContent value="casting-board">
-                <CastingBoard
-                  gameState={gameState}
-                  selectedProject={selectedProject}
-                  onProjectUpdate={handleProjectUpdate}
-                  onTalentHire={(talent) => {
-                    setGameState(prev => ({
-                      ...prev,
-                      talent: prev.talent.some(t => t.id === talent.id)
-                        ? prev.talent.map(t => t.id === talent.id ? talent : t)
-                        : [...prev.talent, talent]
-                    }));
-                  }}
-                />
-              </TabsContent>
-            </Tabs>
+            {selectedProject ? (
+              <RoleBasedCasting
+                project={selectedProject}
+                gameState={gameState}
+                onCastRole={(characterId: string, talentId: string) => {
+                  if (!selectedProject) return;
+                  const updatedCharacters = (selectedProject.script?.characters || []).map(c =>
+                    c.id === characterId ? { ...c, assignedTalentId: talentId } : c
+                  );
+                  const updatedProject = {
+                    ...selectedProject,
+                    script: { ...selectedProject.script!, characters: updatedCharacters }
+                  };
+                  handleProjectUpdate(updatedProject);
+                }}
+                onCreateRole={(role) => {
+                  if (!selectedProject) return;
+                  const updatedProject = {
+                    ...selectedProject,
+                    script: {
+                      ...selectedProject.script!,
+                      characters: [...(selectedProject.script?.characters || []), role]
+                    }
+                  };
+                  handleProjectUpdate(updatedProject);
+                }}
+                onUpdateRole={(characterId, updates) => {
+                  if (!selectedProject) return;
+                  const updatedCharacters = (selectedProject.script?.characters || []).map(c =>
+                    c.id === characterId ? { ...c, ...updates } : c
+                  );
+                  const updatedProject = {
+                    ...selectedProject,
+                    script: { ...selectedProject.script!, characters: updatedCharacters }
+                  };
+                  handleProjectUpdate(updatedProject);
+                }}
+                onRemoveRole={(characterId) => {
+                  if (!selectedProject) return;
+                  const updatedCharacters = (selectedProject.script?.characters || []).filter(c => c.id !== characterId);
+                  const updatedProject = {
+                    ...selectedProject,
+                    script: { ...selectedProject.script!, characters: updatedCharacters }
+                  };
+                  handleProjectUpdate(updatedProject);
+                }}
+              />
+            ) : (
+              <div className="p-6 border rounded-lg bg-card text-sm text-muted-foreground">
+                <p className="font-medium mb-1">No project selected for casting</p>
+                <p>
+                  Select an active project from the Dashboard, then return here to define roles and attach talent.
+                </p>
+                <p className="mt-2">
+                  Hiring happens in the Talent Marketplace.
+                </p>
+              </div>
+            )}
           </div>
         )}
 

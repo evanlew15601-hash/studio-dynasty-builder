@@ -35,9 +35,9 @@ function normalizeCharacterRequiredType(character: ScriptCharacter): 'actor' | '
 
 export function getProjectCastingSource(project: Project): CastingSource {
   const chars = project.script?.characters;
-  // Treat excluded roles as non-participating: scripts with only excluded characters should fall back
-  // to legacy cast arrays for back-compat.
-  return chars && chars.some(c => !c.excluded) ? 'script' : 'legacy';
+  // Policy: if a script has an explicit non-empty character list, it is the source of truth
+  // even when all roles are excluded (in that case there are simply no participating roles).
+  return chars && chars.length > 0 ? 'script' : 'legacy';
 }
 
 export function getProjectActiveCharacters(project: Project): ScriptCharacter[] {

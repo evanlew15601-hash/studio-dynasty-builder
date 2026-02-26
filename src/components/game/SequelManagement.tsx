@@ -182,11 +182,15 @@ export const SequelManagement: React.FC<SequelManagementProps> = ({
   const createSequel = () => {
     if (!sequelPlan || !selectedProject) return;
     
-    // Check budget
-    if (sequelPlan.budget > gameState.studio.budget) {
+    const developmentCost = sequelPlan.budget * 0.1;
+    const maxLoanCapacity = Math.max(0, 50_000_000 - (gameState.studio.debt || 0));
+    const availableFunds = gameState.studio.budget + maxLoanCapacity;
+
+    // Check budget (10% development cost up-front)
+    if (developmentCost > availableFunds) {
       toast({
         title: "Insufficient Budget",
-        description: `Need $${(sequelPlan.budget / 1000000).toFixed(1)}M to develop sequel`,
+        description: `Need ${(developmentCost / 1000000).toFixed(1)}M available (10% development cost) to start this sequel`,
         variant: "destructive"
       });
       return;
@@ -236,7 +240,7 @@ export const SequelManagement: React.FC<SequelManagementProps> = ({
       pages: 120,
       quality: Math.max(60, (selectedProject.script?.quality || 70) - 5), // Slight quality penalty
       budget: sequelPlan.budget,
-      developmentStage: 'concept',
+      developmentStage: 'draft',
       themes: selectedProject.script?.themes || ['adventure', 'friendship'],
       targetAudience: selectedProject.script?.targetAudience || 'general',
       estimatedRuntime: (selectedProject.script?.estimatedRuntime || 120) + 10, // Slightly longer

@@ -64,7 +64,12 @@ export const RoleBasedCasting: React.FC<RoleBasedCastingProps> = ({
     if (!project?.script) return;
 
     const existing = project.script.characters || [];
-    const importedRoles = (!existing || existing.length === 0)
+    const shouldImport =
+      (project.script.sourceType === 'franchise' && !!project.script.franchiseId) ||
+      (project.script.sourceType === 'public-domain' && !!project.script.publicDomainId) ||
+      (project.script.sourceType === 'adaptation' && (!!project.script.franchiseId || !!project.script.publicDomainId));
+
+    const importedRoles = shouldImport && (!existing || existing.length === 0)
       ? importRolesForScript(project.script, gameState)
       : [];
 
@@ -153,7 +158,7 @@ export const RoleBasedCasting: React.FC<RoleBasedCastingProps> = ({
 
   const importRolesFromSource = () => {
     const script = project.script;
-    if (!script?.sourceType) {
+    if (!script || script.sourceType === 'original') {
       // Create default roles for original projects
       const defaultRoles: ScriptCharacter[] = [
         {

@@ -10,7 +10,7 @@ import { Slider } from '@/components/ui/slider';
 import { Badge } from '@/components/ui/badge';
 import { useToast } from '@/hooks/use-toast';
 import { ScriptCharacterManager, ScriptCharacter } from './ScriptCharacterManager';
-import { importRolesForScript } from '@/utils/roleImport';
+
 import { finalizeScriptForGreenlight, finalizeScriptForSave } from '@/utils/scriptFinalization';
 import { ScriptIcon, BudgetIcon, AwardIcon, ClapperboardIcon } from '@/components/ui/icons';
 
@@ -35,26 +35,28 @@ export const TVShowDevelopment: React.FC<TVShowDevelopmentProps> = ({
   const [editingScript, setEditingScript] = useState<Script | null>(null);
   const [scriptCharacters, setScriptCharacters] = useState<ScriptCharacter[]>([]);
 
-  const stageOrder: Script['developmentStage'][] = ['concept', 'treatment', 'first-draft', 'polish', 'final'];
+  const stageOrder: Script['developmentStage'][] = ['draft', 'final'];
 
   const handleEditTVScript = (script: Script) => {
-    const shouldSeedRoles =
-      (!script.characters || script.characters.length === 0) &&
-      (script.sourceType === 'franchise' || script.sourceType === 'public-domain' || script.sourceType === 'adaptation');
+    const finalized = finalizeScriptForSave(script, gameState);
 
-    const seededCharacters = shouldSeedRoles ? importRolesForScript(script, gameState) : (script.characters || []);
+    // Persist normalization so older saves / partial scripts get upgraded immediately.
+    const shouldPersist =
+      (finalized.characters || []).length !== (script.characters || []).length ||
+      (script.characters || []).some(c => !c.requiredType);
 
-    // Persist the seeded roles so this script carries them forward.
-    if (shouldSeedRoles && seededCharacters.length > 0) {
-      onScriptUpdate({ ...script, characters: seededCharacters });
+    if (shouldPersist) {
+      onScriptUpdate(finalized);
     }
+
+    const charactersForUI = finalized.characters || [];
 
     setEditingScript(script);
     setNewScript({
       ...script,
     });
     setScriptCharacters(
-      seededCharacters.map((c) => ({
+      charactersForUI.map((c) => ({
         ...c,
         description: c.description || '',
         ageRange: (c.ageRange as [number, number]) || [20, 60],
@@ -80,7 +82,7 @@ export const TVShowDevelopment: React.FC<TVShowDevelopmentProps> = ({
           pages: 60, // TV pilot length
           quality: 50 + (franchise.culturalWeight * 0.3),
           budget: Math.max(2000000, franchise.culturalWeight * 200000), // Per episode budget
-          developmentStage: 'concept',
+          developmentStage: 'draft',
           themes: franchise.franchiseTags.slice(0, 3),
           targetAudience: franchise.tone === 'light' ? 'family' : 'general',
           estimatedRuntime: 45, // Standard TV episode
@@ -110,7 +112,7 @@ export const TVShowDevelopment: React.FC<TVShowDevelopmentProps> = ({
           pages: 60,
           quality: 50 + (pd.reputationScore * 0.2),
           budget: Math.max(1500000, pd.reputationScore * 150000),
-          developmentStage: 'concept',
+          developmentStage: 'draft',
           themes: pd.coreElements.slice(0, 3),
           targetAudience: pd.domainType === 'folklore' ? 'family' : 'general',
           estimatedRuntime: 45,
@@ -138,7 +140,7 @@ export const TVShowDevelopment: React.FC<TVShowDevelopmentProps> = ({
       pages: 60,
       quality: 50,
       budget: 2000000, // Per episode
-      developmentStage: 'concept',
+      developmentStage: 'draft',
       themes: [],
       targetAudience: 'general',
       estimatedRuntime: 45,
@@ -169,7 +171,7 @@ export const TVShowDevelopment: React.FC<TVShowDevelopmentProps> = ({
       pages: initial.pages || 60,
       quality: initial.quality || 50,
       budget: initial.budget || 2000000,
-      developmentStage: (initial.developmentStage as any) || 'concept',
+      developmentStage: (initial.developmentStage as any) || 'draft',
       themes: initial.themes || [],
       targetAudience: (initial.targetAudience as any) || 'general',
       estimatedRuntime: initial.estimatedRuntime || 45,
@@ -181,8 +183,8 @@ export const TVShowDevelopment: React.FC<TVShowDevelopmentProps> = ({
     };
 
     if (tempScript.sourceType === 'franchise' || tempScript.sourceType === 'public-domain' || tempScript.sourceType === 'adaptation') {
-      const imported = importRolesForScript(tempScript, gameState);
-      const adapted = imported.map((c): ScriptCharacter => ({
+      const finalized = finalizeScriptForSave(tempScript, gameState);
+      const adapted = (finalized.characters || []).map((c): ScriptCharacter => ({
         ...c,
         importance: c.importance as any,
         screenTimeMinutes: c.importance === 'lead' ? 60 : c.importance === 'supporting' ? 25 : c.importance === 'minor' ? 5 : 0,
@@ -215,7 +217,7 @@ export const TVShowDevelopment: React.FC<TVShowDevelopmentProps> = ({
       pages: newScript.pages || 60,
       quality: newScript.quality || 50,
       budget: newScript.budget || 2000000,
-      developmentStage: newScript.developmentStage || 'concept',
+      developmentStage: newScript.developmentStage || 'draft',
       themes: newScript.themes || [],
       targetAudience: newScript.targetAudience!,
       estimatedRuntime: newScript.estimatedRuntime || 45,
@@ -253,12 +255,34 @@ export const TVShowDevelopment: React.FC<TVShowDevelopmentProps> = ({
     });
   };
 
+  const handleFinalizeTVScript = (script: Script) => {
+    const { script: finalized, report } = finalizeScriptForGreenlight(script, gameState);
+
+    if (!report.canFinalize) {
+      toast({
+        title: 'Cannot Finalize',
+        description: report.issues.filter(i => i.level === 'error').map(i => i.message).join(' '),
+        variant: 'destructive',
+      });
+      return;
+    }
+
+    onScriptUpdate(finalized);
+
+    toast({
+      title: 'Script Finalized',
+      description: report.fixesApplied.length > 0
+        ? `${finalized.title}: ${report.fixesApplied.join(', ')}`
+        : `${finalized.title} is ready for greenlight.`,
+    });
+  };
+
   const handleGreenlightTVScript = (script: Script) => {
     // Enforce script refinement gate — same as film scripts
     if (script.developmentStage !== 'final') {
       toast({
         title: "Script Not Ready",
-        description: "Refine the TV script to 'Final' stage before greenlighting. Edit the script to advance its stage.",
+        description: "Finalize the TV script before greenlighting.",
         variant: "destructive"
       });
       return;
@@ -517,30 +541,18 @@ export const TVShowDevelopment: React.FC<TVShowDevelopmentProps> = ({
               </div>
             </div>
 
-            {/* Development Stage (for editing) */}
-            {editingScript && (
-              <div className="border-t pt-4">
-                <Label>Development Stage</Label>
-                <Select 
-                  value={newScript.developmentStage || 'concept'} 
-                  onValueChange={(value) => setNewScript(prev => ({ ...prev, developmentStage: value as Script['developmentStage'] }))}
-                >
-                  <SelectTrigger>
-                    <SelectValue />
-                  </SelectTrigger>
-                  <SelectContent>
-                    {stageOrder.map(stage => (
-                      <SelectItem key={stage} value={stage} className="capitalize">
-                        {stage.replace('-', ' ')}
-                      </SelectItem>
-                    ))}
-                  </SelectContent>
-                </Select>
-                <p className="text-xs text-muted-foreground mt-1">
-                  Scripts must reach "Final" stage before they can be greenlit into production.
+            {/* Development Stage (read-only) */}
+            <div className="border-t pt-4">
+              <Label>Development Stage</Label>
+              <div className="mt-2 flex items-center gap-2">
+                <Badge variant={newScript.developmentStage === 'final' ? 'default' : 'secondary'} className="capitalize">
+                  {(newScript.developmentStage || 'draft').replace('-', ' ')}
+                </Badge>
+                <p className="text-xs text-muted-foreground">
+                  Finalize from the TV script library before greenlighting.
                 </p>
               </div>
-            )}
+            </div>
 
             {/* Character Manager */}
             <div className="border-t pt-6">
@@ -591,7 +603,7 @@ export const TVShowDevelopment: React.FC<TVShowDevelopmentProps> = ({
           ) : (
             <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
               {availableTVScripts.map((script) => {
-                const stageIndex = stageOrder.indexOf(script.developmentStage || 'concept');
+                const stageIndex = stageOrder.indexOf(script.developmentStage || 'draft');
                 const stageProgress = ((stageIndex + 1) / stageOrder.length) * 100;
                 const isReadyToGreenlight = script.developmentStage === 'final';
 
@@ -622,7 +634,7 @@ export const TVShowDevelopment: React.FC<TVShowDevelopmentProps> = ({
                       <div className="space-y-1">
                         <div className="flex justify-between text-xs text-muted-foreground">
                           <span>Script Stage</span>
-                          <span className="capitalize">{(script.developmentStage || 'concept').replace('-', ' ')}</span>
+                          <span className="capitalize">{(script.developmentStage || 'draft').replace('-', ' ')}</span>
                         </div>
                         <div className="w-full bg-muted rounded-full h-1.5">
                           <div 
@@ -656,20 +668,30 @@ export const TVShowDevelopment: React.FC<TVShowDevelopmentProps> = ({
                         >
                           ✏️ Edit
                         </Button>
-                        <Button 
-                          size="sm" 
-                          className={`flex-1 ${!isReadyToGreenlight ? 'opacity-60' : ''}`}
-                          onClick={() => handleGreenlightTVScript(script)}
-                          disabled={gameState.studio.budget < script.budget * 0.1}
-                          title={!isReadyToGreenlight ? 'Refine the script to "final" stage before greenlighting' : ''}
-                        >
-                          <ClapperboardIcon className="w-4 h-4 mr-1" />
-                          {isReadyToGreenlight ? 'Greenlight' : 'Not Ready'}
-                        </Button>
+                        {isReadyToGreenlight ? (
+                          <Button 
+                            size="sm" 
+                            className="flex-1"
+                            onClick={() => handleGreenlightTVScript(script)}
+                            disabled={gameState.studio.budget < script.budget * 0.1}
+                          >
+                            <ClapperboardIcon className="w-4 h-4 mr-1" />
+                            Greenlight
+                          </Button>
+                        ) : (
+                          <Button 
+                            size="sm" 
+                            className="flex-1"
+                            variant="outline"
+                            onClick={() => handleFinalizeTVScript(script)}
+                          >
+                            Finalize
+                          </Button>
+                        )}
                       </div>
                       {!isReadyToGreenlight && (
                         <p className="text-xs text-muted-foreground text-center">
-                          Edit and advance to "final" stage to greenlight
+                          Finalize the script before greenlighting
                         </p>
                       )}
                     </div>

@@ -30,8 +30,6 @@ function ensureRequiredType(chars: ScriptCharacter[]): ScriptCharacter[] {
   });
 }
 
-
-
 function ensureDirector(chars: ScriptCharacter[], fixesApplied: string[]): ScriptCharacter[] {
   if (chars.some(c => !c.excluded && c.requiredType === 'director')) return chars;
   fixesApplied.push('Added a Director role');
@@ -43,7 +41,6 @@ function ensureDirector(chars: ScriptCharacter[], fixesApplied: string[]): Scrip
       importance: 'crew',
       requiredType: 'director',
       description: 'Film director',
-      locked: true,
     },
   ];
 }
@@ -145,6 +142,7 @@ export function finalizeScriptForSave(input: Script, gameState: GameState): Scri
 
   return {
     ...input,
+    developmentStage: input.developmentStage === 'final' ? 'final' : 'draft',
     characters,
   };
 }
@@ -179,8 +177,7 @@ export function finalizeScriptForGreenlight(input: Script, gameState: GameState)
   const script: Script = {
     ...input,
     characters,
-    // Only force final when it's actually valid
-    developmentStage: hasBlocking ? input.developmentStage : 'final',
+    developmentStage: hasBlocking ? 'draft' : 'final',
   };
 
   return {

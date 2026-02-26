@@ -54,20 +54,7 @@ export class ReleaseSystem {
     const actualHasDirector = casting.hasDirector;
     const actualHasLead = casting.hasLead;
 
-    if ((import.meta as any).env?.DEV) {
-      console.log('RELEASE_VALIDATION: cast check', {
-        projectId: project.id,
-        title: project.title,
-        type: project.type,
-        status: project.status,
-        phase: project.currentPhase,
-        castingSource: casting.source,
-        scriptCharacters: project.script?.characters?.length,
-        assignedRoles: casting.assignedCount,
-        hasDirector: actualHasDirector,
-        hasLead: actualHasLead,
-      });
-    }
+    
 
     const hasCast = casting.assignedCount > 0;
     
@@ -122,15 +109,17 @@ export class ReleaseSystem {
     // Validate film readiness
     const filmValidation = this.validateFilmForRelease(film);
     if (!filmValidation.canRelease) {
-      console.error('RELEASE_SYSTEM: validation failed', {
-        filmId: film.id,
-        title: film.title,
-        type: film.type,
-        errors: filmValidation.errors,
-        warnings: filmValidation.warnings,
-        phase: (film as any).currentPhase,
-        status: film.status,
-      });
+      if ((import.meta as any).env?.DEV) {
+        console.error('RELEASE_SYSTEM: validation failed', {
+          filmId: film.id,
+          title: film.title,
+          type: film.type,
+          errors: filmValidation.errors,
+          warnings: filmValidation.warnings,
+          phase: (film as any).currentPhase,
+          status: film.status,
+        });
+      }
       return {
         success: false,
         message: `Cannot release: ${filmValidation.errors.join(', ')}`
@@ -140,14 +129,16 @@ export class ReleaseSystem {
     // Validate calendar slot
     const calendarValidation = CalendarManager.validateRelease(film.id, safeTargetWeek, targetYear, currentTime);
     if (!calendarValidation.canRelease) {
-      console.error('RELEASE_SYSTEM: calendar validation failed', {
-        filmId: film.id,
-        title: film.title,
-        targetWeek,
-        targetYear,
-        currentTime,
-        reason: calendarValidation.reason,
-      });
+      if ((import.meta as any).env?.DEV) {
+        console.error('RELEASE_SYSTEM: calendar validation failed', {
+          filmId: film.id,
+          title: film.title,
+          targetWeek,
+          targetYear,
+          currentTime,
+          reason: calendarValidation.reason,
+        });
+      }
       return {
         success: false,
         message: calendarValidation.reason || 'Release date not available'
@@ -179,7 +170,9 @@ export class ReleaseSystem {
       }
     }
     
-    console.log(`RELEASE: Scheduled ${film.title} for Y${targetYear}W${safeTargetWeek}`);
+    if ((import.meta as any).env?.DEV) {
+      console.log(`RELEASE: Scheduled ${film.title} for Y${targetYear}W${safeTargetWeek}`);
+    }
 
     return {
       success: true,
@@ -197,7 +190,9 @@ export class ReleaseSystem {
     
     releaseEvents.forEach(event => {
       if (event.filmId) {
-        console.log(`RELEASE: Processing release for film ${event.filmId} - ${event.title}`);
+        if ((import.meta as any).env?.DEV) {
+          console.log(`RELEASE: Processing release for film ${event.filmId} - ${event.title}`);
+        }
         // Return just the ID for now - the main game will handle the full project update
         releasingFilms.push({
           id: event.filmId,
@@ -234,7 +229,9 @@ export class ReleaseSystem {
   
   static cancelRelease(filmId: string): boolean {
     CalendarManager.clearFilmEvents(filmId);
-    console.log(`RELEASE: Cancelled release for film ${filmId}`);
+    if ((import.meta as any).env?.DEV) {
+      console.log(`RELEASE: Cancelled release for film ${filmId}`);
+    }
     return true;
   }
   

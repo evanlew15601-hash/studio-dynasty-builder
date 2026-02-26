@@ -137,7 +137,7 @@ describe('ReleaseSystem.validateFilmForRelease - excluded roles', () => {
     expect(res.canRelease).toBe(true);
   });
 
-  it('falls back to legacy project.cast when script characters are all excluded (treated as non-participating)', () => {
+  it('does not fall back to legacy project.cast when script characters are non-empty, even if all roles are excluded', () => {
     const project = makeProject({
       script: makeScript({
         characters: [
@@ -162,6 +162,7 @@ describe('ReleaseSystem.validateFilmForRelease - excluded roles', () => {
     });
 
     const res = ReleaseSystem.validateFilmForRelease(project);
-    expect(res.canRelease).toBe(true);
+    expect(res.canRelease).toBe(false);
+    expect(res.errors.join(' | ')).toMatch(/cast member/i);
   });
 });

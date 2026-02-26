@@ -109,7 +109,7 @@ export interface Script {
   pages: number;
   quality: number;
   budget: number;
-  developmentStage: 'concept' | 'treatment' | 'first-draft' | 'polish' | 'final';
+  developmentStage: 'draft' | 'final';
   themes: string[];
   targetAudience: 'general' | 'mature' | 'teen' | 'family';
   estimatedRuntime: number;
