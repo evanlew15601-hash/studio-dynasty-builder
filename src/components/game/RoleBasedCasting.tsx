@@ -39,10 +39,10 @@ export const RoleBasedCasting: React.FC<RoleBasedCastingProps> = ({
     if (castingLocked) return;
     const nextExcluded = !character.excluded;
 
+    // Excluding a role removes it from production/casting requirements, but does not
+    // revoke the talent attachment (contracts/ownership can still matter).
     onUpdateRole(character.id, {
       excluded: nextExcluded,
-      // Excluded roles should not keep assignments.
-      assignedTalentId: nextExcluded ? undefined : character.assignedTalentId,
     });
 
     if (nextExcluded) setEditingRoleId(null);

@@ -46,16 +46,19 @@ function mergeWithOverrides(existing: ScriptCharacter | undefined, incoming: Scr
   return {
     ...incoming,
     id: existing.id || incoming.id,
-    name: overrides.name || incoming.name,
-    description: overrides.description || incoming.description,
-    // Back-compat: older saves stored traits directly on the role without populating localOverrides.
-    // Don't discard persisted traits when re-importing roles.
+
+    // Prefer explicit overrides (if present), otherwise preserve any locally persisted
+    // edits from older saves/UI, then fall back to the latest imported values.
+    name: overrides.name ?? incoming.name ?? existing.name,
+    description: overrides.description ?? incoming.description ?? existing.description,
     traits: overrides.traits ?? existing.traits ?? incoming.traits,
-    ageRange: overrides.ageRange || incoming.ageRange,
+    ageRange: overrides.ageRange ?? existing.ageRange ?? incoming.ageRange,
+
     screenTimeMinutes: existing.screenTimeMinutes ?? incoming.screenTimeMinutes,
-    // Excluded roles should not retain talent assignments.
-    assignedTalentId: existing.excluded ? undefined : existing.assignedTalentId,
-    excluded: existing.excluded,
+    excluded: existing.excluded ?? incoming.excluded,
+
+    assignedTalentId: existing.assignedTalentId,
+
     locked: typeof incoming.locked === 'boolean' ? incoming.locked : existing.locked,
     franchiseId: incoming.franchiseId,
     franchiseCharacterId: incoming.franchiseCharacterId,

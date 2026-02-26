@@ -109,7 +109,7 @@ describe('importRolesForScript', () => {
     expect(importedAgain).toHaveLength(imported.length);
   });
 
-  it('merges imported roles with existing localOverrides and clears assignedTalentId when excluded', () => {
+  it('merges imported roles with existing localOverrides and preserves assignedTalentId even when excluded', () => {
     vi.spyOn(Date, 'now').mockReturnValue(456);
 
     const franchise: Franchise = {
@@ -159,7 +159,7 @@ describe('importRolesForScript', () => {
     expect(hero?.id).toBe('hero-custom-id');
     expect(hero?.name).toBe('My Luke');
     expect(hero?.description).toBe('A custom description');
-    expect(hero?.assignedTalentId).toBeUndefined();
+    expect(hero?.assignedTalentId).toBe('talent-1');
     expect(hero?.excluded).toBe(true);
     expect(hero?.locked).toBe(true);
   });

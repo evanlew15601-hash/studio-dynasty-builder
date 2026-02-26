@@ -30,10 +30,7 @@ function ensureRequiredType(chars: ScriptCharacter[]): ScriptCharacter[] {
   });
 }
 
-function clearAssignmentsForExcluded(chars: ScriptCharacter[]): ScriptCharacter[] {
-  // Policy: excluded roles are non-participating and should not keep a cast/crew assignment.
-  return chars.map(c => (c.excluded ? { ...c, assignedTalentId: undefined } : c));
-}
+
 
 function ensureDirector(chars: ScriptCharacter[], fixesApplied: string[]): ScriptCharacter[] {
   if (chars.some(c => !c.excluded && c.requiredType === 'director')) return chars;
@@ -145,7 +142,6 @@ export function finalizeScriptForSave(input: Script, gameState: GameState): Scri
   }
 
   characters = ensureRequiredType(characters);
-  characters = clearAssignmentsForExcluded(characters);
 
   return {
     ...input,
@@ -173,7 +169,6 @@ export function finalizeScriptForGreenlight(input: Script, gameState: GameState)
   }
 
   characters = ensureRequiredType(characters);
-  characters = clearAssignmentsForExcluded(characters);
   characters = ensureDirector(characters, fixesApplied);
   characters = ensureLeadActor(characters, fixesApplied);
   characters = ensureMinor(characters, fixesApplied);

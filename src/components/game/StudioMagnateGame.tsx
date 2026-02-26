@@ -116,7 +116,7 @@ function attachBasicCastForAI(project: Project, talentPool: TalentPerson[]): Pro
       if (!c.excluded && c.importance === 'lead' && c.requiredType !== 'director' && !c.assignedTalentId && lead) return { ...c, assignedTalentId: lead.id };
       return c;
     }) : [
-      { id: `${project.id}-dir`, name: 'Director', description: 'Director', requiredType: 'director', importance: 'lead', traits: ['mandatory'], assignedTalentId: director?.id } as any,
+      { id: `${project.id}-dir`, name: 'Director', description: 'Director', requiredType: 'director', importance: 'crew', traits: ['mandatory'], assignedTalentId: director?.id } as any,
       { id: `${project.id}-lead`, name: 'Protagonist', description: 'Lead role', requiredType: 'actor', importance: 'lead', traits: ['mandatory'], assignedTalentId: lead?.id } as any,
     ];
 
