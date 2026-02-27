@@ -30,16 +30,18 @@ export const EnhancedTalentManagement: React.FC<EnhancedTalentManagementProps> =
   const getEnhancedTalentList = () => {
     return gameState.talent.map(talent => {
       // Check if talent is currently busy
-      const isBusy = gameState.projects.some(project => 
-        project.cast?.some(cast => cast.talentId === talent.id) &&
+      const isBusy = gameState.projects.some(project =>
+        getProjectAssignedTalentIds(project).includes(talent.id) &&
         ['development', 'pre-production', 'production', 'post-production'].includes(project.status)
       );
 
       // Get current project if busy
-      const currentProject = isBusy ? gameState.projects.find(project => 
-        project.cast?.some(cast => cast.talentId === talent.id) &&
-        ['development', 'pre-production', 'production', 'post-production'].includes(project.status)
-      ) : null;
+      const currentProject = isBusy
+        ? gameState.projects.find(project =>
+            getProjectAssignedTalentIds(project).includes(talent.id) &&
+            ['development', 'pre-production', 'production', 'post-production'].includes(project.status)
+          )
+        : null;
 
       // Check if under contract with studio
       const contract = (gameState.studio as any).contractedTalent?.find((c: any) => c.talentId === talent.id);

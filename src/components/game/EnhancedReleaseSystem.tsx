@@ -1,5 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import { Project, GameState } from '@/types/game';
+import { getProjectCastingSummary } from '@/utils/projectCasting';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
@@ -27,29 +28,27 @@ export const EnhancedReleaseSystem: React.FC<EnhancedReleaseSystemProps> = ({
     const errors: string[] = [];
     const warnings: string[] = [];
 
-    // Check casting requirements
-    const hasDirector = project.cast?.some(c => 
-      c.role === 'Director' || c.role.toLowerCase().includes('director')
-    );
-    
-    if (!hasDirector) {
+    // Casting/cast requirements: script.characters is the source of truth when present and non-empty.
+    const casting = getProjectCastingSummary(project);
+
+    const actualHasDirector = casting.hasDirector;
+    const actualHasLeadActor = casting.hasLead;
+
+    if (!actualHasDirector) {
       errors.push("Director must be assigned before release");
     }
-    
-    const hasLeadActor = project.cast?.some(c => 
-      c.role.toLowerCase().includes('lead') || c.role.toLowerCase().includes('protagonist')
-    );
-    
-    if (!hasLeadActor) {
+
+    if (!actualHasLeadActor) {
       errors.push("At least one lead actor must be cast before release");
     }
-    
+
     // Check casting confirmation
-    if (!project.castingConfirmed) {
+    if (!project.castingConfirmed && !(actualHasDirector && actualHasLeadActor)) {
       errors.push("Casting must be confirmed before release");
     }
-    
-    if (project.cast && project.cast.length < 2) {
+
+    const castCount = casting.assignedCount;
+    if (castCount < 2) {
       warnings.push("Very small cast - consider adding more roles");
     }
 

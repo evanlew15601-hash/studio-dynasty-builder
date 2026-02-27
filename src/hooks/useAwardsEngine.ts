@@ -3,6 +3,7 @@ import { GameState, Project, Studio, StudioAward, TalentAward, TalentPerson } fr
 import { getAwardShowsForYear } from '@/data/AwardsSchedule';
 import { useToast } from '@/hooks/use-toast';
 import { AwardShowCeremony } from '@/components/game/IndividualAwardShowModal';
+import { findRelevantTalentForAwardsCategory } from '@/utils/awardsTalentSelection';
 
 // Headless awards season engine: runs nominations and ceremonies regardless of UI phase
 export function useAwardsEngine(
@@ -411,90 +412,6 @@ const aiProjects = gameState.allReleases.filter((release): release is Project =>
 
   // Helper function to find relevant talent for awards categories
   const findRelevantTalent = (project: Project, category: string): TalentPerson | undefined => {
-    const categoryLower = category.toLowerCase();
-
-    // Prefer explicit cast list first
-    const castEntries = project.cast || [];
-    const characters = project.script?.characters || [];
-
-    const getTalentById = (id?: string) => gameState.talent.find(t => t.id === id);
-
-    // Director category
-    if (categoryLower.includes('director')) {
-      // From cast
-      const castDir = castEntries.find(c => c.role.toLowerCase().includes('director'));
-      if (castDir) {
-        const t = getTalentById(castDir.talentId);
-        if (t && t.type === 'director') return t;
-      }
-      // Fallback to script characters
-      const charDir = characters.find(c => c.requiredType === 'director');
-      const t = getTalentById(charDir?.assignedTalentId);
-      if (t && t.type === 'director') return t;
-      return undefined;
-    }
-
-    // Acting categories - improved gender handling
-    const isActress = categoryLower.includes('actress');
-    const isSupporting = categoryLower.includes('supporting');
-
-    // First try to find exact role matches from cast
-    if (isSupporting) {
-      const supportingCast = castEntries.filter(c => 
-        c.role.toLowerCase().includes('supporting') && 
-        (!isActress || getTalentById(c.talentId)?.gender === 'Female')
-      );
-      if (supportingCast.length > 0) {
-        const randomSupporting = supportingCast[Math.floor(Math.random() * supportingCast.length)];
-        const talent = getTalentById(randomSupporting.talentId);
-        if (talent && talent.type === 'actor') return talent;
-      }
-    } else {
-      // Lead roles
-      const leadCast = castEntries.filter(c => 
-        (c.role.toLowerCase().includes('lead') || c.role.toLowerCase().includes('actor') || c.role.toLowerCase().includes('actress')) &&
-        !c.role.toLowerCase().includes('supporting') &&
-        (!isActress || getTalentById(c.talentId)?.gender === 'Female')
-      );
-      if (leadCast.length > 0) {
-        const randomLead = leadCast[Math.floor(Math.random() * leadCast.length)];
-        const talent = getTalentById(randomLead.talentId);
-        if (talent && talent.type === 'actor') return talent;
-      }
-    }
-
-    // Fallback to any actor with proper gender
-    const anyActorCast = castEntries.filter(c => {
-      const talent = getTalentById(c.talentId);
-      return talent && talent.type === 'actor' && 
-             (!isActress || talent.gender === 'Female') &&
-             (isActress || talent.gender !== 'Female');
-    });
-    
-    if (anyActorCast.length > 0) {
-      const randomActor = anyActorCast[Math.floor(Math.random() * anyActorCast.length)];
-      const talent = getTalentById(randomActor.talentId);
-      if (talent && talent.type === 'actor') return talent;
-    }
-
-    // Final fallback to script characters
-    const char = characters.find(ch => {
-      if (ch.requiredType === 'director') return false;
-      const talent = getTalentById(ch.assignedTalentId);
-      if (!talent || talent.type !== 'actor') return false;
-      
-      if (isActress && talent.gender !== 'Female') return false;
-      if (!isActress && talent.gender === 'Female') return false;
-      
-      if (isSupporting) return ch.importance === 'supporting';
-      return ch.importance === 'lead';
-    });
-    
-    if (char) {
-      const talent = getTalentById(char.assignedTalentId);
-      if (talent && talent.type === 'actor') return talent;
-    }
-
-    return undefined;
+    return findRelevantTalentForAwardsCategory({ project, category, talentPool: gameState.talent });
   };
 }

@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useMemo, useState } from 'react';
 import { GameState, Franchise, Script } from '@/types/game';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
@@ -7,7 +7,7 @@ import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Textarea } from '@/components/ui/textarea';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
-import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger } from '@/components/ui/dialog';
+import { Dialog, DialogContent, DialogHeader, DialogTitle } from '@/components/ui/dialog';
 import { useToast } from '@/hooks/use-toast';
 import { Plus, Film, Crown, TrendingUp } from 'lucide-react';
 import { finalizeScriptForSave } from '@/utils/scriptFinalization';
@@ -36,6 +36,7 @@ export const FranchiseProjectCreator: React.FC<FranchiseProjectCreatorProps> = (
   const { toast } = useToast();
   const [selectedFranchise, setSelectedFranchise] = useState<Franchise | null>(null);
   const [isCreating, setIsCreating] = useState(false);
+
   const [projectForm, setProjectForm] = useState<NewProjectForm>({
     title: '',
     description: '',
@@ -48,49 +49,54 @@ export const FranchiseProjectCreator: React.FC<FranchiseProjectCreatorProps> = (
     projectType: 'film'
   });
 
-  // Get franchises owned by the player
-  const ownedFranchises = gameState.franchises.filter(f => f.creatorStudioId === gameState.studio.id);
+  const ownedFranchises = useMemo(
+    () => (gameState.franchises || []).filter(f => f.creatorStudioId === gameState.studio.id),
+    [gameState.franchises, gameState.studio.id]
+  );
 
-  // Get franchise projects count
   const getFranchiseProjectCount = (franchise: Franchise) => {
-    return gameState.projects.filter(p => p.script?.franchiseId === franchise.id).length;
+    return (gameState.projects || []).filter(p => p.script?.franchiseId === franchise.id).length;
   };
 
-  // Start creating a new franchise project
+  const getFranchiseProjects = (franchise: Franchise) => {
+    return (gameState.projects || []).filter(p => p.script?.franchiseId === franchise.id);
+  };
+
   const startProjectCreation = (franchise: Franchise) => {
     setSelectedFranchise(franchise);
     const projectCount = getFranchiseProjectCount(franchise);
-    
+
     setProjectForm({
       title: `${franchise.title} ${projectCount === 0 ? 'Origins' : projectCount === 1 ? 'Returns' : `Part ${projectCount + 1}`}`,
       description: `A new entry in the ${franchise.title} franchise`,
       genre: franchise.genre?.[0] || 'action',
-      budget: 15000000 + (projectCount * 5000000), // Increasing budgets for features by default
+      budget: 15000000 + (projectCount * 5000000),
       timeline: 'standard',
       tone: franchise.tone || 'balanced',
       targetAudience: 'general',
       estimatedRuntime: 120,
       projectType: 'film'
     });
+
     setIsCreating(true);
   };
 
-  // Create the franchise project
   const createFranchiseProject = () => {
     if (!selectedFranchise) return;
 
-    if (projectForm.budget > gameState.studio.budget) {
+    const developmentCost = projectForm.budget * 0.1;
+    const maxLoanCapacity = Math.max(0, 50_000_000 - (gameState.studio.debt || 0));
+    const availableFunds = gameState.studio.budget + maxLoanCapacity;
+
+    if (developmentCost > availableFunds) {
       toast({
-        title: "Insufficient Budget",
-        description: `Need ${(projectForm.budget / 1000000).toFixed(1)}M to develop this project`,
-        variant: "destructive"
+        title: 'Insufficient Budget',
+        description: 'Need ' + (developmentCost / 1000000).toFixed(1) + 'M available (10% development cost) to start this project',
+        variant: 'destructive'
       });
       return;
     }
 
-    const projectCount = getFranchiseProjectCount(selectedFranchise);
-    
-    // Derive script fields based on chosen project type (film vs TV)
     const isTV = projectForm.projectType === 'tv';
     const pages = isTV ? 60 : 100 + Math.floor(Math.random() * 40);
     const estimatedRuntime = isTV ? 45 : projectForm.estimatedRuntime;
@@ -103,12 +109,12 @@ export const FranchiseProjectCreator: React.FC<FranchiseProjectCreatorProps> = (
       logline: projectForm.description,
       writer: 'Studio Writer',
       pages,
-      quality: 60 + Math.floor(Math.random() * 20), // 60-80 starting quality
+      quality: 60 + Math.floor(Math.random() * 20),
       budget: projectForm.budget,
-      developmentStage: 'concept',
+      developmentStage: 'draft',
       themes: selectedFranchise.franchiseTags?.slice(0, 3) || ['adventure'],
       targetAudience: projectForm.targetAudience as any,
-      estimatedRuntime: estimatedRuntime,
+      estimatedRuntime,
       characteristics: {
         tone: projectForm.tone as any,
         pacing: pacing as any,
@@ -124,12 +130,11 @@ export const FranchiseProjectCreator: React.FC<FranchiseProjectCreatorProps> = (
     };
 
     const finalized = finalizeScriptForSave(script, gameState);
-
     onProjectCreate(finalized);
-    
+
     toast({
-      title: "Franchise Project Started",
-      description: `"${projectForm.title}" is now in development as part of ${selectedFranchise.title}`,
+      title: 'Franchise Project Started',
+      description: '"' + projectForm.title + '" is now in development as part of ' + selectedFranchise.title,
     });
 
     setIsCreating(false);
@@ -152,7 +157,6 @@ export const FranchiseProjectCreator: React.FC<FranchiseProjectCreatorProps> = (
 
   return (
     <div className="space-y-6">
-      {/* Header */}
       <Card>
         <CardHeader>
           <CardTitle className="flex items-center gap-2">
@@ -162,18 +166,17 @@ export const FranchiseProjectCreator: React.FC<FranchiseProjectCreatorProps> = (
         </CardHeader>
         <CardContent>
           <p className="text-sm text-muted-foreground">
-            Create new projects within your owned franchises. Build cinematic universes and expand successful properties.
+            Create new projects within your owned franchises.
           </p>
         </CardContent>
       </Card>
 
-      {/* Project Creation Dialog */}
       <Dialog open={isCreating} onOpenChange={setIsCreating}>
         <DialogContent className="max-w-2xl">
           <DialogHeader>
             <DialogTitle>Create New Franchise Project</DialogTitle>
           </DialogHeader>
-          
+
           <div className="space-y-4">
             {selectedFranchise && (
               <div className="flex items-center gap-2 p-3 bg-muted rounded">
@@ -194,10 +197,39 @@ export const FranchiseProjectCreator: React.FC<FranchiseProjectCreatorProps> = (
                   onChange={(e) => setProjectForm(prev => ({ ...prev, title: e.target.value }))}
                 />
               </div>
-              
+
+              <div>
+                <Label htmlFor="project-type">Project Type</Label>
+                <Select
+                  value={projectForm.projectType}
+                  onValueChange={(value) => setProjectForm(prev => ({ ...prev, projectType: value as any }))}
+                >
+                  <SelectTrigger>
+                    <SelectValue />
+                  </SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value="film">Film</SelectItem>
+                    <SelectItem value="tv">TV</SelectItem>
+                  </SelectContent>
+                </Select>
+              </div>
+
+              <div className="md:col-span-2">
+                <Label htmlFor="project-description">Description / Logline</Label>
+                <Textarea
+                  id="project-description"
+                  value={projectForm.description}
+                  onChange={(e) => setProjectForm(prev => ({ ...prev, description: e.target.value }))}
+                  rows={3}
+                />
+              </div>
+
               <div>
                 <Label htmlFor="project-genre">Genre</Label>
-                <Select value={projectForm.genre} onValueChange={(value) => setProjectForm(prev => ({ ...prev, genre: value }))}>
+                <Select
+                  value={projectForm.genre}
+                  onValueChange={(value) => setProjectForm(prev => ({ ...prev, genre: value }))}
+                >
                   <SelectTrigger>
                     <SelectValue />
                   </SelectTrigger>
@@ -207,67 +239,56 @@ export const FranchiseProjectCreator: React.FC<FranchiseProjectCreatorProps> = (
                     <SelectItem value="comedy">Comedy</SelectItem>
                     <SelectItem value="drama">Drama</SelectItem>
                     <SelectItem value="horror">Horror</SelectItem>
-                    <SelectItem value="sci-fi">Sci-Fi</SelectItem>
-                    <SelectItem value="fantasy">Fantasy</SelectItem>
                     <SelectItem value="thriller">Thriller</SelectItem>
+                    <SelectItem value="sci-fi">Sci-Fi</SelectItem>
                     <SelectItem value="romance">Romance</SelectItem>
                   </SelectContent>
                 </Select>
               </div>
-            </div>
 
-            <div>
-              <Label htmlFor="project-description">Description</Label>
-              <Textarea
-                id="project-description"
-                value={projectForm.description}
-                onChange={(e) => setProjectForm(prev => ({ ...prev, description: e.target.value }))}
-                rows={3}
-              />
-            </div>
-
-            <div className="grid grid-cols-1 md:grid-cols-4 gap-4">
               <div>
-                <Label htmlFor="project-type">Project Type</Label>
+                <Label htmlFor="project-budget">Budget</Label>
+                <Input
+                  id="project-budget"
+                  type="number"
+                  min={1000000}
+                  step={1000000}
+                  value={projectForm.budget}
+                  onChange={(e) => setProjectForm(prev => ({ ...prev, budget: parseInt(e.target.value) || 0 }))}
+                />
+              </div>
+
+              <div>
+                <Label htmlFor="project-tone">Tone</Label>
                 <Select
-                  value={projectForm.projectType}
-                  onValueChange={(value: any) => setProjectForm(prev => ({ ...prev, projectType: value }))}
+                  value={projectForm.tone}
+                  onValueChange={(value) => setProjectForm(prev => ({ ...prev, tone: value }))}
                 >
                   <SelectTrigger>
                     <SelectValue />
                   </SelectTrigger>
                   <SelectContent>
-                    <SelectItem value="film">Feature Film</SelectItem>
-                    <SelectItem value="tv">TV Series</SelectItem>
+                    <SelectItem value="dark">Dark</SelectItem>
+                    <SelectItem value="balanced">Balanced</SelectItem>
+                    <SelectItem value="light">Light</SelectItem>
                   </SelectContent>
                 </Select>
               </div>
 
               <div>
-                <Label htmlFor="project-budget">Budget (${(projectForm.budget / 1000000).toFixed(1)}M)</Label>
-                <Input
-                  id="project-budget"
-                  type="range"
-                  min="5000000"
-                  max="200000000"
-                  step="5000000"
-                  value={projectForm.budget}
-                  onChange={(e) => setProjectForm(prev => ({ ...prev, budget: parseInt(e.target.value) }))}
-                />
-              </div>
-              
-              <div>
-                <Label htmlFor="project-tone">Tone</Label>
-                <Select value={projectForm.tone} onValueChange={(value) => setProjectForm(prev => ({ ...prev, tone: value }))}>
+                <Label htmlFor="project-audience">Target Audience</Label>
+                <Select
+                  value={projectForm.targetAudience}
+                  onValueChange={(value) => setProjectForm(prev => ({ ...prev, targetAudience: value }))}
+                >
                   <SelectTrigger>
                     <SelectValue />
                   </SelectTrigger>
                   <SelectContent>
-                    <SelectItem value="dark">Dark</SelectItem>
-                    <SelectItem value="light">Light</SelectItem>
-                    <SelectItem value="balanced">Balanced</SelectItem>
-                    <SelectItem value="satirical">Satirical</SelectItem>
-                    <SelectItem value="dramatic">Dramatic</SelectItem>
+                    <SelectItem value="general">General</SelectItem>
+                    <SelectItem value="family">Family</SelectItem>
+                    <SelectItem value="young-adult">Young Adult</SelectItem>
+                    <SelectItem value="adult">Adult</SelectItem>
                   </SelectContent>
                 </Select>
               </div>
@@ -280,7 +301,10 @@ export const FranchiseProjectCreator: React.FC<FranchiseProjectCreatorProps> = (
                   min={projectForm.projectType === 'tv' ? 20 : 90}
                   max={projectForm.projectType === 'tv' ? 90 : 240}
                   value={projectForm.estimatedRuntime}
-                  onChange={(e) => setProjectForm(prev => ({ ...prev, estimatedRuntime: parseInt(e.target.value) || (prev.projectType === 'tv' ? 45 : 120) }))}
+                  onChange={(e) => setProjectForm(prev => ({
+                    ...prev,
+                    estimatedRuntime: parseInt(e.target.value) || (prev.projectType === 'tv' ? 45 : 120)
+                  }))}
                 />
               </div>
             </div>
@@ -288,11 +312,11 @@ export const FranchiseProjectCreator: React.FC<FranchiseProjectCreatorProps> = (
             <div className="flex gap-3">
               <Button
                 onClick={createFranchiseProject}
-                disabled={!projectForm.title || projectForm.budget > gameState.studio.budget}
+                disabled={!projectForm.title}
                 className="flex-1"
               >
                 <Plus className="h-4 w-4 mr-2" />
-                Start Development (${(projectForm.budget / 1000000).toFixed(1)}M)
+                Start Development ({(projectForm.budget / 1000000).toFixed(1)}M)
               </Button>
               <Button variant="outline" onClick={() => setIsCreating(false)}>
                 Cancel
@@ -302,76 +326,62 @@ export const FranchiseProjectCreator: React.FC<FranchiseProjectCreatorProps> = (
         </DialogContent>
       </Dialog>
 
-      {/* Owned Franchises */}
       <div className="grid gap-4">
         {ownedFranchises.map(franchise => {
-          const projectCount = getFranchiseProjectCount(franchise);
-          const franchiseProjects = gameState.projects.filter(p => p.script?.franchiseId === franchise.id);
+          const franchiseProjects = getFranchiseProjects(franchise);
+          const projectCount = franchiseProjects.length;
           const totalBoxOffice = franchiseProjects.reduce((sum, p) => sum + (p.metrics?.boxOfficeTotal || 0), 0);
-          
+
           return (
             <Card key={franchise.id} className="border-l-4 border-l-primary">
               <CardHeader>
-                <div className="flex justify-between items-start">
+                <div className="flex justify-between items-start gap-4">
                   <div>
-                    <CardTitle className="flex items-center gap-2">
+                    <CardTitle className="flex items-center gap-2 flex-wrap">
                       <Crown className="h-5 w-5 text-primary" />
                       {franchise.title}
                       <Badge variant="outline" className="capitalize">
                         {franchise.status}
                       </Badge>
                     </CardTitle>
-                    <p className="text-sm text-muted-foreground mt-1">
-                      {franchise.description}
-                    </p>
+                    <p className="text-sm text-muted-foreground mt-1">{franchise.description}</p>
                   </div>
-                  
+
                   <Button onClick={() => startProjectCreation(franchise)}>
                     <Plus className="h-4 w-4 mr-2" />
                     Add Project
                   </Button>
                 </div>
               </CardHeader>
-              
+
               <CardContent>
-                <div className="grid grid-cols-2 md:grid-cols-4 gap-4 text-sm">
-                  <div className="text-center">
-                    <div className="text-muted-foreground">Projects</div>
-                    <div className="text-xl font-bold">{projectCount}</div>
+                <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+                  <div>
+                    <p className="text-sm text-muted-foreground">Projects</p>
+                    <p className="text-lg font-semibold">{projectCount}</p>
                   </div>
-                  <div className="text-center">
-                    <div className="text-muted-foreground">Total Box Office</div>
-                    <div className="text-xl font-bold">${(totalBoxOffice / 1000000).toFixed(1)}M</div>
+
+                  <div>
+                    <p className="text-sm text-muted-foreground">Cultural Weight</p>
+                    <p className="text-lg font-semibold flex items-center gap-1">
+                      <TrendingUp className="h-4 w-4" />
+                      {franchise.culturalWeight || 0}
+                    </p>
                   </div>
-                  <div className="text-center">
-                    <div className="text-muted-foreground">Cultural Weight</div>
-                    <div className="text-xl font-bold">{franchise.culturalWeight}/100</div>
-                  </div>
-                  <div className="text-center">
-                    <div className="text-muted-foreground">Potential</div>
-                    <div className="text-xl font-bold flex items-center justify-center">
-                      <TrendingUp className="h-4 w-4 mr-1" />
-                      High
-                    </div>
+
+                  <div>
+                    <p className="text-sm text-muted-foreground">Total Box Office</p>
+                    <p className="text-lg font-semibold">{(totalBoxOffice / 1000000).toFixed(1)}M</p>
                   </div>
                 </div>
 
                 {franchiseProjects.length > 0 && (
                   <div className="mt-4">
-                    <h4 className="font-medium mb-2">Recent Projects</h4>
+                    <p className="text-sm font-medium mb-2">Recent Entries</p>
                     <div className="space-y-1">
                       {franchiseProjects.slice(-3).map(project => (
                         <div key={project.id} className="flex items-center justify-between text-sm">
-                          <span className="flex items-center gap-2">
-                            {project.title}
-                            <Badge variant="outline" className="text-[10px] uppercase tracking-wide">
-                              {project.type === 'feature'
-                                ? 'Film'
-                                : project.type === 'documentary'
-                                ? 'Doc'
-                                : 'TV'}
-                            </Badge>
-                          </span>
+                          <span className="truncate">{project.title}</span>
                           <Badge
                             variant={project.status === 'released' ? 'default' : 'secondary'}
                             className="text-xs"

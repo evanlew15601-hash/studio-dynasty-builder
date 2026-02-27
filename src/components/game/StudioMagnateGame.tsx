@@ -1,4 +1,4 @@
-import React, { useState, Suspense } from 'react';
+import React, { useEffect, useState, Suspense } from 'react';
 import { GameState, Studio, Project, Script, TalentPerson, BoxOfficeWeek, BoxOfficeRelease, Genre, MarketingStrategy, ReleaseStrategy, ProductionPhase, ScriptCharacter } from '@/types/game';
 import { useLoadingContext } from '@/contexts/LoadingContext';
 import { LoadingOverlay } from '@/components/ui/loading-overlay';
@@ -6,7 +6,7 @@ import { LOADING_OPERATIONS, delay, simulateProgress } from '@/utils/loadingUtil
 import { FranchiseGenerator } from '@/data/FranchiseGenerator';
 import { PublicDomainGenerator } from '@/data/PublicDomainGenerator';
 import { ScriptDevelopment } from './ScriptDevelopment';
-import { CastingBoard } from './CastingBoard';
+
 import { ProductionManagement } from './ProductionManagement';
 import { DistributionDashboard } from './DistributionDashboard';
 import { MarketingReleaseManagement } from './MarketingReleaseManagement';
@@ -16,6 +16,8 @@ import { StudioStats } from './StudioStats';
 import { FinancialReporting } from './FinancialReporting';
 import { FinancialDashboard } from './FinancialDashboard';
 import { GameplayLoops } from './GameplayLoops';
+import { ReleaseSystem } from './ReleaseSystem';
+import { CalendarManager } from './CalendarManager';
 import { IntegrationMonitor } from './IntegrationMonitor';
 import { AwardsCalendar } from './AwardsCalendar';
 import { AIStudioManager } from './AIStudioManager';
@@ -26,10 +28,11 @@ import { BoxOfficeSystem } from './BoxOfficeSystem';
 import { TVRatingsSystem } from './TVRatingsSystem';
 import { updateProjectFinancials } from './FinancialCalculations';
 import { TalentFilmographyManager } from '@/utils/talentFilmographyManager';
+import { getProjectCastingSummary, getProjectRoleAssignments } from '@/utils/projectCasting';
 import { AwardsSystem } from './AwardsSystem';
 import { EnhancedAwardsSystem } from './EnhancedAwardsSystem';
 import { RoleBasedCasting } from './RoleBasedCasting';
-import { CharacterCastingSystem } from './CharacterCastingSystem';
+
 import { useAwardsEngine } from '@/hooks/useAwardsEngine';
 import { IndividualAwardShowModal, AwardShowCeremony } from './IndividualAwardShowModal';
 import { FirstWeekBoxOfficeModal } from './FirstWeekBoxOfficeModal';
@@ -86,19 +89,21 @@ import {
 } from '@/components/ui/icons';
 import { ChevronDown } from 'lucide-react';
 import { RoleDatabase } from '../../data/RoleDatabase';
-import { importRolesForScript } from '@/utils/roleImport';
+
+import { getMandatoryCastingStatus } from '@/utils/castingRequirements';
 import { finalizeScriptForSave } from '@/utils/scriptFinalization';
 import { MediaFinancialIntegration } from './MediaFinancialIntegration';
 import { MediaReputationIntegration } from './MediaReputationIntegration';
 import { MediaResponseSystem } from './MediaResponseSystem';
 import { saveGame } from '@/utils/saveLoad';
+import { normalizeGameStateForLoad } from '@/utils/gameStateNormalization';
 import { DebugControlPanel } from './DebugControlPanel';
 
 // Ensure AI films have at least a Director and Lead actor so awards/crediting work
 function attachBasicCastForAI(project: Project, talentPool: TalentPerson[]): Project {
   try {
     // If already has cast or assigned characters, do nothing
-    if ((project.cast && project.cast.length > 0) || project.script?.characters?.some(c => c.assignedTalentId)) {
+    if ((project.cast && project.cast.length > 0) || project.script?.characters?.some(c => !c.excluded && c.assignedTalentId)) {
       return project;
     }
     const director = talentPool.find(t => t.type === 'director');
@@ -107,17 +112,17 @@ function attachBasicCastForAI(project: Project, talentPool: TalentPerson[]): Pro
 
     const baseChars = project.script.characters || [];
     const characters = baseChars.length > 0 ? baseChars.map(c => {
-      if (c.requiredType === 'director' && !c.assignedTalentId && director) return { ...c, assignedTalentId: director.id };
-      if (c.importance === 'lead' && c.requiredType !== 'director' && !c.assignedTalentId && lead) return { ...c, assignedTalentId: lead.id };
+      if (!c.excluded && c.requiredType === 'director' && !c.assignedTalentId && director) return { ...c, assignedTalentId: director.id };
+      if (!c.excluded && c.importance === 'lead' && c.requiredType !== 'director' && !c.assignedTalentId && lead) return { ...c, assignedTalentId: lead.id };
       return c;
     }) : [
-      { id: `${project.id}-dir`, name: 'Director', description: 'Director', requiredType: 'director', importance: 'lead', traits: ['mandatory'], assignedTalentId: director?.id } as any,
+      { id: `${project.id}-dir`, name: 'Director', description: 'Director', requiredType: 'director', importance: 'crew', traits: ['mandatory'], assignedTalentId: director?.id } as any,
       { id: `${project.id}-lead`, name: 'Protagonist', description: 'Lead role', requiredType: 'actor', importance: 'lead', traits: ['mandatory'], assignedTalentId: lead?.id } as any,
     ];
 
     const cast = [
       director && { talentId: director.id, role: 'Director', salary: Math.round((director.marketValue || 5_000_000) * 0.1), points: 0, contractTerms: { duration: new Date(), exclusivity: false, merchandising: false, sequelOptions: 0 } },
-      lead && { talentId: lead.id, role: `Lead - ${characters.find(c => c.importance==='lead' && c.requiredType !== 'director')?.name || 'Lead'}`, salary: Math.round((lead.marketValue || 5_000_000) * 0.1), points: 0, contractTerms: { duration: new Date(), exclusivity: false, merchandising: false, sequelOptions: 0 } },
+      lead && { talentId: lead.id, role: `Lead - ${characters.find(c => !c.excluded && c.importance==='lead' && c.requiredType !== 'director')?.name || 'Lead'}`, salary: Math.round((lead.marketValue || 5_000_000) * 0.1), points: 0, contractTerms: { duration: new Date(), exclusivity: false, merchandising: false, sequelOptions: 0 } },
     ].filter(Boolean) as any;
 
     return {
@@ -176,9 +181,13 @@ export const StudioMagnateGame: React.FC<StudioMagnateGameProps> = ({
   };
   
   const [gameState, setGameState] = useState<GameState>(() => {
-    // If we have a loaded game, use it directly and skip heavy init
     if (initialGameState) {
-      return initialGameState;
+      const normalized = normalizeGameStateForLoad(initialGameState);
+
+      // Restore in-memory calendar state from persisted projects (e.g., scheduled releases)
+      CalendarManager.syncReleasesFromProjects(normalized.projects || []);
+
+      return normalized;
     }
 
     // Start loading for game initialization
@@ -352,6 +361,33 @@ export const StudioMagnateGame: React.FC<StudioMagnateGameProps> = ({
   const [selectedFranchise, setSelectedFranchise] = useState<string | null>(null);
   const [selectedPublicDomain, setSelectedPublicDomain] = useState<string | null>(null);
   const [filmReleaseProject, setFilmReleaseProject] = useState<Project | null>(null);
+
+  // Keep CalendarManager's in-memory events hydrated from persisted project state.
+  // (CalendarManager stores events in a module-level singleton, so it needs re-hydration on reload.)
+  useEffect(() => {
+    CalendarManager.syncReleasesFromProjects(gameState.projects || []);
+  }, [gameState.projects]);
+
+  const selectedFilmReleaseValidation =
+    selectedProject && selectedProject.type !== 'series' && selectedProject.type !== 'limited-series'
+      ? ReleaseSystem.validateFilmForRelease(selectedProject)
+      : null;
+
+  const selectedFilmHasMarketing =
+    !!selectedProject?.marketingCampaign || ((selectedProject?.marketingData?.totalSpent ?? 0) > 0);
+
+  const selectedFilmStatusAllowsReleasePlanning =
+    !!selectedProject &&
+    ['ready-for-release', 'scheduled-for-release', 'completed'].includes(selectedProject.status as any);
+
+  const canPlanSelectedFilmRelease =
+    !!selectedFilmReleaseValidation?.canRelease && (selectedFilmHasMarketing || selectedFilmStatusAllowsReleasePlanning);
+
+  const releasePlanningDisabledReason = !selectedFilmReleaseValidation?.canRelease
+    ? 'Complete prerequisites (script + director + lead) first'
+    : !selectedFilmHasMarketing && !selectedFilmStatusAllowsReleasePlanning
+      ? 'Run a marketing campaign first'
+      : undefined;
   
   // First week box office modal state
   const [firstWeekModalProject, setFirstWeekModalProject] = useState<Project | null>(null);
@@ -517,19 +553,9 @@ export const StudioMagnateGame: React.FC<StudioMagnateGameProps> = ({
 
     updateOperation('project-create', 60, 'Setting up project structure...');
 
-    const newProject: Project = createProjectFromScript(script, overrides);
+    const normalizedScript = finalizeScriptForSave(script, gameState);
 
-    // Auto-generate roles only if script has no characters
-    let enrichedProject: Project = newProject;
-    try {
-      const preexisting = newProject.script.characters && newProject.script.characters.length > 0;
-      const roles = preexisting ? newProject.script.characters! : importRolesForScript(newProject.script, gameState);
-      if (roles && roles.length > 0) {
-        enrichedProject = { ...newProject, script: { ...newProject.script, characters: roles } };
-      }
-    } catch (e) {
-      console.warn('Role auto-generation failed', e);
-    }
+    const newProject: Project = createProjectFromScript(normalizedScript, overrides);
 
     updateOperation('project-create', 90, 'Finalizing project...');
 
@@ -550,22 +576,22 @@ export const StudioMagnateGame: React.FC<StudioMagnateGameProps> = ({
 
     setGameState(prev => {
       // If this project belongs to a franchise, append it to that franchise's entries
-      const franchiseId = enrichedProject.script?.franchiseId;
+      const franchiseId = newProject.script?.franchiseId;
       const updatedFranchises = franchiseId
         ? (prev.franchises || []).map(f => {
             if (f.id !== franchiseId) return f;
             const existingEntries = f.entries || [];
-            if (existingEntries.includes(enrichedProject.id)) return f;
+            if (existingEntries.includes(newProject.id)) return f;
             return {
               ...f,
-              entries: [...existingEntries, enrichedProject.id],
+              entries: [...existingEntries, newProject.id],
             };
           })
         : prev.franchises;
 
       return {
         ...prev,
-        projects: [...prev.projects, enrichedProject],
+        projects: [...prev.projects, newProject],
         studio: {
           ...prev.studio,
           budget: finalBudget,
@@ -634,37 +660,50 @@ export const StudioMagnateGame: React.FC<StudioMagnateGameProps> = ({
 
   const handleProjectUpdate = (project: Project, marketingCost?: number) => {
     setGameState(prev => {
-      const prevProject = prev.projects.find(p => p.id === project.id);
+      const normalizedProject: Project = {
+        ...project,
+        script: finalizeScriptForSave(project.script, prev),
+      };
+
+      const prevProject = prev.projects.find(p => p.id === normalizedProject.id);
       const nextState = {
         ...prev,
-        projects: prev.projects.map(p => p.id === project.id ? project : p),
+        projects: prev.projects.map(p => p.id === normalizedProject.id ? normalizedProject : p),
         studio: marketingCost ? {
           ...prev.studio,
           budget: prev.studio.budget - marketingCost
         } : prev.studio
       };
 
-      // If casting was just confirmed, lock talent availability for the production period
-      if (prevProject?.castingConfirmed !== true && project.castingConfirmed && project.cast?.length > 0) {
-        const totalProdWeeks = getPhaseWeeks('pre-production') + getPhaseWeeks('production') + getPhaseWeeks('post-production');
-        const busyUntilWeek = prev.currentWeek + totalProdWeeks;
-        nextState.talent = nextState.talent.map(t => {
-          const isInCast = project.cast.some(c => c.talentId === t.id);
-          if (!isInCast) return t;
-          return {
-            ...t,
-            contractStatus: 'contracted',
-            currentContractWeeks: totalProdWeeks,
-            busyUntilWeek
-          };
-        });
+      // If casting was just confirmed, lock talent availability for the production period.
+      // Use script.characters as source of truth when present, falling back to legacy cast/crew.
+      if (prevProject?.castingConfirmed !== true && normalizedProject.castingConfirmed) {
+        const assignments = getProjectRoleAssignments(normalizedProject);
+
+        if (assignments.length > 0) {
+          const totalProdWeeks = getPhaseWeeks('pre-production') + getPhaseWeeks('production') + getPhaseWeeks('post-production');
+          const busyUntilWeek = prev.currentWeek + totalProdWeeks;
+
+          nextState.talent = nextState.talent.map(t => {
+            const isInCast = assignments.some(a => a.talentId === t.id);
+            if (!isInCast) return t;
+            return {
+              ...t,
+              contractStatus: 'contracted',
+              currentContractWeeks: totalProdWeeks,
+              busyUntilWeek
+            };
+          });
+        }
       }
 
       return nextState;
     });
 
     // Keep the local selectedProject in sync so UI reflects changes immediately
-    setSelectedProject(prevSel => (prevSel && prevSel.id === project.id) ? project : prevSel);
+    setSelectedProject(prevSel => (prevSel && prevSel.id === project.id)
+      ? { ...project, script: finalizeScriptForSave(project.script, gameState) }
+      : prevSel);
   };
 
   // CRITICAL: Manual marketing campaign creation (no auto-progression)
@@ -806,19 +845,23 @@ export const StudioMagnateGame: React.FC<StudioMagnateGameProps> = ({
       
       // Handle scheduled releases when their date arrives
       let justReleased = false;
-      if (project.status === 'scheduled-for-release' && project.releaseWeek && project.releaseYear) {
-        const currentAbsoluteWeek = (timeState.currentYear * 52) + timeState.currentWeek;
-        const releaseAbsoluteWeek = (project.releaseYear * 52) + project.releaseWeek;
-        
+      if (project.status === 'scheduled-for-release') {
+        const scheduledWeek = project.scheduledReleaseWeek ?? project.releaseWeek;
+        const scheduledYear = project.scheduledReleaseYear ?? project.releaseYear;
+
+        if (scheduledWeek && scheduledYear) {
+          const currentAbsoluteWeek = (timeState.currentYear * 52) + timeState.currentWeek;
+          const releaseAbsoluteWeek = (scheduledYear * 52) + scheduledWeek;
+
           if (currentAbsoluteWeek === releaseAbsoluteWeek) {
             if (import.meta.env.DEV) {
               console.log(`🎬 RELEASE DATE ARRIVED: ${project.title}`);
               console.log(`    📊 PRE-RELEASE: boxOfficeTotal = ${project.metrics?.boxOfficeTotal || 0}`);
             }
             if (project.type === 'series' || project.type === 'limited-series') {
-              updatedProject = TVRatingsSystem.initializeAiring(updatedProject, project.releaseWeek, project.releaseYear);
+              updatedProject = TVRatingsSystem.initializeAiring(updatedProject, scheduledWeek, scheduledYear);
             } else {
-              updatedProject = BoxOfficeSystem.initializeRelease(updatedProject, project.releaseWeek, project.releaseYear);
+              updatedProject = BoxOfficeSystem.initializeRelease(updatedProject, scheduledWeek, scheduledYear);
             }
             if (import.meta.env.DEV) {
               console.log(`    📊 POST-RELEASE: boxOfficeTotal = ${updatedProject.metrics?.boxOfficeTotal || 0}`);
@@ -840,6 +883,7 @@ export const StudioMagnateGame: React.FC<StudioMagnateGameProps> = ({
               });
             }
           }
+        }
       }
       
       // Process box office for released films (but skip on the week they just released)
@@ -917,11 +961,15 @@ export const StudioMagnateGame: React.FC<StudioMagnateGameProps> = ({
       if (import.meta.env.DEV) {
         console.log(`🎬 MARKETING COMPLETE: ${project.title} - Moving to release phase`);
       }
+
+      const isAlreadyScheduled = updatedProject.status === 'scheduled-for-release';
+
       updatedProject = {
         ...updatedProject,
         currentPhase: 'release',
-        status: 'ready-for-release',
-        readyForRelease: true
+        phaseDuration: isAlreadyScheduled ? -1 : 0,
+        status: isAlreadyScheduled ? updatedProject.status : 'ready-for-release',
+        readyForRelease: isAlreadyScheduled ? false : true
       };
     }
   }
@@ -1038,17 +1086,17 @@ export const StudioMagnateGame: React.FC<StudioMagnateGameProps> = ({
           else if (['development', 'pre-production', 'production'].includes(updatedProject.currentPhase)) {
             // Gate: ensure roles imported before leaving development
             if (updatedProject.currentPhase === 'development' && nextPhase === 'pre-production') {
-              const roles = updatedProject.script?.characters && updatedProject.script.characters.length > 0
-                ? updatedProject.script.characters
-                : importRolesForScript(updatedProject.script!, gameState);
-              if (!roles || roles.length === 0) {
-                console.warn(`⛔ Cannot advance ${updatedProject.title}: no roles imported yet`);
+              const normalizedScript = finalizeScriptForSave(updatedProject.script!, gameState);
+              const activeRoles = (normalizedScript.characters || []).filter(c => !c.excluded);
+
+              if (activeRoles.length === 0) {
+                console.warn(`⛔ Cannot advance ${updatedProject.title}: no active roles available`);
                 updatedProject = { ...updatedProject, phaseDuration: 2 };
-                toast({ title: 'Roles Required', description: `${updatedProject.title} needs characters imported before pre-production`, variant: 'destructive' });
+                toast({ title: 'Roles Required', description: `${updatedProject.title} needs at least one active (non-excluded) role before pre-production`, variant: 'destructive' });
               } else {
                 updatedProject = {
                   ...updatedProject,
-                  script: { ...updatedProject.script!, characters: roles },
+                  script: normalizedScript,
                   currentPhase: nextPhase,
                   phaseDuration: getPhaseWeeks(nextPhase),
                   status: nextPhase as any
@@ -1059,8 +1107,7 @@ export const StudioMagnateGame: React.FC<StudioMagnateGameProps> = ({
             // Gate: require Director + Lead actor before entering production
             else if (updatedProject.currentPhase === 'pre-production' && nextPhase === 'production') {
               const chars = updatedProject.script?.characters || [];
-              const hasDirector = chars.some(c => c.requiredType === 'director' && c.assignedTalentId);
-              const hasLead = chars.some(c => c.importance === 'lead' && c.requiredType !== 'director' && c.assignedTalentId);
+              const { hasDirector, hasLead } = getMandatoryCastingStatus(chars);
               if (!hasDirector || !hasLead) {
                 console.warn(`⛔ Cannot advance ${updatedProject.title}: missing mandatory cast (director=${hasDirector}, lead=${hasLead})`);
                 updatedProject = { ...updatedProject, phaseDuration: 2 };
@@ -1124,22 +1171,27 @@ export const StudioMagnateGame: React.FC<StudioMagnateGameProps> = ({
 
   const processDevelopmentProgress = (project: Project, currentWeek: number): Project => {
     const progress = project.developmentProgress;
-    
+
+    const casting = getProjectCastingSummary(project);
+    const hasAnyAttachedTalent = casting.assignedCount > 0;
+
     let weeklyIncrease = 5;
-    
-    if (project.cast.length > 0) weeklyIncrease += 3;
-    if (project.crew.some(c => gameState.talent.find(t => t.id === c.talentId)?.type === 'director')) {
-      weeklyIncrease += 5;
-    }
-    
+
+    if (hasAnyAttachedTalent) weeklyIncrease += 3;
+    if (casting.hasDirector) weeklyIncrease += 5;
+
     const newProgress = {
       ...progress,
       scriptCompletion: Math.min(100, progress.scriptCompletion + weeklyIncrease),
-      budgetApproval: project.cast.length > 0 ? Math.min(100, progress.budgetApproval + weeklyIncrease) : progress.budgetApproval,
-      talentAttached: project.cast.length > 0 ? Math.min(100, progress.talentAttached + 10) : progress.talentAttached,
+      budgetApproval: hasAnyAttachedTalent
+        ? Math.min(100, progress.budgetApproval + weeklyIncrease)
+        : progress.budgetApproval,
+      talentAttached: hasAnyAttachedTalent
+        ? Math.min(100, progress.talentAttached + 10)
+        : progress.talentAttached,
       locationSecured: Math.min(100, progress.locationSecured + weeklyIncrease)
     };
-    
+
     return {
       ...project,
       developmentProgress: newProgress
@@ -1416,29 +1468,13 @@ export const StudioMagnateGame: React.FC<StudioMagnateGameProps> = ({
         console.warn('AI Studio processing error', e);
       }
       
-      // Process scheduled releases first
       let updatedProjects = prev.projects;
       
-      import('./ReleaseSystem').then(({ ReleaseSystem }) => {
-        const releasingFilms = ReleaseSystem.processReleases(newTimeState);
-        
-        if (releasingFilms.length > 0) {
-          updatedProjects = updatedProjects.map(project => {
-            const releasingFilm = releasingFilms.find(rf => rf.id === project.id);
-            if (releasingFilm) {
-              return {
-                ...project,
-                status: 'released',
-                releaseWeek: newTimeState.currentWeek,
-                releaseYear: newTimeState.currentYear
-              };
-            }
-            return project;
-          });
-        }
-      });
+      updateOperation(LOADING_OPERATIONS.WEEKLY_PROCESSING.id, 70, 'Calculating finances...');
       
-      // Simulate box office for released films
+      updatedProjects = processWeeklyProjectEffects(updatedProjects, newTimeState);
+
+      // Simulate box office and ledger entries for released films (player + AI)
       import('./FinancialEngine').then(({ FinancialEngine }) => {
         const playerReleased = updatedProjects
           .filter(p => p.status === 'released' && !!p.releaseWeek && !!p.releaseYear)
@@ -1454,6 +1490,7 @@ export const StudioMagnateGame: React.FC<StudioMagnateGameProps> = ({
             budget: p.budget?.total || 10000000,
             genre: p.script?.genre || 'drama'
           }));
+
         const aiReleased = prev.allReleases
           .filter((r): r is Project => 'script' in r && (r as any).status === 'released' && !!r.releaseWeek && !!r.releaseYear)
           .map(r => ({
@@ -1468,10 +1505,11 @@ export const StudioMagnateGame: React.FC<StudioMagnateGameProps> = ({
             budget: (r as any).budget?.total || (r as any).budget || 10000000,
             genre: (r as any).script?.genre || (r as any).genre || 'drama'
           }));
+
         const releasedFilms = [...playerReleased, ...aiReleased];
-        
+
         FinancialEngine.simulateBoxOfficeWeek(releasedFilms, newTimeState.currentWeek, newTimeState.currentYear);
-        
+
         // Process weekly financial events
         FinancialEngine.processWeeklyFinancialEvents(
           newTimeState.currentWeek,
@@ -1480,10 +1518,6 @@ export const StudioMagnateGame: React.FC<StudioMagnateGameProps> = ({
           updatedProjects
         );
       });
-      
-      updateOperation(LOADING_OPERATIONS.WEEKLY_PROCESSING.id, 70, 'Calculating finances...');
-      
-      updatedProjects = processWeeklyProjectEffects(updatedProjects, newTimeState);
 
       // Generate AI studio releases every 2-4 weeks
       const shouldGenerateRelease = Math.random() < 0.3; // 30% chance each week
@@ -1547,20 +1581,24 @@ export const StudioMagnateGame: React.FC<StudioMagnateGameProps> = ({
         }
         return { ...t, contractStatus: status, busyUntilWeek: busyUntil };
       });
-      // Mark cast as busy for projects in production
+      // Mark cast as busy for projects in production (script.characters is the source of truth when present)
       updatedProjects.forEach(p => {
         if (p.currentPhase === 'production' || p.status === 'filming') {
-          p.cast?.forEach(c => {
-            const idx = updatedTalent.findIndex(t => t.id === c.talentId);
-            if (idx >= 0) {
-              const isCameo = c.role.toLowerCase().includes('cameo') || c.role.toLowerCase().includes('minor');
-              const durationWeeks = isCameo ? 2 : 8;
-              updatedTalent[idx] = {
-                ...updatedTalent[idx],
-                contractStatus: 'busy',
-                busyUntilWeek: currentAbsWeek + durationWeeks
-              };
-            }
+          const assignments = getProjectRoleAssignments(p);
+
+          assignments.forEach(a => {
+            const idx = updatedTalent.findIndex(t => t.id === a.talentId);
+            if (idx < 0) return;
+
+            const roleLabel = (a.role || '').toLowerCase();
+            const isCameo = a.importance === 'minor' || roleLabel.includes('cameo') || roleLabel.includes('minor');
+            const durationWeeks = isCameo ? 2 : 8;
+
+            updatedTalent[idx] = {
+              ...updatedTalent[idx],
+              contractStatus: 'busy',
+              busyUntilWeek: currentAbsWeek + durationWeeks
+            };
           });
         }
       });
@@ -2031,7 +2069,7 @@ export const StudioMagnateGame: React.FC<StudioMagnateGameProps> = ({
                   writer: 'Studio Writer',
                   pages: 100,
                   quality: 50,
-                  developmentStage: 'concept',
+                  developmentStage: 'draft',
                   genre: 'drama',
                   targetAudience: 'general',
                   estimatedRuntime: 120,
@@ -2140,7 +2178,7 @@ export const StudioMagnateGame: React.FC<StudioMagnateGameProps> = ({
                   writer: 'Studio Writer',
                   pages: 100,
                   quality: 50,
-                  developmentStage: 'concept',
+                  developmentStage: 'draft',
                   genre: 'drama',
                   targetAudience: 'general',
                   estimatedRuntime: 120,
@@ -2204,12 +2242,15 @@ export const StudioMagnateGame: React.FC<StudioMagnateGameProps> = ({
                 setSelectedPublicDomain(null);
                 handlePhaseChange('scripts');
 
-                setGameState(prev => ({
-                  ...prev,
-                  scripts: prev.scripts.some(s => s.id === script.id)
-                    ? prev.scripts.map(s => s.id === script.id ? script : s)
-                    : [...prev.scripts, script]
-                }));
+                setGameState(prev => {
+                  const finalized = finalizeScriptForSave(script, prev);
+                  return {
+                    ...prev,
+                    scripts: prev.scripts.some(s => s.id === finalized.id)
+                      ? prev.scripts.map(s => s.id === finalized.id ? finalized : s)
+                      : [...prev.scripts, finalized]
+                  };
+                });
 
                 toast({
                   title: 'Sequel Script Created',
@@ -2230,99 +2271,79 @@ export const StudioMagnateGame: React.FC<StudioMagnateGameProps> = ({
             onProjectCreate={handleProjectCreate}
             onScriptUpdate={(script) => {
               // Persist selections so multiple scripts can be created within the same franchise/IP
-              setGameState(prev => ({
-                ...prev,
-                scripts: prev.scripts.some(s => s.id === script.id)
-                  ? prev.scripts.map(s => s.id === script.id ? script : s)
-                  : [...prev.scripts, script]
-              }));
+              setGameState(prev => {
+                const finalized = finalizeScriptForSave(script, prev);
+                return {
+                  ...prev,
+                  scripts: prev.scripts.some(s => s.id === finalized.id)
+                    ? prev.scripts.map(s => s.id === finalized.id ? finalized : s)
+                    : [...prev.scripts, finalized]
+                };
+              });
             }}
           />
         )}
         
         {currentPhase === 'casting' && (
           <div className="space-y-6">
-            <Tabs
-              defaultValue={selectedProject ? "character-casting" : "casting-board"}
-              className="space-y-4"
-            >
-              <TabsList>
-                <TabsTrigger value="character-casting">Character Casting</TabsTrigger>
-                <TabsTrigger value="role-based">Role-Based System</TabsTrigger>
-                <TabsTrigger value="casting-board">Talent Marketplace</TabsTrigger>
-              </TabsList>
-              
-              <TabsContent value="character-casting">
-                {selectedProject ? (
-                  <CharacterCastingSystem
-                    project={selectedProject}
-                    gameState={gameState}
-                    onProjectUpdate={handleProjectUpdate}
-                  />
-                ) : (
-                  <div className="p-6 border rounded-lg bg-card text-sm text-muted-foreground">
-                    <p className="font-medium mb-1">No project selected for casting</p>
-                    <p>
-                      Select an active project from the Dashboard, then return here to manage character casting.
-                    </p>
-                  </div>
-                )}
-              </TabsContent>
-              
-              <TabsContent value="role-based">
-                {selectedProject ? (
-                  <RoleBasedCasting
-                    project={selectedProject}
-                    gameState={gameState}
-                    onCastRole={(characterId: string, talentId: string) => {
-                      if (!selectedProject) return;
-                      const updatedCharacters = (selectedProject.script?.characters || []).map(c =>
-                        c.id === characterId ? { ...c, assignedTalentId: talentId } : c
-                      );
-                      const updatedProject = {
-                        ...selectedProject,
-                        script: { ...selectedProject.script!, characters: updatedCharacters }
-                      };
-                      handleProjectUpdate(updatedProject);
-                    }}
-                    onCreateRole={(role) => {
-                      if (!selectedProject) return;
-                      const updatedProject = {
-                        ...selectedProject,
-                        script: {
-                          ...selectedProject.script!,
-                          characters: [...(selectedProject.script?.characters || []), role]
-                        }
-                      };
-                      handleProjectUpdate(updatedProject);
-                    }}
-                  />
-                ) : (
-                  <div className="p-6 border rounded-lg bg-card text-sm text-muted-foreground">
-                    <p className="font-medium mb-1">No project selected for role-based casting</p>
-                    <p>
-                      Select an active project from the Dashboard to define roles and attach talent.
-                    </p>
-                  </div>
-                )}
-              </TabsContent>
-              
-              <TabsContent value="casting-board">
-                <CastingBoard
-                  gameState={gameState}
-                  selectedProject={selectedProject}
-                  onProjectUpdate={handleProjectUpdate}
-                  onTalentHire={(talent) => {
-                    setGameState(prev => ({
-                      ...prev,
-                      talent: prev.talent.some(t => t.id === talent.id)
-                        ? prev.talent.map(t => t.id === talent.id ? talent : t)
-                        : [...prev.talent, talent]
-                    }));
-                  }}
-                />
-              </TabsContent>
-            </Tabs>
+            {selectedProject ? (
+              <RoleBasedCasting
+                project={selectedProject}
+                gameState={gameState}
+                onCastRole={(characterId: string, talentId: string) => {
+                  if (!selectedProject) return;
+                  const updatedCharacters = (selectedProject.script?.characters || []).map(c =>
+                    c.id === characterId ? { ...c, assignedTalentId: talentId } : c
+                  );
+                  const updatedProject = {
+                    ...selectedProject,
+                    script: { ...selectedProject.script!, characters: updatedCharacters }
+                  };
+                  handleProjectUpdate(updatedProject);
+                }}
+                onCreateRole={(role) => {
+                  if (!selectedProject) return;
+                  const updatedProject = {
+                    ...selectedProject,
+                    script: {
+                      ...selectedProject.script!,
+                      characters: [...(selectedProject.script?.characters || []), role]
+                    }
+                  };
+                  handleProjectUpdate(updatedProject);
+                }}
+                onUpdateRole={(characterId, updates) => {
+                  if (!selectedProject) return;
+                  const updatedCharacters = (selectedProject.script?.characters || []).map(c =>
+                    c.id === characterId ? { ...c, ...updates } : c
+                  );
+                  const updatedProject = {
+                    ...selectedProject,
+                    script: { ...selectedProject.script!, characters: updatedCharacters }
+                  };
+                  handleProjectUpdate(updatedProject);
+                }}
+                onRemoveRole={(characterId) => {
+                  if (!selectedProject) return;
+                  const updatedCharacters = (selectedProject.script?.characters || []).filter(c => c.id !== characterId);
+                  const updatedProject = {
+                    ...selectedProject,
+                    script: { ...selectedProject.script!, characters: updatedCharacters }
+                  };
+                  handleProjectUpdate(updatedProject);
+                }}
+              />
+            ) : (
+              <div className="p-6 border rounded-lg bg-card text-sm text-muted-foreground">
+                <p className="font-medium mb-1">No project selected for casting</p>
+                <p>
+                  Select an active project from the Dashboard, then return here to define roles and attach talent.
+                </p>
+                <p className="mt-2">
+                  Hiring happens in the Talent Marketplace.
+                </p>
+              </div>
+            )}
           </div>
         )}
 
@@ -2337,7 +2358,15 @@ export const StudioMagnateGame: React.FC<StudioMagnateGameProps> = ({
                 studio: { ...prev.studio, budget: prev.studio.budget + amount }
               }));
             }}
-            onGameStateUpdate={(updates) => setGameState(prev => ({ ...prev, ...updates }))}
+            onGameStateUpdate={(updates) =>
+              setGameState(prev => {
+                const merged = { ...prev, ...updates } as GameState;
+                if ('scripts' in updates || 'projects' in updates || 'allReleases' in updates || 'aiStudioProjects' in updates) {
+                  return normalizeGameStateForLoad(merged);
+                }
+                return merged;
+              })
+            }
             onCreateTVProject={(script) => {
               // For now, assume a 13-episode season budget for TV series
               const episodes = 13;
@@ -2523,16 +2552,14 @@ export const StudioMagnateGame: React.FC<StudioMagnateGameProps> = ({
                     <div>
                       <p className="text-sm font-medium">Release Planning</p>
                       <p className="text-xs text-muted-foreground">
-                        Once marketing is in place, choose a theatrical release window for this film.
+                        Once casting and marketing are in place, choose a theatrical release window.
                       </p>
                     </div>
                     <Button
                       size="sm"
                       onClick={() => setFilmReleaseProject(selectedProject)}
-                      disabled={
-                        selectedProject.status !== 'completed' &&
-                        selectedProject.status !== 'ready-for-release'
-                      }
+                      disabled={!canPlanSelectedFilmRelease}
+                      title={releasePlanningDisabledReason}
                     >
                       Plan Release
                     </Button>

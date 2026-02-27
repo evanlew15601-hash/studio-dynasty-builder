@@ -4,7 +4,7 @@ import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
 import { useToast } from '@/hooks/use-toast';
 import { Project, TalentPerson, GameState, ScriptCharacter } from '@/types/game';
-import { Users, User, Crown, Star, CheckCircle } from 'lucide-react';
+import { Users, User, Crown, Star, CheckCircle, Lock, Eye, EyeOff, Trash2 } from 'lucide-react';
 import { importRolesForScript } from '@/utils/roleImport';
 
 interface RoleBasedCastingProps {
@@ -12,29 +12,71 @@ interface RoleBasedCastingProps {
   gameState: GameState;
   onCastRole: (characterId: string, talentId: string) => void;
   onCreateRole: (role: ScriptCharacter) => void;
+  onUpdateRole: (characterId: string, updates: Partial<ScriptCharacter>) => void;
+  onRemoveRole: (characterId: string) => void;
 }
 
 export const RoleBasedCasting: React.FC<RoleBasedCastingProps> = ({
   project,
   gameState,
   onCastRole,
-  onCreateRole
+  onCreateRole,
+  onUpdateRole,
+  onRemoveRole
 }) => {
   const { toast } = useToast();
+
+  const [showExcluded, setShowExcluded] = React.useState(false);
+  const [editingRoleId, setEditingRoleId] = React.useState<string | null>(null);
+
+  const castingLocked = !!project.castingConfirmed;
+
+  const visibleCharacters = (project.script?.characters || []).filter(c =>
+    showExcluded ? true : (!c.excluded || !!c.assignedTalentId)
+  );
+
+  const handleToggleExcluded = (character: ScriptCharacter) => {
+    if (castingLocked) return;
+    const nextExcluded = !character.excluded;
+
+    // Excluding a role removes it from production/casting requirements, but does not
+    // revoke the talent attachment (contracts/ownership can still matter).
+    onUpdateRole(character.id, {
+      excluded: nextExcluded,
+    });
+
+    if (nextExcluded) setEditingRoleId(null);
+  };
+
+  const handleRemoveRole = (character: ScriptCharacter) => {
+    if (castingLocked) return;
+    if (character.locked) return;
+    onRemoveRole(character.id);
+  };
+
+  const handleRemoveTalent = (character: ScriptCharacter) => {
+    if (castingLocked) return;
+    onUpdateRole(character.id, { assignedTalentId: undefined });
+  };
 
   // Import roles when project changes or script updates (auto-add mandatory TV roles)
   React.useEffect(() => {
     if (!project?.script) return;
 
     const existing = project.script.characters || [];
-    const importedRoles = (!existing || existing.length === 0)
+    const shouldImport =
+      (project.script.sourceType === 'franchise' && !!project.script.franchiseId) ||
+      (project.script.sourceType === 'public-domain' && !!project.script.publicDomainId) ||
+      (project.script.sourceType === 'adaptation' && (!!project.script.franchiseId || !!project.script.publicDomainId));
+
+    const importedRoles = shouldImport && (!existing || existing.length === 0)
       ? importRolesForScript(project.script, gameState)
       : [];
 
     // Determine if TV and whether mandatory roles are missing
-    const combined = [...existing, ...importedRoles];
-    const hasDirector = combined.some(c => c.requiredType === 'director');
-    const hasLead = combined.some(c => c.importance === 'lead' && c.requiredType === 'actor');
+    const combinedActive = [...existing, ...importedRoles].filter(c => !c.excluded);
+    const hasDirector = combinedActive.some(c => c.requiredType === 'director');
+    const hasLead = combinedActive.some(c => c.importance === 'lead' && c.requiredType === 'actor');
 
     const rolesToCreate: ScriptCharacter[] = [];
 
@@ -85,8 +127,18 @@ export const RoleBasedCasting: React.FC<RoleBasedCastingProps> = ({
   };
 
   const handleCastTalent = (character: ScriptCharacter, talent: TalentPerson) => {
+    if (castingLocked) return;
+    if (character.excluded) {
+      toast({
+        title: 'Role Excluded',
+        description: 'Include this role before casting talent.',
+        variant: 'destructive',
+      });
+      return;
+    }
+
     const contractCost = talent.marketValue * 0.1; // 10% of market value
-    
+
     if (contractCost > gameState.studio.budget) {
       toast({
         title: "Insufficient Budget",
@@ -106,7 +158,7 @@ export const RoleBasedCasting: React.FC<RoleBasedCastingProps> = ({
 
   const importRolesFromSource = () => {
     const script = project.script;
-    if (!script?.sourceType) {
+    if (!script || script.sourceType === 'original') {
       // Create default roles for original projects
       const defaultRoles: ScriptCharacter[] = [
         {
@@ -153,17 +205,18 @@ export const RoleBasedCasting: React.FC<RoleBasedCastingProps> = ({
   };
 
   const getCastingProgress = () => {
-    const totalRoles = project.script?.characters?.length || 0;
-    const castRoles = project.script?.characters?.filter(c => c.assignedTalentId).length || 0;
+    const active = (project.script?.characters || []).filter(c => !c.excluded);
+    const totalRoles = active.length;
+    const castRoles = active.filter(c => c.assignedTalentId).length;
     return { cast: castRoles, total: totalRoles };
   };
 
   const { cast, total } = getCastingProgress();
   const hasDirector = project.script?.characters?.some(c => 
-    c.requiredType === 'director' && c.assignedTalentId
+    !c.excluded && c.requiredType === 'director' && c.assignedTalentId
   );
   const hasLead = project.script?.characters?.some(c => 
-    c.importance === 'lead' && c.requiredType === 'actor' && c.assignedTalentId
+    !c.excluded && c.importance === 'lead' && c.requiredType === 'actor' && c.assignedTalentId
   );
   const canProceed = hasDirector && hasLead;
 
@@ -187,6 +240,18 @@ export const RoleBasedCasting: React.FC<RoleBasedCastingProps> = ({
               <Badge variant={cast >= total && canProceed ? "default" : "secondary"}>
                 {cast}/{total} Roles Cast
               </Badge>
+
+              {(project.script?.characters || []).some(c => !!c.excluded) && (
+                <Button
+                  size="sm"
+                  variant="outline"
+                  onClick={() => setShowExcluded(v => !v)}
+                  title={showExcluded ? 'Hide excluded roles' : 'Show excluded roles'}
+                >
+                  {showExcluded ? <EyeOff className="h-4 w-4" /> : <Eye className="h-4 w-4" />}
+                </Button>
+              )}
+
               {!canProceed && (
                 <Badge variant="destructive">
                   Cannot proceed without Director & Lead
@@ -218,11 +283,13 @@ export const RoleBasedCasting: React.FC<RoleBasedCastingProps> = ({
 
       {/* Character Roles */}
       <div className="grid gap-4">
-        {project.script?.characters?.map((character) => {
+        {visibleCharacters.map((character) => {
           const availableTalent = getAvailableTalent(character);
-          const castTalent = character.assignedTalentId 
+          const castTalent = character.assignedTalentId
             ? gameState.talent.find(t => t.id === character.assignedTalentId)
             : null;
+
+          const isEditing = editingRoleId === character.id;
 
           return (
             <Card key={character.id} className={castTalent ? "border-green-200" : "border-amber-200"}>
@@ -237,24 +304,54 @@ export const RoleBasedCasting: React.FC<RoleBasedCastingProps> = ({
                     </CardTitle>
                     <p className="text-sm text-muted-foreground">{character.description}</p>
                   </div>
-                  <div className="flex items-center gap-2">
+
+                  <div className="flex items-center gap-2 flex-wrap">
                     <Badge variant="outline" className="capitalize">
                       {character.importance}
                     </Badge>
                     <Badge variant="outline" className="capitalize">
                       {character.requiredType || 'actor'}
                     </Badge>
+                    {character.locked && (
+                      <Badge variant="secondary" className="flex items-center gap-1">
+                        <Lock className="h-3 w-3" />
+                        Imported
+                      </Badge>
+                    )}
+                    {character.excluded && <Badge variant="secondary">Excluded</Badge>}
                     {castTalent && (
                       <Badge variant="default" className="flex items-center gap-1">
                         <CheckCircle className="h-3 w-3" />
                         Assigned
                       </Badge>
                     )}
+
+                    <Button
+                      variant="ghost"
+                      size="sm"
+                      onClick={() => handleToggleExcluded(character)}
+                      disabled={castingLocked}
+                      title={character.excluded ? 'Include in production' : 'Exclude from production'}
+                    >
+                      {character.excluded ? <Eye className="h-4 w-4" /> : <EyeOff className="h-4 w-4" />}
+                    </Button>
+
+                    <Button
+                      variant="ghost"
+                      size="sm"
+                      onClick={() => handleRemoveRole(character)}
+                      className="text-destructive hover:text-destructive"
+                      disabled={castingLocked || !!character.locked}
+                      title={character.locked ? 'Imported roles are locked' : 'Remove role'}
+                    >
+                      <Trash2 className="h-4 w-4" />
+                    </Button>
                   </div>
                 </div>
               </CardHeader>
+
               <CardContent>
-                {castTalent ? (
+                {castTalent && !isEditing ? (
                   <div className="flex items-center justify-between p-3 bg-green-50 rounded">
                     <div>
                       <p className="font-medium">{castTalent.name}</p>
@@ -262,33 +359,65 @@ export const RoleBasedCasting: React.FC<RoleBasedCastingProps> = ({
                         ${(castTalent.marketValue / 1000000).toFixed(1)}M • Rep: {Math.round(castTalent.reputation)}
                       </p>
                     </div>
-                    <Button variant="outline" size="sm">
-                      Change
-                    </Button>
+                    <div className="flex items-center gap-2">
+                      <Button
+                        variant="outline"
+                        size="sm"
+                        onClick={() => setEditingRoleId(character.id)}
+                        disabled={castingLocked || character.excluded}
+                        title={character.excluded ? 'Cannot change an excluded role' : 'Change casting'}
+                      >
+                        Change
+                      </Button>
+                      <Button
+                        variant="destructive"
+                        size="sm"
+                        onClick={() => handleRemoveTalent(character)}
+                        disabled={castingLocked}
+                      >
+                        Remove
+                      </Button>
+                    </div>
                   </div>
                 ) : (
                   <div className="space-y-3">
-                    <p className="text-sm text-amber-600">
-                      Role not cast • {availableTalent.length} available candidates
-                    </p>
-                    <div className="grid gap-2 max-h-40 overflow-y-auto">
-                      {availableTalent.slice(0, 5).map((talent) => (
-                        <div key={talent.id} className="flex items-center justify-between p-2 border rounded">
-                          <div>
-                            <p className="font-medium text-sm">{talent.name}</p>
-                            <p className="text-xs text-muted-foreground">
-                              ${(talent.marketValue / 1000000).toFixed(1)}M • Rep: {Math.round(talent.reputation)}
-                            </p>
-                          </div>
-                          <Button 
-                            size="sm" 
-                            onClick={() => handleCastTalent(character, talent)}
-                          >
-                            Cast
-                          </Button>
-                        </div>
-                      ))}
+                    <div className="flex items-center justify-between">
+                      <p className="text-sm text-amber-600">
+                        {character.excluded
+                          ? 'Excluded role'
+                          : (castTalent ? 'Choose a replacement' : `Role not cast • ${availableTalent.length} available candidates`)}
+                      </p>
+                      {isEditing && (
+                        <Button variant="outline" size="sm" onClick={() => setEditingRoleId(null)}>
+                          Done
+                        </Button>
+                      )}
                     </div>
+
+                    {!character.excluded && (
+                      <div className="grid gap-2 max-h-40 overflow-y-auto">
+                        {availableTalent.slice(0, 5).map((talent) => (
+                          <div key={talent.id} className="flex items-center justify-between p-2 border rounded">
+                            <div>
+                              <p className="font-medium text-sm">{talent.name}</p>
+                              <p className="text-xs text-muted-foreground">
+                                ${(talent.marketValue / 1000000).toFixed(1)}M • Rep: {Math.round(talent.reputation)}
+                              </p>
+                            </div>
+                            <Button
+                              size="sm"
+                              onClick={() => {
+                                handleCastTalent(character, talent);
+                                setEditingRoleId(null);
+                              }}
+                              disabled={castingLocked || castTalent?.id === talent.id}
+                            >
+                              {castTalent?.id === talent.id ? 'Current' : 'Cast'}
+                            </Button>
+                          </div>
+                        ))}
+                      </div>
+                    )}
                   </div>
                 )}
               </CardContent>
@@ -297,7 +426,7 @@ export const RoleBasedCasting: React.FC<RoleBasedCastingProps> = ({
         })}
       </div>
 
-      {(!project.script?.characters || project.script.characters.length === 0) && (
+      {(project.script?.characters || []).filter(c => !c.excluded).length === 0 && (
         <Card>
           <CardContent className="text-center py-8">
             <Users className="mx-auto h-12 w-12 text-muted-foreground mb-4" />

@@ -1,4 +1,5 @@
 import type { Config } from "tailwindcss";
+import tailwindAnimate from "tailwindcss-animate";
 
 export default {
 	darkMode: ["class"],
@@ -80,7 +81,8 @@ export default {
 				'gradient-silver': 'var(--gradient-silver)',
 				'gradient-spotlight': 'var(--gradient-spotlight)',
 				'gradient-navy': 'var(--gradient-navy)',
-				'gradient-crimson': 'var(--gradient-crimson)'
+				'gradient-crimson': 'var(--gradient-crimson)',
+				'gradient-radial': 'radial-gradient(circle, var(--tw-gradient-stops))'
 			},
 			boxShadow: {
 				'studio': 'var(--shadow-studio)',
@@ -112,17 +114,14 @@ export default {
 					},
 					to: {
 						height: '0'
-        }
-      },
-      backgroundImage: {
-        'gradient-radial': 'radial-gradient(circle, var(--tw-gradient-stops))',
-      }
-    },
+					}
+				},
+			},
 			animation: {
 				'accordion-down': 'accordion-down 0.2s ease-out',
 				'accordion-up': 'accordion-up 0.2s ease-out'
 			}
 		}
 	},
-	plugins: [require("tailwindcss-animate")],
+	plugins: [tailwindAnimate],
 } satisfies Config;

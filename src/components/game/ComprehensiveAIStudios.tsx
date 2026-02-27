@@ -469,10 +469,12 @@ export const ComprehensiveAIStudios: React.FC<ComprehensiveAIStudiosProps> = ({
   const generateProjectPerformance = (project: AIProject, studio: AIStudio) => {
     const budgetScore = Math.min(100, project.budget / 1000000);
     const studioScore = studio.reputation;
-    const castScore = project.cast.reduce((sum, c) => {
-      const talent = gameState.talent.find(t => t.id === c.talentId);
-      return sum + (talent?.reputation || 50);
-    }, 0) / project.cast.length;
+    const castScore = project.cast.length > 0
+      ? project.cast.reduce((sum, c) => {
+          const talent = gameState.talent.find(t => t.id === c.talentId);
+          return sum + (talent?.reputation || 50);
+        }, 0) / project.cast.length
+      : 50;
 
     const baseScore = (budgetScore + studioScore + castScore) / 3;
     const randomFactor = 0.8 + (Math.random() * 0.4); // 0.8 to 1.2 multiplier

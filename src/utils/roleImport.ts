@@ -46,18 +46,47 @@ function mergeWithOverrides(existing: ScriptCharacter | undefined, incoming: Scr
   return {
     ...incoming,
     id: existing.id || incoming.id,
-    name: overrides.name || incoming.name,
-    description: overrides.description || incoming.description,
-    traits: overrides.traits || incoming.traits,
-    ageRange: overrides.ageRange || incoming.ageRange,
+
+    // Prefer explicit overrides (if present), otherwise preserve any locally persisted
+    // edits from older saves/UI, then fall back to the latest imported values.
+    name: overrides.name ?? incoming.name ?? existing.name,
+    description: overrides.description ?? incoming.description ?? existing.description,
+    traits: overrides.traits ?? existing.traits ?? incoming.traits,
+    ageRange: overrides.ageRange ?? existing.ageRange ?? incoming.ageRange,
+
     screenTimeMinutes: existing.screenTimeMinutes ?? incoming.screenTimeMinutes,
+    excluded: existing.excluded ?? incoming.excluded,
+
     assignedTalentId: existing.assignedTalentId,
-    locked: true,
+
+    locked: typeof incoming.locked === 'boolean' ? incoming.locked : existing.locked,
     franchiseId: incoming.franchiseId,
     franchiseCharacterId: incoming.franchiseCharacterId,
     roleTemplateId: incoming.roleTemplateId,
     localOverrides: overrides,
   };
+}
+
+function asLockedImportedRole(role: ScriptCharacter): ScriptCharacter {
+  return {
+    ...role,
+    locked: true,
+  };
+}
+
+function addDefaultCameo(chars: ScriptCharacter[]) {
+  // Guarantee at least one minor cameo for depth
+  // If the player explicitly excluded a cameo/minor role, don't re-add another one on every import.
+  if (!chars.some(r => r.importance === 'minor')) {
+    chars.push({
+      id: `cameo-${Date.now()}`,
+      name: 'Cameo Appearance',
+      importance: 'minor',
+      description: 'Short cameo role',
+      requiredType: 'actor',
+      ageRange: [25, 80],
+    });
+  }
 }
 
 export function importRolesForScript(script: Script, gameState: GameState): ScriptCharacter[] {
@@ -88,50 +117,49 @@ export function importRolesForScript(script: Script, gameState: GameState): Scri
       // Fallback to curated role database
       const fallback = RoleDatabase.getRolesForSource('franchise', script.franchiseId, gameState);
       fallback.forEach(role => {
-        const incoming: ScriptCharacter = {
+        const incoming: ScriptCharacter = asLockedImportedRole({
           ...role,
           franchiseId: script.franchiseId,
           franchiseCharacterId: role.id,
-          locked: role.requiredType === 'director' ? true : (role.importance !== 'minor'),
-        };
+        });
         const match = existing.find(c => c.franchiseCharacterId === incoming.franchiseCharacterId || (c.name === incoming.name && c.requiredType === incoming.requiredType));
         if (!match) characters.push(incoming); else characters.push(mergeWithOverrides(match, incoming));
       });
     }
-
-    ensureDirector(characters);
   }
 
   if ((script.sourceType === 'public-domain' || script.sourceType === 'adaptation') && script.publicDomainId) {
     const pdRoles = RoleDatabase.getRolesForSource('public-domain', script.publicDomainId, gameState);
     pdRoles.forEach(role => {
-      const incoming: ScriptCharacter = {
+      const incoming: ScriptCharacter = asLockedImportedRole({
         ...role,
         franchiseId: undefined,
         franchiseCharacterId: role.id,
-        locked: role.requiredType === 'director',
-      };
+      });
       const match = existing.find(c => c.franchiseCharacterId === incoming.franchiseCharacterId || (c.name === incoming.name && c.requiredType === incoming.requiredType));
       if (!match) characters.push(incoming); else characters.push(mergeWithOverrides(match, incoming));
     });
-    ensureDirector(characters);
   }
 
   // Idempotency: remove duplicates by franchiseCharacterId/name+type
+  // Prefer the freshly imported/merged roles, then fill gaps with any imported roles already stored on the script.
   const keyed = new Map<string, ScriptCharacter>();
-  for (const c of [...existing.filter(c => c.locked), ...characters]) {
+
+  const existingImported = existing
+    .filter(c => c.locked || c.franchiseCharacterId)
+    .map(c => (c.franchiseCharacterId ? asLockedImportedRole(c) : c));
+
+  for (const c of [...characters, ...existingImported]) {
     const key = c.franchiseCharacterId || `${c.name}:${c.requiredType || 'actor'}`;
     if (!keyed.has(key)) keyed.set(key, c);
   }
 
-  // Merge with existing manual roles (unlocked)
-  const manual = existing.filter(c => !c.locked);
+  // Merge with existing manual roles (unlocked and not linked to an IP role)
+  const manual = existing.filter(c => !c.locked && !c.franchiseCharacterId);
   const finalList = [...Array.from(keyed.values()), ...manual];
 
-  // Guarantee at least one minor cameo for depth
-  if (!finalList.some(r => r.importance === 'minor')) {
-    finalList.push({ id: `cameo-${Date.now()}`, name: 'Cameo Appearance', importance: 'minor', description: 'Short cameo role', requiredType: 'actor', ageRange: [25,80] });
-  }
+  ensureDirector(finalList);
+  addDefaultCameo(finalList);
 
   return finalList;
 }

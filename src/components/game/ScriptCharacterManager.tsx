@@ -7,12 +7,9 @@ import { Label } from '@/components/ui/label';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { Slider } from '@/components/ui/slider';
 import { Badge } from '@/components/ui/badge';
-import { Trash2, Plus, Users, Lock } from 'lucide-react';
+import { Trash2, Plus, Users, Lock, EyeOff, Eye } from 'lucide-react';
 
-// UI-layer type: keep the core game character fields, but allow extra UI helpers.
-export interface ScriptCharacter extends GameScriptCharacter {
-  screenTimeMinutes?: number;
-}
+export type ScriptCharacter = GameScriptCharacter;
 
 interface ScriptCharacterManagerProps {
   characters: ScriptCharacter[];
@@ -24,6 +21,7 @@ export const ScriptCharacterManager: React.FC<ScriptCharacterManagerProps> = ({
   onCharactersChange
 }) => {
   const [isAdding, setIsAdding] = useState(false);
+  const [showExcluded, setShowExcluded] = useState(false);
   const [newCharacter, setNewCharacter] = useState<Partial<ScriptCharacter>>({
     name: '',
     importance: 'supporting',
@@ -93,8 +91,13 @@ export const ScriptCharacterManager: React.FC<ScriptCharacterManagerProps> = ({
   };
 
   const getTotalScreenTime = () => {
-    return characters.reduce((total, char) => total + (char.screenTimeMinutes || 0), 0);
+    return characters.reduce((total, char) => total + (!char.excluded ? (char.screenTimeMinutes || 0) : 0), 0);
   };
+
+  const activeRoleCount = characters.filter(c => !c.excluded).length;
+  const excludedRoleCount = characters.filter(c => !!c.excluded).length;
+
+  const visibleCharacters = characters.filter(c => !c.excluded || !!c.assignedTalentId || showExcluded);
 
   return (
     <Card className="card-premium">
@@ -106,8 +109,18 @@ export const ScriptCharacterManager: React.FC<ScriptCharacterManagerProps> = ({
           </div>
           <div className="flex items-center space-x-2">
             <Badge variant="outline">
-              {characters.length} roles • {getTotalScreenTime()} min total
+              {activeRoleCount}/{characters.length} active roles • {getTotalScreenTime()} min
             </Badge>
+            {excludedRoleCount > 0 && (
+              <Button
+                size="sm"
+                variant="outline"
+                onClick={() => setShowExcluded(v => !v)}
+                title={showExcluded ? 'Hide excluded roles' : 'Show excluded roles'}
+              >
+                {showExcluded ? <EyeOff className="w-4 h-4" /> : <Eye className="w-4 h-4" />}
+              </Button>
+            )}
             <Button size="sm" onClick={() => setIsAdding(true)}>
               <Plus size={14} className="mr-1" />
               Add Role
@@ -228,46 +241,70 @@ export const ScriptCharacterManager: React.FC<ScriptCharacterManagerProps> = ({
         )}
 
         {/* Existing Characters */}
-        <div className="space-y-3">
-          {characters.map((character) => (
-            <Card key={character.id} className="border-l-4 border-l-primary">
-              <CardContent className="pt-4">
-                <div className="flex items-start justify-between">
-                  <div className="flex-1">
-                    <div className="flex items-center space-x-2 mb-2 flex-wrap gap-y-1">
-                      <h4 className="font-semibold">{character.name}</h4>
-                      <Badge variant="outline" className="capitalize">
-                        {character.importance}
-                      </Badge>
-                      {typeof character.screenTimeMinutes === 'number' && (
-                        <Badge variant="secondary">{character.screenTimeMinutes} min</Badge>
-                      )}
-                      {character.ageRange && (
-                        <Badge variant="outline">
-                          Age {character.ageRange[0]}-{character.ageRange[1]}
-                        </Badge>
-                      )}
-                      {character.locked && (
-                        <Badge variant="secondary" className="flex items-center gap-1">
-                          <Lock className="w-3 h-3" /> Imported
-                        </Badge>
-                      )}
-                    </div>
-
-                    {character.description && (
-                      <p className="text-sm text-muted-foreground mb-2">{character.description}</p>
+        {visibleCharacters.map((character) => (
+          <Card
+            key={character.id}
+            className={`border-l-4 ${character.excluded ? 'border-l-border opacity-75' : 'border-l-primary'}`}
+          >
+            <CardContent className="pt-4">
+              <div className="flex items-start justify-between">
+                <div className="flex-1">
+                  <div className="flex items-center space-x-2 mb-2 flex-wrap gap-y-1">
+                    <h4 className="font-semibold">{character.name}</h4>
+                    <Badge variant="outline" className="capitalize">
+                      {character.importance}
+                    </Badge>
+                    {typeof character.screenTimeMinutes === 'number' && (
+                      <Badge variant="secondary">{character.screenTimeMinutes} min</Badge>
                     )}
-
-                    {(character.traits || []).length > 0 && (
-                      <div className="flex flex-wrap gap-1">
-                        {(character.traits || []).map((trait) => (
-                          <Badge key={trait} variant="secondary" className="text-xs">
-                            {trait}
-                          </Badge>
-                        ))}
-                      </div>
+                    {character.ageRange && (
+                      <Badge variant="outline">
+                        Age {character.ageRange[0]}-{character.ageRange[1]}
+                      </Badge>
+                    )}
+                    {character.locked && (
+                      <Badge variant="secondary" className="flex items-center gap-1">
+                        <Lock className="w-3 h-3" /> Imported
+                      </Badge>
+                    )}
+                    {character.excluded && (
+                      <Badge variant="secondary" className="flex items-center gap-1">
+                        <EyeOff className="w-3 h-3" /> Excluded
+                      </Badge>
                     )}
                   </div>
+
+                  {character.description && (
+                    <p className="text-sm text-muted-foreground mb-2">{character.description}</p>
+                  )}
+
+                  {(character.traits || []).length > 0 && (
+                    <div className="flex flex-wrap gap-1">
+                      {(character.traits || []).map((trait) => (
+                        <Badge key={trait} variant="secondary" className="text-xs">
+                          {trait}
+                        </Badge>
+                      ))}
+                    </div>
+                  )}
+                </div>
+
+                <div className="flex items-center gap-1">
+                  <Button
+                    variant={character.excluded ? "outline" : "secondary"}
+                    size="sm"
+                    onClick={() =>
+                      handleUpdateCharacter(
+                        character.id,
+                        character.excluded
+                          ? { excluded: false }
+                          : { excluded: true }
+                      )
+                    }
+                    title={character.excluded ? 'Include in production' : 'Exclude from production'}
+                  >
+                    {character.excluded ? <Eye className="w-4 h-4" /> : <EyeOff className="w-4 h-4" />}
+                  </Button>
 
                   <Button
                     variant="ghost"
@@ -280,10 +317,10 @@ export const ScriptCharacterManager: React.FC<ScriptCharacterManagerProps> = ({
                     <Trash2 size={16} />
                   </Button>
                 </div>
-              </CardContent>
-            </Card>
-          ))}
-        </div>
+              </div>
+            </CardContent>
+          </Card>
+        ))}
 
         {characters.length === 0 && !isAdding && (
           <div className="text-center py-8 text-muted-foreground">

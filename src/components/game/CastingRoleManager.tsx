@@ -50,6 +50,10 @@ export const CastingRoleManager: React.FC<CastingRoleManagerProps> = ({
     if (project.script?.characters) {
       project.script.characters.forEach(character => {
         const existingCast = project.cast?.find(c => c.role === character.name);
+        // If the player excluded a role, hide it *unless* it already has an assignment (script or legacy cast)
+        // so that exclusions don't accidentally "erase" persisted casting.
+        if (character.excluded && !existingCast && !character.assignedTalentId) return;
+
         roles.push({
           characterId: character.id,
           characterName: character.name,

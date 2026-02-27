@@ -256,8 +256,12 @@ export const EnhancedMarketingSystem: React.FC<EnhancedMarketingSystemProps> = (
           }))
         ]
       },
-      // Mark as ready for release planning when marketing completed
-      readyForRelease: true
+      // Mark as ready for release planning when marketing is in place
+      readyForRelease: true,
+      status: 'ready-for-release',
+      // If we were stuck in post-production awaiting manual marketing, advance the phase marker.
+      currentPhase: (project.currentPhase === 'post-production' ? 'marketing' : project.currentPhase) as any,
+      phaseDuration: -1,
     });
 
     // Deduct budget

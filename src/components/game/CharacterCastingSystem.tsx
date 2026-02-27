@@ -5,7 +5,8 @@ import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
 import { Avatar, AvatarFallback } from '@/components/ui/avatar';
 import { useToast } from '@/hooks/use-toast';
-import { Users, User, Crown, Star, UserCheck, AlertTriangle, Filter, CheckCircle } from 'lucide-react';
+import { getCastingProgressStatus } from '@/utils/castingRequirements';
+import { Users, User, Crown, Star, UserCheck, AlertTriangle, Filter, CheckCircle, Eye, EyeOff } from 'lucide-react';
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger } from '@/components/ui/dialog';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 
@@ -30,6 +31,7 @@ export const CharacterCastingSystem: React.FC<CharacterCastingSystemProps> = ({
   const { toast } = useToast();
   const [selectedSlot, setSelectedSlot] = useState<CastingSlot | null>(null);
   const [filterType, setFilterType] = useState<'all' | 'actor' | 'director'>('all');
+  const [showExcluded, setShowExcluded] = useState(false);
 
   // Early return if project or script is null
   if (!project || !project.script) {
@@ -41,16 +43,22 @@ export const CharacterCastingSystem: React.FC<CharacterCastingSystemProps> = ({
   }
 
   const createCastingSlots = (): CastingSlot[] => {
-    const characters = project.script?.characters || [];
-    
+    const allCharacters = project.script?.characters || [];
+    // Hide excluded roles unless already assigned (so existing contracts remain visible)
+    const characters = showExcluded
+      ? allCharacters
+      : allCharacters.filter(c => !c.excluded || !!c.assignedTalentId);
+
     return characters.map(character => {
       const talent = character.assignedTalentId 
         ? gameState.talent.find(t => t.id === character.assignedTalentId)
         : null;
       
-      const isRequired = (character.traits?.includes('mandatory')) || 
-                        character.importance === 'lead' || 
-                        character.requiredType === 'director';
+      const isRequired = !character.excluded && (
+        (character.traits?.includes('mandatory')) ||
+        character.importance === 'lead' ||
+        character.requiredType === 'director'
+      );
       
       const baseMarketValue = talent?.marketValue || 5000000; // Default market value
       const contractCost = (baseMarketValue * 0.1) + (baseMarketValue * 0.05 * (character.importance === 'lead' ? 2 : character.importance === 'supporting' ? 1.5 : 1));
@@ -85,7 +93,7 @@ export const CharacterCastingSystem: React.FC<CharacterCastingSystemProps> = ({
       
       // Check if already cast in this project
       const alreadyCast = (project.script?.characters || []).some(c => 
-        c.assignedTalentId === talent.id && c.id !== character.id
+        !c.excluded && c.assignedTalentId === talent.id && c.id !== character.id
       );
       if (alreadyCast) return false;
       
@@ -159,38 +167,27 @@ export const CharacterCastingSystem: React.FC<CharacterCastingSystemProps> = ({
   };
 
   const getCastingProgress = () => {
-    const slots = createCastingSlots();
-    const requiredSlots = slots.filter(s => s.isRequired);
-    const castRequired = requiredSlots.filter(s => s.talent).length;
-    const totalCast = slots.filter(s => s.talent).length;
-    
-    return {
-      requiredCast: castRequired,
-      requiredTotal: requiredSlots.length,
-      totalCast,
-      totalSlots: slots.length,
-      canProceed: castRequired === requiredSlots.length
-    };
+    return getCastingProgressStatus(project.script?.characters || []);
   };
 
   const getTotalCastingCost = () => {
     return createCastingSlots()
-      .filter(slot => slot.talent)
+      .filter(slot => slot.talent && !slot.character.excluded)
       .reduce((sum, slot) => sum + slot.contractCost, 0);
   };
 
   const handleConfirmCasting = () => {
     const slots = createCastingSlots();
-    const requiredSlots = slots.filter(s => s.isRequired);
-    const castRequired = requiredSlots.filter(s => s.talent).length;
-    if (castRequired !== requiredSlots.length) {
+
+    const progress = getCastingProgressStatus(project.script?.characters || []);
+    if (!progress.canProceed) {
       toast({ title: 'Cannot Confirm', description: 'Director and Lead roles must be cast', variant: 'destructive' });
       return;
     }
 
     // Build cast entries and compute star power
     const castEntries = slots
-      .filter(s => s.talent)
+      .filter(s => s.talent && !s.character.excluded)
       .map(s => ({
         talentId: (s.talent as TalentPerson).id,
         role: s.character.requiredType === 'director'
@@ -208,7 +205,7 @@ export const CharacterCastingSystem: React.FC<CharacterCastingSystemProps> = ({
         }
       }));
 
-    const assignedTalents = slots.filter(s => s.talent).map(s => s.talent!) as TalentPerson[];
+    const assignedTalents = slots.filter(s => s.talent && !s.character.excluded).map(s => s.talent!) as TalentPerson[];
     const fameScores = assignedTalents
       .filter(t => t.type === 'actor' || t.type === 'director')
       .map(t => t.fame ?? Math.min(100, Math.round(t.reputation)));
@@ -218,7 +215,7 @@ export const CharacterCastingSystem: React.FC<CharacterCastingSystemProps> = ({
 const totalCost = getTotalCastingCost();
 
 const contracted = slots
-  .filter(s => s.talent)
+  .filter(s => s.talent && !s.character.excluded)
   .map(s => ({
     talentId: (s.talent as TalentPerson).id,
     role: s.character.requiredType === 'director'
@@ -289,6 +286,16 @@ const updatedProject: Project = {
                   <SelectItem value="director">Directors</SelectItem>
                 </SelectContent>
               </Select>
+              {(project.script?.characters || []).some(c => !!c.excluded) && (
+                <Button
+                  size="sm"
+                  variant="outline"
+                  onClick={() => setShowExcluded(v => !v)}
+                  title={showExcluded ? 'Hide excluded roles' : 'Show excluded roles'}
+                >
+                  {showExcluded ? <EyeOff className="h-4 w-4" /> : <Eye className="h-4 w-4" />}
+                </Button>
+              )}
               <Badge variant="outline">
                 Total Cost: ${(getTotalCastingCost() / 1000000).toFixed(1)}M
               </Badge>
@@ -404,7 +411,12 @@ const updatedProject: Project = {
                   <div className="flex gap-2">
 <Dialog>
   <DialogTrigger asChild>
-    <Button variant="outline" size="sm" disabled={project.castingConfirmed}>
+    <Button
+      variant="outline"
+      size="sm"
+      disabled={project.castingConfirmed || slot.character.excluded}
+      title={slot.character.excluded ? 'Role is excluded' : 'Change casting'}
+    >
       Change
     </Button>
   </DialogTrigger>
@@ -446,7 +458,12 @@ const updatedProject: Project = {
                   
 <Dialog>
   <DialogTrigger asChild>
-    <Button className="w-full" variant={slot.isRequired ? "default" : "outline"} disabled={project.castingConfirmed}>
+    <Button
+      className="w-full"
+      variant={slot.isRequired ? "default" : "outline"}
+      disabled={project.castingConfirmed || slot.character.excluded}
+      title={slot.character.excluded ? 'Role is excluded' : undefined}
+    >
       <UserCheck className="h-4 w-4 mr-2" />
       Cast Role ({getEligibleTalent(slot.character).length} candidates)
     </Button>
@@ -514,36 +531,56 @@ const CastingCandidatesList: React.FC<CastingCandidatesListProps> = ({
           {candidates.map((talent) => {
             const isGenreMatch = projectGenre && talent.genres?.includes(projectGenre as any);
             const isCurrent = currentTalent?.id === talent.id;
-            
+
             return (
-              <div 
-                key={talent.id} 
+              <div
+                key={talent.id}
                 className={`flex items-center justify-between p-3 border rounded-lg transition-colors ${
-                  isCurrent ? 'border-green-500 bg-green-50 dark:bg-green-950/20 dark:border-green-400' : 
-                  isGenreMatch ? 'border-blue-500 bg-blue-50 dark:bg-blue-950/20 dark:border-blue-400' : 
-                  'border-border hover:border-accent'
+                  isCurrent
+                    ? 'border-green-500 bg-green-50 dark:bg-green-950/20 dark:border-green-400'
+                    : isGenreMatch
+                      ? 'border-blue-500 bg-blue-50 dark:bg-blue-950/20 dark:border-blue-400'
+                      : 'border-border hover:border-accent'
                 } bg-card`}
               >
                 <div className="flex items-center gap-3">
                   <Avatar>
-                    <AvatarFallback className={`${
-                      isCurrent ? 'bg-green-100 text-green-800 dark:bg-green-900/50 dark:text-green-300' :
-                      isGenreMatch ? 'bg-blue-100 text-blue-800 dark:bg-blue-900/50 dark:text-blue-300' :
-                      'bg-muted text-foreground'
-                    }`}>
+                    <AvatarFallback
+                      className={`${
+                        isCurrent
+                          ? 'bg-green-100 text-green-800 dark:bg-green-900/50 dark:text-green-300'
+                          : isGenreMatch
+                            ? 'bg-blue-100 text-blue-800 dark:bg-blue-900/50 dark:text-blue-300'
+                            : 'bg-muted text-foreground'
+                      }`}
+                    >
                       {talent.name.split(' ').map(n => n[0]).join('')}
                     </AvatarFallback>
                   </Avatar>
+
                   <div>
                     <div className="flex items-center gap-2">
                       <p className="font-medium text-foreground">{talent.name}</p>
-                      {isGenreMatch && <Badge variant="outline" className="text-xs border-blue-300 text-blue-700 dark:border-blue-600 dark:text-blue-300">Genre Match</Badge>}
-                      {isCurrent && <Badge variant="default" className="text-xs bg-green-600 text-white dark:bg-green-700">Current</Badge>}
+                      {isGenreMatch && (
+                        <Badge
+                          variant="outline"
+                          className="text-xs border-blue-300 text-blue-700 dark:border-blue-600 dark:text-blue-300"
+                        >
+                          Genre Match
+                        </Badge>
+                      )}
+                      {isCurrent && (
+                        <Badge variant="default" className="text-xs bg-green-600 text-white dark:bg-green-700">
+                          Current
+                        </Badge>
+                      )}
                     </div>
+
                     <p className="text-sm text-muted-foreground">
                       ${(talent.marketValue / 1000000).toFixed(1)}M • Rep: {Math.round(talent.reputation)} • Age: {talent.age}
                       {talent.gender && ` • ${talent.gender}`}
                     </p>
+
                     <div className="flex flex-wrap gap-1 mt-1">
                       {talent.genres?.slice(0, 3).map(genre => (
                         <Badge key={genre} variant="secondary" className="text-xs bg-secondary/80 text-secondary-foreground">
@@ -553,19 +590,10 @@ const CastingCandidatesList: React.FC<CastingCandidatesListProps> = ({
                     </div>
                   </div>
                 </div>
-                <Button 
+
+                <Button
                   size="sm"
-                  onClick={() => {
-                    onCast(character, talent);
-                    // Force close dialog by finding and clicking backdrop
-                    setTimeout(() => {
-                      const dialog = document.querySelector('[role="dialog"]');
-                      if (dialog) {
-                        const backdrop = dialog.parentElement?.querySelector('[data-radix-dialog-overlay]') as HTMLElement;
-                        if (backdrop) backdrop.click();
-                      }
-                    }, 100);
-                  }}
+                  onClick={() => onCast(character, talent)}
                   disabled={isCurrent}
                   className={isCurrent ? 'opacity-50' : ''}
                 >

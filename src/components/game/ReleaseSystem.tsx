@@ -1,5 +1,6 @@
 // Unified Release System - Handles all film release logic
 import { Project } from '../../types/game';
+import { getProjectCastingSummary } from '@/utils/projectCasting';
 import { TimeState } from './TimeSystem';
 import { CalendarManager } from './CalendarManager';
 import { FinancialEngine } from './FinancialEngine';
@@ -46,34 +47,16 @@ export class ReleaseSystem {
       errors.push('TV show script needs quality assessment');
     }
     
-    // Check cast - look at script characters with assigned talent (correct data structure)
-    const assignedTalent = project.script?.characters?.filter(c => c.assignedTalentId) || [];
-    const hasDirector = assignedTalent.some(c => c.requiredType === 'director');
-    const hasLead = assignedTalent.some(c => c.importance === 'lead' && c.requiredType === 'actor');
+    // Casting/cast requirements: script.characters is the source of truth when present and non-empty.
+    // Only fall back to legacy project.cast/crew when script.characters is missing or empty.
+    const casting = getProjectCastingSummary(project);
+
+    const actualHasDirector = casting.hasDirector;
+    const actualHasLead = casting.hasLead;
+
     
-    // Also check legacy cast array as fallback
-    const legacyCast = project.cast || [];
-    const legacyHasDirector = legacyCast.some(c => c.role?.toLowerCase().includes('director'));
-    const legacyHasLead = legacyCast.some(c => c.role?.toLowerCase().includes('lead'));
-    
-    const actualHasDirector = hasDirector || legacyHasDirector;
-    const actualHasLead = hasLead || legacyHasLead;
-    
-    console.log('RELEASE_VALIDATION: cast check', {
-      projectId: project.id,
-      title: project.title,
-      type: project.type,
-      status: project.status,
-      phase: project.currentPhase,
-      legacyCast: project.cast,
-      legacyCastLength: project.cast?.length,
-      scriptCharacters: project.script?.characters?.length,
-      assignedTalent: assignedTalent.length,
-      hasDirector: actualHasDirector,
-      hasLead: actualHasLead,
-    });
-    
-    const hasCast = assignedTalent.length > 0 || legacyCast.length > 0;
+
+    const hasCast = casting.assignedCount > 0;
     
     if (!hasCast) {
       errors.push(isTV ? 'TV show needs at least one cast member' : 'Film needs at least one cast member');
@@ -94,7 +77,7 @@ export class ReleaseSystem {
     
     // Warnings for optimization - adjusted for TV
     if (isTV) {
-      if (legacyCast.length < 2 && assignedTalent.length < 2) {
+      if (casting.assignedCount < 2) {
         warnings.push('Small cast may limit audience appeal for TV');
       }
       if (!project.marketingData && !project.marketingCampaign) {
@@ -104,7 +87,7 @@ export class ReleaseSystem {
       if (!project.distributionStrategy?.marketingBudget || project.distributionStrategy.marketingBudget < project.budget.total * 0.2) {
         warnings.push('Low marketing budget may hurt box office performance');
       }
-      if (legacyCast.length < 3 && assignedTalent.length < 3) {
+      if (casting.assignedCount < 3) {
         warnings.push('Small cast may limit audience appeal');
       }
     }
@@ -122,18 +105,21 @@ export class ReleaseSystem {
     targetYear: number, 
     currentTime: TimeState
   ): ReleaseResult {
+    const safeTargetWeek = Math.max(1, Math.min(52, targetWeek));
     // Validate film readiness
     const filmValidation = this.validateFilmForRelease(film);
     if (!filmValidation.canRelease) {
-      console.error('RELEASE_SYSTEM: validation failed', {
-        filmId: film.id,
-        title: film.title,
-        type: film.type,
-        errors: filmValidation.errors,
-        warnings: filmValidation.warnings,
-        phase: (film as any).currentPhase,
-        status: film.status,
-      });
+      if ((import.meta as any).env?.DEV) {
+        console.error('RELEASE_SYSTEM: validation failed', {
+          filmId: film.id,
+          title: film.title,
+          type: film.type,
+          errors: filmValidation.errors,
+          warnings: filmValidation.warnings,
+          phase: (film as any).currentPhase,
+          status: film.status,
+        });
+      }
       return {
         success: false,
         message: `Cannot release: ${filmValidation.errors.join(', ')}`
@@ -141,16 +127,18 @@ export class ReleaseSystem {
     }
     
     // Validate calendar slot
-    const calendarValidation = CalendarManager.validateRelease(film.id, targetWeek, targetYear, currentTime);
+    const calendarValidation = CalendarManager.validateRelease(film.id, safeTargetWeek, targetYear, currentTime);
     if (!calendarValidation.canRelease) {
-      console.error('RELEASE_SYSTEM: calendar validation failed', {
-        filmId: film.id,
-        title: film.title,
-        targetWeek,
-        targetYear,
-        currentTime,
-        reason: calendarValidation.reason,
-      });
+      if ((import.meta as any).env?.DEV) {
+        console.error('RELEASE_SYSTEM: calendar validation failed', {
+          filmId: film.id,
+          title: film.title,
+          targetWeek,
+          targetYear,
+          currentTime,
+          reason: calendarValidation.reason,
+        });
+      }
       return {
         success: false,
         message: calendarValidation.reason || 'Release date not available'
@@ -158,13 +146,13 @@ export class ReleaseSystem {
     }
     
     // Schedule the release
-    CalendarManager.scheduleRelease(film.id, film.title, targetWeek, targetYear);
+    CalendarManager.scheduleRelease(film.id, film.title, safeTargetWeek, targetYear);
     
     // Record marketing expenses (spread over 4 weeks leading up to release)
     if (film.distributionStrategy?.marketingBudget) {
       const weeklyMarketingSpend = film.distributionStrategy.marketingBudget / 4;
       for (let i = 1; i <= 4; i++) {
-        let marketingWeek = targetWeek - i;
+        let marketingWeek = safeTargetWeek - i;
         let marketingYear = targetYear;
         if (marketingWeek <= 0) {
           marketingWeek += 52;
@@ -182,13 +170,15 @@ export class ReleaseSystem {
       }
     }
     
-    console.log(`RELEASE: Scheduled ${film.title} for Y${targetYear}W${targetWeek}`);
-    
+    if ((import.meta as any).env?.DEV) {
+      console.log(`RELEASE: Scheduled ${film.title} for Y${targetYear}W${safeTargetWeek}`);
+    }
+
     return {
       success: true,
-      message: `${film.title} scheduled for release in Year ${targetYear}, Week ${targetWeek}`,
-      releaseWeek: targetWeek,
-      releaseYear: targetYear
+      message: `${film.title} scheduled for release in Year ${targetYear}, Week ${safeTargetWeek}`,
+      releaseWeek: safeTargetWeek,
+      releaseYear: targetYear,
     };
   }
   
@@ -200,7 +190,9 @@ export class ReleaseSystem {
     
     releaseEvents.forEach(event => {
       if (event.filmId) {
-        console.log(`RELEASE: Processing release for film ${event.filmId} - ${event.title}`);
+        if ((import.meta as any).env?.DEV) {
+          console.log(`RELEASE: Processing release for film ${event.filmId} - ${event.title}`);
+        }
         // Return just the ID for now - the main game will handle the full project update
         releasingFilms.push({
           id: event.filmId,
@@ -237,7 +229,9 @@ export class ReleaseSystem {
   
   static cancelRelease(filmId: string): boolean {
     CalendarManager.clearFilmEvents(filmId);
-    console.log(`RELEASE: Cancelled release for film ${filmId}`);
+    if ((import.meta as any).env?.DEV) {
+      console.log(`RELEASE: Cancelled release for film ${filmId}`);
+    }
     return true;
   }
   

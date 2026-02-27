@@ -1,4 +1,5 @@
 // Unified Calendar Management System - Single source of truth for all game time
+import type { Project } from '@/types/game';
 import { TimeState, TimeSystem } from './TimeSystem';
 import { getEarliestEligibleShowForRelease, isWithinAwardCooldown } from '@/data/AwardsSchedule';
 
@@ -15,6 +16,7 @@ export interface CalendarValidation {
   canRelease: boolean;
   reason?: string;
   recommendedWeek?: number;
+  recommendedYear?: number;
   awardEligibility?: string;
 }
 
@@ -32,61 +34,74 @@ export class CalendarManager {
   }
   
   static validateRelease(filmId: string, targetWeek: number, targetYear: number, currentTime: TimeState): CalendarValidation {
-    const weeksSinceNow = TimeSystem.calculateWeeksSince(currentTime.currentWeek, currentTime.currentYear, targetWeek, targetYear);
-    
+    const safeTargetWeek = TimeSystem.getWeekOfYear(targetWeek);
+
+    const currentAbsWeek = (currentTime.currentYear * 52) + currentTime.currentWeek;
+    const targetAbsWeek = (targetYear * 52) + safeTargetWeek;
+    const weeksUntil = targetAbsWeek - currentAbsWeek;
+
     // Must be in the future
-    if (weeksSinceNow < 0) {
+    if (weeksUntil <= 0) {
       return {
         canRelease: false,
-        reason: "Release date must be in the future"
+        reason: 'Release date must be in the future',
       };
     }
-    
+
     // Need at least 4 weeks for marketing
-    if (weeksSinceNow < 4) {
-      const recommendedWeek = currentTime.currentWeek + 4 > 52 ? 
-        (currentTime.currentWeek + 4) - 52 : currentTime.currentWeek + 4;
-      const recommendedYear = currentTime.currentWeek + 4 > 52 ? 
-        currentTime.currentYear + 1 : currentTime.currentYear;
-        
+    if (weeksUntil < 4) {
+      let recommendedWeek = currentTime.currentWeek + 4;
+      let recommendedYear = currentTime.currentYear;
+      if (recommendedWeek > 52) {
+        recommendedWeek -= 52;
+        recommendedYear += 1;
+      }
+
       return {
         canRelease: false,
-        reason: "Need at least 4 weeks for marketing campaign",
-        recommendedWeek: recommendedWeek
+        reason: 'Need at least 4 weeks for marketing campaign',
+        recommendedWeek,
+        recommendedYear,
       };
     }
-    
+
     // Check for conflicts with other releases
     const conflictingRelease = this.events.find(event => 
       event.type === 'release' && 
-      event.week === targetWeek && 
+      event.week === safeTargetWeek && 
       event.year === targetYear &&
       event.filmId !== filmId
     );
-    
+
     if (conflictingRelease) {
       return {
         canRelease: false,
-        reason: "Another film is already scheduled for this week"
+        reason: 'Another film is already scheduled for this week'
       };
     }
-    
+
     // Awards show cooldown and eligibility checks
-    const cooldown = isWithinAwardCooldown(targetWeek, targetYear);
+    const cooldown = isWithinAwardCooldown(safeTargetWeek, targetYear);
     if (cooldown.within) {
-      const recommendedWeek = Math.min(52, (cooldown.show!.ceremonyWeek + cooldown.show!.cooldownWeeks));
+      let recommendedWeek = cooldown.show!.ceremonyWeek + cooldown.show!.cooldownWeeks;
+      let recommendedYear = targetYear;
+      while (recommendedWeek > 52) {
+        recommendedWeek -= 52;
+        recommendedYear += 1;
+      }
       return {
         canRelease: false,
         reason: `Release falls within ${cooldown.show!.name} cooldown period (weeks ${cooldown.show!.ceremonyWeek}-${cooldown.show!.ceremonyWeek + cooldown.show!.cooldownWeeks - 1})`,
         recommendedWeek,
+        recommendedYear,
       };
     }
 
-    const qualifiesFor = getEarliestEligibleShowForRelease(targetWeek, targetYear);
+    const qualifiesFor = getEarliestEligibleShowForRelease(safeTargetWeek, targetYear);
     const awardEligibility = qualifiesFor 
       ? `Qualifies for ${qualifiesFor.name} Awards (ceremony week ${qualifiesFor.ceremonyWeek})`
       : "Does not qualify for current year's award shows";
-    
+
     return { 
       canRelease: true,
       awardEligibility
@@ -94,7 +109,8 @@ export class CalendarManager {
   }
   
   static scheduleRelease(filmId: string, title: string, week: number, year: number): boolean {
-    const eventId = `release-${filmId}-${year}-${week}`;
+    const safeWeek = TimeSystem.getWeekOfYear(week);
+    const eventId = `release-${filmId}-${year}-${safeWeek}`;
     
     // Remove any existing release for this film
     this.events = this.events.filter(event => 
@@ -106,12 +122,12 @@ export class CalendarManager {
       id: eventId,
       title: `Release: ${title}`,
       type: 'release',
-      week,
+      week: safeWeek,
       year,
       filmId
     });
     
-    console.log(`CALENDAR: Scheduled release for ${title} on Y${year}W${week}`);
+    console.log(`CALENDAR: Scheduled release for ${title} on Y${year}W${safeWeek}`);
     return true;
   }
   
@@ -177,5 +193,38 @@ export class CalendarManager {
   
   static clearFilmEvents(filmId: string): void {
     this.events = this.events.filter(event => event.filmId !== filmId);
+  }
+
+  /**
+   * Hydrate the in-memory calendar from persisted project state.
+   * This fixes reload/session issues where CalendarManager.events is empty but projects are already scheduled.
+   */
+  static syncReleasesFromProjects(projects: Project[]): void {
+    // Remove all existing release events, keep other event types.
+    this.events = this.events.filter(e => e.type !== 'release');
+
+    projects.forEach(p => {
+      if (p.status !== 'scheduled-for-release') return;
+
+      const week = p.scheduledReleaseWeek ?? p.releaseWeek;
+      const year = p.scheduledReleaseYear ?? p.releaseYear;
+      if (!week || !year) return;
+
+      const safeWeek = TimeSystem.getWeekOfYear(week);
+
+      this.events.push({
+        id: `release-${p.id}-${year}-${safeWeek}`,
+        title: `Release: ${p.title}`,
+        type: 'release',
+        week: safeWeek,
+        year,
+        filmId: p.id,
+      });
+    });
+  }
+
+  /** Test helper */
+  static clearAllEvents(): void {
+    this.events = [];
   }
 }

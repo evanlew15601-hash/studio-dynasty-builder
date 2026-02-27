@@ -1,5 +1,6 @@
 import React, { useState } from 'react';
 import { GameState, Project, TalentPerson, ProductionRole, ScriptCharacter } from '@/types/game';
+import { getProjectRoleAssignmentsForDisplay } from '@/utils/projectCasting';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
@@ -116,8 +117,8 @@ export const CastingBoard: React.FC<CastingBoardProps> = ({
       let updatedCharacters: ScriptCharacter[] = existingChars;
 
       if (talent.type === 'director') {
-        // Prefer an existing director role
-        const directorIndex = existingChars.findIndex(c => c.requiredType === 'director');
+        // Prefer an existing director role (ignore excluded roles)
+        const directorIndex = existingChars.findIndex(c => !c.excluded && c.requiredType === 'director');
         if (directorIndex >= 0) {
           updatedCharacters = existingChars.map((c, idx) =>
             idx === directorIndex ? { ...c, assignedTalentId: talent.id } : c
@@ -136,9 +137,9 @@ export const CastingBoard: React.FC<CastingBoardProps> = ({
           updatedCharacters = [...existingChars, newDirector];
         }
       } else if (talent.type === 'actor') {
-        // Prefer an explicit lead actor role
+        // Prefer an explicit lead actor role (ignore excluded roles)
         let leadIndex = existingChars.findIndex(
-          c => c.importance === 'lead' && (c.requiredType === 'actor' || !c.requiredType)
+          c => !c.excluded && c.importance === 'lead' && (c.requiredType === 'actor' || !c.requiredType)
         );
 
         if (leadIndex >= 0) {
@@ -236,26 +237,31 @@ export const CastingBoard: React.FC<CastingBoardProps> = ({
               </div>
 
               {/* Current Cast */}
-              {selectedProject.cast.length > 0 && (
+              {getProjectRoleAssignmentsForDisplay(selectedProject).length > 0 && (
                 <div className="space-y-2">
                   <h4 className="font-semibold flex items-center">
                     <TalentIcon className="mr-2" size={16} />
                     Current Cast
                   </h4>
                   <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
-                    {selectedProject.cast.map((role, index) => {
-                      const talent = gameState.talent.find(t => t.id === role.talentId);
+                    {getProjectRoleAssignmentsForDisplay(selectedProject).map((assignment, index) => {
+                      const talent = gameState.talent.find(t => t.id === assignment.talentId);
+                      const contract = [...(selectedProject.cast || []), ...(selectedProject.crew || [])].find(
+                        r => r.talentId === assignment.talentId
+                      );
+                      const salary = contract?.salary;
+
                       return talent ? (
-                        <div key={index} className="flex items-center space-x-3 p-3 rounded-lg bg-card border">
+                        <div key={`${assignment.talentId}-${index}`} className="flex items-center space-x-3 p-3 rounded-lg bg-card border">
                           <Avatar>
                             <AvatarFallback>{talent.name.split(' ').map(n => n[0]).join('')}</AvatarFallback>
                           </Avatar>
                           <div className="flex-1">
                             <p className="font-medium">{talent.name}</p>
-                            <p className="text-sm text-muted-foreground">{role.role}</p>
+                            <p className="text-sm text-muted-foreground">{assignment.role}</p>
                           </div>
                           <div className="text-right">
-                            <p className="text-sm font-medium">{formatCurrency(role.salary)}</p>
+                            <p className="text-sm font-medium">{salary != null ? formatCurrency(salary) : 'N/A'}</p>
                           </div>
                         </div>
                       ) : null;

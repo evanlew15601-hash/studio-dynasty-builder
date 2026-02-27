@@ -3,6 +3,7 @@ import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
 import { GameState, Project, TalentPerson, MediaItem } from '@/types/game';
+import { getProjectRoleAssignments } from '@/utils/projectCasting';
 import { MediaEngine } from './MediaEngine';
 import { Newspaper, TrendingUp, MessageSquare, Eye, Users, Zap } from 'lucide-react';
 
@@ -131,8 +132,8 @@ export const EnhancedMediaSystem: React.FC<EnhancedMediaSystemProps> = ({
         newStories.push(createBoxOfficeStory(project));
       }
       
-      // Casting news
-      if (project.cast && project.cast.length > 0 && Math.random() < 0.2) {
+      // Casting news (respect role exclusion + script.characters source of truth)
+      if (getProjectRoleAssignments(project).length > 0 && Math.random() < 0.2) {
         newStories.push(createCastingStory(project));
       }
     });
@@ -234,9 +235,13 @@ export const EnhancedMediaSystem: React.FC<EnhancedMediaSystemProps> = ({
 
   const createCastingStory = (project: Project): MediaStory => {
     const outlet = getRandomOutletByType(['trade', 'mainstream', 'online']);
-    const castMember = project.cast[Math.floor(Math.random() * project.cast.length)];
-    const talent = gameState.talent.find(t => t.id === castMember.talentId);
-    
+
+    const assignments = getProjectRoleAssignments(project);
+    if (assignments.length === 0) return createRandomIndustryStory();
+
+    const assignment = assignments[Math.floor(Math.random() * assignments.length)];
+    const talent = gameState.talent.find(t => t.id === assignment.talentId);
+
     if (!talent) return createRandomIndustryStory(); // Fallback
     
     const templates = [

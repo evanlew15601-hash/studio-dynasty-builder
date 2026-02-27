@@ -198,7 +198,7 @@ export const TVProductionManagement: React.FC<TVProductionManagementProps> = ({
                         </Badge>
                       </div>
                       {(() => {
-                        const characters = project.script?.characters || [];
+                        const characters = (project.script?.characters || []).filter(c => !c.excluded);
                         const castCount = characters.filter(c => c.assignedTalentId).length;
                         const hasDirector = characters.some(c => c.requiredType === 'director' && c.assignedTalentId);
                         const hasLead = characters.some(c => c.importance === 'lead' && c.requiredType === 'actor' && c.assignedTalentId);
@@ -375,8 +375,9 @@ export const TVProductionManagement: React.FC<TVProductionManagementProps> = ({
                 const updatedCharacters = (castingProject.script?.characters || []).map(c =>
                   c.id === characterId ? { ...c, assignedTalentId: talentId } : c
                 );
-                const hasDirector = updatedCharacters.some(c => c.requiredType === 'director' && c.assignedTalentId);
-                const hasLead = updatedCharacters.some(c => c.importance === 'lead' && c.requiredType === 'actor' && c.assignedTalentId);
+                const active = updatedCharacters.filter(c => !c.excluded);
+                const hasDirector = active.some(c => c.requiredType === 'director' && c.assignedTalentId);
+                const hasLead = active.some(c => c.importance === 'lead' && c.requiredType === 'actor' && c.assignedTalentId);
                 const updated = { 
                   ...castingProject, 
                   script: { ...castingProject.script, characters: updatedCharacters }, 
@@ -386,8 +387,35 @@ export const TVProductionManagement: React.FC<TVProductionManagementProps> = ({
               }}
               onCreateRole={(role) => {
                 const updatedCharacters = [...(castingProject.script?.characters || []), role];
-                const hasDirector = updatedCharacters.some(c => c.requiredType === 'director' && c.assignedTalentId);
-                const hasLead = updatedCharacters.some(c => c.importance === 'lead' && c.requiredType === 'actor' && c.assignedTalentId);
+                const active = updatedCharacters.filter(c => !c.excluded);
+                const hasDirector = active.some(c => c.requiredType === 'director' && c.assignedTalentId);
+                const hasLead = active.some(c => c.importance === 'lead' && c.requiredType === 'actor' && c.assignedTalentId);
+                const updated = { 
+                  ...castingProject, 
+                  script: { ...castingProject.script, characters: updatedCharacters }, 
+                  castingConfirmed: hasDirector && hasLead 
+                };
+                onProjectUpdate(updated);
+              }}
+              onUpdateRole={(characterId, updates) => {
+                const updatedCharacters = (castingProject.script?.characters || []).map(c =>
+                  c.id === characterId ? { ...c, ...updates } : c
+                );
+                const active = updatedCharacters.filter(c => !c.excluded);
+                const hasDirector = active.some(c => c.requiredType === 'director' && c.assignedTalentId);
+                const hasLead = active.some(c => c.importance === 'lead' && c.requiredType === 'actor' && c.assignedTalentId);
+                const updated = { 
+                  ...castingProject, 
+                  script: { ...castingProject.script, characters: updatedCharacters }, 
+                  castingConfirmed: hasDirector && hasLead 
+                };
+                onProjectUpdate(updated);
+              }}
+              onRemoveRole={(characterId) => {
+                const updatedCharacters = (castingProject.script?.characters || []).filter(c => c.id !== characterId);
+                const active = updatedCharacters.filter(c => !c.excluded);
+                const hasDirector = active.some(c => c.requiredType === 'director' && c.assignedTalentId);
+                const hasLead = active.some(c => c.importance === 'lead' && c.requiredType === 'actor' && c.assignedTalentId);
                 const updated = { 
                   ...castingProject, 
                   script: { ...castingProject.script, characters: updatedCharacters }, 

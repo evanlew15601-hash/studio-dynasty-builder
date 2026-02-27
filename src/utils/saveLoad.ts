@@ -1,4 +1,5 @@
 import { GameState } from '@/types/game';
+import { normalizeGameStateForLoad, normalizeGameStateForSave } from '@/utils/gameStateNormalization';
 
 export interface SaveGameMeta {
   savedAt: string;
@@ -42,7 +43,7 @@ export function saveGame(
   }
 
   const snapshot: SaveGameSnapshot = {
-    gameState,
+    gameState: normalizeGameStateForSave(gameState),
     meta: {
       savedAt: new Date().toISOString(),
       version: CURRENT_SAVE_VERSION,
@@ -81,7 +82,10 @@ export function loadGame(slotId: string): SaveGameSnapshot | null {
       return null;
     }
 
-    return parsed;
+    return {
+      ...parsed,
+      gameState: normalizeGameStateForLoad(parsed.gameState),
+    };
   } catch (error) {
     console.error('Failed to load game snapshot', error);
     return null;

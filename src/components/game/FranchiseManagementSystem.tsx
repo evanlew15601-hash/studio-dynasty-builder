@@ -119,7 +119,7 @@ export const FranchiseManagementSystem: React.FC<FranchiseManagementSystemProps>
   const getCharacterPopularity = (characterId: string) => {
     // Find projects where this character appeared
     const appearances = gameState.projects.filter(p => 
-      p.script.characters?.some(c => c.franchiseCharacterId === characterId)
+      p.script.characters?.some(c => !c.excluded && c.franchiseCharacterId === characterId)
     );
     
     if (appearances.length === 0) return 0;
@@ -236,7 +236,7 @@ export const FranchiseManagementSystem: React.FC<FranchiseManagementSystemProps>
           const characters = gameState.projects
             .filter(p => p.script.franchiseId === franchise.id)
             .flatMap(p => p.script.characters || [])
-            .filter(c => c.franchiseCharacterId)
+            .filter(c => c.franchiseCharacterId && !c.excluded)
             .reduce((acc, char) => {
               if (!acc.find(existing => existing.franchiseCharacterId === char.franchiseCharacterId)) {
                 acc.push(char);

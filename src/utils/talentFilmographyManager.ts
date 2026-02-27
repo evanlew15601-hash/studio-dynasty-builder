@@ -1,30 +1,30 @@
 // Talent Filmography Management
 import { GameState, TalentPerson, Project } from '@/types/game';
+import { getProjectCastingSummary } from '@/utils/projectCasting';
 
 export const TalentFilmographyManager = {
   /**
    * Update talent filmography when a project is released
    */
   updateFilmographyOnRelease(gameState: GameState, project: Project): GameState {
-    if (!project.script?.characters || project.status !== 'released') {
+    if (project.status !== 'released') {
       return gameState;
     }
 
-    const updatedTalent = gameState.talent.map(talent => {
-      // Find if this talent was cast in the project
-      const castCharacter = project.script!.characters!.find(
-        char => char.assignedTalentId === talent.id
-      );
+    const casting = getProjectCastingSummary(project);
 
-      if (!castCharacter) return talent;
+    const updatedTalent = gameState.talent.map(talent => {
+      const assignment = casting.assignments.find(a => a.talentId === talent.id);
+
+      if (!assignment) return talent;
 
       // Determine the role
       let role = 'Supporting';
-      if (castCharacter.requiredType === 'director') {
+      if (assignment.requiredType === 'director') {
         role = 'Director';
-      } else if (castCharacter.importance === 'lead') {
+      } else if (assignment.importance === 'lead') {
         role = 'Lead Actor';
-      } else if (castCharacter.importance === 'supporting') {
+      } else if (assignment.importance === 'supporting') {
         role = 'Supporting Actor';
       }
 

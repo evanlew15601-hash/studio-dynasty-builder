@@ -148,20 +148,51 @@ export const EnhancedAwardsSystem: React.FC<EnhancedAwardsSystemProps> = ({
     categoryId: string
   ): { talentId: string; performanceScore: number } | undefined => {
     const characters = project.script?.characters || [];
-    if (characters.length === 0) return undefined;
+    const useScript = characters.length > 0;
 
-    const charactersWithTalent: { character: ScriptCharacter; talent: TalentPerson }[] =
-      characters
-        .filter(c => c.assignedTalentId)
-        .map(c => {
-          const talent = gameState.talent.find(t => t.id === c.assignedTalentId);
-          if (!talent) return null;
-          return { character: c, talent };
-        })
-        .filter(
-          (entry): entry is { character: ScriptCharacter; talent: TalentPerson } =>
-            !!entry
-        );
+    const inferRequiredType = (role: string): 'actor' | 'director' =>
+      (role || '').toLowerCase().includes('director') ? 'director' : 'actor';
+
+    const inferImportance = (role: string): ScriptCharacter['importance'] => {
+      const r = (role || '').toLowerCase();
+      if (r.includes('director')) return 'crew';
+      if (r.includes('lead') || r.includes('protagonist')) return 'lead';
+      if (r.includes('support')) return 'supporting';
+      if (r.includes('minor') || r.includes('cameo')) return 'minor';
+      return 'supporting';
+    };
+
+    const charactersWithTalent: { character: ScriptCharacter; talent: TalentPerson }[] = useScript
+      ? characters
+          .filter(c => !c.excluded && c.assignedTalentId)
+          .map(c => {
+            const talent = gameState.talent.find(t => t.id === c.assignedTalentId);
+            if (!talent) return null;
+            return { character: c, talent };
+          })
+          .filter(
+            (entry): entry is { character: ScriptCharacter; talent: TalentPerson } =>
+              !!entry
+          )
+      : [...(project.cast || []), ...(project.crew || [])]
+          .map(role => {
+            const talent = gameState.talent.find(t => t.id === role.talentId);
+            if (!talent) return null;
+
+            const pseudoCharacter: ScriptCharacter = {
+              id: `legacy-${project.id}-${role.talentId}-${role.role}`,
+              name: role.role,
+              description: role.role,
+              importance: inferImportance(role.role),
+              requiredType: inferRequiredType(role.role),
+            } as any;
+
+            return { character: pseudoCharacter, talent };
+          })
+          .filter(
+            (entry): entry is { character: ScriptCharacter; talent: TalentPerson } =>
+              !!entry
+          );
 
     if (charactersWithTalent.length === 0) return undefined;
 

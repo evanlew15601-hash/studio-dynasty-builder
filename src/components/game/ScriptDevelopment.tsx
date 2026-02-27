@@ -10,7 +10,6 @@ import { Slider } from '@/components/ui/slider';
 import { Badge } from '@/components/ui/badge';
 import { useToast } from '@/hooks/use-toast';
 import { ScriptCharacterManager, ScriptCharacter } from './ScriptCharacterManager';
-import { importRolesForScript } from '@/utils/roleImport';
 import { finalizeScriptForSave, finalizeScriptForGreenlight, getScriptGreenlightReport } from '@/utils/scriptFinalization';
 import { ScriptIcon, BudgetIcon, AwardIcon, ClapperboardIcon } from '@/components/ui/icons';
 
@@ -47,7 +46,7 @@ return {
           pages: 120,
           quality: 50 + (franchise.culturalWeight * 0.3), // Higher for prestigious franchises
           budget: Math.max(5000000, franchise.culturalWeight * 500000), // Budget scales with cultural weight
-          developmentStage: 'concept',
+          developmentStage: 'draft',
           themes: franchise.franchiseTags.slice(0, 3),
           targetAudience: franchise.tone === 'light' ? 'family' : 'general',
           estimatedRuntime: franchise.genre.includes('fantasy') ? 150 : 120,
@@ -77,7 +76,7 @@ return {
           pages: 120,
           quality: 50 + (pd.reputationScore * 0.2), // Higher for well-known properties
           budget: Math.max(3000000, pd.reputationScore * 200000), // Lower budget since it's free IP
-          developmentStage: 'concept',
+          developmentStage: 'draft',
           themes: pd.coreElements.slice(0, 3),
           targetAudience: pd.domainType === 'folklore' ? 'family' : 'general',
           estimatedRuntime: pd.domainType === 'mythology' ? 140 : 120,
@@ -105,7 +104,7 @@ return {
       pages: 120,
       quality: 50,
       budget: 5000000,
-      developmentStage: 'concept',
+      developmentStage: 'draft',
       themes: [],
       targetAudience: 'general',
       estimatedRuntime: 120,
@@ -137,7 +136,7 @@ return {
       pages: next.pages || 120,
       quality: next.quality || 50,
       budget: next.budget || 5000000,
-      developmentStage: (next.developmentStage as any) || 'concept',
+      developmentStage: (next.developmentStage as any) || 'draft',
       themes: next.themes || [],
       targetAudience: (next.targetAudience as any) || 'general',
       estimatedRuntime: next.estimatedRuntime || 120,
@@ -148,8 +147,8 @@ return {
       characters: []
     };
     if (tempScript.sourceType === 'franchise' || tempScript.sourceType === 'public-domain' || tempScript.sourceType === 'adaptation') {
-      const imported = importRolesForScript(tempScript, gameState);
-      const adapted = imported.map((c): ScriptCharacter => ({
+      const finalized = finalizeScriptForSave(tempScript, gameState);
+      const adapted = (finalized.characters || []).map((c): ScriptCharacter => ({
         ...c,
         description: c.description || '',
         ageRange: (c.ageRange as [number, number]) || [25, 45],
@@ -180,24 +179,10 @@ return {
     return developmentCost <= availableFunds;
   };
 
-  const prepareScriptForSave = (script: Script): { script: Script; report?: ReturnType<typeof getScriptGreenlightReport> } => {
-    // Always normalize/import roles & defaults without changing the stage.
-    const normalized = finalizeScriptForSave(script, gameState);
-
-    // Only run the stricter greenlight finalization when the user explicitly marks it Final.
-    if (normalized.developmentStage !== 'final') {
-      return { script: normalized };
-    }
-
-    const { script: finalized, report } = finalizeScriptForGreenlight(normalized, gameState);
-
-    // If the user tried to set Final but the script is still failing validation,
-    // keep it in polish so the UI doesn't imply it's greenlight-ready.
-    if (!report.canFinalize) {
-      return { script: { ...finalized, developmentStage: 'polish' }, report };
-    }
-
-    return { script: finalized, report };
+  const prepareScriptForSave = (script: Script): { script: Script } => {
+    // Normalize/import roles & defaults without changing stage.
+    // Finalization for greenlight is only done via the explicit "Finalize" action.
+    return { script: finalizeScriptForSave(script, gameState) };
   };
 
   const handleFinalizeScript = (script: Script) => {
@@ -223,21 +208,23 @@ return {
   };
 
   const handleEditScript = (script: Script) => {
-    const shouldSeedRoles =
-      (!script.characters || script.characters.length === 0) &&
-      (script.sourceType === 'franchise' || script.sourceType === 'public-domain' || script.sourceType === 'adaptation');
+    const finalized = finalizeScriptForSave(script, gameState);
 
-    const seededCharacters = shouldSeedRoles ? importRolesForScript(script, gameState) : (script.characters || []);
+    // Persist normalization so older saves / partial scripts get upgraded immediately.
+    const shouldPersist =
+      (finalized.characters || []).length !== (script.characters || []).length ||
+      (script.characters || []).some(c => !c.requiredType);
 
-    // Persist the seeded roles so this script carries them forward.
-    if (shouldSeedRoles && seededCharacters.length > 0) {
-      onScriptUpdate({ ...script, characters: seededCharacters });
+    if (shouldPersist) {
+      onScriptUpdate(finalized);
     }
+
+    const charactersForUI = finalized.characters || [];
 
     setEditingScript(script);
     setNewScript({ ...script });
     setScriptCharacters(
-      seededCharacters.map((c) => ({
+      charactersForUI.map((c) => ({
         ...c,
         description: c.description || '',
         ageRange: (c.ageRange as [number, number]) || [25, 45],
@@ -269,7 +256,7 @@ return {
       pages: newScript.pages || 120,
       quality: newScript.quality || 50,
       budget: newScript.budget || 5000000,
-      developmentStage: newScript.developmentStage || 'concept',
+      developmentStage: newScript.developmentStage || 'draft',
       themes: newScript.themes || [],
       targetAudience: newScript.targetAudience || 'general',
       estimatedRuntime: newScript.estimatedRuntime || 120,
@@ -289,16 +276,9 @@ return {
       publicDomainId: newScript.publicDomainId as any,
     };
 
-    const { script: finalized, report } = prepareScriptForSave(script);
+    const { script: finalized } = prepareScriptForSave(script);
 
     onScriptUpdate(finalized);
-
-    if (report && report.fixesApplied.length > 0) {
-      toast({
-        title: 'Finalization Updates',
-        description: report.fixesApplied.join(', '),
-      });
-    }
     setIsCreating(false);
     setEditingScript(null);
     
@@ -310,7 +290,7 @@ return {
       title: editingScript ? "Script Updated" : "Script Created",
       description: editingScript
         ? `"${finalized.title}" has been updated. Continue refining or greenlight when ready.`
-        : `"${finalized.title}" has been added to your development slate with ${(finalized.characters || []).length} character roles.`,
+        : `"${finalized.title}" has been added to your development slate with ${(finalized.characters || []).filter(c => !c.excluded).length} character roles.`,
     });
   };
 
@@ -485,25 +465,15 @@ return {
                 </div>
 
                 <div>
-                  <Label htmlFor="stage">Development Stage</Label>
-                  <Select
-                    value={newScript.developmentStage || 'concept'}
-                    onValueChange={(value) => setNewScript(prev => ({ ...prev, developmentStage: value as Script['developmentStage'] }))}
-                  >
-                    <SelectTrigger className="mt-1">
-                      <SelectValue />
-                    </SelectTrigger>
-                    <SelectContent>
-                      <SelectItem value="concept">Concept</SelectItem>
-                      <SelectItem value="treatment">Treatment</SelectItem>
-                      <SelectItem value="first-draft">First Draft</SelectItem>
-                      <SelectItem value="polish">Polish</SelectItem>
-                      <SelectItem value="final">Final</SelectItem>
-                    </SelectContent>
-                  </Select>
-                  <p className="text-xs text-muted-foreground mt-1">
-                    Scripts must reach "Final" stage to be greenlit
-                  </p>
+                  <Label>Development Stage</Label>
+                  <div className="mt-2 flex items-center gap-2">
+                    <Badge variant={newScript.developmentStage === 'final' ? 'default' : 'secondary'} className="capitalize">
+                      {(newScript.developmentStage || 'draft').replace('-', ' ')}
+                    </Badge>
+                    <p className="text-xs text-muted-foreground">
+                      Finalize from the script library to greenlight.
+                    </p>
+                  </div>
                 </div>
               </div>
 
@@ -642,7 +612,7 @@ return {
           ) : (
             <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
               {availableScripts.map((script) => {
-                const stageOrder = ['concept', 'treatment', 'first-draft', 'polish', 'final'];
+                const stageOrder: Script['developmentStage'][] = ['draft', 'final'];
                 const stageIndex = stageOrder.indexOf(script.developmentStage);
                 const stageProgress = ((stageIndex + 1) / stageOrder.length) * 100;
                 const greenlightReport = getScriptGreenlightReport(script, gameState);
@@ -717,7 +687,7 @@ return {
                         {script.characters && script.characters.length > 0 && (
                           <div className="flex justify-between">
                             <span className="text-muted-foreground">Roles:</span>
-                            <span>{script.characters.length} characters</span>
+                            <span>{script.characters.filter(c => !c.excluded).length} active</span>
                           </div>
                         )}
                       </div>
