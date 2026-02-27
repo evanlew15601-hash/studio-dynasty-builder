@@ -59,19 +59,26 @@ export const RoleBasedCasting: React.FC<RoleBasedCastingProps> = ({
     onUpdateRole(character.id, { assignedTalentId: undefined });
   };
 
+  const isIpBackedScript = React.useMemo(() => {
+    const s = project?.script;
+    if (!s) return false;
+
+    return (
+      (s.sourceType === 'franchise' && !!s.franchiseId) ||
+      (s.sourceType === 'public-domain' && !!s.publicDomainId) ||
+      (s.sourceType === 'adaptation' && (!!s.franchiseId || !!s.publicDomainId))
+    );
+  }, [project?.script?.sourceType, project?.script?.franchiseId, project?.script?.publicDomainId]);
+
   // Import roles when project changes or script updates (auto-add mandatory TV roles)
   React.useEffect(() => {
     if (!project?.script) return;
 
     const existing = project.script.characters || [];
-    const shouldImport =
-      (project.script.sourceType === 'franchise' && !!project.script.franchiseId) ||
-      (project.script.sourceType === 'public-domain' && !!project.script.publicDomainId) ||
-      (project.script.sourceType === 'adaptation' && (!!project.script.franchiseId || !!project.script.publicDomainId));
-
-    const importedRoles = shouldImport && (!existing || existing.length === 0)
-      ? importRolesForScript(project.script, gameState)
-      : [];
+    const importedRoles =
+      isIpBackedScript && (!existing || existing.length === 0)
+        ? importRolesForScript(project.script, gameState)
+        : [];
 
     // Determine if TV and whether mandatory roles are missing
     const combinedActive = [...existing, ...importedRoles].filter(c => !c.excluded);
@@ -158,8 +165,8 @@ export const RoleBasedCasting: React.FC<RoleBasedCastingProps> = ({
 
   const importRolesFromSource = () => {
     const script = project.script;
-    if (!script || script.sourceType === 'original') {
-      // Create default roles for original projects
+    if (!script || !isIpBackedScript) {
+      // Create default roles for non-IP-backed projects
       const defaultRoles: ScriptCharacter[] = [
         {
           id: `director-${Date.now()}`,
