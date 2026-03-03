@@ -118,13 +118,22 @@ export const ReleaseStrategyModal: React.FC<ReleaseStrategyModalProps> = ({
     console.log('RELEASE_MODAL: schedule result', result);
 
     if (result.success) {
+      const schedulingDuringMarketing =
+        project.currentPhase === 'marketing' &&
+        !!project.marketingCampaign &&
+        project.marketingCampaign.weeksRemaining > 0;
+
       onProjectUpdate(project.id, {
         scheduledReleaseWeek: result.releaseWeek,
         scheduledReleaseYear: result.releaseYear,
-        currentPhase: 'release',
         status: 'scheduled-for-release',
         readyForRelease: false,
-        phaseDuration: -1,
+        ...(schedulingDuringMarketing
+          ? {}
+          : {
+              currentPhase: 'release',
+              phaseDuration: -1,
+            }),
       });
 
       toast({

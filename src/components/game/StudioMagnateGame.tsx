@@ -988,11 +988,15 @@ export const StudioMagnateGame: React.FC<StudioMagnateGameProps> = ({
       if (import.meta.env.DEV) {
         console.log(`🎬 MARKETING COMPLETE: ${project.title} - Moving to release phase`);
       }
+
+      const hasScheduledRelease = !!updatedProject.scheduledReleaseWeek && !!updatedProject.scheduledReleaseYear;
+
       updatedProject = {
         ...updatedProject,
         currentPhase: 'release',
-        status: 'ready-for-release',
-        readyForRelease: true
+        status: (hasScheduledRelease ? 'scheduled-for-release' : 'ready-for-release') as any,
+        readyForRelease: !hasScheduledRelease,
+        ...(hasScheduledRelease ? { phaseDuration: -1 } : {})
       };
     }
   }
@@ -1085,17 +1089,22 @@ export const StudioMagnateGame: React.FC<StudioMagnateGameProps> = ({
             if (import.meta.env.DEV) {
               console.log(`  → MARKETING COMPLETE: ${updatedProject.title} ready for release`);
             }
+
+            const hasScheduledRelease = !!updatedProject.scheduledReleaseWeek && !!updatedProject.scheduledReleaseYear;
+
             updatedProject = {
               ...updatedProject,
               currentPhase: 'release',
-              phaseDuration: 0,
-              status: 'ready-for-release' as any,
-              readyForRelease: true
+              phaseDuration: hasScheduledRelease ? -1 : 0,
+              status: (hasScheduledRelease ? 'scheduled-for-release' : 'ready-for-release') as any,
+              readyForRelease: !hasScheduledRelease
             };
             
             toast({
               title: "Marketing Campaign Complete!",
-              description: `${updatedProject.title} is ready for release strategy`,
+              description: hasScheduledRelease
+                ? `${updatedProject.title} is scheduled for release in Y${updatedProject.scheduledReleaseYear}W${updatedProject.scheduledReleaseWeek}.`
+                : `${updatedProject.title} is ready for release strategy`,
             });
           }
           // Normal progression with gating for early phases
