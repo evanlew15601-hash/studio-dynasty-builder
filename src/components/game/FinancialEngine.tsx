@@ -136,6 +136,19 @@ export class FinancialEngine {
       this.persist();
     }
   }
+
+  static clearLedger(): void {
+    this.transactions = [];
+    this.nextTransactionId = 1;
+
+    if (typeof window !== 'undefined') {
+      try {
+        window.localStorage.removeItem(this.STORAGE_KEY);
+      } catch {
+        // ignore
+      }
+    }
+  }
   
   static recordTransaction(
     type: 'revenue' | 'expense',

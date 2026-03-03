@@ -1,5 +1,6 @@
 // Unified Calendar Management System - Single source of truth for all game time
 import { TimeState, TimeSystem } from './TimeSystem';
+import { Project } from '@/types/game';
 import { getEarliestEligibleShowForRelease, isWithinAwardCooldown } from '@/data/AwardsSchedule';
 
 export interface CalendarEvent {
@@ -20,10 +21,43 @@ export interface CalendarValidation {
 }
 
 export class CalendarManager {
+  // Non-release events can still be stored here, but release scheduling should be derived from Project data
+  // so it persists across save/load.
   private static events: CalendarEvent[] = [];
   
   static clearAllEvents(): void {
     this.events = [];
+  }
+
+  private static getReleaseEventsFromProjects(projects: Project[]): CalendarEvent[] {
+    return projects
+      .map(project => {
+        const week = project.scheduledReleaseWeek ?? project.releaseWeek;
+        const year = project.scheduledReleaseYear ?? project.releaseYear;
+
+        if (!week || !year) return null;
+
+        return {
+          id: `release-${project.id}-${year}-${week}`,
+          title: `Release: ${project.title}`,
+          type: 'release' as const,
+          week,
+          year,
+          filmId: project.id,
+        } satisfies CalendarEvent;
+      })
+      .filter((e): e is CalendarEvent => !!e);
+  }
+
+  private static resolveProjectsAndWeeksAhead(
+    arg2: number | Project[] | undefined,
+    arg3: number | undefined
+  ): { projects: Project[]; weeksAhead: number } {
+    if (Array.isArray(arg2)) {
+      return { projects: arg2, weeksAhead: arg3 ?? 8 };
+    }
+
+    return { projects: [], weeksAhead: arg2 ?? 8 };
   }
 
   static isAwardsSeason(week: number): boolean {
@@ -36,7 +70,13 @@ export class CalendarManager {
     return (week >= 20 && week <= 35) || (week >= 47 && week <= 52);
   }
   
-  static validateRelease(filmId: string, targetWeek: number, targetYear: number, currentTime: TimeState): CalendarValidation {
+  static validateRelease(
+    filmId: string,
+    targetWeek: number,
+    targetYear: number,
+    currentTime: TimeState,
+    projects: Project[] = []
+  ): CalendarValidation {
     const currentAbs = (currentTime.currentYear * 52) + currentTime.currentWeek;
     const targetAbs = (targetYear * 52) + targetWeek;
     const weeksUntil = targetAbs - currentAbs;
@@ -67,8 +107,8 @@ export class CalendarManager {
     }
     
     // Check for conflicts with other releases
-    const conflictingRelease = this.events.find(event => 
-      event.type === 'release' && 
+    const releaseEvents = this.getReleaseEventsFromProjects(projects);
+    const conflictingRelease = releaseEvents.find(event => 
       event.week === targetWeek && 
       event.year === targetYear &&
       event.filmId !== filmId
@@ -129,11 +169,18 @@ export class CalendarManager {
     return true;
   }
   
-  static getUpcomingEvents(currentTime: TimeState, weeksAhead: number = 8): CalendarEvent[] {
+  static getUpcomingEvents(currentTime: TimeState, weeksAhead?: number): CalendarEvent[];
+  static getUpcomingEvents(currentTime: TimeState, projects?: Project[], weeksAhead?: number): CalendarEvent[];
+  static getUpcomingEvents(currentTime: TimeState, arg2: number | Project[] = 8, arg3?: number): CalendarEvent[] {
+    const { projects, weeksAhead } = this.resolveProjectsAndWeeksAhead(arg2, arg3);
+
     const currentAbsoluteWeek = (currentTime.currentYear * 52) + currentTime.currentWeek;
     const cutoffWeek = currentAbsoluteWeek + weeksAhead;
-    
-    return this.events
+
+    const derivedReleaseEvents = this.getReleaseEventsFromProjects(projects);
+    const events = [...this.events.filter(e => e.type !== 'release'), ...derivedReleaseEvents];
+
+    return events
       .filter(event => {
         const eventAbsoluteWeek = (event.year * 52) + event.week;
         return eventAbsoluteWeek >= currentAbsoluteWeek && eventAbsoluteWeek <= cutoffWeek;
@@ -145,19 +192,23 @@ export class CalendarManager {
       });
   }
   
-  static getOptimalReleaseWindows(currentTime: TimeState): { week: number; year: number; reason: string }[] {
+  static getOptimalReleaseWindows(currentTime: TimeState): { week: number; year: number; reason: string }[];
+  static getOptimalReleaseWindows(currentTime: TimeState, projects?: Project[]): { week: number; year: number; reason: string }[];
+  static getOptimalReleaseWindows(currentTime: TimeState, projects: Project[] = []): { week: number; year: number; reason: string }[] {
     const windows = [];
     const startWeek = currentTime.currentWeek + 4; // Minimum 4 weeks for marketing
-    
+
+    const derivedReleaseEvents = this.getReleaseEventsFromProjects(projects);
+
     for (let i = 0; i < 26; i++) { // Look ahead 6 months
       let week = startWeek + i;
       let year = currentTime.currentYear;
-      
+
       if (week > 52) {
         week -= 52;
         year += 1;
       }
-      
+
       let reason = "Standard release";
       if (this.isOptimalReleaseWeek(week)) {
         reason = "Optimal box office window";
@@ -165,22 +216,23 @@ export class CalendarManager {
       if (this.isAwardsSeason(week)) {
         reason = "Awards season - good for prestige films";
       }
-      
+
       // Check if slot is available
-      const hasConflict = this.events.some(event => 
-        event.type === 'release' && event.week === week && event.year === year
-      );
-      
+      const hasConflict = derivedReleaseEvents.some(event => event.week === week && event.year === year);
+
       if (!hasConflict) {
         windows.push({ week, year, reason });
       }
     }
-    
+
     return windows.slice(0, 12); // Return next 12 available slots
   }
   
-  static processWeeklyEvents(currentTime: TimeState): CalendarEvent[] {
-    const currentWeekEvents = this.events.filter(event => 
+  static processWeeklyEvents(currentTime: TimeState): CalendarEvent[];
+  static processWeeklyEvents(currentTime: TimeState, projects?: Project[]): CalendarEvent[];
+  static processWeeklyEvents(currentTime: TimeState, projects: Project[] = []): CalendarEvent[] {
+    const derivedReleaseEvents = this.getReleaseEventsFromProjects(projects);
+    const currentWeekEvents = [...this.events.filter(e => e.type !== 'release'), ...derivedReleaseEvents].filter(event => 
       event.week === currentTime.currentWeek && event.year === currentTime.currentYear
     );
     

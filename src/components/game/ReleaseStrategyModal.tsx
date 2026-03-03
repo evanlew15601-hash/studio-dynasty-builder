@@ -72,15 +72,14 @@ export const ReleaseStrategyModal: React.FC<ReleaseStrategyModalProps> = ({
       project,
       selectedDate.week,
       selectedDate.year,
-      currentTime
+      currentTime,
+      gameState.projects
     );
 
     console.log('RELEASE_MODAL: schedule result', result);
 
     if (result.success) {
       onProjectUpdate(project.id, {
-        releaseWeek: result.releaseWeek,
-        releaseYear: result.releaseYear,
         scheduledReleaseWeek: result.releaseWeek,
         scheduledReleaseYear: result.releaseYear,
         currentPhase: 'release',

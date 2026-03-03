@@ -789,9 +789,6 @@ export const StudioMagnateGame: React.FC<StudioMagnateGameProps> = ({
     const updatedProject = {
       ...project,
       releaseStrategy: strategy,
-      releaseWeek: selectedWeek,
-      releaseYear: selectedYear,
-      // mirror for any components reading scheduled fields
       scheduledReleaseWeek: selectedWeek,
       scheduledReleaseYear: selectedYear,
       currentPhase: 'release' as const,
@@ -845,9 +842,9 @@ export const StudioMagnateGame: React.FC<StudioMagnateGameProps> = ({
       
       // Handle scheduled releases when their date arrives
       let justReleased = false;
-      // Check both releaseWeek/Year (from ReleaseStrategyModal) and scheduledReleaseWeek/Year (from EnhancedReleaseSystem)
-      const effectiveReleaseWeek = project.releaseWeek || project.scheduledReleaseWeek;
-      const effectiveReleaseYear = project.releaseYear || project.scheduledReleaseYear;
+      // scheduledReleaseWeek/Year is the canonical planned release date
+      const effectiveReleaseWeek = project.scheduledReleaseWeek || project.releaseWeek;
+      const effectiveReleaseYear = project.scheduledReleaseYear || project.releaseYear;
       if (project.status === 'scheduled-for-release' && effectiveReleaseWeek && effectiveReleaseYear) {
         const currentAbsoluteWeek = (timeState.currentYear * 52) + timeState.currentWeek;
         const releaseAbsoluteWeek = (effectiveReleaseYear * 52) + effectiveReleaseWeek;
@@ -884,6 +881,11 @@ export const StudioMagnateGame: React.FC<StudioMagnateGameProps> = ({
               updatedProject = TVEpisodeSystem.processWeeklyEpisodeDecay(updatedProject, timeState.currentWeek, timeState.currentYear);
             } else {
               updatedProject = BoxOfficeSystem.initializeRelease(updatedProject, resolvedReleaseWeek, resolvedReleaseYear);
+
+              const openingWeekRevenue = updatedProject.metrics?.boxOfficeTotal || 0;
+              if (openingWeekRevenue > 0) {
+                studioRevenueDelta += openingWeekRevenue * 0.55;
+              }
             }
             if (import.meta.env.DEV) {
               console.log(`    📊 POST-RELEASE: boxOfficeTotal = ${updatedProject.metrics?.boxOfficeTotal || 0}`);
@@ -1516,9 +1518,7 @@ export const StudioMagnateGame: React.FC<StudioMagnateGameProps> = ({
           budget: (r as any).budget?.total || (r as any).budget || 10000000,
           genre: (r as any).script?.genre || (r as any).genre || 'drama'
         }));
-      const releasedFilms = [...playerReleased, ...aiReleased];
-
-      FinancialEngine.simulateBoxOfficeWeek(releasedFilms, newTimeState.currentWeek, newTimeState.currentYear);
+      FinancialEngine.simulateBoxOfficeWeek(aiReleased, newTimeState.currentWeek, newTimeState.currentYear);
 
       FinancialEngine.processWeeklyFinancialEvents(
         newTimeState.currentWeek,

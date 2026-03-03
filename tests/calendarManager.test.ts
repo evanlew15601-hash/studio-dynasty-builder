@@ -1,5 +1,6 @@
 import { afterEach, describe, expect, it } from 'vitest';
 import { CalendarManager } from '@/components/game/CalendarManager';
+import type { Project } from '@/types/game';
 
 const baseTime = { currentWeek: 10, currentYear: 2024, currentQuarter: 1 };
 
@@ -27,9 +28,16 @@ describe('CalendarManager.validateRelease', () => {
   });
 
   it('rejects conflicting releases scheduled for the same week', () => {
-    CalendarManager.scheduleRelease('film-a', 'Film A', 15, 2024);
+    const projects: Project[] = [
+      {
+        id: 'film-a',
+        title: 'Film A',
+        scheduledReleaseWeek: 15,
+        scheduledReleaseYear: 2024,
+      } as unknown as Project,
+    ];
 
-    const result = CalendarManager.validateRelease('film-b', 15, 2024, baseTime);
+    const result = CalendarManager.validateRelease('film-b', 15, 2024, baseTime, projects);
     expect(result.canRelease).toBe(false);
     expect(result.reason).toBe('Another film is already scheduled for this week');
   });

@@ -76,8 +76,15 @@ export class SystemIntegration {
             currentQuarter: gameState.currentQuarter
           };
           
-          // Test calendar validation
-          const testValidation = CalendarManager.validateRelease('test-film', timeState.currentWeek + 1, timeState.currentYear, timeState);
+          // Test calendar validation (use a date that satisfies minimum marketing lead time)
+          let targetWeek = timeState.currentWeek + 5;
+          let targetYear = timeState.currentYear;
+          if (targetWeek > 52) {
+            targetWeek -= 52;
+            targetYear += 1;
+          }
+
+          const testValidation = CalendarManager.validateRelease('test-film', targetWeek, targetYear, timeState, gameState.projects);
           
           return {
             passed: testValidation.canRelease === true,
@@ -110,13 +117,12 @@ export class SystemIntegration {
             }
           });
           
-          // Check if scheduled projects have valid release dates (support both legacy and enhanced fields)
+          // Check if scheduled projects have valid release dates
           scheduledProjects.forEach(project => {
-            const hasLegacyDate = !!project.releaseWeek && !!project.releaseYear;
-            const hasEnhancedDate = !!project.scheduledReleaseWeek && !!project.scheduledReleaseYear;
-            if (!hasLegacyDate && !hasEnhancedDate) {
+            const hasScheduledDate = !!project.scheduledReleaseWeek && !!project.scheduledReleaseYear;
+            if (!hasScheduledDate) {
               pipelineHealthy = false;
-              message = `Scheduled project \"${project.title}\" missing release date`;
+              message = `Scheduled project \"${project.title}\" missing scheduled release date`;
             }
           });
           
