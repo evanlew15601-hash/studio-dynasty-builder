@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useEffect, useState } from 'react';
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription } from '@/components/ui/dialog';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
@@ -28,6 +28,16 @@ export const ReleaseStrategyModal: React.FC<ReleaseStrategyModalProps> = ({
   const [selectedDate, setSelectedDate] = useState<{ week: number; year: number } | null>(null);
   
   if (!project) return null;
+
+  useEffect(() => {
+    if (!isOpen) return;
+
+    if (project.scheduledReleaseWeek && project.scheduledReleaseYear) {
+      setSelectedDate({ week: project.scheduledReleaseWeek, year: project.scheduledReleaseYear });
+    } else {
+      setSelectedDate(null);
+    }
+  }, [isOpen, project.id]);
 
   const currentTime = {
     currentWeek: gameState.currentWeek,
@@ -86,6 +96,33 @@ export const ReleaseStrategyModal: React.FC<ReleaseStrategyModalProps> = ({
   const selectedCalendarValidation = selectedDate
     ? getCalendarValidation(selectedDate.week, selectedDate.year)
     : null;
+
+  const handleClearSchedule = () => {
+    CalendarManager.clearFilmEvents(project.id);
+
+    const clearingDuringMarketing = project.currentPhase === 'marketing';
+
+    onProjectUpdate(project.id, {
+      scheduledReleaseWeek: undefined,
+      scheduledReleaseYear: undefined,
+      releaseStrategy: undefined,
+      status: (clearingDuringMarketing ? 'marketing' : 'ready-for-release') as any,
+      readyForRelease: !clearingDuringMarketing,
+      ...(clearingDuringMarketing
+        ? {}
+        : {
+            currentPhase: 'release',
+            phaseDuration: 0,
+          }),
+    });
+
+    toast({
+      title: "Release Schedule Cleared",
+      description: `Cleared planned ${isTV ? 'air date' : 'release date'} for ${project.title}.`,
+    });
+
+    onClose();
+  };
 
   const handleScheduleRelease = () => {
     if (!selectedDate) {
@@ -279,9 +316,16 @@ export const ReleaseStrategyModal: React.FC<ReleaseStrategyModalProps> = ({
 
           {/* Actions */}
           <div className="flex justify-between">
-            <Button variant="outline" onClick={onClose}>
-              Cancel
-            </Button>
+            <div className="flex gap-2">
+              <Button variant="outline" onClick={onClose}>
+                Cancel
+              </Button>
+              {project.status === 'scheduled-for-release' && project.scheduledReleaseWeek && project.scheduledReleaseYear && (
+                <Button variant="destructive" onClick={handleClearSchedule}>
+                  Clear Schedule
+                </Button>
+              )}
+            </div>
             <Button 
               onClick={handleScheduleRelease}
               disabled={!selectedDate || !validation.canRelease || !selectedCalendarValidation?.canRelease}

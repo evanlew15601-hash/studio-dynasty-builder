@@ -174,7 +174,14 @@ export class FinancialEngine {
     
     this.transactions.push(transaction);
     this.persist();
-    console.log(`FINANCE: ${type} of ${amount}k for ${description} (Y${year}W${week})`);
+
+    const displayAmount = Math.abs(amount);
+    const formattedAmount =
+      displayAmount >= 1_000_000
+        ? "$" + (displayAmount / 1_000_000).toFixed(2) + "M"
+        : "$" + displayAmount.toLocaleString();
+
+    console.log(`FINANCE: ${type} ${formattedAmount} for ${description} (Y${year}W${week})`);
     
     return transaction.id;
   }
