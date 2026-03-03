@@ -41,4 +41,15 @@ describe('CalendarManager.validateRelease', () => {
     expect(result.canRelease).toBe(false);
     expect(result.reason).toBe('Another film is already scheduled for this week');
   });
+
+  it('includes CalendarManager.scheduleRelease events when no project list is provided', () => {
+    CalendarManager.scheduleRelease('film-a', 'Film A', 16, 2024);
+
+    const upcoming = CalendarManager.getUpcomingEvents(baseTime, 8);
+    expect(upcoming.some(e => e.type === 'release' && e.filmId === 'film-a' && e.week === 16 && e.year === 2024)).toBe(true);
+
+    const validation = CalendarManager.validateRelease('film-b', 16, 2024, baseTime);
+    expect(validation.canRelease).toBe(false);
+    expect(validation.reason).toBe('Another film is already scheduled for this week');
+  });
 });

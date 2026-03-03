@@ -1438,7 +1438,7 @@ export const StudioMagnateGame: React.FC<StudioMagnateGameProps> = ({
     return { studio };
   };
 
-  const handleAdvanceWeek = () => {
+  const handleAdvanceWeek = (options?: { suppressToast?: boolean }) => {
     if (import.meta.env.DEV) {
       console.log(`🕐 ADVANCING WEEK: Current Y${gameState.currentYear}W${gameState.currentWeek}`);
       console.log(`🕐 Projects count: ${gameState.projects.length}`);
@@ -1698,10 +1698,12 @@ export const StudioMagnateGame: React.FC<StudioMagnateGameProps> = ({
 
       SystemIntegration.runDiagnostics(newState);
 
-      toast({
-        title: "New Week",
-        description: `Week ${newTimeState.currentWeek}, ${newTimeState.currentYear}`,
-      });
+      if (!options?.suppressToast) {
+        toast({
+          title: "New Week",
+          description: `Week ${newTimeState.currentWeek}, ${newTimeState.currentYear}`,
+        });
+      }
 
       // Complete the loading operation
       completeOperation(LOADING_OPERATIONS.WEEKLY_PROCESSING.id);
@@ -1714,6 +1716,14 @@ export const StudioMagnateGame: React.FC<StudioMagnateGameProps> = ({
     const totalWeeks = Math.floor(weeks);
     if (!Number.isFinite(totalWeeks) || totalWeeks <= 0) return;
 
+    const startWeek = gameState.currentWeek;
+    const startYear = gameState.currentYear;
+
+    const startAbs = (startYear * 52) + (startWeek - 1);
+    const targetAbs = startAbs + totalWeeks;
+    const targetYear = Math.floor(targetAbs / 52);
+    const targetWeek = (targetAbs % 52) + 1;
+
     // Use requestAnimationFrame for smoother batch processing
     // and prevent setTimeout stacking that can overwhelm the browser
     let remaining = totalWeeks;
@@ -1723,7 +1733,7 @@ export const StudioMagnateGame: React.FC<StudioMagnateGameProps> = ({
       if (remaining <= 0 || isProcessing) return;
       
       isProcessing = true;
-      handleAdvanceWeek();
+      handleAdvanceWeek({ suppressToast: true });
       remaining -= 1;
       
       // Use requestAnimationFrame to yield to the browser between weeks
@@ -1736,6 +1746,10 @@ export const StudioMagnateGame: React.FC<StudioMagnateGameProps> = ({
         });
       } else {
         isProcessing = false;
+        toast({
+          title: 'Time Advanced',
+          description: `Advanced ${totalWeeks} weeks → Week ${targetWeek}, ${targetYear}`,
+        });
       }
     };
 

@@ -49,6 +49,19 @@ export class CalendarManager {
       .filter((e): e is CalendarEvent => !!e);
   }
 
+  private static getReleaseEvents(projects: Project[]): CalendarEvent[] {
+    const fromProjects = this.getReleaseEventsFromProjects(projects);
+    const fromCalendar = this.events.filter(e => e.type === 'release');
+
+    const byId = new Map<string, CalendarEvent>();
+
+    // Prefer project-derived events (persisted) over in-memory calendar entries.
+    fromCalendar.forEach(e => byId.set(e.id, e));
+    fromProjects.forEach(e => byId.set(e.id, e));
+
+    return Array.from(byId.values());
+  }
+
   private static resolveProjectsAndWeeksAhead(
     arg2: number | Project[] | undefined,
     arg3: number | undefined
@@ -107,7 +120,7 @@ export class CalendarManager {
     }
     
     // Check for conflicts with other releases
-    const releaseEvents = this.getReleaseEventsFromProjects(projects);
+    const releaseEvents = this.getReleaseEvents(projects);
     const conflictingRelease = releaseEvents.find(event => 
       event.week === targetWeek && 
       event.year === targetYear &&
@@ -177,8 +190,8 @@ export class CalendarManager {
     const currentAbsoluteWeek = (currentTime.currentYear * 52) + currentTime.currentWeek;
     const cutoffWeek = currentAbsoluteWeek + weeksAhead;
 
-    const derivedReleaseEvents = this.getReleaseEventsFromProjects(projects);
-    const events = [...this.events.filter(e => e.type !== 'release'), ...derivedReleaseEvents];
+    const releaseEvents = this.getReleaseEvents(projects);
+    const events = [...this.events.filter(e => e.type !== 'release'), ...releaseEvents];
 
     return events
       .filter(event => {
@@ -198,7 +211,7 @@ export class CalendarManager {
     const windows = [];
     const startWeek = currentTime.currentWeek + 4; // Minimum 4 weeks for marketing
 
-    const derivedReleaseEvents = this.getReleaseEventsFromProjects(projects);
+    const derivedReleaseEvents = this.getReleaseEvents(projects);
 
     for (let i = 0; i < 26; i++) { // Look ahead 6 months
       let week = startWeek + i;
@@ -231,7 +244,7 @@ export class CalendarManager {
   static processWeeklyEvents(currentTime: TimeState): CalendarEvent[];
   static processWeeklyEvents(currentTime: TimeState, projects?: Project[]): CalendarEvent[];
   static processWeeklyEvents(currentTime: TimeState, projects: Project[] = []): CalendarEvent[] {
-    const derivedReleaseEvents = this.getReleaseEventsFromProjects(projects);
+    const derivedReleaseEvents = this.getReleaseEvents(projects);
     const currentWeekEvents = [...this.events.filter(e => e.type !== 'release'), ...derivedReleaseEvents].filter(event => 
       event.week === currentTime.currentWeek && event.year === currentTime.currentYear
     );
