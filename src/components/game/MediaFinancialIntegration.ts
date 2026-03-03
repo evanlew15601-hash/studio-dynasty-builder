@@ -14,7 +14,6 @@ export class MediaFinancialIntegration {
       finalMultiplier: number;
     };
   } {
-    let multiplier = 1.0;
     const factors: string[] = [];
     
     const baseMultiplier = 1.0;

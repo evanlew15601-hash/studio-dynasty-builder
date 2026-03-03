@@ -1,17 +1,17 @@
 // Update this page (the content is just a fallback if you fail to update the page)
 
 import { StudioMagnateGame } from '@/components/game/StudioMagnateGame';
-import { GameLanding } from '@/components/game/GameLanding';
+import { GameLanding, type GameConfig } from '@/components/game/GameLanding';
 import { LoadingProvider } from '@/contexts/LoadingContext';
 import { useState } from 'react';
 import { loadGame, SaveGameSnapshot } from '@/utils/saveLoad';
 
 const Index = () => {
   const [gameStarted, setGameStarted] = useState(false);
-  const [gameConfig, setGameConfig] = useState<any>(null);
+  const [gameConfig, setGameConfig] = useState<GameConfig | null>(null);
   const [loadedSnapshot, setLoadedSnapshot] = useState<SaveGameSnapshot | null>(null);
 
-  const handleStartGame = (config: any) => {
+  const handleStartGame = (config: GameConfig) => {
     // Starting a fresh game clears any loaded snapshot
     setLoadedSnapshot(null);
     setGameConfig(config);

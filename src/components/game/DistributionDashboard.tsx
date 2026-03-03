@@ -48,7 +48,7 @@ export const DistributionDashboard: React.FC<DistributionDashboardProps> = ({
     let revenue = 0;
     let viewership = 0;
     let criticsScore = Math.floor(40 + (performance * 0.6));
-    let audienceScore = Math.floor(45 + (performance * 0.55));
+    const audienceScore = Math.floor(45 + (performance * 0.55));
 
     if (platform === 'theatrical') {
       revenue = project.budget.total * (0.5 + (performance / 100));

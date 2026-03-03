@@ -358,24 +358,28 @@ export const BackgroundSimulation: React.FC<BackgroundSimulationProps> = ({
   // Apply the impact of completed background activities
   const applyActivityImpact = (activity: BackgroundActivity) => {
     switch (activity.type) {
-      case 'talent_development':
+      case 'talent_development': {
         // Randomly boost a talent's skills
         const randomTalent = gameState.talent[Math.floor(Math.random() * gameState.talent.length)];
         if (randomTalent) {
           const reputationBoost = activity.intensity * 0.1;
           // This would need to be handled by the parent component
-          console.log(`Background talent development: ${randomTalent.name} gains ${reputationBoost} reputation`);
+          console.log(
+            `Background talent development: ${randomTalent.name} gains ${reputationBoost} reputation`
+          );
         }
         break;
-        
-      case 'market_shift':
+      }
+
+      case 'market_shift': {
         // Subtle reputation adjustment based on how well-positioned the studio is
         const reputationChange = (Math.random() - 0.5) * activity.intensity * 0.05;
-        onStudioUpdate({ 
-          reputation: Math.max(0, Math.min(100, (gameState.studio.reputation || 50) + reputationChange))
+        onStudioUpdate({
+          reputation: Math.max(0, Math.min(100, (gameState.studio.reputation || 50) + reputationChange)),
         });
         break;
-        
+      }
+
       case 'competitor_move':
         // Increase competitive pressure
         setSimulationIntensity(prev => Math.min(95, prev + activity.intensity * 0.1));

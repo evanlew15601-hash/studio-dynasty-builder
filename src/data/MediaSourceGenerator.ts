@@ -198,22 +198,25 @@ export class MediaSourceGenerator {
     // Different sources for different types of stories
     switch (eventType) {
       case 'scandal':
-      case 'rumor':
+      case 'rumor': {
         const gossipSources = sources.filter(s => s.credibility < 70);
         return gossipSources[Math.floor(Math.random() * gossipSources.length)];
-      
+      }
+
       case 'award_win':
-      case 'box_office':
+      case 'box_office': {
         const tradeSources = sources.filter(s => s.type === 'trade_publication');
         return tradeSources[Math.floor(Math.random() * tradeSources.length)];
-      
+      }
+
       case 'casting_announcement':
-      case 'interview':
-        const entertainmentSources = sources.filter(s => 
-          s.type === 'magazine' || s.type === 'blog'
+      case 'interview': {
+        const entertainmentSources = sources.filter(
+          s => s.type === 'magazine' || s.type === 'blog'
         );
         return entertainmentSources[Math.floor(Math.random() * entertainmentSources.length)];
-      
+      }
+
       default:
         return this.getRandomSource();
     }

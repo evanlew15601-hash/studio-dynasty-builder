@@ -160,7 +160,7 @@ export const ComprehensiveAIStudios: React.FC<ComprehensiveAIStudiosProps> = ({
     if (aiStudios.length === 0) return;
 
     setAIStudios(prev => prev.map(studio => {
-      let updatedStudio = { ...studio };
+      const updatedStudio = { ...studio };
 
       // Process existing projects
       updatedStudio.activeProjects = studio.activeProjects.map(project => 
@@ -284,6 +284,8 @@ export const ComprehensiveAIStudios: React.FC<ComprehensiveAIStudiosProps> = ({
       return null; // Can't make the project without talent
     }
 
+    const developmentDuration = 3 + Math.floor(Math.random() * 4); // 3-6 weeks
+
     const project: AIProject = {
       id: `ai-project-${Date.now()}-${Math.random().toString(36).substr(2, 9)}`,
       studioId: studio.id,
@@ -298,8 +300,8 @@ export const ComprehensiveAIStudios: React.FC<ComprehensiveAIStudiosProps> = ({
       marketingBudget: budget * 0.3,
       phase: {
         current: 'development',
-        duration: 3 + Math.floor(Math.random() * 4), // 3-6 weeks
-        weeksRemaining: 3 + Math.floor(Math.random() * 4)
+        duration: developmentDuration,
+        weeksRemaining: developmentDuration
       }
     };
 

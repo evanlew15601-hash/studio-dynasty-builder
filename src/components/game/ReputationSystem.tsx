@@ -136,14 +136,15 @@ export class ReputationSystem {
         impact = { buzz: 2, reliability: 1 };
         description = `Completed script for "${project.title}"`;
         break;
-      case 'cast_attached':
-        const castQuality = project.cast.reduce((sum, role) => sum + (role.salary / 1000000), 0);
-        impact = { 
+      case 'cast_attached': {
+        const castQuality = project.cast.reduce((sum, role) => sum + role.salary / 1_000_000, 0);
+        impact = {
           buzz: Math.min(8, castQuality * 2),
-          coreReputation: castQuality > 10 ? 2 : 1
+          coreReputation: castQuality > 10 ? 2 : 1,
         };
         description = `Assembled cast for "${project.title}"`;
         break;
+      }
       case 'production_start':
         impact = { reliability: 2, innovation: 1 };
         description = `Started production on "${project.title}"`;
