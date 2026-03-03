@@ -1,4 +1,4 @@
-import React, { useState, Suspense } from 'react';
+import React, { useEffect, useRef, useState, Suspense } from 'react';
 import { GameState, Studio, Project, Script, TalentPerson, BoxOfficeWeek, BoxOfficeRelease, Genre, MarketingStrategy, ReleaseStrategy, ProductionPhase, ScriptCharacter } from '@/types/game';
 import { useLoadingContext } from '@/contexts/LoadingContext';
 import { LoadingOverlay } from '@/components/ui/loading-overlay';
@@ -358,6 +358,30 @@ export const StudioMagnateGame: React.FC<StudioMagnateGameProps> = ({
   // First week box office modal state
   const [firstWeekModalProject, setFirstWeekModalProject] = useState<Project | null>(null);
   const [showFirstWeekModal, setShowFirstWeekModal] = useState(false);
+
+  const lastFirstWeekModalKeyRef = useRef<string>('');
+
+  // Show the first-week box office modal automatically when a film is released.
+  // This replaces the previous pattern of calling setState from inside the weekly processing loop.
+  useEffect(() => {
+    if (showFirstWeekModal) return;
+
+    const newlyReleasedFilm = gameState.projects.find(p =>
+      p.status === 'released' &&
+      p.type !== 'series' &&
+      p.type !== 'limited-series' &&
+      p.metrics?.weeksSinceRelease === 0
+    );
+
+    if (!newlyReleasedFilm) return;
+
+    const key = `${gameState.currentYear}-${gameState.currentWeek}-${newlyReleasedFilm.id}`;
+    if (key === lastFirstWeekModalKeyRef.current) return;
+
+    lastFirstWeekModalKeyRef.current = key;
+    setFirstWeekModalProject(newlyReleasedFilm);
+    setShowFirstWeekModal(true);
+  }, [gameState.currentWeek, gameState.currentYear, gameState.projects, showFirstWeekModal]);
   
   // Award show modal state
   const [currentAwardShow, setCurrentAwardShow] = useState<AwardShowCeremony | null>(null);
@@ -788,10 +812,19 @@ export const StudioMagnateGame: React.FC<StudioMagnateGameProps> = ({
     });
   };
 
-  const processWeeklyProjectEffects = (projects: Project[], timeState: TimeState): Project[] => {
+  type WeeklyProjectEffectsResult = {
+    projects: Project[];
+    studioRevenueDelta: number;
+    releasedProjects: Project[];
+  };
+
+  const processWeeklyProjectEffects = (projects: Project[], timeState: TimeState, baseState: GameState): WeeklyProjectEffectsResult => {
     if (import.meta.env.DEV) {
       console.log(`=== WEEKLY PROJECT PROCESSING START ===`);
     }
+
+    let studioRevenueDelta = 0;
+    const releasedProjects: Project[] = [];
     
     const results = projects.map((project, index) => {
       if (import.meta.env.DEV) {
@@ -853,20 +886,8 @@ export const StudioMagnateGame: React.FC<StudioMagnateGameProps> = ({
             }
             justReleased = true; // Flag to skip processing on release week
 
-            // Update filmography; show box office modal only for films
-            if (!(project.type === 'series' || project.type === 'limited-series')) {
-              setGameState(prevState => {
-                const newState = TalentFilmographyManager.updateFilmographyOnRelease(prevState, updatedProject);
-                // Show first week box office modal
-                setFirstWeekModalProject(updatedProject);
-                setShowFirstWeekModal(true);
-                return newState;
-              });
-            } else {
-              setGameState(prevState => {
-                return TalentFilmographyManager.updateFilmographyOnRelease(prevState, updatedProject);
-              });
-            }
+            // Track releases for end-of-week filmography updates (no nested setState)
+            releasedProjects.push(updatedProject);
           }
       }
       
@@ -914,20 +935,14 @@ export const StudioMagnateGame: React.FC<StudioMagnateGameProps> = ({
              if (import.meta.env.DEV) {
                console.log(`    💰 STUDIO SHARE (55%): ${studioShare.toLocaleString()}`);
              }
-             
-             setGameState(prevState => ({
-               ...prevState,
-               studio: {
-                 ...prevState.studio,
-                 budget: prevState.studio.budget + studioShare
-               }
-             }));
+
+             studioRevenueDelta += studioShare;
            }
          }
        }
 
-  // Process marketing campaigns and advance to release phase when complete
-  if (updatedProject.marketingCampaign && updatedProject.marketingCampaign.weeksRemaining > 0) {
+      // Process marketing campaigns and advance to release phase when complete
+      if (updatedProject.marketingCampaign && updatedProject.marketingCampaign.weeksRemaining > 0) {
     const updatedActivities = updatedProject.marketingCampaign.activities.map(activity => ({
       ...activity,
       weeksRemaining: Math.max(0, activity.weeksRemaining - 1),
@@ -1021,15 +1036,8 @@ export const StudioMagnateGame: React.FC<StudioMagnateGameProps> = ({
           if (import.meta.env.DEV) {
             console.log(`      💰 TOTAL WEEKLY POST-THEATRICAL: +${weeklyPostTheatricalRevenue.toLocaleString()}`);
           }
-          
-          // Add revenue to studio budget
-          setGameState(prevState => ({
-            ...prevState,
-            studio: {
-              ...prevState.studio,
-              budget: prevState.studio.budget + weeklyPostTheatricalRevenue
-            }
-          }));
+
+          studioRevenueDelta += weeklyPostTheatricalRevenue;
         }
 
         updatedProject = {
@@ -1090,7 +1098,7 @@ export const StudioMagnateGame: React.FC<StudioMagnateGameProps> = ({
             if (updatedProject.currentPhase === 'development' && nextPhase === 'pre-production') {
               const roles = updatedProject.script?.characters && updatedProject.script.characters.length > 0
                 ? updatedProject.script.characters
-                : importRolesForScript(updatedProject.script!, gameState);
+                : importRolesForScript(updatedProject.script!, baseState);
               if (!roles || roles.length === 0) {
                 console.warn(`⛔ Cannot advance ${updatedProject.title}: no roles imported yet`);
                 updatedProject = { ...updatedProject, phaseDuration: 2 };
@@ -1157,7 +1165,12 @@ export const StudioMagnateGame: React.FC<StudioMagnateGameProps> = ({
     if (import.meta.env.DEV) {
       console.log(`=== WEEKLY PROJECT PROCESSING END ===`);
     }
-    return results;
+
+    return {
+      projects: results,
+      studioRevenueDelta,
+      releasedProjects,
+    };
   };
 
   const getNextPhase = (currentPhase: string): ProductionPhase => {
@@ -1512,7 +1525,8 @@ export const StudioMagnateGame: React.FC<StudioMagnateGameProps> = ({
       
       updateOperation(LOADING_OPERATIONS.WEEKLY_PROCESSING.id, 70, 'Calculating finances...');
       
-      updatedProjects = processWeeklyProjectEffects(updatedProjects, newTimeState);
+      const weeklyProjectEffects = processWeeklyProjectEffects(updatedProjects, newTimeState, prev);
+      updatedProjects = weeklyProjectEffects.projects;
 
       // Generate AI studio releases every 2-4 weeks
       const shouldGenerateRelease = Math.random() < 0.3; // 30% chance each week
@@ -1562,12 +1576,13 @@ export const StudioMagnateGame: React.FC<StudioMagnateGameProps> = ({
       // Apply deep reputation to studio
       const enhancedStudio = {
         ...weeklyResults.studio,
-        reputation: deepRepResult.reputation
+        reputation: deepRepResult.reputation,
+        budget: weeklyResults.studio.budget + weeklyProjectEffects.studioRevenueDelta
       };
       
       // Update talent availability (prevent double-booking during filming)
       const currentAbsWeek = (newTimeState.currentYear * 52) + newTimeState.currentWeek;
-      const updatedTalent = prev.talent.map(t => {
+      let updatedTalent = prev.talent.map(t => {
         let status = t.contractStatus;
         let busyUntil = t.busyUntilWeek;
         if (status === 'busy' && typeof busyUntil === 'number' && busyUntil <= currentAbsWeek) {
@@ -1593,6 +1608,15 @@ export const StudioMagnateGame: React.FC<StudioMagnateGameProps> = ({
           });
         }
       });
+
+      // Apply filmography/fame updates for newly released projects (no nested setState)
+      if (weeklyProjectEffects.releasedProjects.length > 0) {
+        let filmographyState: GameState = { ...prev, talent: updatedTalent };
+        for (const released of weeklyProjectEffects.releasedProjects) {
+          filmographyState = TalentFilmographyManager.updateFilmographyOnRelease(filmographyState, released);
+        }
+        updatedTalent = filmographyState.talent;
+      }
 
       // Memory management: prune old releases to prevent unbounded growth
       // Keep only releases from the last 3 in-game years (156 weeks) 
