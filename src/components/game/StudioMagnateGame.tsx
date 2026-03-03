@@ -24,6 +24,7 @@ import { CompetitorMonitor } from './CompetitorMonitor';
 import { TimeSystem, TimeState } from './TimeSystem';
 import { BoxOfficeSystem } from './BoxOfficeSystem';
 import { TVRatingsSystem } from './TVRatingsSystem';
+import { FinancialEngine } from './FinancialEngine';
 import { updateProjectFinancials } from './FinancialCalculations';
 import { TalentFilmographyManager } from '@/utils/talentFilmographyManager';
 import { AwardsSystem } from './AwardsSystem';
@@ -1450,70 +1451,49 @@ export const StudioMagnateGame: React.FC<StudioMagnateGameProps> = ({
         console.warn('AI Studio processing error', e);
       }
       
-      // Process scheduled releases first
       let updatedProjects = prev.projects;
-      
-      import('./ReleaseSystem').then(({ ReleaseSystem }) => {
-        const releasingFilms = ReleaseSystem.processReleases(newTimeState);
-        
-        if (releasingFilms.length > 0) {
-          updatedProjects = updatedProjects.map(project => {
-            const releasingFilm = releasingFilms.find(rf => rf.id === project.id);
-            if (releasingFilm) {
-              return {
-                ...project,
-                status: 'released',
-                releaseWeek: newTimeState.currentWeek,
-                releaseYear: newTimeState.currentYear
-              };
-            }
-            return project;
-          });
-        }
-      });
-      
-      // Simulate box office for released films
-      import('./FinancialEngine').then(({ FinancialEngine }) => {
-        const playerReleased = updatedProjects
-          .filter(p => p.status === 'released' && !!p.releaseWeek && !!p.releaseYear)
-          .map(p => ({
-            id: p.id,
-            title: p.title,
-            weeksSinceRelease: TimeSystem.calculateWeeksSince(
-              p.releaseWeek!,
-              p.releaseYear!,
-              newTimeState.currentWeek,
-              newTimeState.currentYear
-            ),
-            budget: p.budget?.total || 10000000,
-            genre: p.script?.genre || 'drama'
-          }));
-        const aiReleased = prev.allReleases
-          .filter((r): r is Project => 'script' in r && (r as any).status === 'released' && !!r.releaseWeek && !!r.releaseYear)
-          .map(r => ({
-            id: r.id,
-            title: r.title,
-            weeksSinceRelease: TimeSystem.calculateWeeksSince(
-              r.releaseWeek!,
-              r.releaseYear!,
-              newTimeState.currentWeek,
-              newTimeState.currentYear
-            ),
-            budget: (r as any).budget?.total || (r as any).budget || 10000000,
-            genre: (r as any).script?.genre || (r as any).genre || 'drama'
-          }));
-        const releasedFilms = [...playerReleased, ...aiReleased];
-        
-        FinancialEngine.simulateBoxOfficeWeek(releasedFilms, newTimeState.currentWeek, newTimeState.currentYear);
-        
-        // Process weekly financial events
-        FinancialEngine.processWeeklyFinancialEvents(
-          newTimeState.currentWeek,
-          newTimeState.currentYear,
-          [prev.studio, ...prev.competitorStudios],
-          updatedProjects
-        );
-      });
+
+      // Simulate box office and process weekly financial events
+      // NOTE: This must be synchronous inside the state transition; async imports would
+      // run after this updater returns and would not be applied to the new state.
+      const playerReleased = updatedProjects
+        .filter(p => p.status === 'released' && !!p.releaseWeek && !!p.releaseYear)
+        .map(p => ({
+          id: p.id,
+          title: p.title,
+          weeksSinceRelease: TimeSystem.calculateWeeksSince(
+            p.releaseWeek!,
+            p.releaseYear!,
+            newTimeState.currentWeek,
+            newTimeState.currentYear
+          ),
+          budget: p.budget?.total || 10000000,
+          genre: p.script?.genre || 'drama'
+        }));
+      const aiReleased = prev.allReleases
+        .filter((r): r is Project => 'script' in r && (r as any).status === 'released' && !!r.releaseWeek && !!r.releaseYear)
+        .map(r => ({
+          id: r.id,
+          title: r.title,
+          weeksSinceRelease: TimeSystem.calculateWeeksSince(
+            r.releaseWeek!,
+            r.releaseYear!,
+            newTimeState.currentWeek,
+            newTimeState.currentYear
+          ),
+          budget: (r as any).budget?.total || (r as any).budget || 10000000,
+          genre: (r as any).script?.genre || (r as any).genre || 'drama'
+        }));
+      const releasedFilms = [...playerReleased, ...aiReleased];
+
+      FinancialEngine.simulateBoxOfficeWeek(releasedFilms, newTimeState.currentWeek, newTimeState.currentYear);
+
+      FinancialEngine.processWeeklyFinancialEvents(
+        newTimeState.currentWeek,
+        newTimeState.currentYear,
+        [prev.studio, ...prev.competitorStudios],
+        updatedProjects
+      );
       
       updateOperation(LOADING_OPERATIONS.WEEKLY_PROCESSING.id, 70, 'Calculating finances...');
       
@@ -1677,9 +1657,7 @@ export const StudioMagnateGame: React.FC<StudioMagnateGameProps> = ({
           import('./MediaRelationships').then(({ MediaRelationships }) => {
             MediaRelationships.performMaintenanceCleanup(newTimeState.currentWeek, newTimeState.currentYear);
           });
-          import('./FinancialEngine').then(({ FinancialEngine }) => {
-            FinancialEngine.performMemoryCleanup(newTimeState.currentWeek, newTimeState.currentYear);
-          });
+          FinancialEngine.performMemoryCleanup(newTimeState.currentWeek, newTimeState.currentYear);
         }
         
         import('./SystemIntegration').then(({ SystemIntegration }) => {
