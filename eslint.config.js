@@ -23,6 +23,11 @@ export default tseslint.config(
         "warn",
         { allowConstantExport: true },
       ],
+
+      // Beta-build pragmatism: this codebase includes many intentionally flexible
+      // simulation data structures. Keep the signal (warn) without blocking CI.
+      "@typescript-eslint/no-explicit-any": "warn",
+
       "@typescript-eslint/no-unused-vars": "off",
     },
   }

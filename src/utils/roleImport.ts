@@ -114,9 +114,17 @@ export function importRolesForScript(script: Script, gameState: GameState): Scri
     ensureDirector(characters);
   }
 
-  // Idempotency: remove duplicates by franchiseCharacterId/name+type
+  // Idempotency: remove duplicates by franchiseCharacterId/name+type.
+  // Prefer freshly imported + merged entries (which apply localOverrides), then
+  // keep any previously-locked roles that weren't part of this import.
   const keyed = new Map<string, ScriptCharacter>();
-  for (const c of [...existing.filter(c => c.locked), ...characters]) {
+
+  for (const c of characters) {
+    const key = c.franchiseCharacterId || `${c.name}:${c.requiredType || 'actor'}`;
+    keyed.set(key, c);
+  }
+
+  for (const c of existing.filter(c => c.locked)) {
     const key = c.franchiseCharacterId || `${c.name}:${c.requiredType || 'actor'}`;
     if (!keyed.has(key)) keyed.set(key, c);
   }

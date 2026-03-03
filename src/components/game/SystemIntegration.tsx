@@ -106,7 +106,7 @@ export class SystemIntegration {
             const validation = ReleaseSystem.validateFilmForRelease(project);
             if (!validation.canRelease && validation.errors.length > 0) {
               pipelineHealthy = false;
-              message = `Release-ready project \"${project.title}\" cannot be released: ${validation.errors[0]}`;
+              message = `Release-ready project "${project.title}" cannot be released: ${validation.errors[0]}`;
             }
           });
           
@@ -116,7 +116,7 @@ export class SystemIntegration {
             const hasEnhancedDate = !!project.scheduledReleaseWeek && !!project.scheduledReleaseYear;
             if (!hasLegacyDate && !hasEnhancedDate) {
               pipelineHealthy = false;
-              message = `Scheduled project \"${project.title}\" missing release date`;
+              message = `Scheduled project "${project.title}" missing release date`;
             }
           });
           
@@ -243,7 +243,7 @@ export class SystemIntegration {
             // Check if project has reasonable phase duration (allow -1 for manual control)
             if (project.phaseDuration !== undefined && project.phaseDuration < -1) {
               progressionHealthy = false;
-              message = `Project \"${project.title}\" has negative phase duration`;
+              message = `Project "${project.title}" has negative phase duration`;
             }
             
             // Check if project status is compatible with current phase (allow meta-statuses)
@@ -251,7 +251,7 @@ export class SystemIntegration {
               const allowedStatuses = getAllowedStatusesForPhase(project.currentPhase);
               if (!allowedStatuses.includes(project.status)) {
                 progressionHealthy = false;
-                message = `Project \"${project.title}\" has mismatched phase/status (${project.currentPhase}/${project.status})`;
+                message = `Project "${project.title}" has mismatched phase/status (${project.currentPhase}/${project.status})`;
               }
             }
           });
@@ -292,7 +292,7 @@ export class SystemIntegration {
   }
   
   static fixCommonIssues(gameState: GameState): GameState {
-    let fixedState = { ...gameState };
+    const fixedState = { ...gameState };
     
     // Fix projects with missing or invalid phase durations
     fixedState.projects = fixedState.projects.map(project => {

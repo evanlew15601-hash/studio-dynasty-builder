@@ -137,7 +137,7 @@ export const MediaResponseDashboard: React.FC<MediaResponseDashboardProps> = ({
       targetType: 'studio'
     });
 
-    alert(`PR Campaign \"${campaignForm.name}\" launched! Cost: ${cost.toLocaleString()}`);
+    alert(`PR Campaign "${campaignForm.name}" launched! Cost: ${cost.toLocaleString()}`);
   };
 
   const getResponseCost = (action: string, mediaItem: MediaItem) => {

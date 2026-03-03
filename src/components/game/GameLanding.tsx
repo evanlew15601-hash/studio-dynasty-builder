@@ -14,7 +14,7 @@ interface GameLandingProps {
   onLoadGame: () => void;
 }
 
-interface GameConfig {
+export interface GameConfig {
   studioName: string;
   specialties: Genre[];
   difficulty: 'easy' | 'normal' | 'hard' | 'magnate';
@@ -248,7 +248,9 @@ export const GameLanding: React.FC<GameLandingProps> = ({ onStartGame, onLoadGam
                   <Label className="text-foreground text-base">Difficulty</Label>
                   <Select 
                     value={config.difficulty} 
-                    onValueChange={(value: any) => setConfig(prev => ({ ...prev, difficulty: value }))}
+                    onValueChange={(value) =>
+                      setConfig(prev => ({ ...prev, difficulty: value as GameConfig['difficulty'] }))
+                    }
                   >
                     <SelectTrigger className="mt-2 bg-input border-border text-foreground focus:border-primary">
                       <SelectValue />
