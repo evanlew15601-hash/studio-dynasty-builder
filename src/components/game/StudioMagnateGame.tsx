@@ -818,10 +818,24 @@ export const StudioMagnateGame: React.FC<StudioMagnateGameProps> = ({
               console.log(`🎬 RELEASE DATE ARRIVED: ${project.title}`);
               console.log(`    📊 PRE-RELEASE: boxOfficeTotal = ${project.metrics?.boxOfficeTotal || 0}`);
             }
+            const resolvedReleaseWeek = effectiveReleaseWeek;
+            const resolvedReleaseYear = effectiveReleaseYear;
+
+            // Normalize release date fields so downstream systems (TV ratings / box office / post-theatrical)
+            // always have a canonical releaseWeek/releaseYear, even if the project was scheduled via
+            // scheduledReleaseWeek/scheduledReleaseYear.
+            updatedProject = {
+              ...updatedProject,
+              releaseWeek: resolvedReleaseWeek,
+              releaseYear: resolvedReleaseYear,
+              scheduledReleaseWeek: resolvedReleaseWeek,
+              scheduledReleaseYear: resolvedReleaseYear,
+            };
+
             if (project.type === 'series' || project.type === 'limited-series') {
-              updatedProject = TVRatingsSystem.initializeAiring(updatedProject, project.releaseWeek, project.releaseYear);
+              updatedProject = TVRatingsSystem.initializeAiring(updatedProject, resolvedReleaseWeek, resolvedReleaseYear);
             } else {
-              updatedProject = BoxOfficeSystem.initializeRelease(updatedProject, project.releaseWeek, project.releaseYear);
+              updatedProject = BoxOfficeSystem.initializeRelease(updatedProject, resolvedReleaseWeek, resolvedReleaseYear);
             }
             if (import.meta.env.DEV) {
               console.log(`    📊 POST-RELEASE: boxOfficeTotal = ${updatedProject.metrics?.boxOfficeTotal || 0}`);

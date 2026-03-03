@@ -15,12 +15,17 @@ export interface CalendarValidation {
   canRelease: boolean;
   reason?: string;
   recommendedWeek?: number;
+  recommendedYear?: number;
   awardEligibility?: string;
 }
 
 export class CalendarManager {
   private static events: CalendarEvent[] = [];
   
+  static clearAllEvents(): void {
+    this.events = [];
+  }
+
   static isAwardsSeason(week: number): boolean {
     // Awards season: weeks 1-12 (Jan-March) and weeks 44-52 (Nov-Dec)
     return (week >= 1 && week <= 12) || (week >= 44 && week <= 52);
@@ -32,27 +37,32 @@ export class CalendarManager {
   }
   
   static validateRelease(filmId: string, targetWeek: number, targetYear: number, currentTime: TimeState): CalendarValidation {
-    const weeksSinceNow = TimeSystem.calculateWeeksSince(currentTime.currentWeek, currentTime.currentYear, targetWeek, targetYear);
-    
+    const currentAbs = (currentTime.currentYear * 52) + currentTime.currentWeek;
+    const targetAbs = (targetYear * 52) + targetWeek;
+    const weeksUntil = targetAbs - currentAbs;
+
     // Must be in the future
-    if (weeksSinceNow < 0) {
+    if (weeksUntil <= 0) {
       return {
         canRelease: false,
         reason: "Release date must be in the future"
       };
     }
-    
+
     // Need at least 4 weeks for marketing
-    if (weeksSinceNow < 4) {
-      const recommendedWeek = currentTime.currentWeek + 4 > 52 ? 
-        (currentTime.currentWeek + 4) - 52 : currentTime.currentWeek + 4;
-      const recommendedYear = currentTime.currentWeek + 4 > 52 ? 
-        currentTime.currentYear + 1 : currentTime.currentYear;
-        
+    if (weeksUntil < 4) {
+      let recommendedWeek = currentTime.currentWeek + 4;
+      let recommendedYear = currentTime.currentYear;
+      if (recommendedWeek > 52) {
+        recommendedWeek -= 52;
+        recommendedYear += 1;
+      }
+
       return {
         canRelease: false,
         reason: "Need at least 4 weeks for marketing campaign",
-        recommendedWeek: recommendedWeek
+        recommendedWeek,
+        recommendedYear,
       };
     }
     
@@ -74,11 +84,15 @@ export class CalendarManager {
     // Awards show cooldown and eligibility checks
     const cooldown = isWithinAwardCooldown(targetWeek, targetYear);
     if (cooldown.within) {
-      const recommendedWeek = Math.min(52, (cooldown.show!.ceremonyWeek + cooldown.show!.cooldownWeeks));
+      const recommendedAbs = (targetYear * 52) + (cooldown.show!.ceremonyWeek + cooldown.show!.cooldownWeeks);
+      const recommendedYear = Math.floor(recommendedAbs / 52);
+      const recommendedWeek = recommendedAbs % 52 || 52;
+
       return {
         canRelease: false,
         reason: `Release falls within ${cooldown.show!.name} cooldown period (weeks ${cooldown.show!.ceremonyWeek}-${cooldown.show!.ceremonyWeek + cooldown.show!.cooldownWeeks - 1})`,
         recommendedWeek,
+        recommendedYear,
       };
     }
 

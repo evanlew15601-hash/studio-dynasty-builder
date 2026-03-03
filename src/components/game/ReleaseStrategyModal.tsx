@@ -81,7 +81,12 @@ export const ReleaseStrategyModal: React.FC<ReleaseStrategyModalProps> = ({
       onProjectUpdate(project.id, {
         releaseWeek: result.releaseWeek,
         releaseYear: result.releaseYear,
-        status: 'scheduled-for-release'
+        scheduledReleaseWeek: result.releaseWeek,
+        scheduledReleaseYear: result.releaseYear,
+        currentPhase: 'release',
+        status: 'scheduled-for-release',
+        readyForRelease: false,
+        phaseDuration: -1,
       });
 
       toast({

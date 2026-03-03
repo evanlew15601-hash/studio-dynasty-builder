@@ -136,30 +136,34 @@ export const EpisodeTrackingSystem: React.FC<EpisodeTrackingSystemProps> = ({
     const startEpisode = currentSeason.episodesAired;
     const endEpisode = Math.min(startEpisode + episodesToRelease, currentSeason.totalEpisodes);
 
+    const currentAbs = gameState.currentYear * 52 + gameState.currentWeek;
+
     // Determine premiere date: respect scheduled calendar release if present
     let premiereWeek = freshProject.releaseWeek;
     let premiereYear = freshProject.releaseYear;
     const hasScheduledPremiere = freshProject.scheduledReleaseWeek && freshProject.scheduledReleaseYear;
 
-    if (!premiereWeek || !premiereYear) {
-      if (hasScheduledPremiere) {
-        const currentAbs = gameState.currentYear * 52 + gameState.currentWeek;
-        const scheduledAbs = freshProject.scheduledReleaseYear! * 52 + freshProject.scheduledReleaseWeek!;
-        if (currentAbs < scheduledAbs) {
-          toast({
-            title: "Show Not Yet Premiered",
-            description: `Episodes can be released after the premiere in Week ${freshProject.scheduledReleaseWeek}, ${freshProject.scheduledReleaseYear}.`,
-            variant: "destructive"
-          });
-          return;
-        }
-        premiereWeek = freshProject.scheduledReleaseWeek!;
-        premiereYear = freshProject.scheduledReleaseYear!;
-      } else {
-        // No schedule set – treat first episode release as the premiere date
-        premiereWeek = gameState.currentWeek;
-        premiereYear = gameState.currentYear;
+    const targetPremiereWeek = hasScheduledPremiere ? freshProject.scheduledReleaseWeek! : premiereWeek;
+    const targetPremiereYear = hasScheduledPremiere ? freshProject.scheduledReleaseYear! : premiereYear;
+
+    if (targetPremiereWeek && targetPremiereYear) {
+      const premiereAbs = targetPremiereYear * 52 + targetPremiereWeek;
+
+      if (currentAbs < premiereAbs) {
+        toast({
+          title: "Show Not Yet Premiered",
+          description: `Episodes can be released after the premiere in Week ${targetPremiereWeek}, ${targetPremiereYear}.`,
+          variant: "destructive"
+        });
+        return;
       }
+
+      premiereWeek = targetPremiereWeek;
+      premiereYear = targetPremiereYear;
+    } else {
+      // No schedule set – treat first episode release as the premiere date
+      premiereWeek = gameState.currentWeek;
+      premiereYear = gameState.currentYear;
     }
 
     // Process initial ratings for new episodes using the canonical premiere date.
