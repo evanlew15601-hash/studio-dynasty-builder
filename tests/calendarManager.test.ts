@@ -80,6 +80,7 @@ describe('CalendarManager.validateRelease', () => {
       {
         id: 'film-a',
         title: 'Film A',
+        status: 'scheduled-for-release',
         scheduledReleaseWeek: 15,
         scheduledReleaseYear: 2024,
       } as unknown as Project,

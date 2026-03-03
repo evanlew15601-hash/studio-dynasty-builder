@@ -32,8 +32,12 @@ export class CalendarManager {
   private static getReleaseEventsFromProjects(projects: Project[]): CalendarEvent[] {
     return projects
       .map(project => {
-        const week = project.scheduledReleaseWeek ?? project.releaseWeek;
-        const year = project.scheduledReleaseYear ?? project.releaseYear;
+        // Only consider dates "reserved" if the project is explicitly scheduled.
+        // This avoids stale scheduledReleaseWeek/Year values blocking other releases
+        // while a project is still in marketing or otherwise unscheduled.
+        const isScheduled = project.status === 'scheduled-for-release';
+        const week = isScheduled ? project.scheduledReleaseWeek : undefined;
+        const year = isScheduled ? project.scheduledReleaseYear : undefined;
 
         if (!week || !year) return null;
 
