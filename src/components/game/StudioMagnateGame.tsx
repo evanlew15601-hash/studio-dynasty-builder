@@ -24,6 +24,7 @@ import { CompetitorMonitor } from './CompetitorMonitor';
 import { TimeSystem, TimeState } from './TimeSystem';
 import { BoxOfficeSystem } from './BoxOfficeSystem';
 import { TVRatingsSystem } from './TVRatingsSystem';
+import { TVEpisodeSystem } from './TVEpisodeSystem';
 import { FinancialEngine } from './FinancialEngine';
 import { updateProjectFinancials } from './FinancialCalculations';
 import { TalentFilmographyManager } from '@/utils/talentFilmographyManager';
@@ -834,7 +835,16 @@ export const StudioMagnateGame: React.FC<StudioMagnateGameProps> = ({
             };
 
             if (project.type === 'series' || project.type === 'limited-series') {
-              updatedProject = TVRatingsSystem.initializeAiring(updatedProject, resolvedReleaseWeek, resolvedReleaseYear);
+              // TV: do not initialize ratings until the first episode actually airs.
+              updatedProject = {
+                ...updatedProject,
+                status: 'released' as const
+              };
+
+              // Ensure season exists and perform the premiere drop if due (weekly/batch/binge).
+              updatedProject = TVEpisodeSystem.ensureSeason(updatedProject);
+              updatedProject = TVEpisodeSystem.autoReleaseEpisodesIfDue(updatedProject, timeState.currentWeek, timeState.currentYear);
+              updatedProject = TVEpisodeSystem.processWeeklyEpisodeDecay(updatedProject, timeState.currentWeek, timeState.currentYear);
             } else {
               updatedProject = BoxOfficeSystem.initializeRelease(updatedProject, resolvedReleaseWeek, resolvedReleaseYear);
             }
@@ -866,6 +876,11 @@ export const StudioMagnateGame: React.FC<StudioMagnateGameProps> = ({
            if (import.meta.env.DEV) {
              console.log(`    📺 PROCESSING TV RATINGS: ${project.title}`);
            }
+
+           updatedProject = TVEpisodeSystem.ensureSeason(updatedProject);
+           updatedProject = TVEpisodeSystem.autoReleaseEpisodesIfDue(updatedProject, timeState.currentWeek, timeState.currentYear);
+           updatedProject = TVEpisodeSystem.processWeeklyEpisodeDecay(updatedProject, timeState.currentWeek, timeState.currentYear);
+
            updatedProject = TVRatingsSystem.processWeeklyRatings(
              updatedProject,
              timeState.currentWeek,

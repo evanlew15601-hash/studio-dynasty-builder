@@ -5,13 +5,12 @@ import { Badge } from '@/components/ui/badge';
 import { Progress } from '@/components/ui/progress';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
-import { Switch } from '@/components/ui/switch';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger } from '@/components/ui/dialog';
 import { useToast } from '@/hooks/use-toast';
 import { EpisodeData, SeasonData, WeeklyStreamingMetrics } from '@/types/streamingTypes';
 import { GameState, Project } from '@/types/game';
-import { Play, Users, Clock, TrendingUp, Calendar, BarChart3, Star, Edit, Zap, Settings } from 'lucide-react';
+import { Play, Users, Clock, TrendingUp, Calendar, BarChart3, Star, Edit, Settings } from 'lucide-react';
 import { TVRatingsSystem } from './TVRatingsSystem';
 
 interface EpisodeTrackingSystemProps {
@@ -26,9 +25,6 @@ export const EpisodeTrackingSystem: React.FC<EpisodeTrackingSystemProps> = ({
   const { toast } = useToast();
   const [selectedProject, setSelectedProject] = useState<Project | null>(null);
   const [selectedSeason, setSelectedSeason] = useState<number>(1);
-  const [releaseFormat, setReleaseFormat] = useState<'weekly' | 'binge' | 'batch'>('weekly');
-  const [autoReleaseEnabled, setAutoReleaseEnabled] = useState<{ [projectId: string]: boolean }>({});
-  const [editingEpisode, setEditingEpisode] = useState<{ projectId: string; episodeIndex: number } | null>(null);
 
   // Get TV projects - both released AND those in marketing/release phase ready to set up episodes
   const getTVProjects = () => {
@@ -100,20 +96,21 @@ export const EpisodeTrackingSystem: React.FC<EpisodeTrackingSystemProps> = ({
   // Release episodes based on format
   const releaseEpisodes = (project: Project, format: 'weekly' | 'binge' | 'batch') => {
     // Get fresh project data to avoid stale state
-    const freshProject = gameState.projects.find(p => p.id === project.id) || project;
-    
-    if (!freshProject.seasons || freshProject.seasons.length === 0) {
-      // Initialize first season
-      const seasonData = initializeSeasonData(freshProject);
-      freshProject.seasons = [seasonData];
-    }
+    const sourceProject = gameState.projects.find(p => p.id === project.id) || project;
 
-    const currentSeason = freshProject.seasons[selectedSeason - 1];
+    const seasons: SeasonData[] = (sourceProject.seasons && sourceProject.seasons.length > 0)
+      ? sourceProject.seasons.map(s => ({
+          ...s,
+          episodes: s.episodes.map(e => ({ ...e }))
+        }))
+      : [initializeSeasonData(sourceProject)];
+
+    const currentSeason = seasons[selectedSeason - 1];
     if (!currentSeason) return;
     
     // Check if all episodes already aired
     if (currentSeason.episodesAired >= currentSeason.totalEpisodes) {
-      console.log(`📺 ${freshProject.title}: All ${currentSeason.totalEpisodes} episodes already aired`);
+      console.log(`📺 ${sourceProject.title}: All ${currentSeason.totalEpisodes} episodes already aired`);
       return;
     }
 
@@ -131,7 +128,7 @@ export const EpisodeTrackingSystem: React.FC<EpisodeTrackingSystemProps> = ({
         break;
     }
 
-    console.log(`📺 Releasing ${episodesToRelease} episode(s) for ${freshProject.title} (${currentSeason.episodesAired}/${currentSeason.totalEpisodes} aired)`);
+    console.log(`📺 Releasing ${episodesToRelease} episode(s) for ${sourceProject.title} (${currentSeason.episodesAired}/${currentSeason.totalEpisodes} aired)`);
 
     const startEpisode = currentSeason.episodesAired;
     const endEpisode = Math.min(startEpisode + episodesToRelease, currentSeason.totalEpisodes);
@@ -139,12 +136,12 @@ export const EpisodeTrackingSystem: React.FC<EpisodeTrackingSystemProps> = ({
     const currentAbs = gameState.currentYear * 52 + gameState.currentWeek;
 
     // Determine premiere date: respect scheduled calendar release if present
-    let premiereWeek = freshProject.releaseWeek;
-    let premiereYear = freshProject.releaseYear;
-    const hasScheduledPremiere = freshProject.scheduledReleaseWeek && freshProject.scheduledReleaseYear;
+    let premiereWeek = sourceProject.releaseWeek;
+    let premiereYear = sourceProject.releaseYear;
+    const hasScheduledPremiere = sourceProject.scheduledReleaseWeek && sourceProject.scheduledReleaseYear;
 
-    const targetPremiereWeek = hasScheduledPremiere ? freshProject.scheduledReleaseWeek! : premiereWeek;
-    const targetPremiereYear = hasScheduledPremiere ? freshProject.scheduledReleaseYear! : premiereYear;
+    const targetPremiereWeek = hasScheduledPremiere ? sourceProject.scheduledReleaseWeek! : premiereWeek;
+    const targetPremiereYear = hasScheduledPremiere ? sourceProject.scheduledReleaseYear! : premiereYear;
 
     if (targetPremiereWeek && targetPremiereYear) {
       const premiereAbs = targetPremiereYear * 52 + targetPremiereWeek;
@@ -169,19 +166,25 @@ export const EpisodeTrackingSystem: React.FC<EpisodeTrackingSystemProps> = ({
     // Process initial ratings for new episodes using the canonical premiere date.
     // Only initialize TV ratings once per series to avoid resetting streaming metrics
     // when additional episodes are released later.
-    const hasStreamingMetrics = !!freshProject.metrics?.streaming;
-    const hasReleaseDate = !!freshProject.releaseWeek && !!freshProject.releaseYear;
-    const isReleased = freshProject.status === 'released';
+    const baseProject = {
+      ...sourceProject,
+      seasons,
+      releaseFormat: format
+    };
+
+    const hasStreamingMetrics = !!baseProject.metrics?.streaming;
+    const hasReleaseDate = !!baseProject.releaseWeek && !!baseProject.releaseYear;
+    const isReleased = baseProject.status === 'released';
 
     const shouldInitializeNow = !hasStreamingMetrics || !hasReleaseDate || !isReleased;
 
     const updatedProject = shouldInitializeNow
       ? TVRatingsSystem.initializeAiring(
-          freshProject,
+          baseProject,
           premiereWeek!,
           premiereYear!
         )
-      : freshProject;
+      : baseProject;
 
     // Generate episode data for released episodes
     for (let i = startEpisode; i < endEpisode; i++) {
@@ -237,9 +240,9 @@ export const EpisodeTrackingSystem: React.FC<EpisodeTrackingSystemProps> = ({
       };
     }
 
-    onProjectUpdate(freshProject.id, {
+    onProjectUpdate(sourceProject.id, {
       ...updatedProject,
-      seasons: freshProject.seasons,
+      seasons,
       releaseFormat: format,
       status: 'released' // Ensure it's marked as released
     });
@@ -256,77 +259,16 @@ export const EpisodeTrackingSystem: React.FC<EpisodeTrackingSystemProps> = ({
     });
   };
 
-  // Track last processed week to avoid double-processing
-  const [lastProcessedWeek, setLastProcessedWeek] = useState<string>('');
-
-  // Process weekly updates for all aired episodes AND auto-release if enabled
-  const processWeeklyUpdates = () => {
-    const weekKey = `${gameState.currentYear}-${gameState.currentWeek}`;
-    if (weekKey === lastProcessedWeek) return; // Prevent double-processing
-    
-    const tvProjects = getTVProjects();
-    console.log(`📺 TV Weekly Update: Processing ${tvProjects.length} projects, Week ${gameState.currentWeek}, Year ${gameState.currentYear}`);
-    
-    tvProjects.forEach(project => {
-      // Process auto-release for weekly format - must be released AND have auto-release enabled
-      if (project.status === 'released') {
-        const season = project.seasons?.[0];
-        const shouldAutoRelease = autoReleaseEnabled[project.id] || project.releaseFormat === 'weekly';
-        
-        if (season && season.episodesAired < season.totalEpisodes && shouldAutoRelease) {
-          console.log(`📺 Auto-releasing episode for ${project.title}: ${season.episodesAired + 1}/${season.totalEpisodes}`);
-          // Auto-release next episode each week
-          releaseEpisodes(project, 'weekly');
-        }
-      }
-      
-      if (!project.seasons) return;
-      
-      let hasUpdates = false;
-      const updatedSeasons = project.seasons.map(season => {
-        const updatedEpisodes = season.episodes.map(episode => {
-          if (episode.airDate && episode.weeklyViews.length < 12) { // Track for 12 weeks max
-            const weeksSinceAir = 
-              (gameState.currentYear * 52 + gameState.currentWeek) - 
-              (episode.airDate.year * 52 + episode.airDate.week);
-            
-            if (weeksSinceAir >= 0 && weeksSinceAir < 12) {
-              // Calculate weekly decay
-              const decayRate = episode.episodeNumber === 1 ? 0.15 : 0.20; // Premiere has better retention
-              const weeklyViews = Math.floor(
-                episode.viewers * Math.pow(1 - decayRate, weeksSinceAir + 1)
-              );
-              
-              episode.weeklyViews.push(weeklyViews);
-              episode.cumulativeViews += weeklyViews;
-              hasUpdates = true;
-            }
-          }
-          return episode;
-        });
-        
-        return { ...season, episodes: updatedEpisodes };
-      });
-      
-      if (hasUpdates) {
-        // Update overall project streaming metrics
-        const updatedProject = TVRatingsSystem.processWeeklyRatings(
-          { ...project, seasons: updatedSeasons },
-          gameState.currentWeek,
-          gameState.currentYear
-        );
-        
-        onProjectUpdate(project.id, updatedProject);
+  // Pre-release: make sure episode/season data exists without triggering state updates during render.
+  useEffect(() => {
+    const preRelease = getPreReleaseProjects();
+    preRelease.forEach(project => {
+      if (!project.seasons || project.seasons.length === 0) {
+        const seasonData = initializeSeasonData(project);
+        onProjectUpdate(project.id, { seasons: [seasonData] });
       }
     });
-    
-    setLastProcessedWeek(weekKey);
-  };
-
-  // Run weekly updates when week changes
-  useEffect(() => {
-    processWeeklyUpdates();
-  }, [gameState.currentWeek, gameState.currentYear]);
+  }, [gameState.projects]);
 
   const tvProjects = getTVProjects();
   const preReleaseProjects = getPreReleaseProjects();
@@ -348,13 +290,8 @@ export const EpisodeTrackingSystem: React.FC<EpisodeTrackingSystemProps> = ({
             </p>
             <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
               {preReleaseProjects.map(project => {
-                // Initialize seasons if not present
-                if (!project.seasons || project.seasons.length === 0) {
-                  const seasonData = initializeSeasonData(project);
-                  onProjectUpdate(project.id, { seasons: [seasonData] });
-                }
-                
                 const currentSeason = project.seasons?.[0];
+                const isStreamingPrimary = project.distributionStrategy?.primary?.type === 'streaming';
                 
                 return (
                   <Card key={project.id} className="border">
@@ -370,23 +307,52 @@ export const EpisodeTrackingSystem: React.FC<EpisodeTrackingSystemProps> = ({
                       </div>
                       
                       {currentSeason && (
-                        <div className="space-y-2">
-                          {currentSeason.episodes.slice(0, 3).map((ep, idx) => (
-                            <div key={idx} className="flex items-center gap-2 text-sm">
-                              <span className="text-muted-foreground">Ep {ep.episodeNumber}:</span>
-                              <Input 
-                                value={ep.title}
-                                onChange={(e) => updateEpisode(project, idx, { title: e.target.value })}
-                                className="h-7 text-sm"
-                                placeholder={`Episode ${idx + 1}`}
-                              />
-                            </div>
-                          ))}
-                          {currentSeason.episodes.length > 3 && (
+                        <div className="space-y-3">
+                          <div className="space-y-2">
+                            {currentSeason.episodes.slice(0, 3).map((ep, idx) => (
+                              <div key={idx} className="flex items-center gap-2 text-sm">
+                                <span className="text-muted-foreground">Ep {ep.episodeNumber}:</span>
+                                <Input 
+                                  value={ep.title}
+                                  onChange={(e) => updateEpisode(project, idx, { title: e.target.value })}
+                                  className="h-7 text-sm"
+                                  placeholder={`Episode ${idx + 1}`}
+                                />
+                              </div>
+                            ))}
+                            {currentSeason.episodes.length > 3 && (
+                              <p className="text-xs text-muted-foreground">
+                                +{currentSeason.episodes.length - 3} more episodes...
+                              </p>
+                            )}
+                          </div>
+
+                          <div className="space-y-2">
+                            <Label className="text-xs">Season Release Format</Label>
+                            <Select
+                              value={currentSeason.releaseFormat}
+                              onValueChange={(value: any) => {
+                                if (!project.seasons || project.seasons.length === 0) return;
+                                const seasons = [...project.seasons];
+                                seasons[0] = { ...seasons[0], releaseFormat: value };
+                                onProjectUpdate(project.id, { seasons, releaseFormat: value });
+                              }}
+                            >
+                              <SelectTrigger className="h-8">
+                                <SelectValue />
+                              </SelectTrigger>
+                              <SelectContent>
+                                <SelectItem value="weekly">Weekly (1 episode)</SelectItem>
+                                <SelectItem value="batch">Batch (3 episodes)</SelectItem>
+                                <SelectItem value="binge" disabled={!isStreamingPrimary}>
+                                  Binge (Full season){!isStreamingPrimary ? ' – streaming only' : ''}
+                                </SelectItem>
+                              </SelectContent>
+                            </Select>
                             <p className="text-xs text-muted-foreground">
-                              +{currentSeason.episodes.length - 3} more episodes...
+                              This choice applies to this season when it premieres.
                             </p>
-                          )}
+                          </div>
                         </div>
                       )}
                       
@@ -434,7 +400,6 @@ export const EpisodeTrackingSystem: React.FC<EpisodeTrackingSystemProps> = ({
               {tvProjects.map(project => {
                 const currentSeason = project.seasons?.[0];
                 const hasEpisodes = currentSeason && currentSeason.episodesAired > 0;
-                const isAutoRelease = autoReleaseEnabled[project.id];
                 
                 return (
                   <Card key={project.id} className="border">
@@ -478,32 +443,7 @@ export const EpisodeTrackingSystem: React.FC<EpisodeTrackingSystemProps> = ({
                             className="mt-2"
                           />
                           
-                          {/* Auto-release toggle */}
-                          {currentSeason.episodesAired < currentSeason.totalEpisodes && (
-                            <div className="flex items-center justify-between mt-3 p-2 bg-muted/50 rounded">
-                              <div className="flex items-center gap-2">
-                                <Zap className="h-4 w-4 text-primary" />
-                                <span className="text-xs">Auto-release weekly</span>
-                              </div>
-                              <Switch
-                                checked={isAutoRelease || false}
-                                onCheckedChange={(checked) => {
-                                  setAutoReleaseEnabled(prev => ({ ...prev, [project.id]: checked }));
-                                  if (checked) {
-                                    // Set format to weekly when enabling auto-release
-                                    onProjectUpdate(project.id, { 
-                                      releaseFormat: 'weekly',
-                                      seasons: project.seasons?.map(s => ({ ...s, releaseFormat: 'weekly' }))
-                                    });
-                                    toast({ 
-                                      title: "Auto-Release Enabled", 
-                                      description: `${project.title} will release 1 episode per week automatically.` 
-                                    });
-                                  }
-                                }}
-                              />
-                            </div>
-                          )}
+                          
                         </div>
                       )}
                       
@@ -644,14 +584,16 @@ const EpisodeManagementModal: React.FC<EpisodeManagementModalProps> = ({
   gameState,
   onUpdateEpisode
 }) => {
-  const [releaseFormat, setReleaseFormat] = useState<'weekly' | 'binge' | 'batch'>('weekly');
-  
   const currentSeason = project.seasons?.[0] || {
     seasonNumber: 1,
     totalEpisodes: 10,
     episodesAired: 0,
     episodes: []
   };
+
+  const [releaseFormat, setReleaseFormat] = useState<'weekly' | 'binge' | 'batch'>(
+    (currentSeason as any).releaseFormat || project.releaseFormat || 'weekly'
+  );
 
   const canRelease = currentSeason.episodesAired < currentSeason.totalEpisodes;
   const isStreamingPrimary = project.distributionStrategy?.primary?.type === 'streaming';
