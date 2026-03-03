@@ -786,15 +786,24 @@ export const StudioMagnateGame: React.FC<StudioMagnateGameProps> = ({
       return;
     }
 
+    const schedulingDuringMarketing =
+      project.currentPhase === 'marketing' &&
+      !!project.marketingCampaign &&
+      project.marketingCampaign.weeksRemaining > 0;
+
     const updatedProject = {
       ...project,
       releaseStrategy: strategy,
       scheduledReleaseWeek: selectedWeek,
       scheduledReleaseYear: selectedYear,
-      currentPhase: 'release' as const,
       status: 'scheduled-for-release' as any,
       readyForRelease: false,
-      phaseDuration: -1, // prevent auto-advancement until release week
+      ...(schedulingDuringMarketing
+        ? {}
+        : {
+            currentPhase: 'release' as const,
+            phaseDuration: -1, // prevent auto-advancement until release week
+          }),
       metrics: {
         ...project.metrics,
         criticsScore: Math.floor(Math.random() * 40) + 50,
