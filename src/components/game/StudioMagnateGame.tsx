@@ -90,9 +90,13 @@ import { ChevronDown } from 'lucide-react';
 import { RoleDatabase } from '../../data/RoleDatabase';
 import { importRolesForScript } from '@/utils/roleImport';
 import { finalizeScriptForSave } from '@/utils/scriptFinalization';
+import { MediaEngine } from './MediaEngine';
 import { MediaFinancialIntegration } from './MediaFinancialIntegration';
 import { MediaReputationIntegration } from './MediaReputationIntegration';
 import { MediaResponseSystem } from './MediaResponseSystem';
+import { CrisisManagement } from './CrisisManagement';
+import { MediaRelationships } from './MediaRelationships';
+import { SystemIntegration } from './SystemIntegration';
 import { saveGame } from '@/utils/saveLoad';
 import { DebugControlPanel } from './DebugControlPanel';
 
@@ -1660,57 +1664,47 @@ export const StudioMagnateGame: React.FC<StudioMagnateGameProps> = ({
         console.warn('Media response campaign processing error', e);
       }
 
-      setTimeout(() => {
-        // Process media events and run system integration checks
-        import('./MediaEngine').then(({ MediaEngine }) => {
-          const newMediaItems = MediaEngine.processMediaEvents(newState);
-          const triggeredEvents = MediaEngine.triggerAutomaticEvents(newState, gameState);
-          if ((newMediaItems.length > 0 || triggeredEvents.length > 0) && import.meta.env.DEV) {
-            console.log(`📰 MEDIA: Generated ${newMediaItems.length} articles, triggered ${triggeredEvents.length} events`);
-          }
+      // Process media events and run system integration checks
+      try {
+        const newMediaItems = MediaEngine.processMediaEvents(newState);
+        const triggeredEvents = MediaEngine.triggerAutomaticEvents(newState, prev);
+        if ((newMediaItems.length > 0 || triggeredEvents.length > 0) && import.meta.env.DEV) {
+          console.log(`📰 MEDIA: Generated ${newMediaItems.length} articles, triggered ${triggeredEvents.length} events`);
+        }
 
-          // Apply financial side-effects from media coverage (lightweight integration)
-          try {
-            MediaFinancialIntegration.applyFinancialEffects(newState);
-          } catch (e) {
-            console.warn('Media financial integration error', e);
-          }
-        });
-
-        // Apply media-driven reputation changes on top of deep reputation
+        // Apply financial side-effects from media coverage (lightweight integration)
         try {
-          setGameState(current => {
-            const mutated = { ...current };
-            MediaReputationIntegration.processWeeklyReputationUpdates(mutated);
-            return mutated;
-          });
+          MediaFinancialIntegration.applyFinancialEffects(newState);
         } catch (e) {
-          console.warn('Media reputation integration error', e);
+          console.warn('Media financial integration error', e);
         }
+      } catch (e) {
+        console.warn('Media engine processing error', e);
+      }
 
-        // Perform memory cleanup for static classes every 10 weeks
-        if (newTimeState.currentWeek % 10 === 0) {
-          import('./CrisisManagement').then(({ CrisisManagement }) => {
-            CrisisManagement.performMaintenanceCleanup(newTimeState.currentWeek, newTimeState.currentYear);
-          });
-          import('./MediaRelationships').then(({ MediaRelationships }) => {
-            MediaRelationships.performMaintenanceCleanup(newTimeState.currentWeek, newTimeState.currentYear);
-          });
-          FinancialEngine.performMemoryCleanup(newTimeState.currentWeek, newTimeState.currentYear);
-        }
-        
-        import('./SystemIntegration').then(({ SystemIntegration }) => {
-          SystemIntegration.runDiagnostics(newState);
-        });
-        
-        toast({
-          title: "New Week",
-          description: `Week ${newTimeState.currentWeek}, ${newTimeState.currentYear}`,
-        });
-        
-        // Complete the loading operation
-        completeOperation(LOADING_OPERATIONS.WEEKLY_PROCESSING.id);
-      }, 100);
+      // Apply media-driven reputation changes on top of deep reputation (in-place on newState)
+      try {
+        MediaReputationIntegration.processWeeklyReputationUpdates(newState);
+      } catch (e) {
+        console.warn('Media reputation integration error', e);
+      }
+
+      // Perform memory cleanup for static classes every 10 weeks
+      if (newTimeState.currentWeek % 10 === 0) {
+        CrisisManagement.performMaintenanceCleanup(newTimeState.currentWeek, newTimeState.currentYear);
+        MediaRelationships.performMaintenanceCleanup(newTimeState.currentWeek, newTimeState.currentYear);
+        FinancialEngine.performMemoryCleanup(newTimeState.currentWeek, newTimeState.currentYear);
+      }
+
+      SystemIntegration.runDiagnostics(newState);
+
+      toast({
+        title: "New Week",
+        description: `Week ${newTimeState.currentWeek}, ${newTimeState.currentYear}`,
+      });
+
+      // Complete the loading operation
+      completeOperation(LOADING_OPERATIONS.WEEKLY_PROCESSING.id);
 
       return newState;
     });
