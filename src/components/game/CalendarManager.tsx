@@ -90,9 +90,20 @@ export class CalendarManager {
     currentTime: TimeState,
     projects: Project[] = []
   ): CalendarValidation {
+    const absToWeekYear = (abs: number): { week: number; year: number } => {
+      const year = Math.floor((abs - 1) / 52);
+      const week = ((abs - 1) % 52) + 1;
+      return { week, year };
+    };
+
     const currentAbs = (currentTime.currentYear * 52) + currentTime.currentWeek;
     const targetAbs = (targetYear * 52) + targetWeek;
     const weeksUntil = targetAbs - currentAbs;
+
+    const project = projects.find(p => p.id === filmId);
+    const requiredWeeksUntil = project?.marketingCampaign
+      ? Math.max(1, project.marketingCampaign.weeksRemaining)
+      : 4;
 
     // Must be in the future
     if (weeksUntil <= 0) {
@@ -102,20 +113,17 @@ export class CalendarManager {
       };
     }
 
-    // Need at least 4 weeks for marketing
-    if (weeksUntil < 4) {
-      let recommendedWeek = currentTime.currentWeek + 4;
-      let recommendedYear = currentTime.currentYear;
-      if (recommendedWeek > 52) {
-        recommendedWeek -= 52;
-        recommendedYear += 1;
-      }
+    // Need enough lead time to finish (or run) marketing
+    if (weeksUntil < requiredWeeksUntil) {
+      const recommended = absToWeekYear(currentAbs + requiredWeeksUntil);
 
       return {
         canRelease: false,
-        reason: "Need at least 4 weeks for marketing campaign",
-        recommendedWeek,
-        recommendedYear,
+        reason: project?.marketingCampaign
+          ? `Release must be at least ${requiredWeeksUntil} weeks away to complete marketing`
+          : "Need at least 4 weeks for marketing campaign",
+        recommendedWeek: recommended.week,
+        recommendedYear: recommended.year,
       };
     }
     

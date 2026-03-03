@@ -27,6 +27,54 @@ describe('CalendarManager.validateRelease', () => {
     expect(result.recommendedYear).toBe(2024);
   });
 
+  it('allows near-term releases once marketing is complete (or will complete before release)', () => {
+    const projects: Project[] = [
+      {
+        id: 'film-1',
+        title: 'Film 1',
+        marketingCampaign: {
+          id: 'campaign-1',
+          strategy: {} as any,
+          budgetAllocated: 0,
+          budgetSpent: 0,
+          duration: 8,
+          weeksRemaining: 2,
+          activities: [],
+          buzz: 0,
+          targetAudience: [],
+          effectiveness: 0,
+        },
+      } as unknown as Project,
+    ];
+
+    // Only 1 week away should be rejected because the campaign still has 2 weeks remaining
+    const tooSoon = CalendarManager.validateRelease('film-1', 11, 2024, baseTime, projects);
+    expect(tooSoon.canRelease).toBe(false);
+    expect(tooSoon.reason).toBe('Release must be at least 2 weeks away to complete marketing');
+
+    // 2 weeks away is allowed (campaign will complete)
+    const ok = CalendarManager.validateRelease('film-1', 12, 2024, baseTime, projects);
+    expect(ok.canRelease).toBe(true);
+
+    // If marketing is complete, next-week releases are allowed
+    const completed = CalendarManager.validateRelease(
+      'film-1',
+      11,
+      2024,
+      baseTime,
+      [
+        {
+          ...projects[0],
+          marketingCampaign: {
+            ...projects[0].marketingCampaign!,
+            weeksRemaining: 0,
+          },
+        } as unknown as Project,
+      ]
+    );
+    expect(completed.canRelease).toBe(true);
+  });
+
   it('rejects conflicting releases scheduled for the same week', () => {
     const projects: Project[] = [
       {
