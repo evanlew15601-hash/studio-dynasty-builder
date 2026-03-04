@@ -160,7 +160,7 @@ export const ComprehensiveAIStudios: React.FC<ComprehensiveAIStudiosProps> = ({
     if (aiStudios.length === 0) return;
 
     setAIStudios(prev => prev.map(studio => {
-      let updatedStudio = { ...studio };
+      const updatedStudio = { ...studio };
 
       // Process existing projects
       updatedStudio.activeProjects = studio.activeProjects.map(project => 

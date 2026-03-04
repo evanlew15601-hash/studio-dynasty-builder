@@ -26,18 +26,23 @@ export const ReleaseStrategyModal: React.FC<ReleaseStrategyModalProps> = ({
 }) => {
   const { toast } = useToast();
   const [selectedDate, setSelectedDate] = useState<{ week: number; year: number } | null>(null);
-  
-  if (!project) return null;
 
   useEffect(() => {
     if (!isOpen) return;
+
+    if (!project) {
+      setSelectedDate(null);
+      return;
+    }
 
     if (project.scheduledReleaseWeek && project.scheduledReleaseYear) {
       setSelectedDate({ week: project.scheduledReleaseWeek, year: project.scheduledReleaseYear });
     } else {
       setSelectedDate(null);
     }
-  }, [isOpen, project.id]);
+  }, [isOpen, project?.id, project?.scheduledReleaseWeek, project?.scheduledReleaseYear]);
+
+  if (!project) return null;
 
   const currentTime = {
     currentWeek: gameState.currentWeek,

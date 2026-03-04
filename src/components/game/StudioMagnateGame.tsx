@@ -1574,7 +1574,7 @@ export const StudioMagnateGame: React.FC<StudioMagnateGameProps> = ({
 
   // Process weekly costs, debt payments, and reputation changes
   const processWeeklyCosts = (currentState: GameState, projects: Project[]) => {
-    let studio = { ...currentState.studio };
+    const studio = { ...currentState.studio };
     
     // Calculate weekly operational costs (basic studio overhead)
     const baseOperationalCost = 25000; // $25k per week base cost (gentler)
@@ -1774,7 +1774,7 @@ export const StudioMagnateGame: React.FC<StudioMagnateGameProps> = ({
 
       // Generate AI studio releases every 2-4 weeks
       const shouldGenerateRelease = Math.random() < 0.3; // 30% chance each week
-      let newAIReleases: Project[] = [];
+      const newAIReleases: Project[] = [];
       
       updateOperation(LOADING_OPERATIONS.WEEKLY_PROCESSING.id, 90, 'Finalizing updates...');
       
@@ -1793,7 +1793,7 @@ export const StudioMagnateGame: React.FC<StudioMagnateGameProps> = ({
                 aiRelease = attachBasicCastForAI(aiRelease, prev.talent);
                 newAIReleases.push(aiRelease);
                 if (import.meta.env.DEV) {
-                  console.log(`🤖 AI STUDIO: ${studioProfile.name} released \"${aiRelease.title}\" (${aiRelease.script.genre})`);
+                  console.log(`🤖 AI STUDIO: ${studioProfile.name} released "${aiRelease.title}" (${aiRelease.script.genre})`);
                 }
               }
             }
@@ -2434,8 +2434,8 @@ export const StudioMagnateGame: React.FC<StudioMagnateGameProps> = ({
                 toast({
                   title: 'Script Draft Created',
                   description: isTVScript
-                    ? `\"${finalized.title}\" is ready in TV Show Development to customize roles before greenlighting.`
-                    : `\"${finalized.title}\" is ready in Script Development to customize roles before greenlighting.`,
+                    ? `"${finalized.title}" is ready in TV Show Development to customize roles before greenlighting.`
+                    : `"${finalized.title}" is ready in Script Development to customize roles before greenlighting.`,
                 });
               }}
             />

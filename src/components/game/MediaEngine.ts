@@ -46,7 +46,7 @@ class MediaEngine {
         // Mark event as processed
         event.processed = true;
         
-        console.log(`📺 Generated media: \"${mediaItem.headline}\" from ${mediaItem.source.name}`);
+        console.log(`📺 Generated media: "${mediaItem.headline}" from ${mediaItem.source.name}`);
       } catch (error) {
         console.error('Error processing media event:', error);
         // Mark as processed to prevent infinite retry
