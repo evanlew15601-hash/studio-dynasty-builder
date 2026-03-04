@@ -29,7 +29,8 @@ export const GameLanding: React.FC<GameLandingProps> = ({ onStartGame, onLoadGam
     studioName: '',
     specialties: ['drama'],
     difficulty: 'normal',
-    startingBudget: 10000000
+    startingBudget: 10000000,
+    studioIcon: { ...DEFAULT_ICON },
   });
 
   const difficultySettings = {
