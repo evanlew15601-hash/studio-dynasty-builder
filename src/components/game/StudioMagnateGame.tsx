@@ -99,7 +99,9 @@ import { CrisisManagement } from './CrisisManagement';
 import { MediaRelationships } from './MediaRelationships';
 import { SystemIntegration } from './SystemIntegration';
 import { saveGame } from '@/utils/saveLoad';
+import { syncAndPersistIndustryDatabase } from '@/utils/industryDatabase';
 import { DebugControlPanel } from './DebugControlPanel';
+import { IndustryDatabasePanel } from './IndustryDatabasePanel';
 
 // Ensure AI films have credited talent so awards/filmographies have real people to reference
 function attachBasicCastForAI(project: Project, talentPool: TalentPerson[]): Project {
@@ -563,7 +565,7 @@ export const StudioMagnateGame: React.FC<StudioMagnateGameProps> = ({
     'dashboard' | 'scripts' | 'casting' | 'talent' | 'franchise' | 'media' |
     'production' | 'marketing' | 'distribution' | 'finance' |
     'awards' | 'market' | 'topfilms' | 'stats' | 'reputation' | 'loans' |
-    'competition' | 'television' | 'tv-tests'
+    'competition' | 'television' | 'tv-tests' | 'database'
   >(((initialPhase === 'financials' ? 'finance' : initialPhase) as any) || 'dashboard');
 
   const achievements = useAchievements(gameState, initialUnlockedAchievements);
@@ -571,6 +573,13 @@ export const StudioMagnateGame: React.FC<StudioMagnateGameProps> = ({
   const [selectedFranchise, setSelectedFranchise] = useState<string | null>(null);
   const [selectedPublicDomain, setSelectedPublicDomain] = useState<string | null>(null);
   const [filmReleaseProject, setFilmReleaseProject] = useState<Project | null>(null);
+
+  // Persist a long-lived, cross-session industry catalog (films/TV/talent/awards/studios).
+  // This is separate from the save-game snapshot and continues to accrue even if the in-memory
+  // simulation prunes older releases for performance.
+  useEffect(() => {
+    syncAndPersistIndustryDatabase('slot1', gameState);
+  }, [gameState.currentWeek, gameState.currentYear]);
   
   // First week box office modal state
   const [firstWeekModalProject, setFirstWeekModalProject] = useState<Project | null>(null);
@@ -2269,7 +2278,7 @@ export const StudioMagnateGame: React.FC<StudioMagnateGameProps> = ({
                 <Button
                   variant="ghost"
                   className={`rounded-none border-b-2 px-4 py-4 font-medium transition-all duration-300 border-transparent hover:border-primary/40 hover:bg-primary/5 btn-ghost-premium ${
-                     ['franchise', 'media', 'talent', 'awards', 'reputation'].includes(currentPhase)
+                     ['franchise', 'media', 'talent', 'database', 'awards', 'reputation'].includes(currentPhase)
                        ? 'border-primary bg-gradient-to-t from-primary/20 to-primary/10 text-primary shadow-lg' 
                        : ''
                    }`}
@@ -2291,6 +2300,10 @@ export const StudioMagnateGame: React.FC<StudioMagnateGameProps> = ({
                  <DropdownMenuItem onClick={() => handlePhaseChange('talent')}>
                    <CastingIcon className="mr-2" size={16} />
                    Talent Management
+                 </DropdownMenuItem>
+                 <DropdownMenuItem onClick={() => handlePhaseChange('database')}>
+                   <BarChartIcon className="mr-2" size={16} />
+                   Industry Databases
                  </DropdownMenuItem>
                  <DropdownMenuItem onClick={() => handlePhaseChange('television')}>
                    <BarChartIcon className="mr-2" size={16} />
@@ -2832,7 +2845,10 @@ export const StudioMagnateGame: React.FC<StudioMagnateGameProps> = ({
             </Tabs>
           </div>
         )}
-        
+
+        {currentPhase === 'database' && (
+          <IndustryDatabasePanel gameState={gameState} slotId="slot1" />
+        )}
         
         {currentPhase === 'production' && (
           <ProductionManagement 
