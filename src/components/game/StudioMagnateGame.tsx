@@ -1944,7 +1944,7 @@ export const StudioMagnateGame: React.FC<StudioMagnateGameProps> = ({
         for (const released of releasedForFilmography) {
           filmographyState = TalentFilmographyManager.updateFilmographyOnRelease(filmographyState, released);
         }
-        updatedTalent = filmographyState.talent;
+        updatedTalent = filmographyState.talent as typeof updatedTalent;
       }
 
       // Memory management: prune old releases to prevent unbounded growth
