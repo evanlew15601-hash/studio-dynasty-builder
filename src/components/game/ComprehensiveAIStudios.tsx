@@ -153,7 +153,7 @@ export const ComprehensiveAIStudios: React.FC<ComprehensiveAIStudiosProps> = ({
     }));
 
     setAIStudios(initializedStudios);
-    console.log(`🤖 Initialized ${initializedStudios.length} AI Studios`);
+    console.log(`Initialized ${initializedStudios.length} AI Studios`);
   };
 
   const processWeeklyAIActivity = () => {
@@ -177,7 +177,7 @@ export const ComprehensiveAIStudios: React.FC<ComprehensiveAIStudiosProps> = ({
         const newProject = generateAIProject(studio);
         if (newProject) {
           updatedStudio.activeProjects = [...updatedStudio.activeProjects, newProject];
-          console.log(`🎬 ${studio.name} starts "${newProject.title}"`);
+          console.log(`${studio.name} starts "${newProject.title}"`);
         }
       }
 
@@ -229,7 +229,7 @@ export const ComprehensiveAIStudios: React.FC<ComprehensiveAIStudiosProps> = ({
         onTalentCommitmentChange?.(castMember.talentId, false);
       });
 
-      console.log(`🎭 AI RELEASE: "${project.title}" by ${studio.name}`);
+      console.log(`AI RELEASE: "${project.title}" by ${studio.name}`);
       return releaseProject;
     }
 
@@ -280,7 +280,7 @@ export const ComprehensiveAIStudios: React.FC<ComprehensiveAIStudiosProps> = ({
     const cast = castTalentForProject(studio, genre, budget);
     
     if (cast.length === 0) {
-      console.log(`❌ ${studio.name} couldn't cast "${title}" - no available talent`);
+      console.log(`${studio.name} couldn't cast "${title}" - no available talent`);
       return null; // Can't make the project without talent
     }
 

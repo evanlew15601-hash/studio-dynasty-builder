@@ -276,21 +276,21 @@ export class SystemIntegration {
     
     const validation = this.validateGameState(gameState);
     
-    console.log(`System Health: ${validation.isValid ? '✅ HEALTHY' : '❌ ISSUES DETECTED'}`);
+    console.log(`System Health: ${validation.isValid ? 'HEALTHY' : 'ISSUES DETECTED'}`);
     
     if (validation.errors.length > 0) {
       console.log('ERRORS:');
-      validation.errors.forEach(error => console.log(`  ❌ ${error}`));
+      validation.errors.forEach(error => console.log(`  ERR ${error}`));
     }
     
     if (validation.warnings.length > 0) {
       console.log('WARNINGS:');
-      validation.warnings.forEach(warning => console.log(`  ⚠️ ${warning}`));
+      validation.warnings.forEach(warning => console.log(`  WARN ${warning}`));
     }
     
     console.log('HEALTH CHECKS:');
     validation.healthChecks.forEach(check => {
-      const status = check.status === 'healthy' ? '✅' : check.status === 'warning' ? '⚠️' : '❌';
+      const status = check.status === 'healthy' ? 'OK' : check.status === 'warning' ? 'WARN' : 'ERR';
       console.log(`  ${status} ${check.system}: ${check.message}`);
     });
     

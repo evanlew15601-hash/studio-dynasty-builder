@@ -32,7 +32,7 @@ export class GameplayLoops {
     const metrics: Record<string, any> = {};
     
     if (import.meta.env.DEV) {
-      console.log(`🎬 PROCESSING FILM LOOP: ${project.title} (${project.status})`);
+      console.log(`PROCESSING FILM LOOP: ${project.title} (${project.status})`);
     }
     
     // Phase 1: Development
@@ -468,7 +468,7 @@ export class GameplayLoops {
       const performanceImpact = roi > 50 ? 5 : roi > 0 ? 2 : roi > -25 ? -1 : -3;
       
       if (import.meta.env.DEV) {
-        console.log(`📊 REPUTATION IMPACT: ${project.title} performance (ROI: ${roi}%) affects studio reputation by ${performanceImpact}`);
+        console.log(`REPUTATION IMPACT: ${project.title} performance (ROI: ${roi}%) affects studio reputation by ${performanceImpact}`);
       }
     }
     
@@ -495,7 +495,7 @@ export class GameplayLoops {
     const metrics: Record<string, any> = {};
     
     if (import.meta.env.DEV) {
-      console.log(`🏢 PROCESSING STUDIO LOOP: ${studio.name}`);
+      console.log(`PROCESSING STUDIO LOOP: ${studio.name}`);
     }
     
     // Financial health check
@@ -555,7 +555,7 @@ export class GameplayLoops {
     };
     
     if (import.meta.env.DEV) {
-      console.log('🔍 VERIFYING SYSTEM INTEGRATION...');
+      console.log('VERIFYING SYSTEM INTEGRATION...');
     }
     
     // Verify financial tracking
@@ -581,7 +581,7 @@ export class GameplayLoops {
     });
     
     if (import.meta.env.DEV) {
-      console.log('✅ INTEGRATION VERIFICATION COMPLETE:', results);
+      console.log('INTEGRATION VERIFICATION COMPLETE:', results);
     }
     return results;
   }

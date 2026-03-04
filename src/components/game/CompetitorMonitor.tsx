@@ -360,11 +360,11 @@ export const CompetitorMonitor: React.FC<CompetitorMonitorProps> = ({
                     <div className="text-sm">
                       {testResults.success ? (
                         <div className="text-green-600">
-                          ✅ All tests passed! AI Studio system is functioning correctly.
+                          All tests passed. AI Studio system is functioning correctly.
                         </div>
                       ) : (
                         <div className="text-red-600">
-                          ❌ Some tests failed. Check console for details.
+                          Some tests failed. Check console for details.
                         </div>
                       )}
                     </div>

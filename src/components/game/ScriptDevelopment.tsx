@@ -711,15 +711,12 @@ return {
       {/* Scripts Library */}
       <Card>
         <CardHeader>
-          <CardTitle className="flex items-center">
-            <span className="mr-2">📚</span>
-            Script Library
-          </CardTitle>
+          <CardTitle className="flex items-center">Script Library</CardTitle>
         </CardHeader>
         <CardContent>
           {gameState.scripts.length === 0 ? (
             <div className="text-center py-8 text-muted-foreground">
-              <div className="text-4xl mb-4">📄</div>
+              <div className="text-4xl mb-4">No scripts</div>
               <p>No scripts in development</p>
               <p className="text-sm">Create your first script to begin building your slate</p>
             </div>
@@ -812,7 +809,7 @@ return {
                           className="flex-1"
                           onClick={() => handleEditScript(script)}
                         >
-                          ✏️ Edit
+                          Edit
                         </Button>
                         <Button 
                           size="sm" 

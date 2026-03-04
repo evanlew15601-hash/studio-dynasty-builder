@@ -4,7 +4,7 @@ export class AIStudioIntegrationTests {
   
   // **CHECKPOINT 1 TEST**: Basic AI film creation
   static testFilmCreation(): boolean {
-    console.log('🧪 TEST: AI Film Creation');
+    console.log('TEST: AI Film Creation');
     
     const testStudio = {
       id: 'test-studio',
@@ -27,19 +27,19 @@ export class AIStudioIntegrationTests {
       ];
 
       const passed = validations.every(v => v);
-      console.log(passed ? '✅ Film creation test PASSED' : '❌ Film creation test FAILED');
+      console.log(passed ? 'Film creation test PASSED' : 'Film creation test FAILED');
       console.log('Film created:', film);
       
       return passed;
     } catch (error) {
-      console.log('❌ Film creation test FAILED with error:', error);
+      console.log('Film creation test FAILED with error:', error);
       return false;
     }
   }
 
   // **CHECKPOINT 2 TEST**: Talent availability and casting
   static testTalentAvailability(): boolean {
-    console.log('🧪 TEST: Talent Availability');
+    console.log('TEST: Talent Availability');
     
     const testTalent = {
       id: 'test-actor-1',
@@ -93,19 +93,19 @@ export class AIStudioIntegrationTests {
       ];
 
       const passed = validations.every(v => v);
-      console.log(passed ? '✅ Talent availability test PASSED' : '❌ Talent availability test FAILED');
+      console.log(passed ? 'Talent availability test PASSED' : 'Talent availability test FAILED');
       console.log('Commitment created:', commitment);
       
       return passed;
     } catch (error) {
-      console.log('❌ Talent availability test FAILED with error:', error);
+      console.log('Talent availability test FAILED with error:', error);
       return false;
     }
   }
 
   // **CHECKPOINT 3 TEST**: AI film progression and release
   static testFilmProgression(): boolean {
-    console.log('🧪 TEST: AI Film Progression');
+    console.log('TEST: AI Film Progression');
     
     try {
       const testStudio = {
@@ -134,7 +134,7 @@ export class AIStudioIntegrationTests {
       ];
 
       const passed = validations.every(v => v);
-      console.log(passed ? '✅ Film progression test PASSED' : '❌ Film progression test FAILED');
+      console.log(passed ? 'Film progression test PASSED' : 'Film progression test FAILED');
       console.log('Status progression:', {
         initial: initialStatus,
         week3: afterWeek3?.status,
@@ -143,14 +143,14 @@ export class AIStudioIntegrationTests {
       
       return passed;
     } catch (error) {
-      console.log('❌ Film progression test FAILED with error:', error);
+      console.log('Film progression test FAILED with error:', error);
       return false;
     }
   }
 
   // **RUN ALL TESTS**
   static runAllTests(): { passed: number; total: number; success: boolean } {
-    console.log('🧪 STARTING AI STUDIO INTEGRATION TESTS');
+    console.log('STARTING AI STUDIO INTEGRATION TESTS');
     
     // Reset system for clean testing
     AIStudioManager.resetAISystem();
@@ -170,8 +170,8 @@ export class AIStudioIntegrationTests {
 
     const success = passed === tests.length;
     
-    console.log(`🧪 TESTS COMPLETE: ${passed}/${tests.length} passed`);
-    console.log(success ? '✅ ALL TESTS PASSED' : '❌ SOME TESTS FAILED');
+    console.log(`TESTS COMPLETE: ${passed}/${tests.length} passed`);
+    console.log(success ? 'ALL TESTS PASSED' : 'SOME TESTS FAILED');
     
     return { passed, total: tests.length, success };
   }

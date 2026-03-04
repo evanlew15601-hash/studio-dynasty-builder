@@ -71,7 +71,7 @@ export const IntegrationMonitor: React.FC<IntegrationMonitorProps> = ({
       [project.id]: result
     }));
     
-    console.log(`🎬 LOOP RESULT for ${project.title}:`, result);
+    console.log(`LOOP RESULT for ${project.title}:`, result);
     
     if (onRunLoop) {
       onRunLoop(project.id);
@@ -94,7 +94,7 @@ export const IntegrationMonitor: React.FC<IntegrationMonitorProps> = ({
       [`studio-${studio.id}`]: result
     }));
     
-    console.log(`🏢 STUDIO LOOP RESULT for ${studio.name}:`, result);
+    console.log(`STUDIO LOOP RESULT for ${studio.name}:`, result);
   };
   
   const getStatusIcon = (status: boolean | undefined) => {

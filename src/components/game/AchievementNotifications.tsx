@@ -3,7 +3,7 @@ import { Card, CardContent } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
 import { Achievement } from '@/hooks/useAchievements';
-import { Trophy, X, Star, DollarSign } from 'lucide-react';
+import { Trophy, X, Star, DollarSign, Film, Award } from 'lucide-react';
 
 interface AchievementNotificationProps {
   achievement: Achievement;
@@ -19,13 +19,29 @@ export const AchievementNotification: React.FC<AchievementNotificationProps> = (
     return () => clearTimeout(timer);
   }, [onDismiss]);
 
+  const getAchievementIcon = (icon: Achievement['icon']) => {
+    switch (icon) {
+      case 'dollar':
+        return <DollarSign className="h-6 w-6" />;
+      case 'film':
+        return <Film className="h-6 w-6" />;
+      case 'star':
+        return <Star className="h-6 w-6" />;
+      case 'award':
+        return <Award className="h-6 w-6" />;
+      case 'trophy':
+      default:
+        return <Trophy className="h-6 w-6" />;
+    }
+  };
+
   return (
     <Card className="fixed top-4 right-4 z-50 w-80 animate-slide-in-right shadow-lg border-amber-200 bg-gradient-to-r from-amber-50 to-yellow-50 dark:from-amber-950/20 dark:to-yellow-950/20 dark:border-amber-800/30">
       <CardContent className="p-4">
         <div className="flex items-start justify-between">
           <div className="flex items-start space-x-3">
-            <div className="text-2xl animate-bounce">
-              {achievement.icon}
+            <div className="text-amber-700 dark:text-amber-300 animate-bounce">
+              {getAchievementIcon(achievement.icon)}
             </div>
             <div className="flex-1">
               <div className="flex items-center space-x-2 mb-1">

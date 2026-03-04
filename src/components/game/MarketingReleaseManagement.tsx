@@ -334,7 +334,7 @@ export const MarketingReleaseManagement: React.FC<MarketingReleaseManagementProp
                         {boxOfficeStatus === 'ended' && (
                           <div className="text-center p-4 border border-primary/20 rounded-lg bg-primary/5">
                             <p className="text-sm text-primary font-medium mb-2">
-                              🎬 Theatrical Run Complete
+                              Theatrical Run Complete
                             </p>
                             <p className="text-xs text-muted-foreground">
                               This film is now eligible for post-theatrical distribution. 

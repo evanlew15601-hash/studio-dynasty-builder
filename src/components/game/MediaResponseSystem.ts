@@ -43,7 +43,7 @@ export class MediaResponseSystem {
     // Generate immediate media coverage about the campaign
     this.generateCampaignMedia(campaign, gameState);
     
-    console.log(`📢 PR Campaign launched: ${name} (${type}) - Budget: $${budget/1000}K`);
+    console.log(`PR Campaign launched: ${name} (${type}) - Budget: \u0024${budget/1000}K`);
     return campaign;
   }
 
@@ -71,7 +71,7 @@ export class MediaResponseSystem {
     // Generate follow-up media based on the response
     this.generateResponseMedia(reaction, mediaItem, gameState, customMessage);
 
-    console.log(`🎯 Player responded to "${mediaItem.headline}" with: ${action}`);
+    console.log(`Player responded to "${mediaItem.headline}" with: ${action}`);
     return reaction;
   }
 
@@ -313,7 +313,7 @@ export class MediaResponseSystem {
       // Mark expired campaigns as completed
       if (currentWeek > campaign.duration.endWeek && campaign.status === 'active') {
         campaign.status = 'completed';
-        console.log(`📅 PR Campaign completed: ${campaign.name}`);
+        console.log(`PR Campaign completed: ${campaign.name}`);
       }
     });
   }

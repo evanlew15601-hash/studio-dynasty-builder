@@ -79,7 +79,7 @@ export const EnhancedAwardsSystem: React.FC<EnhancedAwardsSystemProps> = ({
       const existingCeremony = activeCeremonies.find(c => c.year === gameState.currentYear);
       
       if (!existingCeremony) {
-        console.log(`🏆 AWARDS SEASON ${gameState.currentYear} - Generating nominations...`);
+        console.log(`AWARDS SEASON ${gameState.currentYear} - Generating nominations...`);
         generateAwardsCeremony();
       } else if (gameState.currentWeek === 10 && existingCeremony.status === 'upcoming') {
         // Ceremony happens in week 10
@@ -91,10 +91,10 @@ export const EnhancedAwardsSystem: React.FC<EnhancedAwardsSystemProps> = ({
   const generateAwardsCeremony = () => {
     // Get eligible projects (released in the past year)
     const eligibleProjects = getAllEligibleProjects();
-    console.log(`   📋 ${eligibleProjects.length} eligible projects found`);
+    console.log(`   ${eligibleProjects.length} eligible projects found`);
     
     if (eligibleProjects.length === 0) {
-      console.log('   ❌ No eligible projects for awards');
+      console.log('   No eligible projects for awards');
       return;
     }
 
@@ -120,7 +120,7 @@ export const EnhancedAwardsSystem: React.FC<EnhancedAwardsSystemProps> = ({
     });
 
     setActiveCeremonies(prev => [...prev, ceremony]);
-    console.log(`   ✅ Generated ${ceremony.nominations.length} nominations across ${AWARD_CATEGORIES.length} categories`);
+    console.log(`   Generated ${ceremony.nominations.length} nominations across ${AWARD_CATEGORIES.length} categories`);
   };
 
   const getAllEligibleProjects = (): Project[] => {
@@ -430,7 +430,7 @@ export const EnhancedAwardsSystem: React.FC<EnhancedAwardsSystemProps> = ({
   };
 
   const hostAwardsCeremony = (ceremony: AwardsCeremony) => {
-    console.log(`🎭 HOSTING AWARDS CEREMONY: ${ceremony.name}`);
+    console.log(`HOSTING AWARDS CEREMONY: ${ceremony.name}`);
     
     // Determine winners for each category
     ceremony.categories.forEach(category => {
@@ -445,7 +445,7 @@ export const EnhancedAwardsSystem: React.FC<EnhancedAwardsSystemProps> = ({
         // Apply reputation bonuses
         applyAwardWinBonuses(winner, category);
         
-        console.log(`   🏆 ${category.name}: ${getWinnerDisplayName(winner)}`);
+        console.log(`   ${category.name}: ${getWinnerDisplayName(winner)}`);
       }
     });
 
@@ -573,11 +573,11 @@ export const EnhancedAwardsSystem: React.FC<EnhancedAwardsSystemProps> = ({
                   <div className="space-y-4">
                     <h4 className="font-medium">Current Status:</h4>
                     {gameState.currentWeek < 10 ? (
-                      <p>📋 Nominations announced • Ceremony in {10 - gameState.currentWeek} weeks</p>
+                      <p>Nominations announced • Ceremony in {10 - gameState.currentWeek} weeks</p>
                     ) : gameState.currentWeek === 10 ? (
-                      <p>🎭 Ceremony happening this week!</p>
+                      <p>Ceremony happening this week</p>
                     ) : (
-                      <p>✅ Ceremony complete • Winners announced</p>
+                      <p>Ceremony complete • Winners announced</p>
                     )}
                   </div>
                 )}

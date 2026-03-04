@@ -8,15 +8,20 @@ import { MediaItem, MediaSource, GameState } from '@/types/game';
 import { MediaEngine } from './MediaEngine';
 import { MediaReputationIntegration } from './MediaReputationIntegration';
 import { 
-  Newspaper, 
-  TrendingUp, 
-  TrendingDown, 
-  Clock, 
-  Users, 
+  Newspaper,
+  TrendingUp,
+  TrendingDown,
+  Clock,
+  Users,
   Star,
   AlertTriangle,
   Activity,
-  Eye
+  Eye,
+  BookOpen,
+  Monitor,
+  Tv,
+  Smartphone,
+  BarChart3
 } from 'lucide-react';
 
 interface MediaDashboardProps {
@@ -93,15 +98,43 @@ export const MediaDashboard: React.FC<MediaDashboardProps> = ({
     }
   };
 
-  const getSourceTypeIcon = (type: MediaSource['type']) => {
+  const getSourceTypeLabel = (type: MediaSource['type']) => {
     switch (type) {
-      case 'newspaper': return '📰';
-      case 'magazine': return '📔';
-      case 'blog': return '💻';
-      case 'tv_network': return '📺';
-      case 'social_media': return '📱';
-      case 'trade_publication': return '📊';
-      default: return '📰';
+      case 'newspaper':
+        return 'Newspaper';
+      case 'magazine':
+        return 'Magazine';
+      case 'blog':
+        return 'Blog';
+      case 'tv_network':
+        return 'TV Network';
+      case 'social_media':
+        return 'Social';
+      case 'trade_publication':
+        return 'Trade';
+      default:
+        return 'Press';
+    }
+  };
+
+  const getSourceTypeIcon = (type: MediaSource['type']) => {
+    const className = "h-3.5 w-3.5 text-muted-foreground";
+
+    switch (type) {
+      case 'newspaper':
+        return <Newspaper className={className} />;
+      case 'magazine':
+        return <BookOpen className={className} />;
+      case 'blog':
+        return <Monitor className={className} />;
+      case 'tv_network':
+        return <Tv className={className} />;
+      case 'social_media':
+        return <Smartphone className={className} />;
+      case 'trade_publication':
+        return <BarChart3 className={className} />;
+      default:
+        return <Newspaper className={className} />;
     }
   };
 
@@ -125,7 +158,7 @@ export const MediaDashboard: React.FC<MediaDashboardProps> = ({
     onProcessEvents?.();
     
     if (newItems.length > 0 && import.meta.env.DEV) {
-      console.log(`📺 Processed ${newItems.length} media events`);
+      console.log(`Processed ${newItems.length} media events`);
     }
   };
 
@@ -296,7 +329,7 @@ export const MediaDashboard: React.FC<MediaDashboardProps> = ({
                 <option value="all">All Sources</option>
                 {allSources.map(source => (
                   <option key={source.id} value={source.id}>
-                    {getSourceTypeIcon(source.type)} {source.name}
+                    {source.name} ({getSourceTypeLabel(source.type)})
                   </option>
                 ))}
               </select>
@@ -328,7 +361,8 @@ export const MediaDashboard: React.FC<MediaDashboardProps> = ({
                   <div className="flex items-center justify-between text-xs">
                     <div className="flex items-center gap-4">
                       <span className="flex items-center gap-1">
-                        {getSourceTypeIcon(item.source.type)} {item.source.name}
+                        {getSourceTypeIcon(item.source.type)}
+                        {item.source.name}
                       </span>
                       <span className="flex items-center gap-1">
                         <Clock className="h-3 w-3" />

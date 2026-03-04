@@ -1,6 +1,5 @@
 import { Project } from '@/types/game';
 import { FinancialEngine } from './FinancialEngine';
-import { TimeSystem } from './TimeSystem';
 
 export interface BoxOfficeWeeklyReport {
   weekNumber: number;
@@ -15,13 +14,13 @@ export interface BoxOfficeWeeklyReport {
 
 export class BoxOfficeSystem {
   static initializeRelease(project: Project, releaseWeek: number, releaseYear: number): Project {
-    console.log(`🎬 INITIALIZING RELEASE: ${project.title} for Y${releaseYear}W${releaseWeek}`);
+    console.log(`INITIALIZING RELEASE: ${project.title} for Y${releaseYear}W${releaseWeek}`);
     console.log(`   Current project status: ${project.status}`);
     console.log(`   Current project metrics:`, project.metrics);
-    
+
     // Calculate opening week revenue immediately during release
     const openingWeekRevenue = this.calculateWeeklyRevenue(project, 0);
-    console.log(`   💰 OPENING WEEK REVENUE: ${openingWeekRevenue.toLocaleString()}`);
+    console.log(`   OPENING WEEK REVENUE: ${openingWeekRevenue.toLocaleString()}`);
 
     // Record opening week revenue in the unified ledger (idempotent by week/year)
     const existingOpening = FinancialEngine.getFilmFinancials(project.id).transactions.some(t =>
@@ -33,7 +32,7 @@ export class BoxOfficeSystem {
     if (!existingOpening && openingWeekRevenue > 0) {
       FinancialEngine.recordFilmRevenue(project.id, openingWeekRevenue, releaseWeek, releaseYear, 'Opening week');
     }
-    
+
     const result = {
       ...project,
       status: 'released' as any,
@@ -52,30 +51,30 @@ export class BoxOfficeSystem {
         lastWeeklyRevenue: openingWeekRevenue
       }
     };
-    
+
     console.log(`   Result status: ${result.status}, inTheaters: ${result.metrics.inTheaters}, theaterCount: ${result.metrics.theaterCount}`);
-    console.log(`   💰 Initial boxOfficeTotal: $${result.metrics.boxOfficeTotal?.toLocaleString()}`);
+    console.log(`   Initial boxOfficeTotal: \u0024${result.metrics.boxOfficeTotal?.toLocaleString()}`);
     console.log(`   Full result metrics:`, result.metrics);
     return result;
   }
 
   static processWeeklyRevenue(
-    project: Project, 
-    currentWeek: number, 
+    project: Project,
+    currentWeek: number,
     currentYear: number
   ): Project {
-    console.log(`\n📊 BOX OFFICE WEEKLY: ${project.title}`);
+    console.log(`\nBOX OFFICE WEEKLY: ${project.title}`);
     console.log(`   Project status: ${project.status}, inTheaters: ${project.metrics?.inTheaters}`);
-    
+
     // Skip if no release scheduled
     if (!project.releaseWeek || !project.releaseYear) {
-      console.log(`   ❌ NO RELEASE SCHEDULED`);
+      console.log(`   NO RELEASE SCHEDULED`);
       return project;
     }
 
     // Skip if theatrical run has permanently ended
     if (project.metrics?.theatricalRunLocked) {
-      console.log(`  ✅ Run permanently ended`);
+      console.log(`  Run permanently ended`);
       return project;
     }
 
@@ -83,23 +82,23 @@ export class BoxOfficeSystem {
     const currentAbsoluteWeek = (currentYear * 52) + currentWeek;
     const releaseAbsoluteWeek = (project.releaseYear * 52) + project.releaseWeek;
     const hasReleased = currentAbsoluteWeek >= releaseAbsoluteWeek;
-    
+
     console.log(`   Current: Y${currentYear}W${currentWeek} (${currentAbsoluteWeek})`);
     console.log(`   Release: Y${project.releaseYear}W${project.releaseWeek} (${releaseAbsoluteWeek})`);
     console.log(`   Has released: ${hasReleased}`);
-    
+
     if (!hasReleased) {
-      console.log(`  ⏳ Waiting for release: Y${project.releaseYear}W${project.releaseWeek}`);
+      console.log(`  Waiting for release: Y${project.releaseYear}W${project.releaseWeek}`);
       return project;
     }
 
     // Calculate exact weeks since release (0 for release week, 1 for next week, etc.)
     const weeksSinceRelease = Math.max(0, currentAbsoluteWeek - releaseAbsoluteWeek);
-    console.log(`  📅 Week ${weeksSinceRelease} of theatrical run (0 = release week)`);
+    console.log(`  Week ${weeksSinceRelease} of theatrical run (0 = release week)`);
 
     // Week 0 revenue is handled during initializeRelease(). Do not double-count.
     if (weeksSinceRelease === 0) {
-      console.log(`  🎭 RELEASE WEEK - revenue already captured during initialization`);
+      console.log(`  RELEASE WEEK - revenue already captured during initialization`);
       return {
         ...project,
         metrics: {
@@ -108,24 +107,24 @@ export class BoxOfficeSystem {
         }
       };
     }
-    
+
     // First week: Enter theaters (this should not happen for week 0 releases)
     if (!project.metrics?.inTheaters && weeksSinceRelease === 1) {
-      console.log(`  🎭 ENTERING THEATERS (Week 1 entry)`);
+      console.log(`  ENTERING THEATERS (Week 1 entry)`);
       const initialTheaters = this.getInitialTheaterCount(project);
-      
-        return {
-          ...project,
-          metrics: {
-            ...project.metrics,
-            inTheaters: true,
-            theaterCount: initialTheaters,
-            weeksSinceRelease: 1,
-            // KEEP existing boxOfficeTotal instead of resetting to 0
-            boxOfficeTotal: project.metrics.boxOfficeTotal || 0,
-            boxOfficeStatus: 'Opening'
-          }
-        };
+
+      return {
+        ...project,
+        metrics: {
+          ...project.metrics,
+          inTheaters: true,
+          theaterCount: initialTheaters,
+          weeksSinceRelease: 1,
+          // KEEP existing boxOfficeTotal instead of resetting to 0
+          boxOfficeTotal: project.metrics.boxOfficeTotal || 0,
+          boxOfficeStatus: 'Opening'
+        }
+      };
     }
 
     // Skip if not in theaters yet
@@ -135,8 +134,8 @@ export class BoxOfficeSystem {
 
     // Check for permanent exit (no flip-flopping)
     if (this.shouldExitTheatersPermanently(project, weeksSinceRelease)) {
-      console.log(`  🏁 PERMANENTLY EXITING THEATERS`);
-      
+      console.log(`  PERMANENTLY EXITING THEATERS`);
+
       return {
         ...project,
         metrics: {
@@ -170,7 +169,7 @@ export class BoxOfficeSystem {
       criticsScore: project.metrics.criticsScore || 50
     };
 
-    console.log(`  💰 Week ${weeksSinceRelease} Report:`);
+    console.log(`  Week ${weeksSinceRelease} Report:`);
     console.log(`     Weekly: $${weeklyRevenue.toLocaleString()}`);
     console.log(`     Previous Total: $${(project.metrics.boxOfficeTotal || 0).toLocaleString()}`);
     console.log(`     New Total: $${newTotal.toLocaleString()}`);
@@ -217,7 +216,7 @@ export class BoxOfficeSystem {
   private static shouldExitTheatersPermanently(project: Project, weeksSinceRelease: number): boolean {
     // ABSOLUTE MAXIMUM: 20 weeks (5 months)
     if (weeksSinceRelease >= 20) {
-      console.log(`    🚫 MAXIMUM RUN REACHED (20 weeks)`);
+      console.log(`    MAXIMUM RUN REACHED (20 weeks)`);
       return true;
     }
 
@@ -225,7 +224,7 @@ export class BoxOfficeSystem {
     if (weeksSinceRelease >= 8) {
       const avgScore = ((project.metrics?.criticsScore || 50) + (project.metrics?.audienceScore || 50)) / 2;
       if (avgScore < 40) {
-        console.log(`    🚫 POOR PERFORMANCE EXIT (${avgScore.toFixed(1)} avg score)`);
+        console.log(`    POOR PERFORMANCE EXIT (${avgScore.toFixed(1)} avg score)`);
         return true;
       }
     }
@@ -234,28 +233,28 @@ export class BoxOfficeSystem {
     if (weeksSinceRelease >= 14) {
       const avgScore = ((project.metrics?.criticsScore || 50) + (project.metrics?.audienceScore || 50)) / 2;
       if (avgScore < 60) {
-        console.log(`    🚫 MEDIOCRE PERFORMANCE EXIT (${avgScore.toFixed(1)} avg score)`);
+        console.log(`    MEDIOCRE PERFORMANCE EXIT (${avgScore.toFixed(1)} avg score)`);
         return true;
       }
     }
 
     // GOOD PERFORMANCE: Can run full 20 weeks
-    console.log(`    ✅ CONTINUING (Week ${weeksSinceRelease}, good performance)`);
+    console.log(`    CONTINUING (Week ${weeksSinceRelease}, good performance)`);
     return false;
   }
 
   private static calculateWeeklyRevenue(project: Project, weeksSinceRelease: number): number {
     // CRITICAL FIX: Ensure revenue is never $0 for valid projects
-    console.log(`💰 REVENUE CALCULATION for ${project.title}, week ${weeksSinceRelease}`);
-    
+    console.log(`REVENUE CALCULATION for ${project.title}, week ${weeksSinceRelease}`);
+
     // Base revenue potential - increased minimum
     const baseRevenue = Math.max(project.budget.total * 0.3, 500000); // At least 500k minimum
     console.log(`   Base revenue: $${baseRevenue.toLocaleString()}`);
-    
+
     // Performance multipliers (ensure never 0)
     const criticsMultiplier = Math.max(0.3, (project.metrics?.criticsScore || 50) / 100);
     const audienceMultiplier = Math.max(0.3, (project.metrics?.audienceScore || 50) / 100);
-    
+
     // Marketing multiplier - decouple from PR state to fix interference bug
     let marketingMultiplier = 1.0;
     if (project.marketingCampaign) {
@@ -263,35 +262,35 @@ export class BoxOfficeSystem {
       const budgetBonus = Math.max(0, (project.marketingCampaign.budgetSpent || 0) / 1000000 * 0.1);
       marketingMultiplier = 1 + buzzBonus + budgetBonus;
     }
-    
+
     console.log(`   Multipliers - Critics: ${criticsMultiplier}, Audience: ${audienceMultiplier}, Marketing: ${marketingMultiplier}`);
-    
+
     // Star power multiplier from confirmed casting
     const starPowerMultiplier = 1 + Math.min(0.5, project.starPowerBonus || 0);
-    
+
     // Release strategy multiplier
     const releaseMultiplier = this.getReleaseMultiplier(project.releaseStrategy?.type || 'wide');
-    
+
     // Weekly decline curve
     const weeklyMultiplier = this.getRealisticWeeklyMultiplier(weeksSinceRelease);
-    
-    const totalRevenue = baseRevenue * 
-      criticsMultiplier * 
-      audienceMultiplier * 
-      marketingMultiplier * 
-      starPowerMultiplier * 
-      releaseMultiplier * 
+
+    const totalRevenue = baseRevenue *
+      criticsMultiplier *
+      audienceMultiplier *
+      marketingMultiplier *
+      starPowerMultiplier *
+      releaseMultiplier *
       weeklyMultiplier;
-    
+
     const finalRevenue = Math.max(100000, Math.floor(totalRevenue)); // NEVER below 100k
     console.log(`   Final revenue: $${finalRevenue.toLocaleString()}`);
-    
+
     // FAIL-SAFE: If calculation somehow results in 0, force minimum
     if (finalRevenue === 0) {
-      console.error(`❌ REVENUE BUG DETECTED: ${project.title} calculated $0 - forcing minimum`);
+      console.error(`REVENUE BUG DETECTED: ${project.title} calculated $0 - forcing minimum`);
       return Math.max(250000, project.budget.total * 0.05); // 5% of budget minimum
     }
-    
+
     return finalRevenue;
   }
 
@@ -329,14 +328,14 @@ export class BoxOfficeSystem {
       0.008, // Week 19
       0.005  // Week 20: Final weeks
     ];
-    
+
     return curve[week] || 0.001;
   }
 
   private static calculateTheaterCount(project: Project, weeksSinceRelease: number): number {
     const initialCount = this.getInitialTheaterCount(project);
     const releaseType = project.releaseStrategy?.type || 'wide';
-    
+
     // Platform release: Expands if successful
     if (releaseType === 'platform') {
       const avgScore = ((project.metrics?.criticsScore || 50) + (project.metrics?.audienceScore || 50)) / 2;
@@ -346,7 +345,7 @@ export class BoxOfficeSystem {
         return Math.min(3200, Math.floor(initialCount * expansionMultiplier));
       }
     }
-    
+
     // Standard wide/limited release decline
     if (weeksSinceRelease <= 2) return initialCount;
     if (weeksSinceRelease <= 4) return Math.floor(initialCount * 0.95);

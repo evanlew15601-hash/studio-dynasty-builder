@@ -73,7 +73,7 @@ export const ProductionManagement: React.FC<ProductionManagementProps> = ({
         if (!hasDirector || !hasLead) {
           toast({
             title: 'Cast Required',
-            description: `Attach a Director${!hasDirector ? '' : ' ✓'} and Lead Actor${!hasLead ? '' : ' ✓'} before production can begin.`,
+            description: `Attach a Director${hasDirector ? '' : ' (missing)'} and Lead Actor${hasLead ? '' : ' (missing)'} before production can begin.`,
             variant: 'destructive'
           });
           return;
