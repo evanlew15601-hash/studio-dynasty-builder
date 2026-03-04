@@ -157,7 +157,7 @@ export const TVProductionManagement: React.FC<TVProductionManagementProps> = ({
         <CardContent>
           {developmentProjects.length === 0 ? (
             <div className="text-center py-8 text-muted-foreground">
-              <div className="text-4xl mb-4">📝</div>
+              <ScriptIcon className="h-12 w-12 mx-auto mb-4 text-muted-foreground" />
               <p>No TV shows in development</p>
               <p className="text-sm">Greenlight scripts to start development</p>
             </div>
@@ -194,7 +194,7 @@ export const TVProductionManagement: React.FC<TVProductionManagementProps> = ({
                       <div className="flex items-center justify-between mb-2">
                         <span className="text-sm font-medium">Casting Progress</span>
                         <Badge variant={project.castingConfirmed ? "default" : "destructive"}>
-                          {project.castingConfirmed ? "✓ Ready" : "Incomplete"}
+                          {project.castingConfirmed ? "Ready" : "Incomplete"}
                         </Badge>
                       </div>
                       {(() => {
@@ -209,10 +209,10 @@ export const TVProductionManagement: React.FC<TVProductionManagementProps> = ({
                             <Progress value={progress} className="h-2 mb-2" />
                             <div className="flex gap-2 text-xs">
                               <Badge variant={hasDirector ? "default" : "outline"} className="text-xs">
-                                {hasDirector ? "✓" : "○"} Director
+                                {hasDirector ? "Ready" : "Missing"} Director
                               </Badge>
                               <Badge variant={hasLead ? "default" : "outline"} className="text-xs">
-                                {hasLead ? "✓" : "○"} Lead Actor
+                                {hasLead ? "Ready" : "Missing"} Lead Actor
                               </Badge>
                               <span className="text-muted-foreground ml-auto">
                                 {castCount}/{characters.length} roles cast
@@ -288,7 +288,7 @@ export const TVProductionManagement: React.FC<TVProductionManagementProps> = ({
         <CardContent>
           {productionProjects.length === 0 ? (
             <div className="text-center py-8 text-muted-foreground">
-              <div className="text-4xl mb-4">🎬</div>
+              <CameraIcon className="h-12 w-12 mx-auto mb-4 text-muted-foreground" />
               <p>No TV shows currently in production</p>
               <p className="text-sm">Complete development phase to start production</p>
             </div>

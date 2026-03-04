@@ -286,10 +286,10 @@ export class MediaFinancialIntegration {
     gameState.projects.forEach(project => {
       if (project.status === 'marketing' || project.status === 'release') {
         const mediaEffect = this.calculateMediaBoxOfficeMultiplier(project, gameState);
-        console.log(`📊 Media multiplier for ${project.script?.title}: ${mediaEffect.multiplier.toFixed(2)}x`);
+        console.log(`Media multiplier for ${project.script?.title}: ${mediaEffect.multiplier.toFixed(2)}x`);
       }
     });
     
-    console.log('💰 Applied media financial effects to all projects');
+    console.log('Applied media financial effects to all projects');
   }
 }

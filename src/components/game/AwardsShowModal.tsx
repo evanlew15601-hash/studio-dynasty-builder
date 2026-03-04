@@ -86,7 +86,7 @@ export const AwardsShowModal: React.FC<AwardsShowModalProps> = ({
 
                   {nominations[currentSlide].won ? (
                     <div className="space-y-4">
-                      <div className="text-6xl animate-bounce">🏆</div>
+                      <TrophyIcon className="w-16 h-16 mx-auto text-yellow-600 animate-bounce" />
                       <div className="text-2xl font-bold text-yellow-600">
                         WINNER!
                       </div>
@@ -96,7 +96,7 @@ export const AwardsShowModal: React.FC<AwardsShowModalProps> = ({
                     </div>
                   ) : (
                     <div className="space-y-4">
-                      <div className="text-4xl">🎭</div>
+                      <StarIcon className="w-12 h-12 mx-auto text-muted-foreground" />
                       <div className="text-xl font-semibold">
                         Nominated
                       </div>

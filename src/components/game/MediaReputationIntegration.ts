@@ -318,6 +318,6 @@ export class MediaReputationIntegration {
       gameState.studio.reputation + reputationChange
     ));
 
-    console.log(`📊 Weekly reputation update: Studio reputation ${reputationChange >= 0 ? '+' : ''}${reputationChange.toFixed(1)}`);
+    console.log(`Weekly reputation update: Studio reputation ${reputationChange >= 0 ? '+' : ''}${reputationChange.toFixed(1)}`);
   }
 }

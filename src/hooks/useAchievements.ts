@@ -1,11 +1,13 @@
 import { useState, useEffect } from 'react';
 import { GameState } from '@/types/game';
 
+export type AchievementIcon = "dollar" | "film" | "star" | "trophy" | "award";
+
 export interface Achievement {
   id: string;
   title: string;
   description: string;
-  icon: string;
+  icon: AchievementIcon;
   category: 'financial' | 'creative' | 'reputation' | 'milestone' | 'special';
   requirement: (gameState: GameState) => boolean;
   reward?: {
@@ -22,7 +24,7 @@ const ACHIEVEMENTS: Achievement[] = [
     id: 'first-million',
     title: 'First Million',
     description: 'Earn your first $1M in box office revenue',
-    icon: '💰',
+    icon: 'dollar',
     category: 'financial',
     requirement: (state) => state.projects.some(p => (p.metrics?.boxOfficeTotal || 0) >= 1000000),
     reward: { reputation: 5 },
@@ -32,7 +34,7 @@ const ACHIEVEMENTS: Achievement[] = [
     id: 'blockbuster-hit',
     title: 'Blockbuster Hit',
     description: 'Create a film that earns over $100M',
-    icon: '🎬',
+    icon: 'film',
     category: 'financial',
     requirement: (state) => state.projects.some(p => (p.metrics?.boxOfficeTotal || 0) >= 100000000),
     reward: { reputation: 20, budget: 5000000 },
@@ -42,7 +44,7 @@ const ACHIEVEMENTS: Achievement[] = [
     id: 'critic-darling',
     title: 'Critical Darling',
     description: 'Achieve 90+ quality on a project',
-    icon: '⭐',
+    icon: 'star',
     category: 'creative',
     requirement: (state) => state.projects.some(p => (p.script?.quality || 0) >= 90),
     reward: { reputation: 10 },
@@ -52,7 +54,7 @@ const ACHIEVEMENTS: Achievement[] = [
     id: 'studio-mogul',
     title: 'Studio Mogul',
     description: 'Reach 80+ studio reputation',
-    icon: '👑',
+    icon: 'trophy',
     category: 'reputation',
     requirement: (state) => state.studio.reputation >= 80,
     reward: { budget: 10000000 },
@@ -62,7 +64,7 @@ const ACHIEVEMENTS: Achievement[] = [
     id: 'prolific-producer',
     title: 'Prolific Producer',
     description: 'Complete 10 projects',
-    icon: '🎭',
+    icon: 'film',
     category: 'milestone',
     requirement: (state) => state.projects.filter(p => p.status === 'released').length >= 10,
     reward: { reputation: 15 },
@@ -72,7 +74,7 @@ const ACHIEVEMENTS: Achievement[] = [
     id: 'comeback-kid',
     title: 'Comeback Kid',
     description: 'Have a hit after 3 consecutive flops',
-    icon: '🔥',
+    icon: 'award',
     category: 'special',
     requirement: (state) => {
       const released = state.projects.filter(p => p.status === 'released').slice(-4);
@@ -91,7 +93,7 @@ const ACHIEVEMENTS: Achievement[] = [
     id: 'genre-master',
     title: 'Genre Master',
     description: 'Have 3 successful films in the same genre',
-    icon: '🎪',
+    icon: 'star',
     category: 'creative',
     requirement: (state) => {
       const successfulByGenre: Record<string, number> = {};
@@ -110,7 +112,7 @@ const ACHIEVEMENTS: Achievement[] = [
     id: 'big-spender',
     title: 'Big Spender',
     description: 'Spend over $50M on a single project',
-    icon: '💸',
+    icon: 'dollar',
     category: 'financial',
     requirement: (state) => state.projects.some(p => 
       (typeof p.budget === 'number' ? p.budget : p.budget.total) >= 50000000

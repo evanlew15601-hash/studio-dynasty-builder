@@ -110,7 +110,7 @@ export const EpisodeTrackingSystem: React.FC<EpisodeTrackingSystemProps> = ({
     
     // Check if all episodes already aired
     if (currentSeason.episodesAired >= currentSeason.totalEpisodes) {
-      console.log(`📺 ${sourceProject.title}: All ${currentSeason.totalEpisodes} episodes already aired`);
+      console.log(`${sourceProject.title}: All ${currentSeason.totalEpisodes} episodes already aired`);
       return;
     }
 
@@ -128,7 +128,7 @@ export const EpisodeTrackingSystem: React.FC<EpisodeTrackingSystemProps> = ({
         break;
     }
 
-    console.log(`📺 Releasing ${episodesToRelease} episode(s) for ${sourceProject.title} (${currentSeason.episodesAired}/${currentSeason.totalEpisodes} aired)`);
+    console.log(`Releasing ${episodesToRelease} episode(s) for ${sourceProject.title} (${currentSeason.episodesAired}/${currentSeason.totalEpisodes} aired)`);
 
     const startEpisode = currentSeason.episodesAired;
     const endEpisode = Math.min(startEpisode + episodesToRelease, currentSeason.totalEpisodes);

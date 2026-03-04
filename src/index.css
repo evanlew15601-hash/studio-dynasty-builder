@@ -16,8 +16,8 @@ All colors MUST be HSL.
     --card: 220 18% 10%;
     --card-foreground: 45 12% 88%;
 
-    --popover: 220 20% 12%;
-    --popover-foreground: 45 12% 88%;
+    --popover: 220 20% 14%;
+    --popover-foreground: 45 15% 92%;
 
     /* Champagne Gold Primary */
     --primary: 42 88% 68%;
@@ -28,7 +28,7 @@ All colors MUST be HSL.
     --secondary-foreground: 45 12% 88%;
 
     --muted: 220 15% 15%;
-    --muted-foreground: 45 8% 58%;
+    --muted-foreground: 45 10% 70%;
 
     /* Luminous Accent */
     --accent: 42 95% 72%;

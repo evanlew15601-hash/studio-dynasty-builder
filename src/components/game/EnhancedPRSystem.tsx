@@ -99,7 +99,7 @@ export const EnhancedPRSystem: React.FC<EnhancedPRSystemProps> = ({
         const endAbsoluteWeek = campaign.endYear * 52 + campaign.endWeek;
         
         if (currentAbsoluteWeek >= endAbsoluteWeek) {
-          console.log(`🎯 PR Campaign "${campaign.name}" completed`);
+          console.log(`PR Campaign "${campaign.name}" completed`);
           toast({
             title: "PR Campaign Complete",
             description: `"${campaign.name}" has finished. Total reputation gain: +${campaign.actualImpact.reputation.toFixed(1)}`,
@@ -137,7 +137,7 @@ export const EnhancedPRSystem: React.FC<EnhancedPRSystemProps> = ({
           ]
         };
         
-        console.log(`🎯 PR Weekly Impact: ${campaign.name} +${weeklyImpact.reputation.toFixed(1)} reputation`);
+        console.log(`PR Weekly Impact: ${campaign.name} +${weeklyImpact.reputation.toFixed(1)} reputation`);
         return updatedCampaign;
       });
     });

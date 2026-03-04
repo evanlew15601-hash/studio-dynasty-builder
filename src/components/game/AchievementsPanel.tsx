@@ -6,6 +6,22 @@ import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { Trophy, Star, DollarSign, Film, Award, Lock } from 'lucide-react';
 import { Achievement } from '@/hooks/useAchievements';
 
+const getAchievementIcon = (icon: Achievement['icon'], size = 20) => {
+  switch (icon) {
+    case 'dollar':
+      return <DollarSign size={size} />;
+    case 'film':
+      return <Film size={size} />;
+    case 'star':
+      return <Star size={size} />;
+    case 'award':
+      return <Award size={size} />;
+    case 'trophy':
+    default:
+      return <Trophy size={size} />;
+  }
+};
+
 interface AchievementsPanelProps {
   achievements: Achievement[];
   unlockedCount: number;
@@ -17,17 +33,6 @@ export const AchievementsPanel: React.FC<AchievementsPanelProps> = ({
   unlockedCount,
   totalCount
 }) => {
-  const getCategoryIcon = (category: Achievement['category']) => {
-    switch (category) {
-      case 'financial': return <DollarSign size={16} />;
-      case 'creative': return <Star size={16} />;
-      case 'reputation': return <Award size={16} />;
-      case 'milestone': return <Film size={16} />;
-      case 'special': return <Trophy size={16} />;
-      default: return <Trophy size={16} />;
-    }
-  };
-
   const getAchievementsByCategory = (category: Achievement['category']) =>
     achievements.filter(a => a.category === category);
 
@@ -55,11 +60,26 @@ export const AchievementsPanel: React.FC<AchievementsPanelProps> = ({
         <Tabs defaultValue="all" className="w-full">
           <TabsList className="grid w-full grid-cols-6">
             <TabsTrigger value="all">All</TabsTrigger>
-            <TabsTrigger value="financial">$</TabsTrigger>
-            <TabsTrigger value="creative">⭐</TabsTrigger>
-            <TabsTrigger value="reputation">🏆</TabsTrigger>
-            <TabsTrigger value="milestone">🎬</TabsTrigger>
-            <TabsTrigger value="special">👑</TabsTrigger>
+            <TabsTrigger value="financial" className="gap-1">
+              <DollarSign size={14} />
+              <span className="sr-only">Financial</span>
+            </TabsTrigger>
+            <TabsTrigger value="creative" className="gap-1">
+              <Star size={14} />
+              <span className="sr-only">Creative</span>
+            </TabsTrigger>
+            <TabsTrigger value="reputation" className="gap-1">
+              <Award size={14} />
+              <span className="sr-only">Reputation</span>
+            </TabsTrigger>
+            <TabsTrigger value="milestone" className="gap-1">
+              <Film size={14} />
+              <span className="sr-only">Milestone</span>
+            </TabsTrigger>
+            <TabsTrigger value="special" className="gap-1">
+              <Trophy size={14} />
+              <span className="sr-only">Special</span>
+            </TabsTrigger>
           </TabsList>
           
           <TabsContent value="all" className="space-y-3 mt-4">
@@ -90,8 +110,8 @@ const AchievementCard: React.FC<{ achievement: Achievement }> = ({ achievement }
     }`}>
       <div className="flex items-start justify-between">
         <div className="flex items-start space-x-3">
-          <div className={`text-2xl ${achievement.unlocked ? 'grayscale-0' : 'grayscale'}`}>
-            {achievement.unlocked ? achievement.icon : <Lock size={20} className="mt-1" />}
+          <div className={`mt-0.5 ${achievement.unlocked ? 'text-primary' : 'text-muted-foreground'} ${achievement.unlocked ? 'grayscale-0' : 'grayscale'}`}>
+            {achievement.unlocked ? getAchievementIcon(achievement.icon) : <Lock size={20} className="mt-0.5" />}
           </div>
           <div className="flex-1">
             <div className="flex items-center space-x-2 mb-1">

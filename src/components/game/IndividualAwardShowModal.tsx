@@ -159,7 +159,7 @@ export const IndividualAwardShowModal: React.FC<IndividualAwardShowModalProps> =
                   <div className="space-y-6">
                     <Card className="border-4 border-yellow-400 bg-gradient-to-r from-yellow-50 to-yellow-100 dark:from-yellow-900/20 dark:to-yellow-800/20">
                       <CardContent className="p-8 text-center">
-                        <div className="text-6xl animate-bounce mb-4">🏆</div>
+                        <TrophyIcon className="w-16 h-16 mx-auto text-yellow-600 animate-bounce mb-4" />
                         <div className="text-3xl font-bold text-yellow-600 mb-2">
                           WINNER!
                         </div>

@@ -145,7 +145,7 @@ export class AIStudioManager {
 
     this.aiFilms.push(film);
     
-    console.log(`🎬 AI STUDIO: ${studio.name} started "${film.title}" (${genre}, $${(budget/1000000).toFixed(1)}M) with ${usedTalent.size} cast members`);
+    console.log(`AI STUDIO: ${studio.name} started "${film.title}" (${genre}, \u0024${(budget/1000000).toFixed(1)}M) with ${usedTalent.size} cast members`);
     
     return film;
   }
@@ -218,13 +218,13 @@ export class AIStudioManager {
     
     // Check availability
     if (!this.isTalentAvailable(talent.id, startWeek, endWeek, year)) {
-      console.log(`❌ CASTING: ${talent.name} not available for ${role} (weeks ${startWeek}-${endWeek})`);
+      console.log(`CASTING: ${talent.name} not available for ${role} (weeks ${startWeek}-${endWeek})`);
       return false;
     }
 
     const film = this.aiFilms.find(f => f.id === filmId);
     if (!film) {
-      console.log(`❌ CASTING: Film ${filmId} not found`);
+      console.log(`CASTING: Film ${filmId} not found`);
       return false;
     }
 
@@ -257,7 +257,7 @@ export class AIStudioManager {
 
     this.talentCommitments.push(commitment);
 
-    console.log(`✅ CASTING: ${talent.name} cast as ${role} in "${film.title}" (${commitmentWeeks} weeks, $${weeklyPay}k/week)`);
+    console.log(`CASTING: ${talent.name} cast as ${role} in "${film.title}" (${commitmentWeeks} weeks, \u0024${weeklyPay}k/week)`);
     
     return true;
   }
@@ -270,16 +270,16 @@ export class AIStudioManager {
       // Update film status based on timeline - Faster progression
       if (film.status === 'development' && weeksInProduction >= 1) {
         film.status = 'casting';
-        console.log(`🎬 AI FILM: "${film.title}" moved to casting phase`);
+        console.log(`AI FILM: "${film.title}" moved to casting phase`);
       } else if (film.status === 'casting' && weeksInProduction >= 2) {
         film.status = 'production';
-        console.log(`🎬 AI FILM: "${film.title}" started production`);
+        console.log(`AI FILM: "${film.title}" started production`);
       } else if (film.status === 'production' && weeksInProduction >= (2 + Math.floor(film.timeline.productionWeeks * 0.7))) {
         film.status = 'post-production';
-        console.log(`🎬 AI FILM: "${film.title}" moved to post-production`);
+        console.log(`AI FILM: "${film.title}" moved to post-production`);
       } else if (film.status === 'post-production' && weeksInProduction >= (2 + Math.floor(film.timeline.productionWeeks * 0.7) + 3)) {
         film.status = 'marketing';
-        console.log(`🎬 AI FILM: "${film.title}" moved to marketing`);
+        console.log(`AI FILM: "${film.title}" moved to marketing`);
       } else if (film.status === 'marketing' && 
                  currentWeek >= film.timeline.expectedReleaseWeek && 
                  currentYear >= film.timeline.expectedReleaseYear) {
@@ -358,7 +358,7 @@ export class AIStudioManager {
       film.id
     );
 
-    console.log(`🎭 AI RELEASE: "${film.title}" released - $${(boxOffice/1000000).toFixed(1)}M box office`);
+    console.log(`AI RELEASE: "${film.title}" released - \u0024${(boxOffice/1000000).toFixed(1)}M box office`);
     
     // Update cast member reputations based on performance
     this.updateCastReputations(film);
@@ -378,7 +378,7 @@ export class AIStudioManager {
     else reputationChange = -3; // Flop
 
     film.cast.forEach(castMember => {
-      console.log(`📊 REPUTATION: ${castMember.talentName} ${reputationChange >= 0 ? '+' : ''}${reputationChange} from "${film.title}"`);
+      console.log(`REPUTATION: ${castMember.talentName} ${reputationChange >= 0 ? '+' : ''}${reputationChange} from "${film.title}"`);
     });
   }
 
@@ -425,6 +425,6 @@ export class AIStudioManager {
     this.aiFilms = [];
     this.talentCommitments = [];
     this.nextFilmId = 1;
-    console.log('🔄 AI STUDIO SYSTEM RESET');
+    console.log('AI STUDIO SYSTEM RESET');
   }
 }

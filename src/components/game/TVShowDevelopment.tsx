@@ -676,14 +676,14 @@ export const TVShowDevelopment: React.FC<TVShowDevelopmentProps> = ({
       <Card>
         <CardHeader>
           <CardTitle className="flex items-center">
-            <span className="mr-2">📺</span>
+            <ClapperboardIcon className="mr-2" size={18} />
             TV Script Library
           </CardTitle>
         </CardHeader>
         <CardContent>
           {availableTVScripts.length === 0 ? (
             <div className="text-center py-8 text-muted-foreground">
-              <div className="text-4xl mb-4">📺</div>
+              <ClapperboardIcon className="h-12 w-12 mx-auto mb-4 text-muted-foreground" size={48} />
               <p>No TV scripts in development</p>
               <p className="text-sm">Create your first TV script to begin building your slate</p>
             </div>
@@ -765,7 +765,7 @@ export const TVShowDevelopment: React.FC<TVShowDevelopmentProps> = ({
                           className="flex-1"
                           onClick={() => handleEditTVScript(script)}
                         >
-                          ✏️ Edit
+                          Edit
                         </Button>
                         <Button 
                           size="sm" 

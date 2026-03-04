@@ -100,7 +100,7 @@ export const PostTheatricalManagement: React.FC<PostTheatricalManagementProps> =
       
       // Check if release should end
       if (weeksActive >= maxDuration) {
-        console.log(`🔚 POST-THEATRICAL ENDED: ${project.title} on ${release.platform} after ${weeksActive} weeks`);
+        console.log(`POST-THEATRICAL ENDED: ${project.title} on ${release.platform} after ${weeksActive} weeks`);
         return {
           ...release,
           status: 'ended' as const,
@@ -135,7 +135,7 @@ export const PostTheatricalManagement: React.FC<PostTheatricalManagementProps> =
         .reduce((sum, r) => sum + r.weeklyRevenue, 0);
       
       if (weeklyRevenue > 0) {
-        console.log(`💰 POST-THEATRICAL REVENUE: $${weeklyRevenue.toLocaleString()} this week`);
+        console.log(`POST-THEATRICAL REVENUE: ${weeklyRevenue.toLocaleString()} this week`);
       }
     }
   }, [gameState.currentWeek, gameState.currentYear]);
@@ -160,7 +160,7 @@ export const PostTheatricalManagement: React.FC<PostTheatricalManagementProps> =
     const theatricalRunWeeks = project.metrics.weeksSinceRelease || 0;
     const weeksSinceTheatricalEnd = Math.max(0, weeksSinceRelease - theatricalRunWeeks);
     
-    console.log(`🎭 POST-THEATRICAL CHECK: ${project.title}`);
+    console.log(`POST-THEATRICAL CHECK: ${project.title}`);
     console.log(`   Release: Y${project.releaseYear}W${project.releaseWeek} (${releaseGameWeek})`);
     console.log(`   Current: Y${gameState.currentYear}W${gameState.currentWeek} (${currentGameWeek})`);
     console.log(`   Weeks since release: ${weeksSinceRelease}`);

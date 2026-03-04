@@ -123,7 +123,7 @@ export const FirstWeekBoxOfficeModal: React.FC<FirstWeekBoxOfficeModalProps> = (
                 </div>
                 {worldwideRevenue >= breakEvenPoint && (
                   <div className="text-sm text-green-600 text-center">
-                    ✅ Already profitable in first week!
+                    Already profitable in the first week.
                   </div>
                 )}
               </div>

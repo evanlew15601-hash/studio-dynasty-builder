@@ -103,7 +103,7 @@ export const AwardsCeremonyModal: React.FC<AwardsCeremonyModalProps> = ({
                 
                 {playerWins.length > 0 && (
                   <div className="mt-4">
-                    <h4 className="font-semibold text-yellow-800 mb-2">🏆 Your Wins:</h4>
+                    <h4 className="font-semibold text-yellow-800 mb-2">Your Wins:</h4>
                     {playerWins.map((winner, index) => {
                       const hasNamedNominee = !!winner.nomination.nominee;
                       const label = hasNamedNominee
@@ -153,9 +153,9 @@ export const AwardsCeremonyModal: React.FC<AwardsCeremonyModalProps> = ({
                                     if (hasNamedNominee) {
                                       const filmTitle = winner.nomination.projectTitle;
                                       const nomineeName = winner.nomination.nominee;
-                                      return `🏆 WINNER: ${nomineeName}${filmTitle ? ` (${filmTitle})` : ''}`;
+                                      return `WINNER: ${nomineeName}${filmTitle ? ` (${filmTitle})` : ''}`;
                                     }
-                                    return `🏆 WINNER: ${winner.nomination.projectTitle}`;
+                                    return `WINNER: ${winner.nomination.projectTitle}`;
                                   })()}
                                 </div>
                                 <div className="text-sm text-yellow-700">
