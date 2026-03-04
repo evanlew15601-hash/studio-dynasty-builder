@@ -26,17 +26,17 @@ export class MediaContentGenerator {
     ],
     release: [
       "Now Playing: {FilmTitle} Opens in Theaters",
+      "First Reactions: {FilmTitle} Draws {ReceptionHook}",
       "{StudioName} Releases {FilmTitle} Nationwide",
       "Opening Weekend: {FilmTitle} Arrives for Audiences",
-      "{FilmTitle} Makes Its Theatrical Debut",
       "New Release Spotlight: {FilmTitle}"
     ],
     box_office: [
-      "{FilmTitle} Dominates Box Office with ${Amount}M Opening",
-      "{FilmTitle} Exceeds Expectations with {Amount}M Weekend",
-      "Box Office Report: {FilmTitle} Takes Top Spot",
-      "{FilmTitle} Breaks Records with {Amount}M Opening",
-      "Audiences Flock to {FilmTitle}: {Amount}M Opening Weekend"
+      "Box Office: {FilmTitle} Posts ${Amount}M — {BoxOfficeOutcome}",
+      "{FilmTitle} Surprises with ${Amount}M Debut",
+      "{FilmTitle} Stumbles with ${Amount}M Opening",
+      "Box Office Report: {FilmTitle} Lands with {ReceptionHook}",
+      "Audiences Turn Out for {FilmTitle}: ${Amount}M Weekend"
     ],
     award_nomination: [
       "Awards Buzz: {FilmTitle} Scores {AwardName} Nomination",
@@ -106,14 +106,14 @@ export class MediaContentGenerator {
       "With principal photography complete, {StudioName}'s {FilmTitle} moves into post-production. {ActorName} is expected to begin promotional duties {TimeFrame}."
     ],
     release: [
-      "{FilmTitle} has officially opened, with audiences turning out across the country. {StudioName} is positioning the {Genre} release as a key title for the season.",
-      "The {Genre} film {FilmTitle} arrives in theaters this week. Early reactions highlight {ActorName}'s work and the project's scale.",
-      "Now in theaters, {FilmTitle} represents {StudioName}'s latest bid for mainstream success. The film carries a reported budget of {Budget}."
+      "{FilmTitle} has officially opened, with audiences turning out across the country. {StudioName} is positioning the {Genre} release as a key title for the season. {ReceptionSummary}",
+      "The {Genre} film {FilmTitle} arrives in theaters this week. Early reactions point to {ReceptionHook}, with critics at {CriticsScore}/100 and audiences at {AudienceScore}/100.",
+      "Now in theaters, {FilmTitle} represents {StudioName}'s latest bid for mainstream success. The film carries a reported budget of {Budget}. {ReceptionSummary}"
     ],
     box_office: [
-      "{FilmTitle} exceeded all expectations this weekend, earning ${Amount}M domestically. The {StudioName} film benefited from strong word-of-mouth and {ActorName}'s star power.",
-      "Audiences responded enthusiastically to {FilmTitle}, driving the film to a ${Amount}M opening weekend. {StudioName} executives are calling it a major success for the studio.",
-      "With ${Amount}M in ticket sales, {FilmTitle} has proven that {Genre} films still have strong appeal. {ActorName}'s performance is being credited as a major draw."
+      "{FilmTitle} opened to ${Amount}M domestically, making it {BoxOfficeOutcome} for {StudioName}. {ReceptionSummary}",
+      "With ${Amount}M in ticket sales, {FilmTitle} is tracking as {BoxOfficeOutcome} against its {Budget} budget. Critics delivered {CriticsVerdict} ({CriticsScore}/100) while audiences report {AudienceVerdict} ({AudienceScore}/100).",
+      "After a ${Amount}M debut, questions are swirling about {FilmTitle}'s legs. Reviews have been {CriticsVerdict}, and audience response is {AudienceVerdict} so far."
     ],
     award_nomination: [
       "Awards season momentum builds as {FilmTitle} earns a {AwardName} nomination. Industry watchers see the {Genre} project as a strong contender.",
@@ -194,19 +194,47 @@ export class MediaContentGenerator {
 
   private static determineSentiment(event: MediaEvent, source: MediaSource): 'positive' | 'neutral' | 'negative' {
     let baseSentiment = 0;
-    
+
+    const project = event.eventData?.project as Project | undefined;
+    const earnings = typeof event.eventData?.earnings === 'number' ? event.eventData.earnings : undefined;
+
+    const criticsScore = typeof project?.metrics?.criticsScore === 'number' ? project.metrics.criticsScore : undefined;
+    const audienceScore = typeof project?.metrics?.audienceScore === 'number' ? project.metrics.audienceScore : undefined;
+
+    const budgetTotal = project?.budget?.total ?? project?.script?.budget;
+    const ratio = budgetTotal && earnings ? earnings / budgetTotal : undefined;
+
     // Event type influences sentiment
     switch (event.type) {
       case 'award_win':
-      case 'box_office':
-        baseSentiment = 70;
+        baseSentiment = 80;
         break;
+      case 'box_office': {
+        // Hits and bombs matter; opening-vs-budget is a coarse but useful signal.
+        if (typeof ratio === 'number') {
+          if (ratio >= 0.35) baseSentiment = 75;
+          else if (ratio >= 0.18) baseSentiment = 40;
+          else if (ratio >= 0.10) baseSentiment = 10;
+          else baseSentiment = -35;
+        } else {
+          baseSentiment = 40;
+        }
+        break;
+      }
       case 'award_nomination':
-      case 'release':
+        baseSentiment = 50;
+        break;
+      case 'release': {
+        const avg = (criticsScore ?? 65) * 0.6 + (audienceScore ?? 65) * 0.4;
+        if (avg >= 75) baseSentiment = 55;
+        else if (avg >= 60) baseSentiment = 25;
+        else baseSentiment = -5;
+        break;
+      }
       case 'casting_announcement':
       case 'production_start':
       case 'production_wrap':
-        baseSentiment = 40;
+        baseSentiment = 35;
         break;
       case 'scandal':
       case 'leak':
@@ -218,13 +246,13 @@ export class MediaContentGenerator {
       default:
         baseSentiment = 0;
     }
-    
+
     // Apply source bias
     baseSentiment += source.bias;
-    
+
     // Add random variance
     baseSentiment += (Math.random() - 0.5) * 40;
-    
+
     if (baseSentiment > 20) return 'positive';
     if (baseSentiment < -20) return 'negative';
     return 'neutral';
@@ -276,6 +304,61 @@ export class MediaContentGenerator {
     const budgetTotal = project?.budget?.total ?? project?.script?.budget;
     const budgetText = budgetTotal ? `${(budgetTotal / 1000000).toFixed(1)}M` : 'a sizeable budget';
 
+    const criticsScoreNum = typeof project?.metrics?.criticsScore === 'number' ? Math.round(project.metrics.criticsScore) : 70;
+    const audienceScoreNum = typeof project?.metrics?.audienceScore === 'number' ? Math.round(project.metrics.audienceScore) : 72;
+
+    const criticsVerdict = (() => {
+      if (criticsScoreNum >= 85) return 'rave reviews';
+      if (criticsScoreNum >= 70) return 'strong reviews';
+      if (criticsScoreNum >= 55) return 'mixed reviews';
+      return 'poor reviews';
+    })();
+
+    const audienceVerdict = (() => {
+      if (audienceScoreNum >= 85) return 'glowing enthusiasm';
+      if (audienceScoreNum >= 70) return 'strong enthusiasm';
+      if (audienceScoreNum >= 55) return 'mixed reactions';
+      return 'muted interest';
+    })();
+
+    const receptionHook = (() => {
+      if (criticsScoreNum >= 80 && audienceScoreNum >= 80) return 'rave reviews and strong buzz';
+      if (criticsScoreNum >= 80 && audienceScoreNum < 65) return 'rave reviews but divided audiences';
+      if (criticsScoreNum < 65 && audienceScoreNum >= 80) return 'mixed reviews but strong audience buzz';
+      if (criticsScoreNum < 60 && audienceScoreNum < 60) return 'rough reviews and a lukewarm response';
+      return `${criticsVerdict} and ${audienceVerdict}`;
+    })();
+
+    const receptionSummary = (() => {
+      if (!project?.metrics?.criticsScore && !project?.metrics?.audienceScore) {
+        return 'Early reviews and audience reaction are still coming into focus.';
+      }
+
+      return `Critics have landed on ${criticsVerdict} (${criticsScoreNum}/100), while audiences are showing ${audienceVerdict} (${audienceScoreNum}/100).`;
+    })();
+
+    const boxOfficeOutcome = (() => {
+      const amountM = typeof earnings === 'number' ? earnings / 1_000_000 : undefined;
+
+      if (typeof amountM !== 'number') return 'a notable debut';
+
+      const ratio = budgetTotal ? earnings! / budgetTotal : undefined;
+
+      if (typeof ratio === 'number') {
+        if (ratio >= 0.40) return 'a breakout hit';
+        if (ratio >= 0.22) return 'a strong opening';
+        if (ratio >= 0.12) return 'a modest start';
+        if (ratio >= 0.08) return 'a soft opening';
+        return 'a box office bomb';
+      }
+
+      if (amountM >= 80) return 'a breakout hit';
+      if (amountM >= 35) return 'a strong opening';
+      if (amountM >= 18) return 'a modest start';
+      if (amountM >= 10) return 'a soft opening';
+      return 'a box office bomb';
+    })();
+
     const replacements: Record<string, string> = {
       ActorName: actor?.name ?? 'a leading star',
       CareerStage: actor?.careerStage ?? 'established',
@@ -294,7 +377,15 @@ export class MediaContentGenerator {
       TimeFrame: 'later this year',
       Description: 'an engaging story',
       AwardName: awardName || 'Best Actor',
-      ScandalType: scandalType || 'controversial statements'
+      ScandalType: scandalType || 'controversial statements',
+
+      CriticsScore: `${criticsScoreNum}`,
+      AudienceScore: `${audienceScoreNum}`,
+      CriticsVerdict: criticsVerdict,
+      AudienceVerdict: audienceVerdict,
+      ReceptionHook: receptionHook,
+      ReceptionSummary: receptionSummary,
+      BoxOfficeOutcome: boxOfficeOutcome,
     };
 
     for (const [key, value] of Object.entries(replacements)) {
@@ -338,8 +429,36 @@ export class MediaContentGenerator {
   private static generateTags(event: MediaEvent, entities: any): string[] {
     const tags: string[] = [event.type, this.mapEventToMediaType(event.type)];
 
-    const genre = entities.projects?.[0]?.script?.genre;
+    const project = entities.projects?.[0] as Project | undefined;
+    const genre = project?.script?.genre;
     if (genre) tags.push(genre);
+
+    if (event.type === 'box_office') {
+      const earnings = typeof event.eventData?.earnings === 'number' ? event.eventData.earnings : undefined;
+      const budgetTotal = project?.budget?.total ?? project?.script?.budget;
+      const ratio = budgetTotal && earnings ? earnings / budgetTotal : undefined;
+
+      if (typeof ratio === 'number') {
+        if (ratio >= 0.22) tags.push('hit');
+        else if (ratio < 0.08) tags.push('bomb');
+        else tags.push('mid');
+      }
+    }
+
+    if (event.type === 'release' && project?.metrics) {
+      const criticsScore = typeof project.metrics.criticsScore === 'number' ? project.metrics.criticsScore : undefined;
+      const audienceScore = typeof project.metrics.audienceScore === 'number' ? project.metrics.audienceScore : undefined;
+
+      if (typeof criticsScore === 'number') {
+        if (criticsScore >= 80) tags.push('critics-rave');
+        else if (criticsScore < 55) tags.push('critics-panned');
+      }
+
+      if (typeof audienceScore === 'number') {
+        if (audienceScore >= 80) tags.push('audience-loved');
+        else if (audienceScore < 55) tags.push('audience-rejected');
+      }
+    }
 
     return Array.from(new Set(tags));
   }

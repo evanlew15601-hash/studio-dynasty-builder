@@ -93,7 +93,7 @@ describe('media system', () => {
 
   it('resolves player studio/projects when generating media (player stories)', () => {
     // Pick templates that include {StudioName} in both headline/content
-    vi.spyOn(Math, 'random').mockReturnValue(0.3);
+    vi.spyOn(Math, 'random').mockReturnValue(0.45);
 
     const playerStudio = { id: 'player-studio', name: 'Player Studio', reputation: 50, budget: 1000000, founded: 2025, specialties: ['drama'] };
     const playerProject = makeMinimalProject({
@@ -140,7 +140,7 @@ describe('media system', () => {
 
   it('resolves competitor studios/projects when generating media (non-player stories)', () => {
     // Pick templates that include {StudioName} in both headline/content
-    vi.spyOn(Math, 'random').mockReturnValue(0.3);
+    vi.spyOn(Math, 'random').mockReturnValue(0.45);
 
     const competitorStudio = makeMinimalStudio({ id: 'studio-competitor', name: 'Crimson Peak Entertainment' });
     const competitorProject = makeMinimalProject({
@@ -227,6 +227,93 @@ describe('media system', () => {
 
     const combined = `${items[0].headline} ${items[0].content}`;
     expect(combined).toContain('Golden Globe');
+    expect(combined).not.toMatch(/\{[A-Za-z]+\}/);
+  });
+
+  it('generates box office bomb stories and includes critics/audience context', () => {
+    // Force first headline/content templates
+    vi.spyOn(Math, 'random').mockReturnValue(0);
+
+    const playerStudio = { id: 'player-studio', name: 'Player Studio', reputation: 50, budget: 1000000, founded: 2025, specialties: ['drama'] };
+    const playerProject = makeMinimalProject({
+      id: 'player-project-1',
+      title: 'Player Premiere',
+      studioName: playerStudio.name,
+      metrics: { criticsScore: 52, audienceScore: 49 }
+    });
+
+    const gameState: any = {
+      studio: playerStudio,
+      currentWeek: 1,
+      currentYear: 2025,
+      projects: [playerProject],
+      talent: [makeMinimalTalent()],
+      competitorStudios: [],
+      allReleases: [],
+      aiStudioProjects: [],
+    };
+
+    MediaEngine.queueMediaEvent({
+      type: 'box_office',
+      triggerType: 'automatic',
+      priority: 'high',
+      entities: { studios: [playerStudio.id], projects: [playerProject.id] },
+      eventData: { project: playerProject, earnings: 500_000 },
+      week: 1,
+      year: 2025
+    } as any);
+
+    const items = MediaEngine.processMediaEvents(gameState);
+    expect(items.length).toBe(1);
+
+    const combined = `${items[0].headline} ${items[0].content}`;
+    expect(combined).toContain('box office bomb');
+    expect(combined).toContain('52/100');
+    expect(combined).toContain('49/100');
+    expect(combined).not.toMatch(/\{[A-Za-z]+\}/);
+  });
+
+  it('generates box office hit stories and includes critics/audience context', () => {
+    // Force first headline/content templates
+    vi.spyOn(Math, 'random').mockReturnValue(0);
+
+    const playerStudio = { id: 'player-studio', name: 'Player Studio', reputation: 50, budget: 1000000, founded: 2025, specialties: ['drama'] };
+    const playerProject = makeMinimalProject({
+      id: 'player-project-1',
+      title: 'Player Premiere',
+      studioName: playerStudio.name,
+      budget: { total: 20_000_000, allocated: {}, spent: {}, overages: {} },
+      metrics: { criticsScore: 91, audienceScore: 88 }
+    });
+
+    const gameState: any = {
+      studio: playerStudio,
+      currentWeek: 1,
+      currentYear: 2025,
+      projects: [playerProject],
+      talent: [makeMinimalTalent()],
+      competitorStudios: [],
+      allReleases: [],
+      aiStudioProjects: [],
+    };
+
+    MediaEngine.queueMediaEvent({
+      type: 'box_office',
+      triggerType: 'automatic',
+      priority: 'high',
+      entities: { studios: [playerStudio.id], projects: [playerProject.id] },
+      eventData: { project: playerProject, earnings: 12_000_000 },
+      week: 1,
+      year: 2025
+    } as any);
+
+    const items = MediaEngine.processMediaEvents(gameState);
+    expect(items.length).toBe(1);
+
+    const combined = `${items[0].headline} ${items[0].content}`;
+    expect(combined).toContain('breakout hit');
+    expect(combined).toContain('91/100');
+    expect(combined).toContain('88/100');
     expect(combined).not.toMatch(/\{[A-Za-z]+\}/);
   });
 
