@@ -2305,6 +2305,41 @@ export const StudioMagnateGame: React.FC<StudioMagnateGameProps> = ({
             selectedFranchise={selectedFranchise}
             selectedPublicDomain={selectedPublicDomain}
             onProjectCreate={handleProjectCreate}
+            onSpendFunds={(amount) => {
+              const currentDebt = gameState.studio.debt || 0;
+              const maxLoanCapacity = Math.max(0, 50000000 - currentDebt);
+              const availableFunds = gameState.studio.budget + maxLoanCapacity;
+
+              if (amount > availableFunds) return { success: false };
+
+              const budgetAfter = gameState.studio.budget - amount;
+              const loanTaken = budgetAfter < 0 ? Math.min(-budgetAfter, maxLoanCapacity) : 0;
+
+              setGameState(prev => {
+                const prevDebt = prev.studio.debt || 0;
+                const prevMaxLoan = Math.max(0, 50000000 - prevDebt);
+                const prevAvailable = prev.studio.budget + prevMaxLoan;
+                if (amount > prevAvailable) return prev;
+
+                let nextBudget = prev.studio.budget - amount;
+                let nextDebt = prevDebt;
+                if (nextBudget < 0) {
+                  nextDebt += -nextBudget;
+                  nextBudget = 0;
+                }
+
+                return {
+                  ...prev,
+                  studio: {
+                    ...prev.studio,
+                    budget: nextBudget,
+                    debt: nextDebt,
+                  },
+                };
+              });
+
+              return { success: true, loanTaken };
+            }}
             onScriptUpdate={(script) => {
               // Persist selections so multiple scripts can be created within the same franchise/IP
               setGameState(prev => ({

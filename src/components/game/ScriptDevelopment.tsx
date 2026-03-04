@@ -12,7 +12,13 @@ import { useToast } from '@/hooks/use-toast';
 import { ScriptCharacterManager, ScriptCharacter } from './ScriptCharacterManager';
 import { importRolesForScript } from '@/utils/roleImport';
 import { finalizeScriptForGreenlight, getScriptGreenlightReport } from '@/utils/scriptFinalization';
+import { getScriptStageAdvanceQuote, formatScriptStage } from '@/utils/scriptProgression';
+import { FinancialEngine } from './FinancialEngine';
 import { ScriptIcon, BudgetIcon, AwardIcon, ClapperboardIcon } from '@/components/ui/icons';
+
+type SpendFundsResult = { success: boolean; loanTaken?: number };
+
+type SpendFundsFn = (amount: number, description: string) => SpendFundsResult;
 
 interface ScriptDevelopmentProps {
   gameState: GameState;
@@ -20,6 +26,7 @@ interface ScriptDevelopmentProps {
   selectedPublicDomain?: string | null;
   onProjectCreate: (script: Script) => void;
   onScriptUpdate: (script: Script) => void;
+  onSpendFunds: SpendFundsFn;
 }
 
 export const ScriptDevelopment: React.FC<ScriptDevelopmentProps> = ({
@@ -28,6 +35,7 @@ export const ScriptDevelopment: React.FC<ScriptDevelopmentProps> = ({
   selectedPublicDomain,
   onProjectCreate,
   onScriptUpdate,
+  onSpendFunds,
 }) => {
   const { toast } = useToast();
   
@@ -180,6 +188,73 @@ return {
     return developmentCost <= availableFunds;
   };
 
+  const canAffordWriterFee = (amount: number): boolean => {
+    const maxLoanCapacity = Math.max(0, 50000000 - (gameState.studio.debt || 0));
+    const availableFunds = gameState.studio.budget + maxLoanCapacity;
+    return amount <= availableFunds;
+  };
+
+  const formatMoney = (amount: number) => {
+    if (amount >= 1_000_000) return '\u0024' + (amount / 1_000_000).toFixed(2) + 'M';
+    return '\u0024' + amount.toLocaleString();
+  };
+
+  const handleAdvanceStage = (script: Script) => {
+    const quote = getScriptStageAdvanceQuote(script);
+    if (!quote) return;
+
+    if (!canAffordWriterFee(quote.writerFee)) {
+      toast({
+        title: 'Insufficient Budget',
+        description: `Need ${formatMoney(quote.writerFee)} to pay the writer for this stage.`,
+        variant: 'destructive',
+      });
+      return;
+    }
+
+    const writerName = script.writer?.trim().length ? script.writer.trim() : 'In-house';
+    const stageName = `${formatScriptStage(quote.fromStage)} -> ${formatScriptStage(quote.toStage)}`;
+
+    const spend = onSpendFunds(quote.writerFee, `Writer fee (${writerName}) - ${stageName}`);
+    if (!spend.success) {
+      toast({
+        title: 'Insufficient Budget',
+        description: `Need ${formatMoney(quote.writerFee)} to pay the writer for this stage.`,
+        variant: 'destructive',
+      });
+      return;
+    }
+
+    FinancialEngine.recordTransaction(
+      'expense',
+      'talent',
+      quote.writerFee,
+      gameState.currentWeek,
+      gameState.currentYear,
+      `Writer fee (${writerName}) - ${stageName}`
+    );
+
+    const updated: Script = {
+      ...script,
+      developmentStage: quote.toStage,
+      quality: Math.min(100, (script.quality || 0) + quote.qualityDelta),
+    };
+
+    onScriptUpdate(updated);
+
+    toast({
+      title: 'Script Advanced',
+      description: `${script.title} is now in ${formatScriptStage(quote.toStage)}. Paid ${formatMoney(quote.writerFee)} to ${writerName}.`,
+    });
+
+    if (spend.loanTaken && spend.loanTaken > 0) {
+      toast({
+        title: 'Loan Taken',
+        description: `Borrowed ${formatMoney(spend.loanTaken)} to cover the writer fee.`,
+      });
+    }
+  };
+
   const finalizeScriptForSave = (script: Script): { script: Script; report?: ReturnType<typeof getScriptGreenlightReport> } => {
     const shouldAutoImportRoles =
       (script.sourceType === 'franchise' || script.sourceType === 'public-domain') &&
@@ -201,6 +276,15 @@ return {
   };
 
   const handleFinalizeScript = (script: Script) => {
+    if (script.developmentStage !== 'final') {
+      toast({
+        title: 'Not Ready',
+        description: 'Advance the script to Final stage before running final checks.',
+        variant: 'destructive',
+      });
+      return;
+    }
+
     const { script: finalized, report } = finalizeScriptForGreenlight(script, gameState);
 
     if (!report.canFinalize) {
@@ -269,7 +353,7 @@ return {
       pages: newScript.pages || 120,
       quality: newScript.quality || 50,
       budget: newScript.budget || 5000000,
-      developmentStage: newScript.developmentStage || 'concept',
+      developmentStage: editingScript?.developmentStage || 'concept',
       themes: newScript.themes || [],
       targetAudience: newScript.targetAudience || 'general',
       estimatedRuntime: newScript.estimatedRuntime || 120,
@@ -487,8 +571,8 @@ return {
                 <div>
                   <Label htmlFor="stage">Development Stage</Label>
                   <Select
-                    value={newScript.developmentStage || 'concept'}
-                    onValueChange={(value) => setNewScript(prev => ({ ...prev, developmentStage: value as Script['developmentStage'] }))}
+                    value={editingScript?.developmentStage || newScript.developmentStage || 'concept'}
+                    disabled
                   >
                     <SelectTrigger className="mt-1">
                       <SelectValue />
@@ -502,7 +586,7 @@ return {
                     </SelectContent>
                   </Select>
                   <p className="text-xs text-muted-foreground mt-1">
-                    Scripts must reach "Final" stage to be greenlit
+                    Advance stages from the Script Library (pays writer fees).
                   </p>
                 </div>
               </div>
@@ -649,6 +733,8 @@ return {
                 const canAfford = canAffordDevelopmentCost(script);
                 const isFinalized = script.developmentStage === 'final' && greenlightReport.canFinalize;
                 const canGreenlight = isFinalized && canAfford;
+                const stageQuote = getScriptStageAdvanceQuote(script);
+                const canAdvanceStage = !!stageQuote && canAffordWriterFee(stageQuote.writerFee);
 
                 return (
                 <Card 
@@ -732,25 +818,49 @@ return {
                           size="sm" 
                           className={`flex-1 ${!canGreenlight ? 'opacity-90' : ''}`}
                           variant={canGreenlight ? 'default' : 'secondary'}
-                          onClick={() => (canGreenlight ? handleGreenlightScript(script) : handleFinalizeScript(script))}
-                          disabled={isFinalized && !canAfford}
+                          onClick={() => {
+                            if (canGreenlight) {
+                              handleGreenlightScript(script);
+                              return;
+                            }
+
+                            if (stageQuote) {
+                              handleAdvanceStage(script);
+                              return;
+                            }
+
+                            handleFinalizeScript(script);
+                          }}
+                          disabled={stageQuote ? !canAdvanceStage : isFinalized && !canAfford}
                           title={
                             canGreenlight
                               ? ''
-                              : isFinalized
-                                ? 'Insufficient funds to greenlight'
-                                : greenlightReport.issues.filter(i => i.level === 'error').map(i => i.message).join(' ')
+                              : stageQuote
+                                ? !canAdvanceStage
+                                  ? 'Insufficient funds to pay the writer'
+                                  : `Pay ${formatMoney(stageQuote.writerFee)} to advance`
+                                : isFinalized
+                                  ? 'Insufficient funds to greenlight'
+                                  : greenlightReport.issues.filter(i => i.level === 'error').map(i => i.message).join(' ')
                           }
                         >
                           <ClapperboardIcon className="w-4 h-4 mr-1" />
-                          {canGreenlight ? 'Greenlight' : isFinalized ? 'Financing Needed' : 'Finalize'}
+                          {canGreenlight
+                            ? 'Greenlight'
+                            : stageQuote
+                              ? `Advance (${formatScriptStage(stageQuote.toStage)})`
+                              : isFinalized
+                                ? 'Financing Needed'
+                                : 'Final Checks'}
                         </Button>
                       </div>
                       {!canGreenlight && (
                         <p className="text-xs text-muted-foreground text-center">
-                          {isFinalized
-                            ? (canAfford ? 'Run final checks to greenlight' : 'Secure financing to greenlight')
-                            : 'Finalize to set stage to "final" and run required checks'}
+                          {stageQuote
+                            ? `Pay ${formatMoney(stageQuote.writerFee)} to advance to ${formatScriptStage(stageQuote.toStage)}`
+                            : isFinalized
+                              ? (canAfford ? 'Run final checks to greenlight' : 'Secure financing to greenlight')
+                              : 'Run final checks before greenlighting'}
                         </p>
                       )}
                     </div>
