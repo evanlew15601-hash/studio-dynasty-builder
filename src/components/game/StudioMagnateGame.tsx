@@ -2273,7 +2273,7 @@ export const StudioMagnateGame: React.FC<StudioMagnateGameProps> = ({
             {[
               { id: 'dashboard', label: 'Dashboard', IconComponent: StudioIcon },
               { id: 'scripts', label: 'Scripts', IconComponent: ScriptIcon },
-              { id: 'casting', label: 'Casting', IconComponent: CastingIcon },
+              { id: 'casting', label: 'Casting & Crew', IconComponent: CastingIcon },
               { id: 'production', label: 'Production', IconComponent: ProductionIcon },
               { id: 'marketing', label: 'Marketing', IconComponent: MarketingIcon },
               { id: 'distribution', label: 'Distribution', IconComponent: DistributionIcon },
@@ -2668,7 +2668,7 @@ export const StudioMagnateGame: React.FC<StudioMagnateGameProps> = ({
               className="space-y-4"
             >
               <TabsList>
-                <TabsTrigger value="character-casting">Character Casting</TabsTrigger>
+                <TabsTrigger value="character-casting">Cast & Key Crew</TabsTrigger>
                 <TabsTrigger value="role-based">Role-Based System</TabsTrigger>
                 <TabsTrigger value="casting-board">Talent Marketplace</TabsTrigger>
               </TabsList>
