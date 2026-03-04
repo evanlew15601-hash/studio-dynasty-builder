@@ -120,22 +120,23 @@ export const IndustryDatabasePanel: React.FC<IndustryDatabasePanelProps> = ({ ga
 
   const importDatabase = async (file: File) => {
     const text = await file.text();
-    const parsed = JSON.parse(text) as Partial<IndustryDatabase>;
-    // Basic validation: must look like an industry db
-    if (!parsed || typeof parsed !== 'object' || !('version' in parsed) || !('films' in parsed) || !('awards' in parsed)) {
+    const raw = JSON.parse(text) as any;
+
+    if (!raw || typeof raw !== 'object') {
       throw new Error('Invalid database file');
     }
 
     const empty = createEmptyIndustryDatabase();
+
     const normalized: IndustryDatabase = {
       version: empty.version,
-      updatedAt: typeof parsed.updatedAt === 'string' ? parsed.updatedAt : new Date().toISOString(),
-      films: Array.isArray(parsed.films) ? (parsed.films as any) : [],
-      tvShows: Array.isArray(parsed.tvShows) ? (parsed.tvShows as any) : [],
-      talent: Array.isArray(parsed.talent) ? (parsed.talent as any) : [],
-      awards: Array.isArray(parsed.awards) ? (parsed.awards as any) : [],
-      studios: Array.isArray(parsed.studios) ? (parsed.studios as any) : [],
-      providers: Array.isArray((parsed as any).providers) ? ((parsed as any).providers as any) : empty.providers,
+      updatedAt: typeof raw.updatedAt === 'string' ? raw.updatedAt : new Date().toISOString(),
+      films: Array.isArray(raw.films) ? raw.films : [],
+      tvShows: Array.isArray(raw.tvShows) ? raw.tvShows : [],
+      talent: Array.isArray(raw.talent) ? raw.talent : [],
+      awards: Array.isArray(raw.awards) ? raw.awards : [],
+      studios: Array.isArray(raw.studios) ? raw.studios : [],
+      providers: Array.isArray(raw.providers) ? raw.providers : empty.providers,
     };
 
     saveIndustryDatabase(slot, normalized);
