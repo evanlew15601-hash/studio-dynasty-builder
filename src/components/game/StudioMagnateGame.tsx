@@ -350,6 +350,7 @@ interface StudioMagnateGameProps {
     specialties: Genre[];
     difficulty: 'easy' | 'normal' | 'hard' | 'magnate';
     startingBudget: number;
+    studioIcon?: import('./StudioIconCustomizer').StudioIconConfig;
   };
   initialGameState?: GameState;
   /**
