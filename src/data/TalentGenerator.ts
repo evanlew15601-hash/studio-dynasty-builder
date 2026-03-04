@@ -1,5 +1,6 @@
 // Comprehensive Talent Generation System
-import { TalentPerson, Genre, TalentAgent } from '@/types/game';
+import { TalentPerson, Genre, TalentAgent, Race } from '@/types/game';
+import { NATIONALITY_OPTIONS, RACE_OPTIONS } from '@/utils/demographics';
 
 interface BiographyTemplate {
   careerPath: string;
@@ -148,6 +149,14 @@ const CONTROVERSY_TEMPLATES = [
 export class TalentGenerator {
   private usedNames = new Set<string>();
   private usedBiographies = new Set<string>();
+
+  private selectRace(): Race {
+    return RACE_OPTIONS[Math.floor(Math.random() * RACE_OPTIONS.length)] as Race;
+  }
+
+  private selectNationality(): string {
+    return NATIONALITY_OPTIONS[Math.floor(Math.random() * NATIONALITY_OPTIONS.length)];
+  }
   
   generateName(gender: 'male' | 'female' | 'non-binary'): string {
     let attempts = 0;
@@ -277,22 +286,24 @@ export class TalentGenerator {
     const experience = Math.min(age - 16, Math.floor(Math.random() * 25));
     const reputation = Math.max(10, Math.floor(Math.random() * 90) + (experience * 2));
     const careerStage = this.determineCareerStage(age, experience, reputation);
-    
+
     const name = this.generateName(gender);
     const genres = this.selectGenres(2 + Math.floor(Math.random() * 3));
     const marketValue = this.generateMarketValue(age, experience, reputation, 'actor');
     const awards: any[] = [];
     const traits = this.generateTraits([], careerStage);
-    
+
     const template = BIOGRAPHY_TEMPLATES[Math.floor(Math.random() * BIOGRAPHY_TEMPLATES.length)];
-    
+
     const fame = Math.min(100, Math.round(reputation * 0.7 + (awards.length * 5)));
-    
+
     const actor: TalentPerson = {
       id: `actor-${Date.now()}-${Math.random().toString(36).substr(2, 9)}`,
       name,
       type: 'actor',
       gender: gender === 'male' ? 'Male' : 'Female',
+      race: this.selectRace(),
+      nationality: this.selectNationality(),
       age,
       experience,
       reputation,
@@ -330,22 +341,24 @@ export class TalentGenerator {
     const experience = Math.min(age - 20, Math.floor(Math.random() * 30));
     const reputation = Math.max(20, Math.floor(Math.random() * 80) + (experience * 3));
     const careerStage = this.determineCareerStage(age, experience, reputation);
-    
+
     const name = this.generateName(gender);
     const genres = this.selectGenres(1 + Math.floor(Math.random() * 2));
     const marketValue = this.generateMarketValue(age, experience, reputation, 'director');
     const awards: any[] = [];
     const traits = this.generateTraits([], careerStage);
-    
+
     const template = BIOGRAPHY_TEMPLATES[Math.floor(Math.random() * BIOGRAPHY_TEMPLATES.length)];
-    
+
     const fame = Math.min(100, Math.round(reputation * 0.6 + (awards.length * 4)));
-    
+
     const director: TalentPerson = {
       id: `director-${Date.now()}-${Math.random().toString(36).substr(2, 9)}`,
       name,
       type: 'director',
       gender: gender === 'male' ? 'Male' : 'Female',
+      race: this.selectRace(),
+      nationality: this.selectNationality(),
       age,
       experience,
       reputation,

@@ -1,5 +1,5 @@
 import React, { useState } from 'react';
-import type { ScriptCharacter as GameScriptCharacter } from '@/types/game';
+import type { ScriptCharacter as GameScriptCharacter, Gender, Race } from '@/types/game';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
@@ -7,7 +7,9 @@ import { Label } from '@/components/ui/label';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { Slider } from '@/components/ui/slider';
 import { Badge } from '@/components/ui/badge';
-import { Trash2, Plus, Users, Lock } from 'lucide-react';
+import { Dialog, DialogContent, DialogHeader, DialogTitle } from '@/components/ui/dialog';
+import { Trash2, Plus, Users, Lock, Pencil } from 'lucide-react';
+import { NATIONALITY_OPTIONS, RACE_OPTIONS } from '@/utils/demographics';
 
 // UI-layer type: keep the core game character fields, but allow extra UI helpers.
 export interface ScriptCharacter extends GameScriptCharacter {
@@ -30,8 +32,15 @@ export const ScriptCharacterManager: React.FC<ScriptCharacterManagerProps> = ({
     screenTimeMinutes: 15,
     description: '',
     ageRange: [25, 45],
-    traits: []
+    traits: [],
+    requiredGender: undefined,
+    requiredRace: undefined,
+    requiredNationality: undefined,
   });
+
+  const [editOpen, setEditOpen] = useState(false);
+  const [editingCharacter, setEditingCharacter] = useState<ScriptCharacter | null>(null);
+  const [editDraft, setEditDraft] = useState<Partial<ScriptCharacter>>({});
 
   const importanceTypes: Array<{ value: ScriptCharacter['importance']; label: string; screenTime: number }> = [
     { value: 'lead', label: 'Lead Role', screenTime: 60 },
@@ -51,6 +60,8 @@ export const ScriptCharacterManager: React.FC<ScriptCharacterManagerProps> = ({
     if (!newCharacter.name) return;
 
     const importance = newCharacter.importance || 'supporting';
+    const requiredType = newCharacter.requiredType || (importance === 'crew' ? 'director' : 'actor');
+
     const character: ScriptCharacter = {
       id: `char-${Date.now()}`,
       name: newCharacter.name,
@@ -59,7 +70,10 @@ export const ScriptCharacterManager: React.FC<ScriptCharacterManagerProps> = ({
       description: newCharacter.description || '',
       ageRange: newCharacter.ageRange || [25, 45],
       traits: newCharacter.traits || [],
-      requiredType: newCharacter.requiredType || (importance === 'crew' ? 'director' : 'actor'),
+      requiredType,
+      requiredGender: requiredType === 'actor' ? newCharacter.requiredGender : undefined,
+      requiredRace: requiredType === 'actor' ? newCharacter.requiredRace : undefined,
+      requiredNationality: requiredType === 'actor' ? newCharacter.requiredNationality : undefined,
     };
 
     onCharactersChange([...characters, character]);
@@ -69,7 +83,10 @@ export const ScriptCharacterManager: React.FC<ScriptCharacterManagerProps> = ({
       screenTimeMinutes: 15,
       description: '',
       ageRange: [25, 45],
-      traits: []
+      traits: [],
+      requiredGender: undefined,
+      requiredRace: undefined,
+      requiredNationality: undefined,
     });
     setIsAdding(false);
   };
@@ -79,9 +96,63 @@ export const ScriptCharacterManager: React.FC<ScriptCharacterManagerProps> = ({
   };
 
   const handleUpdateCharacter = (id: string, updates: Partial<ScriptCharacter>) => {
-    onCharactersChange(characters.map(c => 
-      c.id === id ? { ...c, ...updates } : c
-    ));
+    onCharactersChange(characters.map(c => {
+      if (c.id !== id) return c;
+
+      // For locked/imported roles, persist editable fields into localOverrides so re-import keeps them.
+      if (c.locked) {
+        const prevOverrides = c.localOverrides || {};
+        const overridePatch: Partial<ScriptCharacter['localOverrides']> = {};
+
+        if ('name' in updates) overridePatch.name = updates.name;
+        if ('description' in updates) overridePatch.description = updates.description;
+        if ('traits' in updates) overridePatch.traits = updates.traits;
+        if ('ageRange' in updates) overridePatch.ageRange = updates.ageRange;
+        if ('requiredGender' in updates) overridePatch.requiredGender = updates.requiredGender;
+        if ('requiredRace' in updates) overridePatch.requiredRace = updates.requiredRace;
+        if ('requiredNationality' in updates) overridePatch.requiredNationality = updates.requiredNationality;
+
+        return {
+          ...c,
+          ...updates,
+          localOverrides: { ...prevOverrides, ...overridePatch },
+        };
+      }
+
+      return { ...c, ...updates };
+    }));
+  };
+
+  const openEdit = (character: ScriptCharacter) => {
+    setEditingCharacter(character);
+    setEditDraft({
+      name: character.name,
+      description: character.description || '',
+      ageRange: character.ageRange,
+      requiredGender: character.requiredGender,
+      requiredRace: character.requiredRace,
+      requiredNationality: character.requiredNationality,
+    });
+    setEditOpen(true);
+  };
+
+  const saveEdit = () => {
+    if (!editingCharacter) return;
+
+    const requiredType = editingCharacter.requiredType || (editingCharacter.importance === 'crew' ? 'director' : 'actor');
+
+    handleUpdateCharacter(editingCharacter.id, {
+      name: editDraft.name?.trim() || editingCharacter.name,
+      description: editDraft.description || '',
+      ageRange: editDraft.ageRange,
+      requiredGender: requiredType === 'actor' ? (editDraft.requiredGender as Gender | undefined) : undefined,
+      requiredRace: requiredType === 'actor' ? (editDraft.requiredRace as Race | undefined) : undefined,
+      requiredNationality: requiredType === 'actor' ? (editDraft.requiredNationality || undefined) : undefined,
+    });
+
+    setEditOpen(false);
+    setEditingCharacter(null);
+    setEditDraft({});
   };
 
   const toggleTrait = (trait: string) => {
@@ -198,6 +269,72 @@ export const ScriptCharacterManager: React.FC<ScriptCharacterManagerProps> = ({
                   </div>
                 </div>
 
+                {(newCharacter.requiredType || 'actor') !== 'director' && (
+                  <>
+                    <div>
+                      <Label>Required Gender</Label>
+                      <Select
+                        value={newCharacter.requiredGender || 'any'}
+                        onValueChange={(value) => setNewCharacter(prev => ({
+                          ...prev,
+                          requiredGender: value === 'any' ? undefined : (value as Gender)
+                        }))}
+                      >
+                        <SelectTrigger className="mt-1">
+                          <SelectValue />
+                        </SelectTrigger>
+                        <SelectContent>
+                          <SelectItem value="any">Any</SelectItem>
+                          <SelectItem value="Male">Male</SelectItem>
+                          <SelectItem value="Female">Female</SelectItem>
+                        </SelectContent>
+                      </Select>
+                    </div>
+
+                    <div>
+                      <Label>Required Race</Label>
+                      <Select
+                        value={newCharacter.requiredRace || 'any'}
+                        onValueChange={(value) => setNewCharacter(prev => ({
+                          ...prev,
+                          requiredRace: value === 'any' ? undefined : (value as Race)
+                        }))}
+                      >
+                        <SelectTrigger className="mt-1">
+                          <SelectValue />
+                        </SelectTrigger>
+                        <SelectContent>
+                          <SelectItem value="any">Any</SelectItem>
+                          {RACE_OPTIONS.map((r) => (
+                            <SelectItem key={r} value={r}>{r}</SelectItem>
+                          ))}
+                        </SelectContent>
+                      </Select>
+                    </div>
+
+                    <div className="md:col-span-2">
+                      <Label>Required Nationality</Label>
+                      <Select
+                        value={newCharacter.requiredNationality || 'any'}
+                        onValueChange={(value) => setNewCharacter(prev => ({
+                          ...prev,
+                          requiredNationality: value === 'any' ? undefined : value
+                        }))}
+                      >
+                        <SelectTrigger className="mt-1">
+                          <SelectValue />
+                        </SelectTrigger>
+                        <SelectContent>
+                          <SelectItem value="any">Any</SelectItem>
+                          {NATIONALITY_OPTIONS.map((n) => (
+                            <SelectItem key={n} value={n}>{n}</SelectItem>
+                          ))}
+                        </SelectContent>
+                      </Select>
+                    </div>
+                  </>
+                )}
+
                 <div className="md:col-span-2">
                   <Label>Traits</Label>
                   <div className="flex flex-wrap gap-2 mt-2">
@@ -247,6 +384,15 @@ export const ScriptCharacterManager: React.FC<ScriptCharacterManagerProps> = ({
                           Age {character.ageRange[0]}-{character.ageRange[1]}
                         </Badge>
                       )}
+                      {character.requiredGender && (
+                        <Badge variant="outline">Gender: {character.requiredGender}</Badge>
+                      )}
+                      {character.requiredRace && (
+                        <Badge variant="outline">Race: {character.requiredRace}</Badge>
+                      )}
+                      {character.requiredNationality && (
+                        <Badge variant="outline">Nationality: {character.requiredNationality}</Badge>
+                      )}
                       {character.locked && (
                         <Badge variant="secondary" className="flex items-center gap-1">
                           <Lock className="w-3 h-3" /> Imported
@@ -269,21 +415,172 @@ export const ScriptCharacterManager: React.FC<ScriptCharacterManagerProps> = ({
                     )}
                   </div>
 
-                  <Button
-                    variant="ghost"
-                    size="sm"
-                    onClick={() => handleRemoveCharacter(character.id)}
-                    className="text-destructive hover:text-destructive"
-                    disabled={!!character.locked}
-                    title={character.locked ? 'Imported roles are locked' : 'Remove role'}
-                  >
-                    <Trash2 size={16} />
-                  </Button>
+                  <div className="flex items-center gap-1">
+                    <Button
+                      variant="ghost"
+                      size="sm"
+                      onClick={() => openEdit(character)}
+                      title="Edit role"
+                    >
+                      <Pencil size={16} />
+                    </Button>
+
+                    <Button
+                      variant="ghost"
+                      size="sm"
+                      onClick={() => handleRemoveCharacter(character.id)}
+                      className="text-destructive hover:text-destructive"
+                      disabled={!!character.locked}
+                      title={character.locked ? 'Imported roles are locked' : 'Remove role'}
+                    >
+                      <Trash2 size={16} />
+                    </Button>
+                  </div>
                 </div>
               </CardContent>
             </Card>
           ))}
         </div>
+
+        <Dialog
+          open={editOpen}
+          onOpenChange={(open) => {
+            setEditOpen(open);
+            if (!open) {
+              setEditingCharacter(null);
+              setEditDraft({});
+            }
+          }}
+        >
+          <DialogContent className="max-w-xl">
+            <DialogHeader>
+              <DialogTitle>Edit Role</DialogTitle>
+            </DialogHeader>
+
+            {editingCharacter && (() => {
+              const requiredType = editingCharacter.requiredType || (editingCharacter.importance === 'crew' ? 'director' : 'actor');
+              const ageRange = (editDraft.ageRange || editingCharacter.ageRange || [25, 45]) as [number, number];
+
+              return (
+                <div className="space-y-4">
+                  <div>
+                    <Label htmlFor="edit-name">Name</Label>
+                    <Input
+                      id="edit-name"
+                      value={editDraft.name || ''}
+                      onChange={(e) => setEditDraft(prev => ({ ...prev, name: e.target.value }))}
+                      className="mt-1"
+                    />
+                  </div>
+
+                  <div>
+                    <Label htmlFor="edit-desc">Description</Label>
+                    <Input
+                      id="edit-desc"
+                      value={editDraft.description || ''}
+                      onChange={(e) => setEditDraft(prev => ({ ...prev, description: e.target.value }))}
+                      className="mt-1"
+                    />
+                  </div>
+
+                  <div>
+                    <Label>Age Range: {ageRange[0]} - {ageRange[1]}</Label>
+                    <div className="mt-2">
+                      <Slider
+                        value={ageRange}
+                        onValueChange={(value) => setEditDraft(prev => ({ ...prev, ageRange: value as [number, number] }))}
+                        min={18}
+                        max={80}
+                        step={1}
+                        className="w-full"
+                      />
+                    </div>
+                  </div>
+
+                  {requiredType !== 'director' && (
+                    <>
+                      <div>
+                        <Label>Required Gender</Label>
+                        <Select
+                          value={(editDraft.requiredGender as any) || 'any'}
+                          onValueChange={(value) => setEditDraft(prev => ({
+                            ...prev,
+                            requiredGender: value === 'any' ? undefined : (value as Gender)
+                          }))}
+                        >
+                          <SelectTrigger className="mt-1">
+                            <SelectValue />
+                          </SelectTrigger>
+                          <SelectContent>
+                            <SelectItem value="any">Any</SelectItem>
+                            <SelectItem value="Male">Male</SelectItem>
+                            <SelectItem value="Female">Female</SelectItem>
+                          </SelectContent>
+                        </Select>
+                      </div>
+
+                      <div>
+                        <Label>Required Race</Label>
+                        <Select
+                          value={(editDraft.requiredRace as any) || 'any'}
+                          onValueChange={(value) => setEditDraft(prev => ({
+                            ...prev,
+                            requiredRace: value === 'any' ? undefined : (value as Race)
+                          }))}
+                        >
+                          <SelectTrigger className="mt-1">
+                            <SelectValue />
+                          </SelectTrigger>
+                          <SelectContent>
+                            <SelectItem value="any">Any</SelectItem>
+                            {RACE_OPTIONS.map((r) => (
+                              <SelectItem key={r} value={r}>{r}</SelectItem>
+                            ))}
+                          </SelectContent>
+                        </Select>
+                      </div>
+
+                      <div>
+                        <Label>Required Nationality</Label>
+                        <Select
+                          value={(editDraft.requiredNationality as any) || 'any'}
+                          onValueChange={(value) => setEditDraft(prev => ({
+                            ...prev,
+                            requiredNationality: value === 'any' ? undefined : value
+                          }))}
+                        >
+                          <SelectTrigger className="mt-1">
+                            <SelectValue />
+                          </SelectTrigger>
+                          <SelectContent>
+                            <SelectItem value="any">Any</SelectItem>
+                            {NATIONALITY_OPTIONS.map((n) => (
+                              <SelectItem key={n} value={n}>{n}</SelectItem>
+                            ))}
+                          </SelectContent>
+                        </Select>
+                      </div>
+                    </>
+                  )}
+
+                  <div className="flex justify-end gap-2">
+                    <Button
+                      variant="outline"
+                      onClick={() => {
+                        setEditOpen(false);
+                        setEditingCharacter(null);
+                        setEditDraft({});
+                      }}
+                    >
+                      Cancel
+                    </Button>
+                    <Button onClick={saveEdit}>Save</Button>
+                  </div>
+                </div>
+              );
+            })()}
+          </DialogContent>
+        </Dialog>
 
         {characters.length === 0 && !isAdding && (
           <div className="text-center py-8 text-muted-foreground">

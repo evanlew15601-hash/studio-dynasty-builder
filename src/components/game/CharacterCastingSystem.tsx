@@ -1,5 +1,6 @@
 import React, { useState } from 'react';
 import { Project, TalentPerson, GameState, ScriptCharacter } from '@/types/game';
+import { talentMatchesRole } from '@/utils/castingEligibility';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
@@ -68,33 +69,27 @@ export const CharacterCastingSystem: React.FC<CharacterCastingSystemProps> = ({
     return gameState.talent.filter(talent => {
       // Must be available
       if (talent.contractStatus !== 'available') return false;
-      
-      // Must match required type (actor/director)
-      if (character.requiredType && talent.type !== character.requiredType) return false;
-      
-      // Age range requirements
-      if (character.ageRange) {
-        const [minAge, maxAge] = character.ageRange;
-        if (talent.age < minAge || talent.age > maxAge) return false;
-      }
-      
+
+      // Type/age/demographic matching
+      if (!talentMatchesRole(talent, character)) return false;
+
       // Genre compatibility (prefer matching genres)
       if (project.script?.genre && talent.genres?.length > 0) {
         // Don't filter out, but this will be used for sorting
       }
-      
+
       // Check if already cast in this project
       const alreadyCast = (project.script?.characters || []).some(c => 
         c.assignedTalentId === talent.id && c.id !== character.id
       );
       if (alreadyCast) return false;
-      
+
       return true;
     }).sort((a, b) => {
       // Sort by genre match first, then reputation
       const aGenreMatch = project.script?.genre && a.genres?.includes(project.script?.genre) ? 1 : 0;
       const bGenreMatch = project.script?.genre && b.genres?.includes(project.script?.genre) ? 1 : 0;
-      
+
       if (aGenreMatch !== bGenreMatch) return bGenreMatch - aGenreMatch;
       return b.reputation - a.reputation;
     });
@@ -395,6 +390,8 @@ const updatedProject: Project = {
                       <p className="text-sm text-muted-foreground">
                         ${(slot.talent.marketValue / 1000000).toFixed(1)}M • Rep: {Math.round(slot.talent.reputation)}
                         {slot.talent.gender && ` • ${slot.talent.gender}`}
+                        {slot.talent.race && ` • ${slot.talent.race}`}
+                        {slot.talent.nationality && ` • ${slot.talent.nationality}`}
                       </p>
                       <p className="text-sm text-green-600">
                         Contract Cost: ${(slot.contractCost / 1000000).toFixed(1)}M
@@ -438,6 +435,9 @@ const updatedProject: Project = {
                       Role Requirements:
                       {slot.character.ageRange && ` Age ${slot.character.ageRange[0]}-${slot.character.ageRange[1]}`}
                       {slot.character.requiredType && ` • ${slot.character.requiredType}`}
+                      {slot.character.requiredGender && ` • ${slot.character.requiredGender}`}
+                      {slot.character.requiredRace && ` • ${slot.character.requiredRace}`}
+                      {slot.character.requiredNationality && ` • ${slot.character.requiredNationality}`}
                     </p>
                     <p className="text-sm font-medium">
                       Budget: ${(slot.contractCost / 1000000).toFixed(1)}M
@@ -543,6 +543,8 @@ const CastingCandidatesList: React.FC<CastingCandidatesListProps> = ({
                     <p className="text-sm text-muted-foreground">
                       ${(talent.marketValue / 1000000).toFixed(1)}M • Rep: {Math.round(talent.reputation)} • Age: {talent.age}
                       {talent.gender && ` • ${talent.gender}`}
+                      {talent.race && ` • ${talent.race}`}
+                      {talent.nationality && ` • ${talent.nationality}`}
                     </p>
                     <div className="flex flex-wrap gap-1 mt-1">
                       {talent.genres?.slice(0, 3).map(genre => (

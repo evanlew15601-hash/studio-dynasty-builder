@@ -72,6 +72,18 @@ export interface Studio {
   prestige?: number; // 0-100, separate from reputation
 }
 
+export type Gender = 'Male' | 'Female';
+
+export type Race =
+  | 'White'
+  | 'Black'
+  | 'Asian'
+  | 'Latino'
+  | 'Middle Eastern'
+  | 'Indigenous'
+  | 'Mixed'
+  | 'Other';
+
 export interface ScriptCharacter {
   id: string;
   name: string;
@@ -82,42 +94,15 @@ export interface ScriptCharacter {
   assignedTalentId?: string;
   requiredType?: 'actor' | 'director';
   ageRange?: [number, number];
+  requiredGender?: Gender;
+  requiredRace?: Race;
+  requiredNationality?: string;
   // Franchise/IP linkage for imported roles
   franchiseId?: string; // Global franchise this role belongs to (immutable linkage)
   franchiseCharacterId?: string; // Stable character_id from franchise DB
   roleTemplateId?: string; // Template mapping for casting/awards
   locked?: boolean; // Prevent accidental deletion for imported characters
-  localOverrides?: Partial<Pick<ScriptCharacter, 'name' | 'description' | 'traits' | 'ageRange'>>; // Stored separately from global DB
-}
-
-export interface Script {
-  id: string;
-  title: string;
-  genre: Genre;
-  logline: string;
-  writer: string;
-  pages: number;
-  quality: number;
-  budget: number;
-  developmentStage: 'concept' | 'treatment' | 'first-draft' | 'polish' | 'final';
-  themes: string[];
-  targetAudience: 'general' | 'mature' | 'teen' | 'family';
-  estimatedRuntime: number;
-  characteristics: ScriptCharacteristics;
-  characters?: ScriptCharacter[];
-  sourceType?: 'original' | 'franchise' | 'public-domain' | 'adaptation';
-  franchiseId?: string;
-  publicDomainId?: string;
-}
-
-export interface ScriptCharacteristics {
-  tone: 'dark' | 'light' | 'balanced' | 'satirical' | 'dramatic';
-  pacing: 'slow-burn' | 'fast-paced' | 'episodic' | 'steady';
-  dialogue: 'naturalistic' | 'stylized' | 'witty' | 'philosophical';
-  visualStyle: 'realistic' | 'stylized' | 'minimal' | 'epic';
-  commercialAppeal: number; // 1-10
-  criticalPotential: number; // 1-10
-  cgiIntensity: 'practical' | 'minimal' | 'moderate' | 'heavy';
+  localOverrides?: Partial<Pick<ScriptCharacter, 'name' | 'description' | 'traits' | 'ageRange' | 'requiredGender' | 'requiredRace' | 'requiredNationality'>>; // Stored separately from global DB
 }
 
 export interface TalentPerson {
@@ -125,7 +110,9 @@ export interface TalentPerson {
   name: string;
   type: 'actor' | 'director' | 'writer' | 'producer' | 'cinematographer' | 'editor' | 'composer';
   age: number;
-  gender?: string;
+  gender?: Gender;
+  race?: Race;
+  nationality?: string;
   experience: number;
   reputation: number;
   marketValue: number;
@@ -172,6 +159,38 @@ export interface TalentPerson {
     boxOffice?: number;
   }>;
 }
+
+export interface Script {
+  id: string;
+  title: string;
+  genre: Genre;
+  logline: string;
+  writer: string;
+  pages: number;
+  quality: number;
+  budget: number;
+  developmentStage: 'concept' | 'treatment' | 'first-draft' | 'polish' | 'final';
+  themes: string[];
+  targetAudience: 'general' | 'mature' | 'teen' | 'family';
+  estimatedRuntime: number;
+  characteristics: ScriptCharacteristics;
+  characters?: ScriptCharacter[];
+  sourceType?: 'original' | 'franchise' | 'public-domain' | 'adaptation';
+  franchiseId?: string;
+  publicDomainId?: string;
+}
+
+export interface ScriptCharacteristics {
+  tone: 'dark' | 'light' | 'balanced' | 'satirical' | 'dramatic';
+  pacing: 'slow-burn' | 'fast-paced' | 'episodic' | 'steady';
+  dialogue: 'naturalistic' | 'stylized' | 'witty' | 'philosophical';
+  visualStyle: 'realistic' | 'stylized' | 'minimal' | 'epic';
+  commercialAppeal: number; // 1-10
+  criticalPotential: number; // 1-10
+  cgiIntensity: 'practical' | 'minimal' | 'moderate' | 'heavy';
+}
+
+
 
 export interface CareerEvent {
   week: number;

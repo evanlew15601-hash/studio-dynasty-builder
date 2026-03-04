@@ -34,6 +34,9 @@ export interface TalentDbRecord {
   name: string;
   type: IndustryTalentType;
   age?: number;
+  gender?: string;
+  race?: string;
+  nationality?: string;
   fame?: number;
   reputation?: number;
   marketValue?: number;
