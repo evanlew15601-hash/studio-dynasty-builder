@@ -1,4 +1,7 @@
 import type { Genre } from '@/types/game';
+import type { ModBundle } from '@/types/modding';
+import { applyPatchesByKey, getPatchesForEntity } from '@/utils/modding';
+import { getModBundle } from '@/utils/moddingStore';
 
 export type DealKind = 'streaming' | 'cable';
 
@@ -260,6 +263,24 @@ export const CABLE_PROVIDERS = PROVIDER_DEALS.filter(p => p.dealKind === 'cable'
 
 export const ALL_PROVIDERS = PROVIDER_DEALS;
 
-export function getProviderProfile(dealKind: DealKind, providerId: string) {
-  return PROVIDER_DEALS.find(p => p.dealKind === dealKind && p.id === providerId);
+export function getEffectiveProviderDeals(mods?: ModBundle): ProviderDealProfile[] {
+  const bundle = mods ?? getModBundle();
+  const patches = getPatchesForEntity(bundle, 'providerDeal');
+  return applyPatchesByKey(PROVIDER_DEALS, patches, (p) => p.id);
+}
+
+export function getAllProviders(mods?: ModBundle): ProviderDealProfile[] {
+  return getEffectiveProviderDeals(mods);
+}
+
+export function getStreamingProviders(mods?: ModBundle): ProviderDealProfile[] {
+  return getAllProviders(mods).filter((p) => p.dealKind === 'streaming');
+}
+
+export function getCableProviders(mods?: ModBundle): ProviderDealProfile[] {
+  return getAllProviders(mods).filter((p) => p.dealKind === 'cable');
+}
+
+export function getProviderProfile(dealKind: DealKind, providerId: string, mods?: ModBundle) {
+  return getAllProviders(mods).find(p => p.dealKind === dealKind && p.id === providerId);
 }

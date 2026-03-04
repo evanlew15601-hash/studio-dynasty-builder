@@ -9,6 +9,7 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@
 import { Badge } from '@/components/ui/badge';
 import { ScrollArea } from '@/components/ui/scroll-area';
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
+import { ModsPanel } from './ModsPanel';
 
 interface IndustryDatabasePanelProps {
   gameState: GameState;
@@ -393,13 +394,14 @@ export const IndustryDatabasePanel: React.FC<IndustryDatabasePanelProps> = ({ ga
       </Card>
 
       <Tabs defaultValue="films" className="space-y-4">
-        <TabsList className="grid w-full grid-cols-6">
+        <TabsList className="grid w-full grid-cols-7">
           <TabsTrigger value="films">Films</TabsTrigger>
           <TabsTrigger value="tv">TV Shows</TabsTrigger>
           <TabsTrigger value="actors">Actors</TabsTrigger>
           <TabsTrigger value="directors">Directors</TabsTrigger>
           <TabsTrigger value="awards">Awards</TabsTrigger>
           <TabsTrigger value="studios">Studios</TabsTrigger>
+          <TabsTrigger value="mods">Mods</TabsTrigger>
         </TabsList>
 
         <TabsContent value="films" className="space-y-4">
@@ -771,6 +773,10 @@ export const IndustryDatabasePanel: React.FC<IndustryDatabasePanelProps> = ({ ga
               </Tabs>
             </CardContent>
           </Card>
+        </TabsContent>
+
+        <TabsContent value="mods" className="space-y-4">
+          <ModsPanel />
         </TabsContent>
       </Tabs>
     </div>

@@ -100,6 +100,8 @@ import { MediaRelationships } from './MediaRelationships';
 import { SystemIntegration } from './SystemIntegration';
 import { saveGame } from '@/utils/saveLoad';
 import { syncAndPersistIndustryDatabase } from '@/utils/industryDatabase';
+import { applyPatchesByKey, getPatchesForEntity } from '@/utils/modding';
+import { getModBundle } from '@/utils/moddingStore';
 import { DebugControlPanel } from './DebugControlPanel';
 import { IndustryDatabasePanel } from './IndustryDatabasePanel';
 
@@ -404,8 +406,14 @@ export const StudioMagnateGame: React.FC<StudioMagnateGameProps> = ({
     updateOperation(LOADING_OPERATIONS.GAME_INIT.id, 30, 'Generating talent pool...');
     
     // Initialize comprehensive talent pool
+    const mods = getModBundle();
+
     const talentGenerator = new TalentGenerator();
-    const generatedTalent = talentGenerator.generateTalentPool(300, 50);
+    const generatedTalent = applyPatchesByKey(
+      talentGenerator.generateTalentPool(300, 50),
+      getPatchesForEntity(mods, 'talent'),
+      (t) => t.id
+    );
 
     updateOperation(LOADING_OPERATIONS.GAME_INIT.id, 60, 'Creating competitor studios...');
     
@@ -526,8 +534,16 @@ export const StudioMagnateGame: React.FC<StudioMagnateGameProps> = ({
       })(), // Pre-generated AI releases for current and previous year
       topFilmsHistory: [],
       // Initialize Franchise & Public Domain Systems
-      franchises: FranchiseGenerator.generateInitialFranchises(30),
-      publicDomainIPs: PublicDomainGenerator.generateInitialPublicDomainIPs(50),
+      franchises: applyPatchesByKey(
+        FranchiseGenerator.generateInitialFranchises(30),
+        getPatchesForEntity(mods, 'franchise'),
+        (f) => f.id
+      ),
+      publicDomainIPs: applyPatchesByKey(
+        PublicDomainGenerator.generateInitialPublicDomainIPs(50),
+        getPatchesForEntity(mods, 'publicDomainIP'),
+        (p) => p.id
+      ),
       aiStudioProjects: [] as Project[],
     };
 

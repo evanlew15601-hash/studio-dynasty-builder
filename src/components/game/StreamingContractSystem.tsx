@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useMemo, useState } from 'react';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
@@ -9,13 +9,14 @@ import { StreamingContract } from '@/types/streamingTypes';
 import { GameState, Project } from '@/types/game';
 import { Monitor, Tv, Award } from 'lucide-react';
 import {
-  ALL_PROVIDERS,
-  CABLE_PROVIDERS,
-  STREAMING_PROVIDERS,
+  getAllProviders,
+  getCableProviders,
+  getStreamingProviders,
   getProviderProfile,
   type DealKind,
   type ProviderDealProfile,
 } from '@/data/ProviderDealsDatabase';
+import { getModBundle } from '@/utils/moddingStore';
 import { FinancialEngine } from './FinancialEngine';
 
 interface StreamingContractSystemProps {
@@ -33,6 +34,7 @@ export const StreamingContractSystem: React.FC<StreamingContractSystemProps> = (
 }) => {
   const { toast } = useToast();
   const [, setSelectedProject] = useState<Project | null>(null);
+  const mods = useMemo(() => getModBundle(), []);
 
   const isTVProject = (project: Project) => project.type === 'series' || project.type === 'limited-series';
   const isFilmProject = (project: Project) => project.type === 'feature' || project.type === 'documentary';
@@ -55,7 +57,7 @@ export const StreamingContractSystem: React.FC<StreamingContractSystemProps> = (
   };
 
   const getPlatform = (dealKind: DealKind, platformId: string) => {
-    return getProviderProfile(dealKind, platformId);
+    return getProviderProfile(dealKind, platformId, mods);
   };
 
   const addWeeks = (startWeek: number, startYear: number, duration: number) => {
@@ -240,7 +242,7 @@ export const StreamingContractSystem: React.FC<StreamingContractSystemProps> = (
 
   const signContract = (project: Project, platformId: string, dealKind: DealKind) => {
     const contract = generateContract(project, platformId, dealKind);
-    const platform = ALL_PROVIDERS.find(p => p.id === platformId);
+    const platform = getAllProviders(mods).find(p => p.id === platformId);
 
     onProjectUpdate(project.id, {
       streamingContract: contract,
@@ -277,7 +279,7 @@ export const StreamingContractSystem: React.FC<StreamingContractSystemProps> = (
     if (!project.streamingContract) return;
 
     const contract = project.streamingContract;
-    const platform = ALL_PROVIDERS.find(p => p.id === contract.platform);
+    const platform = getAllProviders(mods).find(p => p.id === contract.platform);
 
     const totalViews = project.metrics?.streaming?.totalViews ?? project.metrics?.streamingViews ?? 0;
     if (totalViews <= 0) return;
@@ -432,7 +434,7 @@ export const StreamingContractSystem: React.FC<StreamingContractSystemProps> = (
 
                           <TabsContent value="streaming" className="mt-4">
                             <div className="grid grid-cols-1 md:grid-cols-2 gap-4 max-h-96 overflow-y-auto">
-                              {STREAMING_PROVIDERS.map(provider => {
+                              {getStreamingProviders(mods).map(provider => {
                                 const issues = getDealIssues(project, provider);
                                 const contract = generateContract(project, provider.id, 'streaming');
                                 const isEpisodic = typeof contract.episodeRate === 'number';
@@ -506,7 +508,7 @@ export const StreamingContractSystem: React.FC<StreamingContractSystemProps> = (
                           <TabsContent value="cable" className="mt-4">
                             {isTVProject(project) ? (
                               <div className="grid grid-cols-1 md:grid-cols-2 gap-4 max-h-96 overflow-y-auto">
-                                {CABLE_PROVIDERS.map(provider => {
+                                {getCableProviders(mods).map((provider) => {
                                   const issues = getDealIssues(project, provider);
                                   const contract = generateContract(project, provider.id, 'cable');
 
@@ -600,7 +602,7 @@ export const StreamingContractSystem: React.FC<StreamingContractSystemProps> = (
             <div className="space-y-4">
               {activeContracts.map(project => {
                 const contract = project.streamingContract!;
-                const platform = ALL_PROVIDERS.find(p => p.id === contract.platform);
+                const platform = getAllProviders(mods).find(p => p.id === contract.platform);
 
                 const totalViews = project.metrics?.streaming?.totalViews ?? project.metrics?.streamingViews ?? 0;
                 const completionRate = project.metrics?.streaming?.completionRate;

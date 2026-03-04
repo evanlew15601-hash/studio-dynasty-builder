@@ -1,5 +1,5 @@
 import { GameState, Script, ScriptCharacter } from '@/types/game';
-import { FRANCHISE_CHARACTER_DB, FranchiseCharacterDef } from '@/data/FranchiseCharacterDB';
+import { FranchiseCharacterDef, getEffectiveFranchiseCharacterDB } from '@/data/FranchiseCharacterDB';
 import { RoleDatabase } from '@/data/RoleDatabase';
 import { PARODY_CHARACTER_NAME_MAP } from '@/data/ParodyCharacterNames';
 
@@ -65,10 +65,11 @@ export function importRolesForScript(script: Script, gameState: GameState): Scri
 
   if (script.sourceType === 'franchise' && script.franchiseId) {
     const franchise = gameState.franchises.find(f => f.id === script.franchiseId);
+    const characterDb = getEffectiveFranchiseCharacterDB();
     const dbKey = script.franchiseId;
-    let defs = FRANCHISE_CHARACTER_DB[dbKey];
+    let defs = characterDb[dbKey];
     if (!defs && franchise?.parodySource) {
-      defs = FRANCHISE_CHARACTER_DB[franchise.parodySource];
+      defs = characterDb[franchise.parodySource];
     }
 
     if (defs && defs.length > 0) {
