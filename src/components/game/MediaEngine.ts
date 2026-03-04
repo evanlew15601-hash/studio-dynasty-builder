@@ -120,7 +120,7 @@ class MediaEngine {
     }
 
     // Random industry events (5% chance per week)
-    if (Math.random() < 0.05) {
+    if (Math.random() < 0.05 && gameState.talent.length > 0) {
       const randomEventTypes = ['rumor', 'interview', 'exclusive'];
       const eventType = randomEventTypes[Math.floor(Math.random() * randomEventTypes.length)];
       
@@ -141,6 +141,51 @@ class MediaEngine {
       triggeredEvents.push(eventId);
     }
 
+    // Competitor / industry release coverage (gives the feed non-player stories)
+    if (Math.random() < 0.12 && (gameState.allReleases?.length || 0) > 0) {
+      const releasesThisWeek = (gameState.allReleases || [])
+        .filter((r): r is Project => (r as any)?.script)
+        .filter(p => (p.releaseWeek === gameState.currentWeek && p.releaseYear === gameState.currentYear));
+
+      const competitorCandidates = releasesThisWeek.filter(p =>
+        !!p.studioName && p.studioName !== gameState.studio.name
+      );
+
+      const candidatePool = competitorCandidates.length > 0 ? competitorCandidates : releasesThisWeek;
+
+      if (candidatePool.length > 0) {
+        const project = candidatePool[Math.floor(Math.random() * candidatePool.length)];
+
+        const studio =
+          (project.studioName
+            ? gameState.competitorStudios.find(s => s.name === project.studioName)
+            : undefined) ||
+          gameState.competitorStudios.find(s => project.title.includes(s.name.split(' ')[0])) ||
+          gameState.competitorStudios.find(s => s.specialties.includes(project.script?.genre));
+
+        const talentIds = (project.cast || [])
+          .slice(0, 2)
+          .map(c => c.talentId)
+          .filter(Boolean);
+
+        const eventId = this.queueMediaEvent({
+          type: 'release',
+          triggerType: 'competitor_action',
+          priority: 'low',
+          entities: {
+            studios: studio ? [studio.id] : undefined,
+            projects: [project.id],
+            talent: talentIds.length > 0 ? talentIds : undefined
+          },
+          eventData: { project },
+          week: gameState.currentWeek,
+          year: gameState.currentYear
+        });
+
+        triggeredEvents.push(eventId);
+      }
+    }
+
     return triggeredEvents;
   }
 
@@ -152,20 +197,25 @@ class MediaEngine {
       projects?: Project[];
     } = {};
 
-    if (event.entities.studios) {
-      entities.studios = [gameState.studio]; // For now, only player studio
+    if (event.entities.studios?.length) {
+      const allStudios = [gameState.studio, ...(gameState.competitorStudios || [])];
+      const studiosById = new Map(allStudios.map(s => [s.id, s] as const));
+      entities.studios = event.entities.studios
+        .map(id => studiosById.get(id))
+        .filter(Boolean) as Studio[];
     }
 
-    if (event.entities.talent) {
-      entities.talent = gameState.talent.filter(t => 
-        event.entities.talent?.includes(t.id)
-      );
+    if (event.entities.talent?.length) {
+      entities.talent = gameState.talent.filter(t => event.entities.talent?.includes(t.id));
     }
 
-    if (event.entities.projects) {
-      entities.projects = gameState.projects.filter(p => 
-        event.entities.projects?.includes(p.id)
-      );
+    if (event.entities.projects?.length) {
+      const allReleases = (gameState.allReleases || []).filter((r): r is Project => (r as any)?.script);
+      const allProjects = [...(gameState.projects || []), ...(gameState.aiStudioProjects || []), ...allReleases];
+      const projectsById = new Map(allProjects.map(p => [p.id, p] as const));
+      entities.projects = event.entities.projects
+        .map(id => projectsById.get(id))
+        .filter(Boolean) as Project[];
     }
 
     return entities;

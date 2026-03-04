@@ -43,6 +43,12 @@ export const MediaDashboard: React.FC<MediaDashboardProps> = ({
     updateMediaData();
   }, []);
 
+  useEffect(() => {
+    // Keep the dashboard live as weeks advance (and auto-drain queued events)
+    MediaEngine.processMediaEvents(gameState);
+    updateMediaData();
+  }, [gameState.currentWeek, gameState.currentYear]);
+
   const updateMediaData = () => {
     const media = MediaEngine.getRecentMedia(50);
     const stats = MediaEngine.getMediaStats();

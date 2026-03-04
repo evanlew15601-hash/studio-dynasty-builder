@@ -4,6 +4,7 @@ import { getAwardShowsForYear } from '@/data/AwardsSchedule';
 import { useToast } from '@/hooks/use-toast';
 import { AwardShowCeremony } from '@/components/game/IndividualAwardShowModal';
 import { stablePick } from '@/utils/stablePick';
+import { MediaEngine } from '@/components/game/MediaEngine';
 
 // Headless awards season engine: runs nominations and ceremonies regardless of UI phase
 export function useAwardsEngine(
@@ -196,6 +197,64 @@ const aiProjects = gameState.allReleases.filter((release): release is Project =>
       [key]: { year: gameState.currentYear, categories: categoriesMap },
     }));
 
+    // Hook nominations into the media feed (keep it lightweight: 1-2 highlight stories per show)
+    const nominationHighlights: Array<{ project: Project; category: string }> = [];
+    const isPlayerProject = (p: Project) => gameState.projects.some(pp => pp.id === p.id);
+
+    for (const [category, ranked] of Object.entries(categoriesMap)) {
+      const playerNominee = ranked.find(n => isPlayerProject(n.project));
+      if (playerNominee) {
+        nominationHighlights.push({ project: playerNominee.project, category });
+        break;
+      }
+    }
+
+    const headlineCategory =
+      Object.keys(categoriesMap).find(c => /best (picture|film)/i.test(c)) ||
+      Object.keys(categoriesMap)[0];
+
+    if (headlineCategory) {
+      const top = categoriesMap[headlineCategory]?.[0];
+      if (top && !nominationHighlights.some(n => n.project.id === top.project.id)) {
+        nominationHighlights.push({ project: top.project, category: headlineCategory });
+      }
+    }
+
+    let queuedNominationMedia = false;
+    nominationHighlights.slice(0, 2).forEach(({ project, category }) => {
+      const isPlayer = isPlayerProject(project);
+      const competitorStudio = !isPlayer && project.studioName
+        ? gameState.competitorStudios.find(s => s.name === project.studioName)
+        : undefined;
+      const studioId = isPlayer ? gameState.studio.id : competitorStudio?.id;
+
+      const isTalentCategory = category.toLowerCase().includes('actor') || category.toLowerCase().includes('actress') || category.toLowerCase().includes('director');
+      const talent = isTalentCategory ? findRelevantTalent(project, category) : undefined;
+
+      MediaEngine.queueMediaEvent({
+        type: 'award_nomination',
+        triggerType: 'automatic',
+        priority: isPlayer ? 'high' : 'medium',
+        entities: {
+          studios: studioId ? [studioId] : undefined,
+          projects: [project.id],
+          talent: talent ? [talent.id] : undefined
+        },
+        eventData: {
+          project,
+          talent,
+          awardName: `${ceremonyName} - ${category}`
+        },
+        week: gameState.currentWeek,
+        year: gameState.currentYear
+      });
+      queuedNominationMedia = true;
+    });
+
+    if (queuedNominationMedia) {
+      MediaEngine.processMediaEvents(gameState);
+    }
+
     console.log(`[AwardsEngine] ${ceremonyName} nominations announced for Y${gameState.currentYear}`);
     toast({
       title: `${ceremonyName} Nominations Announced`,
@@ -301,6 +360,30 @@ const aiProjects = gameState.allReleases.filter((release): release is Project =>
         if (won) winnersThisShow.push(n.project.id);
       });
     });
+
+    // Hook player award wins into the media feed (1 headline story per ceremony)
+    const playerWin = flatForModal.find(f => f.won && gameState.projects.some(p => p.id === f.project.id));
+    if (playerWin) {
+      const awardName = `${ceremonyName} - ${playerWin.category}`;
+      const isTalentCategory = playerWin.category.toLowerCase().includes('actor') || playerWin.category.toLowerCase().includes('actress') || playerWin.category.toLowerCase().includes('director');
+      const talent = isTalentCategory ? findRelevantTalent(playerWin.project, playerWin.category) : undefined;
+
+      MediaEngine.queueMediaEvent({
+        type: 'award_win',
+        triggerType: 'automatic',
+        priority: 'breaking',
+        entities: {
+          studios: [gameState.studio.id],
+          projects: [playerWin.project.id],
+          talent: talent ? [talent.id] : undefined
+        },
+        eventData: { project: playerWin.project, talent, awardName, award: awardName },
+        week: gameState.currentWeek,
+        year: gameState.currentYear
+      });
+
+      MediaEngine.processMediaEvents(gameState);
+    }
 
     setProcessedCeremonies((prev) => new Set(prev).add(key));
 
