@@ -20,6 +20,7 @@ interface GameConfig {
   specialties: Genre[];
   difficulty: 'easy' | 'normal' | 'hard' | 'magnate';
   startingBudget: number;
+  studioIcon: StudioIconConfig;
 }
 
 export const GameLanding: React.FC<GameLandingProps> = ({ onStartGame, onLoadGame }) => {
