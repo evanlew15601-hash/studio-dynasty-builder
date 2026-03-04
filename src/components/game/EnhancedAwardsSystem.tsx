@@ -55,7 +55,7 @@ export const EnhancedAwardsSystem: React.FC<EnhancedAwardsSystemProps> = ({
 
   useEffect(() => {
     processAnnualAwards();
-  }, [gameState.currentYear, gameState.currentWeek, gameState.projects]);
+  }, [gameState.currentYear, gameState.currentWeek, gameState.projects, gameState.allReleases]);
 
   const AWARD_CATEGORIES: AwardCategory[] = [
     { id: 'best-picture', name: 'Best Picture', type: 'film', weight: 10 },
@@ -124,23 +124,22 @@ export const EnhancedAwardsSystem: React.FC<EnhancedAwardsSystemProps> = ({
   };
 
   const getAllEligibleProjects = (): Project[] => {
-    // Include both player and AI studio projects
     const playerProjects = gameState.projects.filter(project => 
       project.status === 'released' && 
       project.releaseYear === gameState.currentYear - 1 && // Released last year
       project.metrics?.boxOfficeTotal && project.metrics.boxOfficeTotal > 0
     );
 
-    // Get AI studio projects - they should be in gameState.aiStudioProjects or similar
-    const aiProjects = gameState.aiStudioProjects || [];
-    const eligibleAIProjects = aiProjects.filter(project =>
-      project.status === 'released' &&
-      project.releaseYear === gameState.currentYear - 1 &&
-      project.metrics?.boxOfficeTotal && project.metrics.boxOfficeTotal > 0
-    );
+    const aiProjects = gameState.allReleases
+      .filter((r): r is Project => 'script' in r)
+      .filter(project =>
+        project.status === 'released' &&
+        project.releaseYear === gameState.currentYear - 1 &&
+        project.metrics?.boxOfficeTotal && project.metrics.boxOfficeTotal > 0
+      );
 
-    console.log(`   Player projects: ${playerProjects.length}, AI projects: ${eligibleAIProjects.length}`);
-    return [...playerProjects, ...eligibleAIProjects];
+    console.log(`   Player projects: ${playerProjects.length}, AI projects: ${aiProjects.length}`);
+    return [...playerProjects, ...aiProjects];
   };
 
   const getTalentCandidateForCategory = (
@@ -410,15 +409,14 @@ export const EnhancedAwardsSystem: React.FC<EnhancedAwardsSystemProps> = ({
     }
     
     // Studio reputation bonus
-    if (project.studioName) {
-      // For AI studio projects
-      const aiStudio = undefined;
-      if (aiStudio) {
-        score += (aiStudio.reputation - 50) * 0.2;
-      }
-    } else {
-      // For player studio projects
+    const isPlayerProject = gameState.projects.some(p => p.id === project.id);
+    if (isPlayerProject) {
       score += (gameState.studio.reputation - 50) * 0.2;
+    } else {
+      const aiStudio = project.studioName
+        ? gameState.competitorStudios.find(s => s.name === project.studioName)
+        : undefined;
+      score += ((aiStudio?.reputation ?? 50) - 50) * 0.2;
     }
     
     return Math.max(0, Math.min(100, score));
@@ -459,14 +457,11 @@ export const EnhancedAwardsSystem: React.FC<EnhancedAwardsSystemProps> = ({
     if (winner.projectId) {
       const project = gameState.projects.find(p => p.id === winner.projectId);
       if (project) {
-        // Player studio project
         onReputationUpdate?.(gameState.studio.id, reputationBonus);
       } else {
-        // AI studio project
-        const aiProject = undefined;
-        if (aiProject && aiProject.studioName) {
-          // Update AI studio reputation (if we have that system)
-          console.log(`AI Studio ${aiProject.studioName} wins ${category.name}`);
+        const aiProject = gameState.allReleases.find((r): r is Project => 'script' in r && r.id === winner.projectId);
+        if (aiProject) {
+          console.log(`${aiProject.studioName || 'AI Studio'} wins ${category.name}`);
         }
       }
     }
@@ -477,16 +472,17 @@ export const EnhancedAwardsSystem: React.FC<EnhancedAwardsSystemProps> = ({
   };
 
   const getWinnerDisplayName = (winner: AwardNomination): string => {
-    const project = gameState.projects.find(p => p.id === winner.projectId) ||
-                   undefined;
-    
+    const project =
+      gameState.projects.find(p => p.id === winner.projectId) ||
+      gameState.allReleases.find((r): r is Project => 'script' in r && r.id === winner.projectId);
+
     if (!project) return 'Unknown Project';
-    
+
     if (winner.talentId) {
       const talent = gameState.talent.find(t => t.id === winner.talentId);
       return `${talent?.name || 'Unknown'} (${project.title})`;
     }
-    
+
     return project.title;
   };
 

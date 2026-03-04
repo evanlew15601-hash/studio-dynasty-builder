@@ -407,16 +407,22 @@ const aiProjects = gameState.allReleases.filter((release): release is Project =>
       };
 
       // Convert nominations to proper format for modal (include talentName for talent categories)
+      const isPlayerProject = (p: Project) => gameState.projects.some(pp => pp.id === p.id);
+
       categories.forEach((category) => {
         const nominees = nominationsRecord.categories[category] || [];
         ceremonyData.nominations[category] = nominees.map(n => {
           const t = (category.toLowerCase().includes('actor') || category.toLowerCase().includes('actress') || category.toLowerCase().includes('director'))
             ? findRelevantTalent(n.project, category)
             : undefined;
+
+          const isPlayer = isPlayerProject(n.project);
+          const studioName = isPlayer ? gameState.studio.name : (n.project.studioName || 'AI Studio');
+
           return {
             ...n,
             category,
-            project: { ...n.project, studioId: n.project.id.includes('player') ? 'player' : 'ai' } as any,
+            project: { ...n.project, studioId: isPlayer ? 'player' : 'ai', studioName } as any,
             talentName: t?.name
           } as any;
         });
@@ -429,13 +435,16 @@ const aiProjects = gameState.allReleases.filter((release): release is Project =>
         if (winner) {
           const winnerData = flatForModal.find(f => f.project.id === winner.project.id && f.category === category && f.won);
           if (winnerData) {
+            const isPlayer = isPlayerProject(winner.project);
+            const studioName = isPlayer ? gameState.studio.name : (winner.project.studioName || 'AI Studio');
+
             (ceremonyData.winners as any)[category] = {
               ...winner,
               category,
               won: true,
               award: winnerData.award,
               talentName: winnerData.talentName,
-              project: { ...winner.project, studioId: winner.project.id.includes('player') ? 'player' : 'ai' } as any
+              project: { ...winner.project, studioId: isPlayer ? 'player' : 'ai', studioName } as any
             };
           }
         }
@@ -520,24 +529,36 @@ const aiProjects = gameState.allReleases.filter((release): release is Project =>
       const charDir = directorChars.length > 1 ? pick(directorChars, 'director-char') : directorChars[0];
       const t = getTalentById(charDir?.assignedTalentId);
       if (t && t.type === 'director') return t;
-      return undefined;
+
+      const directors = gameState.talent.filter(tt => tt.type === 'director');
+      return directors.length > 0 ? pick(directors, 'global-director-fallback') : undefined;
     }
 
     // Acting categories - deterministic selection (no Math.random), with gender handling
     const isActress = categoryLower.includes('actress');
     const isSupporting = categoryLower.includes('supporting');
 
-    const genderOk = (talent: TalentPerson | undefined) => {
+    const genderOkStrict = (talent: TalentPerson | undefined) => {
       if (!talent || talent.type !== 'actor') return false;
       if (isActress) return talent.gender === 'Female';
       return talent.gender !== 'Female';
     };
 
+    const genderOkLoose = (talent: TalentPerson | undefined) => {
+      return !!talent && talent.type === 'actor';
+    };
+
     const byRoleMatch = (role: string) => role.toLowerCase().includes(isSupporting ? 'supporting' : 'lead');
 
-    const roleCandidates = castEntries
+    const roleCandidatesStrict = castEntries
       .filter(c => byRoleMatch(c.role))
-      .filter(c => genderOk(getTalentById((c as any).talentId)));
+      .filter(c => genderOkStrict(getTalentById((c as any).talentId)));
+
+    const roleCandidates = roleCandidatesStrict.length > 0
+      ? roleCandidatesStrict
+      : castEntries
+          .filter(c => byRoleMatch(c.role))
+          .filter(c => genderOkLoose(getTalentById((c as any).talentId)));
 
     if (roleCandidates.length > 0) {
       const chosen = roleCandidates.length > 1 ? pick(roleCandidates, isSupporting ? 'supporting' : 'lead') : roleCandidates[0];
@@ -545,22 +566,36 @@ const aiProjects = gameState.allReleases.filter((release): release is Project =>
       if (talent && talent.type === 'actor') return talent;
     }
 
-    // Any actor from cast with proper gender
-    const anyActorCast = castEntries.filter(c => genderOk(getTalentById((c as any).talentId)));
+    // Any actor from cast (prefer gender-match but never return empty)
+    const anyActorCastStrict = castEntries.filter(c => genderOkStrict(getTalentById((c as any).talentId)));
+    const anyActorCast = anyActorCastStrict.length > 0
+      ? anyActorCastStrict
+      : castEntries.filter(c => genderOkLoose(getTalentById((c as any).talentId)));
+
     if (anyActorCast.length > 0) {
       const chosen = anyActorCast.length > 1 ? pick(anyActorCast, 'any-actor') : anyActorCast[0];
       const talent = getTalentById((chosen as any).talentId);
       if (talent && talent.type === 'actor') return talent;
     }
 
-    // Final fallback to script characters
-    const charCandidates = characters.filter(ch => {
+    // Fallback to script characters (prefer gender-match but never return empty)
+    const charCandidatesStrict = characters.filter(ch => {
       if (ch.requiredType === 'director') return false;
       const talent = getTalentById(ch.assignedTalentId);
-      if (!genderOk(talent)) return false;
+      if (!genderOkStrict(talent)) return false;
       if (isSupporting) return ch.importance === 'supporting';
       return ch.importance === 'lead';
     });
+
+    const charCandidates = charCandidatesStrict.length > 0
+      ? charCandidatesStrict
+      : characters.filter(ch => {
+          if (ch.requiredType === 'director') return false;
+          const talent = getTalentById(ch.assignedTalentId);
+          if (!genderOkLoose(talent)) return false;
+          if (isSupporting) return ch.importance === 'supporting';
+          return ch.importance === 'lead';
+        });
 
     const chosenChar = charCandidates.length > 1
       ? pick(charCandidates, isSupporting ? 'supporting-char' : 'lead-char')
@@ -569,6 +604,9 @@ const aiProjects = gameState.allReleases.filter((release): release is Project =>
     const talent = getTalentById(chosenChar?.assignedTalentId);
     if (talent && talent.type === 'actor') return talent;
 
-    return undefined;
+    // Final fallback: pick any actor from the global pool.
+    const actorPoolStrict = gameState.talent.filter(t => genderOkStrict(t));
+    const actorPool = actorPoolStrict.length > 0 ? actorPoolStrict : gameState.talent.filter(t => genderOkLoose(t));
+    return actorPool.length > 0 ? pick(actorPool, 'global-actor-fallback') : undefined;
   };
 }

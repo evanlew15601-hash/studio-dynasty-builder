@@ -141,6 +141,42 @@ describe('industry database sync', () => {
     expect(db1.awards.map((a) => a.year)).toEqual([2024, 2024]);
   });
 
+  it('does not attribute AI releases without a studioName to the player studio', () => {
+    const gameState = {
+      studio: { id: 'player-studio', name: 'Player Studio', reputation: 50, budget: 0, founded: 2020, specialties: [] },
+      competitorStudios: [],
+      currentWeek: 12,
+      currentYear: 2024,
+      projects: [],
+      allReleases: [
+        {
+          id: 'ai-film-1',
+          title: 'AI Film',
+          type: 'feature',
+          status: 'released',
+          releaseWeek: 8,
+          releaseYear: 2024,
+          script: { genre: 'drama' },
+          budget: { total: 1_000_000 },
+          metrics: { boxOfficeTotal: 2_000_000, criticsScore: 60, audienceScore: 60 },
+        },
+      ],
+      talent: [],
+      scripts: [],
+      marketConditions: {},
+      eventQueue: [],
+      boxOfficeHistory: [],
+      awardsCalendar: [],
+      industryTrends: [],
+      topFilmsHistory: [],
+      franchises: [],
+      publicDomainIPs: [],
+    };
+
+    const db1 = syncIndustryDatabase(createEmptyIndustryDatabase(), gameState as unknown as GameState);
+    expect(db1.films[0].studioName).toBe('Unknown Studio');
+  });
+
   it('updates existing film records as metrics change', () => {
     const gameState = {
       studio: { id: 'player-studio', name: 'Player Studio', reputation: 50, budget: 0, founded: 2020, specialties: [] },

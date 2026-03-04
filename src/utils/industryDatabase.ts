@@ -58,9 +58,22 @@ export function saveIndustryDatabase(slotId: string, db: IndustryDatabase, stora
   }
 }
 
+export function clearIndustryDatabase(slotId: string, storage?: StorageLike): void {
+  const store: StorageLike | undefined = storage ?? (typeof window !== 'undefined' ? window.localStorage : undefined);
+  if (!store) return;
+
+  try {
+    store.removeItem?.(keyForSlot(slotId));
+  } catch (e) {
+    console.warn('Failed to clear industry database', e);
+  }
+}
+
 function getProjectStudioName(gameState: GameState, project: Project): string {
   if (project.studioName && project.studioName.trim()) return project.studioName;
-  return gameState.studio.name;
+  const isPlayerProject = gameState.projects.some((p) => p.id === project.id);
+  if (isPlayerProject) return gameState.studio.name;
+  return 'Unknown Studio';
 }
 
 function upsertById<T extends { id: string }>(list: T[], record: T): { list: T[]; changed: boolean } {
@@ -168,7 +181,7 @@ function buildAwardRecords(gameState: GameState): AwardDbRecord[] {
 
   const studioAwards: AwardDbRecord[] = (gameState.studio.awards || []).map((a) => {
     const project = byProject.get(a.projectId);
-    const studioName = project ? getProjectStudioName(gameState, project) : gameState.studio.name;
+    const studioName = project ? getProjectStudioName(gameState, project) : 'Unknown Studio';
 
     return {
       id: a.id,
@@ -187,7 +200,7 @@ function buildAwardRecords(gameState: GameState): AwardDbRecord[] {
     .flatMap((t) => (t.awards || []).map((a) => ({ talent: t, award: a })))
     .map(({ talent, award }) => {
       const project = byProject.get(award.projectId);
-      const studioName = project ? getProjectStudioName(gameState, project) : gameState.studio.name;
+      const studioName = project ? getProjectStudioName(gameState, project) : 'Unknown Studio';
 
       return {
         id: award.id,

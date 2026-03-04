@@ -1,7 +1,7 @@
 import React, { useEffect, useMemo, useState } from 'react';
 import type { GameState, Genre } from '@/types/game';
 import type { AwardDbRecord, FilmDbRecord, IndustryDatabase, TalentDbRecord, TvShowDbRecord } from '@/types/industryDatabase';
-import { createEmptyIndustryDatabase, loadIndustryDatabase, saveIndustryDatabase, syncIndustryDatabase } from '@/utils/industryDatabase';
+import { clearIndustryDatabase, createEmptyIndustryDatabase, loadIndustryDatabase, saveIndustryDatabase, syncIndustryDatabase } from '@/utils/industryDatabase';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { Input } from '@/components/ui/input';
@@ -9,6 +9,8 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@
 import { Badge } from '@/components/ui/badge';
 import { ScrollArea } from '@/components/ui/scroll-area';
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
+import { Button } from '@/components/ui/button';
+import { useToast } from '@/hooks/use-toast';
 import { ModsPanel } from './ModsPanel';
 
 interface IndustryDatabasePanelProps {
@@ -57,6 +59,7 @@ const ALL_GENRES: Genre[] = [
 ];
 
 export const IndustryDatabasePanel: React.FC<IndustryDatabasePanelProps> = ({ gameState, slotId }) => {
+  const { toast } = useToast();
   const slot = slotId || 'slot1';
 
   const [db, setDb] = useState<IndustryDatabase>(() => {
@@ -85,6 +88,46 @@ export const IndustryDatabasePanel: React.FC<IndustryDatabasePanelProps> = ({ ga
     gameState.competitorStudios.length,
     gameState.studio.awards?.length || 0,
   ]);
+
+  const handleCopyDatabaseJson = async () => {
+    try {
+      await navigator.clipboard.writeText(JSON.stringify(db, null, 2));
+      toast({ title: 'Copied', description: 'Industry database JSON copied to clipboard.' });
+    } catch {
+      toast({
+        title: 'Copy failed',
+        description: 'Could not copy to clipboard in this browser.',
+        variant: 'destructive',
+      });
+    }
+  };
+
+  const handleImportDatabaseJson = () => {
+    const raw = window.prompt('Paste industry database JSON to import (this will overwrite the current slot).');
+    if (!raw) return;
+
+    try {
+      const parsed = JSON.parse(raw) as IndustryDatabase;
+      if (!parsed || parsed.version !== 1) {
+        toast({ title: 'Invalid database', description: 'JSON did not look like an IndustryDatabase v1.', variant: 'destructive' });
+        return;
+      }
+
+      setDb(parsed);
+      saveIndustryDatabase(slot, parsed);
+      toast({ title: 'Imported', description: 'Industry database imported into this slot.' });
+    } catch {
+      toast({ title: 'Invalid JSON', description: 'Could not parse JSON.', variant: 'destructive' });
+    }
+  };
+
+  const handleResetDatabase = () => {
+    clearIndustryDatabase(slot);
+    const empty = createEmptyIndustryDatabase();
+    setDb(empty);
+    saveIndustryDatabase(slot, empty);
+    toast({ title: 'Reset', description: 'Industry database reset for this slot.' });
+  };
 
   const filmStudios = useMemo(() => {
     const studios = new Set(db.films.map((f) => f.studioName).filter(Boolean));
@@ -386,7 +429,21 @@ export const IndustryDatabasePanel: React.FC<IndustryDatabasePanelProps> = ({ ga
     <div className="space-y-6">
       <Card className="card-premium">
         <CardHeader>
-          <CardTitle>Industry Databases (Persisted)</CardTitle>
+          <CardTitle className="flex items-center justify-between gap-3">
+            <span>Industry Databases (Persisted)</span>
+            <div className="flex flex-wrap items-center gap-2">
+              <Badge variant="outline">{slot}</Badge>
+              <Button size="sm" variant="secondary" onClick={handleCopyDatabaseJson}>
+                Copy JSON
+              </Button>
+              <Button size="sm" variant="secondary" onClick={handleImportDatabaseJson}>
+                Import JSON
+              </Button>
+              <Button size="sm" variant="destructive" onClick={handleResetDatabase}>
+                Reset
+              </Button>
+            </div>
+          </CardTitle>
         </CardHeader>
         <CardContent className="text-sm text-muted-foreground">
           Browsable databases for released films, TV shows, talent, awards, and studios. This catalog is stored in this browser and continues to update as the simulation runs.

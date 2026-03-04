@@ -505,6 +505,7 @@ export class StudioGenerator {
       currentPhase: 'release',
       status: 'released',
       phaseDuration: 0,
+      studioName: studioProfile.name,
       contractedTalent: [],
       developmentProgress: {
         scriptCompletion: 100,
