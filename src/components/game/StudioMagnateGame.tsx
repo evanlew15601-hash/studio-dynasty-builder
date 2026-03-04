@@ -176,7 +176,7 @@ function attachBasicCastForAI(project: Project, talentPool: TalentPerson[]): Pro
       }
 
       if (c.requiredType !== 'director' && c.importance === 'lead' && !c.assignedTalentId && pickedLead) {
-        return { ...c, assignedTalentId: pickedLead.id };
+        return { ...c, requiredGender: c.requiredGender || pickedLead.gender || 'Male', assignedTalentId: pickedLead.id };
       }
 
       return c;
@@ -195,7 +195,7 @@ function attachBasicCastForAI(project: Project, talentPool: TalentPerson[]): Pro
         ) {
           const t = supportingPicks[si];
           si += 1;
-          return { ...c, assignedTalentId: t.id };
+          return { ...c, requiredGender: c.requiredGender || t.gender || 'Male', assignedTalentId: t.id };
         }
         return c;
       });
@@ -228,6 +228,7 @@ function attachBasicCastForAI(project: Project, talentPool: TalentPerson[]): Pro
           name: 'Protagonist',
           description: 'Lead role',
           requiredType: 'actor',
+          requiredGender: pickedLead?.gender || 'Male',
           importance: 'lead',
           traits: ['mandatory'],
           assignedTalentId: pickedLead?.id,
@@ -245,6 +246,7 @@ function attachBasicCastForAI(project: Project, talentPool: TalentPerson[]): Pro
             name: 'Supporting',
             description: 'Supporting role',
             requiredType: 'actor',
+            requiredGender: pickedSupporting1.gender || 'Male',
             importance: 'supporting',
             traits: [],
             assignedTalentId: pickedSupporting1.id,
@@ -260,6 +262,7 @@ function attachBasicCastForAI(project: Project, talentPool: TalentPerson[]): Pro
             name: 'Supporting (2)',
             description: 'Supporting role',
             requiredType: 'actor',
+            requiredGender: pickedSupporting2.gender || 'Male',
             importance: 'supporting',
             traits: [],
             assignedTalentId: pickedSupporting2.id,

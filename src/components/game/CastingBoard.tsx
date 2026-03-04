@@ -144,7 +144,12 @@ export const CastingBoard: React.FC<CastingBoardProps> = ({
         if (leadIndex >= 0) {
           updatedCharacters = existingChars.map((c, idx) =>
             idx === leadIndex
-              ? { ...c, requiredType: c.requiredType || 'actor', assignedTalentId: talent.id }
+              ? {
+                ...c,
+                requiredType: c.requiredType || 'actor',
+                requiredGender: c.requiredGender || talent.gender || 'Male',
+                assignedTalentId: talent.id
+              }
               : c
           );
         } else {
@@ -156,6 +161,7 @@ export const CastingBoard: React.FC<CastingBoardProps> = ({
             importance: 'lead',
             traits: ['mandatory'],
             requiredType: 'actor',
+            requiredGender: talent.gender || 'Male',
             assignedTalentId: talent.id,
           } as any;
           updatedCharacters = [...existingChars, newLead];

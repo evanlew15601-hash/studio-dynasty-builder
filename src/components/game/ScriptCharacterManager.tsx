@@ -33,7 +33,7 @@ export const ScriptCharacterManager: React.FC<ScriptCharacterManagerProps> = ({
     description: '',
     ageRange: [25, 45],
     traits: [],
-    requiredGender: undefined,
+    requiredGender: 'Male',
     requiredRace: undefined,
     requiredNationality: undefined,
   });
@@ -71,7 +71,7 @@ export const ScriptCharacterManager: React.FC<ScriptCharacterManagerProps> = ({
       ageRange: newCharacter.ageRange || [25, 45],
       traits: newCharacter.traits || [],
       requiredType,
-      requiredGender: requiredType === 'actor' ? newCharacter.requiredGender : undefined,
+      requiredGender: requiredType === 'actor' ? (newCharacter.requiredGender || 'Male') : undefined,
       requiredRace: requiredType === 'actor' ? newCharacter.requiredRace : undefined,
       requiredNationality: requiredType === 'actor' ? newCharacter.requiredNationality : undefined,
     };
@@ -84,7 +84,7 @@ export const ScriptCharacterManager: React.FC<ScriptCharacterManagerProps> = ({
       description: '',
       ageRange: [25, 45],
       traits: [],
-      requiredGender: undefined,
+      requiredGender: 'Male',
       requiredRace: undefined,
       requiredNationality: undefined,
     });
@@ -125,11 +125,13 @@ export const ScriptCharacterManager: React.FC<ScriptCharacterManagerProps> = ({
 
   const openEdit = (character: ScriptCharacter) => {
     setEditingCharacter(character);
+    const requiredType = character.requiredType || (character.importance === 'crew' ? 'director' : 'actor');
+
     setEditDraft({
       name: character.name,
       description: character.description || '',
       ageRange: character.ageRange,
-      requiredGender: character.requiredGender,
+      requiredGender: requiredType === 'actor' ? (character.requiredGender || 'Male') : undefined,
       requiredRace: character.requiredRace,
       requiredNationality: character.requiredNationality,
     });
@@ -145,7 +147,7 @@ export const ScriptCharacterManager: React.FC<ScriptCharacterManagerProps> = ({
       name: editDraft.name?.trim() || editingCharacter.name,
       description: editDraft.description || '',
       ageRange: editDraft.ageRange,
-      requiredGender: requiredType === 'actor' ? (editDraft.requiredGender as Gender | undefined) : undefined,
+      requiredGender: requiredType === 'actor' ? ((editDraft.requiredGender as Gender) || (editingCharacter.requiredGender as Gender) || 'Male') : undefined,
       requiredRace: requiredType === 'actor' ? (editDraft.requiredRace as Race | undefined) : undefined,
       requiredNationality: requiredType === 'actor' ? (editDraft.requiredNationality || undefined) : undefined,
     });
@@ -209,12 +211,18 @@ export const ScriptCharacterManager: React.FC<ScriptCharacterManagerProps> = ({
                     value={newCharacter.importance}
                     onValueChange={(value) => {
                       const importance = importanceTypes.find(r => r.value === value);
-                      setNewCharacter(prev => ({
-                        ...prev,
-                        importance: value as any,
-                        screenTimeMinutes: importance?.screenTime || 15,
-                        requiredType: value === 'crew' ? 'director' : 'actor'
-                      }));
+                      setNewCharacter(prev => {
+                        const requiredType = value === 'crew' ? 'director' : 'actor';
+                        return {
+                          ...prev,
+                          importance: value as any,
+                          screenTimeMinutes: importance?.screenTime || 15,
+                          requiredType,
+                          requiredGender: requiredType === 'actor' ? (prev.requiredGender || 'Male') : undefined,
+                          requiredRace: requiredType === 'actor' ? prev.requiredRace : undefined,
+                          requiredNationality: requiredType === 'actor' ? prev.requiredNationality : undefined,
+                        };
+                      });
                     }}
                   >
                     <SelectTrigger className="mt-1">
@@ -274,17 +282,16 @@ export const ScriptCharacterManager: React.FC<ScriptCharacterManagerProps> = ({
                     <div>
                       <Label>Required Gender</Label>
                       <Select
-                        value={newCharacter.requiredGender || 'any'}
+                        value={newCharacter.requiredGender || 'Male'}
                         onValueChange={(value) => setNewCharacter(prev => ({
                           ...prev,
-                          requiredGender: value === 'any' ? undefined : (value as Gender)
+                          requiredGender: value as Gender
                         }))}
                       >
                         <SelectTrigger className="mt-1">
                           <SelectValue />
                         </SelectTrigger>
                         <SelectContent>
-                          <SelectItem value="any">Any</SelectItem>
                           <SelectItem value="Male">Male</SelectItem>
                           <SelectItem value="Female">Female</SelectItem>
                         </SelectContent>
@@ -502,17 +509,16 @@ export const ScriptCharacterManager: React.FC<ScriptCharacterManagerProps> = ({
                       <div>
                         <Label>Required Gender</Label>
                         <Select
-                          value={(editDraft.requiredGender as any) || 'any'}
+                          value={(editDraft.requiredGender as any) || 'Male'}
                           onValueChange={(value) => setEditDraft(prev => ({
                             ...prev,
-                            requiredGender: value === 'any' ? undefined : (value as Gender)
+                            requiredGender: value as Gender
                           }))}
                         >
                           <SelectTrigger className="mt-1">
                             <SelectValue />
                           </SelectTrigger>
                           <SelectContent>
-                            <SelectItem value="any">Any</SelectItem>
                             <SelectItem value="Male">Male</SelectItem>
                             <SelectItem value="Female">Female</SelectItem>
                           </SelectContent>

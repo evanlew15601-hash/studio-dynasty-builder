@@ -1,14 +1,18 @@
 import type { ScriptCharacter, TalentPerson } from '@/types/game';
 
 export function talentMatchesRole(talent: TalentPerson, role: ScriptCharacter): boolean {
-  if (role.requiredType && talent.type !== role.requiredType) return false;
+  const requiredType = role.requiredType || (role.importance === 'crew' ? 'director' : 'actor');
+
+  if (talent.type !== requiredType) return false;
 
   if (role.ageRange) {
     const [minAge, maxAge] = role.ageRange;
     if (talent.age < minAge || talent.age > maxAge) return false;
   }
 
-  if (role.requiredGender) {
+  // Gender is mandatory for actor roles (used for actor/actress-style casting).
+  if (requiredType !== 'director') {
+    if (!role.requiredGender) return false;
     if (!talent.gender) return false;
     if (talent.gender !== role.requiredGender) return false;
   }

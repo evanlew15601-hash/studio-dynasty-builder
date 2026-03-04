@@ -115,15 +115,15 @@ const generateTalentBiography = (talent: TalentPerson): TalentBiography => {
   ];
 
   const influencesTemplates = isActor ? [
-    ['Marlon Brando', 'Meryl Streep', 'Daniel Day-Lewis'],
-    ['Al Pacino', 'Cate Blanchett', 'Philip Seymour Hoffman'],
-    ['Robert De Niro', 'Tilda Swinton', 'Gary Oldman'],
-    ['Jack Nicholson', 'Frances McDormand', 'Oscar Isaac']
+    ['Evelyn Hartwell', 'Marcus Sterling', 'Noah Blackwood'],
+    ['Camilla Ashford', 'Dominic Grayson', 'Isabella Montrose'],
+    ['Rosalind Fairfax', 'Julian Lancaster', 'Genevieve Sinclair'],
+    ['Theodore Carrington', 'Sophia Underwood', 'Vincent Wellington']
   ] : [
-    ['Stanley Kubrick', 'Akira Kurosawa', 'Orson Welles'],
-    ['Martin Scorsese', 'Wong Kar-wai', 'Agnès Varda'],
-    ['Alfred Hitchcock', 'Sergio Leone', 'Krzysztof Kieślowski'],
-    ['Francis Ford Coppola', 'Chloé Zhao', 'Denis Villeneuve']
+    ['Adrian Hawthorne', 'Beatrice Kensington', 'Harrison Beaumont'],
+    ['Delphine Yorke', 'Gabriel Ingram', 'Penelope Rothwell'],
+    ['Felix Thornton', 'Aurora Prescott', 'Oliver Morrison'],
+    ['Xavier Vanderbilt', 'Helena Everett', 'Quinn Oakley']
   ];
 
   const triviaTemplates = [

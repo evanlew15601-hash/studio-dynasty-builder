@@ -61,6 +61,7 @@ export const RoleBasedCasting: React.FC<RoleBasedCastingProps> = ({
         importance: 'lead',
         description: 'Main protagonist of the story',
         requiredType: 'actor',
+        requiredGender: 'Male',
       });
     }
 
@@ -119,7 +120,8 @@ export const RoleBasedCasting: React.FC<RoleBasedCastingProps> = ({
           importance: 'lead',
           description: 'Main protagonist of the story',
           ageRange: [20, 50],
-          requiredType: 'actor'
+          requiredType: 'actor',
+          requiredGender: 'Male'
         }
       ];
       defaultRoles.forEach(onCreateRole);
@@ -199,7 +201,8 @@ export const RoleBasedCasting: React.FC<RoleBasedCastingProps> = ({
                 name: 'Custom Role',
                 importance: 'supporting',
                 description: 'A custom character role',
-                requiredType: 'actor'
+                requiredType: 'actor',
+                requiredGender: 'Male'
               })}
               variant="outline"
             >

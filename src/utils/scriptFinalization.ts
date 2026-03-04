@@ -1,5 +1,6 @@
-import { GameState, Script, ScriptCharacter } from '@/types/game';
+import { GameState, Script, ScriptCharacter, Gender } from '@/types/game';
 import { importRolesForScript } from '@/utils/roleImport';
+import { stablePick } from '@/utils/stablePick';
 
 export type ScriptFinalizationIssueLevel = 'error' | 'warning';
 
@@ -46,6 +47,30 @@ function ensureDirector(chars: ScriptCharacter[], fixesApplied: string[]): Scrip
   ];
 }
 
+function ensureRoleGenders(chars: ScriptCharacter[], fixesApplied?: string[]): ScriptCharacter[] {
+  let changed = false;
+
+  const updated = chars.map(c => {
+    const requiredType = c.requiredType || (c.importance === 'crew' ? 'director' : 'actor');
+    if (requiredType !== 'director' && !c.requiredGender) {
+      changed = true;
+      return {
+        ...c,
+        requiredType: 'actor',
+        requiredGender: stablePick<Gender>(['Male', 'Female'], `${c.id || c.name}|gender`),
+      };
+    }
+
+    return {
+      ...c,
+      requiredType,
+    };
+  });
+
+  if (changed && fixesApplied) fixesApplied.push('Assigned genders to actor roles');
+  return updated;
+}
+
 function ensureLeadActor(chars: ScriptCharacter[], fixesApplied: string[]): ScriptCharacter[] {
   const hasLead = chars.some(c => c.requiredType !== 'director' && c.importance === 'lead');
   if (hasLead) return chars;
@@ -57,6 +82,7 @@ function ensureLeadActor(chars: ScriptCharacter[], fixesApplied: string[]): Scri
       name: 'Lead',
       importance: 'lead',
       requiredType: 'actor',
+      requiredGender: stablePick<Gender>(['Male', 'Female'], `${nextId(chars, 'lead')}|gender`),
       description: 'Primary protagonist',
     },
   ];
@@ -73,6 +99,7 @@ function ensureMinor(chars: ScriptCharacter[], fixesApplied: string[]): ScriptCh
       name: 'Cameo Appearance',
       importance: 'minor',
       requiredType: 'actor',
+      requiredGender: stablePick<Gender>(['Male', 'Female'], `${nextId(chars, 'cameo')}|gender`),
       description: 'Short cameo role',
       ageRange: [25, 80],
     },
@@ -121,6 +148,11 @@ function validateRoles(chars: ScriptCharacter[]): ScriptFinalizationIssue[] {
     issues.push({ level: 'warning', message: 'No minor/cameo roles; adding at least one improves casting depth.' });
   }
 
+  const missingGender = chars.filter(c => c.requiredType !== 'director' && !c.requiredGender);
+  if (missingGender.length > 0) {
+    issues.push({ level: 'error', message: 'All actor roles must have a required gender.' });
+  }
+
   return issues;
 }
 
@@ -132,6 +164,7 @@ export function finalizeScriptForSave(input: Script, gameState: GameState): Scri
   }
 
   characters = ensureRequiredType(characters);
+  characters = ensureRoleGenders(characters);
 
   return {
     ...input,
@@ -155,6 +188,7 @@ export function finalizeScriptForGreenlight(input: Script, gameState: GameState)
   }
 
   characters = ensureRequiredType(characters);
+  characters = ensureRoleGenders(characters, fixesApplied);
   characters = ensureDirector(characters, fixesApplied);
   characters = ensureLeadActor(characters, fixesApplied);
   characters = ensureMinor(characters, fixesApplied);

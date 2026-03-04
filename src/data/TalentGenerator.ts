@@ -425,9 +425,9 @@ export class TalentGenerator {
     ];
     
     const agentNames = [
-      'Richard Sterling', 'Sarah Chen', 'Michael Rodriguez', 'Emma Thompson',
-      'David Kim', 'Amanda Foster', 'James Wilson', 'Lisa Parker',
-      'Robert Taylor', 'Jennifer Martinez', 'Christopher Lee', 'Rachel Davis'
+      'Morgan Sterling', 'Harper Chen', 'Casey Rodriguez', 'Avery Hartwell',
+      'Jordan Kim', 'Riley Foster', 'Cameron Wilson', 'Parker Sinclair',
+      'Taylor Ashford', 'Quinn Martinez', 'Rowan Lancaster', 'Sage Davis'
     ];
     
     const agency = agencies[Math.floor(Math.random() * agencies.length)];
