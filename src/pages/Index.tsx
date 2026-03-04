@@ -4,6 +4,7 @@ import { GameLanding } from '@/components/game/GameLanding';
 import { LoadingProvider } from '@/contexts/LoadingContext';
 import { Suspense, lazy, useState } from 'react';
 import { loadGame, SaveGameSnapshot } from '@/utils/saveLoad';
+import { ensureGameStateRoleGenders, ensureTalentDemographics } from '@/utils/demographics';
 import { Genre } from '@/types/game';
 import { getModBundle } from '@/utils/moddingStore';
 import { applyPatchesByKey, getPatchesForEntity } from '@/utils/modding';
@@ -45,16 +46,18 @@ const Index = () => {
 
     const mods = getModBundle();
 
-    const patchedGameState = {
+    const patchedTalent = applyPatchesByKey(snapshot.gameState.talent || [], getPatchesForEntity(mods, 'talent'), (t) => t.id);
+
+    const patchedGameState = ensureGameStateRoleGenders({
       ...snapshot.gameState,
-      talent: applyPatchesByKey(snapshot.gameState.talent || [], getPatchesForEntity(mods, 'talent'), (t) => t.id),
+      talent: ensureTalentDemographics(patchedTalent),
       franchises: applyPatchesByKey(snapshot.gameState.franchises || [], getPatchesForEntity(mods, 'franchise'), (f) => f.id),
       publicDomainIPs: applyPatchesByKey(
         snapshot.gameState.publicDomainIPs || [],
         getPatchesForEntity(mods, 'publicDomainIP'),
         (p) => p.id
       ),
-    };
+    });
 
     setLoadedSnapshot({ ...snapshot, gameState: patchedGameState });
     setGameConfig(null);

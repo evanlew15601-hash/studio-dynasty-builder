@@ -112,8 +112,10 @@ function attachBasicCastForAI(project: Project, talentPool: TalentPerson[]): Pro
 
     const existingCharacters = project.script.characters || [];
     const existingCast = project.cast || [];
+    const existingCrew = project.crew || [];
 
     const hasDirector =
+      existingCrew.some(c => c.role.toLowerCase().includes('director') && !!c.talentId) ||
       existingCast.some(c => c.role.toLowerCase().includes('director') && !!c.talentId) ||
       existingCharacters.some(c => c.requiredType === 'director' && !!c.assignedTalentId);
 
@@ -137,6 +139,7 @@ function attachBasicCastForAI(project: Project, talentPool: TalentPerson[]): Pro
     const getTalentById = (id?: string) => talentPool.find(t => t.id === id);
 
     const existingDirectorId =
+      existingCrew.find(c => c.role.toLowerCase().includes('director'))?.talentId ||
       existingCast.find(c => c.role.toLowerCase().includes('director'))?.talentId ||
       existingCharacters.find(c => c.requiredType === 'director')?.assignedTalentId;
 
@@ -176,7 +179,7 @@ function attachBasicCastForAI(project: Project, talentPool: TalentPerson[]): Pro
       }
 
       if (c.requiredType !== 'director' && c.importance === 'lead' && !c.assignedTalentId && pickedLead) {
-        return { ...c, assignedTalentId: pickedLead.id };
+        return { ...c, requiredGender: c.requiredGender || pickedLead.gender || 'Male', assignedTalentId: pickedLead.id };
       }
 
       return c;
@@ -195,7 +198,7 @@ function attachBasicCastForAI(project: Project, talentPool: TalentPerson[]): Pro
         ) {
           const t = supportingPicks[si];
           si += 1;
-          return { ...c, assignedTalentId: t.id };
+          return { ...c, requiredGender: c.requiredGender || t.gender || 'Male', assignedTalentId: t.id };
         }
         return c;
       });
@@ -228,6 +231,7 @@ function attachBasicCastForAI(project: Project, talentPool: TalentPerson[]): Pro
           name: 'Protagonist',
           description: 'Lead role',
           requiredType: 'actor',
+          requiredGender: pickedLead?.gender || 'Male',
           importance: 'lead',
           traits: ['mandatory'],
           assignedTalentId: pickedLead?.id,
@@ -245,6 +249,7 @@ function attachBasicCastForAI(project: Project, talentPool: TalentPerson[]): Pro
             name: 'Supporting',
             description: 'Supporting role',
             requiredType: 'actor',
+            requiredGender: pickedSupporting1.gender || 'Male',
             importance: 'supporting',
             traits: [],
             assignedTalentId: pickedSupporting1.id,
@@ -260,6 +265,7 @@ function attachBasicCastForAI(project: Project, talentPool: TalentPerson[]): Pro
             name: 'Supporting (2)',
             description: 'Supporting role',
             requiredType: 'actor',
+            requiredGender: pickedSupporting2.gender || 'Male',
             importance: 'supporting',
             traits: [],
             assignedTalentId: pickedSupporting2.id,
@@ -268,11 +274,12 @@ function attachBasicCastForAI(project: Project, talentPool: TalentPerson[]): Pro
       }
     }
 
-    // Build/patch cast list (used by awards engine)
+    // Build/patch cast + crew lists (used by awards engine)
     const cast = [...existingCast];
+    const crew = [...existingCrew];
 
-    if (pickedDirector && !cast.some(c => c.talentId === pickedDirector.id)) {
-      cast.push({
+    if (pickedDirector && !crew.some(c => c.talentId === pickedDirector.id)) {
+      crew.push({
         talentId: pickedDirector.id,
         role: 'Director',
         salary: Math.round((pickedDirector.marketValue || 5_000_000) * 0.1),
@@ -327,6 +334,7 @@ function attachBasicCastForAI(project: Project, talentPool: TalentPerson[]): Pro
       ...project,
       script: { ...project.script, characters },
       cast,
+      crew,
       starPowerBonus,
     };
   } catch (e) {
@@ -913,12 +921,12 @@ export const StudioMagnateGame: React.FC<StudioMagnateGameProps> = ({
       };
 
       // If casting was just confirmed, lock talent availability for the production period
-      if (prevProject?.castingConfirmed !== true && project.castingConfirmed && project.cast?.length > 0) {
+      if (prevProject?.castingConfirmed !== true && project.castingConfirmed && ((project.cast?.length || 0) > 0 || (project.crew?.length || 0) > 0)) {
         const totalProdWeeks = getPhaseWeeks('pre-production') + getPhaseWeeks('production') + getPhaseWeeks('post-production');
         const busyUntilWeek = prev.currentWeek + totalProdWeeks;
         nextState.talent = nextState.talent.map(t => {
-          const isInCast = project.cast.some(c => c.talentId === t.id);
-          if (!isInCast) return t;
+          const isAttached = project.cast.some(c => c.talentId === t.id) || (project.crew || []).some(c => c.talentId === t.id);
+          if (!isAttached) return t;
           return {
             ...t,
             contractStatus: 'contracted',
@@ -2265,7 +2273,7 @@ export const StudioMagnateGame: React.FC<StudioMagnateGameProps> = ({
             {[
               { id: 'dashboard', label: 'Dashboard', IconComponent: StudioIcon },
               { id: 'scripts', label: 'Scripts', IconComponent: ScriptIcon },
-              { id: 'casting', label: 'Casting', IconComponent: CastingIcon },
+              { id: 'casting', label: 'Casting & Crew', IconComponent: CastingIcon },
               { id: 'production', label: 'Production', IconComponent: ProductionIcon },
               { id: 'marketing', label: 'Marketing', IconComponent: MarketingIcon },
               { id: 'distribution', label: 'Distribution', IconComponent: DistributionIcon },
@@ -2660,7 +2668,7 @@ export const StudioMagnateGame: React.FC<StudioMagnateGameProps> = ({
               className="space-y-4"
             >
               <TabsList>
-                <TabsTrigger value="character-casting">Character Casting</TabsTrigger>
+                <TabsTrigger value="character-casting">Cast & Key Crew</TabsTrigger>
                 <TabsTrigger value="role-based">Role-Based System</TabsTrigger>
                 <TabsTrigger value="casting-board">Talent Marketplace</TabsTrigger>
               </TabsList>

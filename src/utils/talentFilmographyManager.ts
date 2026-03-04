@@ -37,7 +37,7 @@ export const TalentFilmographyManager = {
       }
     }
 
-    // Fallback/augment via project.cast (important for AI and any projects missing script character IDs)
+    // Fallback/augment via project.cast/project.crew (important for AI and any projects missing script character IDs)
     const cast = project.cast || [];
     for (const c of cast) {
       if (!c.talentId) continue;
@@ -51,6 +51,16 @@ export const TalentFilmographyManager = {
         setRole(c.talentId, 'Supporting Actor', 1);
       } else {
         setRole(c.talentId, 'Supporting Actor', 0);
+      }
+    }
+
+    const crew = project.crew || [];
+    for (const c of crew) {
+      if (!c.talentId) continue;
+      const roleLower = (c.role || '').toLowerCase();
+
+      if (roleLower.includes('director')) {
+        setRole(c.talentId, 'Director', 3);
       }
     }
 

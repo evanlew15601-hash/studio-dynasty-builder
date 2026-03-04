@@ -497,8 +497,9 @@ const aiProjects = gameState.allReleases.filter((release): release is Project =>
   const findRelevantTalent = (project: Project, category: string): TalentPerson | undefined => {
     const categoryLower = category.toLowerCase();
 
-    // Prefer explicit cast list first
+    // Prefer explicit cast/crew lists first
     const castEntries = project.cast || [];
+    const crewEntries = project.crew || [];
     const characters = project.script?.characters || [];
 
     const getTalentById = (id?: string) => gameState.talent.find(t => t.id === id);
@@ -506,8 +507,8 @@ const aiProjects = gameState.allReleases.filter((release): release is Project =>
 
     // Director category
     if (categoryLower.includes('director')) {
-      // From cast
-      const directorEntries = castEntries.filter(c => c.role.toLowerCase().includes('director'));
+      // From cast/crew credits
+      const directorEntries = [...castEntries, ...crewEntries].filter(c => (c.role || '').toLowerCase().includes('director'));
       const castDir = directorEntries.length > 1 ? pick(directorEntries, 'director') : directorEntries[0];
       if (castDir) {
         const t = getTalentById((castDir as any).talentId);

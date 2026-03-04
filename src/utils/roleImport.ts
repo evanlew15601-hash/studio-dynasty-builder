@@ -1,7 +1,8 @@
-import { GameState, Script, ScriptCharacter } from '@/types/game';
+import { GameState, Script, ScriptCharacter, Gender } from '@/types/game';
 import { FranchiseCharacterDef, getEffectiveFranchiseCharacterDB } from '@/data/FranchiseCharacterDB';
 import { RoleDatabase } from '@/data/RoleDatabase';
 import { PARODY_CHARACTER_NAME_MAP } from '@/data/ParodyCharacterNames';
+import { stablePick } from '@/utils/stablePick';
 
 function toScriptCharacter(def: FranchiseCharacterDef, franchiseId?: string, parodySource?: string): ScriptCharacter {
   // Prefer recognizable names from parody source mapping when available
@@ -50,6 +51,9 @@ function mergeWithOverrides(existing: ScriptCharacter | undefined, incoming: Scr
     description: overrides.description || incoming.description,
     traits: overrides.traits || incoming.traits,
     ageRange: overrides.ageRange || incoming.ageRange,
+    requiredGender: overrides.requiredGender || incoming.requiredGender,
+    requiredRace: overrides.requiredRace || incoming.requiredRace,
+    requiredNationality: overrides.requiredNationality || incoming.requiredNationality,
     assignedTalentId: existing.assignedTalentId,
     locked: true,
     franchiseId: incoming.franchiseId,
@@ -138,5 +142,21 @@ export function importRolesForScript(script: Script, gameState: GameState): Scri
     finalList.push({ id: `cameo-${Date.now()}`, name: 'Cameo Appearance', importance: 'minor', description: 'Short cameo role', requiredType: 'actor', ageRange: [25,80] });
   }
 
-  return finalList;
+  // Actor roles must always have a gender requirement.
+  // (Imported roles often lack it, and casting filters now require it.)
+  return finalList.map(role => {
+    const requiredType = role.requiredType || (role.importance === 'crew' ? 'director' : 'actor');
+    if (requiredType !== 'director' && !role.requiredGender) {
+      const seed = `${role.franchiseCharacterId || role.roleTemplateId || role.id || role.name}|gender`;
+      return {
+        ...role,
+        requiredType: 'actor',
+        requiredGender: stablePick<Gender>(['Male', 'Female'], seed),
+      };
+    }
+    return {
+      ...role,
+      requiredType,
+    };
+  });
 }

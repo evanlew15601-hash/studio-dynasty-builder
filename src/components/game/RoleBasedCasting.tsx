@@ -4,6 +4,7 @@ import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
 import { useToast } from '@/hooks/use-toast';
 import { Project, TalentPerson, GameState, ScriptCharacter } from '@/types/game';
+import { talentMatchesRole } from '@/utils/castingEligibility';
 import { Users, User, Crown, Star, CheckCircle } from 'lucide-react';
 import { importRolesForScript } from '@/utils/roleImport';
 
@@ -60,6 +61,7 @@ export const RoleBasedCasting: React.FC<RoleBasedCastingProps> = ({
         importance: 'lead',
         description: 'Main protagonist of the story',
         requiredType: 'actor',
+        requiredGender: 'Male',
       });
     }
 
@@ -75,12 +77,7 @@ export const RoleBasedCasting: React.FC<RoleBasedCastingProps> = ({
   const getAvailableTalent = (role: ScriptCharacter) => {
     return gameState.talent.filter(talent => {
       if (talent.contractStatus !== 'available') return false;
-      if (role.requiredType && talent.type !== role.requiredType) return false;
-      if (role.ageRange) {
-        const [minAge, maxAge] = role.ageRange;
-        if (talent.age < minAge || talent.age > maxAge) return false;
-      }
-      return true;
+      return talentMatchesRole(talent, role);
     });
   };
 
@@ -123,7 +120,8 @@ export const RoleBasedCasting: React.FC<RoleBasedCastingProps> = ({
           importance: 'lead',
           description: 'Main protagonist of the story',
           ageRange: [20, 50],
-          requiredType: 'actor'
+          requiredType: 'actor',
+          requiredGender: 'Male'
         }
       ];
       defaultRoles.forEach(onCreateRole);
@@ -203,7 +201,8 @@ export const RoleBasedCasting: React.FC<RoleBasedCastingProps> = ({
                 name: 'Custom Role',
                 importance: 'supporting',
                 description: 'A custom character role',
-                requiredType: 'actor'
+                requiredType: 'actor',
+                requiredGender: 'Male'
               })}
               variant="outline"
             >
