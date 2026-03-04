@@ -60,13 +60,38 @@ export class CrisisManagement {
           return (project?.cast || []).map(c => c.talentId);
         });
 
+    const affectedStudios = (() => {
+      if (crisis.affectedType === 'studio') return crisis.affectedEntities;
+
+      if (affectedProjects.length > 0) {
+        const fromProjects = affectedProjects.flatMap(projectId => {
+          const playerProject = gameState.projects.find(p => p.id === projectId);
+          if (playerProject) return [gameState.studio.id];
+
+          const releaseProject = (gameState.allReleases || []).find((r: any) => r?.id === projectId && r?.script);
+          const studioName = (releaseProject as any)?.studioName;
+          const competitorStudio = studioName
+            ? gameState.competitorStudios?.find(s => s.name === studioName)
+            : undefined;
+
+          return competitorStudio ? [competitorStudio.id] : [];
+        });
+
+        return Array.from(new Set(fromProjects));
+      }
+
+      return [];
+    })();
+
+    const mediaEventType = crisis.type === 'leak' ? 'leak' : 'scandal';
+
     // Generate initial media coverage
     MediaEngine.queueMediaEvent({
-      type: 'scandal',
+      type: mediaEventType as any,
       triggerType: 'automatic',
       priority: crisis.severity === 'critical' ? 'breaking' : 'high',
       entities: {
-        studios: [studio.id],
+        studios: affectedStudios.length > 0 ? affectedStudios : undefined,
         talent: affectedTalent.length > 0 ? affectedTalent : undefined,
         projects: affectedProjects.length > 0 ? affectedProjects : undefined
       },

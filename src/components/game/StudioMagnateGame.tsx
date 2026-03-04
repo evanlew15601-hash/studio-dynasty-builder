@@ -1099,6 +1099,8 @@ export const StudioMagnateGame: React.FC<StudioMagnateGameProps> = ({
               scheduledReleaseYear: resolvedReleaseYear,
             };
 
+            let openingWeekRevenue = 0;
+
             if (project.type === 'series' || project.type === 'limited-series') {
               // TV: do not initialize ratings until the first episode actually airs.
               updatedProject = {
@@ -1113,11 +1115,31 @@ export const StudioMagnateGame: React.FC<StudioMagnateGameProps> = ({
             } else {
               updatedProject = BoxOfficeSystem.initializeRelease(updatedProject, resolvedReleaseWeek, resolvedReleaseYear);
 
-              const openingWeekRevenue = updatedProject.metrics?.boxOfficeTotal || 0;
+              openingWeekRevenue = updatedProject.metrics?.boxOfficeTotal || 0;
               if (openingWeekRevenue > 0) {
                 studioRevenueDelta += openingWeekRevenue * 0.55;
               }
             }
+
+            // Media coverage for player releases (release + opening weekend)
+            MediaEngine.queueMediaEvent({
+              type: 'release',
+              triggerType: 'automatic',
+              priority: 'high',
+              entities: {
+                studios: [baseState.studio.id],
+                projects: [updatedProject.id],
+                talent: (updatedProject.cast || []).map(c => c.talentId)
+              },
+              eventData: { project: updatedProject },
+              week: timeState.currentWeek,
+              year: timeState.currentYear
+            });
+
+            if (openingWeekRevenue > 0 && updatedProject.type !== 'series' && updatedProject.type !== 'limited-series') {
+              MediaEngine.triggerBoxOfficeReport(updatedProject, openingWeekRevenue, baseState);
+            }
+
             if (import.meta.env.DEV) {
               console.log(`    📊 POST-RELEASE: boxOfficeTotal = ${updatedProject.metrics?.boxOfficeTotal || 0}`);
             }
@@ -1792,6 +1814,22 @@ export const StudioMagnateGame: React.FC<StudioMagnateGameProps> = ({
                 aiRelease.studioName = studioProfile.name; // Track which AI studio made this
                 aiRelease = attachBasicCastForAI(aiRelease, prev.talent);
                 newAIReleases.push(aiRelease);
+
+                // Media coverage for competitor releases (hooked up to actual generated releases)
+                MediaEngine.queueMediaEvent({
+                  type: 'release',
+                  triggerType: 'competitor_action',
+                  priority: 'low',
+                  entities: {
+                    studios: [randomStudio.id],
+                    projects: [aiRelease.id],
+                    talent: (aiRelease.cast || []).slice(0, 2).map(c => c.talentId)
+                  },
+                  eventData: { project: aiRelease },
+                  week: newTimeState.currentWeek,
+                  year: newTimeState.currentYear
+                });
+
                 if (import.meta.env.DEV) {
                   console.log(`🤖 AI STUDIO: ${studioProfile.name} released "${aiRelease.title}" (${aiRelease.script.genre})`);
                 }
@@ -1927,8 +1965,8 @@ export const StudioMagnateGame: React.FC<StudioMagnateGameProps> = ({
 
       // Process media events and run system integration checks
       try {
-        const newMediaItems = MediaEngine.processMediaEvents(newState);
         const triggeredEvents = MediaEngine.triggerAutomaticEvents(newState, prev);
+        const newMediaItems = MediaEngine.processMediaEvents(newState);
         if ((newMediaItems.length > 0 || triggeredEvents.length > 0) && import.meta.env.DEV) {
           console.log(`📰 MEDIA: Generated ${newMediaItems.length} articles, triggered ${triggeredEvents.length} events`);
         }

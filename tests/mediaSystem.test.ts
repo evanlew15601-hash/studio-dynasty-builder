@@ -1,6 +1,7 @@
 import { describe, expect, it, afterEach, vi } from 'vitest';
 import { MediaContentGenerator } from '@/data/MediaContentGenerator';
 import { MediaEngine } from '@/components/game/MediaEngine';
+import { CrisisManagement } from '@/components/game/CrisisManagement';
 
 const makeMinimalTalent = (overrides: any = {}) => ({
   id: 'talent-1',
@@ -60,6 +61,7 @@ describe('media system', () => {
   afterEach(() => {
     vi.restoreAllMocks();
     MediaEngine.cleanup();
+    CrisisManagement.cleanup();
   });
 
   it('does not leak raw {Placeholders} when event lacks a project/studio', () => {
@@ -178,6 +180,83 @@ describe('media system', () => {
     const items = MediaEngine.processMediaEvents(gameState);
     expect(items.length).toBe(1);
     expect(items[0].headline).toContain(competitorStudio.name);
+    expect(items[0].headline).not.toMatch(/\{[A-Za-z]+\}/);
+    expect(items[0].content).not.toMatch(/\{[A-Za-z]+\}/);
+  });
+
+  it('generates award nomination stories without placeholder leaks', () => {
+    vi.spyOn(Math, 'random').mockReturnValue(0.2);
+
+    const competitorStudio = makeMinimalStudio({ id: 'studio-competitor', name: 'Crimson Peak Entertainment' });
+    const competitorProject = makeMinimalProject({
+      id: 'ai-project-1',
+      title: 'Midnight Storm',
+      studioName: competitorStudio.name,
+      releaseWeek: 1,
+      releaseYear: 2025,
+      cast: [{ talentId: 'talent-1' }]
+    });
+
+    const gameState: any = {
+      studio: { id: 'player-studio', name: 'Player Studio', reputation: 50, budget: 1000000, founded: 2025, specialties: ['drama'] },
+      currentWeek: 1,
+      currentYear: 2025,
+      projects: [],
+      talent: [makeMinimalTalent()],
+      competitorStudios: [competitorStudio],
+      allReleases: [competitorProject],
+      aiStudioProjects: [],
+    };
+
+    MediaEngine.queueMediaEvent({
+      type: 'award_nomination',
+      triggerType: 'automatic',
+      priority: 'medium',
+      entities: {
+        studios: [competitorStudio.id],
+        projects: [competitorProject.id],
+        talent: ['talent-1']
+      },
+      eventData: { project: competitorProject, awardName: 'Golden Globe - Best Film' },
+      week: 1,
+      year: 2025
+    } as any);
+
+    const items = MediaEngine.processMediaEvents(gameState);
+    expect(items.length).toBe(1);
+
+    const combined = `${items[0].headline} ${items[0].content}`;
+    expect(combined).toContain('Golden Globe');
+    expect(combined).not.toMatch(/\{[A-Za-z]+\}/);
+  });
+
+  it('generates leak stories from leak crises without placeholder leaks', () => {
+    vi.spyOn(Math, 'random').mockReturnValue(0.2);
+
+    const playerStudio = { id: 'player-studio', name: 'Player Studio', reputation: 50, budget: 1000000, founded: 2025, specialties: ['drama'] };
+    const playerProject = makeMinimalProject({
+      id: 'player-project-1',
+      title: 'Player Premiere',
+      studioName: playerStudio.name,
+      cast: [{ talentId: 'talent-1' }]
+    });
+
+    const gameState: any = {
+      studio: playerStudio,
+      currentWeek: 1,
+      currentYear: 2025,
+      projects: [playerProject],
+      talent: [makeMinimalTalent()],
+      competitorStudios: [],
+      allReleases: [],
+      aiStudioProjects: [],
+    };
+
+    CrisisManagement.triggerCrisis(gameState, 'leak');
+
+    const items = MediaEngine.processMediaEvents(gameState);
+    expect(items.length).toBe(1);
+    expect(items[0].type).toBe('leak');
     expect(items[0].headline).not.toMatch(/\{[A-Za-z]+\}/);
     expect(items[0].content).not.toMatch(/\{[A-Za-z]+\}/);
   });
