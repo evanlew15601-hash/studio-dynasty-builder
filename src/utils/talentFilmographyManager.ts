@@ -61,9 +61,15 @@ export const TalentFilmographyManager = {
 
     const releaseYear = project.releaseYear ?? gameState.currentYear;
 
+    const isTvProject = project.type === 'series' || project.type === 'limited-series';
+
     const updatedTalent = gameState.talent.map(talent => {
       const role = roleByTalentId[talent.id];
       if (!role) return talent;
+
+      const performanceValue = isTvProject
+        ? project.metrics?.streaming?.totalViews || 0
+        : project.metrics?.boxOfficeTotal || 0;
 
       // Add to filmography if not already there
       const filmEntry = {
@@ -71,7 +77,7 @@ export const TalentFilmographyManager = {
         title: project.title,
         role,
         year: releaseYear,
-        boxOffice: project.metrics?.boxOfficeTotal || 0
+        boxOffice: performanceValue
       };
 
       const existingFilmography = talent.filmography || [];
@@ -85,10 +91,10 @@ export const TalentFilmographyManager = {
       const updatedFilmography = [...existingFilmography, filmEntry]
         .sort((a, b) => (b.year || 0) - (a.year || 0));
 
-      // Update fame based on box office performance
-      const performance = project.metrics?.boxOfficeTotal || 0;
+      // Update fame based on performance (box office for films, views for TV)
+      const performance = performanceValue;
       const budget = project.budget.total;
-      const multiplier = performance / budget;
+      const multiplier = budget > 0 ? performance / budget : 0;
 
       let fameBoost = 0;
       if (multiplier > 3) fameBoost = 5; // Blockbuster

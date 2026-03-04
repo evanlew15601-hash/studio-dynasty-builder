@@ -5,6 +5,7 @@ import { LoadingOverlay } from '@/components/ui/loading-overlay';
 import { LOADING_OPERATIONS, delay, simulateProgress } from '@/utils/loadingUtils';
 import { FranchiseGenerator } from '@/data/FranchiseGenerator';
 import { PublicDomainGenerator } from '@/data/PublicDomainGenerator';
+import { getDefaultProviders } from '@/data/Providers';
 import { ScriptDevelopment } from './ScriptDevelopment';
 import { CastingBoard } from './CastingBoard';
 import { ProductionManagement } from './ProductionManagement';
@@ -30,6 +31,7 @@ import { updateProjectFinancials } from './FinancialCalculations';
 import { TalentFilmographyManager } from '@/utils/talentFilmographyManager';
 import { stablePick } from '@/utils/stablePick';
 import { AwardsSystem } from './AwardsSystem';
+import { loadIndustryDatabase, syncAndPersistIndustryDatabase } from '@/utils/industryDatabase';
 import { EnhancedAwardsSystem } from './EnhancedAwardsSystem';
 import { RoleBasedCasting } from './RoleBasedCasting';
 import { CharacterCastingSystem } from './CharacterCastingSystem';
@@ -99,7 +101,6 @@ import { CrisisManagement } from './CrisisManagement';
 import { MediaRelationships } from './MediaRelationships';
 import { SystemIntegration } from './SystemIntegration';
 import { saveGame } from '@/utils/saveLoad';
-import { syncAndPersistIndustryDatabase } from '@/utils/industryDatabase';
 import { DebugControlPanel } from './DebugControlPanel';
 import { IndustryDatabasePanel } from './IndustryDatabasePanel';
 
@@ -439,6 +440,11 @@ export const StudioMagnateGame: React.FC<StudioMagnateGameProps> = ({
       industryTrends: [],
       allReleases: (() => {
         const sg = new StudioGenerator();
+        const providers = (() => {
+          if (typeof window === 'undefined') return getDefaultProviders();
+          const db = loadIndustryDatabase('slot1');
+          return Array.isArray(db.providers) && db.providers.length > 0 ? db.providers : getDefaultProviders();
+        })();
         const releases: Project[] = [];
         const currentYear = new Date().getFullYear();
         const yearsToSeed = [currentYear - 1, currentYear];
@@ -447,8 +453,14 @@ export const StudioMagnateGame: React.FC<StudioMagnateGameProps> = ({
             let added = false;
             for (const st of competitorStudios) {
               const profile = sg.getStudioProfile(st.name);
-              const rel = profile ? sg.generateStudioRelease(profile, w, year) : null;
+              const wantsTv = Math.random() < 0.25;
+              const rel = profile
+                ? wantsTv
+                  ? sg.generateStudioTVRelease(profile, w, year, providers)
+                  : sg.generateStudioRelease(profile, w, year)
+                : null;
               if (rel) {
+                rel.studioName = profile!.name;
                 releases.push(rel);
                 releases[releases.length - 1] = attachBasicCastForAI(releases[releases.length - 1] as Project, generatedTalent);
                 added = true;
@@ -460,6 +472,7 @@ export const StudioMagnateGame: React.FC<StudioMagnateGameProps> = ({
               if (fallback) {
                 const rel = sg.generateStudioRelease(fallback, w, year);
                 if (rel) {
+                  rel.studioName = fallback.name;
                   releases.push(rel);
                   releases[releases.length - 1] = attachBasicCastForAI(releases[releases.length - 1] as Project, generatedTalent);
                 } else {
@@ -586,6 +599,7 @@ export const StudioMagnateGame: React.FC<StudioMagnateGameProps> = ({
   const [showFirstWeekModal, setShowFirstWeekModal] = useState(false);
 
   const lastFirstWeekModalKeyRef = useRef<string>('');
+  const aiReleaseGeneratorRef = useRef<StudioGenerator>(new StudioGenerator());
 
   // Show the first-week box office modal automatically when a film is released.
   // This replaces the previous pattern of calling setState from inside the weekly processing loop.
@@ -1772,32 +1786,47 @@ export const StudioMagnateGame: React.FC<StudioMagnateGameProps> = ({
       const weeklyProjectEffects = processWeeklyProjectEffects(updatedProjects, newTimeState, prev);
       updatedProjects = weeklyProjectEffects.projects;
 
-      // Generate AI studio releases every 2-4 weeks
-      const shouldGenerateRelease = Math.random() < 0.3; // 30% chance each week
+      // Generate AI studio releases (films + TV) using per-studio pacing.
+      // We process each competitor studio once per week so their internal counters advance.
       let newAIReleases: Project[] = [];
-      
+
       updateOperation(LOADING_OPERATIONS.WEEKLY_PROCESSING.id, 90, 'Finalizing updates...');
-      
-      if (shouldGenerateRelease && prev.competitorStudios.length > 0) {
-        const studioGenerator = new StudioGenerator();
-        const randomStudio = prev.competitorStudios[Math.floor(Math.random() * prev.competitorStudios.length)];
-        // Find corresponding studio profile by name
-        const studioProfile = studioGenerator.getStudioProfile(randomStudio.name);
-        if (studioProfile) {
-              let aiRelease = studioGenerator.generateStudioRelease(studioProfile, newTimeState.currentWeek, newTimeState.currentYear);
-              if (aiRelease) {
-                // Set proper release timing for AI films
-                aiRelease.releaseWeek = newTimeState.currentWeek;
-                aiRelease.releaseYear = newTimeState.currentYear;
-                aiRelease.studioName = studioProfile.name; // Track which AI studio made this
-                aiRelease = attachBasicCastForAI(aiRelease, prev.talent);
-                newAIReleases.push(aiRelease);
-                if (import.meta.env.DEV) {
-                  console.log(`🤖 AI STUDIO: ${studioProfile.name} released \"${aiRelease.title}\" (${aiRelease.script.genre})`);
-                }
-              }
-            }
+
+      if (prev.competitorStudios.length > 0) {
+        const studioGenerator = aiReleaseGeneratorRef.current;
+
+        const providers = (() => {
+          if (typeof window === 'undefined') return getDefaultProviders();
+          const db = loadIndustryDatabase('slot1');
+          return Array.isArray(db.providers) && db.providers.length > 0 ? db.providers : getDefaultProviders();
+        })();
+
+        for (const st of prev.competitorStudios) {
+          const studioProfile = studioGenerator.getStudioProfile(st.name);
+          if (!studioProfile) continue;
+
+          const wantsTv = Math.random() < 0.25;
+          let aiRelease = wantsTv
+            ? studioGenerator.generateStudioTVRelease(studioProfile, newTimeState.currentWeek, newTimeState.currentYear, providers)
+            : studioGenerator.generateStudioRelease(studioProfile, newTimeState.currentWeek, newTimeState.currentYear);
+
+          if (!aiRelease) continue;
+
+          aiRelease.releaseWeek = newTimeState.currentWeek;
+          aiRelease.releaseYear = newTimeState.currentYear;
+          aiRelease.studioName = studioProfile.name;
+
+          aiRelease = attachBasicCastForAI(aiRelease, prev.talent);
+          newAIReleases.push(aiRelease);
+
+          if (import.meta.env.DEV) {
+            const medium = aiRelease.type === 'feature' ? 'Film' : 'TV';
+            console.log(`🤖 AI STUDIO: ${studioProfile.name} released \"${aiRelease.title}\" (${aiRelease.script.genre}, ${medium})`);
           }
+
+          
+        }
+      }
       
       // Process weekly costs and reputation with deep system
       const weeklyResults = processWeeklyCosts(prev, updatedProjects);

@@ -1048,6 +1048,38 @@ export const IndustryDatabasePanel: React.FC<IndustryDatabasePanelProps> = ({ ga
           <Card className="card-premium">
             <CardHeader>
               <CardTitle className="flex items-center justify-between">
+                <span>Unassigned TV Shows</span>
+                <Badge variant="outline">{db.tvShows.filter((s) => !s.providerId || !db.providers.some((p) => p.id === s.providerId)).length}</Badge>
+              </CardTitle>
+            </CardHeader>
+            <CardContent>
+              {db.tvShows.filter((s) => !s.providerId || !db.providers.some((p) => p.id === s.providerId)).length === 0 ? (
+                <div className="text-sm text-muted-foreground">All TV shows in this database are linked to a provider.</div>
+              ) : (
+                <ScrollArea className="h-[200px] rounded border">
+                  <div className="p-2 space-y-2">
+                    {db.tvShows
+                      .filter((s) => !s.providerId || !db.providers.some((p) => p.id === s.providerId))
+                      .slice()
+                      .sort((a, b) => (b.releaseYear || 0) - (a.releaseYear || 0))
+                      .slice(0, 25)
+                      .map((s) => (
+                        <div key={s.id} className="p-2 rounded border bg-muted/10">
+                          <div className="text-sm font-medium">{s.title}</div>
+                          <div className="text-xs text-muted-foreground">
+                            {s.studioName} • {s.releaseYear ? `Y${s.releaseYear}` : '—'}{s.releaseWeek ? ` W${s.releaseWeek}` : ''}
+                          </div>
+                        </div>
+                      ))}
+                  </div>
+                </ScrollArea>
+              )}
+            </CardContent>
+          </Card>
+
+          <Card className="card-premium">
+            <CardHeader>
+              <CardTitle className="flex items-center justify-between">
                 <span>Providers Directory</span>
                 <Badge variant="outline">{db.providers.length} providers</Badge>
               </CardTitle>

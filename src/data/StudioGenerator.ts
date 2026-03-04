@@ -1,5 +1,7 @@
 // AI Studio System - Generates competing studios and their autonomous film releases
 import { Studio, Genre, Project, Script } from '@/types/game';
+import type { ProviderDbRecord } from '@/types/industryDatabase';
+import { chooseProviderForGenre } from '@/data/Providers';
 
 interface StudioProfile {
   name: string;
@@ -153,6 +155,7 @@ const TITLE_SUFFIXES = [
 export class StudioGenerator {
   private usedTitles = new Set<string>();
   private studioReleaseSchedules = new Map<string, number>(); // Track weeks since last release
+  private studioTvProviderPartners = new Map<string, string>();
 
   generateFilmTitle(genre: Genre, studioName: string): string {
     const keywords = TITLE_KEYWORDS[genre] || TITLE_KEYWORDS.drama;
@@ -579,6 +582,182 @@ export class StudioGenerator {
           profit: 0,
           theaters: this.generateTheaterCount('major'),
           weeks: 0
+        }
+      },
+      releaseWeek: currentWeek,
+      releaseYear: currentYear
+    };
+
+    return project;
+  }
+
+  generateStudioTVRelease(
+    studioProfile: StudioProfile,
+    currentWeek: number,
+    currentYear: number,
+    providers: ProviderDbRecord[] = []
+  ): Project | null {
+    if (!this.shouldStudioRelease(studioProfile, currentWeek)) {
+      const current = this.studioReleaseSchedules.get(studioProfile.name) || 0;
+      this.studioReleaseSchedules.set(studioProfile.name, current + 1);
+      return null;
+    }
+
+    this.studioReleaseSchedules.set(studioProfile.name, 0);
+
+    const genre = studioProfile.specialties[Math.floor(Math.random() * studioProfile.specialties.length)];
+
+    const partnerId = this.studioTvProviderPartners.get(studioProfile.name);
+    const partner = partnerId ? providers.find((p) => p.id === partnerId) : undefined;
+
+    // Most studios develop a "home" provider relationship for TV output deals.
+    // Still allow occasional shopping around to keep slates varied.
+    const shouldShop = !partner || Math.random() <= 0.2;
+    const provider = shouldShop ? chooseProviderForGenre(genre, providers) : partner;
+
+    if (!partnerId || !partner) {
+      this.studioTvProviderPartners.set(studioProfile.name, provider.id);
+    }
+
+    const type: Project['type'] = Math.random() < 0.25 ? 'limited-series' : 'series';
+    const episodeCount = type === 'limited-series' ? 6 + Math.floor(Math.random() * 5) : 8 + Math.floor(Math.random() * 6);
+    const episodeRuntime = 38 + Math.floor(Math.random() * 18); // 38-55 minutes
+
+    const perEpisodeBudget = Math.floor(Math.max(800000, (studioProfile.budget / 35) * (0.7 + Math.random() * 0.8)));
+    const seasonBudget = perEpisodeBudget * episodeCount;
+
+    const script = this.generateScript(genre, studioProfile);
+
+    const tvScript: Script = {
+      ...script,
+      title: script.title,
+      pages: 55,
+      estimatedRuntime: episodeRuntime,
+      characteristics: {
+        ...script.characteristics,
+        pacing: 'episodic' as any,
+      },
+      // For TV, script.budget is treated as per-episode budget.
+      budget: perEpisodeBudget,
+    };
+
+    const criticsScore = this.generateCriticsScore(genre, studioProfile.reputation);
+    const audienceScore = this.generateAudienceScore(genre, studioProfile.reputation);
+
+    const reach = Math.max(0, Math.min(100, provider.reach ?? 70));
+    const providerMultiplier = 0.85 + (reach / 100) * 0.3;
+
+    const genreMultiplier = {
+      action: 1.15,
+      adventure: 1.1,
+      comedy: 1.1,
+      drama: 1.0,
+      thriller: 1.0,
+      horror: 0.95,
+      romance: 1.0,
+      'sci-fi': 1.1,
+      fantasy: 1.1,
+      documentary: 0.8,
+      animation: 1.05,
+      superhero: 1.2,
+      family: 1.05,
+      sports: 0.9,
+      biography: 0.9,
+      historical: 0.9,
+      war: 0.85,
+      crime: 1.0,
+      mystery: 1.0,
+      western: 0.9,
+      musical: 0.9,
+    } as any;
+
+    const baseViews = Math.max(100_000, Math.floor(seasonBudget / 20));
+    const viewsFirstWeek = Math.max(
+      50_000,
+      Math.floor(baseViews * providerMultiplier * (genreMultiplier[genre] ?? 1.0) * (0.8 + Math.random() * 0.6))
+    );
+
+    const totalViews = Math.floor(viewsFirstWeek * (2.0 + Math.random() * 2.5));
+
+    const completionRate = Math.min(95, Math.max(35, Math.floor(55 + (criticsScore - 50) * 0.2 + (Math.random() - 0.5) * 10)));
+    const audienceShare = Math.min(40, Math.max(3, Math.floor(5 + providerMultiplier * 10 + Math.random() * 4)));
+
+    const project: Project = {
+      id: `ai-tv-${Date.now()}-${Math.random().toString(36).substr(2, 9)}`,
+      title: tvScript.title,
+      script: tvScript,
+      type,
+      currentPhase: 'release',
+      status: 'released',
+      phaseDuration: 0,
+      contractedTalent: [],
+      developmentProgress: {
+        scriptCompletion: 100,
+        budgetApproval: 100,
+        talentAttached: 100,
+        locationSecured: 100,
+        completionThreshold: 100,
+        issues: []
+      },
+      budget: {
+        total: seasonBudget,
+        allocated: {
+          aboveTheLine: seasonBudget * 0.3,
+          belowTheLine: seasonBudget * 0.4,
+          postProduction: seasonBudget * 0.15,
+          marketing: seasonBudget * 0.1,
+          distribution: seasonBudget * 0.03,
+          contingency: seasonBudget * 0.02
+        },
+        spent: {
+          aboveTheLine: seasonBudget * 0.3,
+          belowTheLine: seasonBudget * 0.4,
+          postProduction: seasonBudget * 0.15,
+          marketing: seasonBudget * 0.1,
+          distribution: seasonBudget * 0.03,
+          contingency: seasonBudget * 0.02
+        },
+        overages: {
+          aboveTheLine: 0,
+          belowTheLine: 0,
+          postProduction: 0,
+          marketing: 0,
+          distribution: 0,
+          contingency: 0
+        }
+      },
+      cast: [],
+      crew: [],
+      timeline: {
+        preProduction: { start: new Date(), end: new Date() },
+        principalPhotography: { start: new Date(), end: new Date() },
+        postProduction: { start: new Date(), end: new Date() },
+        release: new Date(),
+        milestones: []
+      },
+      locations: [],
+      providerId: provider.id,
+      distributionStrategy: {
+        primary: {
+          platform: provider.id,
+          type: provider.type === 'cable' ? 'television' : 'streaming',
+          revenue: provider.type === 'cable' ? { type: 'licensing', studioShare: 100 } : { type: 'subscription-share', studioShare: 60 }
+        },
+        international: [],
+        windows: [],
+        marketingBudget: seasonBudget * 0.1
+      },
+      metrics: {
+        weeksSinceRelease: 0,
+        criticsScore,
+        audienceScore,
+        streaming: {
+          viewsFirstWeek,
+          totalViews,
+          completionRate,
+          audienceShare,
+          watchTimeHours: Math.max(1000, Math.floor(totalViews * (episodeRuntime / 60))),
+          subscriberGrowth: Math.max(1000, Math.floor(viewsFirstWeek * 0.03)),
         }
       },
       releaseWeek: currentWeek,

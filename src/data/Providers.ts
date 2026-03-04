@@ -1,3 +1,4 @@
+import type { Genre } from '@/types/game';
 import type { ProviderDbRecord } from '@/types/industryDatabase';
 
 export const DEFAULT_PROVIDERS: ProviderDbRecord[] = [
@@ -100,4 +101,60 @@ export function getDefaultProviders(): ProviderDbRecord[] {
 export function findDefaultProviderById(providerId?: string): ProviderDbRecord | undefined {
   if (!providerId) return undefined;
   return DEFAULT_PROVIDERS.find((p) => p.id === providerId);
+}
+
+export function chooseProviderForGenre(genre: Genre, providers: ProviderDbRecord[]): ProviderDbRecord {
+  const list = providers.length > 0 ? providers : DEFAULT_PROVIDERS;
+
+  const preference: Partial<Record<Genre, string[]>> = {
+    family: ['disney', 'netflix', 'amazon'],
+    animation: ['disney', 'netflix', 'peacock'],
+    superhero: ['netflix', 'amazon', 'paramount'],
+    action: ['netflix', 'amazon', 'paramount'],
+    adventure: ['amazon', 'netflix', 'paramount'],
+    'sci-fi': ['amazon', 'netflix', 'apple'],
+    fantasy: ['amazon', 'netflix', 'hbo'],
+    drama: ['hbo', 'apple', 'signal8', 'netflix'],
+    thriller: ['hulu', 'netflix', 'signal8'],
+    horror: ['hulu', 'netflix', 'signal8'],
+    crime: ['signal8', 'hulu', 'netflix'],
+    mystery: ['signal8', 'hulu', 'netflix'],
+    romance: ['netflix', 'amazon', 'hulu'],
+    comedy: ['netflix', 'peacock', 'hulu'],
+    documentary: ['crestnews', 'hbo', 'apple', 'signal8'],
+    sports: ['northstar', 'netflix', 'amazon'],
+    biography: ['signal8', 'hbo', 'apple'],
+    historical: ['signal8', 'hbo', 'apple'],
+    war: ['signal8', 'hbo', 'northstar'],
+    western: ['northstar', 'signal8', 'amazon'],
+    musical: ['disney', 'netflix', 'apple'],
+  };
+
+  const prefs = preference[genre] || [];
+
+  const scoreProvider = (p: ProviderDbRecord): number => {
+    const reach = Math.max(0, Math.min(100, p.reach ?? 70));
+    let score = reach / 100;
+
+    const idx = prefs.indexOf(p.id);
+    if (idx !== -1) {
+      score += 1.2 - idx * 0.25;
+    }
+
+    // Gentle nudges by medium.
+    if (p.type === 'cable' && (genre === 'sports' || genre === 'documentary' || genre === 'war' || genre === 'historical' || genre === 'biography')) {
+      score += 0.25;
+    }
+
+    if (p.type === 'streaming' && (genre === 'superhero' || genre === 'fantasy' || genre === 'sci-fi' || genre === 'action')) {
+      score += 0.1;
+    }
+
+    return score;
+  };
+
+  return list
+    .slice()
+    .sort((a, b) => scoreProvider(b) - scoreProvider(a) || a.name.localeCompare(b.name))
+    [0];
 }
