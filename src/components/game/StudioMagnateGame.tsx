@@ -112,8 +112,10 @@ function attachBasicCastForAI(project: Project, talentPool: TalentPerson[]): Pro
 
     const existingCharacters = project.script.characters || [];
     const existingCast = project.cast || [];
+    const existingCrew = project.crew || [];
 
     const hasDirector =
+      existingCrew.some(c => c.role.toLowerCase().includes('director') && !!c.talentId) ||
       existingCast.some(c => c.role.toLowerCase().includes('director') && !!c.talentId) ||
       existingCharacters.some(c => c.requiredType === 'director' && !!c.assignedTalentId);
 
@@ -137,6 +139,7 @@ function attachBasicCastForAI(project: Project, talentPool: TalentPerson[]): Pro
     const getTalentById = (id?: string) => talentPool.find(t => t.id === id);
 
     const existingDirectorId =
+      existingCrew.find(c => c.role.toLowerCase().includes('director'))?.talentId ||
       existingCast.find(c => c.role.toLowerCase().includes('director'))?.talentId ||
       existingCharacters.find(c => c.requiredType === 'director')?.assignedTalentId;
 
@@ -271,11 +274,12 @@ function attachBasicCastForAI(project: Project, talentPool: TalentPerson[]): Pro
       }
     }
 
-    // Build/patch cast list (used by awards engine)
+    // Build/patch cast + crew lists (used by awards engine)
     const cast = [...existingCast];
+    const crew = [...existingCrew];
 
-    if (pickedDirector && !cast.some(c => c.talentId === pickedDirector.id)) {
-      cast.push({
+    if (pickedDirector && !crew.some(c => c.talentId === pickedDirector.id)) {
+      crew.push({
         talentId: pickedDirector.id,
         role: 'Director',
         salary: Math.round((pickedDirector.marketValue || 5_000_000) * 0.1),
@@ -330,6 +334,7 @@ function attachBasicCastForAI(project: Project, talentPool: TalentPerson[]): Pro
       ...project,
       script: { ...project.script, characters },
       cast,
+      crew,
       starPowerBonus,
     };
   } catch (e) {
@@ -916,12 +921,12 @@ export const StudioMagnateGame: React.FC<StudioMagnateGameProps> = ({
       };
 
       // If casting was just confirmed, lock talent availability for the production period
-      if (prevProject?.castingConfirmed !== true && project.castingConfirmed && project.cast?.length > 0) {
+      if (prevProject?.castingConfirmed !== true && project.castingConfirmed && ((project.cast?.length || 0) > 0 || (project.crew?.length || 0) > 0)) {
         const totalProdWeeks = getPhaseWeeks('pre-production') + getPhaseWeeks('production') + getPhaseWeeks('post-production');
         const busyUntilWeek = prev.currentWeek + totalProdWeeks;
         nextState.talent = nextState.talent.map(t => {
-          const isInCast = project.cast.some(c => c.talentId === t.id);
-          if (!isInCast) return t;
+          const isAttached = project.cast.some(c => c.talentId === t.id) || (project.crew || []).some(c => c.talentId === t.id);
+          if (!isAttached) return t;
           return {
             ...t,
             contractStatus: 'contracted',

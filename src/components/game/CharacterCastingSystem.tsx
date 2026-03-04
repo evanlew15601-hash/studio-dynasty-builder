@@ -183,29 +183,41 @@ export const CharacterCastingSystem: React.FC<CharacterCastingSystemProps> = ({
       return;
     }
 
-    // Build cast entries and compute star power
-    const castEntries = slots
-      .filter(s => s.talent)
-      .map(s => ({
-        talentId: (s.talent as TalentPerson).id,
-        role: s.character.requiredType === 'director'
-          ? 'Director'
-          : s.character.importance === 'lead'
-            ? `Lead - ${s.character.name}`
-            : `Supporting - ${s.character.name}`,
-        salary: Math.round(s.contractCost),
-        points: 0,
-        contractTerms: {
-          duration: new Date(Date.now() + 1000 * 60 * 60 * 24 * 90),
-          exclusivity: false,
-          merchandising: false,
-          sequelOptions: 1
-        }
-      }));
+    const directorSlots = slots.filter(s => s.talent && s.character.requiredType === 'director');
+    const actorSlots = slots.filter(s => s.talent && s.character.requiredType !== 'director');
 
-    const assignedTalents = slots.filter(s => s.talent).map(s => s.talent!) as TalentPerson[];
-    const fameScores = assignedTalents
-      .filter(t => t.type === 'actor' || t.type === 'director')
+    // Directors belong in crew; only actors belong in cast.
+    const castEntries = actorSlots.map(s => ({
+      talentId: (s.talent as TalentPerson).id,
+      role: s.character.importance === 'lead'
+        ? `Lead - ${s.character.name}`
+        : `Supporting - ${s.character.name}`,
+      salary: Math.round(s.contractCost),
+      points: 0,
+      contractTerms: {
+        duration: new Date(Date.now() + 1000 * 60 * 60 * 24 * 90),
+        exclusivity: false,
+        merchandising: false,
+        sequelOptions: 1
+      }
+    }));
+
+    const crewEntries = directorSlots.map(s => ({
+      talentId: (s.talent as TalentPerson).id,
+      role: 'Director',
+      salary: Math.round(s.contractCost),
+      points: 0,
+      contractTerms: {
+        duration: new Date(Date.now() + 1000 * 60 * 60 * 24 * 90),
+        exclusivity: false,
+        merchandising: false,
+        sequelOptions: 1
+      }
+    }));
+
+    const assignedActorTalents = actorSlots.map(s => s.talent!) as TalentPerson[];
+    const fameScores = assignedActorTalents
+      .filter(t => t.type === 'actor')
       .map(t => t.fame ?? Math.min(100, Math.round(t.reputation)));
     const topTwo = fameScores.sort((a, b) => b - a).slice(0, 2);
     const starPowerBonus = Math.min(0.5, (topTwo.reduce((a, b) => a + b, 0) / (topTwo.length || 1)) / 200); // up to +0.5
@@ -227,10 +239,13 @@ const contracted = slots
     startWeek: gameState.currentWeek
   }));
 
+const keepContracted = (project.contractedTalent || []).filter(ct => !contracted.some(nc => nc.talentId === ct.talentId && nc.role === ct.role));
+
 const updatedProject: Project = {
   ...project,
   cast: castEntries as any,
-  contractedTalent: [...(project.contractedTalent || []), ...contracted],
+  crew: crewEntries as any,
+  contractedTalent: [...keepContracted, ...contracted],
   castingConfirmed: true,
   starPowerBonus,
   currentPhase: project.currentPhase === 'development' ? 'pre-production' as any : project.currentPhase,
