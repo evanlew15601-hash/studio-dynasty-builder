@@ -19,6 +19,7 @@ type GameConfig = {
   specialties: Genre[];
   difficulty: 'easy' | 'normal' | 'hard' | 'magnate';
   startingBudget: number;
+  studioIcon?: StudioIconConfig;
 };
 
 const Index = () => {

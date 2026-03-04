@@ -50,7 +50,7 @@ export class CalendarManager {
           filmId: project.id,
         } satisfies CalendarEvent;
       })
-      .filter((e): e is CalendarEvent => !!e);
+      .filter((e): e is NonNullable<typeof e> => !!e) as CalendarEvent[];
   }
 
   private static getReleaseEvents(projects: Project[]): CalendarEvent[] {

@@ -306,6 +306,12 @@ export const GameLanding: React.FC<GameLandingProps> = ({ onStartGame, onLoadGam
                   </div>
                 </div>
 
+                {/* Studio Icon */}
+                <StudioIconCustomizer
+                  value={config.studioIcon}
+                  onChange={(icon) => setConfig(prev => ({ ...prev, studioIcon: icon }))}
+                />
+
                 <Separator className="bg-border" />
 
                 {/* Action Buttons */}
