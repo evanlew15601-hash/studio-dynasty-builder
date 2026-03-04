@@ -55,7 +55,8 @@ export const GameLanding: React.FC<GameLandingProps> = ({ onStartGame, onLoadGam
       onStartGame({
         ...config,
         studioName: config.studioName.trim(),
-        startingBudget: difficultySettings[config.difficulty].budget
+        startingBudget: difficultySettings[config.difficulty].budget,
+        studioIcon: config.studioIcon,
       });
     } else {
       // Quick start with defaults
