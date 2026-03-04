@@ -6,7 +6,7 @@ import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
 import { Avatar, AvatarFallback } from '@/components/ui/avatar';
 import { useToast } from '@/hooks/use-toast';
-import { Users, User, Crown, Star, UserCheck, AlertTriangle, Filter, CheckCircle } from 'lucide-react';
+import { Users, User, Crown, Star, UserCheck, AlertTriangle, CheckCircle } from 'lucide-react';
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger } from '@/components/ui/dialog';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 
@@ -29,8 +29,7 @@ export const CharacterCastingSystem: React.FC<CharacterCastingSystemProps> = ({
   onProjectUpdate
 }) => {
   const { toast } = useToast();
-  const [selectedSlot, setSelectedSlot] = useState<CastingSlot | null>(null);
-  const [filterType, setFilterType] = useState<'all' | 'actor' | 'director'>('all');
+  const [filterType, setFilterType] = useState<'all' | 'cast' | 'crew'>('all');
 
   // Early return if project or script is null
   if (!project || !project.script) {
@@ -125,11 +124,11 @@ export const CharacterCastingSystem: React.FC<CharacterCastingSystemProps> = ({
     onProjectUpdate(updatedProject);
 
     toast({
-      title: "Role Cast",
-      description: `${talent.name} has been cast as ${character.name}`,
+      title: character.requiredType === 'director' ? 'Key Crew Assigned' : 'Role Cast',
+      description: character.requiredType === 'director'
+        ? `${talent.name} attached as Director`
+        : `${talent.name} has been cast as ${character.name}`,
     });
-
-    setSelectedSlot(null);
   };
 
   const handleRemoveTalent = (character: ScriptCharacter) => {
@@ -149,7 +148,9 @@ export const CharacterCastingSystem: React.FC<CharacterCastingSystemProps> = ({
 
     toast({
       title: "Talent Removed",
-      description: `${character.name} is now uncast`,
+      description: character.requiredType === 'director'
+        ? 'Director slot is now unassigned'
+        : `${character.name} is now uncast`,
     });
   };
 
@@ -179,7 +180,7 @@ export const CharacterCastingSystem: React.FC<CharacterCastingSystemProps> = ({
     const requiredSlots = slots.filter(s => s.isRequired);
     const castRequired = requiredSlots.filter(s => s.talent).length;
     if (castRequired !== requiredSlots.length) {
-      toast({ title: 'Cannot Confirm', description: 'Director and Lead roles must be cast', variant: 'destructive' });
+      toast({ title: 'Cannot Confirm', description: 'Director (Key Crew) and Lead Actor must be assigned', variant: 'destructive' });
       return;
     }
 
@@ -268,10 +269,14 @@ const updatedProject: Project = {
     });
   };
 
-  const filteredSlots = createCastingSlots().filter(slot => {
-    if (filterType === 'all') return true;
-    return slot.character.requiredType === filterType;
-  });
+  const allSlots = createCastingSlots();
+  const isCrewSlot = (slot: CastingSlot) => slot.character.requiredType === 'director';
+
+  const crewSlots = allSlots.filter(isCrewSlot);
+  const castSlots = allSlots.filter(slot => !isCrewSlot(slot));
+
+  const displayedCrewSlots = filterType === 'all' || filterType === 'crew' ? crewSlots : [];
+  const displayedCastSlots = filterType === 'all' || filterType === 'cast' ? castSlots : [];
 
   const progress = getCastingProgress();
 
@@ -283,20 +288,20 @@ const updatedProject: Project = {
           <CardTitle className="flex items-center justify-between">
             <div className="flex items-center gap-3">
               <Users className="h-6 w-6" />
-              Character Casting
+              Cast & Key Crew
               <Badge variant={progress.canProceed ? "default" : "destructive"}>
                 {progress.requiredCast}/{progress.requiredTotal} Required
               </Badge>
             </div>
             <div className="flex items-center gap-3">
               <Select value={filterType} onValueChange={(value: any) => setFilterType(value)}>
-                <SelectTrigger className="w-32">
+                <SelectTrigger className="w-40">
                   <SelectValue />
                 </SelectTrigger>
                 <SelectContent>
-                  <SelectItem value="all">All Roles</SelectItem>
-                  <SelectItem value="actor">Actors</SelectItem>
-                  <SelectItem value="director">Directors</SelectItem>
+                  <SelectItem value="all">All Assignments</SelectItem>
+                  <SelectItem value="cast">Cast</SelectItem>
+                  <SelectItem value="crew">Key Crew</SelectItem>
                 </SelectContent>
               </Select>
               <Badge variant="outline">
@@ -316,15 +321,15 @@ const updatedProject: Project = {
           <div className="grid grid-cols-2 md:grid-cols-4 gap-4 text-center">
             <div>
               <div className="text-2xl font-bold text-primary">{progress.totalCast}</div>
-              <div className="text-sm text-muted-foreground">Roles Cast</div>
+              <div className="text-sm text-muted-foreground">Assignments Filled</div>
             </div>
             <div>
               <div className="text-2xl font-bold text-green-600">{progress.requiredCast}</div>
-              <div className="text-sm text-muted-foreground">Required Cast</div>
+              <div className="text-sm text-muted-foreground">Required Filled</div>
             </div>
             <div>
               <div className="text-2xl font-bold text-amber-600">{progress.totalSlots - progress.totalCast}</div>
-              <div className="text-sm text-muted-foreground">Open Roles</div>
+              <div className="text-sm text-muted-foreground">Open Assignments</div>
             </div>
             <div>
               <div className={`text-2xl font-bold ${progress.canProceed ? 'text-green-600' : 'text-red-600'}`}>
@@ -338,7 +343,7 @@ const updatedProject: Project = {
   <div className="mt-4 p-3 bg-destructive/10 border border-destructive/20 rounded-lg flex items-center gap-2">
     <AlertTriangle className="h-4 w-4 text-destructive" />
     <span className="text-sm text-destructive">
-      Must cast all required roles (Director and Lead) before proceeding to production
+      Must assign all required roles (Director + Lead Actor) before proceeding to production
     </span>
   </div>
 )}
@@ -353,151 +358,211 @@ const updatedProject: Project = {
         </CardContent>
       </Card>
 
-      {/* Character Casting Slots */}
-      <div className="grid gap-4">
-        {filteredSlots.map((slot) => (
-          <Card 
-            key={slot.character.id} 
-            className={`transition-colors ${
-              slot.talent ? 'border-green-500/30 bg-green-50/50 dark:bg-green-950/20 dark:border-green-400/30' : 
-              slot.isRequired ? 'border-red-500/30 bg-red-50/50 dark:bg-red-950/20 dark:border-red-400/30' : 
-              'border-amber-500/30 bg-amber-50/50 dark:bg-amber-950/20 dark:border-amber-400/30'
-            } bg-card`}
-          >
-            <CardHeader className="pb-3">
-              <div className="flex items-center justify-between">
-                <div className="flex items-center gap-3">
-                  {slot.character.importance === 'lead' && <Crown className="h-5 w-5 text-yellow-500" />}
-                  {slot.character.importance === 'supporting' && <Star className="h-5 w-5 text-blue-500" />}
-                  {slot.character.requiredType === 'director' && <User className="h-5 w-5 text-purple-500" />}
-                  <div>
-                    <CardTitle className="text-lg">{slot.character.name}</CardTitle>
-                    <p className="text-sm text-muted-foreground">{slot.character.description}</p>
-                  </div>
-                </div>
-                <div className="flex items-center gap-2">
-                  <Badge variant="outline" className="capitalize">
-                    {slot.character.importance}
-                  </Badge>
-                  {slot.character.requiredType && (
-                    <Badge variant="secondary" className="capitalize">
-                      {slot.character.requiredType}
-                    </Badge>
-                  )}
-                  {slot.isRequired && (
-                    <Badge variant="destructive">Required</Badge>
-                  )}
-                </div>
-              </div>
-            </CardHeader>
-            
-            <CardContent>
-              {slot.talent ? (
-                <div className="flex items-center justify-between p-4 bg-background rounded-lg border border-green-500/30 dark:border-green-400/30">
-                  <div className="flex items-center gap-3">
-                    <Avatar>
-                      <AvatarFallback className="bg-green-100 text-green-700">
-                        {slot.talent.name.split(' ').map(n => n[0]).join('')}
-                      </AvatarFallback>
-                    </Avatar>
-                    <div>
-                      <p className="font-semibold">{slot.talent.name}</p>
-                      <p className="text-sm text-muted-foreground">
-                        ${(slot.talent.marketValue / 1000000).toFixed(1)}M • Rep: {Math.round(slot.talent.reputation)}
-                        {slot.talent.gender && ` • ${slot.talent.gender}`}
-                        {slot.talent.race && ` • ${slot.talent.race}`}
-                        {slot.talent.nationality && ` • ${slot.talent.nationality}`}
-                      </p>
-                      <p className="text-sm text-green-600">
-                        Contract Cost: ${(slot.contractCost / 1000000).toFixed(1)}M
-                      </p>
-                    </div>
-                  </div>
-                  <div className="flex gap-2">
-<Dialog>
-  <DialogTrigger asChild>
-    <Button variant="outline" size="sm" disabled={project.castingConfirmed}>
-      Change
-    </Button>
-  </DialogTrigger>
-  <DialogContent className="max-w-4xl max-h-[80vh] overflow-y-auto">
-                        <DialogHeader>
-                          <DialogTitle>Cast {slot.character.name}</DialogTitle>
-                        </DialogHeader>
-                        <CastingCandidatesList 
-                          character={slot.character}
-                          candidates={getEligibleTalent(slot.character)}
-                          currentTalent={slot.talent}
-                          onCast={handleCastTalent}
-                          projectGenre={project.script?.genre}
-                        />
-                      </DialogContent>
-                    </Dialog>
-<Button 
-  variant="destructive" 
-  size="sm"
-  onClick={() => handleRemoveTalent(slot.character)}
-  disabled={project.castingConfirmed}
->
-  Remove
-</Button>
-                  </div>
-                </div>
-              ) : (
-                <div className="space-y-3">
-                  <div className="flex items-center justify-between">
-                    <p className="text-sm text-muted-foreground">
-                      Role Requirements:
-                      {slot.character.ageRange && ` Age ${slot.character.ageRange[0]}-${slot.character.ageRange[1]}`}
-                      {slot.character.requiredType && ` • ${slot.character.requiredType}`}
-                      {slot.character.requiredGender && ` • ${slot.character.requiredGender}`}
-                      {slot.character.requiredRace && ` • ${slot.character.requiredRace}`}
-                      {slot.character.requiredNationality && ` • ${slot.character.requiredNationality}`}
-                    </p>
-                    <p className="text-sm font-medium">
-                      Budget: ${(slot.contractCost / 1000000).toFixed(1)}M
-                    </p>
-                  </div>
-                  
-<Dialog>
-  <DialogTrigger asChild>
-    <Button className="w-full" variant={slot.isRequired ? "default" : "outline"} disabled={project.castingConfirmed}>
-      <UserCheck className="h-4 w-4 mr-2" />
-      Cast Role ({getEligibleTalent(slot.character).length} candidates)
-    </Button>
-  </DialogTrigger>
-                    <DialogContent className="max-w-4xl max-h-[80vh] overflow-y-auto">
-                      <DialogHeader>
-                        <DialogTitle>Cast {slot.character.name}</DialogTitle>
-                      </DialogHeader>
-                      <CastingCandidatesList 
-                        character={slot.character}
-                        candidates={getEligibleTalent(slot.character)}
-                        currentTalent={null}
-                        onCast={handleCastTalent}
-                        projectGenre={project.script?.genre}
-                      />
-                    </DialogContent>
-                  </Dialog>
-                </div>
-              )}
-            </CardContent>
-          </Card>
-        ))}
+      {/* Cast & Key Crew Slots */}
+      <div className="grid gap-6">
+        {displayedCrewSlots.length > 0 && (
+          <div className="space-y-3">
+            <div className="flex items-center justify-between">
+              <h3 className="text-sm font-semibold text-muted-foreground uppercase tracking-wide">Key Crew</h3>
+              <Badge variant="secondary">{displayedCrewSlots.filter(s => s.talent).length}/{displayedCrewSlots.length} Assigned</Badge>
+            </div>
+            <div className="grid gap-4">
+              {displayedCrewSlots.map((slot) => (
+                <CastingSlotCard
+                  key={slot.character.id}
+                  slot={slot}
+                  project={project}
+                  getEligibleTalent={getEligibleTalent}
+                  onCast={handleCastTalent}
+                  onRemove={handleRemoveTalent}
+                />
+              ))}
+            </div>
+          </div>
+        )}
+
+        {displayedCastSlots.length > 0 && (
+          <div className="space-y-3">
+            <div className="flex items-center justify-between">
+              <h3 className="text-sm font-semibold text-muted-foreground uppercase tracking-wide">Cast</h3>
+              <Badge variant="secondary">{displayedCastSlots.filter(s => s.talent).length}/{displayedCastSlots.length} Filled</Badge>
+            </div>
+            <div className="grid gap-4">
+              {displayedCastSlots.map((slot) => (
+                <CastingSlotCard
+                  key={slot.character.id}
+                  slot={slot}
+                  project={project}
+                  getEligibleTalent={getEligibleTalent}
+                  onCast={handleCastTalent}
+                  onRemove={handleRemoveTalent}
+                />
+              ))}
+            </div>
+          </div>
+        )}
       </div>
 
-      {filteredSlots.length === 0 && (
+      {displayedCrewSlots.length === 0 && displayedCastSlots.length === 0 && (
         <Card>
           <CardContent className="text-center py-8">
             <Users className="mx-auto h-12 w-12 text-muted-foreground mb-4" />
-            <h3 className="text-lg font-medium mb-2">No Characters Defined</h3>
+            <h3 className="text-lg font-medium mb-2">No Roles Defined</h3>
             <p className="text-muted-foreground">
-              Add characters to your script first before casting
+              Add roles to your script first before casting
             </p>
           </CardContent>
         </Card>
       )}
     </div>
+  );
+};
+
+interface CastingSlotCardProps {
+  slot: CastingSlot;
+  project: Project;
+  getEligibleTalent: (character: ScriptCharacter) => TalentPerson[];
+  onCast: (character: ScriptCharacter, talent: TalentPerson) => void;
+  onRemove: (character: ScriptCharacter) => void;
+}
+
+const CastingSlotCard: React.FC<CastingSlotCardProps> = ({
+  slot,
+  project,
+  getEligibleTalent,
+  onCast,
+  onRemove,
+}) => {
+  const isDirector = slot.character.requiredType === 'director';
+  const candidates = getEligibleTalent(slot.character);
+
+  const assignmentLabel = isDirector ? 'Director' : slot.character.name;
+
+  return (
+    <Card 
+      key={slot.character.id} 
+      className={`transition-colors ${
+        slot.talent ? 'border-green-500/30 bg-green-50/50 dark:bg-green-950/20 dark:border-green-400/30' : 
+        slot.isRequired ? 'border-red-500/30 bg-red-50/50 dark:bg-red-950/20 dark:border-red-400/30' : 
+        'border-amber-500/30 bg-amber-50/50 dark:bg-amber-950/20 dark:border-amber-400/30'
+      } bg-card`}
+    >
+      <CardHeader className="pb-3">
+        <div className="flex items-center justify-between">
+          <div className="flex items-center gap-3">
+            {slot.character.importance === 'lead' && <Crown className="h-5 w-5 text-yellow-500" />}
+            {slot.character.importance === 'supporting' && <Star className="h-5 w-5 text-blue-500" />}
+            {isDirector && <User className="h-5 w-5 text-purple-500" />}
+            <div>
+              <CardTitle className="text-lg">{assignmentLabel}</CardTitle>
+              <p className="text-sm text-muted-foreground">{slot.character.description}</p>
+            </div>
+          </div>
+          <div className="flex items-center gap-2">
+            <Badge variant="outline" className="capitalize">
+              {slot.character.importance}
+            </Badge>
+            <Badge variant="secondary">
+              {isDirector ? 'Key Crew' : 'Cast'}
+            </Badge>
+            {slot.isRequired && (
+              <Badge variant="destructive">Required</Badge>
+            )}
+          </div>
+        </div>
+      </CardHeader>
+
+      <CardContent>
+        {slot.talent ? (
+          <div className="flex items-center justify-between p-4 bg-background rounded-lg border border-green-500/30 dark:border-green-400/30">
+            <div className="flex items-center gap-3">
+              <Avatar>
+                <AvatarFallback className="bg-green-100 text-green-700">
+                  {slot.talent.name.split(' ').map(n => n[0]).join('')}
+                </AvatarFallback>
+              </Avatar>
+              <div>
+                <p className="font-semibold">{slot.talent.name}</p>
+                <p className="text-sm text-muted-foreground">
+                  ${(slot.talent.marketValue / 1000000).toFixed(1)}M • Rep: {Math.round(slot.talent.reputation)}
+                  {slot.talent.gender && ` • ${slot.talent.gender}`}
+                  {slot.talent.race && ` • ${slot.talent.race}`}
+                  {slot.talent.nationality && ` • ${slot.talent.nationality}`}
+                </p>
+                <p className="text-sm text-green-600">
+                  Contract Cost: ${(slot.contractCost / 1000000).toFixed(1)}M
+                </p>
+              </div>
+            </div>
+            <div className="flex gap-2">
+              <Dialog>
+                <DialogTrigger asChild>
+                  <Button variant="outline" size="sm" disabled={project.castingConfirmed}>
+                    Change
+                  </Button>
+                </DialogTrigger>
+                <DialogContent className="max-w-4xl max-h-[80vh] overflow-y-auto">
+                  <DialogHeader>
+                    <DialogTitle>{isDirector ? 'Assign Director' : `Cast ${slot.character.name}`}</DialogTitle>
+                  </DialogHeader>
+                  <CastingCandidatesList 
+                    character={slot.character}
+                    candidates={candidates}
+                    currentTalent={slot.talent}
+                    onCast={onCast}
+                    projectGenre={project.script?.genre}
+                  />
+                </DialogContent>
+              </Dialog>
+              <Button 
+                variant="destructive" 
+                size="sm"
+                onClick={() => onRemove(slot.character)}
+                disabled={project.castingConfirmed}
+              >
+                Remove
+              </Button>
+            </div>
+          </div>
+        ) : (
+          <div className="space-y-3">
+            <div className="flex items-center justify-between">
+              <p className="text-sm text-muted-foreground">
+                Requirements:
+                {slot.character.ageRange && ` Age ${slot.character.ageRange[0]}-${slot.character.ageRange[1]}`}
+                {!isDirector && slot.character.requiredGender && ` • ${slot.character.requiredGender}`}
+                {!isDirector && slot.character.requiredRace && ` • ${slot.character.requiredRace}`}
+                {!isDirector && slot.character.requiredNationality && ` • ${slot.character.requiredNationality}`}
+              </p>
+              <p className="text-sm font-medium">
+                Budget: ${(slot.contractCost / 1000000).toFixed(1)}M
+              </p>
+            </div>
+
+            <Dialog>
+              <DialogTrigger asChild>
+                <Button className="w-full" variant={slot.isRequired ? "default" : "outline"} disabled={project.castingConfirmed}>
+                  <UserCheck className="h-4 w-4 mr-2" />
+                  {isDirector ? 'Assign Director' : 'Cast Role'} ({candidates.length} candidates)
+                </Button>
+              </DialogTrigger>
+              <DialogContent className="max-w-4xl max-h-[80vh] overflow-y-auto">
+                <DialogHeader>
+                  <DialogTitle>{isDirector ? 'Assign Director' : `Cast ${slot.character.name}`}</DialogTitle>
+                </DialogHeader>
+                <CastingCandidatesList 
+                  character={slot.character}
+                  candidates={candidates}
+                  currentTalent={null}
+                  onCast={onCast}
+                  projectGenre={project.script?.genre}
+                />
+              </DialogContent>
+            </Dialog>
+          </div>
+        )}
+      </CardContent>
+    </Card>
   );
 };
 

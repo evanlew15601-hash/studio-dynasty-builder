@@ -28,17 +28,22 @@ export const EnhancedReleaseSystem: React.FC<EnhancedReleaseSystemProps> = ({
     const warnings: string[] = [];
 
     // Check casting requirements
-    const hasDirector = project.cast?.some(c => 
-      c.role === 'Director' || c.role.toLowerCase().includes('director')
-    );
+    const scriptCharacters = project.script?.characters || [];
+
+    const hasDirector =
+      scriptCharacters.some(c => c.requiredType === 'director' && !!c.assignedTalentId) ||
+      (project.crew || []).some(c => c.role === 'Director' || c.role.toLowerCase().includes('director')) ||
+      (project.cast || []).some(c => c.role === 'Director' || c.role.toLowerCase().includes('director'));
     
     if (!hasDirector) {
       errors.push("Director must be assigned before release");
     }
-    
-    const hasLeadActor = project.cast?.some(c => 
-      c.role.toLowerCase().includes('lead') || c.role.toLowerCase().includes('protagonist')
-    );
+
+    const hasLeadActor =
+      scriptCharacters.some(c => c.requiredType !== 'director' && c.importance === 'lead' && !!c.assignedTalentId) ||
+      (project.cast || []).some(c => 
+        c.role.toLowerCase().includes('lead') || c.role.toLowerCase().includes('protagonist')
+      );
     
     if (!hasLeadActor) {
       errors.push("At least one lead actor must be cast before release");
