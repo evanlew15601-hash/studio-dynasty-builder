@@ -8,6 +8,7 @@ import { Badge } from '@/components/ui/badge';
 import { Separator } from '@/components/ui/separator';
 import { Play, Settings, Film, Star, Trophy, Sparkles } from 'lucide-react';
 import { Genre } from '@/types/game';
+import { StudioIconCustomizer, StudioIconRenderer, DEFAULT_ICON, type StudioIconConfig } from './StudioIconCustomizer';
 
 interface GameLandingProps {
   onStartGame: (config: GameConfig) => void;
