@@ -66,6 +66,17 @@ export interface StudioDbRecord {
   specialties?: Genre[];
 }
 
+export type ProviderType = 'streaming' | 'cable';
+
+export interface ProviderDbRecord {
+  id: string;
+  name: string;
+  type: ProviderType;
+  tier?: 'major' | 'mid' | 'niche';
+  description?: string;
+  reach?: number; // 0-100 abstract audience reach
+}
+
 export interface IndustryDatabase {
   version: 1;
   updatedAt: string;
@@ -74,4 +85,5 @@ export interface IndustryDatabase {
   talent: TalentDbRecord[];
   awards: AwardDbRecord[];
   studios: StudioDbRecord[];
+  providers: ProviderDbRecord[];
 }

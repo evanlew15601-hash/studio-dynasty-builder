@@ -139,6 +139,9 @@ describe('industry database sync', () => {
 
     expect(db1.awards).toHaveLength(2);
     expect(db1.awards.map((a) => a.year)).toEqual([2024, 2024]);
+
+    // Default providers are seeded (fictional streaming platforms + cable networks)
+    expect(db1.providers.length).toBeGreaterThan(0);
   });
 
   it('updates existing film records as metrics change', () => {

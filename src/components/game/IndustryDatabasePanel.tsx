@@ -1,6 +1,6 @@
 import React, { useEffect, useMemo, useState } from 'react';
 import type { GameState, Genre } from '@/types/game';
-import type { AwardDbRecord, FilmDbRecord, IndustryDatabase, TalentDbRecord, TvShowDbRecord } from '@/types/industryDatabase';
+import type { AwardDbRecord, FilmDbRecord, IndustryDatabase, ProviderDbRecord, TalentDbRecord, TvShowDbRecord } from '@/types/industryDatabase';
 import { createEmptyIndustryDatabase, deleteIndustryDatabaseSlot, listIndustryDatabaseSlots, loadIndustryDatabase, saveIndustryDatabase, syncIndustryDatabase } from '@/utils/industryDatabase';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
@@ -310,6 +310,15 @@ export const IndustryDatabasePanel: React.FC<IndustryDatabasePanelProps> = ({ ga
   });
   const [editingStudioId, setEditingStudioId] = useState<string | null>(null);
 
+  const [providerDraft, setProviderDraft] = useState<Partial<ProviderDbRecord> & { type?: 'streaming' | 'cable'; tier?: 'major' | 'mid' | 'niche' }>({
+    type: 'streaming',
+    tier: 'major',
+    name: '',
+    reach: 70,
+    description: '',
+  });
+  const [editingProviderId, setEditingProviderId] = useState<string | null>(null);
+
   const parseGenres = (raw: string): Genre[] => {
     const parts = raw
       .split(',')
@@ -376,6 +385,25 @@ export const IndustryDatabasePanel: React.FC<IndustryDatabasePanelProps> = ({ ga
       studios: db.studios.filter((s) => s.id !== id),
       // We don't delete films/TV by studio automatically; just orphan the studio row.
       awards: name ? db.awards.map((a) => (a.studioName === name ? { ...a, studioName: 'Unknown Studio' } : a)) : db.awards,
+    };
+    persistDb(next);
+  };
+
+  const upsertProvider = (record: ProviderDbRecord) => {
+    const idx = db.providers.findIndex((p) => p.id === record.id);
+    const next: IndustryDatabase = {
+      ...db,
+      updatedAt: new Date().toISOString(),
+      providers: idx === -1 ? [...db.providers, record] : db.providers.map((p) => (p.id === record.id ? record : p)),
+    };
+    persistDb(next);
+  };
+
+  const deleteProvider = (id: string) => {
+    const next: IndustryDatabase = {
+      ...db,
+      updatedAt: new Date().toISOString(),
+      providers: db.providers.filter((p) => p.id !== id),
     };
     persistDb(next);
   };
@@ -1273,6 +1301,156 @@ export const IndustryDatabasePanel: React.FC<IndustryDatabasePanelProps> = ({ ga
                                       if (editingStudioId === s.id) {
                                         setEditingStudioId(null);
                                         setStudioDraft({ name: '', founded: new Date().getFullYear(), reputation: 50, specialties: ['drama'] });
+                                      }
+                                    }}
+                                  >
+                                    Delete
+                                  </Button>
+                                </div>
+                              </div>
+                            ))}
+                        </div>
+                      )}
+                    </ScrollArea>
+                  </CardContent>
+                </Card>
+
+                <Card>
+                  <CardHeader>
+                    <CardTitle className="text-base">Providers (Streaming / Cable)</CardTitle>
+                  </CardHeader>
+                  <CardContent className="space-y-3">
+                    <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
+                      <Select
+                        value={(providerDraft.type || 'streaming') as any}
+                        onValueChange={(v) => setProviderDraft((prev) => ({ ...prev, type: v as any }))}
+                      >
+                        <SelectTrigger>
+                          <SelectValue />
+                        </SelectTrigger>
+                        <SelectContent>
+                          <SelectItem value="streaming">Streaming</SelectItem>
+                          <SelectItem value="cable">Cable Network</SelectItem>
+                        </SelectContent>
+                      </Select>
+
+                      <Select
+                        value={(providerDraft.tier || 'major') as any}
+                        onValueChange={(v) => setProviderDraft((prev) => ({ ...prev, tier: v as any }))}
+                      >
+                        <SelectTrigger>
+                          <SelectValue placeholder="Tier" />
+                        </SelectTrigger>
+                        <SelectContent>
+                          <SelectItem value="major">Major</SelectItem>
+                          <SelectItem value="mid">Mid</SelectItem>
+                          <SelectItem value="niche">Niche</SelectItem>
+                        </SelectContent>
+                      </Select>
+
+                      <Input
+                        value={providerDraft.name || ''}
+                        onChange={(e) => setProviderDraft((prev) => ({ ...prev, name: e.target.value }))}
+                        placeholder="Provider name"
+                      />
+
+                      <Input
+                        value={String(providerDraft.reach ?? '')}
+                        onChange={(e) => setProviderDraft((prev) => ({ ...prev, reach: e.target.value ? Number(e.target.value) : undefined }))}
+                        placeholder="Reach (0-100)"
+                        inputMode="numeric"
+                      />
+
+                      <Input
+                        value={providerDraft.description || ''}
+                        onChange={(e) => setProviderDraft((prev) => ({ ...prev, description: e.target.value }))}
+                        placeholder="Short description"
+                      />
+                    </div>
+
+                    <div className="flex flex-wrap gap-2">
+                      <Button
+                        size="sm"
+                        onClick={() => {
+                          const name = (providerDraft.name || '').trim();
+                          if (!name) {
+                            window.alert('Provider name is required.');
+                            return;
+                          }
+
+                          const id = editingProviderId || `mod-provider-${Date.now()}-${Math.random().toString(36).slice(2, 6)}`;
+
+                          const record: ProviderDbRecord = {
+                            id,
+                            name,
+                            type: (providerDraft.type || 'streaming') as any,
+                            tier: (providerDraft.tier || 'major') as any,
+                            description: (providerDraft.description || '').trim() || undefined,
+                            reach: providerDraft.reach,
+                          };
+
+                          upsertProvider(record);
+                          setEditingProviderId(null);
+                          setProviderDraft({ type: 'streaming', tier: 'major', name: '', reach: 70, description: '' });
+                        }}
+                      >
+                        {editingProviderId ? 'Save Changes' : 'Add Provider'}
+                      </Button>
+
+                      {editingProviderId && (
+                        <Button
+                          size="sm"
+                          variant="outline"
+                          onClick={() => {
+                            setEditingProviderId(null);
+                            setProviderDraft({ type: 'streaming', tier: 'major', name: '', reach: 70, description: '' });
+                          }}
+                        >
+                          Cancel
+                        </Button>
+                      )}
+                    </div>
+
+                    <ScrollArea className="h-[300px] rounded border">
+                      {db.providers.length === 0 ? (
+                        <div className="p-4 text-center text-muted-foreground">No providers in this database yet.</div>
+                      ) : (
+                        <div className="p-2 space-y-2">
+                          {db.providers
+                            .slice()
+                            .sort((a, b) => a.name.localeCompare(b.name))
+                            .map((p) => (
+                              <div key={p.id} className="flex items-center justify-between gap-2 p-2 rounded border">
+                                <div className="min-w-0">
+                                  <div className="font-medium truncate">{p.name}</div>
+                                  <div className="text-xs text-muted-foreground">
+                                    {p.type} • {p.tier || '—'} • reach {p.reach ?? '—'}
+                                  </div>
+                                  {p.description && (
+                                    <div className="text-xs text-muted-foreground truncate">{p.description}</div>
+                                  )}
+                                </div>
+                                <div className="flex gap-2">
+                                  <Button
+                                    size="sm"
+                                    variant="outline"
+                                    onClick={() => {
+                                      setEditingProviderId(p.id);
+                                      setProviderDraft({ ...p });
+                                    }}
+                                  >
+                                    Edit
+                                  </Button>
+                                  <Button
+                                    size="sm"
+                                    variant="outline"
+                                    onClick={() => {
+                                      const ok = window.confirm(`Delete provider ${p.name}?`);
+                                      if (!ok) return;
+                                      deleteProvider(p.id);
+                                      if (editingProviderId === p.id) {
+                                        setEditingProviderId(null);
+                                        setProviderDraft({ type: 'streaming', tier: 'major', name: '', reach: 70, description: '' });
                                       }
                                     }}
                                   >

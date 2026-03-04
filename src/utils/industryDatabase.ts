@@ -3,6 +3,7 @@ import type {
   AwardDbRecord,
   FilmDbRecord,
   IndustryDatabase,
+  ProviderDbRecord,
   StudioDbRecord,
   TalentDbRecord,
   TvShowDbRecord,
@@ -49,6 +50,59 @@ export function deleteIndustryDatabaseSlot(slotId: string, storage?: StorageLike
   store.removeItem(keyForSlot(slotId));
 }
 
+function defaultProviders(): ProviderDbRecord[] {
+  return [
+    {
+      id: 'provider-aurora-plus',
+      name: 'Aurora+',
+      type: 'streaming',
+      tier: 'major',
+      description: 'Premium streaming service with prestige originals and global reach.',
+      reach: 88,
+    },
+    {
+      id: 'provider-horizonflix',
+      name: 'HorizonFlix',
+      type: 'streaming',
+      tier: 'major',
+      description: 'Mass-market streamer known for big-budget franchises and broad audiences.',
+      reach: 92,
+    },
+    {
+      id: 'provider-emberstream',
+      name: 'EmberStream',
+      type: 'streaming',
+      tier: 'mid',
+      description: 'Mid-tier platform leaning into genre series and weekly drops.',
+      reach: 70,
+    },
+    {
+      id: 'provider-signal8',
+      name: 'Signal 8',
+      type: 'cable',
+      tier: 'major',
+      description: 'Flagship cable network with award-friendly dramas and event miniseries.',
+      reach: 80,
+    },
+    {
+      id: 'provider-northstar-network',
+      name: 'Northstar Network',
+      type: 'cable',
+      tier: 'mid',
+      description: 'General entertainment cable network with sports and unscripted blocks.',
+      reach: 65,
+    },
+    {
+      id: 'provider-crest-news',
+      name: 'Crest News',
+      type: 'cable',
+      tier: 'niche',
+      description: '24-hour news channel with documentary programming and specials.',
+      reach: 55,
+    },
+  ];
+}
+
 export function createEmptyIndustryDatabase(): IndustryDatabase {
   return {
     version: DB_VERSION,
@@ -58,6 +112,7 @@ export function createEmptyIndustryDatabase(): IndustryDatabase {
     talent: [],
     awards: [],
     studios: [],
+    providers: defaultProviders(),
   };
 }
 
@@ -71,6 +126,14 @@ export function loadIndustryDatabase(slotId: string, storage?: StorageLike): Ind
 
     const parsed = JSON.parse(raw) as IndustryDatabase;
     if (!parsed || parsed.version !== DB_VERSION) return createEmptyIndustryDatabase();
+
+    // Forward-fill newly added collections so old saves don't break.
+    if (!(parsed as any).providers) {
+      return {
+        ...parsed,
+        providers: defaultProviders(),
+      } as IndustryDatabase;
+    }
 
     return parsed;
   } catch {
@@ -243,6 +306,7 @@ export function syncIndustryDatabase(db: IndustryDatabase, gameState: GameState)
   let nextTalent = db.talent;
   let nextAwards = db.awards;
   let nextStudios = db.studios;
+  const nextProviders = db.providers;
 
   const allProjects: Project[] = [
     ...gameState.projects,
@@ -311,6 +375,7 @@ export function syncIndustryDatabase(db: IndustryDatabase, gameState: GameState)
     talent: nextTalent,
     awards: nextAwards,
     studios: nextStudios,
+    providers: nextProviders,
   };
 }
 
