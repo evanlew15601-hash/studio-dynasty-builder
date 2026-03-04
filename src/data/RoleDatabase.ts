@@ -1,4 +1,7 @@
 import { Franchise, GameState, Project, PublicDomainIP, ScriptCharacter } from '@/types/game';
+import type { ModBundle } from '@/types/modding';
+import { applyPatchesToRecord, getPatchesForEntity } from '@/utils/modding';
+import { getModBundle } from '@/utils/moddingStore';
 
 // Curated role sets keyed by franchise parody source (acts as stable property identity)
 const FRANCHISE_ROLE_SETS: Record<string, ScriptCharacter[]> = {
@@ -81,8 +84,15 @@ function addDefaultCameoIfMissing(roles: ScriptCharacter[]): ScriptCharacter[] {
   return roles;
 }
 
-function getRolesForFranchise(franchise: Franchise): ScriptCharacter[] {
-  const byParody = franchise.parodySource && FRANCHISE_ROLE_SETS[franchise.parodySource];
+function getEffectiveFranchiseRoleSets(mods?: ModBundle): Record<string, ScriptCharacter[]> {
+  const bundle = mods ?? getModBundle();
+  const patches = getPatchesForEntity(bundle, 'franchiseRoleSet');
+  return applyPatchesToRecord(FRANCHISE_ROLE_SETS, patches);
+}
+
+function getRolesForFranchise(franchise: Franchise, mods?: ModBundle): ScriptCharacter[] {
+  const roleSets = getEffectiveFranchiseRoleSets(mods);
+  const byParody = franchise.parodySource && roleSets[franchise.parodySource];
   if (byParody) {
     return addDefaultCameoIfMissing(ensureDirector([...byParody]));
   }
@@ -122,11 +132,11 @@ function getRolesForPublicDomain(ip: PublicDomainIP): ScriptCharacter[] {
 }
 
 export const RoleDatabase = {
-  getRolesForProject(project: Project, gameState: GameState): ScriptCharacter[] {
+  getRolesForProject(project: Project, gameState: GameState, mods?: ModBundle): ScriptCharacter[] {
     const sourceType = project.script?.sourceType;
     if (sourceType === 'franchise' && project.script.franchiseId) {
       const franchise = gameState.franchises.find(f => f.id === project.script.franchiseId);
-      return franchise ? getRolesForFranchise(franchise) : [];
+      return franchise ? getRolesForFranchise(franchise, mods) : [];
     }
     if (sourceType === 'public-domain' && project.script.publicDomainId) {
       const ip = gameState.publicDomainIPs.find(p => p.id === project.script.publicDomainId);
@@ -135,10 +145,10 @@ export const RoleDatabase = {
     return [];
   },
 
-  getRolesForSource(sourceType: 'franchise' | 'public-domain', id: string, gameState: GameState): ScriptCharacter[] {
+  getRolesForSource(sourceType: 'franchise' | 'public-domain', id: string, gameState: GameState, mods?: ModBundle): ScriptCharacter[] {
     if (sourceType === 'franchise') {
       const franchise = gameState.franchises.find(f => f.id === id);
-      return franchise ? getRolesForFranchise(franchise) : [];
+      return franchise ? getRolesForFranchise(franchise, mods) : [];
     } else {
       const ip = gameState.publicDomainIPs.find(p => p.id === id);
       return ip ? getRolesForPublicDomain(ip) : [];

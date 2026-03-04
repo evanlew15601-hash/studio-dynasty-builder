@@ -1,6 +1,10 @@
 // Franchise Character Database
 // Global immutable definitions keyed by franchise ID when available, with fallback keys by parodySource/title
 
+import type { ModBundle } from '@/types/modding';
+import { applyPatchesToRecord, getPatchesForEntity } from '@/utils/modding';
+import { getModBundle } from '@/utils/moddingStore';
+
 export interface FranchiseCharacterDef {
   character_id: string;
   name: string;
@@ -28,3 +32,9 @@ export const FRANCHISE_CHARACTER_DB: Record<string, FranchiseCharacterDef[]> = {
     { character_id: 'char_director', name: 'Director', role_template_id: 'director', importance: 'crew', requiredType: 'director', is_mandatory: true },
   ],
 };
+
+export function getEffectiveFranchiseCharacterDB(mods?: ModBundle): Record<string, FranchiseCharacterDef[]> {
+  const bundle = mods ?? getModBundle();
+  const patches = getPatchesForEntity(bundle, 'franchiseCharacterDb');
+  return applyPatchesToRecord(FRANCHISE_CHARACTER_DB, patches);
+}
