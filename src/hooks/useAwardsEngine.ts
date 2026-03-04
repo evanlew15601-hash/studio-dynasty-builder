@@ -330,10 +330,11 @@ const aiProjects = gameState.allReleases.filter((release): release is Project =>
           const t = (category.toLowerCase().includes('actor') || category.toLowerCase().includes('actress') || category.toLowerCase().includes('director'))
             ? findRelevantTalent(n.project, category)
             : undefined;
+          const isPlayerProject = gameState.projects.some(p => p.id === n.project.id);
           return {
             ...n,
             category,
-            project: { ...n.project, studioId: n.project.id.includes('player') ? 'player' : 'ai' } as any,
+            project: { ...n.project, studioId: isPlayerProject ? 'player' : (n.project.studioName || 'ai') } as any,
             talentName: t?.name
           } as any;
         });
@@ -352,7 +353,7 @@ const aiProjects = gameState.allReleases.filter((release): release is Project =>
               won: true,
               award: winnerData.award,
               talentName: winnerData.talentName,
-              project: { ...winner.project, studioId: winner.project.id.includes('player') ? 'player' : 'ai' } as any
+              project: { ...winner.project, studioId: gameState.projects.some(p => p.id === winner.project.id) ? 'player' : (winner.project.studioName || 'ai') } as any
             };
           }
         }

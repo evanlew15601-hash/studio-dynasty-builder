@@ -1,12 +1,13 @@
 import React, { useEffect, useMemo, useState } from 'react';
 import type { GameState, Genre } from '@/types/game';
 import type { AwardDbRecord, FilmDbRecord, IndustryDatabase, TalentDbRecord, TvShowDbRecord } from '@/types/industryDatabase';
-import { createEmptyIndustryDatabase, loadIndustryDatabase, saveIndustryDatabase, syncIndustryDatabase } from '@/utils/industryDatabase';
+import { createEmptyIndustryDatabase, deleteIndustryDatabaseSlot, listIndustryDatabaseSlots, loadIndustryDatabase, saveIndustryDatabase, syncIndustryDatabase } from '@/utils/industryDatabase';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { Input } from '@/components/ui/input';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { Badge } from '@/components/ui/badge';
+import { Button } from '@/components/ui/button';
 import { ScrollArea } from '@/components/ui/scroll-area';
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
 
@@ -56,12 +57,33 @@ const ALL_GENRES: Genre[] = [
 ];
 
 export const IndustryDatabasePanel: React.FC<IndustryDatabasePanelProps> = ({ gameState, slotId }) => {
-  const slot = slotId || 'slot1';
+  const defaultSlot = slotId || 'slot1';
+
+  const [slot, setSlot] = useState<string>(defaultSlot);
 
   const [db, setDb] = useState<IndustryDatabase>(() => {
     if (typeof window === 'undefined') return createEmptyIndustryDatabase();
-    return loadIndustryDatabase(slot);
+    return loadIndustryDatabase(defaultSlot);
   });
+
+  const [availableSlots, setAvailableSlots] = useState<string[]>(() => {
+    if (typeof window === 'undefined') return [defaultSlot];
+    const slots = listIndustryDatabaseSlots();
+    return slots.length > 0 ? slots : [defaultSlot];
+  });
+
+  useEffect(() => {
+    if (typeof window === 'undefined') return;
+    setAvailableSlots((prev) => {
+      const next = listIndustryDatabaseSlots();
+      return next.length > 0 ? next : prev;
+    });
+  }, [db.updatedAt]);
+
+  useEffect(() => {
+    if (typeof window === 'undefined') return;
+    setDb(loadIndustryDatabase(slot));
+  }, [slot]);
 
   // Keep the persisted database synced with the current world state.
   // We sync on week/year changes and on major catalog size changes to avoid doing
@@ -84,6 +106,58 @@ export const IndustryDatabasePanel: React.FC<IndustryDatabasePanelProps> = ({ ga
     gameState.competitorStudios.length,
     gameState.studio.awards?.length || 0,
   ]);
+
+  const exportDatabase = () => {
+    const payload = JSON.stringify(db, null, 2);
+    const blob = new Blob([payload], { type: 'application/json' });
+    const url = URL.createObjectURL(blob);
+    const a = document.createElement('a');
+    a.href = url;
+    a.download = `industry-database-${slot}-${new Date().toISOString().slice(0, 10)}.json`;
+    a.click();
+    URL.revokeObjectURL(url);
+  };
+
+  const importDatabase = async (file: File) => {
+    const text = await file.text();
+    const parsed = JSON.parse(text) as IndustryDatabase;
+    // Basic validation: must look like an industry db
+    if (!parsed || typeof parsed !== 'object' || !('version' in parsed) || !('films' in parsed) || !('awards' in parsed)) {
+      throw new Error('Invalid database file');
+    }
+    saveIndustryDatabase(slot, parsed);
+    setDb(parsed);
+  };
+
+  const resetDatabase = () => {
+    const ok = window.confirm(`Reset database "${slot}"? This clears the persisted catalog for this slot.`);
+    if (!ok) return;
+    const empty = createEmptyIndustryDatabase();
+    saveIndustryDatabase(slot, empty);
+    setDb(empty);
+  };
+
+  const saveAsNewSlot = () => {
+    const name = window.prompt('Save database as new slot name:', `mod-${slot}`);
+    const next = (name || '').trim();
+    if (!next) return;
+    saveIndustryDatabase(next, db);
+    setAvailableSlots((prev) => Array.from(new Set([...prev, next])).sort((a, b) => a.localeCompare(b)));
+    setSlot(next);
+  };
+
+  const deleteSlot = () => {
+    if (slot === defaultSlot) {
+      window.alert('Default slot cannot be deleted. You can reset it instead.');
+      return;
+    }
+    const ok = window.confirm(`Delete database slot "${slot}"? This cannot be undone.`);
+    if (!ok) return;
+    deleteIndustryDatabaseSlot(slot);
+    const nextSlots = listIndustryDatabaseSlots();
+    setAvailableSlots(nextSlots.length > 0 ? nextSlots : [defaultSlot]);
+    setSlot(defaultSlot);
+  };
 
   const filmStudios = useMemo(() => {
     const studios = new Set(db.films.map((f) => f.studioName).filter(Boolean));
@@ -387,8 +461,64 @@ export const IndustryDatabasePanel: React.FC<IndustryDatabasePanelProps> = ({ ga
         <CardHeader>
           <CardTitle>Industry Databases (Persisted)</CardTitle>
         </CardHeader>
-        <CardContent className="text-sm text-muted-foreground">
-          Browsable databases for released films, TV shows, talent, awards, and studios. This catalog is stored in this browser and continues to update as the simulation runs.
+        <CardContent className="space-y-3 text-sm text-muted-foreground">
+          <div>
+            Browsable databases for released films, TV shows, talent, awards, and studios. This catalog is stored in this browser and continues to update as the simulation runs.
+          </div>
+
+          <div className="flex flex-col gap-3 md:flex-row md:items-center md:justify-between">
+            <div className="flex flex-col gap-2 md:flex-row md:items-center">
+              <div className="text-sm text-muted-foreground">Database slot</div>
+              <Select value={slot} onValueChange={setSlot}>
+                <SelectTrigger className="w-[240px]">
+                  <SelectValue />
+                </SelectTrigger>
+                <SelectContent>
+                  {availableSlots.map((s) => (
+                    <SelectItem key={s} value={s}>
+                      {s}{s === defaultSlot ? ' (default)' : ''}
+                    </SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
+            </div>
+
+            <div className="flex flex-wrap gap-2">
+              <Button size="sm" variant="outline" onClick={saveAsNewSlot}>
+                Save As…
+              </Button>
+              <Button size="sm" variant="outline" onClick={exportDatabase}>
+                Export JSON
+              </Button>
+              <label className="inline-flex">
+                <input
+                  type="file"
+                  accept="application/json"
+                  className="hidden"
+                  onChange={async (e) => {
+                    const file = e.target.files?.[0];
+                    if (!file) return;
+                    try {
+                      await importDatabase(file);
+                    } catch {
+                      window.alert('Failed to import database. Make sure this is a valid JSON export.');
+                    } finally {
+                      e.currentTarget.value = '';
+                    }
+                  }}
+                />
+                <Button size="sm" variant="outline" type="button">
+                  Import JSON
+                </Button>
+              </label>
+              <Button size="sm" variant="outline" onClick={resetDatabase}>
+                Reset
+              </Button>
+              <Button size="sm" variant="outline" onClick={deleteSlot}>
+                Delete Slot
+              </Button>
+            </div>
+          </div>
         </CardContent>
       </Card>
 

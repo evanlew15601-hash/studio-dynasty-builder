@@ -49,9 +49,9 @@ export const IndividualAwardShowModal: React.FC<IndividualAwardShowModalProps> =
 
   const playerNominations = Object.values(ceremony.nominations)
     .flat()
-    .filter(nom => (nom.project as any).studioId === 'player' || nom.project.id.includes('player'));
+    .filter(nom => (nom.project as any).studioId === 'player');
   const playerWins = Object.values(ceremony.winners)
-    .filter(winner => (winner.project as any).studioId === 'player' || winner.project.id.includes('player'));
+    .filter(winner => (winner.project as any).studioId === 'player');
 
   const isTalentCategory = (category: string) => {
     const cl = category.toLowerCase();
@@ -118,7 +118,10 @@ export const IndividualAwardShowModal: React.FC<IndividualAwardShowModalProps> =
                     <h3 className="text-lg font-semibold text-center">The Nominees Are:</h3>
                     <div className="grid gap-3">
                       {currentNominations.map((nomination, index) => {
-                        const isPlayer = (nomination.project as any).studioId === 'player' || nomination.project.id.includes('player');
+                        const isPlayer = (nomination.project as any).studioId === 'player';
+                        const studioLabel = isPlayer
+                          ? 'Your Studio'
+                          : (nomination.project.studioName || 'AI Studio');
                         return (
                           <Card 
                             key={`${nomination.project.id}-${index}`}
@@ -128,7 +131,7 @@ export const IndividualAwardShowModal: React.FC<IndividualAwardShowModalProps> =
                               <div>
                                 <div className="font-semibold">{nomination.project.title}</div>
                                 <div className="text-sm text-muted-foreground">
-                                  {nomination.project.script.genre} • {isPlayer ? 'Your Studio' : 'AI Studio'}
+                                  {nomination.project.script.genre} • {studioLabel}
                                 </div>
                                 {isTalentCategory(nomination.category) && (
                                   <div className="text-xs text-muted-foreground mt-1">
@@ -167,21 +170,22 @@ export const IndividualAwardShowModal: React.FC<IndividualAwardShowModalProps> =
                           {currentWinner.project.title}
                         </div>
                         <div className="text-lg text-muted-foreground mb-2">
-                          {currentWinner.project.script.genre} • 
-                          {(currentWinner.project as any).studioId === 'player' || currentWinner.project.id.includes('player') ? ' Your Studio' : ' AI Studio'}
+                          {currentWinner.project.script.genre} •
+                          {(currentWinner.project as any).studioId === 'player'
+                            ? ' Your Studio'
+                            : ` ${(currentWinner.project.studioName || 'AI Studio')}`}
                         </div>
                         {isTalentCategory(currentWinner.category) && (currentWinner as any).talentName && (
                           <div className="text-base font-medium">
                             Recipient: {(currentWinner as any).talentName}
                           </div>
                         )}
-                        {((currentWinner.project as any).studioId === 'player' || currentWinner.project.id.includes('player')) && currentWinner.award && (
+                        {((currentWinner.project as any).studioId === 'player') && currentWinner.award && (
                           <div className="space-y-2 p-4 rounded-lg bg-green-50 dark:bg-green-900/20">
                             <div className="font-semibold text-green-700 dark:text-green-300">
                               {isTalentCategory(currentWinner.category) && (currentWinner as any).talentName
                                 ? `Congratulations to ${(currentWinner as any).talentName}${
-                                    (currentWinner.project as any).studioId === 'player' ||
-                                    currentWinner.project.id.includes('player')
+                                    (currentWinner.project as any).studioId === 'player'
                                       ? ' and your studio!'
                                       : '!'
                                   }`

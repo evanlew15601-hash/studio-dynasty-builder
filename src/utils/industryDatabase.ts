@@ -16,7 +16,38 @@ export interface StorageLike {
 
 const DB_VERSION = 1 as const;
 
-const keyForSlot = (slotId: string) => `studio-magnate-industry-db-${DB_VERSION}-${slotId}`;
+const KEY_PREFIX = `studio-magnate-industry-db-${DB_VERSION}-`;
+const keyForSlot = (slotId: string) => `${KEY_PREFIX}${slotId}`;
+
+export function listIndustryDatabaseSlots(storage?: StorageLike): string[] {
+  const store: any = storage ?? (typeof window !== 'undefined' ? window.localStorage : undefined);
+  if (!store) return [];
+
+  const keys: string[] = [];
+
+  // StorageLike doesn't expose length/key, but browser localStorage does.
+  if (typeof store.length === 'number' && typeof store.key === 'function') {
+    for (let i = 0; i < store.length; i++) {
+      const k = store.key(i);
+      if (k) keys.push(k);
+    }
+  } else if (typeof store === 'object') {
+    // Best-effort fallback for polyfills/mocks.
+    for (const k of Object.keys(store)) keys.push(k);
+  }
+
+  return keys
+    .filter((k) => k.startsWith(KEY_PREFIX))
+    .map((k) => k.slice(KEY_PREFIX.length))
+    .filter(Boolean)
+    .sort((a, b) => a.localeCompare(b));
+}
+
+export function deleteIndustryDatabaseSlot(slotId: string, storage?: StorageLike): void {
+  const store: StorageLike | undefined = storage ?? (typeof window !== 'undefined' ? window.localStorage : undefined);
+  if (!store || !store.removeItem) return;
+  store.removeItem(keyForSlot(slotId));
+}
 
 export function createEmptyIndustryDatabase(): IndustryDatabase {
   return {
@@ -165,7 +196,7 @@ function buildAwardRecords(gameState: GameState): AwardDbRecord[] {
 
   const studioAwards: AwardDbRecord[] = (gameState.studio.awards || []).map((a) => {
     const project = byProject.get(a.projectId);
-    const studioName = project ? getProjectStudioName(gameState, project) : gameState.studio.name;
+    const studioName = project ? getProjectStudioName(gameState, project) : 'Unknown Studio';
 
     return {
       id: a.id,
@@ -184,7 +215,7 @@ function buildAwardRecords(gameState: GameState): AwardDbRecord[] {
     .flatMap((t) => (t.awards || []).map((a) => ({ talent: t, award: a })))
     .map(({ talent, award }) => {
       const project = byProject.get(award.projectId);
-      const studioName = project ? getProjectStudioName(gameState, project) : gameState.studio.name;
+      const studioName = project ? getProjectStudioName(gameState, project) : 'Unknown Studio';
 
       return {
         id: award.id,

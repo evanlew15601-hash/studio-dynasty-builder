@@ -477,8 +477,10 @@ export const EnhancedAwardsSystem: React.FC<EnhancedAwardsSystemProps> = ({
   };
 
   const getWinnerDisplayName = (winner: AwardNomination): string => {
-    const project = gameState.projects.find(p => p.id === winner.projectId) ||
-                   undefined;
+    const project =
+      gameState.projects.find(p => p.id === winner.projectId) ||
+      gameState.allReleases.find((r): r is Project => 'script' in r && r.id === winner.projectId) ||
+      gameState.aiStudioProjects?.find(p => p.id === winner.projectId);
     
     if (!project) return 'Unknown Project';
     
