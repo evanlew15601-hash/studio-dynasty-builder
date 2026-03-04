@@ -8,6 +8,7 @@ import { Badge } from '@/components/ui/badge';
 import { Separator } from '@/components/ui/separator';
 import { Play, Settings, Film, Star, Trophy, Sparkles } from 'lucide-react';
 import { Genre } from '@/types/game';
+import { StudioIconCustomizer, StudioIconRenderer, DEFAULT_ICON, type StudioIconConfig } from './StudioIconCustomizer';
 
 interface GameLandingProps {
   onStartGame: (config: GameConfig) => void;
@@ -19,6 +20,7 @@ interface GameConfig {
   specialties: Genre[];
   difficulty: 'easy' | 'normal' | 'hard' | 'magnate';
   startingBudget: number;
+  studioIcon: StudioIconConfig;
 }
 
 export const GameLanding: React.FC<GameLandingProps> = ({ onStartGame, onLoadGame }) => {
@@ -27,7 +29,8 @@ export const GameLanding: React.FC<GameLandingProps> = ({ onStartGame, onLoadGam
     studioName: '',
     specialties: ['drama'],
     difficulty: 'normal',
-    startingBudget: 10000000
+    startingBudget: 10000000,
+    studioIcon: { ...DEFAULT_ICON },
   });
 
   const difficultySettings = {
@@ -52,7 +55,8 @@ export const GameLanding: React.FC<GameLandingProps> = ({ onStartGame, onLoadGam
       onStartGame({
         ...config,
         studioName: config.studioName.trim(),
-        startingBudget: difficultySettings[config.difficulty].budget
+        startingBudget: difficultySettings[config.difficulty].budget,
+        studioIcon: config.studioIcon,
       });
     } else {
       // Quick start with defaults
@@ -60,7 +64,8 @@ export const GameLanding: React.FC<GameLandingProps> = ({ onStartGame, onLoadGam
         studioName: 'Untitled Pictures',
         specialties: ['drama'],
         difficulty: 'normal',
-        startingBudget: 10000000
+        startingBudget: 10000000,
+        studioIcon: { ...DEFAULT_ICON },
       });
     }
   };
@@ -300,6 +305,12 @@ export const GameLanding: React.FC<GameLandingProps> = ({ onStartGame, onLoadGam
                     ))}
                   </div>
                 </div>
+
+                {/* Studio Icon */}
+                <StudioIconCustomizer
+                  value={config.studioIcon}
+                  onChange={(icon) => setConfig(prev => ({ ...prev, studioIcon: icon }))}
+                />
 
                 <Separator className="bg-border" />
 

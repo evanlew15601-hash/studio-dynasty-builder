@@ -6,6 +6,7 @@ import { Suspense, lazy, useState } from 'react';
 import { loadGame, SaveGameSnapshot } from '@/utils/saveLoad';
 import { ensureGameStateRoleGenders, ensureTalentDemographics } from '@/utils/demographics';
 import { Genre } from '@/types/game';
+import type { StudioIconConfig } from '@/components/game/StudioIconCustomizer';
 import { getModBundle } from '@/utils/moddingStore';
 import { applyPatchesByKey, getPatchesForEntity } from '@/utils/modding';
 
@@ -18,6 +19,7 @@ type GameConfig = {
   specialties: Genre[];
   difficulty: 'easy' | 'normal' | 'hard' | 'magnate';
   startingBudget: number;
+  studioIcon?: StudioIconConfig;
 };
 
 const Index = () => {

@@ -51,12 +51,12 @@ function ensureRoleGenders(chars: ScriptCharacter[], fixesApplied?: string[]): S
   let changed = false;
 
   const updated = chars.map(c => {
-    const requiredType = c.requiredType || (c.importance === 'crew' ? 'director' : 'actor');
+    const requiredType: 'actor' | 'director' = c.requiredType === 'director' ? 'director' : (c.importance === 'crew' && !c.requiredType ? 'director' : 'actor');
     if (requiredType !== 'director' && !c.requiredGender) {
       changed = true;
       return {
         ...c,
-        requiredType: 'actor',
+        requiredType: 'actor' as const,
         requiredGender: stablePick<Gender>(['Male', 'Female'], `${c.id || c.name}|gender`),
       };
     }

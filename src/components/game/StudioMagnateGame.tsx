@@ -104,6 +104,7 @@ import { applyPatchesByKey, getPatchesForEntity } from '@/utils/modding';
 import { getModBundle } from '@/utils/moddingStore';
 import { DebugControlPanel } from './DebugControlPanel';
 import { IndustryDatabasePanel } from './IndustryDatabasePanel';
+import { StudioIconRenderer as StudioIconRendererLazy } from './StudioIconCustomizer';
 
 // Ensure AI films have credited talent so awards/filmographies have real people to reference
 function attachBasicCastForAI(project: Project, talentPool: TalentPerson[]): Project {
@@ -350,6 +351,7 @@ interface StudioMagnateGameProps {
     specialties: Genre[];
     difficulty: 'easy' | 'normal' | 'hard' | 'magnate';
     startingBudget: number;
+    studioIcon?: import('./StudioIconCustomizer').StudioIconConfig;
   };
   initialGameState?: GameState;
   /**
@@ -1942,7 +1944,7 @@ export const StudioMagnateGame: React.FC<StudioMagnateGameProps> = ({
         for (const released of releasedForFilmography) {
           filmographyState = TalentFilmographyManager.updateFilmographyOnRelease(filmographyState, released);
         }
-        updatedTalent = filmographyState.talent;
+        updatedTalent = filmographyState.talent as typeof updatedTalent;
       }
 
       // Memory management: prune old releases to prevent unbounded growth
@@ -2146,8 +2148,14 @@ export const StudioMagnateGame: React.FC<StudioMagnateGameProps> = ({
           <div className="flex items-center justify-between">
             <div className="flex items-center space-x-6">
               <div className="flex items-center space-x-3">
-                <div className="p-2 rounded-lg bg-gradient-golden shadow-golden animate-glow">
-                  <ClapperboardIcon className="text-primary-foreground" size={24} />
+                <div className="p-1.5 rounded-lg shadow-golden animate-glow">
+                  {gameConfig?.studioIcon ? (
+                    <StudioIconRendererLazy config={gameConfig.studioIcon} size={32} />
+                  ) : (
+                    <div className="p-0.5 bg-gradient-golden rounded-md">
+                      <ClapperboardIcon className="text-primary-foreground" size={24} />
+                    </div>
+                  )}
                 </div>
                 <div>
                   <div className="text-2xl font-bold studio-title bg-gradient-to-r from-primary to-accent bg-clip-text text-transparent">
@@ -2208,7 +2216,7 @@ export const StudioMagnateGame: React.FC<StudioMagnateGameProps> = ({
               
               <Button 
                 size="sm" 
-                onClick={handleAdvanceWeek}
+                onClick={() => handleAdvanceWeek()}
                 className="btn-studio shadow-golden hover:animate-glow transition-all duration-300"
               >
                 <BudgetIcon className="mr-2" size={16} />
