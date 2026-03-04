@@ -51,33 +51,77 @@ export function deleteIndustryDatabaseSlot(slotId: string, storage?: StorageLike
 }
 
 function defaultProviders(): ProviderDbRecord[] {
+  // IDs intentionally align with in-game streaming contract platform identifiers
+  // (while names remain fictional to avoid copyright issues).
   return [
     {
-      id: 'provider-aurora-plus',
-      name: 'Aurora+',
+      id: 'netflix',
+      name: 'StreamFlix',
       type: 'streaming',
       tier: 'major',
-      description: 'Premium streaming service with prestige originals and global reach.',
-      reach: 88,
-    },
-    {
-      id: 'provider-horizonflix',
-      name: 'HorizonFlix',
-      type: 'streaming',
-      tier: 'major',
-      description: 'Mass-market streamer known for big-budget franchises and broad audiences.',
+      description: 'Global streaming leader with broad mainstream reach and heavy content spend.',
       reach: 92,
     },
     {
-      id: 'provider-emberstream',
-      name: 'EmberStream',
+      id: 'amazon',
+      name: 'Prime Stream',
       type: 'streaming',
-      tier: 'mid',
-      description: 'Mid-tier platform leaning into genre series and weekly drops.',
-      reach: 70,
+      tier: 'major',
+      description: 'Bundle-driven streaming service with strong international footprint.',
+      reach: 88,
     },
     {
-      id: 'provider-signal8',
+      id: 'hulu',
+      name: 'StreamHub',
+      type: 'streaming',
+      tier: 'mid',
+      description: 'Ad-supported streamer focused on next-day TV and adult-skewing originals.',
+      reach: 75,
+    },
+    {
+      id: 'disney',
+      name: 'Magic Stream',
+      type: 'streaming',
+      tier: 'major',
+      description: 'Family-focused streaming platform with franchise-first strategy.',
+      reach: 85,
+    },
+    {
+      id: 'apple',
+      name: 'Orchard TV',
+      type: 'streaming',
+      tier: 'mid',
+      description: 'Prestige-leaning streamer with curated originals and premium positioning.',
+      reach: 65,
+    },
+    {
+      id: 'hbo',
+      name: 'Premium Stream',
+      type: 'streaming',
+      tier: 'major',
+      description: 'High-end subscription streamer known for award-caliber drama and limited series.',
+      reach: 78,
+    },
+    {
+      id: 'paramount',
+      name: 'Summit+',
+      type: 'streaming',
+      tier: 'mid',
+      description: 'Studio-backed streamer mixing blockbuster libraries with reality and sports docs.',
+      reach: 72,
+    },
+    {
+      id: 'peacock',
+      name: 'FeatherPlay',
+      type: 'streaming',
+      tier: 'mid',
+      description: 'Hybrid streamer with a strong catalog and live-event integrations.',
+      reach: 70,
+    },
+
+    // Cable networks (fictional)
+    {
+      id: 'signal8',
       name: 'Signal 8',
       type: 'cable',
       tier: 'major',
@@ -85,7 +129,7 @@ function defaultProviders(): ProviderDbRecord[] {
       reach: 80,
     },
     {
-      id: 'provider-northstar-network',
+      id: 'northstar',
       name: 'Northstar Network',
       type: 'cable',
       tier: 'mid',
@@ -93,7 +137,7 @@ function defaultProviders(): ProviderDbRecord[] {
       reach: 65,
     },
     {
-      id: 'provider-crest-news',
+      id: 'crestnews',
       name: 'Crest News',
       type: 'cable',
       tier: 'niche',

@@ -638,13 +638,15 @@ export const IndustryDatabasePanel: React.FC<IndustryDatabasePanelProps> = ({ ga
       </Card>
 
       <Tabs defaultValue="films" className="space-y-4">
-        <TabsList className="grid w-full grid-cols-6">
+        <TabsList className="grid w-full grid-cols-8">
           <TabsTrigger value="films">Films</TabsTrigger>
           <TabsTrigger value="tv">TV Shows</TabsTrigger>
           <TabsTrigger value="actors">Actors</TabsTrigger>
           <TabsTrigger value="directors">Directors</TabsTrigger>
           <TabsTrigger value="awards">Awards</TabsTrigger>
           <TabsTrigger value="studios">Studios</TabsTrigger>
+          <TabsTrigger value="providers">Providers</TabsTrigger>
+          <TabsTrigger value="modding">Modding</TabsTrigger>
         </TabsList>
 
         <TabsContent value="films" className="space-y-4">
@@ -1014,6 +1016,103 @@ export const IndustryDatabasePanel: React.FC<IndustryDatabasePanelProps> = ({ ga
                   </ScrollArea>
                 </TabsContent>
               </Tabs>
+            </CardContent>
+          </Card>
+        </TabsContent>
+
+        <TabsContent value="providers" className="space-y-4">
+          <Card className="card-premium">
+            <CardHeader>
+              <CardTitle>Providers (Streaming Platforms + Cable Networks)</CardTitle>
+            </CardHeader>
+            <CardContent className="text-sm text-muted-foreground">
+              Providers are used for TV/streaming distribution. Streaming contracts (where present) are shown here; deeper competitor/provider slates can be layered in as the TV system is refined.
+            </CardContent>
+          </Card>
+
+          <Card className="card-premium">
+            <CardHeader>
+              <CardTitle className="flex items-center justify-between">
+                <span>Providers Directory</span>
+                <Badge variant="outline">{db.providers.length} providers</Badge>
+              </CardTitle>
+            </CardHeader>
+            <CardContent>
+              <ScrollArea className="h-[520px] rounded border">
+                {db.providers.length === 0 ? (
+                  <div className="p-6 text-center text-muted-foreground">No providers in this database.</div>
+                ) : (
+                  <div className="p-2 space-y-2">
+                    {db.providers
+                      .slice()
+                      .sort((a, b) => a.name.localeCompare(b.name))
+                      .map((p) => {
+                        const activeContracts = gameState.projects.filter(pr => pr.streamingContract && (pr.streamingContract as any).platform === (p.id as any));
+                        const contractedTitles = activeContracts.map(pr => pr.title);
+
+                        return (
+                          <div key={p.id} className="p-3 rounded border">
+                            <div className="flex items-start justify-between gap-3">
+                              <div className="min-w-0">
+                                <div className="font-medium truncate">{p.name}</div>
+                                <div className="text-xs text-muted-foreground">
+                                  {p.type} • {p.tier || '—'} • reach {p.reach ?? '—'}
+                                </div>
+                                {p.description && (
+                                  <div className="text-xs text-muted-foreground mt-1">{p.description}</div>
+                                )}
+                              </div>
+                              <div className="flex items-center gap-2">
+                                <Badge variant="secondary">{activeContracts.length} active contract{activeContracts.length === 1 ? '' : 's'}</Badge>
+                                <Button
+                                  size="sm"
+                                  variant="outline"
+                                  onClick={() => {
+                                    setEditingProviderId(p.id);
+                                    setProviderDraft({ ...p });
+                                  }}
+                                >
+                                  Edit
+                                </Button>
+                              </div>
+                            </div>
+
+                            {activeContracts.length > 0 && (
+                              <div className="mt-3 rounded border bg-muted/10 p-3">
+                                <div className="text-xs font-medium mb-2">Active contracts</div>
+                                <div className="space-y-2">
+                                  {activeContracts.map((pr) => {
+                                    const c: any = pr.streamingContract;
+                                    return (
+                                      <div key={pr.id} className="flex flex-col md:flex-row md:items-center md:justify-between gap-1">
+                                        <div className="text-sm">{pr.title}</div>
+                                        <div className="text-xs text-muted-foreground">
+                                          {c.status} • {c.startYear} W{c.startWeek} → {c.endYear} W{c.endWeek} • upfront {formatCurrency(c.upfrontPayment)}
+                                        </div>
+                                      </div>
+                                    );
+                                  })}
+                                </div>
+                              </div>
+                            )}
+
+                            {activeContracts.length === 0 && (
+                              <div className="mt-2 text-xs text-muted-foreground">
+                                No active in-game contracts currently tracked for this provider.
+                              </div>
+                            )}
+
+                            {contractedTitles.length === 0 && (
+                              <div className="mt-2 text-xs text-muted-foreground">
+                                (Content slate display will expand as competitor TV pipelines are refined.)
+                              </div>
+                            )}
+                          </div>
+                        );
+                      })}
+                  </div>
+                )}
+              </ScrollArea>
             </CardContent>
           </Card>
         </TabsContent>
