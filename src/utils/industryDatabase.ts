@@ -172,7 +172,7 @@ export function loadIndustryDatabase(slotId: string, storage?: StorageLike): Ind
     if (!parsed || parsed.version !== DB_VERSION) return createEmptyIndustryDatabase();
 
     // Forward-fill newly added collections so old saves don't break.
-    if (!(parsed as any).providers) {
+    if (!Array.isArray((parsed as any).providers)) {
       return {
         ...parsed,
         providers: defaultProviders(),
@@ -231,11 +231,19 @@ function buildFilmRecord(gameState: GameState, project: Project): FilmDbRecord {
   };
 }
 
-function buildTvShowRecord(gameState: GameState, project: Project): TvShowDbRecord {
+function buildTvShowRecord(gameState: GameState, project: Project, providerIds: Set<string>): TvShowDbRecord {
+  const primaryPlatform = project.distributionStrategy?.primary?.platform;
+
+  const providerId =
+    project.providerId ||
+    project.streamingContract?.platform ||
+    (primaryPlatform && providerIds.has(primaryPlatform) ? primaryPlatform : undefined);
+
   return {
     id: project.id,
     title: project.title,
     studioName: getProjectStudioName(gameState, project),
+    providerId,
     releaseWeek: project.releaseWeek,
     releaseYear: project.releaseYear,
     genre: project.script?.genre,
@@ -370,6 +378,8 @@ export function syncIndustryDatabase(db: IndustryDatabase, gameState: GameState)
     }
   }
 
+  const providerIds = new Set((db.providers || []).map((p) => p.id));
+
   // Released films + TV shows
   for (const p of allProjects) {
     const isReleased = p.status === 'released' || p.status === 'distribution' || p.status === 'archived';
@@ -378,7 +388,7 @@ export function syncIndustryDatabase(db: IndustryDatabase, gameState: GameState)
     const isTv = p.type === 'series' || p.type === 'limited-series';
 
     if (isTv) {
-      const { list, changed: c } = upsertById(nextTv, buildTvShowRecord(gameState, p));
+      const { list, changed: c } = upsertById(nextTv, buildTvShowRecord(gameState, p, providerIds));
       nextTv = list;
       changed = changed || c;
     } else {

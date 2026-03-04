@@ -120,13 +120,26 @@ export const IndustryDatabasePanel: React.FC<IndustryDatabasePanelProps> = ({ ga
 
   const importDatabase = async (file: File) => {
     const text = await file.text();
-    const parsed = JSON.parse(text) as IndustryDatabase;
+    const parsed = JSON.parse(text) as Partial<IndustryDatabase>;
     // Basic validation: must look like an industry db
     if (!parsed || typeof parsed !== 'object' || !('version' in parsed) || !('films' in parsed) || !('awards' in parsed)) {
       throw new Error('Invalid database file');
     }
-    saveIndustryDatabase(slot, parsed);
-    setDb(parsed);
+
+    const empty = createEmptyIndustryDatabase();
+    const normalized: IndustryDatabase = {
+      version: empty.version,
+      updatedAt: typeof parsed.updatedAt === 'string' ? parsed.updatedAt : new Date().toISOString(),
+      films: Array.isArray(parsed.films) ? parsed.films : [],
+      tvShows: Array.isArray(parsed.tvShows) ? parsed.tvShows : [],
+      talent: Array.isArray(parsed.talent) ? parsed.talent : [],
+      awards: Array.isArray(parsed.awards) ? parsed.awards : [],
+      studios: Array.isArray(parsed.studios) ? parsed.studios : [],
+      providers: Array.isArray((parsed as any).providers) ? ((parsed as any).providers as any) : empty.providers,
+    };
+
+    saveIndustryDatabase(slot, normalized);
+    setDb(normalized);
   };
 
   const resetDatabase = () => {
@@ -292,6 +305,8 @@ export const IndustryDatabasePanel: React.FC<IndustryDatabasePanelProps> = ({ ga
   }, [db.films, db.studios, db.tvShows]);
 
   const [selectedStudio, setSelectedStudio] = useState<string>(() => studios[0] || gameState.studio.name);
+
+  const [activeTab, setActiveTab] = useState<'films' | 'tv' | 'actors' | 'directors' | 'awards' | 'studios' | 'providers' | 'modding'>('films');
 
   // ===== Modding / editor state =====
   const [talentDraft, setTalentDraft] = useState<Partial<TalentDbRecord> & { type?: 'actor' | 'director' }>({
@@ -637,7 +652,7 @@ export const IndustryDatabasePanel: React.FC<IndustryDatabasePanelProps> = ({ ga
         </CardContent>
       </Card>
 
-      <Tabs defaultValue="films" className="space-y-4">
+      <Tabs value={activeTab} onValueChange={(v) => setActiveTab(v as any)} className="space-y-4">
         <TabsList className="grid w-full grid-cols-8">
           <TabsTrigger value="films">Films</TabsTrigger>
           <TabsTrigger value="tv">TV Shows</TabsTrigger>
@@ -1047,8 +1062,14 @@ export const IndustryDatabasePanel: React.FC<IndustryDatabasePanelProps> = ({ ga
                       .slice()
                       .sort((a, b) => a.name.localeCompare(b.name))
                       .map((p) => {
-                        const activeContracts = gameState.projects.filter(pr => pr.streamingContract && (pr.streamingContract as any).platform === (p.id as any));
-                        const contractedTitles = activeContracts.map(pr => pr.title);
+                        const activeContracts = gameState.projects.filter(
+                          (pr) => pr.streamingContract && (pr.streamingContract as any).platform === (p.id as any)
+                        );
+
+                        const catalogShows = db.tvShows
+                          .filter((s) => s.providerId === p.id)
+                          .slice()
+                          .sort((a, b) => (b.releaseYear || 0) - (a.releaseYear || 0) || (b.totalViews || 0) - (a.totalViews || 0));
 
                         return (
                           <div key={p.id} className="p-3 rounded border">
@@ -1063,13 +1084,15 @@ export const IndustryDatabasePanel: React.FC<IndustryDatabasePanelProps> = ({ ga
                                 )}
                               </div>
                               <div className="flex items-center gap-2">
-                                <Badge variant="secondary">{activeContracts.length} active contract{activeContracts.length === 1 ? '' : 's'}</Badge>
+                                <Badge variant="secondary">{catalogShows.length} shows</Badge>
+                                <Badge variant="secondary">{activeContracts.length} contract{activeContracts.length === 1 ? '' : 's'}</Badge>
                                 <Button
                                   size="sm"
                                   variant="outline"
                                   onClick={() => {
                                     setEditingProviderId(p.id);
                                     setProviderDraft({ ...p });
+                                    setActiveTab('modding');
                                   }}
                                 >
                                   Edit
@@ -1077,7 +1100,28 @@ export const IndustryDatabasePanel: React.FC<IndustryDatabasePanelProps> = ({ ga
                               </div>
                             </div>
 
-                            {activeContracts.length > 0 && (
+                            {catalogShows.length > 0 ? (
+                              <div className="mt-3 rounded border bg-muted/10 p-3">
+                                <div className="text-xs font-medium mb-2">Catalog shows</div>
+                                <div className="space-y-2">
+                                  {catalogShows.slice(0, 8).map((s) => (
+                                    <div key={s.id} className="flex flex-col md:flex-row md:items-center md:justify-between gap-1">
+                                      <div className="text-sm">{s.title}</div>
+                                      <div className="text-xs text-muted-foreground">
+                                        {s.studioName} • {s.releaseYear ? `Y${s.releaseYear}` : '—'}{s.releaseWeek ? ` W${s.releaseWeek}` : ''} • views {formatNumber(s.totalViews)}
+                                      </div>
+                                    </div>
+                                  ))}
+                                  {catalogShows.length > 8 && (
+                                    <div className="text-xs text-muted-foreground">+ {catalogShows.length - 8} more…</div>
+                                  )}
+                                </div>
+                              </div>
+                            ) : (
+                              <div className="mt-2 text-xs text-muted-foreground">No catalog shows currently assigned to this provider.</div>
+                            )}
+
+                            {activeContracts.length > 0 ? (
                               <div className="mt-3 rounded border bg-muted/10 p-3">
                                 <div className="text-xs font-medium mb-2">Active contracts</div>
                                 <div className="space-y-2">
@@ -1094,22 +1138,47 @@ export const IndustryDatabasePanel: React.FC<IndustryDatabasePanelProps> = ({ ga
                                   })}
                                 </div>
                               </div>
-                            )}
-
-                            {activeContracts.length === 0 && (
-                              <div className="mt-2 text-xs text-muted-foreground">
-                                No active in-game contracts currently tracked for this provider.
-                              </div>
-                            )}
-
-                            {contractedTitles.length === 0 && (
-                              <div className="mt-2 text-xs text-muted-foreground">
-                                (Content slate display will expand as competitor TV pipelines are refined.)
-                              </div>
+                            ) : (
+                              <div className="mt-2 text-xs text-muted-foreground">No active contracts currently tracked for this provider.</div>
                             )}
                           </div>
                         );
                       })}
+                  </div>
+                )}
+              </ScrollArea>
+            </CardContent>
+          </Card>
+
+          <Card className="card-premium">
+            <CardHeader>
+              <CardTitle className="flex items-center justify-between">
+                <span>Unassigned TV shows</span>
+                <Badge variant="outline">{db.tvShows.filter((s) => !s.providerId).length}</Badge>
+              </CardTitle>
+            </CardHeader>
+            <CardContent className="space-y-2 text-sm text-muted-foreground">
+              <div>
+                These shows have no providerId yet. This usually means they haven’t been linked to a provider (or the project’s distribution platform doesn’t match a provider id).
+              </div>
+              <ScrollArea className="h-[260px] rounded border">
+                {db.tvShows.filter((s) => !s.providerId).length === 0 ? (
+                  <div className="p-6 text-center text-muted-foreground">All TV shows are assigned to a provider.</div>
+                ) : (
+                  <div className="p-2 space-y-2">
+                    {db.tvShows
+                      .filter((s) => !s.providerId)
+                      .slice()
+                      .sort((a, b) => (b.releaseYear || 0) - (a.releaseYear || 0) || (b.totalViews || 0) - (a.totalViews || 0))
+                      .slice(0, 20)
+                      .map((s) => (
+                        <div key={s.id} className="flex flex-col md:flex-row md:items-center md:justify-between gap-1 p-2 rounded border">
+                          <div className="text-sm">{s.title}</div>
+                          <div className="text-xs text-muted-foreground">
+                            {s.studioName} • {s.releaseYear ? `Y${s.releaseYear}` : '—'}{s.releaseWeek ? ` W${s.releaseWeek}` : ''} • views {formatNumber(s.totalViews)}
+                          </div>
+                        </div>
+                      ))}
                   </div>
                 )}
               </ScrollArea>
@@ -1120,7 +1189,7 @@ export const IndustryDatabasePanel: React.FC<IndustryDatabasePanelProps> = ({ ga
         <TabsContent value="modding" className="space-y-4">
           <Card className="card-premium">
             <CardHeader>
-              <CardTitle>Quick Modding (Add/Edit People & Studios)</CardTitle>
+              <CardTitle>Quick Modding (People, Studios, Providers)</CardTitle>
             </CardHeader>
             <CardContent className="space-y-6">
               <div className="text-sm text-muted-foreground">

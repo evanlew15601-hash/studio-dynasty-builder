@@ -151,6 +151,15 @@ export const StreamingContractSystem: React.FC<StreamingContractSystemProps> = (
     const platform = STREAMING_PLATFORMS.find(p => p.id === platformId)!;
     
     onProjectUpdate(project.id, {
+      providerId: platformId,
+      distributionStrategy: {
+        ...project.distributionStrategy,
+        primary: {
+          ...project.distributionStrategy.primary,
+          platform: platformId,
+          type: 'streaming',
+        },
+      },
       streamingContract: contract,
       marketingCampaign: {
         ...project.marketingCampaign,

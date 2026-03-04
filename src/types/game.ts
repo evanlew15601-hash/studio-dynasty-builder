@@ -299,6 +299,11 @@ export interface Project {
   totalOrderedSeasons?: number;
   releaseFormat?: 'weekly' | 'binge' | 'batch';
   /**
+   * Provider identifier (streaming platform or cable network) where this show is currently distributed.
+   * For streaming, this typically matches streamingContract.platform.
+   */
+  providerId?: string;
+  /**
    * Optional streaming contract information for TV/streaming projects.
    * This is used by the StreamingContractSystem and saved as part of GameState.
    */

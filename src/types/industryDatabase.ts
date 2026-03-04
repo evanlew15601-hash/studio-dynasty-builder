@@ -19,6 +19,7 @@ export interface TvShowDbRecord {
   id: string;
   title: string;
   studioName: string;
+  providerId?: string;
   releaseWeek?: number;
   releaseYear?: number;
   genre?: Genre;
