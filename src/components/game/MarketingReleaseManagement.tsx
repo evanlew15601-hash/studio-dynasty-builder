@@ -155,11 +155,35 @@ export const MarketingReleaseManagement: React.FC<MarketingReleaseManagementProp
                     </div>
                     
                     {project.marketingCampaign ? (
-                      <MarketingActivities 
-                        project={project}
-                        onProjectUpdate={onProjectUpdate}
-                        studioBudget={gameState.studio.budget}
-                      />
+                      <div className="space-y-3">
+                        <MarketingActivities 
+                          project={project}
+                          onProjectUpdate={onProjectUpdate}
+                          studioBudget={gameState.studio.budget}
+                        />
+
+                        <div className="flex items-center justify-between text-sm">
+                          <span className="text-muted-foreground">Planned Release</span>
+                          {project.scheduledReleaseWeek && project.scheduledReleaseYear ? (
+                            <span className="font-medium">
+                              Y{project.scheduledReleaseYear}W{project.scheduledReleaseWeek}
+                            </span>
+                          ) : (
+                            <span className="text-muted-foreground">Not scheduled</span>
+                          )}
+                        </div>
+
+                        <div className="flex gap-2">
+                          <Button
+                            variant="outline"
+                            onClick={() => handleReleaseStrategy(project)}
+                            className="flex-1"
+                          >
+                            <CalendarIcon className="w-4 h-4 mr-2" />
+                            {project.type === 'series' || project.type === 'limited-series' ? 'Plan Air Date' : 'Plan Release'}
+                          </Button>
+                        </div>
+                      </div>
                     ) : (
                       <div className="space-y-3">
                         <div className="flex justify-between text-sm">
@@ -217,7 +241,13 @@ export const MarketingReleaseManagement: React.FC<MarketingReleaseManagementProp
                     <div className="space-y-3">
                       <div className="flex justify-between text-sm">
                         <span>Release Status</span>
-                        <span>Need to set release strategy</span>
+                        {project.scheduledReleaseWeek && project.scheduledReleaseYear ? (
+                          <span className="font-medium">
+                            Scheduled: Y{project.scheduledReleaseYear}W{project.scheduledReleaseWeek}
+                          </span>
+                        ) : (
+                          <span>Need to set release strategy</span>
+                        )}
                       </div>
                       
                       <div className="flex gap-2">
@@ -226,7 +256,9 @@ export const MarketingReleaseManagement: React.FC<MarketingReleaseManagementProp
                           className="flex-1"
                         >
                           <BoxOfficeIcon className="w-4 h-4 mr-2" />
-                          {project.type === 'series' || project.type === 'limited-series' ? 'Set Air Date' : 'Plan Release'}
+                          {project.type === 'series' || project.type === 'limited-series'
+                            ? (project.scheduledReleaseWeek ? 'Change Air Date' : 'Set Air Date')
+                            : (project.scheduledReleaseWeek ? 'Change Release Date' : 'Plan Release')}
                         </Button>
                       </div>
                     </div>

@@ -11,8 +11,14 @@ import { Badge } from '@/components/ui/badge';
 import { useToast } from '@/hooks/use-toast';
 import { ScriptCharacterManager, ScriptCharacter } from './ScriptCharacterManager';
 import { importRolesForScript } from '@/utils/roleImport';
-import { finalizeScriptForSave } from '@/utils/scriptFinalization';
+import { finalizeScriptForGreenlight, finalizeScriptForSave, getScriptGreenlightReport } from '@/utils/scriptFinalization';
+import { getScriptStageAdvanceQuote, formatScriptStage } from '@/utils/scriptProgression';
+import { FinancialEngine } from './FinancialEngine';
 import { ScriptIcon, BudgetIcon, AwardIcon, ClapperboardIcon } from '@/components/ui/icons';
+
+type SpendFundsResult = { success: boolean; loanTaken?: number };
+
+type SpendFundsFn = (amount: number, description: string) => SpendFundsResult;
 
 interface TVShowDevelopmentProps {
   gameState: GameState;
@@ -20,6 +26,7 @@ interface TVShowDevelopmentProps {
   selectedPublicDomain?: string | null;
   onProjectCreate: (script: Script) => void;
   onScriptUpdate: (script: Script) => void;
+  onSpendFunds: SpendFundsFn;
 }
 
 export const TVShowDevelopment: React.FC<TVShowDevelopmentProps> = ({
@@ -28,6 +35,7 @@ export const TVShowDevelopment: React.FC<TVShowDevelopmentProps> = ({
   selectedPublicDomain,
   onProjectCreate,
   onScriptUpdate,
+  onSpendFunds,
 }) => {
   const { toast } = useToast();
   
@@ -36,6 +44,73 @@ export const TVShowDevelopment: React.FC<TVShowDevelopmentProps> = ({
   const [scriptCharacters, setScriptCharacters] = useState<ScriptCharacter[]>([]);
 
   const stageOrder: Script['developmentStage'][] = ['concept', 'treatment', 'first-draft', 'polish', 'final'];
+
+  const canAffordWriterFee = (amount: number): boolean => {
+    const maxLoanCapacity = Math.max(0, 50000000 - (gameState.studio.debt || 0));
+    const availableFunds = gameState.studio.budget + maxLoanCapacity;
+    return amount <= availableFunds;
+  };
+
+  const formatMoney = (amount: number) => {
+    if (amount >= 1_000_000) return '\u0024' + (amount / 1_000_000).toFixed(2) + 'M';
+    return '\u0024' + amount.toLocaleString();
+  };
+
+  const handleAdvanceStage = (script: Script) => {
+    const quote = getScriptStageAdvanceQuote(script);
+    if (!quote) return;
+
+    if (!canAffordWriterFee(quote.writerFee)) {
+      toast({
+        title: 'Insufficient Budget',
+        description: `Need ${formatMoney(quote.writerFee)} to pay the writer for this stage.`,
+        variant: 'destructive',
+      });
+      return;
+    }
+
+    const writerName = script.writer?.trim().length ? script.writer.trim() : `${gameState.studio.name} Writing Team`;
+    const stageName = `${formatScriptStage(quote.fromStage)} -> ${formatScriptStage(quote.toStage)}`;
+
+    const spend = onSpendFunds(quote.writerFee, `Writer fee (${writerName}) - ${stageName}`);
+    if (!spend.success) {
+      toast({
+        title: 'Insufficient Budget',
+        description: `Need ${formatMoney(quote.writerFee)} to pay the writer for this stage.`,
+        variant: 'destructive',
+      });
+      return;
+    }
+
+    FinancialEngine.recordTransaction(
+      'expense',
+      'talent',
+      quote.writerFee,
+      gameState.currentWeek,
+      gameState.currentYear,
+      `Writer fee (${writerName}) - ${stageName}`
+    );
+
+    const updated: Script = {
+      ...script,
+      developmentStage: quote.toStage,
+      quality: Math.min(100, (script.quality || 0) + quote.qualityDelta),
+    };
+
+    onScriptUpdate(updated);
+
+    toast({
+      title: 'TV Script Advanced',
+      description: `${script.title} is now in ${formatScriptStage(quote.toStage)}. Paid ${formatMoney(quote.writerFee)} to ${writerName}.`,
+    });
+
+    if (spend.loanTaken && spend.loanTaken > 0) {
+      toast({
+        title: 'Loan Taken',
+        description: `Borrowed ${formatMoney(spend.loanTaken)} to cover the writer fee.`,
+      });
+    }
+  };
 
   const handleEditTVScript = (script: Script) => {
     const shouldSeedRoles =
@@ -215,7 +290,7 @@ export const TVShowDevelopment: React.FC<TVShowDevelopmentProps> = ({
       pages: newScript.pages || 60,
       quality: newScript.quality || 50,
       budget: newScript.budget || 2000000,
-      developmentStage: newScript.developmentStage || 'concept',
+      developmentStage: editingScript?.developmentStage || 'concept',
       themes: newScript.themes || [],
       targetAudience: newScript.targetAudience!,
       estimatedRuntime: newScript.estimatedRuntime || 45,
@@ -253,13 +328,53 @@ export const TVShowDevelopment: React.FC<TVShowDevelopmentProps> = ({
     });
   };
 
+  const handleRunFinalChecks = (script: Script) => {
+    if (script.developmentStage !== 'final') {
+      toast({
+        title: 'Not Ready',
+        description: 'Advance the script to Final stage before running final checks.',
+        variant: 'destructive',
+      });
+      return;
+    }
+
+    const { script: finalized, report } = finalizeScriptForGreenlight(script, gameState);
+    onScriptUpdate(finalized);
+
+    if (!report.canFinalize) {
+      toast({
+        title: 'Cannot Finalize',
+        description: report.issues.filter(i => i.level === 'error').map(i => i.message).join(' '),
+        variant: 'destructive',
+      });
+      return;
+    }
+
+    toast({
+      title: 'Final Checks Complete',
+      description: report.fixesApplied.length > 0
+        ? `${finalized.title}: ${report.fixesApplied.join(', ')}`
+        : `${finalized.title} is ready for greenlight.`,
+    });
+  };
+
   const handleGreenlightTVScript = (script: Script) => {
     // Enforce script refinement gate — same as film scripts
     if (script.developmentStage !== 'final') {
       toast({
-        title: "Script Not Ready",
-        description: "Refine the TV script to 'Final' stage before greenlighting. Edit the script to advance its stage.",
-        variant: "destructive"
+        title: 'Script Not Ready',
+        description: 'Advance the TV script to Final stage before greenlighting.',
+        variant: 'destructive',
+      });
+      return;
+    }
+
+    const report = getScriptGreenlightReport(script, gameState);
+    if (!report.canFinalize) {
+      toast({
+        title: 'Script Not Ready',
+        description: report.issues.filter(i => i.level === 'error').map(i => i.message).join(' '),
+        variant: 'destructive',
       });
       return;
     }
@@ -270,18 +385,18 @@ export const TVShowDevelopment: React.FC<TVShowDevelopmentProps> = ({
 
     if (gameState.studio.budget < seasonBudget * 0.1) {
       toast({
-        title: "Insufficient Budget",
-        description: "You need at least 10% of the estimated season budget for development.",
-        variant: "destructive"
+        title: 'Insufficient Budget',
+        description: 'You need at least 10% of the estimated season budget for development.',
+        variant: 'destructive',
       });
       return;
     }
 
     // Let the core game system create the actual TV project from this script
     onProjectCreate(script);
-    
+
     toast({
-      title: "TV Script Greenlit!",
+      title: 'TV Script Greenlit!',
       description: `"${script.title}" moved to Development phase. Assign cast and crew to proceed to Pre-Production.`,
     });
   };
@@ -503,30 +618,28 @@ export const TVShowDevelopment: React.FC<TVShowDevelopmentProps> = ({
               </div>
             </div>
 
-            {/* Development Stage (for editing) */}
-            {editingScript && (
-              <div className="border-t pt-4">
-                <Label>Development Stage</Label>
-                <Select 
-                  value={newScript.developmentStage || 'concept'} 
-                  onValueChange={(value) => setNewScript(prev => ({ ...prev, developmentStage: value as Script['developmentStage'] }))}
-                >
-                  <SelectTrigger>
-                    <SelectValue />
-                  </SelectTrigger>
-                  <SelectContent>
-                    {stageOrder.map(stage => (
-                      <SelectItem key={stage} value={stage} className="capitalize">
-                        {stage.replace('-', ' ')}
-                      </SelectItem>
-                    ))}
-                  </SelectContent>
-                </Select>
-                <p className="text-xs text-muted-foreground mt-1">
-                  Scripts must reach "Final" stage before they can be greenlit into production.
-                </p>
-              </div>
-            )}
+            {/* Development Stage */}
+            <div className="border-t pt-4">
+              <Label>Development Stage</Label>
+              <Select
+                value={editingScript?.developmentStage || newScript.developmentStage || 'concept'}
+                disabled
+              >
+                <SelectTrigger>
+                  <SelectValue />
+                </SelectTrigger>
+                <SelectContent>
+                  {stageOrder.map(stage => (
+                    <SelectItem key={stage} value={stage} className="capitalize">
+                      {stage.replace('-', ' ')}
+                    </SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
+              <p className="text-xs text-muted-foreground mt-1">
+                Advance stages from the TV Script Library (pays writer fees).
+              </p>
+            </div>
 
             {/* Character Manager */}
             <div className="border-t pt-6">
@@ -579,7 +692,14 @@ export const TVShowDevelopment: React.FC<TVShowDevelopmentProps> = ({
               {availableTVScripts.map((script) => {
                 const stageIndex = stageOrder.indexOf(script.developmentStage || 'concept');
                 const stageProgress = ((stageIndex + 1) / stageOrder.length) * 100;
-                const isReadyToGreenlight = script.developmentStage === 'final';
+                const greenlightReport = getScriptGreenlightReport(script, gameState);
+                const isFinalized = script.developmentStage === 'final' && greenlightReport.canFinalize;
+                const stageQuote = getScriptStageAdvanceQuote(script);
+                const canAdvanceStage = !!stageQuote && canAffordWriterFee(stageQuote.writerFee);
+
+                const assumedEpisodeCount = 13;
+                const canAffordGreenlight = gameState.studio.budget >= (script.budget * assumedEpisodeCount) * 0.1;
+                const canGreenlight = isFinalized && canAffordGreenlight;
 
                 return (
                 <Card 
@@ -590,9 +710,14 @@ export const TVShowDevelopment: React.FC<TVShowDevelopmentProps> = ({
                     <CardTitle className="text-base truncate">{script.title}</CardTitle>
                     <div className="flex items-center space-x-2">
                       <Badge variant="outline">{script.genre}</Badge>
-                      <Badge variant={isReadyToGreenlight ? 'default' : 'secondary'} className="text-xs capitalize">
+                      <Badge variant={isFinalized ? 'default' : 'secondary'} className="text-xs capitalize">
                         {(script.developmentStage || 'concept').replace('-', ' ')}
                       </Badge>
+                      {script.developmentStage === 'final' && !greenlightReport.canFinalize && (
+                        <Badge variant="outline" className="text-xs border-destructive/40 text-destructive">
+                          Needs Checks
+                        </Badge>
+                      )}
                       <Badge variant="outline" className="text-xs">
                         {script.estimatedRuntime}min
                       </Badge>
@@ -644,18 +769,47 @@ export const TVShowDevelopment: React.FC<TVShowDevelopmentProps> = ({
                         </Button>
                         <Button 
                           size="sm" 
-                          className={`flex-1 ${!isReadyToGreenlight ? 'opacity-60' : ''}`}
-                          onClick={() => handleGreenlightTVScript(script)}
-                          disabled={gameState.studio.budget < script.budget * 0.1}
-                          title={!isReadyToGreenlight ? 'Refine the script to "final" stage before greenlighting' : ''}
+                          className={`flex-1 ${!canGreenlight ? 'opacity-90' : ''}`}
+                          variant={canGreenlight ? 'default' : 'secondary'}
+                          onClick={() => {
+                            if (canGreenlight) {
+                              handleGreenlightTVScript(script);
+                              return;
+                            }
+
+                            if (stageQuote) {
+                              handleAdvanceStage(script);
+                              return;
+                            }
+
+                            handleRunFinalChecks(script);
+                          }}
+                          disabled={stageQuote ? !canAdvanceStage : false}
+                          title={
+                            canGreenlight
+                              ? ''
+                              : stageQuote
+                                ? !canAdvanceStage
+                                  ? 'Insufficient funds to pay the writer'
+                                  : `Pay ${formatMoney(stageQuote.writerFee)} to advance`
+                                : greenlightReport.issues.filter(i => i.level === 'error').map(i => i.message).join(' ')
+                          }
                         >
                           <ClapperboardIcon className="w-4 h-4 mr-1" />
-                          {isReadyToGreenlight ? 'Greenlight' : 'Not Ready'}
+                          {canGreenlight
+                            ? 'Greenlight'
+                            : stageQuote
+                              ? `Advance (${formatScriptStage(stageQuote.toStage)})`
+                              : 'Final Checks'}
                         </Button>
                       </div>
-                      {!isReadyToGreenlight && (
+                      {!canGreenlight && (
                         <p className="text-xs text-muted-foreground text-center">
-                          Edit and advance to "final" stage to greenlight
+                          {stageQuote
+                            ? `Pay ${formatMoney(stageQuote.writerFee)} to advance to ${formatScriptStage(stageQuote.toStage)}`
+                            : isFinalized
+                              ? (canAffordGreenlight ? 'Run final checks to greenlight' : 'Secure financing to greenlight')
+                              : 'Advance stages and run final checks before greenlighting'}
                         </p>
                       )}
                     </div>

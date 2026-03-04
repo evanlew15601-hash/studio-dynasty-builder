@@ -1,4 +1,5 @@
 import { Project } from '@/types/game';
+import { FinancialEngine } from './FinancialEngine';
 import { TimeSystem } from './TimeSystem';
 
 export interface BoxOfficeWeeklyReport {
@@ -20,7 +21,18 @@ export class BoxOfficeSystem {
     
     // Calculate opening week revenue immediately during release
     const openingWeekRevenue = this.calculateWeeklyRevenue(project, 0);
-    console.log(`   💰 OPENING WEEK REVENUE: $${openingWeekRevenue.toLocaleString()}`);
+    console.log(`   💰 OPENING WEEK REVENUE: ${openingWeekRevenue.toLocaleString()}`);
+
+    // Record opening week revenue in the unified ledger (idempotent by week/year)
+    const existingOpening = FinancialEngine.getFilmFinancials(project.id).transactions.some(t =>
+      t.type === 'revenue' &&
+      t.category === 'boxoffice' &&
+      t.week === releaseWeek &&
+      t.year === releaseYear
+    );
+    if (!existingOpening && openingWeekRevenue > 0) {
+      FinancialEngine.recordFilmRevenue(project.id, openingWeekRevenue, releaseWeek, releaseYear, 'Opening week');
+    }
     
     const result = {
       ...project,
@@ -85,10 +97,16 @@ export class BoxOfficeSystem {
     const weeksSinceRelease = Math.max(0, currentAbsoluteWeek - releaseAbsoluteWeek);
     console.log(`  📅 Week ${weeksSinceRelease} of theatrical run (0 = release week)`);
 
-    // Check if project should be processing (week 0 = release week, already in theaters from init)
+    // Week 0 revenue is handled during initializeRelease(). Do not double-count.
     if (weeksSinceRelease === 0) {
-      console.log(`  🎭 RELEASE WEEK - Project should already be in theaters from initialization`);
-      console.log(`  📊 Current metrics: inTheaters=${project.metrics?.inTheaters}, theaterCount=${project.metrics?.theaterCount}`);
+      console.log(`  🎭 RELEASE WEEK - revenue already captured during initialization`);
+      return {
+        ...project,
+        metrics: {
+          ...project.metrics,
+          weeksSinceRelease: 0,
+        }
+      };
     }
     
     // First week: Enter theaters (this should not happen for week 0 releases)
@@ -159,6 +177,17 @@ export class BoxOfficeSystem {
     console.log(`     Theaters: ${theaterCount}`);
     console.log(`     Status: ${status}`);
     console.log(`     Chart: #${report.chartPosition}`);
+
+    const alreadyRecorded = FinancialEngine.getFilmFinancials(project.id).transactions.some(t =>
+      t.type === 'revenue' &&
+      t.category === 'boxoffice' &&
+      t.week === currentWeek &&
+      t.year === currentYear
+    );
+
+    if (!alreadyRecorded && weeklyRevenue > 0) {
+      FinancialEngine.recordFilmRevenue(project.id, weeklyRevenue, currentWeek, currentYear, `Week ${weeksSinceRelease + 1}`);
+    }
 
     return {
       ...project,

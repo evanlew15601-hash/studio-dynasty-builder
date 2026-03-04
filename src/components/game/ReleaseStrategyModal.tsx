@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useEffect, useState } from 'react';
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription } from '@/components/ui/dialog';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
@@ -6,6 +6,7 @@ import { Badge } from '@/components/ui/badge';
 import { Calendar, Target, DollarSign, TrendingUp, Tv } from 'lucide-react';
 import { Project, GameState } from '@/types/game';
 import { ReleaseSystem } from './ReleaseSystem';
+import { CalendarManager } from './CalendarManager';
 import { useToast } from '@/hooks/use-toast';
 
 interface ReleaseStrategyModalProps {
@@ -28,6 +29,16 @@ export const ReleaseStrategyModal: React.FC<ReleaseStrategyModalProps> = ({
   
   if (!project) return null;
 
+  useEffect(() => {
+    if (!isOpen) return;
+
+    if (project.scheduledReleaseWeek && project.scheduledReleaseYear) {
+      setSelectedDate({ week: project.scheduledReleaseWeek, year: project.scheduledReleaseYear });
+    } else {
+      setSelectedDate(null);
+    }
+  }, [isOpen, project.id]);
+
   const currentTime = {
     currentWeek: gameState.currentWeek,
     currentYear: gameState.currentYear,
@@ -37,16 +48,81 @@ export const ReleaseStrategyModal: React.FC<ReleaseStrategyModalProps> = ({
   // Get optimal windows - different messaging for TV vs films
   const isTV = project.type === 'series' || project.type === 'limited-series';
   const validation = ReleaseSystem.validateFilmForRelease(project);
-  const optimalWindows = [
+
+  const marketingLeadWeeks = project.marketingCampaign
+    ? Math.max(1, project.marketingCampaign.weeksRemaining)
+    : 4;
+
+  const baseWindows = [
     { week: 20, year: gameState.currentYear, season: isTV ? 'Summer TV Season' : 'Summer Blockbuster', multiplier: 1.3 },
     { week: 47, year: gameState.currentYear, season: isTV ? 'Fall TV Season' : 'Holiday Season', multiplier: 1.2 },
     { week: 8, year: gameState.currentYear + 1, season: isTV ? 'Winter Premieres' : 'Early Year', multiplier: 0.9 },
     { week: 35, year: gameState.currentYear, season: isTV ? 'Fall Premieres' : 'Back to School', multiplier: 1.1 }
-  ].filter(window => {
-    const windowTime = (window.year * 52) + window.week;
-    const currentTimeValue = (gameState.currentYear * 52) + gameState.currentWeek;
-    return windowTime >= currentTimeValue + 4; // At least 4 weeks in future to meet marketing lead time
-  });
+  ];
+
+  const getCalendarValidation = (week: number, year: number) =>
+    CalendarManager.validateRelease(project.id, week, year, currentTime, gameState.projects);
+
+  const earliestAvailable = (() => {
+    const currentAbs = (gameState.currentYear * 52) + gameState.currentWeek;
+    for (let delta = 1; delta <= 104; delta++) {
+      const abs = currentAbs + delta;
+      const year = Math.floor((abs - 1) / 52);
+      const week = ((abs - 1) % 52) + 1;
+      const v = getCalendarValidation(week, year);
+      if (v.canRelease) {
+        return {
+          week,
+          year,
+          season: 'Earliest Available',
+          multiplier: 1.0,
+          awardEligibility: v.awardEligibility,
+        };
+      }
+    }
+    return null;
+  })();
+
+  const optimalWindows = [
+    ...(earliestAvailable ? [earliestAvailable] : []),
+    ...baseWindows
+      .map(w => {
+        const v = getCalendarValidation(w.week, w.year);
+        return { ...w, awardEligibility: v.awardEligibility, canRelease: v.canRelease };
+      })
+      .filter(w => w.canRelease)
+  ].filter((w, idx, arr) => arr.findIndex(o => o.week === w.week && o.year === w.year) === idx);
+
+  const selectedCalendarValidation = selectedDate
+    ? getCalendarValidation(selectedDate.week, selectedDate.year)
+    : null;
+
+  const handleClearSchedule = () => {
+    CalendarManager.clearFilmEvents(project.id);
+
+    const clearingDuringMarketing = project.currentPhase === 'marketing';
+
+    onProjectUpdate(project.id, {
+      scheduledReleaseWeek: undefined,
+      scheduledReleaseYear: undefined,
+      releaseStrategy: undefined,
+      status: (clearingDuringMarketing ? 'marketing' : 'ready-for-release') as any,
+      readyForRelease: !clearingDuringMarketing,
+      ...(clearingDuringMarketing
+        ? {}
+        : {
+            currentPhase: 'release',
+            phaseDuration: 0,
+          }),
+    });
+
+    toast({
+      title: "Release Schedule Cleared",
+      description: `Cleared planned ${isTV ? 'air date' : 'release date'} for ${project.title}.`,
+    });
+
+    onClose();
+  };
 
   const handleScheduleRelease = () => {
     if (!selectedDate) {
@@ -72,16 +148,29 @@ export const ReleaseStrategyModal: React.FC<ReleaseStrategyModalProps> = ({
       project,
       selectedDate.week,
       selectedDate.year,
-      currentTime
+      currentTime,
+      gameState.projects
     );
 
     console.log('RELEASE_MODAL: schedule result', result);
 
     if (result.success) {
+      const schedulingDuringMarketing =
+        project.currentPhase === 'marketing' &&
+        !!project.marketingCampaign &&
+        project.marketingCampaign.weeksRemaining > 0;
+
       onProjectUpdate(project.id, {
-        releaseWeek: result.releaseWeek,
-        releaseYear: result.releaseYear,
-        status: 'scheduled-for-release'
+        scheduledReleaseWeek: result.releaseWeek,
+        scheduledReleaseYear: result.releaseYear,
+        status: 'scheduled-for-release',
+        readyForRelease: false,
+        ...(schedulingDuringMarketing
+          ? {}
+          : {
+              currentPhase: 'release',
+              phaseDuration: -1,
+            }),
       });
 
       toast({
@@ -109,7 +198,11 @@ export const ReleaseStrategyModal: React.FC<ReleaseStrategyModalProps> = ({
             {project.type === 'series' || project.type === 'limited-series' ? 'Air Date Strategy' : 'Release Strategy'} - {project.title}
           </DialogTitle>
           <DialogDescription>
-            {isTV ? 'TV premieres require at least 4 weeks of lead time for marketing.' : 'Films require at least 4 weeks of lead time for marketing.'}
+            {project.marketingCampaign
+              ? project.marketingCampaign.weeksRemaining > 0
+                ? `Marketing campaign has ${project.marketingCampaign.weeksRemaining} weeks remaining. Release must be at least ${marketingLeadWeeks} weeks away.`
+                : 'Marketing campaign is complete. You can release as soon as next week.'
+              : (isTV ? 'TV premieres require at least 4 weeks of lead time for marketing.' : 'Films require at least 4 weeks of lead time for marketing.')}
           </DialogDescription>
         </DialogHeader>
 
@@ -223,12 +316,19 @@ export const ReleaseStrategyModal: React.FC<ReleaseStrategyModalProps> = ({
 
           {/* Actions */}
           <div className="flex justify-between">
-            <Button variant="outline" onClick={onClose}>
-              Cancel
-            </Button>
+            <div className="flex gap-2">
+              <Button variant="outline" onClick={onClose}>
+                Cancel
+              </Button>
+              {project.status === 'scheduled-for-release' && project.scheduledReleaseWeek && project.scheduledReleaseYear && (
+                <Button variant="destructive" onClick={handleClearSchedule}>
+                  Clear Schedule
+                </Button>
+              )}
+            </div>
             <Button 
               onClick={handleScheduleRelease}
-              disabled={!selectedDate || !validation.canRelease}
+              disabled={!selectedDate || !validation.canRelease || !selectedCalendarValidation?.canRelease}
             >
               <Calendar className="mr-2 h-4 w-4" />
               {project.type === 'series' || project.type === 'limited-series' ? 'Schedule Air Date' : 'Schedule Release'}

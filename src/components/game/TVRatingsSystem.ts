@@ -37,6 +37,13 @@ export class TVRatingsSystem {
   static processWeeklyRatings(project: Project, currentWeek: number, currentYear: number): Project {
     if (!project.releaseWeek || !project.releaseYear) return project;
 
+    // Prime-level guardrail: don't accrue streaming metrics until at least one episode has actually aired.
+    const hasAiredEpisodes = project.seasons?.some(s => (s.episodesAired || 0) > 0) || false;
+    if (!hasAiredEpisodes) return project;
+
+    // If airing hasn't been initialized yet (no streaming metrics), wait for episode release to trigger initializeAiring().
+    if (!project.metrics?.streaming) return project;
+
     const currentAbs = currentYear * 52 + currentWeek;
     const releaseAbs = project.releaseYear * 52 + project.releaseWeek;
     const weeksSinceRelease = Math.max(0, currentAbs - releaseAbs);

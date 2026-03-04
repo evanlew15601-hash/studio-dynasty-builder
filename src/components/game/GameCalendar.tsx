@@ -6,10 +6,12 @@ import { Badge } from '@/components/ui/badge';
 import { CalendarIcon } from '@/components/ui/icons';
 import { ChevronLeft, ChevronRight } from 'lucide-react';
 import { TimeState } from './TimeSystem';
+import { Project } from '@/types/game';
 import { CalendarManager, CalendarEvent } from './CalendarManager';
 
 interface GameCalendarProps {
   currentTime: TimeState;
+  projects?: Project[];
   onDateSelect: (week: number, year: number) => void;
   selectedWeek?: number;
   selectedYear?: number;
@@ -38,6 +40,7 @@ interface CalendarWeek {
 
 export const GameCalendar: React.FC<GameCalendarProps> = ({
   currentTime,
+  projects = [],
   onDateSelect,
   selectedWeek,
   selectedYear,
@@ -75,7 +78,7 @@ export const GameCalendar: React.FC<GameCalendarProps> = ({
         const weeksFromNow = weekAbsoluteWeek - currentAbsoluteWeek;
         
         // Get events for this week
-        const events = CalendarManager.getUpcomingEvents(currentTime, maxMonthsAhead * 4)
+        const events = CalendarManager.getUpcomingEvents(currentTime, projects, maxMonthsAhead * 4)
           .filter(event => event.week === week && event.year === year);
 
         weeks.push({

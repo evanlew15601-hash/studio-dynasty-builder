@@ -1,4 +1,4 @@
-import React, { useState, Suspense } from 'react';
+import React, { useEffect, useRef, useState, Suspense } from 'react';
 import { GameState, Studio, Project, Script, TalentPerson, BoxOfficeWeek, BoxOfficeRelease, Genre, MarketingStrategy, ReleaseStrategy, ProductionPhase, ScriptCharacter } from '@/types/game';
 import { useLoadingContext } from '@/contexts/LoadingContext';
 import { LoadingOverlay } from '@/components/ui/loading-overlay';
@@ -24,8 +24,11 @@ import { CompetitorMonitor } from './CompetitorMonitor';
 import { TimeSystem, TimeState } from './TimeSystem';
 import { BoxOfficeSystem } from './BoxOfficeSystem';
 import { TVRatingsSystem } from './TVRatingsSystem';
+import { TVEpisodeSystem } from './TVEpisodeSystem';
+import { FinancialEngine } from './FinancialEngine';
 import { updateProjectFinancials } from './FinancialCalculations';
 import { TalentFilmographyManager } from '@/utils/talentFilmographyManager';
+import { stablePick } from '@/utils/stablePick';
 import { AwardsSystem } from './AwardsSystem';
 import { EnhancedAwardsSystem } from './EnhancedAwardsSystem';
 import { RoleBasedCasting } from './RoleBasedCasting';
@@ -88,42 +91,239 @@ import { ChevronDown } from 'lucide-react';
 import { RoleDatabase } from '../../data/RoleDatabase';
 import { importRolesForScript } from '@/utils/roleImport';
 import { finalizeScriptForSave } from '@/utils/scriptFinalization';
+import { MediaEngine } from './MediaEngine';
 import { MediaFinancialIntegration } from './MediaFinancialIntegration';
 import { MediaReputationIntegration } from './MediaReputationIntegration';
 import { MediaResponseSystem } from './MediaResponseSystem';
+import { CrisisManagement } from './CrisisManagement';
+import { MediaRelationships } from './MediaRelationships';
+import { SystemIntegration } from './SystemIntegration';
 import { saveGame } from '@/utils/saveLoad';
 import { DebugControlPanel } from './DebugControlPanel';
 
-// Ensure AI films have at least a Director and Lead actor so awards/crediting work
+// Ensure AI films have credited talent so awards/filmographies have real people to reference
 function attachBasicCastForAI(project: Project, talentPool: TalentPerson[]): Project {
   try {
-    // If already has cast or assigned characters, do nothing
-    if ((project.cast && project.cast.length > 0) || project.script?.characters?.some(c => c.assignedTalentId)) {
-      return project;
-    }
-    const director = talentPool.find(t => t.type === 'director');
-    const lead = talentPool.find(t => t.type === 'actor');
     if (!project.script) return project;
 
-    const baseChars = project.script.characters || [];
-    const characters = baseChars.length > 0 ? baseChars.map(c => {
-      if (c.requiredType === 'director' && !c.assignedTalentId && director) return { ...c, assignedTalentId: director.id };
-      if (c.importance === 'lead' && c.requiredType !== 'director' && !c.assignedTalentId && lead) return { ...c, assignedTalentId: lead.id };
-      return c;
-    }) : [
-      { id: `${project.id}-dir`, name: 'Director', description: 'Director', requiredType: 'director', importance: 'lead', traits: ['mandatory'], assignedTalentId: director?.id } as any,
-      { id: `${project.id}-lead`, name: 'Protagonist', description: 'Lead role', requiredType: 'actor', importance: 'lead', traits: ['mandatory'], assignedTalentId: lead?.id } as any,
-    ];
+    const existingCharacters = project.script.characters || [];
+    const existingCast = project.cast || [];
 
-    const cast = [
-      director && { talentId: director.id, role: 'Director', salary: Math.round((director.marketValue || 5_000_000) * 0.1), points: 0, contractTerms: { duration: new Date(), exclusivity: false, merchandising: false, sequelOptions: 0 } },
-      lead && { talentId: lead.id, role: `Lead - ${characters.find(c => c.importance==='lead' && c.requiredType !== 'director')?.name || 'Lead'}`, salary: Math.round((lead.marketValue || 5_000_000) * 0.1), points: 0, contractTerms: { duration: new Date(), exclusivity: false, merchandising: false, sequelOptions: 0 } },
-    ].filter(Boolean) as any;
+    const hasDirector =
+      existingCast.some(c => c.role.toLowerCase().includes('director') && !!c.talentId) ||
+      existingCharacters.some(c => c.requiredType === 'director' && !!c.assignedTalentId);
+
+    const hasLead =
+      existingCast.some(c => c.role.toLowerCase().includes('lead') && !!c.talentId) ||
+      existingCharacters.some(c => c.requiredType !== 'director' && c.importance === 'lead' && !!c.assignedTalentId);
+
+    const hasSupporting =
+      existingCast.some(c => c.role.toLowerCase().includes('supporting') && !!c.talentId) ||
+      existingCharacters.some(c => c.requiredType !== 'director' && c.importance === 'supporting' && !!c.assignedTalentId);
+
+    // If the project already has credited character assignments, don't overwrite them.
+    // (If it only has a cast list, we still ensure script characters exist for filmography.)
+    if (existingCharacters.some(c => !!c.assignedTalentId) && hasDirector && hasLead && hasSupporting) {
+      return project;
+    }
+
+    const directors = talentPool.filter(t => t.type === 'director');
+    const actors = talentPool.filter(t => t.type === 'actor');
+
+    const getTalentById = (id?: string) => talentPool.find(t => t.id === id);
+
+    const existingDirectorId =
+      existingCast.find(c => c.role.toLowerCase().includes('director'))?.talentId ||
+      existingCharacters.find(c => c.requiredType === 'director')?.assignedTalentId;
+
+    const existingLeadId =
+      existingCast.find(c => c.role.toLowerCase().includes('lead') && !c.role.toLowerCase().includes('supporting'))?.talentId ||
+      existingCharacters.find(c => c.requiredType !== 'director' && c.importance === 'lead')?.assignedTalentId;
+
+    const existingSupportingIds = existingCast
+      .filter(c => c.role.toLowerCase().includes('supporting') && !!c.talentId)
+      .map(c => c.talentId);
+
+    const pickedDirector = getTalentById(existingDirectorId) ?? stablePick(directors, `${project.id}|director`);
+    const pickedLead = getTalentById(existingLeadId) ?? stablePick(actors, `${project.id}|lead`);
+
+    const usedIds = new Set<string>([pickedDirector?.id, pickedLead?.id].filter(Boolean) as string[]);
+
+    const existingSupportingTalent = existingSupportingIds
+      .map(id => getTalentById(id))
+      .filter(Boolean) as TalentPerson[];
+
+    const pickedSupporting1 =
+      existingSupportingTalent[0] ??
+      stablePick(actors.filter(a => !usedIds.has(a.id)), `${project.id}|supporting1`);
+
+    if (pickedSupporting1) usedIds.add(pickedSupporting1.id);
+
+    const pickedSupporting2 =
+      existingSupportingTalent[1] ??
+      stablePick(actors.filter(a => !usedIds.has(a.id)), `${project.id}|supporting2`);
+
+    const mkTerms = () => ({ duration: new Date(), exclusivity: false, merchandising: false, sequelOptions: 0 });
+
+    // Build/patch script characters (used by filmography + fallbacks)
+    let characters: ScriptCharacter[] = existingCharacters.map(c => {
+      if (c.requiredType === 'director' && !c.assignedTalentId && pickedDirector) {
+        return { ...c, assignedTalentId: pickedDirector.id };
+      }
+
+      if (c.requiredType !== 'director' && c.importance === 'lead' && !c.assignedTalentId && pickedLead) {
+        return { ...c, assignedTalentId: pickedLead.id };
+      }
+
+      return c;
+    });
+
+    // Fill unassigned supporting slots (if any exist)
+    const supportingPicks = [pickedSupporting1, pickedSupporting2].filter(Boolean) as TalentPerson[];
+    if (supportingPicks.length > 0) {
+      let si = 0;
+      characters = characters.map(c => {
+        if (
+          si < supportingPicks.length &&
+          c.requiredType !== 'director' &&
+          c.importance === 'supporting' &&
+          !c.assignedTalentId
+        ) {
+          const t = supportingPicks[si];
+          si += 1;
+          return { ...c, assignedTalentId: t.id };
+        }
+        return c;
+      });
+    }
+
+    const hasDirectorChar = characters.some(c => c.requiredType === 'director');
+    const hasLeadChar = characters.some(c => c.requiredType !== 'director' && c.importance === 'lead');
+    const supportingChars = characters.filter(c => c.requiredType !== 'director' && c.importance === 'supporting');
+
+    if (!hasDirectorChar) {
+      characters = [
+        ...characters,
+        {
+          id: `${project.id}-dir`,
+          name: 'Director',
+          description: 'Director',
+          requiredType: 'director',
+          importance: 'lead',
+          traits: ['mandatory'],
+          assignedTalentId: pickedDirector?.id,
+        } as any,
+      ];
+    }
+
+    if (!hasLeadChar) {
+      characters = [
+        ...characters,
+        {
+          id: `${project.id}-lead`,
+          name: 'Protagonist',
+          description: 'Lead role',
+          requiredType: 'actor',
+          importance: 'lead',
+          traits: ['mandatory'],
+          assignedTalentId: pickedLead?.id,
+        } as any,
+      ];
+    }
+
+    // Add 1–2 supporting roles so supporting categories can credit someone other than the lead.
+    if (supportingChars.length === 0) {
+      if (pickedSupporting1) {
+        characters = [
+          ...characters,
+          {
+            id: `${project.id}-supporting-1`,
+            name: 'Supporting',
+            description: 'Supporting role',
+            requiredType: 'actor',
+            importance: 'supporting',
+            traits: [],
+            assignedTalentId: pickedSupporting1.id,
+          } as any,
+        ];
+      }
+
+      if (pickedSupporting2) {
+        characters = [
+          ...characters,
+          {
+            id: `${project.id}-supporting-2`,
+            name: 'Supporting (2)',
+            description: 'Supporting role',
+            requiredType: 'actor',
+            importance: 'supporting',
+            traits: [],
+            assignedTalentId: pickedSupporting2.id,
+          } as any,
+        ];
+      }
+    }
+
+    // Build/patch cast list (used by awards engine)
+    const cast = [...existingCast];
+
+    if (pickedDirector && !cast.some(c => c.talentId === pickedDirector.id)) {
+      cast.push({
+        talentId: pickedDirector.id,
+        role: 'Director',
+        salary: Math.round((pickedDirector.marketValue || 5_000_000) * 0.1),
+        points: 0,
+        contractTerms: mkTerms(),
+      } as any);
+    }
+
+    if (pickedLead && !cast.some(c => c.talentId === pickedLead.id)) {
+      cast.push({
+        talentId: pickedLead.id,
+        role: 'Lead Actor',
+        salary: Math.round((pickedLead.marketValue || 5_000_000) * 0.1),
+        points: 0,
+        contractTerms: mkTerms(),
+      } as any);
+    }
+
+    if (pickedSupporting1 && !cast.some(c => c.talentId === pickedSupporting1.id)) {
+      cast.push({
+        talentId: pickedSupporting1.id,
+        role: 'Supporting Actor',
+        salary: Math.round((pickedSupporting1.marketValue || 3_000_000) * 0.05),
+        points: 0,
+        contractTerms: mkTerms(),
+      } as any);
+    }
+
+    if (pickedSupporting2 && !cast.some(c => c.talentId === pickedSupporting2.id)) {
+      cast.push({
+        talentId: pickedSupporting2.id,
+        role: 'Supporting Actor (2)',
+        salary: Math.round((pickedSupporting2.marketValue || 3_000_000) * 0.05),
+        points: 0,
+        contractTerms: mkTerms(),
+      } as any);
+    }
+
+    // Star power: derive from top-2 cast fame to make fame actually matter in outcomes.
+    const castFame = cast
+      .map(c => talentPool.find(t => t.id === c.talentId))
+      .filter(Boolean)
+      .map(t => (t!.fame ?? Math.min(100, Math.round(t!.reputation || 50))));
+
+    const topTwo = [...castFame].sort((a, b) => b - a).slice(0, 2);
+    const starPowerBonus =
+      topTwo.length > 0
+        ? Math.min(0.5, (topTwo.reduce((a, b) => a + b, 0) / topTwo.length) / 200)
+        : project.starPowerBonus;
 
     return {
       ...project,
       script: { ...project.script, characters },
-      cast: cast.length > 0 ? cast : project.cast
+      cast,
+      starPowerBonus,
     };
   } catch (e) {
     console.warn('attachBasicCastForAI failed', e);
@@ -212,7 +412,7 @@ export const StudioMagnateGame: React.FC<StudioMagnateGameProps> = ({
 
     updateOperation(LOADING_OPERATIONS.GAME_INIT.id, 80, 'Initializing systems...');
 
-    const initialState = {
+    let initialState: GameState = {
       studio,
       currentYear: new Date().getFullYear(),
       currentWeek: 1,
@@ -246,7 +446,12 @@ export const StudioMagnateGame: React.FC<StudioMagnateGameProps> = ({
             for (const st of competitorStudios) {
               const profile = sg.getStudioProfile(st.name);
               const rel = profile ? sg.generateStudioRelease(profile, w, year) : null;
-              if (rel) { releases.push(rel); releases[releases.length - 1] = attachBasicCastForAI(releases[releases.length - 1] as Project, generatedTalent); added = true; break; }
+              if (rel) {
+                releases.push(rel);
+                releases[releases.length - 1] = attachBasicCastForAI(releases[releases.length - 1] as Project, generatedTalent);
+                added = true;
+                break;
+              }
             }
             if (!added && competitorStudios[0]) {
               const fallback = sg.getStudioProfile(competitorStudios[0].name);
@@ -323,6 +528,20 @@ export const StudioMagnateGame: React.FC<StudioMagnateGameProps> = ({
       publicDomainIPs: PublicDomainGenerator.generateInitialPublicDomainIPs(50),
       aiStudioProjects: [] as Project[],
     };
+
+    // Seed talent careers from AI releases so the world starts with real filmographies/fame.
+    try {
+      let filmographyState = initialState;
+      for (const release of initialState.allReleases) {
+        if ('script' in release) {
+          filmographyState = TalentFilmographyManager.updateFilmographyOnRelease(filmographyState, release as Project);
+        }
+      }
+      initialState = filmographyState;
+    } catch (e) {
+      console.warn('Failed to seed talent filmographies from AI releases', e);
+    }
+
     updateOperation(LOADING_OPERATIONS.GAME_INIT.id, 100, 'Game ready!');
     
     // Complete initialization after a brief delay
@@ -356,6 +575,30 @@ export const StudioMagnateGame: React.FC<StudioMagnateGameProps> = ({
   // First week box office modal state
   const [firstWeekModalProject, setFirstWeekModalProject] = useState<Project | null>(null);
   const [showFirstWeekModal, setShowFirstWeekModal] = useState(false);
+
+  const lastFirstWeekModalKeyRef = useRef<string>('');
+
+  // Show the first-week box office modal automatically when a film is released.
+  // This replaces the previous pattern of calling setState from inside the weekly processing loop.
+  useEffect(() => {
+    if (showFirstWeekModal) return;
+
+    const newlyReleasedFilm = gameState.projects.find(p =>
+      p.status === 'released' &&
+      p.type !== 'series' &&
+      p.type !== 'limited-series' &&
+      p.metrics?.weeksSinceRelease === 0
+    );
+
+    if (!newlyReleasedFilm) return;
+
+    const key = `${gameState.currentYear}-${gameState.currentWeek}-${newlyReleasedFilm.id}`;
+    if (key === lastFirstWeekModalKeyRef.current) return;
+
+    lastFirstWeekModalKeyRef.current = key;
+    setFirstWeekModalProject(newlyReleasedFilm);
+    setShowFirstWeekModal(true);
+  }, [gameState.currentWeek, gameState.currentYear, gameState.projects, showFirstWeekModal]);
   
   // Award show modal state
   const [currentAwardShow, setCurrentAwardShow] = useState<AwardShowCeremony | null>(null);
@@ -756,18 +999,24 @@ export const StudioMagnateGame: React.FC<StudioMagnateGameProps> = ({
       return;
     }
 
+    const schedulingDuringMarketing =
+      project.currentPhase === 'marketing' &&
+      !!project.marketingCampaign &&
+      project.marketingCampaign.weeksRemaining > 0;
+
     const updatedProject = {
       ...project,
       releaseStrategy: strategy,
-      releaseWeek: selectedWeek,
-      releaseYear: selectedYear,
-      // mirror for any components reading scheduled fields
       scheduledReleaseWeek: selectedWeek,
       scheduledReleaseYear: selectedYear,
-      currentPhase: 'release' as const,
       status: 'scheduled-for-release' as any,
       readyForRelease: false,
-      phaseDuration: -1, // prevent auto-advancement until release week
+      ...(schedulingDuringMarketing
+        ? {}
+        : {
+            currentPhase: 'release' as const,
+            phaseDuration: -1, // prevent auto-advancement until release week
+          }),
       metrics: {
         ...project.metrics,
         criticsScore: Math.floor(Math.random() * 40) + 50,
@@ -786,10 +1035,19 @@ export const StudioMagnateGame: React.FC<StudioMagnateGameProps> = ({
     });
   };
 
-  const processWeeklyProjectEffects = (projects: Project[], timeState: TimeState): Project[] => {
+  type WeeklyProjectEffectsResult = {
+    projects: Project[];
+    studioRevenueDelta: number;
+    releasedProjects: Project[];
+  };
+
+  const processWeeklyProjectEffects = (projects: Project[], timeState: TimeState, baseState: GameState): WeeklyProjectEffectsResult => {
     if (import.meta.env.DEV) {
       console.log(`=== WEEKLY PROJECT PROCESSING START ===`);
     }
+
+    let studioRevenueDelta = 0;
+    const releasedProjects: Project[] = [];
     
     const results = projects.map((project, index) => {
       if (import.meta.env.DEV) {
@@ -806,9 +1064,9 @@ export const StudioMagnateGame: React.FC<StudioMagnateGameProps> = ({
       
       // Handle scheduled releases when their date arrives
       let justReleased = false;
-      // Check both releaseWeek/Year (from ReleaseStrategyModal) and scheduledReleaseWeek/Year (from EnhancedReleaseSystem)
-      const effectiveReleaseWeek = project.releaseWeek || project.scheduledReleaseWeek;
-      const effectiveReleaseYear = project.releaseYear || project.scheduledReleaseYear;
+      // scheduledReleaseWeek/Year is the canonical planned release date
+      const effectiveReleaseWeek = project.scheduledReleaseWeek || project.releaseWeek;
+      const effectiveReleaseYear = project.scheduledReleaseYear || project.releaseYear;
       if (project.status === 'scheduled-for-release' && effectiveReleaseWeek && effectiveReleaseYear) {
         const currentAbsoluteWeek = (timeState.currentYear * 52) + timeState.currentWeek;
         const releaseAbsoluteWeek = (effectiveReleaseYear * 52) + effectiveReleaseWeek;
@@ -818,30 +1076,46 @@ export const StudioMagnateGame: React.FC<StudioMagnateGameProps> = ({
               console.log(`🎬 RELEASE DATE ARRIVED: ${project.title}`);
               console.log(`    📊 PRE-RELEASE: boxOfficeTotal = ${project.metrics?.boxOfficeTotal || 0}`);
             }
+            const resolvedReleaseWeek = effectiveReleaseWeek;
+            const resolvedReleaseYear = effectiveReleaseYear;
+
+            // Normalize release date fields so downstream systems (TV ratings / box office / post-theatrical)
+            // always have a canonical releaseWeek/releaseYear, even if the project was scheduled via
+            // scheduledReleaseWeek/scheduledReleaseYear.
+            updatedProject = {
+              ...updatedProject,
+              releaseWeek: resolvedReleaseWeek,
+              releaseYear: resolvedReleaseYear,
+              scheduledReleaseWeek: resolvedReleaseWeek,
+              scheduledReleaseYear: resolvedReleaseYear,
+            };
+
             if (project.type === 'series' || project.type === 'limited-series') {
-              updatedProject = TVRatingsSystem.initializeAiring(updatedProject, project.releaseWeek, project.releaseYear);
+              // TV: do not initialize ratings until the first episode actually airs.
+              updatedProject = {
+                ...updatedProject,
+                status: 'released' as const
+              };
+
+              // Ensure season exists and perform the premiere drop if due (weekly/batch/binge).
+              updatedProject = TVEpisodeSystem.ensureSeason(updatedProject);
+              updatedProject = TVEpisodeSystem.autoReleaseEpisodesIfDue(updatedProject, timeState.currentWeek, timeState.currentYear);
+              updatedProject = TVEpisodeSystem.processWeeklyEpisodeDecay(updatedProject, timeState.currentWeek, timeState.currentYear);
             } else {
-              updatedProject = BoxOfficeSystem.initializeRelease(updatedProject, project.releaseWeek, project.releaseYear);
+              updatedProject = BoxOfficeSystem.initializeRelease(updatedProject, resolvedReleaseWeek, resolvedReleaseYear);
+
+              const openingWeekRevenue = updatedProject.metrics?.boxOfficeTotal || 0;
+              if (openingWeekRevenue > 0) {
+                studioRevenueDelta += openingWeekRevenue * 0.55;
+              }
             }
             if (import.meta.env.DEV) {
               console.log(`    📊 POST-RELEASE: boxOfficeTotal = ${updatedProject.metrics?.boxOfficeTotal || 0}`);
             }
             justReleased = true; // Flag to skip processing on release week
 
-            // Update filmography; show box office modal only for films
-            if (!(project.type === 'series' || project.type === 'limited-series')) {
-              setGameState(prevState => {
-                const newState = TalentFilmographyManager.updateFilmographyOnRelease(prevState, updatedProject);
-                // Show first week box office modal
-                setFirstWeekModalProject(updatedProject);
-                setShowFirstWeekModal(true);
-                return newState;
-              });
-            } else {
-              setGameState(prevState => {
-                return TalentFilmographyManager.updateFilmographyOnRelease(prevState, updatedProject);
-              });
-            }
+            // Track releases for end-of-week filmography updates (no nested setState)
+            releasedProjects.push(updatedProject);
           }
       }
       
@@ -851,6 +1125,11 @@ export const StudioMagnateGame: React.FC<StudioMagnateGameProps> = ({
            if (import.meta.env.DEV) {
              console.log(`    📺 PROCESSING TV RATINGS: ${project.title}`);
            }
+
+           updatedProject = TVEpisodeSystem.ensureSeason(updatedProject);
+           updatedProject = TVEpisodeSystem.autoReleaseEpisodesIfDue(updatedProject, timeState.currentWeek, timeState.currentYear);
+           updatedProject = TVEpisodeSystem.processWeeklyEpisodeDecay(updatedProject, timeState.currentWeek, timeState.currentYear);
+
            updatedProject = TVRatingsSystem.processWeeklyRatings(
              updatedProject,
              timeState.currentWeek,
@@ -884,20 +1163,14 @@ export const StudioMagnateGame: React.FC<StudioMagnateGameProps> = ({
              if (import.meta.env.DEV) {
                console.log(`    💰 STUDIO SHARE (55%): ${studioShare.toLocaleString()}`);
              }
-             
-             setGameState(prevState => ({
-               ...prevState,
-               studio: {
-                 ...prevState.studio,
-                 budget: prevState.studio.budget + studioShare
-               }
-             }));
+
+             studioRevenueDelta += studioShare;
            }
          }
        }
 
-  // Process marketing campaigns and advance to release phase when complete
-  if (updatedProject.marketingCampaign && updatedProject.marketingCampaign.weeksRemaining > 0) {
+      // Process marketing campaigns and advance to release phase when complete
+      if (updatedProject.marketingCampaign && updatedProject.marketingCampaign.weeksRemaining > 0) {
     const updatedActivities = updatedProject.marketingCampaign.activities.map(activity => ({
       ...activity,
       weeksRemaining: Math.max(0, activity.weeksRemaining - 1),
@@ -937,11 +1210,15 @@ export const StudioMagnateGame: React.FC<StudioMagnateGameProps> = ({
       if (import.meta.env.DEV) {
         console.log(`🎬 MARKETING COMPLETE: ${project.title} - Moving to release phase`);
       }
+
+      const hasScheduledRelease = !!updatedProject.scheduledReleaseWeek && !!updatedProject.scheduledReleaseYear;
+
       updatedProject = {
         ...updatedProject,
         currentPhase: 'release',
-        status: 'ready-for-release',
-        readyForRelease: true
+        status: (hasScheduledRelease ? 'scheduled-for-release' : 'ready-for-release') as any,
+        readyForRelease: !hasScheduledRelease,
+        ...(hasScheduledRelease ? { phaseDuration: -1 } : {})
       };
     }
   }
@@ -991,15 +1268,8 @@ export const StudioMagnateGame: React.FC<StudioMagnateGameProps> = ({
           if (import.meta.env.DEV) {
             console.log(`      💰 TOTAL WEEKLY POST-THEATRICAL: +${weeklyPostTheatricalRevenue.toLocaleString()}`);
           }
-          
-          // Add revenue to studio budget
-          setGameState(prevState => ({
-            ...prevState,
-            studio: {
-              ...prevState.studio,
-              budget: prevState.studio.budget + weeklyPostTheatricalRevenue
-            }
-          }));
+
+          studioRevenueDelta += weeklyPostTheatricalRevenue;
         }
 
         updatedProject = {
@@ -1041,17 +1311,22 @@ export const StudioMagnateGame: React.FC<StudioMagnateGameProps> = ({
             if (import.meta.env.DEV) {
               console.log(`  → MARKETING COMPLETE: ${updatedProject.title} ready for release`);
             }
+
+            const hasScheduledRelease = !!updatedProject.scheduledReleaseWeek && !!updatedProject.scheduledReleaseYear;
+
             updatedProject = {
               ...updatedProject,
               currentPhase: 'release',
-              phaseDuration: 0,
-              status: 'ready-for-release' as any,
-              readyForRelease: true
+              phaseDuration: hasScheduledRelease ? -1 : 0,
+              status: (hasScheduledRelease ? 'scheduled-for-release' : 'ready-for-release') as any,
+              readyForRelease: !hasScheduledRelease
             };
             
             toast({
               title: "Marketing Campaign Complete!",
-              description: `${updatedProject.title} is ready for release strategy`,
+              description: hasScheduledRelease
+                ? `${updatedProject.title} is scheduled for release in Y${updatedProject.scheduledReleaseYear}W${updatedProject.scheduledReleaseWeek}.`
+                : `${updatedProject.title} is ready for release strategy`,
             });
           }
           // Normal progression with gating for early phases
@@ -1060,7 +1335,7 @@ export const StudioMagnateGame: React.FC<StudioMagnateGameProps> = ({
             if (updatedProject.currentPhase === 'development' && nextPhase === 'pre-production') {
               const roles = updatedProject.script?.characters && updatedProject.script.characters.length > 0
                 ? updatedProject.script.characters
-                : importRolesForScript(updatedProject.script!, gameState);
+                : importRolesForScript(updatedProject.script!, baseState);
               if (!roles || roles.length === 0) {
                 console.warn(`⛔ Cannot advance ${updatedProject.title}: no roles imported yet`);
                 updatedProject = { ...updatedProject, phaseDuration: 2 };
@@ -1127,7 +1402,12 @@ export const StudioMagnateGame: React.FC<StudioMagnateGameProps> = ({
     if (import.meta.env.DEV) {
       console.log(`=== WEEKLY PROJECT PROCESSING END ===`);
     }
-    return results;
+
+    return {
+      projects: results,
+      studioRevenueDelta,
+      releasedProjects,
+    };
   };
 
   const getNextPhase = (currentPhase: string): ProductionPhase => {
@@ -1389,7 +1669,7 @@ export const StudioMagnateGame: React.FC<StudioMagnateGameProps> = ({
     return { studio };
   };
 
-  const handleAdvanceWeek = () => {
+  const handleAdvanceWeek = (options?: { suppressToast?: boolean }) => {
     if (import.meta.env.DEV) {
       console.log(`🕐 ADVANCING WEEK: Current Y${gameState.currentYear}W${gameState.currentWeek}`);
       console.log(`🕐 Projects count: ${gameState.projects.length}`);
@@ -1436,74 +1716,52 @@ export const StudioMagnateGame: React.FC<StudioMagnateGameProps> = ({
         console.warn('AI Studio processing error', e);
       }
       
-      // Process scheduled releases first
       let updatedProjects = prev.projects;
-      
-      import('./ReleaseSystem').then(({ ReleaseSystem }) => {
-        const releasingFilms = ReleaseSystem.processReleases(newTimeState);
-        
-        if (releasingFilms.length > 0) {
-          updatedProjects = updatedProjects.map(project => {
-            const releasingFilm = releasingFilms.find(rf => rf.id === project.id);
-            if (releasingFilm) {
-              return {
-                ...project,
-                status: 'released',
-                releaseWeek: newTimeState.currentWeek,
-                releaseYear: newTimeState.currentYear
-              };
-            }
-            return project;
-          });
-        }
-      });
-      
-      // Simulate box office for released films
-      import('./FinancialEngine').then(({ FinancialEngine }) => {
-        const playerReleased = updatedProjects
-          .filter(p => p.status === 'released' && !!p.releaseWeek && !!p.releaseYear)
-          .map(p => ({
-            id: p.id,
-            title: p.title,
-            weeksSinceRelease: TimeSystem.calculateWeeksSince(
-              p.releaseWeek!,
-              p.releaseYear!,
-              newTimeState.currentWeek,
-              newTimeState.currentYear
-            ),
-            budget: p.budget?.total || 10000000,
-            genre: p.script?.genre || 'drama'
-          }));
-        const aiReleased = prev.allReleases
-          .filter((r): r is Project => 'script' in r && (r as any).status === 'released' && !!r.releaseWeek && !!r.releaseYear)
-          .map(r => ({
-            id: r.id,
-            title: r.title,
-            weeksSinceRelease: TimeSystem.calculateWeeksSince(
-              r.releaseWeek!,
-              r.releaseYear!,
-              newTimeState.currentWeek,
-              newTimeState.currentYear
-            ),
-            budget: (r as any).budget?.total || (r as any).budget || 10000000,
-            genre: (r as any).script?.genre || (r as any).genre || 'drama'
-          }));
-        const releasedFilms = [...playerReleased, ...aiReleased];
-        
-        FinancialEngine.simulateBoxOfficeWeek(releasedFilms, newTimeState.currentWeek, newTimeState.currentYear);
-        
-        // Process weekly financial events
-        FinancialEngine.processWeeklyFinancialEvents(
-          newTimeState.currentWeek,
-          newTimeState.currentYear,
-          [prev.studio, ...prev.competitorStudios],
-          updatedProjects
-        );
-      });
+
+      // Simulate box office and process weekly financial events
+      // NOTE: This must be synchronous inside the state transition; async imports would
+      // run after this updater returns and would not be applied to the new state.
+      const playerReleased = updatedProjects
+        .filter(p => p.status === 'released' && !!p.releaseWeek && !!p.releaseYear)
+        .map(p => ({
+          id: p.id,
+          title: p.title,
+          weeksSinceRelease: TimeSystem.calculateWeeksSince(
+            p.releaseWeek!,
+            p.releaseYear!,
+            newTimeState.currentWeek,
+            newTimeState.currentYear
+          ),
+          budget: p.budget?.total || 10000000,
+          genre: p.script?.genre || 'drama'
+        }));
+      const aiReleased = prev.allReleases
+        .filter((r): r is Project => 'script' in r && (r as any).status === 'released' && !!r.releaseWeek && !!r.releaseYear)
+        .map(r => ({
+          id: r.id,
+          title: r.title,
+          weeksSinceRelease: TimeSystem.calculateWeeksSince(
+            r.releaseWeek!,
+            r.releaseYear!,
+            newTimeState.currentWeek,
+            newTimeState.currentYear
+          ),
+          budget: (r as any).budget?.total || (r as any).budget || 10000000,
+          genre: (r as any).script?.genre || (r as any).genre || 'drama'
+        }));
+      FinancialEngine.simulateBoxOfficeWeek(aiReleased, newTimeState.currentWeek, newTimeState.currentYear);
+
+      FinancialEngine.processWeeklyFinancialEvents(
+        newTimeState.currentWeek,
+        newTimeState.currentYear,
+        [prev.studio, ...prev.competitorStudios],
+        updatedProjects
+      );
       
       updateOperation(LOADING_OPERATIONS.WEEKLY_PROCESSING.id, 70, 'Calculating finances...');
       
-      updatedProjects = processWeeklyProjectEffects(updatedProjects, newTimeState);
+      const weeklyProjectEffects = processWeeklyProjectEffects(updatedProjects, newTimeState, prev);
+      updatedProjects = weeklyProjectEffects.projects;
 
       // Generate AI studio releases every 2-4 weeks
       const shouldGenerateRelease = Math.random() < 0.3; // 30% chance each week
@@ -1553,12 +1811,13 @@ export const StudioMagnateGame: React.FC<StudioMagnateGameProps> = ({
       // Apply deep reputation to studio
       const enhancedStudio = {
         ...weeklyResults.studio,
-        reputation: deepRepResult.reputation
+        reputation: deepRepResult.reputation,
+        budget: weeklyResults.studio.budget + weeklyProjectEffects.studioRevenueDelta
       };
       
       // Update talent availability (prevent double-booking during filming)
       const currentAbsWeek = (newTimeState.currentYear * 52) + newTimeState.currentWeek;
-      const updatedTalent = prev.talent.map(t => {
+      let updatedTalent = prev.talent.map(t => {
         let status = t.contractStatus;
         let busyUntil = t.busyUntilWeek;
         if (status === 'busy' && typeof busyUntil === 'number' && busyUntil <= currentAbsWeek) {
@@ -1567,6 +1826,22 @@ export const StudioMagnateGame: React.FC<StudioMagnateGameProps> = ({
         }
         return { ...t, contractStatus: status, busyUntilWeek: busyUntil };
       });
+
+      // Mark talent as busy if they're currently committed to an AI studio project
+      updatedTalent = updatedTalent.map(t => {
+        const commitment = AIStudioManager.getTalentCommitment(t.id, newTimeState.currentWeek, newTimeState.currentYear);
+        if (!commitment) return t;
+
+        const endAbsWeek = (newTimeState.currentYear * 52) + commitment.endWeek;
+        const existingBusyUntil = typeof t.busyUntilWeek === 'number' ? t.busyUntilWeek : 0;
+
+        return {
+          ...t,
+          contractStatus: 'busy',
+          busyUntilWeek: Math.max(existingBusyUntil, endAbsWeek)
+        };
+      });
+
       // Mark cast as busy for projects in production
       updatedProjects.forEach(p => {
         if (p.currentPhase === 'production' || p.status === 'filming') {
@@ -1584,6 +1859,20 @@ export const StudioMagnateGame: React.FC<StudioMagnateGameProps> = ({
           });
         }
       });
+
+      // Apply filmography/fame updates for newly released projects (no nested setState)
+      const releasedForFilmography = [
+        ...weeklyProjectEffects.releasedProjects,
+        ...newAIReleases.filter(r => r.status === 'released')
+      ];
+
+      if (releasedForFilmography.length > 0) {
+        let filmographyState: GameState = { ...prev, talent: updatedTalent };
+        for (const released of releasedForFilmography) {
+          filmographyState = TalentFilmographyManager.updateFilmographyOnRelease(filmographyState, released);
+        }
+        updatedTalent = filmographyState.talent;
+      }
 
       // Memory management: prune old releases to prevent unbounded growth
       // Keep only releases from the last 3 in-game years (156 weeks) 
@@ -1627,59 +1916,49 @@ export const StudioMagnateGame: React.FC<StudioMagnateGameProps> = ({
         console.warn('Media response campaign processing error', e);
       }
 
-      setTimeout(() => {
-        // Process media events and run system integration checks
-        import('./MediaEngine').then(({ MediaEngine }) => {
-          const newMediaItems = MediaEngine.processMediaEvents(newState);
-          const triggeredEvents = MediaEngine.triggerAutomaticEvents(newState, gameState);
-          if ((newMediaItems.length > 0 || triggeredEvents.length > 0) && import.meta.env.DEV) {
-            console.log(`📰 MEDIA: Generated ${newMediaItems.length} articles, triggered ${triggeredEvents.length} events`);
-          }
+      // Process media events and run system integration checks
+      try {
+        const newMediaItems = MediaEngine.processMediaEvents(newState);
+        const triggeredEvents = MediaEngine.triggerAutomaticEvents(newState, prev);
+        if ((newMediaItems.length > 0 || triggeredEvents.length > 0) && import.meta.env.DEV) {
+          console.log(`📰 MEDIA: Generated ${newMediaItems.length} articles, triggered ${triggeredEvents.length} events`);
+        }
 
-          // Apply financial side-effects from media coverage (lightweight integration)
-          try {
-            MediaFinancialIntegration.applyFinancialEffects(newState);
-          } catch (e) {
-            console.warn('Media financial integration error', e);
-          }
-        });
-
-        // Apply media-driven reputation changes on top of deep reputation
+        // Apply financial side-effects from media coverage (lightweight integration)
         try {
-          setGameState(current => {
-            const mutated = { ...current };
-            MediaReputationIntegration.processWeeklyReputationUpdates(mutated);
-            return mutated;
-          });
+          MediaFinancialIntegration.applyFinancialEffects(newState);
         } catch (e) {
-          console.warn('Media reputation integration error', e);
+          console.warn('Media financial integration error', e);
         }
+      } catch (e) {
+        console.warn('Media engine processing error', e);
+      }
 
-        // Perform memory cleanup for static classes every 10 weeks
-        if (newTimeState.currentWeek % 10 === 0) {
-          import('./CrisisManagement').then(({ CrisisManagement }) => {
-            CrisisManagement.performMaintenanceCleanup(newTimeState.currentWeek, newTimeState.currentYear);
-          });
-          import('./MediaRelationships').then(({ MediaRelationships }) => {
-            MediaRelationships.performMaintenanceCleanup(newTimeState.currentWeek, newTimeState.currentYear);
-          });
-          import('./FinancialEngine').then(({ FinancialEngine }) => {
-            FinancialEngine.performMemoryCleanup(newTimeState.currentWeek, newTimeState.currentYear);
-          });
-        }
-        
-        import('./SystemIntegration').then(({ SystemIntegration }) => {
-          SystemIntegration.runDiagnostics(newState);
-        });
-        
+      // Apply media-driven reputation changes on top of deep reputation (in-place on newState)
+      try {
+        MediaReputationIntegration.processWeeklyReputationUpdates(newState);
+      } catch (e) {
+        console.warn('Media reputation integration error', e);
+      }
+
+      // Perform memory cleanup for static classes every 10 weeks
+      if (newTimeState.currentWeek % 10 === 0) {
+        CrisisManagement.performMaintenanceCleanup(newTimeState.currentWeek, newTimeState.currentYear);
+        MediaRelationships.performMaintenanceCleanup(newTimeState.currentWeek, newTimeState.currentYear);
+        FinancialEngine.performMemoryCleanup(newTimeState.currentWeek, newTimeState.currentYear);
+      }
+
+      SystemIntegration.runDiagnostics(newState);
+
+      if (!options?.suppressToast) {
         toast({
           title: "New Week",
           description: `Week ${newTimeState.currentWeek}, ${newTimeState.currentYear}`,
         });
-        
-        // Complete the loading operation
-        completeOperation(LOADING_OPERATIONS.WEEKLY_PROCESSING.id);
-      }, 100);
+      }
+
+      // Complete the loading operation
+      completeOperation(LOADING_OPERATIONS.WEEKLY_PROCESSING.id);
 
       return newState;
     });
@@ -1688,6 +1967,14 @@ export const StudioMagnateGame: React.FC<StudioMagnateGameProps> = ({
   const handleAdvanceWeeks = (weeks: number) => {
     const totalWeeks = Math.floor(weeks);
     if (!Number.isFinite(totalWeeks) || totalWeeks <= 0) return;
+
+    const startWeek = gameState.currentWeek;
+    const startYear = gameState.currentYear;
+
+    const startAbs = (startYear * 52) + (startWeek - 1);
+    const targetAbs = startAbs + totalWeeks;
+    const targetYear = Math.floor(targetAbs / 52);
+    const targetWeek = (targetAbs % 52) + 1;
 
     // Use requestAnimationFrame for smoother batch processing
     // and prevent setTimeout stacking that can overwhelm the browser
@@ -1698,7 +1985,7 @@ export const StudioMagnateGame: React.FC<StudioMagnateGameProps> = ({
       if (remaining <= 0 || isProcessing) return;
       
       isProcessing = true;
-      handleAdvanceWeek();
+      handleAdvanceWeek({ suppressToast: true });
       remaining -= 1;
       
       // Use requestAnimationFrame to yield to the browser between weeks
@@ -1711,6 +1998,10 @@ export const StudioMagnateGame: React.FC<StudioMagnateGameProps> = ({
         });
       } else {
         isProcessing = false;
+        toast({
+          title: 'Time Advanced',
+          description: `Advanced ${totalWeeks} weeks → Week ${targetWeek}, ${targetYear}`,
+        });
       }
     };
 
@@ -2248,6 +2539,41 @@ export const StudioMagnateGame: React.FC<StudioMagnateGameProps> = ({
             selectedFranchise={selectedFranchise}
             selectedPublicDomain={selectedPublicDomain}
             onProjectCreate={handleProjectCreate}
+            onSpendFunds={(amount) => {
+              const currentDebt = gameState.studio.debt || 0;
+              const maxLoanCapacity = Math.max(0, 50000000 - currentDebt);
+              const availableFunds = gameState.studio.budget + maxLoanCapacity;
+
+              if (amount > availableFunds) return { success: false };
+
+              const budgetAfter = gameState.studio.budget - amount;
+              const loanTaken = budgetAfter < 0 ? Math.min(-budgetAfter, maxLoanCapacity) : 0;
+
+              setGameState(prev => {
+                const prevDebt = prev.studio.debt || 0;
+                const prevMaxLoan = Math.max(0, 50000000 - prevDebt);
+                const prevAvailable = prev.studio.budget + prevMaxLoan;
+                if (amount > prevAvailable) return prev;
+
+                let nextBudget = prev.studio.budget - amount;
+                let nextDebt = prevDebt;
+                if (nextBudget < 0) {
+                  nextDebt += -nextBudget;
+                  nextBudget = 0;
+                }
+
+                return {
+                  ...prev,
+                  studio: {
+                    ...prev.studio,
+                    budget: nextBudget,
+                    debt: nextDebt,
+                  },
+                };
+              });
+
+              return { success: true, loanTaken };
+            }}
             onScriptUpdate={(script) => {
               // Persist selections so multiple scripts can be created within the same franchise/IP
               setGameState(prev => ({

@@ -119,6 +119,25 @@ export const ComprehensiveTelevisionSystem: React.FC<ComprehensiveTelevisionSyst
             selectedFranchise={selectedFranchise}
             selectedPublicDomain={selectedPublicDomain}
             onProjectCreate={onCreateTVProject}
+            onSpendFunds={(amount) => {
+              const currentDebt = gameState.studio.debt || 0;
+              const maxLoanCapacity = Math.max(0, 50000000 - currentDebt);
+              const availableFunds = gameState.studio.budget + maxLoanCapacity;
+              if (amount > availableFunds) return { success: false };
+
+              const budgetAfter = gameState.studio.budget - amount;
+              const loanTaken = budgetAfter < 0 ? Math.min(-budgetAfter, maxLoanCapacity) : 0;
+
+              onGameStateUpdate({
+                studio: {
+                  ...gameState.studio,
+                  budget: Math.max(0, budgetAfter),
+                  debt: currentDebt + loanTaken,
+                },
+              });
+
+              return { success: true, loanTaken };
+            }}
             onScriptUpdate={handleTVScriptUpdate}
           />
         </TabsContent>

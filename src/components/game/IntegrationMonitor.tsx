@@ -46,7 +46,7 @@ export const IntegrationMonitor: React.FC<IntegrationMonitorProps> = ({
     currentYear: gameState.currentYear,
     currentQuarter: Math.ceil(gameState.currentWeek / 13)
   };
-  const upcomingCalendarEvents = CalendarManager.getUpcomingEvents(calendarTime, 12);
+  const upcomingCalendarEvents = CalendarManager.getUpcomingEvents(calendarTime, gameState.projects, 12);
   
   useEffect(() => {
     // Run integration verification on mount and when gameState changes

@@ -115,8 +115,15 @@ export function importRolesForScript(script: Script, gameState: GameState): Scri
   }
 
   // Idempotency: remove duplicates by franchiseCharacterId/name+type
+  // Prefer freshly-imported (and merged) definitions over previously-locked copies in `existing`.
   const keyed = new Map<string, ScriptCharacter>();
-  for (const c of [...existing.filter(c => c.locked), ...characters]) {
+
+  for (const c of characters) {
+    const key = c.franchiseCharacterId || `${c.name}:${c.requiredType || 'actor'}`;
+    if (!keyed.has(key)) keyed.set(key, c);
+  }
+
+  for (const c of existing.filter(c => c.locked)) {
     const key = c.franchiseCharacterId || `${c.name}:${c.requiredType || 'actor'}`;
     if (!keyed.has(key)) keyed.set(key, c);
   }

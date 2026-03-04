@@ -120,7 +120,8 @@ export class ReleaseSystem {
     film: Project, 
     targetWeek: number, 
     targetYear: number, 
-    currentTime: TimeState
+    currentTime: TimeState,
+    allProjects: Project[] = []
   ): ReleaseResult {
     // Validate film readiness
     const filmValidation = this.validateFilmForRelease(film);
@@ -141,7 +142,7 @@ export class ReleaseSystem {
     }
     
     // Validate calendar slot
-    const calendarValidation = CalendarManager.validateRelease(film.id, targetWeek, targetYear, currentTime);
+    const calendarValidation = CalendarManager.validateRelease(film.id, targetWeek, targetYear, currentTime, allProjects);
     if (!calendarValidation.canRelease) {
       console.error('RELEASE_SYSTEM: calendar validation failed', {
         filmId: film.id,
@@ -157,8 +158,7 @@ export class ReleaseSystem {
       };
     }
     
-    // Schedule the release
-    CalendarManager.scheduleRelease(film.id, film.title, targetWeek, targetYear);
+    
     
     // Record marketing expenses (spread over 4 weeks leading up to release)
     if (film.distributionStrategy?.marketingBudget) {
@@ -192,9 +192,9 @@ export class ReleaseSystem {
     };
   }
   
-  static processReleases(currentTime: TimeState): Project[] {
+  static processReleases(currentTime: TimeState, allProjects: Project[] = []): Project[] {
     const releasingFilms: Project[] = [];
-    const events = CalendarManager.processWeeklyEvents(currentTime);
+    const events = CalendarManager.processWeeklyEvents(currentTime, allProjects);
     
     const releaseEvents = events.filter(event => event.type === 'release');
     
@@ -214,8 +214,8 @@ export class ReleaseSystem {
     return releasingFilms;
   }
   
-  static getNextAvailableReleaseDate(currentTime: TimeState): { week: number; year: number } {
-    const optimalWindows = CalendarManager.getOptimalReleaseWindows(currentTime);
+  static getNextAvailableReleaseDate(currentTime: TimeState, allProjects: Project[] = []): { week: number; year: number } {
+    const optimalWindows = CalendarManager.getOptimalReleaseWindows(currentTime, allProjects);
     
     if (optimalWindows.length > 0) {
       return {
@@ -241,14 +241,14 @@ export class ReleaseSystem {
     return true;
   }
   
-  static getUpcomingReleases(currentTime: TimeState): Array<{
+  static getUpcomingReleases(currentTime: TimeState, allProjects: Project[] = []): Array<{
     filmId: string;
     title: string;
     week: number;
     year: number;
     weeksUntilRelease: number;
   }> {
-    const upcomingEvents = CalendarManager.getUpcomingEvents(currentTime, 12);
+    const upcomingEvents = CalendarManager.getUpcomingEvents(currentTime, allProjects, 12);
     const releaseEvents = upcomingEvents.filter(event => event.type === 'release');
     
     return releaseEvents.map(event => {
