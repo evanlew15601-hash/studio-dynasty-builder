@@ -2216,7 +2216,7 @@ export const StudioMagnateGame: React.FC<StudioMagnateGameProps> = ({
               
               <Button 
                 size="sm" 
-                onClick={handleAdvanceWeek}
+                onClick={() => handleAdvanceWeek()}
                 className="btn-studio shadow-golden hover:animate-glow transition-all duration-300"
               >
                 <BudgetIcon className="mr-2" size={16} />
