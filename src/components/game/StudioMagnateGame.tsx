@@ -28,6 +28,7 @@ import { TVEpisodeSystem } from './TVEpisodeSystem';
 import { FinancialEngine } from './FinancialEngine';
 import { updateProjectFinancials } from './FinancialCalculations';
 import { TalentFilmographyManager } from '@/utils/talentFilmographyManager';
+import { stablePick } from '@/utils/stablePick';
 import { AwardsSystem } from './AwardsSystem';
 import { EnhancedAwardsSystem } from './EnhancedAwardsSystem';
 import { RoleBasedCasting } from './RoleBasedCasting';
@@ -100,36 +101,229 @@ import { SystemIntegration } from './SystemIntegration';
 import { saveGame } from '@/utils/saveLoad';
 import { DebugControlPanel } from './DebugControlPanel';
 
-// Ensure AI films have at least a Director and Lead actor so awards/crediting work
+// Ensure AI films have credited talent so awards/filmographies have real people to reference
 function attachBasicCastForAI(project: Project, talentPool: TalentPerson[]): Project {
   try {
-    // If already has cast or assigned characters, do nothing
-    if ((project.cast && project.cast.length > 0) || project.script?.characters?.some(c => c.assignedTalentId)) {
-      return project;
-    }
-    const director = talentPool.find(t => t.type === 'director');
-    const lead = talentPool.find(t => t.type === 'actor');
     if (!project.script) return project;
 
-    const baseChars = project.script.characters || [];
-    const characters = baseChars.length > 0 ? baseChars.map(c => {
-      if (c.requiredType === 'director' && !c.assignedTalentId && director) return { ...c, assignedTalentId: director.id };
-      if (c.importance === 'lead' && c.requiredType !== 'director' && !c.assignedTalentId && lead) return { ...c, assignedTalentId: lead.id };
-      return c;
-    }) : [
-      { id: `${project.id}-dir`, name: 'Director', description: 'Director', requiredType: 'director', importance: 'lead', traits: ['mandatory'], assignedTalentId: director?.id } as any,
-      { id: `${project.id}-lead`, name: 'Protagonist', description: 'Lead role', requiredType: 'actor', importance: 'lead', traits: ['mandatory'], assignedTalentId: lead?.id } as any,
-    ];
+    const existingCharacters = project.script.characters || [];
+    const existingCast = project.cast || [];
 
-    const cast = [
-      director && { talentId: director.id, role: 'Director', salary: Math.round((director.marketValue || 5_000_000) * 0.1), points: 0, contractTerms: { duration: new Date(), exclusivity: false, merchandising: false, sequelOptions: 0 } },
-      lead && { talentId: lead.id, role: `Lead - ${characters.find(c => c.importance==='lead' && c.requiredType !== 'director')?.name || 'Lead'}`, salary: Math.round((lead.marketValue || 5_000_000) * 0.1), points: 0, contractTerms: { duration: new Date(), exclusivity: false, merchandising: false, sequelOptions: 0 } },
-    ].filter(Boolean) as any;
+    const hasDirector =
+      existingCast.some(c => c.role.toLowerCase().includes('director') && !!c.talentId) ||
+      existingCharacters.some(c => c.requiredType === 'director' && !!c.assignedTalentId);
+
+    const hasLead =
+      existingCast.some(c => c.role.toLowerCase().includes('lead') && !!c.talentId) ||
+      existingCharacters.some(c => c.requiredType !== 'director' && c.importance === 'lead' && !!c.assignedTalentId);
+
+    const hasSupporting =
+      existingCast.some(c => c.role.toLowerCase().includes('supporting') && !!c.talentId) ||
+      existingCharacters.some(c => c.requiredType !== 'director' && c.importance === 'supporting' && !!c.assignedTalentId);
+
+    // If the project already has credited character assignments, don't overwrite them.
+    // (If it only has a cast list, we still ensure script characters exist for filmography.)
+    if (existingCharacters.some(c => !!c.assignedTalentId) && hasDirector && hasLead && hasSupporting) {
+      return project;
+    }
+
+    const directors = talentPool.filter(t => t.type === 'director');
+    const actors = talentPool.filter(t => t.type === 'actor');
+
+    const getTalentById = (id?: string) => talentPool.find(t => t.id === id);
+
+    const existingDirectorId =
+      existingCast.find(c => c.role.toLowerCase().includes('director'))?.talentId ||
+      existingCharacters.find(c => c.requiredType === 'director')?.assignedTalentId;
+
+    const existingLeadId =
+      existingCast.find(c => c.role.toLowerCase().includes('lead') && !c.role.toLowerCase().includes('supporting'))?.talentId ||
+      existingCharacters.find(c => c.requiredType !== 'director' && c.importance === 'lead')?.assignedTalentId;
+
+    const existingSupportingIds = existingCast
+      .filter(c => c.role.toLowerCase().includes('supporting') && !!c.talentId)
+      .map(c => c.talentId);
+
+    const pickedDirector = getTalentById(existingDirectorId) ?? stablePick(directors, `${project.id}|director`);
+    const pickedLead = getTalentById(existingLeadId) ?? stablePick(actors, `${project.id}|lead`);
+
+    const usedIds = new Set<string>([pickedDirector?.id, pickedLead?.id].filter(Boolean) as string[]);
+
+    const existingSupportingTalent = existingSupportingIds
+      .map(id => getTalentById(id))
+      .filter(Boolean) as TalentPerson[];
+
+    const pickedSupporting1 =
+      existingSupportingTalent[0] ??
+      stablePick(actors.filter(a => !usedIds.has(a.id)), `${project.id}|supporting1`);
+
+    if (pickedSupporting1) usedIds.add(pickedSupporting1.id);
+
+    const pickedSupporting2 =
+      existingSupportingTalent[1] ??
+      stablePick(actors.filter(a => !usedIds.has(a.id)), `${project.id}|supporting2`);
+
+    const mkTerms = () => ({ duration: new Date(), exclusivity: false, merchandising: false, sequelOptions: 0 });
+
+    // Build/patch script characters (used by filmography + fallbacks)
+    let characters: ScriptCharacter[] = existingCharacters.map(c => {
+      if (c.requiredType === 'director' && !c.assignedTalentId && pickedDirector) {
+        return { ...c, assignedTalentId: pickedDirector.id };
+      }
+
+      if (c.requiredType !== 'director' && c.importance === 'lead' && !c.assignedTalentId && pickedLead) {
+        return { ...c, assignedTalentId: pickedLead.id };
+      }
+
+      return c;
+    });
+
+    // Fill unassigned supporting slots (if any exist)
+    const supportingPicks = [pickedSupporting1, pickedSupporting2].filter(Boolean) as TalentPerson[];
+    if (supportingPicks.length > 0) {
+      let si = 0;
+      characters = characters.map(c => {
+        if (
+          si < supportingPicks.length &&
+          c.requiredType !== 'director' &&
+          c.importance === 'supporting' &&
+          !c.assignedTalentId
+        ) {
+          const t = supportingPicks[si];
+          si += 1;
+          return { ...c, assignedTalentId: t.id };
+        }
+        return c;
+      });
+    }
+
+    const hasDirectorChar = characters.some(c => c.requiredType === 'director');
+    const hasLeadChar = characters.some(c => c.requiredType !== 'director' && c.importance === 'lead');
+    const supportingChars = characters.filter(c => c.requiredType !== 'director' && c.importance === 'supporting');
+
+    if (!hasDirectorChar) {
+      characters = [
+        ...characters,
+        {
+          id: `${project.id}-dir`,
+          name: 'Director',
+          description: 'Director',
+          requiredType: 'director',
+          importance: 'lead',
+          traits: ['mandatory'],
+          assignedTalentId: pickedDirector?.id,
+        } as any,
+      ];
+    }
+
+    if (!hasLeadChar) {
+      characters = [
+        ...characters,
+        {
+          id: `${project.id}-lead`,
+          name: 'Protagonist',
+          description: 'Lead role',
+          requiredType: 'actor',
+          importance: 'lead',
+          traits: ['mandatory'],
+          assignedTalentId: pickedLead?.id,
+        } as any,
+      ];
+    }
+
+    // Add 1–2 supporting roles so supporting categories can credit someone other than the lead.
+    if (supportingChars.length === 0) {
+      if (pickedSupporting1) {
+        characters = [
+          ...characters,
+          {
+            id: `${project.id}-supporting-1`,
+            name: 'Supporting',
+            description: 'Supporting role',
+            requiredType: 'actor',
+            importance: 'supporting',
+            traits: [],
+            assignedTalentId: pickedSupporting1.id,
+          } as any,
+        ];
+      }
+
+      if (pickedSupporting2) {
+        characters = [
+          ...characters,
+          {
+            id: `${project.id}-supporting-2`,
+            name: 'Supporting (2)',
+            description: 'Supporting role',
+            requiredType: 'actor',
+            importance: 'supporting',
+            traits: [],
+            assignedTalentId: pickedSupporting2.id,
+          } as any,
+        ];
+      }
+    }
+
+    // Build/patch cast list (used by awards engine)
+    const cast = [...existingCast];
+
+    if (pickedDirector && !cast.some(c => c.talentId === pickedDirector.id)) {
+      cast.push({
+        talentId: pickedDirector.id,
+        role: 'Director',
+        salary: Math.round((pickedDirector.marketValue || 5_000_000) * 0.1),
+        points: 0,
+        contractTerms: mkTerms(),
+      } as any);
+    }
+
+    if (pickedLead && !cast.some(c => c.talentId === pickedLead.id)) {
+      cast.push({
+        talentId: pickedLead.id,
+        role: 'Lead Actor',
+        salary: Math.round((pickedLead.marketValue || 5_000_000) * 0.1),
+        points: 0,
+        contractTerms: mkTerms(),
+      } as any);
+    }
+
+    if (pickedSupporting1 && !cast.some(c => c.talentId === pickedSupporting1.id)) {
+      cast.push({
+        talentId: pickedSupporting1.id,
+        role: 'Supporting Actor',
+        salary: Math.round((pickedSupporting1.marketValue || 3_000_000) * 0.05),
+        points: 0,
+        contractTerms: mkTerms(),
+      } as any);
+    }
+
+    if (pickedSupporting2 && !cast.some(c => c.talentId === pickedSupporting2.id)) {
+      cast.push({
+        talentId: pickedSupporting2.id,
+        role: 'Supporting Actor (2)',
+        salary: Math.round((pickedSupporting2.marketValue || 3_000_000) * 0.05),
+        points: 0,
+        contractTerms: mkTerms(),
+      } as any);
+    }
+
+    // Star power: derive from top-2 cast fame to make fame actually matter in outcomes.
+    const castFame = cast
+      .map(c => talentPool.find(t => t.id === c.talentId))
+      .filter(Boolean)
+      .map(t => (t!.fame ?? Math.min(100, Math.round(t!.reputation || 50))));
+
+    const topTwo = [...castFame].sort((a, b) => b - a).slice(0, 2);
+    const starPowerBonus =
+      topTwo.length > 0
+        ? Math.min(0.5, (topTwo.reduce((a, b) => a + b, 0) / topTwo.length) / 200)
+        : project.starPowerBonus;
 
     return {
       ...project,
       script: { ...project.script, characters },
-      cast: cast.length > 0 ? cast : project.cast
+      cast,
+      starPowerBonus,
     };
   } catch (e) {
     console.warn('attachBasicCastForAI failed', e);
@@ -218,7 +412,7 @@ export const StudioMagnateGame: React.FC<StudioMagnateGameProps> = ({
 
     updateOperation(LOADING_OPERATIONS.GAME_INIT.id, 80, 'Initializing systems...');
 
-    const initialState = {
+    let initialState: GameState = {
       studio,
       currentYear: new Date().getFullYear(),
       currentWeek: 1,
@@ -252,7 +446,12 @@ export const StudioMagnateGame: React.FC<StudioMagnateGameProps> = ({
             for (const st of competitorStudios) {
               const profile = sg.getStudioProfile(st.name);
               const rel = profile ? sg.generateStudioRelease(profile, w, year) : null;
-              if (rel) { releases.push(rel); releases[releases.length - 1] = attachBasicCastForAI(releases[releases.length - 1] as Project, generatedTalent); added = true; break; }
+              if (rel) {
+                releases.push(rel);
+                releases[releases.length - 1] = attachBasicCastForAI(releases[releases.length - 1] as Project, generatedTalent);
+                added = true;
+                break;
+              }
             }
             if (!added && competitorStudios[0]) {
               const fallback = sg.getStudioProfile(competitorStudios[0].name);
@@ -329,6 +528,20 @@ export const StudioMagnateGame: React.FC<StudioMagnateGameProps> = ({
       publicDomainIPs: PublicDomainGenerator.generateInitialPublicDomainIPs(50),
       aiStudioProjects: [] as Project[],
     };
+
+    // Seed talent careers from AI releases so the world starts with real filmographies/fame.
+    try {
+      let filmographyState = initialState;
+      for (const release of initialState.allReleases) {
+        if ('script' in release) {
+          filmographyState = TalentFilmographyManager.updateFilmographyOnRelease(filmographyState, release as Project);
+        }
+      }
+      initialState = filmographyState;
+    } catch (e) {
+      console.warn('Failed to seed talent filmographies from AI releases', e);
+    }
+
     updateOperation(LOADING_OPERATIONS.GAME_INIT.id, 100, 'Game ready!');
     
     // Complete initialization after a brief delay
@@ -1613,6 +1826,22 @@ export const StudioMagnateGame: React.FC<StudioMagnateGameProps> = ({
         }
         return { ...t, contractStatus: status, busyUntilWeek: busyUntil };
       });
+
+      // Mark talent as busy if they're currently committed to an AI studio project
+      updatedTalent = updatedTalent.map(t => {
+        const commitment = AIStudioManager.getTalentCommitment(t.id, newTimeState.currentWeek, newTimeState.currentYear);
+        if (!commitment) return t;
+
+        const endAbsWeek = (newTimeState.currentYear * 52) + commitment.endWeek;
+        const existingBusyUntil = typeof t.busyUntilWeek === 'number' ? t.busyUntilWeek : 0;
+
+        return {
+          ...t,
+          contractStatus: 'busy',
+          busyUntilWeek: Math.max(existingBusyUntil, endAbsWeek)
+        };
+      });
+
       // Mark cast as busy for projects in production
       updatedProjects.forEach(p => {
         if (p.currentPhase === 'production' || p.status === 'filming') {
@@ -1632,9 +1861,14 @@ export const StudioMagnateGame: React.FC<StudioMagnateGameProps> = ({
       });
 
       // Apply filmography/fame updates for newly released projects (no nested setState)
-      if (weeklyProjectEffects.releasedProjects.length > 0) {
+      const releasedForFilmography = [
+        ...weeklyProjectEffects.releasedProjects,
+        ...newAIReleases.filter(r => r.status === 'released')
+      ];
+
+      if (releasedForFilmography.length > 0) {
         let filmographyState: GameState = { ...prev, talent: updatedTalent };
-        for (const released of weeklyProjectEffects.releasedProjects) {
+        for (const released of releasedForFilmography) {
           filmographyState = TalentFilmographyManager.updateFilmographyOnRelease(filmographyState, released);
         }
         updatedTalent = filmographyState.talent;

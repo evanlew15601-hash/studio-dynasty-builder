@@ -6,34 +6,71 @@ export const TalentFilmographyManager = {
    * Update talent filmography when a project is released
    */
   updateFilmographyOnRelease(gameState: GameState, project: Project): GameState {
-    if (!project.script?.characters || project.status !== 'released') {
+    if (project.status !== 'released') {
       return gameState;
     }
 
-    const updatedTalent = gameState.talent.map(talent => {
-      // Find if this talent was cast in the project
-      const castCharacter = project.script!.characters!.find(
-        char => char.assignedTalentId === talent.id
-      );
+    const roleByTalentId: Record<string, string> = {};
+    const priorityByTalentId: Record<string, number> = {};
 
-      if (!castCharacter) return talent;
-
-      // Determine the role
-      let role = 'Supporting';
-      if (castCharacter.requiredType === 'director') {
-        role = 'Director';
-      } else if (castCharacter.importance === 'lead') {
-        role = 'Lead Actor';
-      } else if (castCharacter.importance === 'supporting') {
-        role = 'Supporting Actor';
+    const setRole = (talentId: string, role: string, priority: number) => {
+      const existingPriority = priorityByTalentId[talentId] ?? -1;
+      if (priority > existingPriority) {
+        roleByTalentId[talentId] = role;
+        priorityByTalentId[talentId] = priority;
       }
+    };
+
+    // Prefer script character assignments (they represent casting decisions)
+    const characters = project.script?.characters || [];
+    for (const ch of characters) {
+      if (!ch.assignedTalentId) continue;
+
+      if (ch.requiredType === 'director') {
+        setRole(ch.assignedTalentId, 'Director', 3);
+      } else if (ch.importance === 'lead') {
+        setRole(ch.assignedTalentId, 'Lead Actor', 2);
+      } else if (ch.importance === 'supporting') {
+        setRole(ch.assignedTalentId, 'Supporting Actor', 1);
+      } else {
+        setRole(ch.assignedTalentId, 'Supporting Actor', 0);
+      }
+    }
+
+    // Fallback/augment via project.cast (important for AI and any projects missing script character IDs)
+    const cast = project.cast || [];
+    for (const c of cast) {
+      if (!c.talentId) continue;
+      const roleLower = (c.role || '').toLowerCase();
+
+      if (roleLower.includes('director')) {
+        setRole(c.talentId, 'Director', 3);
+      } else if (roleLower.includes('lead')) {
+        setRole(c.talentId, 'Lead Actor', 2);
+      } else if (roleLower.includes('supporting')) {
+        setRole(c.talentId, 'Supporting Actor', 1);
+      } else {
+        setRole(c.talentId, 'Supporting Actor', 0);
+      }
+    }
+
+    const creditedIds = new Set(Object.keys(roleByTalentId));
+    if (creditedIds.size === 0) {
+      return gameState;
+    }
+
+    const releaseYear = project.releaseYear ?? gameState.currentYear;
+
+    const updatedTalent = gameState.talent.map(talent => {
+      const role = roleByTalentId[talent.id];
+      if (!role) return talent;
 
       // Add to filmography if not already there
       const filmEntry = {
         projectId: project.id,
         title: project.title,
         role,
-        year: project.releaseYear,
+        year: releaseYear,
         boxOffice: project.metrics?.boxOfficeTotal || 0
       };
 
