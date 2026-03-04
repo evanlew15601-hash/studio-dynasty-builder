@@ -2147,8 +2147,14 @@ export const StudioMagnateGame: React.FC<StudioMagnateGameProps> = ({
           <div className="flex items-center justify-between">
             <div className="flex items-center space-x-6">
               <div className="flex items-center space-x-3">
-                <div className="p-2 rounded-lg bg-gradient-golden shadow-golden animate-glow">
-                  <ClapperboardIcon className="text-primary-foreground" size={24} />
+                <div className="p-1.5 rounded-lg shadow-golden animate-glow">
+                  {gameConfig?.studioIcon ? (
+                    <StudioIconRendererLazy config={gameConfig.studioIcon} size={32} />
+                  ) : (
+                    <div className="p-0.5 bg-gradient-golden rounded-md">
+                      <ClapperboardIcon className="text-primary-foreground" size={24} />
+                    </div>
+                  )}
                 </div>
                 <div>
                   <div className="text-2xl font-bold studio-title bg-gradient-to-r from-primary to-accent bg-clip-text text-transparent">
