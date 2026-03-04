@@ -2,7 +2,26 @@
 
 export interface StreamingContract {
   id: string;
-  platform: 'netflix' | 'amazon' | 'hulu' | 'disney' | 'apple' | 'hbo' | 'paramount' | 'peacock';
+  /**
+   * Type of deal. We reuse StreamingContract for both streaming platforms and linear/cable networks.
+   */
+  dealKind: 'streaming' | 'cable';
+  platform:
+    | 'netflix'
+    | 'amazon'
+    | 'hulu'
+    | 'disney'
+    | 'apple'
+    | 'hbo'
+    | 'paramount'
+    | 'peacock'
+    // Cable networks
+    | 'amc'
+    | 'fx'
+    | 'tnt'
+    | 'usa'
+    | 'syfy'
+    | 'history';
   name: string;
   type: 'series' | 'film' | 'documentary' | 'limited-series';
   duration: number; // contract length in weeks
