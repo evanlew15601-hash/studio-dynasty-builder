@@ -284,7 +284,7 @@ export const TelevisionSystemTests: React.FC<TelevisionSystemTestsProps> = ({
       // Test production phases
       const productionPhases = ['pre-production', 'production', 'post-production', 'aired'];
       
-      let testShow = {
+      const testShow = {
         id: 'test-show-workflow',
         status: 'in-development',
         currentSeason: 1,

@@ -137,7 +137,7 @@ export const CastingBoard: React.FC<CastingBoardProps> = ({
         }
       } else if (talent.type === 'actor') {
         // Prefer an explicit lead actor role
-        let leadIndex = existingChars.findIndex(
+        const leadIndex = existingChars.findIndex(
           c => c.importance === 'lead' && (c.requiredType === 'actor' || !c.requiredType)
         );
 

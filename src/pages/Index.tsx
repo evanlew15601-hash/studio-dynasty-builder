@@ -1,17 +1,28 @@
 // Update this page (the content is just a fallback if you fail to update the page)
 
-import { StudioMagnateGame } from '@/components/game/StudioMagnateGame';
 import { GameLanding } from '@/components/game/GameLanding';
 import { LoadingProvider } from '@/contexts/LoadingContext';
-import { useState } from 'react';
+import { Suspense, lazy, useState } from 'react';
 import { loadGame, SaveGameSnapshot } from '@/utils/saveLoad';
+import { Genre } from '@/types/game';
+
+const StudioMagnateGame = lazy(() =>
+  import('@/components/game/StudioMagnateGame').then((m) => ({ default: m.StudioMagnateGame }))
+);
+
+type GameConfig = {
+  studioName: string;
+  specialties: Genre[];
+  difficulty: 'easy' | 'normal' | 'hard' | 'magnate';
+  startingBudget: number;
+};
 
 const Index = () => {
   const [gameStarted, setGameStarted] = useState(false);
-  const [gameConfig, setGameConfig] = useState<any>(null);
+  const [gameConfig, setGameConfig] = useState<GameConfig | null>(null);
   const [loadedSnapshot, setLoadedSnapshot] = useState<SaveGameSnapshot | null>(null);
 
-  const handleStartGame = (config: any) => {
+  const handleStartGame = (config: GameConfig) => {
     // Starting a fresh game clears any loaded snapshot
     setLoadedSnapshot(null);
     setGameConfig(config);
@@ -43,12 +54,14 @@ const Index = () => {
           onLoadGame={handleLoadGame}
         />
       ) : (
-        <StudioMagnateGame 
-          gameConfig={gameConfig} 
-          initialGameState={loadedSnapshot?.gameState}
-          initialPhase={loadedSnapshot?.meta.currentPhase}
-          initialUnlockedAchievements={loadedSnapshot?.unlockedAchievements}
-        />
+        <Suspense fallback={<div className="p-6 text-sm text-muted-foreground">Loading game...</div>}>
+          <StudioMagnateGame 
+            gameConfig={gameConfig ?? undefined} 
+            initialGameState={loadedSnapshot?.gameState}
+            initialPhase={loadedSnapshot?.meta.currentPhase}
+            initialUnlockedAchievements={loadedSnapshot?.unlockedAchievements}
+          />
+        </Suspense>
       )}
     </LoadingProvider>
   );
