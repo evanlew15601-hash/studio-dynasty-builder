@@ -293,6 +293,93 @@ export const IndustryDatabasePanel: React.FC<IndustryDatabasePanelProps> = ({ ga
 
   const [selectedStudio, setSelectedStudio] = useState<string>(() => studios[0] || gameState.studio.name);
 
+  // ===== Modding / editor state =====
+  const [talentDraft, setTalentDraft] = useState<Partial<TalentDbRecord> & { type?: 'actor' | 'director' }>({
+    type: 'actor',
+    name: '',
+    reputation: 50,
+    fame: 50,
+  });
+  const [editingTalentId, setEditingTalentId] = useState<string | null>(null);
+
+  const [studioDraft, setStudioDraft] = useState<{ id?: string; name: string; founded?: number; reputation?: number; specialties?: Genre[] }>({
+    name: '',
+    founded: new Date().getFullYear(),
+    reputation: 50,
+    specialties: ['drama'],
+  });
+  const [editingStudioId, setEditingStudioId] = useState<string | null>(null);
+
+  const parseGenres = (raw: string): Genre[] => {
+    const parts = raw
+      .split(',')
+      .map((s) => s.trim().toLowerCase())
+      .filter(Boolean);
+
+    const allowed = new Set(ALL_GENRES);
+    return parts.filter((g): g is Genre => allowed.has(g as Genre));
+  };
+
+  const persistDb = (next: IndustryDatabase) => {
+    saveIndustryDatabase(slot, next);
+    setDb(next);
+  };
+
+  const upsertTalent = (record: TalentDbRecord) => {
+    const idx = db.talent.findIndex((t) => t.id === record.id);
+    const next: IndustryDatabase = {
+      ...db,
+      updatedAt: new Date().toISOString(),
+      talent: idx === -1 ? [...db.talent, record] : db.talent.map((t) => (t.id === record.id ? record : t)),
+    };
+    persistDb(next);
+  };
+
+  const deleteTalent = (id: string) => {
+    const next: IndustryDatabase = {
+      ...db,
+      updatedAt: new Date().toISOString(),
+      talent: db.talent.filter((t) => t.id !== id),
+      awards: db.awards.filter((a) => a.talentId !== id),
+    };
+    persistDb(next);
+  };
+
+  const upsertStudio = (record: { id: string; name: string; founded?: number; reputation?: number; specialties?: Genre[] }) => {
+    const idx = db.studios.findIndex((s) => s.id === record.id);
+    const nextStudios = idx === -1
+      ? [...db.studios, record]
+      : db.studios.map((s) => (s.id === record.id ? record : s));
+
+    // Keep any film/tv/award studioName references consistent if the name changed.
+    const prev = idx === -1 ? undefined : db.studios[idx];
+    const prevName = prev?.name;
+
+    const next: IndustryDatabase = {
+      ...db,
+      updatedAt: new Date().toISOString(),
+      studios: nextStudios,
+      films: prevName && prevName !== record.name ? db.films.map((f) => (f.studioName === prevName ? { ...f, studioName: record.name } : f)) : db.films,
+      tvShows: prevName && prevName !== record.name ? db.tvShows.map((t) => (t.studioName === prevName ? { ...t, studioName: record.name } : t)) : db.tvShows,
+      awards: prevName && prevName !== record.name ? db.awards.map((a) => (a.studioName === prevName ? { ...a, studioName: record.name } : a)) : db.awards,
+    };
+
+    persistDb(next);
+  };
+
+  const deleteStudio = (id: string) => {
+    const st = db.studios.find((s) => s.id === id);
+    const name = st?.name;
+    const next: IndustryDatabase = {
+      ...db,
+      updatedAt: new Date().toISOString(),
+      studios: db.studios.filter((s) => s.id !== id),
+      // We don't delete films/TV by studio automatically; just orphan the studio row.
+      awards: name ? db.awards.map((a) => (a.studioName === name ? { ...a, studioName: 'Unknown Studio' } : a)) : db.awards,
+    };
+    persistDb(next);
+  };
+
   useEffect(() => {
     if (!selectedStudio && studios.length > 0) setSelectedStudio(studios[0]);
   }, [selectedStudio, studios]);
@@ -899,6 +986,322 @@ export const IndustryDatabasePanel: React.FC<IndustryDatabasePanelProps> = ({ ga
                   </ScrollArea>
                 </TabsContent>
               </Tabs>
+            </CardContent>
+          </Card>
+        </TabsContent>
+
+        <TabsContent value="modding" className="space-y-4">
+          <Card className="card-premium">
+            <CardHeader>
+              <CardTitle>Quick Modding (Add/Edit People & Studios)</CardTitle>
+            </CardHeader>
+            <CardContent className="space-y-6">
+              <div className="text-sm text-muted-foreground">
+                This edits the selected database slot only. Use <strong>Export/Import</strong> to share mods.
+              </div>
+
+              <div className="grid grid-cols-1 lg:grid-cols-2 gap-4">
+                <Card>
+                  <CardHeader>
+                    <CardTitle className="text-base">Talent (Actors / Directors)</CardTitle>
+                  </CardHeader>
+                  <CardContent className="space-y-3">
+                    <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
+                      <Select
+                        value={(talentDraft.type || 'actor') as any}
+                        onValueChange={(v) => setTalentDraft((prev) => ({ ...prev, type: v as any }))}
+                      >
+                        <SelectTrigger>
+                          <SelectValue />
+                        </SelectTrigger>
+                        <SelectContent>
+                          <SelectItem value="actor">Actor</SelectItem>
+                          <SelectItem value="director">Director</SelectItem>
+                        </SelectContent>
+                      </Select>
+
+                      <Input
+                        value={talentDraft.name || ''}
+                        onChange={(e) => setTalentDraft((prev) => ({ ...prev, name: e.target.value }))}
+                        placeholder="Name"
+                      />
+
+                      <Input
+                        value={String(talentDraft.age ?? '')}
+                        onChange={(e) => setTalentDraft((prev) => ({ ...prev, age: e.target.value ? Number(e.target.value) : undefined }))}
+                        placeholder="Age"
+                        inputMode="numeric"
+                      />
+
+                      <Input
+                        value={String(talentDraft.reputation ?? '')}
+                        onChange={(e) => setTalentDraft((prev) => ({ ...prev, reputation: e.target.value ? Number(e.target.value) : undefined }))}
+                        placeholder="Reputation (0-100)"
+                        inputMode="numeric"
+                      />
+
+                      {(talentDraft.type || 'actor') === 'actor' && (
+                        <Input
+                          value={String(talentDraft.fame ?? '')}
+                          onChange={(e) => setTalentDraft((prev) => ({ ...prev, fame: e.target.value ? Number(e.target.value) : undefined }))}
+                          placeholder="Fame (0-100)"
+                          inputMode="numeric"
+                        />
+                      )}
+
+                      <Input
+                        value={String(talentDraft.marketValue ?? '')}
+                        onChange={(e) => setTalentDraft((prev) => ({ ...prev, marketValue: e.target.value ? Number(e.target.value) : undefined }))}
+                        placeholder="Market Value (number)"
+                        inputMode="numeric"
+                      />
+
+                      <Input
+                        value={(talentDraft.genres || []).join(', ')}
+                        onChange={(e) => setTalentDraft((prev) => ({ ...prev, genres: parseGenres(e.target.value) }))}
+                        placeholder="Genres (comma separated)"
+                      />
+                    </div>
+
+                    <div className="flex flex-wrap gap-2">
+                      <Button
+                        size="sm"
+                        onClick={() => {
+                          const name = (talentDraft.name || '').trim();
+                          if (!name) {
+                            window.alert('Name is required.');
+                            return;
+                          }
+
+                          const id = editingTalentId || `mod-talent-${Date.now()}-${Math.random().toString(36).slice(2, 6)}`;
+                          const type = (talentDraft.type || 'actor') as any;
+
+                          const record: TalentDbRecord = {
+                            id,
+                            name,
+                            type,
+                            age: talentDraft.age,
+                            reputation: talentDraft.reputation,
+                            fame: type === 'actor' ? talentDraft.fame : undefined,
+                            marketValue: talentDraft.marketValue,
+                            awardsCount: talentDraft.awardsCount,
+                            filmographyCount: talentDraft.filmographyCount,
+                            genres: talentDraft.genres,
+                          };
+
+                          upsertTalent(record);
+                          setEditingTalentId(null);
+                          setTalentDraft({ type: 'actor', name: '', reputation: 50, fame: 50 });
+                        }}
+                      >
+                        {editingTalentId ? 'Save Changes' : 'Add Talent'}
+                      </Button>
+
+                      {editingTalentId && (
+                        <Button
+                          size="sm"
+                          variant="outline"
+                          onClick={() => {
+                            setEditingTalentId(null);
+                            setTalentDraft({ type: 'actor', name: '', reputation: 50, fame: 50 });
+                          }}
+                        >
+                          Cancel
+                        </Button>
+                      )}
+                    </div>
+
+                    <ScrollArea className="h-[300px] rounded border">
+                      {db.talent.length === 0 ? (
+                        <div className="p-4 text-center text-muted-foreground">No talent in this database yet.</div>
+                      ) : (
+                        <div className="p-2 space-y-2">
+                          {db.talent
+                            .slice()
+                            .sort((a, b) => a.name.localeCompare(b.name))
+                            .map((t) => (
+                              <div key={t.id} className="flex items-center justify-between gap-2 p-2 rounded border">
+                                <div className="min-w-0">
+                                  <div className="font-medium truncate">{t.name}</div>
+                                  <div className="text-xs text-muted-foreground">
+                                    {t.type} • rep {t.reputation ?? '—'}{t.type === 'actor' ? ` • fame ${t.fame ?? '—'}` : ''}
+                                  </div>
+                                </div>
+                                <div className="flex gap-2">
+                                  <Button
+                                    size="sm"
+                                    variant="outline"
+                                    onClick={() => {
+                                      setEditingTalentId(t.id);
+                                      setTalentDraft({ ...t });
+                                    }}
+                                  >
+                                    Edit
+                                  </Button>
+                                  <Button
+                                    size="sm"
+                                    variant="outline"
+                                    onClick={() => {
+                                      const ok = window.confirm(`Delete ${t.name}?`);
+                                      if (!ok) return;
+                                      deleteTalent(t.id);
+                                      if (editingTalentId === t.id) {
+                                        setEditingTalentId(null);
+                                        setTalentDraft({ type: 'actor', name: '', reputation: 50, fame: 50 });
+                                      }
+                                    }}
+                                  >
+                                    Delete
+                                  </Button>
+                                </div>
+                              </div>
+                            ))}
+                        </div>
+                      )}
+                    </ScrollArea>
+                  </CardContent>
+                </Card>
+
+                <Card>
+                  <CardHeader>
+                    <CardTitle className="text-base">Studios</CardTitle>
+                  </CardHeader>
+                  <CardContent className="space-y-3">
+                    <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
+                      <Input
+                        value={studioDraft.name}
+                        onChange={(e) => setStudioDraft((prev) => ({ ...prev, name: e.target.value }))}
+                        placeholder="Studio name"
+                      />
+                      <Input
+                        value={String(studioDraft.founded ?? '')}
+                        onChange={(e) => setStudioDraft((prev) => ({ ...prev, founded: e.target.value ? Number(e.target.value) : undefined }))}
+                        placeholder="Founded year"
+                        inputMode="numeric"
+                      />
+                      <Input
+                        value={String(studioDraft.reputation ?? '')}
+                        onChange={(e) => setStudioDraft((prev) => ({ ...prev, reputation: e.target.value ? Number(e.target.value) : undefined }))}
+                        placeholder="Reputation (0-100)"
+                        inputMode="numeric"
+                      />
+                      <Input
+                        value={(studioDraft.specialties || []).join(', ')}
+                        onChange={(e) => setStudioDraft((prev) => ({ ...prev, specialties: parseGenres(e.target.value) }))}
+                        placeholder="Specialties (comma separated)"
+                      />
+                    </div>
+
+                    <div className="flex flex-wrap gap-2">
+                      <Button
+                        size="sm"
+                        onClick={() => {
+                          const name = (studioDraft.name || '').trim();
+                          if (!name) {
+                            window.alert('Studio name is required.');
+                            return;
+                          }
+                          const id = editingStudioId || `mod-studio-${Date.now()}-${Math.random().toString(36).slice(2, 6)}`;
+                          upsertStudio({
+                            id,
+                            name,
+                            founded: studioDraft.founded,
+                            reputation: studioDraft.reputation,
+                            specialties: studioDraft.specialties,
+                          });
+                          setEditingStudioId(null);
+                          setStudioDraft({ name: '', founded: new Date().getFullYear(), reputation: 50, specialties: ['drama'] });
+                        }}
+                      >
+                        {editingStudioId ? 'Save Changes' : 'Add Studio'}
+                      </Button>
+
+                      {editingStudioId && (
+                        <Button
+                          size="sm"
+                          variant="outline"
+                          onClick={() => {
+                            setEditingStudioId(null);
+                            setStudioDraft({ name: '', founded: new Date().getFullYear(), reputation: 50, specialties: ['drama'] });
+                          }}
+                        >
+                          Cancel
+                        </Button>
+                      )}
+                    </div>
+
+                    <ScrollArea className="h-[300px] rounded border">
+                      {db.studios.length === 0 ? (
+                        <div className="p-4 text-center text-muted-foreground">No studios in this database yet.</div>
+                      ) : (
+                        <div className="p-2 space-y-2">
+                          {db.studios
+                            .slice()
+                            .sort((a, b) => a.name.localeCompare(b.name))
+                            .map((s) => (
+                              <div key={s.id} className="flex items-center justify-between gap-2 p-2 rounded border">
+                                <div className="min-w-0">
+                                  <div className="font-medium truncate">{s.name}</div>
+                                  <div className="text-xs text-muted-foreground">
+                                    founded {s.founded ?? '—'} • rep {s.reputation ?? '—'}
+                                  </div>
+                                </div>
+                                <div className="flex gap-2">
+                                  <Button
+                                    size="sm"
+                                    variant="outline"
+                                    onClick={() => {
+                                      setEditingStudioId(s.id);
+                                      setStudioDraft({
+                                        id: s.id,
+                                        name: s.name,
+                                        founded: s.founded,
+                                        reputation: s.reputation,
+                                        specialties: s.specialties,
+                                      });
+                                    }}
+                                  >
+                                    Edit
+                                  </Button>
+                                  <Button
+                                    size="sm"
+                                    variant="outline"
+                                    onClick={() => {
+                                      const ok = window.confirm(`Delete studio ${s.name}?`);
+                                      if (!ok) return;
+                                      deleteStudio(s.id);
+                                      if (editingStudioId === s.id) {
+                                        setEditingStudioId(null);
+                                        setStudioDraft({ name: '', founded: new Date().getFullYear(), reputation: 50, specialties: ['drama'] });
+                                      }
+                                    }}
+                                  >
+                                    Delete
+                                  </Button>
+                                </div>
+                              </div>
+                            ))}
+                        </div>
+                      )}
+                    </ScrollArea>
+                  </CardContent>
+                </Card>
+              </div>
+
+              <Card>
+                <CardHeader>
+                  <CardTitle className="text-base">Genre keywords</CardTitle>
+                </CardHeader>
+                <CardContent>
+                  <div className="flex flex-wrap gap-1">
+                    {ALL_GENRES.map((g) => (
+                      <Badge key={g} variant="outline" className="text-xs capitalize">
+                        {g}
+                      </Badge>
+                    ))}
+                  </div>
+                </CardContent>
+              </Card>
             </CardContent>
           </Card>
         </TabsContent>
