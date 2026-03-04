@@ -1,0 +1,137 @@
+import { describe, expect, it, afterEach, vi } from 'vitest';
+import { MediaContentGenerator } from '@/data/MediaContentGenerator';
+import { MediaEngine } from '@/components/game/MediaEngine';
+
+const makeMinimalTalent = (overrides: any = {}) => ({
+  id: 'talent-1',
+  name: 'Jamie Star',
+  careerStage: 'rising',
+  ...overrides,
+});
+
+const makeMinimalStudio = (overrides: any = {}) => ({
+  id: 'studio-1',
+  name: 'Competitor Studios',
+  reputation: 50,
+  budget: 1000000,
+  founded: 2000,
+  specialties: ['drama'],
+  ...overrides,
+});
+
+const makeMinimalProject = (overrides: any = {}) => ({
+  id: 'project-1',
+  title: 'The Big Premiere',
+  script: {
+    id: 'script-1',
+    title: 'The Big Premiere',
+    genre: 'action',
+    logline: 'Test',
+    writer: 'Test',
+    pages: 100,
+    quality: 50,
+    budget: 10000000,
+    developmentStage: 'final',
+    themes: [],
+    targetAudience: 'general',
+    estimatedRuntime: 120,
+    characteristics: {
+      tone: 'balanced',
+      pacing: 'steady',
+      dialogue: 'naturalistic',
+      visualStyle: 'realistic',
+      commercialAppeal: 5,
+      criticalPotential: 5,
+      cgiIntensity: 'minimal'
+    }
+  },
+  budget: {
+    total: 10000000,
+    allocated: {},
+    spent: {},
+    overages: {}
+  },
+  studioName: 'Competitor Studios',
+  cast: [{ talentId: 'talent-1' }],
+  ...overrides,
+});
+
+describe('media system', () => {
+  afterEach(() => {
+    vi.restoreAllMocks();
+    MediaEngine.cleanup();
+  });
+
+  it('does not leak raw {Placeholders} when event lacks a project/studio', () => {
+    vi.spyOn(Math, 'random').mockReturnValue(0);
+
+    const event: any = {
+      id: 'event-1',
+      type: 'rumor',
+      triggerType: 'random',
+      priority: 'low',
+      entities: { talent: ['talent-1'] },
+      eventData: {},
+      week: 1,
+      year: 2025,
+      processed: false,
+    };
+
+    const entities: any = {
+      talent: [makeMinimalTalent()],
+      studios: [],
+      projects: [],
+    };
+
+    const item = MediaContentGenerator.generateMediaItem(event, entities);
+
+    expect(item.headline).not.toMatch(/\{[A-Za-z]+\}/);
+    expect(item.content).not.toMatch(/\{[A-Za-z]+\}/);
+  });
+
+  it('resolves competitor studios/projects when generating media (non-player stories)', () => {
+    // Pick templates that include {StudioName} in both headline/content
+    vi.spyOn(Math, 'random').mockReturnValue(0.3);
+
+    const competitorStudio = makeMinimalStudio({ id: 'studio-competitor', name: 'Crimson Peak Entertainment' });
+    const competitorProject = makeMinimalProject({
+      id: 'ai-project-1',
+      title: 'Midnight Storm',
+      studioName: competitorStudio.name,
+      releaseWeek: 1,
+      releaseYear: 2025,
+      cast: [{ talentId: 'talent-1' }]
+    });
+
+    const gameState: any = {
+      studio: { id: 'player-studio', name: 'Player Studio', reputation: 50, budget: 1000000, founded: 2025, specialties: ['drama'] },
+      currentWeek: 1,
+      currentYear: 2025,
+      projects: [],
+      talent: [makeMinimalTalent()],
+      competitorStudios: [competitorStudio],
+      allReleases: [competitorProject],
+      aiStudioProjects: [],
+    };
+
+    MediaEngine.queueMediaEvent({
+      type: 'release',
+      triggerType: 'competitor_action',
+      priority: 'low',
+      entities: {
+        studios: [competitorStudio.id],
+        projects: [competitorProject.id],
+        talent: ['talent-1']
+      },
+      eventData: { project: competitorProject },
+      week: 1,
+      year: 2025
+    } as any);
+
+    const items = MediaEngine.processMediaEvents(gameState);
+    expect(items.length).toBe(1);
+    expect(items[0].headline).toContain(competitorStudio.name);
+    expect(items[0].headline).not.toMatch(/\{[A-Za-z]+\}/);
+    expect(items[0].content).not.toMatch(/\{[A-Za-z]+\}/);
+  });
+});

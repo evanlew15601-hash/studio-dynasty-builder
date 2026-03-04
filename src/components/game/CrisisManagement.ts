@@ -1,5 +1,4 @@
 import { MediaEngine } from './MediaEngine';
-import { MediaResponseSystem } from './MediaResponseSystem';
 import { GameState, Studio, TalentPerson, Project } from '../../types/game';
 
 export interface Crisis {
@@ -8,6 +7,7 @@ export interface Crisis {
   severity: 'minor' | 'moderate' | 'major' | 'critical';
   title: string;
   description: string;
+  affectedType: 'studio' | 'talent' | 'project';
   affectedEntities: string[];
   triggerWeek: number;
   triggerYear: number;
@@ -51,7 +51,15 @@ export class CrisisManagement {
     const crisis = this.generateCrisis(crisisType, studio, gameState);
     
     this.activeCrises.push(crisis);
-    
+
+    const affectedProjects = crisis.affectedType === 'project' ? crisis.affectedEntities : [];
+    const affectedTalent = crisis.affectedType === 'talent'
+      ? crisis.affectedEntities
+      : affectedProjects.flatMap(projectId => {
+          const project = gameState.projects.find(p => p.id === projectId);
+          return (project?.cast || []).map(c => c.talentId);
+        });
+
     // Generate initial media coverage
     MediaEngine.queueMediaEvent({
       type: 'scandal',
@@ -59,8 +67,8 @@ export class CrisisManagement {
       priority: crisis.severity === 'critical' ? 'breaking' : 'high',
       entities: {
         studios: [studio.id],
-        talent: crisis.affectedEntities,
-        projects: crisis.affectedEntities
+        talent: affectedTalent.length > 0 ? affectedTalent : undefined,
+        projects: affectedProjects.length > 0 ? affectedProjects : undefined
       },
       eventData: {
         crisisId: crisis.id,
@@ -164,28 +172,28 @@ export class CrisisManagement {
   private static generateCrisis(type: Crisis['type'], studio: Studio, gameState: GameState): Crisis {
     const crisisTemplates = {
       scandal: [
-        { title: "Talent Scandal Erupts", description: "A major star is caught in a compromising situation", affectedType: "talent" },
-        { title: "Behind-the-Scenes Drama", description: "Reports of unprofessional behavior on set", affectedType: "project" }
+        { title: "Talent Scandal Erupts", description: "A major star is caught in a compromising situation", affectedType: 'talent' as const },
+        { title: "Behind-the-Scenes Drama", description: "Reports of unprofessional behavior on set", affectedType: 'project' as const }
       ],
       lawsuit: [
-        { title: "Copyright Infringement Suit", description: "Studio faces legal action over script similarities", affectedType: "project" },
-        { title: "Contract Dispute", description: "Former employee files wrongful termination lawsuit", affectedType: "studio" }
+        { title: "Copyright Infringement Suit", description: "Studio faces legal action over script similarities", affectedType: 'project' as const },
+        { title: "Contract Dispute", description: "Former employee files wrongful termination lawsuit", affectedType: 'studio' as const }
       ],
       controversy: [
-        { title: "Casting Controversy", description: "Public backlash over casting decisions", affectedType: "project" },
-        { title: "Cultural Sensitivity Issues", description: "Critics call out problematic content", affectedType: "project" }
+        { title: "Casting Controversy", description: "Public backlash over casting decisions", affectedType: 'project' as const },
+        { title: "Cultural Sensitivity Issues", description: "Critics call out problematic content", affectedType: 'project' as const }
       ],
       leak: [
-        { title: "Script Leak", description: "Confidential script surfaces online", affectedType: "project" },
-        { title: "Internal Documents Exposed", description: "Private emails and memos made public", affectedType: "studio" }
+        { title: "Script Leak", description: "Confidential script surfaces online", affectedType: 'project' as const },
+        { title: "Internal Documents Exposed", description: "Private emails and memos made public", affectedType: 'studio' as const }
       ],
       accident: [
-        { title: "On-Set Accident", description: "Serious injury during filming", affectedType: "project" },
-        { title: "Equipment Failure", description: "Major equipment malfunction causes delays", affectedType: "project" }
+        { title: "On-Set Accident", description: "Serious injury during filming", affectedType: 'project' as const },
+        { title: "Equipment Failure", description: "Major equipment malfunction causes delays", affectedType: 'project' as const }
       ],
       financial: [
-        { title: "Budget Overrun Exposed", description: "Media reports massive cost overruns", affectedType: "project" },
-        { title: "Investor Concerns", description: "Questions raised about studio's financial health", affectedType: "studio" }
+        { title: "Budget Overrun Exposed", description: "Media reports massive cost overruns", affectedType: 'project' as const },
+        { title: "Investor Concerns", description: "Questions raised about studio's financial health", affectedType: 'studio' as const }
       ]
     };
 
@@ -201,6 +209,7 @@ export class CrisisManagement {
       severity,
       title: template.title,
       description: template.description,
+      affectedType: template.affectedType,
       affectedEntities,
       triggerWeek: gameState.currentWeek,
       triggerYear: gameState.currentYear,
@@ -220,13 +229,18 @@ export class CrisisManagement {
     return 'critical';
   }
 
-  private static selectAffectedEntities(affectedType: string, gameState: GameState): string[] {
-    const entities: string[] = [];
+  private static selectAffectedEntities(affectedType: Crisis['affectedType'], gameState: GameState): string[] {
+    if (affectedType === 'talent' && gameState.talent.length > 0) {
+      const talent = gameState.talent[Math.floor(Math.random() * gameState.talent.length)];
+      return [talent.id];
+    }
 
-    // Simplified entity selection
-    entities.push(gameState.studio.id);
+    if (affectedType === 'project' && gameState.projects.length > 0) {
+      const project = gameState.projects[Math.floor(Math.random() * gameState.projects.length)];
+      return [project.id];
+    }
 
-    return entities;
+    return [gameState.studio.id];
   }
 
   private static calculateReputationImpact(severity: Crisis['severity']): number {
