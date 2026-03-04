@@ -130,11 +130,11 @@ export const IndustryDatabasePanel: React.FC<IndustryDatabasePanelProps> = ({ ga
     const normalized: IndustryDatabase = {
       version: empty.version,
       updatedAt: typeof parsed.updatedAt === 'string' ? parsed.updatedAt : new Date().toISOString(),
-      films: Array.isArray(parsed.films) ? parsed.films : [],
-      tvShows: Array.isArray(parsed.tvShows) ? parsed.tvShows : [],
-      talent: Array.isArray(parsed.talent) ? parsed.talent : [],
-      awards: Array.isArray(parsed.awards) ? parsed.awards : [],
-      studios: Array.isArray(parsed.studios) ? parsed.studios : [],
+      films: Array.isArray(parsed.films) ? (parsed.films as any) : [],
+      tvShows: Array.isArray(parsed.tvShows) ? (parsed.tvShows as any) : [],
+      talent: Array.isArray(parsed.talent) ? (parsed.talent as any) : [],
+      awards: Array.isArray(parsed.awards) ? (parsed.awards as any) : [],
+      studios: Array.isArray(parsed.studios) ? (parsed.studios as any) : [],
       providers: Array.isArray((parsed as any).providers) ? ((parsed as any).providers as any) : empty.providers,
     };
 
@@ -1108,7 +1108,7 @@ export const IndustryDatabasePanel: React.FC<IndustryDatabasePanelProps> = ({ ga
                                     <div key={s.id} className="flex flex-col md:flex-row md:items-center md:justify-between gap-1">
                                       <div className="text-sm">{s.title}</div>
                                       <div className="text-xs text-muted-foreground">
-                                        {s.studioName} • {s.releaseYear ? `Y${s.releaseYear}` : '—'}{s.releaseWeek ? ` W${s.releaseWeek}` : ''} • views {formatNumber(s.totalViews)}
+                                        {s.studioName} • {s.releaseYear ? `Y${s.releaseYear}` : '—'}{s.releaseWeek ? ` W${s.releaseWeek}` : ''} • views {s.totalViews != null ? formatNumber(s.totalViews) : '—'}
                                       </div>
                                     </div>
                                   ))}
@@ -1175,7 +1175,7 @@ export const IndustryDatabasePanel: React.FC<IndustryDatabasePanelProps> = ({ ga
                         <div key={s.id} className="flex flex-col md:flex-row md:items-center md:justify-between gap-1 p-2 rounded border">
                           <div className="text-sm">{s.title}</div>
                           <div className="text-xs text-muted-foreground">
-                            {s.studioName} • {s.releaseYear ? `Y${s.releaseYear}` : '—'}{s.releaseWeek ? ` W${s.releaseWeek}` : ''} • views {formatNumber(s.totalViews)}
+                            {s.studioName} • {s.releaseYear ? `Y${s.releaseYear}` : '—'}{s.releaseWeek ? ` W${s.releaseWeek}` : ''} • views {s.totalViews != null ? formatNumber(s.totalViews) : '—'}
                           </div>
                         </div>
                       ))}

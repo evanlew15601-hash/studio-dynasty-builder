@@ -22,7 +22,8 @@ interface ComprehensiveTelevisionSystemProps {
   onUpdateBudget: (amount: number) => void;
   onGameStateUpdate: (updates: Partial<GameState>) => void;
   onTalentCommitmentChange?: (talentId: string, busy: boolean, project?: string) => void;
-  onCreateTVProject: (script: Script) => void;
+  industryDbSlotId?: string;
+  onCreateTVProject: (script: Script, distribution: { providerId: string; providerType: 'streaming' | 'cable' }) => void;
   selectedFranchise?: string | null;
   selectedPublicDomain?: string | null;
 }
@@ -32,6 +33,7 @@ export const ComprehensiveTelevisionSystem: React.FC<ComprehensiveTelevisionSyst
   onUpdateBudget,
   onGameStateUpdate,
   onTalentCommitmentChange,
+  industryDbSlotId,
   onCreateTVProject,
   selectedFranchise,
   selectedPublicDomain
@@ -116,6 +118,7 @@ export const ComprehensiveTelevisionSystem: React.FC<ComprehensiveTelevisionSyst
         <TabsContent value="development">
           <TVShowDevelopment
             gameState={gameState}
+            industryDbSlotId={industryDbSlotId}
             selectedFranchise={selectedFranchise}
             selectedPublicDomain={selectedPublicDomain}
             onProjectCreate={onCreateTVProject}

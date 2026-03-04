@@ -1,4 +1,6 @@
 import { Project, GameState } from '@/types/game';
+import { loadIndustryDatabase } from '@/utils/industryDatabase';
+import { findDefaultProviderById } from '@/data/Providers';
 
 export class TVRatingsSystem {
   // Initialize airing for a TV series: compute first-week views and set metrics
@@ -74,6 +76,25 @@ export class TVRatingsSystem {
     };
   }
 
+  private static getProviderReachMultiplier(project: Project): number {
+    const providerId = project.providerId || project.distributionStrategy?.primary?.platform;
+    if (!providerId) return 1.0;
+
+    // Best-effort: pull provider reach from persisted industry DB slot1 (matches the modding panel).
+    // Falls back to the built-in defaults if the DB isn't available.
+    const dbProvider = (() => {
+      if (typeof window === 'undefined') return undefined;
+      const db = loadIndustryDatabase('slot1');
+      return db.providers?.find((p) => p.id === providerId);
+    })();
+
+    const reach = Math.max(0, Math.min(100, (dbProvider?.reach ?? findDefaultProviderById(providerId)?.reach) ?? 70));
+
+    // Keep impact meaningful but not game-breaking.
+    // reach 0 => 0.85, reach 100 => 1.15
+    return 0.85 + (reach / 100) * 0.3;
+  }
+
   // Core calculation reused from film revenue logic but adapted to views
   private static calculateWeeklyViews(project: Project, weekIndex: number): number {
     // Base views potential from budget (bigger budget, more promo/quality), ensure minimum
@@ -102,7 +123,9 @@ export class TVRatingsSystem {
     ];
     const weeklyMultiplier = curve[weekIndex] ?? 0.08;
 
-    const totalViews = baseViews * criticsMultiplier * audienceMultiplier * marketingMultiplier * starPowerMultiplier * weeklyMultiplier;
+    const providerMultiplier = this.getProviderReachMultiplier(project);
+
+    const totalViews = baseViews * criticsMultiplier * audienceMultiplier * marketingMultiplier * starPowerMultiplier * providerMultiplier * weeklyMultiplier;
     return Math.max(50_000, Math.floor(totalViews));
   }
 

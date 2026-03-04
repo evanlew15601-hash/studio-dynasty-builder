@@ -1,5 +1,7 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useMemo } from 'react';
 import { GameState, Script, Genre, ScriptCharacteristics } from '@/types/game';
+import type { ProviderDbRecord } from '@/types/industryDatabase';
+import { loadIndustryDatabase } from '@/utils/industryDatabase';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
@@ -8,6 +10,7 @@ import { Textarea } from '@/components/ui/textarea';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { Slider } from '@/components/ui/slider';
 import { Badge } from '@/components/ui/badge';
+import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle } from '@/components/ui/dialog';
 import { useToast } from '@/hooks/use-toast';
 import { ScriptCharacterManager, ScriptCharacter } from './ScriptCharacterManager';
 import { importRolesForScript } from '@/utils/roleImport';
@@ -22,15 +25,17 @@ type SpendFundsFn = (amount: number, description: string) => SpendFundsResult;
 
 interface TVShowDevelopmentProps {
   gameState: GameState;
+  industryDbSlotId?: string;
   selectedFranchise?: string | null;
   selectedPublicDomain?: string | null;
-  onProjectCreate: (script: Script) => void;
+  onProjectCreate: (script: Script, distribution: { providerId: string; providerType: 'streaming' | 'cable' }) => void;
   onScriptUpdate: (script: Script) => void;
   onSpendFunds: SpendFundsFn;
 }
 
 export const TVShowDevelopment: React.FC<TVShowDevelopmentProps> = ({
   gameState,
+  industryDbSlotId,
   selectedFranchise,
   selectedPublicDomain,
   onProjectCreate,
@@ -44,6 +49,17 @@ export const TVShowDevelopment: React.FC<TVShowDevelopmentProps> = ({
   const [scriptCharacters, setScriptCharacters] = useState<ScriptCharacter[]>([]);
 
   const stageOrder: Script['developmentStage'][] = ['concept', 'treatment', 'first-draft', 'polish', 'final'];
+
+  const providers = useMemo((): ProviderDbRecord[] => {
+    const db = loadIndustryDatabase(industryDbSlotId || 'slot1');
+    const list = Array.isArray(db.providers) ? db.providers : [];
+    return list.slice().sort((a, b) => a.name.localeCompare(b.name));
+  }, [industryDbSlotId]);
+
+  const [greenlightScript, setGreenlightScript] = useState<Script | null>(null);
+  const [selectedProviderId, setSelectedProviderId] = useState<string>('');
+
+  const selectedProvider = useMemo(() => providers.find((p) => p.id === selectedProviderId), [providers, selectedProviderId]);
 
   const canAffordWriterFee = (amount: number): boolean => {
     const maxLoanCapacity = Math.max(0, 50000000 - (gameState.studio.debt || 0));
@@ -358,6 +374,37 @@ export const TVShowDevelopment: React.FC<TVShowDevelopmentProps> = ({
     });
   };
 
+  const suggestProviderId = (script: Script): string => {
+    const want = (() => {
+      switch (script.genre) {
+        case 'family':
+        case 'animation':
+        case 'fantasy':
+        case 'superhero':
+          return 'disney';
+        case 'comedy':
+        case 'romance':
+          return 'hulu';
+        case 'documentary':
+        case 'biography':
+          return 'apple';
+        case 'horror':
+        case 'thriller':
+        case 'mystery':
+          return 'hbo';
+        case 'sci-fi':
+        case 'action':
+        case 'adventure':
+          return 'netflix';
+        default:
+          return 'amazon';
+      }
+    })();
+
+    if (providers.some((p) => p.id === want)) return want;
+    return providers[0]?.id || '';
+  };
+
   const handleGreenlightTVScript = (script: Script) => {
     // Enforce script refinement gate — same as film scripts
     if (script.developmentStage !== 'final') {
@@ -392,13 +439,9 @@ export const TVShowDevelopment: React.FC<TVShowDevelopmentProps> = ({
       return;
     }
 
-    // Let the core game system create the actual TV project from this script
-    onProjectCreate(script);
-
-    toast({
-      title: 'TV Script Greenlit!',
-      description: `"${script.title}" moved to Development phase. Assign cast and crew to proceed to Pre-Production.`,
-    });
+    const suggested = suggestProviderId(script);
+    setSelectedProviderId(suggested);
+    setGreenlightScript(script);
   };
 
   // Filter TV scripts (could be marked by type or other criteria)
@@ -821,6 +864,103 @@ export const TVShowDevelopment: React.FC<TVShowDevelopmentProps> = ({
           )}
         </CardContent>
       </Card>
+
+      <Dialog
+        open={!!greenlightScript}
+        onOpenChange={(open) => {
+          if (!open) {
+            setGreenlightScript(null);
+            setSelectedProviderId('');
+          }
+        }}
+      >
+        <DialogContent className="max-w-2xl">
+          <DialogHeader>
+            <DialogTitle>Greenlight: Choose Provider</DialogTitle>
+            <DialogDescription>
+              Pick where this series will premiere. Provider reach gives a modest baseline boost to early views.
+            </DialogDescription>
+          </DialogHeader>
+
+          <div className="space-y-4">
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
+              <div className="space-y-2">
+                <Label>Provider</Label>
+                <Select value={selectedProviderId} onValueChange={setSelectedProviderId}>
+                  <SelectTrigger>
+                    <SelectValue placeholder="Select provider" />
+                  </SelectTrigger>
+                  <SelectContent>
+                    {providers.map((p) => (
+                      <SelectItem key={p.id} value={p.id}>
+                        {p.name} ({p.type})
+                      </SelectItem>
+                    ))}
+                  </SelectContent>
+                </Select>
+              </div>
+
+              <div className="p-3 rounded border bg-muted/10">
+                {selectedProvider ? (
+                  <div className="space-y-2">
+                    <div className="flex flex-wrap gap-2">
+                      <Badge variant="outline">{selectedProvider.type}</Badge>
+                      <Badge variant="secondary">{selectedProvider.tier || '—'}</Badge>
+                      <Badge variant="outline">reach {selectedProvider.reach ?? '—'}</Badge>
+                    </div>
+                    {selectedProvider.description && (
+                      <div className="text-sm text-muted-foreground">{selectedProvider.description}</div>
+                    )}
+                  </div>
+                ) : (
+                  <div className="text-sm text-muted-foreground">Select a provider to see details.</div>
+                )}
+              </div>
+            </div>
+
+            {greenlightScript && (
+              <div className="text-sm">
+                <span className="font-medium">{greenlightScript.title}</span>
+                <span className="text-muted-foreground"> • {greenlightScript.genre}</span>
+              </div>
+            )}
+          </div>
+
+          <DialogFooter>
+            <Button
+              variant="outline"
+              onClick={() => {
+                setGreenlightScript(null);
+                setSelectedProviderId('');
+              }}
+            >
+              Cancel
+            </Button>
+            <Button
+              className="btn-studio"
+              disabled={!greenlightScript || !selectedProvider}
+              onClick={() => {
+                if (!greenlightScript || !selectedProvider) return;
+
+                onProjectCreate(greenlightScript, {
+                  providerId: selectedProvider.id,
+                  providerType: selectedProvider.type,
+                });
+
+                toast({
+                  title: 'TV Script Greenlit!',
+                  description: `"${greenlightScript.title}" greenlit for ${selectedProvider.name}. Assign cast and crew to proceed to Pre-Production.`,
+                });
+
+                setGreenlightScript(null);
+                setSelectedProviderId('');
+              }}
+            >
+              Greenlight
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
     </div>
   );
 };

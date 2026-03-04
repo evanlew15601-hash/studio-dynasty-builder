@@ -106,6 +106,29 @@ describe('TV pipeline guardrails', () => {
     expect(result).toBe(project);
   });
 
+  it('provider reach influences initial views (high-reach providers get a modest boost)', () => {
+    const highReach = makeBaseTvProject({
+      providerId: 'netflix',
+      distributionStrategy: {
+        ...makeBaseTvProject().distributionStrategy,
+        primary: { ...makeBaseTvProject().distributionStrategy.primary, platform: 'netflix' },
+      },
+    });
+
+    const lowReach = makeBaseTvProject({
+      providerId: 'crestnews',
+      distributionStrategy: {
+        ...makeBaseTvProject().distributionStrategy,
+        primary: { ...makeBaseTvProject().distributionStrategy.primary, platform: 'crestnews', type: 'television' },
+      },
+    });
+
+    const high = TVRatingsSystem.initializeAiring(highReach, 10, 2024);
+    const low = TVRatingsSystem.initializeAiring(lowReach, 10, 2024);
+
+    expect(high.metrics?.streaming?.viewsFirstWeek || 0).toBeGreaterThan(low.metrics?.streaming?.viewsFirstWeek || 0);
+  });
+
   it('TVEpisodeSystem weekly decay adds week-1 views without off-by-one inflation', () => {
     const project = makeBaseTvProject({
       seasons: [

@@ -1,4 +1,5 @@
 import type { GameState, Project, TalentPerson } from '@/types/game';
+import { getDefaultProviders } from '@/data/Providers';
 import type {
   AwardDbRecord,
   FilmDbRecord,
@@ -51,100 +52,7 @@ export function deleteIndustryDatabaseSlot(slotId: string, storage?: StorageLike
 }
 
 function defaultProviders(): ProviderDbRecord[] {
-  // IDs intentionally align with in-game streaming contract platform identifiers
-  // (while names remain fictional to avoid copyright issues).
-  return [
-    {
-      id: 'netflix',
-      name: 'StreamFlix',
-      type: 'streaming',
-      tier: 'major',
-      description: 'Global streaming leader with broad mainstream reach and heavy content spend.',
-      reach: 92,
-    },
-    {
-      id: 'amazon',
-      name: 'Prime Stream',
-      type: 'streaming',
-      tier: 'major',
-      description: 'Bundle-driven streaming service with strong international footprint.',
-      reach: 88,
-    },
-    {
-      id: 'hulu',
-      name: 'StreamHub',
-      type: 'streaming',
-      tier: 'mid',
-      description: 'Ad-supported streamer focused on next-day TV and adult-skewing originals.',
-      reach: 75,
-    },
-    {
-      id: 'disney',
-      name: 'Magic Stream',
-      type: 'streaming',
-      tier: 'major',
-      description: 'Family-focused streaming platform with franchise-first strategy.',
-      reach: 85,
-    },
-    {
-      id: 'apple',
-      name: 'Orchard TV',
-      type: 'streaming',
-      tier: 'mid',
-      description: 'Prestige-leaning streamer with curated originals and premium positioning.',
-      reach: 65,
-    },
-    {
-      id: 'hbo',
-      name: 'Premium Stream',
-      type: 'streaming',
-      tier: 'major',
-      description: 'High-end subscription streamer known for award-caliber drama and limited series.',
-      reach: 78,
-    },
-    {
-      id: 'paramount',
-      name: 'Summit+',
-      type: 'streaming',
-      tier: 'mid',
-      description: 'Studio-backed streamer mixing blockbuster libraries with reality and sports docs.',
-      reach: 72,
-    },
-    {
-      id: 'peacock',
-      name: 'FeatherPlay',
-      type: 'streaming',
-      tier: 'mid',
-      description: 'Hybrid streamer with a strong catalog and live-event integrations.',
-      reach: 70,
-    },
-
-    // Cable networks (fictional)
-    {
-      id: 'signal8',
-      name: 'Signal 8',
-      type: 'cable',
-      tier: 'major',
-      description: 'Flagship cable network with award-friendly dramas and event miniseries.',
-      reach: 80,
-    },
-    {
-      id: 'northstar',
-      name: 'Northstar Network',
-      type: 'cable',
-      tier: 'mid',
-      description: 'General entertainment cable network with sports and unscripted blocks.',
-      reach: 65,
-    },
-    {
-      id: 'crestnews',
-      name: 'Crest News',
-      type: 'cable',
-      tier: 'niche',
-      description: '24-hour news channel with documentary programming and specials.',
-      reach: 55,
-    },
-  ];
+  return getDefaultProviders();
 }
 
 export function createEmptyIndustryDatabase(): IndustryDatabase {
@@ -231,19 +139,24 @@ function buildFilmRecord(gameState: GameState, project: Project): FilmDbRecord {
   };
 }
 
+function resolveProviderId(project: Project, providerIds: Set<string>): string | undefined {
+  if (project.providerId && project.providerId.trim()) return project.providerId;
+
+  const contractProvider = project.streamingContract?.platform;
+  if (contractProvider) return contractProvider;
+
+  const primary = project.distributionStrategy?.primary?.platform;
+  if (primary && providerIds.has(primary)) return primary;
+
+  return undefined;
+}
+
 function buildTvShowRecord(gameState: GameState, project: Project, providerIds: Set<string>): TvShowDbRecord {
-  const primaryPlatform = project.distributionStrategy?.primary?.platform;
-
-  const providerId =
-    project.providerId ||
-    project.streamingContract?.platform ||
-    (primaryPlatform && providerIds.has(primaryPlatform) ? primaryPlatform : undefined);
-
   return {
     id: project.id,
     title: project.title,
     studioName: getProjectStudioName(gameState, project),
-    providerId,
+    providerId: resolveProviderId(project, providerIds),
     releaseWeek: project.releaseWeek,
     releaseYear: project.releaseYear,
     genre: project.script?.genre,

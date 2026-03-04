@@ -48,6 +48,7 @@ describe('industry database sync', () => {
           releaseWeek: 7,
           releaseYear: 2024,
           studioName: 'Player Studio',
+          providerId: 'netflix',
           script: { genre: 'drama' },
           budget: { total: 80_000_000 },
           metrics: {
@@ -126,6 +127,7 @@ describe('industry database sync', () => {
     expect(db1.tvShows[0]).toMatchObject({
       id: 'tv-1',
       title: 'Test Show',
+      providerId: 'netflix',
       totalViews: 5_000_000,
     });
 

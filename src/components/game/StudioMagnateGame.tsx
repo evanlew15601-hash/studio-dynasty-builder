@@ -2688,6 +2688,7 @@ export const StudioMagnateGame: React.FC<StudioMagnateGameProps> = ({
         {currentPhase === 'television' && (
           <ComprehensiveTelevisionSystem 
             gameState={gameState}
+            industryDbSlotId="slot1"
             selectedFranchise={selectedFranchise}
             selectedPublicDomain={selectedPublicDomain}
             onUpdateBudget={(amount) => {
@@ -2697,13 +2698,16 @@ export const StudioMagnateGame: React.FC<StudioMagnateGameProps> = ({
               }));
             }}
             onGameStateUpdate={(updates) => setGameState(prev => ({ ...prev, ...updates }))}
-            onCreateTVProject={(script) => {
+            onCreateTVProject={(script, distribution) => {
               // For now, assume a 13-episode season budget for TV series
               const episodes = 13;
               const seasonTotalBudget = script.budget * episodes;
 
+              const isCable = distribution.providerType === 'cable';
+
               handleProjectCreate(script, {
                 type: 'series',
+                providerId: distribution.providerId,
                 budget: {
                   total: seasonTotalBudget,
                   allocated: {
@@ -2733,12 +2737,11 @@ export const StudioMagnateGame: React.FC<StudioMagnateGameProps> = ({
                 },
                 distributionStrategy: {
                   primary: {
-                    platform: 'streaming',
-                    type: 'streaming',
-                    revenue: {
-                      type: 'subscription-share',
-                      studioShare: 60
-                    }
+                    platform: distribution.providerId,
+                    type: isCable ? 'television' : 'streaming',
+                    revenue: isCable
+                      ? { type: 'licensing', studioShare: 100 }
+                      : { type: 'subscription-share', studioShare: 60 }
                   },
                   international: [],
                   windows: [],
