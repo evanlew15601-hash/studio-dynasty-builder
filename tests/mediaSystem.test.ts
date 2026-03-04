@@ -89,6 +89,53 @@ describe('media system', () => {
     expect(item.content).not.toMatch(/\{[A-Za-z]+\}/);
   });
 
+  it('resolves player studio/projects when generating media (player stories)', () => {
+    // Pick templates that include {StudioName} in both headline/content
+    vi.spyOn(Math, 'random').mockReturnValue(0.3);
+
+    const playerStudio = { id: 'player-studio', name: 'Player Studio', reputation: 50, budget: 1000000, founded: 2025, specialties: ['drama'] };
+    const playerProject = makeMinimalProject({
+      id: 'player-project-1',
+      title: 'Player Premiere',
+      studioName: playerStudio.name,
+      releaseWeek: 1,
+      releaseYear: 2025,
+      cast: [{ talentId: 'talent-1' }]
+    });
+
+    const gameState: any = {
+      studio: playerStudio,
+      currentWeek: 1,
+      currentYear: 2025,
+      projects: [playerProject],
+      talent: [makeMinimalTalent()],
+      competitorStudios: [],
+      allReleases: [],
+      aiStudioProjects: [],
+    };
+
+    MediaEngine.queueMediaEvent({
+      type: 'release',
+      triggerType: 'automatic',
+      priority: 'low',
+      entities: {
+        studios: [playerStudio.id],
+        projects: [playerProject.id],
+        talent: ['talent-1']
+      },
+      eventData: { project: playerProject },
+      week: 1,
+      year: 2025
+    } as any);
+
+    const items = MediaEngine.processMediaEvents(gameState);
+    expect(items.length).toBe(1);
+    expect(items[0].headline).toContain(playerStudio.name);
+    expect(items[0].headline).toContain(playerProject.title);
+    expect(items[0].headline).not.toMatch(/\{[A-Za-z]+\}/);
+    expect(items[0].content).not.toMatch(/\{[A-Za-z]+\}/);
+  });
+
   it('resolves competitor studios/projects when generating media (non-player stories)', () => {
     // Pick templates that include {StudioName} in both headline/content
     vi.spyOn(Math, 'random').mockReturnValue(0.3);
