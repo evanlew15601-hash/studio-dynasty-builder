@@ -10,7 +10,9 @@ class MediaEngine {
   // Initialize media sources
   static initialize() {
     MediaSourceGenerator.generateMediaSources();
-    console.log('Media Engine initialized with realistic news sources');
+    if (import.meta.env.DEV) {
+      console.log('Media Engine initialized with realistic news sources');
+    }
   }
 
   // Add media event to queue for processing
@@ -22,8 +24,10 @@ class MediaEngine {
     };
 
     this.eventQueue.push(mediaEvent);
-    console.log(`Media event queued: ${mediaEvent.type} - ${mediaEvent.priority}`);
-    
+    if (import.meta.env.DEV) {
+      console.log(`Media event queued: ${mediaEvent.type} - ${mediaEvent.priority}`);
+    }
+
     return mediaEvent.id;
   }
 
@@ -46,7 +50,9 @@ class MediaEngine {
         // Mark event as processed
         event.processed = true;
         
-        console.log(`Generated media: "${mediaItem.headline}" from ${mediaItem.source.name}`);
+        if (import.meta.env.DEV) {
+          console.log(`Generated media: "${mediaItem.headline}" from ${mediaItem.source.name}`);
+        }
       } catch (error) {
         console.error('Error processing media event:', error);
         // Mark as processed to prevent infinite retry
