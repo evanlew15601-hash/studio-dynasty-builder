@@ -64,7 +64,10 @@ import { Card, CardContent } from '@/components/ui/card';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { useToast } from '@/hooks/use-toast';
-import { EnhancedFinancialAccuracy } from './EnhancedFinancialAccuracy';
+import type { TickRecapCard, TickReport, TickSystemReport } from '@/types/tickReport';
+import { createTickReport } from '@/utils/tickReport';
+import { WeekRecapModal } from './WeekRecapModal';
+import { EnhancedFinancialAccuracy, applyEnhancedFinancialAccuracy } from './EnhancedFinancialAccuracy';
 import { EnhancedFranchiseSystem } from './EnhancedFranchiseSystem';
 import { FranchiseManager } from './FranchiseManager';
 import { OwnedFranchiseManager } from './OwnedFranchiseManager';
@@ -599,13 +602,12 @@ export const StudioMagnateGame: React.FC<StudioMagnateGameProps> = ({
   const [selectedPublicDomain, setSelectedPublicDomain] = useState<string | null>(null);
   const [filmReleaseProject, setFilmReleaseProject] = useState<Project | null>(null);
 
-  // Persist a long-lived, cross-session industry catalog (films/TV/talent/awards/studios).
-  // This is separate from the save-game snapshot and continues to accrue even if the in-memory
-  // simulation prunes older releases for performance.
-  useEffect(() => {
-    syncAndPersistIndustryDatabase('slot1', gameState);
-  }, [gameState.currentWeek, gameState.currentYear]);
-  
+  // Post-tick persistence (strict single-button progression contract):
+  // Any persistence that should happen "because a week advanced" is scheduled by the tick
+  // and executed after the state commit (never as an ambient effect of mounting UI panels).
+  const pendingPostTickStateRef = useRef<GameState | null>(null);
+  const pendingPostTickPersistRef = useRef(false);
+
   // First week box office modal state
   const [firstWeekModalProject, setFirstWeekModalProject] = useState<Project | null>(null);
   const [showFirstWeekModal, setShowFirstWeekModal] = useState(false);
@@ -637,6 +639,43 @@ export const StudioMagnateGame: React.FC<StudioMagnateGameProps> = ({
   // Award show modal state
   const [currentAwardShow, setCurrentAwardShow] = useState<AwardShowCeremony | null>(null);
   const [showAwardModal, setShowAwardModal] = useState(false);
+
+  // Week Recap (Tick Report)
+  const pendingTickReportRef = useRef<TickReport | null>(null);
+  const pendingTickReportOpenRef = useRef(false);
+  const [lastTickReport, setLastTickReport] = useState<TickReport | null>(null);
+  const [showWeekRecap, setShowWeekRecap] = useState(false);
+
+  // Post-tick: consume any tick report computed during the Advance Week reducer.
+  // The week/year change is our "tick committed" signal.
+  useEffect(() => {
+    // Explicit post-tick persistence (industry DB, etc.)
+    if (pendingPostTickPersistRef.current) {
+      pendingPostTickPersistRef.current = false;
+
+      // Persist a long-lived, cross-session industry catalog (films/TV/talent/awards/studios).
+      // This is separate from the save-game snapshot and continues to accrue even if the in-memory
+      // simulation prunes older releases for performance.
+      try {
+        syncAndPersistIndustryDatabase('slot1', gameState);
+      } catch (e) {
+        console.warn('Failed to persist industry database', e);
+      }
+
+      pendingPostTickStateRef.current = null;
+    }
+
+    const report = pendingTickReportRef.current;
+    if (!report) return;
+
+    pendingTickReportRef.current = null;
+    setLastTickReport(report);
+
+    if (pendingTickReportOpenRef.current) {
+      setShowWeekRecap(true);
+    }
+    pendingTickReportOpenRef.current = false;
+  }, [gameState.currentWeek, gameState.currentYear]);
 
   // Handle achievement rewards
   const handleAchievementRewards = (unlockedAchievements: Array<{ id?: string; reward?: { reputation?: number; budget?: number } }>) => {
@@ -1082,7 +1121,7 @@ export const StudioMagnateGame: React.FC<StudioMagnateGameProps> = ({
 
     let studioRevenueDelta = 0;
     const releasedProjects: Project[] = [];
-    
+
     const results = projects.map((project, index) => {
       if (import.meta.env.DEV) {
         console.log(`[${index}] Processing: ${project.title} (${project.currentPhase})`);
@@ -1739,7 +1778,7 @@ export const StudioMagnateGame: React.FC<StudioMagnateGameProps> = ({
     return { studio };
   };
 
-  const handleAdvanceWeek = (options?: { suppressToast?: boolean; suppressLoading?: boolean; suppressDiagnostics?: boolean }) => {
+  const handleAdvanceWeek = (options?: { suppressToast?: boolean; suppressLoading?: boolean; suppressDiagnostics?: boolean; suppressRecap?: boolean }) => {
     if (import.meta.env.DEV && !options?.suppressDiagnostics) {
       console.log(`ADVANCING WEEK: Current Y${gameState.currentYear}W${gameState.currentWeek}`);
       console.log(`Projects count: ${gameState.projects.length}`);
@@ -1750,6 +1789,7 @@ export const StudioMagnateGame: React.FC<StudioMagnateGameProps> = ({
     
     const toastEnabled = !options?.suppressToast;
     const loadingEnabled = !options?.suppressLoading;
+    const recapEnabled = !options?.suppressRecap;
 
     if (loadingEnabled) {
       // Start weekly processing with loading
@@ -1762,34 +1802,52 @@ export const StudioMagnateGame: React.FC<StudioMagnateGameProps> = ({
     }
 
     setGameState(prev => {
-      const newTimeState = TimeSystem.advanceWeek({
-        currentWeek: prev.currentWeek,
-        currentYear: prev.currentYear,
-        currentQuarter: prev.currentQuarter
-      });
+      const startedAtIso = new Date().toISOString();
+      const tickStart = performance.now();
+
+      const systems: TickSystemReport[] = [];
+      const recap: TickRecapCard[] = [];
+
+      const measure = <T,>(id: string, label: string, fn: () => T, extra?: Omit<Partial<TickSystemReport>, 'id' | 'label' | 'ms'>): T => {
+        const t0 = performance.now();
+        const result = fn();
+        const ms = performance.now() - t0;
+        systems.push({ id, label, ms, ...(extra || {}) });
+        return result;
+      };
+
+      const newTimeState = measure('time', 'Advance time', () =>
+        TimeSystem.advanceWeek({
+          currentWeek: prev.currentWeek,
+          currentYear: prev.currentYear,
+          currentQuarter: prev.currentQuarter,
+        })
+      );
       
       if (import.meta.env.DEV) {
         console.log(`NEW TIME STATE: Y${newTimeState.currentYear}W${newTimeState.currentWeek}`);
       }
       
       // Process AI studio timelines and potential new film starts
-      try {
-        AIStudioManager.processWeeklyAIFilms(newTimeState.currentWeek, newTimeState.currentYear);
-        if (prev.competitorStudios.length > 0) {
-          const shouldStartAIFilm = (newTimeState.currentWeek % 4 === 1) || Math.random() < 0.35;
-          if (shouldStartAIFilm) {
-            const randomStudio = prev.competitorStudios[Math.floor(Math.random() * prev.competitorStudios.length)];
-            AIStudioManager.createAIFilm(
-              randomStudio,
-              newTimeState.currentWeek,
-              newTimeState.currentYear,
-              prev.talent.filter(t => t.contractStatus === 'available')
-            );
+      measure('ai', 'AI studios', () => {
+        try {
+          AIStudioManager.processWeeklyAIFilms(newTimeState.currentWeek, newTimeState.currentYear);
+          if (prev.competitorStudios.length > 0) {
+            const shouldStartAIFilm = (newTimeState.currentWeek % 4 === 1) || Math.random() < 0.35;
+            if (shouldStartAIFilm) {
+              const randomStudio = prev.competitorStudios[Math.floor(Math.random() * prev.competitorStudios.length)];
+              AIStudioManager.createAIFilm(
+                randomStudio,
+                newTimeState.currentWeek,
+                newTimeState.currentYear,
+                prev.talent.filter(t => t.contractStatus === 'available')
+              );
+            }
           }
+        } catch (e) {
+          console.warn('AI Studio processing error', e);
         }
-      } catch (e) {
-        console.warn('AI Studio processing error', e);
-      }
+      });
       
       let updatedProjects = prev.projects;
 
@@ -1810,21 +1868,53 @@ export const StudioMagnateGame: React.FC<StudioMagnateGameProps> = ({
           budget: (r as any).budget?.total || (r as any).budget || 10000000,
           genre: (r as any).script?.genre || (r as any).genre || 'drama'
         }));
-      FinancialEngine.simulateBoxOfficeWeek(aiReleased, newTimeState.currentWeek, newTimeState.currentYear);
 
-      FinancialEngine.processWeeklyFinancialEvents(
-        newTimeState.currentWeek,
-        newTimeState.currentYear,
-        [prev.studio, ...prev.competitorStudios],
-        updatedProjects
-      );
+      measure('boxOfficeSim', 'Box office simulation', () => {
+        FinancialEngine.simulateBoxOfficeWeek(aiReleased, newTimeState.currentWeek, newTimeState.currentYear);
+      });
+
+      measure('financeEvents', 'Financial events', () => {
+        FinancialEngine.processWeeklyFinancialEvents(
+          newTimeState.currentWeek,
+          newTimeState.currentYear,
+          [prev.studio, ...prev.competitorStudios],
+          updatedProjects
+        );
+      });
       
       if (loadingEnabled) {
         updateOperation(LOADING_OPERATIONS.WEEKLY_PROCESSING.id, 70, 'Calculating finances...');
       }
       
-      const weeklyProjectEffects = processWeeklyProjectEffects(updatedProjects, newTimeState, prev, toastEnabled);
+      const weeklyProjectEffects = measure('projects', 'Projects (phases/releases)', () =>
+        processWeeklyProjectEffects(updatedProjects, newTimeState, prev, toastEnabled)
+      );
       updatedProjects = weeklyProjectEffects.projects;
+
+      const financialAccuracy = measure('financialAccuracy', 'Financial recalculation', () =>
+        applyEnhancedFinancialAccuracy(updatedProjects)
+      );
+      updatedProjects = financialAccuracy.projects;
+
+      
+
+      if (weeklyProjectEffects.releasedProjects.length > 0) {
+        recap.push({
+          type: 'release',
+          title: `${weeklyProjectEffects.releasedProjects.length} release${weeklyProjectEffects.releasedProjects.length === 1 ? '' : 's'} this week`,
+          body: weeklyProjectEffects.releasedProjects.map(p => `• ${p.title}`).join('\n'),
+          severity: 'good',
+        });
+      }
+
+      if (weeklyProjectEffects.studioRevenueDelta > 0) {
+        recap.push({
+          type: 'financial',
+          title: 'Box office revenue',
+          body: 'Studio share earned: \u0024' + Math.round(weeklyProjectEffects.studioRevenueDelta).toLocaleString(),
+          severity: 'good',
+        });
+      }
 
       const newAIReleases: Project[] = [];
 
@@ -1947,17 +2037,19 @@ export const StudioMagnateGame: React.FC<StudioMagnateGameProps> = ({
       }
       
       // Process weekly costs and reputation with deep system
-      const weeklyResults = processWeeklyCosts(prev, updatedProjects);
+      const weeklyResults = measure('weeklyCosts', 'Weekly costs & debt', () => processWeeklyCosts(prev, updatedProjects));
       
       // Update industry context and calculate deep reputation
-      DeepReputationSystem.updateIndustryContext([...prev.competitorStudios, prev.studio], newTimeState);
-      const deepRepResult = DeepReputationSystem.calculateDeepReputation(
-        weeklyResults.studio,
-        updatedProjects,
-        prev.talent,
-        newTimeState,
-        prev.competitorStudios
-      );
+      const deepRepResult = measure('reputation', 'Reputation', () => {
+        DeepReputationSystem.updateIndustryContext([...prev.competitorStudios, prev.studio], newTimeState);
+        return DeepReputationSystem.calculateDeepReputation(
+          weeklyResults.studio,
+          updatedProjects,
+          prev.talent,
+          newTimeState,
+          prev.competitorStudios
+        );
+      });
       
       if (import.meta.env.DEV) {
         console.log(`Weekly reputation update: ${prev.studio.reputation} -> ${weeklyResults.studio.reputation}`);
@@ -2108,6 +2200,32 @@ export const StudioMagnateGame: React.FC<StudioMagnateGameProps> = ({
         SystemIntegration.runDiagnostics(newState);
       }
 
+      // Post-tick persistence: schedule after the tick commits.
+      pendingPostTickStateRef.current = newState;
+      pendingPostTickPersistRef.current = true;
+
+      // Tick report: store for the UI to show a "Week Recap".
+      if (recapEnabled) {
+        try {
+          const finishedAtIso = new Date().toISOString();
+          const totalMs = performance.now() - tickStart;
+          const report = createTickReport({
+            prev,
+            next: newState,
+            systems,
+            recap,
+            startedAtIso,
+            finishedAtIso,
+            totalMs,
+          });
+
+          pendingTickReportRef.current = report;
+          pendingTickReportOpenRef.current = true;
+        } catch (e) {
+          console.warn('Failed to build tick report', e);
+        }
+      }
+
       if (!options?.suppressToast) {
         toast({
           title: "New Week",
@@ -2153,7 +2271,7 @@ export const StudioMagnateGame: React.FC<StudioMagnateGameProps> = ({
 
       isProcessing = true;
 
-      handleAdvanceWeek({ suppressToast: true, suppressLoading: true, suppressDiagnostics: true });
+      handleAdvanceWeek({ suppressToast: true, suppressLoading: true, suppressDiagnostics: true, suppressRecap: true });
       remaining -= 1;
 
       const completed = totalWeeks - remaining;
@@ -2217,6 +2335,11 @@ export const StudioMagnateGame: React.FC<StudioMagnateGameProps> = ({
   return (
     <>
       <LoadingOverlay loading={loading} />
+      <WeekRecapModal
+        open={showWeekRecap && !showAwardModal}
+        onOpenChange={setShowWeekRecap}
+        report={lastTickReport}
+      />
       <div className="min-h-screen bg-background font-studio">
       {/* Achievement Notifications */}
       <AchievementNotifications
@@ -2315,6 +2438,16 @@ export const StudioMagnateGame: React.FC<StudioMagnateGameProps> = ({
                 onClick={handleSaveGame}
               >
                 Save Game
+              </Button>
+
+              <Button
+                size="sm"
+                variant="outline"
+                className="mr-2"
+                disabled={!lastTickReport}
+                onClick={() => setShowWeekRecap(true)}
+              >
+                Week Recap
               </Button>
               
               <Button 
@@ -2619,7 +2752,7 @@ export const StudioMagnateGame: React.FC<StudioMagnateGameProps> = ({
                 if (cost && cost > gameState.studio.budget) {
                   toast({
                     title: "Insufficient Budget",
-                    description: `Cannot afford this franchise - need $${(cost / 1000000).toFixed(1)}M`,
+                    description: `Cannot afford this franchise - need ${(cost / 1000000).toFixed(1)}M`,
                     variant: "destructive"
                   });
                   return;
@@ -2672,7 +2805,7 @@ export const StudioMagnateGame: React.FC<StudioMagnateGameProps> = ({
                   
                   toast({
                     title: "Franchise Acquired!",
-                    description: `Spent $${(cost / 1000000).toFixed(1)}M to license franchise`,
+                    description: `Spent ${(cost / 1000000).toFixed(1)}M to license franchise`,
                   });
                 }
 
