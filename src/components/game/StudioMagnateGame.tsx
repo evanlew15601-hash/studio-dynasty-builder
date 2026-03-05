@@ -3314,19 +3314,11 @@ export const StudioMagnateGame: React.FC<StudioMagnateGameProps> = ({
         )}
         
         {currentPhase === 'finance' && (
-          <FinancialDashboard
-            currentWeek={gameState.currentWeek}
-            currentYear={gameState.currentYear}
-            projects={gameState.projects}
-          />
+          <FinancialDashboard />
         )}
         
         {currentPhase === 'competition' && (
-          <CompetitorMonitor 
-            competitorStudios={gameState.competitorStudios}
-            currentWeek={gameState.currentWeek}
-            currentYear={gameState.currentYear}
-          />
+          <CompetitorMonitor />
         )}
         
         {currentPhase === 'awards' && (
@@ -3382,11 +3374,11 @@ export const StudioMagnateGame: React.FC<StudioMagnateGameProps> = ({
         )}
         
         {currentPhase === 'market' && (
-          <MarketCompetition gameState={gameState} />
+          <MarketCompetition />
         )}
         
         {currentPhase === 'topfilms' && (
-          <TopFilmsChart gameState={gameState} allReleases={gameState.allReleases.filter((item): item is Project => 'script' in item)} />
+          <TopFilmsChart />
         )}
         
         {currentPhase === 'stats' && (

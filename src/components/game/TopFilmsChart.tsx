@@ -1,15 +1,11 @@
 // Top Films of the Week - Box Office Performance Chart
-import React from 'react';
+import React, { useMemo } from 'react';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
 import { Progress } from '@/components/ui/progress';
-import { GameState, Project } from '@/types/game';
+import { Project } from '@/types/game';
 import { TrendingIcon, StudioIcon, StarIcon } from '@/components/ui/icons';
-
-interface TopFilmsChartProps {
-  gameState: GameState;
-  allReleases: Project[]; // Include AI studio releases
-}
+import { useGameStore } from '@/game/store';
 
 interface TopFilmEntry {
   project: Project;
@@ -22,7 +18,17 @@ interface TopFilmEntry {
   positionChange: number;
 }
 
-export const TopFilmsChart: React.FC<TopFilmsChartProps> = ({ gameState, allReleases }) => {
+export const TopFilmsChart: React.FC = () => {
+  const gameState = useGameStore((s) => s.game);
+
+  const allReleases = useMemo(() => {
+    if (!gameState) return [] as Project[];
+    return gameState.allReleases.filter((item): item is Project => 'script' in item);
+  }, [gameState]);
+
+  if (!gameState) {
+    return <div className="p-6 text-sm text-muted-foreground">Loading box office charts...</div>;
+  }
   
   const calculateWeeklyGross = (project: Project): number => {
     if (!project.metrics?.inTheaters) return 0;

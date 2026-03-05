@@ -5,23 +5,22 @@ import { Badge } from '@/components/ui/badge';
 import { Progress } from '@/components/ui/progress';
 import { Button } from '@/components/ui/button';
 import { Alert, AlertDescription } from '@/components/ui/alert';
-import { Project } from '@/types/game';
-import { FinancialEngine, Transaction, FinancialSummary } from './FinancialEngine';
+
+import { FinancialEngine } from './FinancialEngine';
 import { LineChart, Line, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer, BarChart, Bar, PieChart, Pie, Cell } from 'recharts';
 import { TrendingUp, TrendingDown, AlertTriangle, DollarSign, Activity, PieChart as PieChartIcon, Ticket } from 'lucide-react';
 
-interface FinancialDashboardProps {
-  currentWeek: number;
-  currentYear: number;
-  projects: Project[];
-}
+import { useGameStore } from '@/game/store';
 
-export const FinancialDashboard: React.FC<FinancialDashboardProps> = ({
-  currentWeek,
-  currentYear,
-  projects
-}) => {
+export const FinancialDashboard: React.FC = () => {
   const [selectedTimeframe, setSelectedTimeframe] = useState<'4weeks' | '12weeks' | '1year'>('12weeks');
+  const game = useGameStore((s) => s.game);
+
+  if (!game) {
+    return <div className="p-6 text-sm text-muted-foreground">Loading financial dashboard...</div>;
+  }
+
+  const { currentWeek, currentYear, projects } = game;
   
   const summary = FinancialEngine.getFinancialSummary(currentWeek, currentYear);
   const recentTransactions = FinancialEngine.getRecentTransactions(20);
