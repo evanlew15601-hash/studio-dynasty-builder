@@ -12,7 +12,7 @@
 
 import { create } from 'zustand';
 import { immer } from 'zustand/middleware/immer';
-import type { GameState, Project, Studio, TalentPerson } from '@/types/game';
+import type { GameState, Project, Script, Studio, TalentPerson } from '@/types/game';
 import type { TickReport } from '@/types/tickReport';
 import type { ModBundle } from '@/types/modding';
 import type { SeededRng } from './core/rng';
@@ -68,14 +68,26 @@ export interface GameStoreState {
   /** Advance one week using a Web Worker when possible */
   advanceWeekAsync: (options?: { suppressRecap?: boolean }) => Promise<TickReport | null>;
 
+  /** Merge a partial update into the root game state (legacy onGameStateUpdate replacement) */
+  mergeGameState: (updates: Partial<GameState>) => void;
+
   /** Update the studio */
   updateStudio: (updates: Partial<Studio>) => void;
+
+  /** Convenience budget update */
+  updateBudget: (delta: number) => void;
 
   /** Update a project */
   updateProject: (projectId: string, updates: Partial<Project>, marketingCost?: number) => void;
 
+  /** Replace a project wholesale */
+  replaceProject: (project: Project) => void;
+
   /** Update talent */
   updateTalent: (talentId: string, updates: Partial<TalentPerson>) => void;
+
+  /** Upsert a script */
+  upsertScript: (script: Script) => void;
 
   /** Set game state directly (escape hatch for legacy code migration) */
   setGameState: (updater: (prev: GameState) => GameState) => void;
@@ -217,10 +229,24 @@ export const useGameStore = create<GameStoreState>()(
       return report;
     },
 
+    mergeGameState: (updates) => {
+      set((s) => {
+        if (!s.game) return;
+        Object.assign(s.game as any, updates);
+      });
+    },
+
     updateStudio: (updates) => {
       set((s) => {
         if (!s.game) return;
         Object.assign(s.game.studio, updates);
+      });
+    },
+
+    updateBudget: (delta) => {
+      set((s) => {
+        if (!s.game) return;
+        s.game.studio.budget = (s.game.studio.budget ?? 0) + delta;
       });
     },
 
@@ -237,6 +263,16 @@ export const useGameStore = create<GameStoreState>()(
       });
     },
 
+    replaceProject: (project) => {
+      set((s) => {
+        if (!s.game) return;
+        const idx = s.game.projects.findIndex((p) => p.id === project.id);
+        if (idx >= 0) {
+          s.game.projects[idx] = project as any;
+        }
+      });
+    },
+
     updateTalent: (talentId, updates) => {
       set((s) => {
         if (!s.game) return;
@@ -244,6 +280,20 @@ export const useGameStore = create<GameStoreState>()(
         if (idx >= 0) {
           Object.assign(s.game.talent[idx], updates);
         }
+      });
+    },
+
+    upsertScript: (script) => {
+      set((s) => {
+        if (!s.game) return;
+        const scripts = (s.game.scripts ?? []) as any;
+        const idx = scripts.findIndex((sc: Script) => sc.id === script.id);
+        if (idx >= 0) {
+          scripts[idx] = script as any;
+        } else {
+          scripts.push(script as any);
+        }
+        s.game.scripts = scripts;
       });
     },
 

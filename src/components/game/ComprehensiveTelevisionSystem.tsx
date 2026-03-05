@@ -1,7 +1,8 @@
 import React, { useState } from 'react';
-import { GameState, Project, Script } from '@/types/game';
+import { Project, Script } from '@/types/game';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
+import { useGameStore } from '@/game/store';
 import { TVShowDevelopment } from './TVShowDevelopment';
 import { TVProductionManagement } from './TVProductionManagement';
 import { AITelevisionStudios } from './AITelevisionStudios';
@@ -17,44 +18,35 @@ import {
 } from 'lucide-react';
 
 interface ComprehensiveTelevisionSystemProps {
-  gameState: GameState;
-  onUpdateBudget: (amount: number) => void;
-  onGameStateUpdate: (updates: Partial<GameState>) => void;
-  onTalentCommitmentChange?: (talentId: string, busy: boolean, project?: string) => void;
   onCreateTVProject: (script: Script) => void;
   selectedFranchise?: string | null;
   selectedPublicDomain?: string | null;
 }
 
 export const ComprehensiveTelevisionSystem: React.FC<ComprehensiveTelevisionSystemProps> = ({
-  gameState,
-  onUpdateBudget,
-  onGameStateUpdate,
-  onTalentCommitmentChange,
   onCreateTVProject,
   selectedFranchise,
   selectedPublicDomain
 }) => {
+  const gameState = useGameStore((s) => s.game);
+  const setGameState = useGameStore((s) => s.setGameState);
+  const mergeGameState = useGameStore((s) => s.mergeGameState);
+  const updateBudget = useGameStore((s) => s.updateBudget);
+  const updateProject = useGameStore((s) => s.updateProject);
+  const replaceProject = useGameStore((s) => s.replaceProject);
+  const upsertScript = useGameStore((s) => s.upsertScript);
+
+  if (!gameState) {
+    return <div className="p-6 text-sm text-muted-foreground">Loading television systems...</div>;
+  }
   const [selectedProject, setSelectedProject] = useState<Project | null>(null);
 
   const handleTVProjectUpdate = (updatedProject: Project) => {
-    const updatedProjects = gameState.projects.map(p => 
-      p.id === updatedProject.id ? updatedProject : p
-    );
-
-    onGameStateUpdate({
-      projects: updatedProjects
-    });
+    replaceProject(updatedProject);
   };
 
   const handleTVScriptUpdate = (script: Script) => {
-    const updatedScripts = gameState.scripts.some(s => s.id === script.id)
-      ? gameState.scripts.map(s => s.id === script.id ? script : s)
-      : [...gameState.scripts, script];
-
-    onGameStateUpdate({
-      scripts: updatedScripts
-    });
+    upsertScript(script);
   };
 
   // Get TV-specific projects for selection
@@ -127,12 +119,27 @@ export const ComprehensiveTelevisionSystem: React.FC<ComprehensiveTelevisionSyst
               const budgetAfter = gameState.studio.budget - amount;
               const loanTaken = budgetAfter < 0 ? Math.min(-budgetAfter, maxLoanCapacity) : 0;
 
-              onGameStateUpdate({
-                studio: {
-                  ...gameState.studio,
-                  budget: Math.max(0, budgetAfter),
-                  debt: currentDebt + loanTaken,
-                },
+              setGameState((prev) => {
+                const prevDebt = prev.studio.debt || 0;
+                const prevMaxLoan = Math.max(0, 50000000 - prevDebt);
+                const prevAvailable = prev.studio.budget + prevMaxLoan;
+                if (amount > prevAvailable) return prev;
+
+                let nextBudget = prev.studio.budget - amount;
+                let nextDebt = prevDebt;
+                if (nextBudget < 0) {
+                  nextDebt += -nextBudget;
+                  nextBudget = 0;
+                }
+
+                return {
+                  ...prev,
+                  studio: {
+                    ...prev.studio,
+                    budget: nextBudget,
+                    debt: nextDebt,
+                  },
+                };
               });
 
               return { success: true, loanTaken };
@@ -156,7 +163,7 @@ export const ComprehensiveTelevisionSystem: React.FC<ComprehensiveTelevisionSyst
             onProjectUpdate={(project, marketingCost) => {
               handleTVProjectUpdate(project);
               if (marketingCost) {
-                onUpdateBudget(-marketingCost);
+                updateBudget(-marketingCost);
               }
             }}
           />
@@ -166,11 +173,7 @@ export const ComprehensiveTelevisionSystem: React.FC<ComprehensiveTelevisionSyst
           <div className="space-y-6">
             <EpisodeTrackingSystem
               gameState={gameState}
-              onProjectUpdate={(projectId, updates) => {
-                const project = gameState.projects.find(p => p.id === projectId);
-                if (!project) return;
-                handleTVProjectUpdate({ ...project, ...updates });
-              }}
+              onProjectUpdate={(projectId, updates) => updateProject(projectId, updates)}
             />
             <StreamingAnalyticsDashboard />
           </div>
@@ -178,12 +181,8 @@ export const ComprehensiveTelevisionSystem: React.FC<ComprehensiveTelevisionSyst
 
         <TabsContent value="streaming">
           <StreamingContractSystem
-            onProjectUpdate={(projectId, updates) => {
-              const project = gameState.projects.find(p => p.id === projectId);
-              if (!project) return;
-              handleTVProjectUpdate({ ...project, ...updates });
-            }}
-            onUpdateBudget={onUpdateBudget}
+            onProjectUpdate={(projectId, updates) => updateProject(projectId, updates)}
+            onUpdateBudget={updateBudget}
           />
         </TabsContent>
 
@@ -191,7 +190,7 @@ export const ComprehensiveTelevisionSystem: React.FC<ComprehensiveTelevisionSyst
           <TabsContent value="competition">
             <AITelevisionStudios
               gameState={gameState}
-              onGameStateUpdate={onGameStateUpdate}
+              onGameStateUpdate={mergeGameState}
             />
           </TabsContent>
         )}

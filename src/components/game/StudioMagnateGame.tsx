@@ -3011,16 +3011,8 @@ export const StudioMagnateGame: React.FC<StudioMagnateGameProps> = ({
 
         {currentPhase === 'television' && (
           <ComprehensiveTelevisionSystem 
-            gameState={gameState}
             selectedFranchise={selectedFranchise}
             selectedPublicDomain={selectedPublicDomain}
-            onUpdateBudget={(amount) => {
-              setGameState(prev => ({
-                ...prev,
-                studio: { ...prev.studio, budget: prev.studio.budget + amount }
-              }));
-            }}
-            onGameStateUpdate={(updates) => setGameState(prev => ({ ...prev, ...updates }))}
             onCreateTVProject={(script) => {
               // For now, assume a 13-episode season budget for TV series
               const episodes = 13;
