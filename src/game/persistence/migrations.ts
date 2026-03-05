@@ -80,7 +80,7 @@ export function validateSnapshot(raw: unknown): SaveGameSnapshot | null {
   if (!candidate.meta || typeof candidate.meta !== 'object') return null;
 
   // Check critical GameState fields
-  const gs = candidate.gameState as Record<string, unknown>;
+  const gs = candidate.gameState as any;
   if (!gs.studio || typeof gs.studio !== 'object') return null;
   if (typeof gs.currentWeek !== 'number') return null;
   if (typeof gs.currentYear !== 'number') return null;
