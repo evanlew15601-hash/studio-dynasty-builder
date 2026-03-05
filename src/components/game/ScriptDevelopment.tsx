@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from 'react';
-import { GameState, Script, Genre, ScriptCharacteristics } from '@/types/game';
+import { Script, Genre } from '@/types/game';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
@@ -14,29 +14,27 @@ import { importRolesForScript } from '@/utils/roleImport';
 import { finalizeScriptForGreenlight, getScriptGreenlightReport } from '@/utils/scriptFinalization';
 import { getScriptStageAdvanceQuote, formatScriptStage } from '@/utils/scriptProgression';
 import { FinancialEngine } from './FinancialEngine';
-import { ScriptIcon, BudgetIcon, AwardIcon, ClapperboardIcon } from '@/components/ui/icons';
+import { ScriptIcon, ClapperboardIcon } from '@/components/ui/icons';
+import { useGameStore } from '@/game/store';
 
 type SpendFundsResult = { success: boolean; loanTaken?: number };
 
 type SpendFundsFn = (amount: number, description: string) => SpendFundsResult;
 
 interface ScriptDevelopmentProps {
-  gameState: GameState;
   selectedFranchise?: string | null;
   selectedPublicDomain?: string | null;
   onProjectCreate: (script: Script) => void;
-  onScriptUpdate: (script: Script) => void;
-  onSpendFunds: SpendFundsFn;
 }
 
 export const ScriptDevelopment: React.FC<ScriptDevelopmentProps> = ({
-  gameState,
   selectedFranchise,
   selectedPublicDomain,
   onProjectCreate,
-  onScriptUpdate,
-  onSpendFunds,
 }) => {
+  const gameState = useGameStore((s) => s.game);
+  const setGameState = useGameStore((s) => s.setGameState);
+  const upsertScript = useGameStore((s) => s.upsertScript);
   const { toast } = useToast();
   
   const [isCreating, setIsCreating] = useState(false);
@@ -44,6 +42,31 @@ export const ScriptDevelopment: React.FC<ScriptDevelopmentProps> = ({
   
   // Auto-fill script based on selected franchise or PD
   const getInitialScript = (): Partial<Script> => {
+    if (!gameState) {
+      return {
+        title: '',
+        genre: 'drama',
+        logline: '',
+        writer: '',
+        pages: 120,
+        quality: 50,
+        budget: 5000000,
+        developmentStage: 'concept',
+        themes: [],
+        targetAudience: 'general',
+        estimatedRuntime: 120,
+        characteristics: {
+          tone: 'balanced',
+          pacing: 'steady',
+          dialogue: 'naturalistic',
+          visualStyle: 'realistic',
+          commercialAppeal: 5,
+          criticalPotential: 5,
+          cgiIntensity: 'minimal'
+        }
+      };
+    }
+
     if (selectedFranchise) {
       const franchise = gameState.franchises.find(f => f.id === selectedFranchise);
       if (franchise) {
@@ -131,8 +154,12 @@ return {
   
   const [newScript, setNewScript] = useState<Partial<Script>>(getInitialScript());
 
+  const gameStateReady = !!gameState;
+
   // Update script when franchise/PD selection changes and pre-populate roles
   useEffect(() => {
+    if (!gameState) return;
+
     const next = getInitialScript();
     setNewScript(next);
     // If a source is selected, auto-import curated characters into the creation form
@@ -170,9 +197,13 @@ return {
     } else {
       setScriptCharacters([]);
     }
-  }, [selectedFranchise, selectedPublicDomain]);
+  }, [selectedFranchise, selectedPublicDomain, gameStateReady]);
 
   const [scriptCharacters, setScriptCharacters] = useState<ScriptCharacter[]>([]);
+
+  if (!gameState) {
+    return <div className="p-6 text-sm text-muted-foreground">Loading script development...</div>;
+  }
 
   const genres: Genre[] = [
     'action', 'adventure', 'comedy', 'drama', 'horror', 'thriller',
@@ -199,6 +230,51 @@ return {
     return '\u0024' + amount.toLocaleString();
   };
 
+  const spendFunds: SpendFundsFn = (amount, description) => {
+    const currentDebt = gameState.studio.debt || 0;
+    const maxLoanCapacity = Math.max(0, 50000000 - currentDebt);
+    const availableFunds = gameState.studio.budget + maxLoanCapacity;
+
+    if (amount > availableFunds) return { success: false };
+
+    const budgetAfter = gameState.studio.budget - amount;
+    const loanTaken = budgetAfter < 0 ? Math.min(-budgetAfter, maxLoanCapacity) : 0;
+
+    setGameState((prev) => {
+      const prevDebt = prev.studio.debt || 0;
+      const prevMaxLoan = Math.max(0, 50000000 - prevDebt);
+      const prevAvailable = prev.studio.budget + prevMaxLoan;
+      if (amount > prevAvailable) return prev;
+
+      let nextBudget = prev.studio.budget - amount;
+      let nextDebt = prevDebt;
+      if (nextBudget < 0) {
+        nextDebt += -nextBudget;
+        nextBudget = 0;
+      }
+
+      return {
+        ...prev,
+        studio: {
+          ...prev.studio,
+          budget: nextBudget,
+          debt: nextDebt,
+        },
+      };
+    });
+
+    FinancialEngine.recordTransaction(
+      'expense',
+      'talent',
+      amount,
+      gameState.currentWeek,
+      gameState.currentYear,
+      description
+    );
+
+    return { success: true, loanTaken };
+  };
+
   const handleAdvanceStage = (script: Script) => {
     const quote = getScriptStageAdvanceQuote(script);
     if (!quote) return;
@@ -215,7 +291,7 @@ return {
     const writerName = script.writer?.trim().length ? script.writer.trim() : 'In-house';
     const stageName = `${formatScriptStage(quote.fromStage)} -> ${formatScriptStage(quote.toStage)}`;
 
-    const spend = onSpendFunds(quote.writerFee, `Writer fee (${writerName}) - ${stageName}`);
+    const spend = spendFunds(quote.writerFee, `Writer fee (${writerName}) - ${stageName}`);
     if (!spend.success) {
       toast({
         title: 'Insufficient Budget',
@@ -225,22 +301,13 @@ return {
       return;
     }
 
-    FinancialEngine.recordTransaction(
-      'expense',
-      'talent',
-      quote.writerFee,
-      gameState.currentWeek,
-      gameState.currentYear,
-      `Writer fee (${writerName}) - ${stageName}`
-    );
-
     const updated: Script = {
       ...script,
       developmentStage: quote.toStage,
       quality: Math.min(100, (script.quality || 0) + quote.qualityDelta),
     };
 
-    onScriptUpdate(updated);
+    upsertScript(updated);
 
     toast({
       title: 'Script Advanced',
@@ -296,7 +363,7 @@ return {
       return;
     }
 
-    onScriptUpdate(finalized);
+    upsertScript(finalized);
 
     toast({
       title: 'Script Finalized',
@@ -315,7 +382,7 @@ return {
 
     // Persist the seeded roles so this script carries them forward.
     if (shouldSeedRoles && seededCharacters.length > 0) {
-      onScriptUpdate({ ...script, characters: seededCharacters });
+      upsertScript({ ...script, characters: seededCharacters });
     }
 
     setEditingScript(script);
@@ -375,7 +442,7 @@ return {
 
     const { script: finalized, report } = finalizeScriptForSave(script);
 
-    onScriptUpdate(finalized);
+    upsertScript(finalized);
 
     if (report && report.fixesApplied.length > 0) {
       toast({
