@@ -1,6 +1,6 @@
-import React, { useState } from 'react';
+import React from 'react';
 import { Project, Script } from '@/types/game';
-import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
+
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { useGameStore } from '@/game/store';
 import { TVShowDevelopment } from './TVShowDevelopment';
@@ -39,7 +39,6 @@ export const ComprehensiveTelevisionSystem: React.FC<ComprehensiveTelevisionSyst
   if (!gameState) {
     return <div className="p-6 text-sm text-muted-foreground">Loading television systems...</div>;
   }
-  const [selectedProject, setSelectedProject] = useState<Project | null>(null);
 
   const handleTVProjectUpdate = (updatedProject: Project) => {
     replaceProject(updatedProject);
@@ -149,11 +148,7 @@ export const ComprehensiveTelevisionSystem: React.FC<ComprehensiveTelevisionSyst
         </TabsContent>
 
         <TabsContent value="production">
-          <TVProductionManagement
-            gameState={gameState}
-            selectedProject={selectedProject}
-            onProjectUpdate={handleTVProjectUpdate}
-          />
+          <TVProductionManagement />
         </TabsContent>
 
         <TabsContent value="marketing">
