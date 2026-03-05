@@ -21,52 +21,76 @@ export function useAwardsEngine(
     Record<string, { year: number; categories: Record<string, Array<{ project: Project; score: number }>> }>
   >({});
 
-  const isAwardsSeasonActive = gameState.currentWeek >= 1 && gameState.currentWeek <= 12;
+  const isTvProject = (project: Project) => project.type === 'series' || project.type === 'limited-series';
+  const isFilmProject = (project: Project) => !isTvProject(project);
 
-  const getEligibleProjects = (): Project[] => {
-const playerProjects = gameState.projects.filter(
-  (project) =>
-    project.status === 'released' &&
-    project.releaseYear === gameState.currentYear - 1 &&
-    project.metrics?.criticsScore &&
-    project.metrics.criticsScore >= 45
-);
+  // Film awards are clustered early in the year (legacy behavior). We still keep the
+  // seasonal genre bias there, but nominations/ceremonies can occur later (e.g. Emmys).
+  const isFilmAwardsSeasonWindow = gameState.currentWeek >= 1 && gameState.currentWeek <= 12;
 
-const aiProjects = gameState.allReleases.filter((release): release is Project =>
-  'script' in release &&
-  release.status === 'released' &&
-  release.releaseYear === gameState.currentYear - 1 &&
-  release.metrics?.criticsScore &&
-  release.metrics.criticsScore >= 45
-);
+  const getEligibleProjects = (medium: 'film' | 'tv'): Project[] => {
+    const matchesMedium = (p: Project) => (medium === 'tv' ? isTvProject(p) : isFilmProject(p));
+
+    const playerProjects = gameState.projects.filter(
+      (project) =>
+        project.status === 'released' &&
+        project.releaseYear === gameState.currentYear - 1 &&
+        project.metrics?.criticsScore &&
+        project.metrics.criticsScore >= 45 &&
+        matchesMedium(project)
+    );
+
+    const aiProjects = gameState.allReleases.filter((release): release is Project =>
+      'script' in release &&
+      release.status === 'released' &&
+      release.releaseYear === gameState.currentYear - 1 &&
+      release.metrics?.criticsScore &&
+      release.metrics.criticsScore >= 45 &&
+      matchesMedium(release)
+    );
 
     return [...playerProjects, ...aiProjects];
   };
 
-  const calculateAwardsProbability = (project: Project): number => {
+  const calculateAwardsProbability = (project: Project, medium: 'film' | 'tv'): number => {
     const criticsScore = project.metrics?.criticsScore || 0;
     const audienceScore = project.metrics?.audienceScore || 0;
-    const boxOffice = project.metrics?.boxOfficeTotal || 0;
-    const budget = project.budget.total;
 
-    let probability = (criticsScore + audienceScore) / 2;
-    if (boxOffice > budget * 1.5) probability += 10;
+    let probability = criticsScore * 0.65 + audienceScore * 0.35;
 
-    // Awards campaign boost (only player projects can have one)
+    if (medium === 'film') {
+      const boxOffice = project.metrics?.boxOfficeTotal || 0;
+      const budget = project.budget.total;
+      if (boxOffice > budget * 1.5) probability += 10;
+
+      if (isFilmAwardsSeasonWindow) {
+        if (project.script.genre === 'drama') probability += 15;
+        if (project.script.genre === 'biography') probability += 10;
+        if (project.script.genre === 'historical') probability += 8;
+      }
+    } else {
+      const totalViews = project.metrics?.streaming?.totalViews || 0;
+      const share = project.metrics?.streaming?.audienceShare || 0;
+      const criticalPotential = project.script?.characteristics?.criticalPotential ?? 5;
+
+      probability += Math.max(-8, Math.min(8, (criticalPotential - 5) * 2));
+
+      if (totalViews >= 20_000_000) probability += 10;
+      else if (totalViews >= 8_000_000) probability += 6;
+      else if (totalViews >= 2_000_000) probability += 3;
+
+      if (share >= 15) probability += 6;
+      else if (share >= 8) probability += 3;
+    }
+
+    // Awards campaign boost (player projects only; shared by film/TV)
     const campaign = project.awardsCampaign;
     if (campaign) {
-      // Budget: up to +12 at ~$3M; smaller campaigns still help.
       const budgetBoost = Math.min(12, campaign.budget / 250_000);
-      // Effectiveness: up to +8 at 80–100 effectiveness.
       const effectivenessBoost = (campaign.effectiveness || 0) * 0.1;
       probability += budgetBoost * 0.6 + effectivenessBoost * 0.4;
     }
 
-    if (isAwardsSeasonActive) {
-      if (project.script.genre === 'drama') probability += 15;
-      if (project.script.genre === 'biography') probability += 10;
-      if (project.script.genre === 'historical') probability += 8;
-    }
     return Math.min(100, Math.max(0, probability));
   };
 
@@ -78,6 +102,7 @@ const aiProjects = gameState.allReleases.filter((release): release is Project =>
       switch (ceremonyName) {
         case 'Golden Globe':
           return {
+            medium: 'film' as const,
             prestige: 6,
             categories: [
               'Best Picture - Drama', 'Best Picture - Comedy/Musical', 'Best Director',
@@ -91,6 +116,7 @@ const aiProjects = gameState.allReleases.filter((release): release is Project =>
           } as const;
         case 'Critics Choice':
           return {
+            medium: 'film' as const,
             prestige: 5,
             categories: [
               'Best Film', 'Best Director', 'Best Actor', 'Best Actress',
@@ -102,17 +128,39 @@ const aiProjects = gameState.allReleases.filter((release): release is Project =>
             ceremonyWeek: 8,
             momentumBonus: 6,
           } as const;
+        case 'Emmy':
+          return {
+            medium: 'tv' as const,
+            prestige: 8,
+            categories: [
+              'Best Drama Series',
+              'Best Comedy Series',
+              'Best Limited Series',
+              'Best Actor - Drama Series',
+              'Best Actress - Drama Series',
+              'Best Actor - Comedy Series',
+              'Best Actress - Comedy Series',
+              'Best Supporting Actor',
+              'Best Supporting Actress',
+              'Best Writing',
+              'Best Directing'
+            ],
+            nominationWeek: 34,
+            ceremonyWeek: 38,
+            momentumBonus: 10,
+          } as const;
         default:
           return {
+            medium: 'film' as const,
             prestige: 10,
-          categories: [
-            'Best Picture', 'Best Director', 'Best Actor', 'Best Actress',
-            'Best Supporting Actor', 'Best Supporting Actress', 'Best Original Screenplay',
-            'Best Cinematography', 'Best Film Editing',
-            'Best Visual Effects', 'Best Production Design', 'Best Costume Design',
-            'Best Makeup and Hairstyling', 'Best Original Score', 'Best Original Song',
-            'Best Sound', 'Best Animated Feature'
-          ],
+            categories: [
+              'Best Picture', 'Best Director', 'Best Actor', 'Best Actress',
+              'Best Supporting Actor', 'Best Supporting Actress', 'Best Original Screenplay',
+              'Best Cinematography', 'Best Film Editing',
+              'Best Visual Effects', 'Best Production Design', 'Best Costume Design',
+              'Best Makeup and Hairstyling', 'Best Original Score', 'Best Original Song',
+              'Best Sound', 'Best Animated Feature'
+            ],
             nominationWeek: 4,
             ceremonyWeek: 10,
             momentumBonus: 12,
@@ -122,6 +170,7 @@ const aiProjects = gameState.allReleases.filter((release): release is Project =>
 
     return {
       ...base,
+      medium: show?.medium ?? base.medium,
       nominationWeek: show?.nominationWeek ?? base.nominationWeek,
       ceremonyWeek: show?.ceremonyWeek ?? base.ceremonyWeek,
     };
@@ -131,8 +180,8 @@ const aiProjects = gameState.allReleases.filter((release): release is Project =>
     const key = `${ceremonyName}-${gameState.currentYear}`;
     if (seasonNominations[key]) return; // idempotent
 
-    const { categories } = getShowConfig(ceremonyName);
-    const eligible = getEligibleProjects();
+    const { categories, medium } = getShowConfig(ceremonyName);
+    const eligible = getEligibleProjects(medium);
 
     const categoriesMap: Record<string, Array<{ project: Project; score: number }>> = {};
 
@@ -141,26 +190,46 @@ const aiProjects = gameState.allReleases.filter((release): release is Project =>
 
       const ranked = eligible
         .map((project) => {
-          const base = calculateAwardsProbability(project);
+          const base = calculateAwardsProbability(project, medium);
           const momentum = seasonMomentum[project.id] || 0;
           
           // Enhanced category bias
           let categoryBias = 0;
-          if (categoryLower.includes('director')) categoryBias = 5;
+          if (categoryLower.includes('director') || categoryLower.includes('directing')) categoryBias = 5;
           else if (categoryLower.includes('actor') || categoryLower.includes('actress')) categoryBias = 3;
           else if (categoryLower.includes('screenplay')) categoryBias = 4;
           else if (categoryLower.includes('cinematography') || categoryLower.includes('visual')) categoryBias = 6;
           else if (categoryLower.includes('editing') || categoryLower.includes('sound')) categoryBias = 2;
           
-          // Genre bonuses for specific categories
-          if (categoryLower.includes('animated') && project.script?.genre !== 'animation') return { project, score: 0 };
-          if (categoryLower.includes('comedy') && project.script?.genre !== 'comedy') categoryBias -= 3;
-          if (categoryLower.includes('drama') && ['drama', 'biography', 'historical'].includes(project.script?.genre || '')) categoryBias += 5;
+          // Medium-aware category gating / bias
+          if (medium === 'film') {
+            if (categoryLower.includes('animated') && project.script?.genre !== 'animation') return { project, score: 0 };
+            if (categoryLower.includes('comedy') && project.script?.genre !== 'comedy') categoryBias -= 3;
+            if (categoryLower.includes('drama') && ['drama', 'biography', 'historical'].includes(project.script?.genre || '')) categoryBias += 5;
+          } else {
+            // TV awards
+            if (categoryLower.includes('limited series') && project.type !== 'limited-series') return { project, score: 0 };
+
+            if (categoryLower.includes('drama series')) {
+              if (project.script?.genre !== 'drama') return { project, score: 0 };
+              categoryBias += 4;
+            }
+
+            if (categoryLower.includes('comedy series')) {
+              if (project.script?.genre !== 'comedy') return { project, score: 0 };
+              categoryBias += 4;
+            }
+
+            if (categoryLower.includes('writing') || categoryLower.includes('directing')) {
+              const criticalPotential = project.script?.characteristics?.criticalPotential ?? 5;
+              categoryBias += Math.max(-3, Math.min(6, (criticalPotential - 5) * 1.5));
+            }
+          }
 
           // Critically acclaimed actor/director boost for individual categories
           let talentBonus = 0;
           const isActingCategory = categoryLower.includes('actor') || categoryLower.includes('actress');
-          const isDirectorCategory = categoryLower.includes('director');
+          const isDirectorCategory = categoryLower.includes('director') || categoryLower.includes('directing');
           const isTalentCategory = isActingCategory || isDirectorCategory;
 
           if (isTalentCategory) {
@@ -228,7 +297,7 @@ const aiProjects = gameState.allReleases.filter((release): release is Project =>
         : undefined;
       const studioId = isPlayer ? gameState.studio.id : competitorStudio?.id;
 
-      const isTalentCategory = category.toLowerCase().includes('actor') || category.toLowerCase().includes('actress') || category.toLowerCase().includes('director');
+      const isTalentCategory = category.toLowerCase().includes('actor') || category.toLowerCase().includes('actress') || category.toLowerCase().includes('director') || category.toLowerCase().includes('directing');
       const talent = isTalentCategory ? findRelevantTalent(project, category) : undefined;
 
       MediaEngine.queueMediaEvent({
@@ -299,7 +368,7 @@ const aiProjects = gameState.allReleases.filter((release): release is Project =>
       nominees.forEach((n) => {
         const won = n.project.id === winner.project.id;
         const isActingCategory = category.toLowerCase().includes('actor') || category.toLowerCase().includes('actress');
-        const isDirectorCategory = category.toLowerCase().includes('director');
+        const isDirectorCategory = category.toLowerCase().includes('director') || category.toLowerCase().includes('directing');
         const isTalentCategory = isActingCategory || isDirectorCategory;
         
         let talentAward: TalentAward | undefined;
@@ -365,7 +434,7 @@ const aiProjects = gameState.allReleases.filter((release): release is Project =>
     const playerWin = flatForModal.find(f => f.won && gameState.projects.some(p => p.id === f.project.id));
     if (playerWin) {
       const awardName = `${ceremonyName} - ${playerWin.category}`;
-      const isTalentCategory = playerWin.category.toLowerCase().includes('actor') || playerWin.category.toLowerCase().includes('actress') || playerWin.category.toLowerCase().includes('director');
+      const isTalentCategory = playerWin.category.toLowerCase().includes('actor') || playerWin.category.toLowerCase().includes('actress') || playerWin.category.toLowerCase().includes('director') || playerWin.category.toLowerCase().includes('directing');
       const talent = isTalentCategory ? findRelevantTalent(playerWin.project, playerWin.category) : undefined;
 
       MediaEngine.queueMediaEvent({
@@ -412,7 +481,7 @@ const aiProjects = gameState.allReleases.filter((release): release is Project =>
       categories.forEach((category) => {
         const nominees = nominationsRecord.categories[category] || [];
         ceremonyData.nominations[category] = nominees.map(n => {
-          const t = (category.toLowerCase().includes('actor') || category.toLowerCase().includes('actress') || category.toLowerCase().includes('director'))
+          const t = (category.toLowerCase().includes('actor') || category.toLowerCase().includes('actress') || category.toLowerCase().includes('director') || category.toLowerCase().includes('directing'))
             ? findRelevantTalent(n.project, category)
             : undefined;
 
@@ -493,14 +562,13 @@ const aiProjects = gameState.allReleases.filter((release): release is Project =>
 
   // Weekly triggers
   useEffect(() => {
-    if (!isAwardsSeasonActive) return;
     const shows = getAwardShowsForYear(gameState.currentYear);
 
     shows.forEach((s) => {
       if (gameState.currentWeek === s.nominationWeek) announceNominations(s.name);
     });
     shows.forEach((s) => triggerAwardsCeremony(s.name));
-  }, [gameState.currentWeek, isAwardsSeasonActive, gameState.currentYear]);
+  }, [gameState.currentWeek, gameState.currentYear]);
 
   // Helper function to find relevant talent for awards categories
   const findRelevantTalent = (project: Project, category: string): TalentPerson | undefined => {
@@ -515,7 +583,7 @@ const aiProjects = gameState.allReleases.filter((release): release is Project =>
     const pick = <T,>(items: T[], suffix: string) => stablePick(items, `${project.id}|${categoryLower}|${suffix}`);
 
     // Director category
-    if (categoryLower.includes('director')) {
+    if (categoryLower.includes('director') || categoryLower.includes('directing')) {
       // From cast/crew credits
       const directorEntries = [...castEntries, ...crewEntries].filter(c => (c.role || '').toLowerCase().includes('director'));
       const castDir = directorEntries.length > 1 ? pick(directorEntries, 'director') : directorEntries[0];

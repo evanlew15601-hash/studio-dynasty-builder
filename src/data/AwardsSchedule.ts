@@ -1,7 +1,10 @@
 // Centralized, data-driven awards schedule and helpers
+export type AwardShowMedium = 'film' | 'tv';
+
 export interface AwardShowDefinition {
   id: string;
   name: string;
+  medium: AwardShowMedium;
   nominationWeek: number; // week nominations are announced
   ceremonyWeek: number;   // week ceremony occurs
   cooldownWeeks: number;  // no-show/cooldown period following ceremony
@@ -13,6 +16,7 @@ const AWARD_SHOWS: AwardShowDefinition[] = [
   {
     id: 'golden-globe',
     name: 'Golden Globe',
+    medium: 'film',
     nominationWeek: 2,
     ceremonyWeek: 6,
     cooldownWeeks: 1,
@@ -21,6 +25,7 @@ const AWARD_SHOWS: AwardShowDefinition[] = [
   {
     id: 'critics-choice',
     name: 'Critics Choice',
+    medium: 'film',
     nominationWeek: 3,
     ceremonyWeek: 8,
     cooldownWeeks: 1,
@@ -29,10 +34,20 @@ const AWARD_SHOWS: AwardShowDefinition[] = [
   {
     id: 'oscar',
     name: 'Oscar',
+    medium: 'film',
     nominationWeek: 4,
     ceremonyWeek: 10,
     cooldownWeeks: 1,
     eligibilityCutoffWeek: 9,
+  },
+  {
+    id: 'emmy',
+    name: 'Emmy',
+    medium: 'tv',
+    nominationWeek: 34,
+    ceremonyWeek: 38,
+    cooldownWeeks: 1,
+    eligibilityCutoffWeek: 33,
   },
 ];
 
@@ -44,9 +59,10 @@ export const getAwardShowsForYear = (_year: number): AwardShowDefinition[] => {
 
 export const isWithinAwardCooldown = (
   week: number,
-  year: number
+  year: number,
+  medium: AwardShowMedium = 'film'
 ): { within: boolean; show?: AwardShowDefinition } => {
-  const shows = getAwardShowsForYear(year);
+  const shows = getAwardShowsForYear(year).filter(s => s.medium === medium);
   for (const show of shows) {
     const start = show.ceremonyWeek; // cooldown starts at ceremony week
     const end = Math.min(52, show.ceremonyWeek + show.cooldownWeeks - 1);
@@ -59,9 +75,14 @@ export const isWithinAwardCooldown = (
 
 export const getEarliestEligibleShowForRelease = (
   week: number,
-  year: number
+  year: number,
+  medium: AwardShowMedium = 'film'
 ): AwardShowDefinition | undefined => {
-  const shows = getAwardShowsForYear(year).slice().sort((a, b) => a.ceremonyWeek - b.ceremonyWeek);
+  const shows = getAwardShowsForYear(year)
+    .filter(s => s.medium === medium)
+    .slice()
+    .sort((a, b) => a.ceremonyWeek - b.ceremonyWeek);
+
   return shows.find((s) => week <= s.eligibilityCutoffWeek);
 };
 
