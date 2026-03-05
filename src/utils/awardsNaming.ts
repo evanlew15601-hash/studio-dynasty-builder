@@ -22,12 +22,12 @@ export function normalizeAwardNameText(text: string): string {
 
   // Fallback for free-form award mentions.
   return text
-    .replaceAll('Academy Awards', 'Crown')
-    .replaceAll('Academy Award', 'Crown Award')
-    .replaceAll('Golden Globe', 'Crystal Ring')
-    .replaceAll('Critics Choice', 'Critics Circle')
-    .replaceAll('Oscar', 'Crown')
-    .replaceAll('Emmy', 'Beacon TV');
+    .split('Academy Awards').join('Crown')
+    .split('Academy Award').join('Crown Award')
+    .split('Golden Globe').join('Crystal Ring')
+    .split('Critics Choice').join('Critics Circle')
+    .split('Oscar').join('Crown')
+    .split('Emmy').join('Beacon TV');
 }
 
 export function ensureGameStateFictionalAwardNames(gameState: GameState): GameState {
