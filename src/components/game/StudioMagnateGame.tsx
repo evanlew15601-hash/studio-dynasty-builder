@@ -101,7 +101,8 @@ import { MediaResponseSystem } from './MediaResponseSystem';
 import { CrisisManagement } from './CrisisManagement';
 import { MediaRelationships } from './MediaRelationships';
 import { SystemIntegration } from './SystemIntegration';
-import { saveGame } from '@/utils/saveLoad';
+import { useGameStore } from '@/game/store';
+import { saveGameAsync } from '@/utils/saveLoad';
 import { syncAndPersistIndustryDatabase } from '@/utils/industryDatabase';
 import { applyPatchesByKey, getPatchesForEntity } from '@/utils/modding';
 import { getModBundle } from '@/utils/moddingStore';
@@ -392,7 +393,12 @@ export const StudioMagnateGame: React.FC<StudioMagnateGameProps> = ({
     }
   };
   
-  const [gameState, setGameState] = useState<GameState>(() => {
+  const initGame = useGameStore((s) => s.initGame);
+  const loadGameToStore = useGameStore((s) => s.loadGame);
+  const storeGameState = useGameStore((s) => s.game);
+  const setGameState = useGameStore((s) => s.setGameState);
+
+  const [bootstrapGameState] = useState<GameState>(() => {
     // If we have a loaded game, use it directly and skip heavy init
     if (initialGameState) {
       return initialGameState;
@@ -582,6 +588,18 @@ export const StudioMagnateGame: React.FC<StudioMagnateGameProps> = ({
     return initialState;
   });
 
+  useEffect(() => {
+    if (storeGameState) return;
+
+    if (initialGameState) {
+      loadGameToStore(initialGameState);
+    } else {
+      initGame(bootstrapGameState);
+    }
+  }, [storeGameState, initialGameState, loadGameToStore, initGame, bootstrapGameState]);
+
+  const gameState = storeGameState ?? bootstrapGameState;
+
   // Market dynamics hooks  
   const talentMarket = useTalentMarket(gameState.talent, gameState.currentWeek);
   const genreSaturation = useGenreSaturation(
@@ -693,16 +711,16 @@ export const StudioMagnateGame: React.FC<StudioMagnateGameProps> = ({
     });
   };
 
-  const handleSaveGame = () => {
+  const handleSaveGame = async () => {
     try {
       const unlockedIds = achievements.getUnlockedAchievements().map(a => a.id);
-      saveGame('slot1', gameState, {
+      await saveGameAsync('slot1', gameState, {
         currentPhase,
         unlockedAchievementIds: unlockedIds
       });
       toast({
         title: 'Game Saved',
-        description: 'Your progress has been saved in this browser.',
+        description: 'Your progress has been saved.',
       });
     } catch (error) {
       console.error('Failed to save game', error);

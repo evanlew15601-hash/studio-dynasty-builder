@@ -19,7 +19,8 @@ import type { SeededRng } from './core/rng';
 import { createRng, generateGameSeed } from './core/rng';
 import { advanceWeek as tickAdvanceWeek } from './core/tick';
 import { SystemRegistry } from './core/registry';
-import type { TickSystem } from './core/types';
+import type { TickResult, TickSystem } from './core/types';
+import { advanceWeekInWorker } from './worker/client';
 import { saveGame } from '@/utils/saveLoad';
 
 // ---------------------------------------------------------------------------
@@ -63,6 +64,9 @@ export interface GameStoreState {
 
   /** Advance one week using the tick pipeline */
   advanceWeek: (options?: { suppressRecap?: boolean }) => TickReport | null;
+
+  /** Advance one week using a Web Worker when possible */
+  advanceWeekAsync: (options?: { suppressRecap?: boolean }) => Promise<TickReport | null>;
 
   /** Update the studio */
   updateStudio: (updates: Partial<Studio>) => void;
@@ -155,6 +159,57 @@ export const useGameStore = create<GameStoreState>()(
 
       set((s) => {
         s.game = result.nextState as any;
+        // Persist the PRNG state ("seed" here is treated as current RNG state).
+        s.seed = rng.state;
+        s.rng = createRng(rng.state);
+        s.lastTickReport = report as any;
+        s.tickHistory = [...s.tickHistory.slice(-(MAX_TICK_HISTORY - 1)), report] as any;
+      });
+
+      return report;
+    },
+
+    advanceWeekAsync: async (options) => {
+      const { game, rng, registry } = get();
+      if (!game || !rng) return null;
+
+      // If we have registered systems, fall back to the synchronous pipeline
+      // (systems are functions and cannot be transferred to a worker).
+      const systems = registry.getOrdered();
+      if (systems.length > 0) {
+        return get().advanceWeek(options);
+      }
+
+      let workerResult: { result: TickResult; rngState: number };
+      try {
+        workerResult = await advanceWeekInWorker(game, rng.state, {
+          debug: import.meta.env.DEV,
+        });
+      } catch (err) {
+        console.warn('[Engine] Worker tick failed, falling back to main thread:', err);
+        return get().advanceWeek(options);
+      }
+
+      const { result, rngState } = workerResult;
+
+      const report: TickReport = {
+        week: result.nextState.currentWeek,
+        year: result.nextState.currentYear,
+        startedAtIso: result.startedAtIso,
+        finishedAtIso: result.finishedAtIso,
+        totalMs: result.totalMs,
+        systems: result.systems,
+        recap: result.recap,
+        summary: {
+          budgetDelta: (result.nextState.studio.budget ?? 0) - (game.studio.budget ?? 0),
+          reputationDelta: (result.nextState.studio.reputation ?? 0) - (game.studio.reputation ?? 0),
+        },
+      };
+
+      set((s) => {
+        s.game = result.nextState as any;
+        s.seed = rngState;
+        s.rng = createRng(rngState);
         s.lastTickReport = report as any;
         s.tickHistory = [...s.tickHistory.slice(-(MAX_TICK_HISTORY - 1)), report] as any;
       });
