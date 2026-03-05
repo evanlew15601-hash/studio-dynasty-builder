@@ -2,12 +2,12 @@ import { describe, expect, it } from 'vitest';
 import { getAwardShowsForYear, getEarliestEligibleShowForRelease } from '@/data/AwardsSchedule';
 
 describe('AwardsSchedule', () => {
-  it('includes a TV awards show (Emmy) in the schedule', () => {
+  it('includes a TV awards show (Beacon TV) in the schedule', () => {
     const shows = getAwardShowsForYear(2024);
-    const emmy = shows.find(s => s.name === 'Emmy');
+    const beaconTv = shows.find(s => s.name === 'Beacon TV');
 
-    expect(emmy).toBeTruthy();
-    expect(emmy?.medium).toBe('tv');
+    expect(beaconTv).toBeTruthy();
+    expect(beaconTv?.medium).toBe('tv');
   });
 
   it('defaults eligibility checks to film awards only', () => {
@@ -15,8 +15,8 @@ describe('AwardsSchedule', () => {
     const filmEligible = getEarliestEligibleShowForRelease(20, 2024);
     expect(filmEligible).toBeUndefined();
 
-    // Week 20 should qualify for the Emmy when asking for TV eligibility.
+    // Week 20 should qualify for the Beacon TV awards when asking for TV eligibility.
     const tvEligible = getEarliestEligibleShowForRelease(20, 2024, 'tv');
-    expect(tvEligible?.name).toBe('Emmy');
+    expect(tvEligible?.name).toBe('Beacon TV');
   });
 });

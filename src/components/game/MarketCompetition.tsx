@@ -44,7 +44,7 @@ export const MarketCompetition: React.FC<MarketCompetitionProps> = ({ gameState 
         season: 'holiday',
         weeks: [48, 49, 50, 51, 52, 1, 2],
         name: 'Holiday Family Season',
-        description: 'Family-friendly films and Oscar contenders',
+        description: 'Family-friendly films and awards contenders',
         impact: {
           favoredGenres: ['family', 'animation', 'drama', 'musical'],
           boxOfficeMultiplier: 1.2,

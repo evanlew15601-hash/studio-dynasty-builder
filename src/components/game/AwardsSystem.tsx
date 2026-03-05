@@ -211,7 +211,7 @@ const aiProjects = gameState.allReleases.filter((release): release is Project =>
 
     const base = (() => {
       switch (ceremonyName) {
-        case 'Golden Globe':
+        case 'Crystal Ring':
           return {
             prestige: 6,
             categories: ['Best Picture - Drama', 'Best Director'],
@@ -219,7 +219,7 @@ const aiProjects = gameState.allReleases.filter((release): release is Project =>
             ceremonyWeek: 6,
             momentumBonus: 8
           } as const;
-        case 'Critics Choice':
+        case 'Critics Circle':
           return {
             prestige: 5,
             categories: ['Best Film', 'Best Acting'],
@@ -234,7 +234,7 @@ const aiProjects = gameState.allReleases.filter((release): release is Project =>
             nominationWeek: 4,
             ceremonyWeek: 10,
             momentumBonus: 12
-          } as const; // Oscar
+          } as const; // Crown
       }
     })();
 
@@ -331,7 +331,7 @@ const aiProjects = gameState.allReleases.filter((release): release is Project =>
     // Mark processed to avoid repeats
     setProcessedCeremonies(prev => new Set(prev).add(key));
 
-    // Momentum: winners gain momentumBonus for later shows (helps Oscars)
+    // Momentum: winners gain momentumBonus for later shows
     if (winnersThisShow.length > 0) {
       setSeasonMomentum(prev => {
         const next = { ...prev };

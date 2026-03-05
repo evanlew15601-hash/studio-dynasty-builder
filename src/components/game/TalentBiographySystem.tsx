@@ -214,7 +214,7 @@ const generateStudioLore = (studio: Studio): StudioLore => {
     { year: foundedYear + 5, event: 'First major box office success', impact: 'Established studio credibility' },
     { year: foundedYear + 15, event: 'Expansion into television production', impact: 'Diversified revenue streams' },
     { year: foundedYear + 25, event: 'Launch of international distribution', impact: 'Global market penetration' },
-    { year: foundedYear + 35, event: 'Academy Award for Best Picture', impact: 'Industry prestige recognition' },
+    { year: foundedYear + 35, event: 'Crown Award for Best Picture', impact: 'Industry prestige recognition' },
     { year: foundedYear + 45, event: 'Digital streaming platform launch', impact: 'Technology adaptation leadership' }
   ];
 
@@ -241,7 +241,7 @@ const generateStudioLore = (studio: Studio): StudioLore => {
 
   const culturalImpacts = [
     'Pioneered new filmmaking techniques that became industry standard',
-    'Launched the careers of numerous Academy Award winners',
+    'Launched the careers of numerous Crown Award winners',
     'Created film franchises that defined popular culture',
     'Championed diversity and inclusion in Hollywood',
     'Established scholarship programs for emerging filmmakers'

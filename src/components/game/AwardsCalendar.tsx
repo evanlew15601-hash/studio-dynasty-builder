@@ -18,25 +18,25 @@ interface AwardEventRow {
 }
 
 const SHOW_META: Record<string, { prestige: number; nominations: string; ceremony: string }> = {
-  'Golden Globe': {
+  'Crystal Ring': {
     prestige: 6,
-    nominations: 'Hollywood Foreign Press announces nominees',
-    ceremony: 'The Beverly Hilton hosts the Golden Globes',
+    nominations: 'Film press organizations announce Crystal Ring nominees',
+    ceremony: 'The Crystal Ring Awards gala kicks off the season',
   },
-  'Critics Choice': {
+  'Critics Circle': {
     prestige: 5,
-    nominations: 'Critics Choice Association reveals contenders',
-    ceremony: 'Critics Choice Awards ceremony',
+    nominations: 'The Critics Circle reveals this year’s contenders',
+    ceremony: 'Critics Circle Awards ceremony',
   },
-  Oscar: {
+  Crown: {
     prestige: 10,
-    nominations: 'Academy Award nominations announced',
-    ceremony: "The Oscars - Hollywood's biggest night",
+    nominations: 'Crown Awards nominations announced',
+    ceremony: "The Crown Awards — the industry's biggest night",
   },
-  Emmy: {
+  'Beacon TV': {
     prestige: 8,
-    nominations: 'Television Academy reveals Emmy nominees',
-    ceremony: "The Emmy Awards - TV's biggest night",
+    nominations: 'The Beacon TV Academy reveals nominees',
+    ceremony: "The Beacon TV Awards — television's biggest night",
   },
 };
 
@@ -64,7 +64,7 @@ export const AwardsCalendar: React.FC<AwardsCalendarProps> = ({
       });
 
       rows.push({
-        name: show.name === 'Oscar' ? 'Academy Awards' : `${show.name} Awards`,
+        name: `${show.name} Awards`,
         week: show.ceremonyWeek,
         type: 'ceremony',
         prestige: meta.prestige,

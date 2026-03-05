@@ -25,7 +25,7 @@ export function useAwardsEngine(
   const isFilmProject = (project: Project) => !isTvProject(project);
 
   // Film awards are clustered early in the year (legacy behavior). We still keep the
-  // seasonal genre bias there, but nominations/ceremonies can occur later (e.g. Emmys).
+  // seasonal genre bias there, but nominations/ceremonies can occur later.
   const isFilmAwardsSeasonWindow = gameState.currentWeek >= 1 && gameState.currentWeek <= 12;
 
   const getEligibleProjects = (medium: 'film' | 'tv'): Project[] => {
@@ -100,7 +100,7 @@ export function useAwardsEngine(
 
     const base = (() => {
       switch (ceremonyName) {
-        case 'Golden Globe':
+        case 'Crystal Ring':
           return {
             medium: 'film' as const,
             prestige: 6,
@@ -114,7 +114,7 @@ export function useAwardsEngine(
             ceremonyWeek: 6,
             momentumBonus: 8,
           } as const;
-        case 'Critics Choice':
+        case 'Critics Circle':
           return {
             medium: 'film' as const,
             prestige: 5,
@@ -128,7 +128,7 @@ export function useAwardsEngine(
             ceremonyWeek: 8,
             momentumBonus: 6,
           } as const;
-        case 'Emmy':
+        case 'Beacon TV':
           return {
             medium: 'tv' as const,
             prestige: 8,
@@ -149,7 +149,7 @@ export function useAwardsEngine(
             ceremonyWeek: 38,
             momentumBonus: 10,
           } as const;
-        default:
+        case 'Crown':
           return {
             medium: 'film' as const,
             prestige: 10,
@@ -164,7 +164,16 @@ export function useAwardsEngine(
             nominationWeek: 4,
             ceremonyWeek: 10,
             momentumBonus: 12,
-          } as const; // Oscar
+          } as const;
+        default:
+          return {
+            medium: 'film' as const,
+            prestige: 6,
+            categories: ['Best Picture', 'Best Director', 'Best Actor', 'Best Actress'],
+            nominationWeek: 4,
+            ceremonyWeek: 10,
+            momentumBonus: 6,
+          } as const;
       }
     })();
 

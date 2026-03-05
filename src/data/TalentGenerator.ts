@@ -44,10 +44,10 @@ const PERSONALITY_TRAITS = [
 ];
 
 const AWARDS_LIST = [
-  'Academy Award', 'Golden Globe', 'SAG Award', 'BAFTA', 'Critics Choice', 'Emmy Award', 'Tony Award',
-  'Cannes Palm d\'Or', 'Venice Golden Lion', 'Sundance Grand Jury', 'Independent Spirit', 'Screen Actors Guild',
-  'Directors Guild Award', 'Writers Guild Award', 'People\'s Choice', 'MTV Movie Award', 'Teen Choice',
-  'Saturn Award', 'Young Artist Award', 'Breakthrough Performance'
+  'Crown Award', 'Crystal Ring Award', 'Performers Guild Award', 'Britannia Screen Award', 'Critics Circle Award', 'Beacon TV Award', 'Stage Spotlight Award',
+  'Riviera Golden Palm', 'Lagoon Golden Lion', 'Summit Grand Jury Prize', 'Independent Vision Prize', 'Screen Performers Guild',
+  'Directors Circle Award', 'Writers Circle Award', 'Audience Choice Award', 'Pop Culture Movie Award', 'Youth Choice Award',
+  'Starlight Genre Award', 'Rising Artist Award', 'Breakthrough Performance'
 ];
 
 const CAREER_STAGES = ['unknown', 'rising', 'established', 'veteran', 'legend'] as const;
@@ -414,13 +414,13 @@ export class TalentGenerator {
 
   private selectAgent(): TalentAgent {
     const agencies = [
-      { name: 'CAA', powerLevel: 9, commission: 10 },
-      { name: 'WME', powerLevel: 9, commission: 10 },
-      { name: 'UTA', powerLevel: 8, commission: 10 },
-      { name: 'ICM', powerLevel: 7, commission: 10 },
-      { name: 'Gersh', powerLevel: 6, commission: 8 },
-      { name: 'APA', powerLevel: 5, commission: 8 },
-      { name: 'Paradigm', powerLevel: 4, commission: 8 },
+      { name: 'Northstar Talent', powerLevel: 9, commission: 10 },
+      { name: 'Silverline Agency', powerLevel: 9, commission: 10 },
+      { name: 'Summit Artists', powerLevel: 8, commission: 10 },
+      { name: 'Keystone Management', powerLevel: 7, commission: 10 },
+      { name: 'Redwood Representation', powerLevel: 6, commission: 8 },
+      { name: 'Apex Partners', powerLevel: 5, commission: 8 },
+      { name: 'Lantern Group', powerLevel: 4, commission: 8 },
       { name: 'Independent', powerLevel: 3, commission: 5 }
     ];
     

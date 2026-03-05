@@ -14,8 +14,8 @@ export interface AwardShowDefinition {
 // Default annual schedule (weeks within the year)
 const AWARD_SHOWS: AwardShowDefinition[] = [
   {
-    id: 'golden-globe',
-    name: 'Golden Globe',
+    id: 'crystal-ring',
+    name: 'Crystal Ring',
     medium: 'film',
     nominationWeek: 2,
     ceremonyWeek: 6,
@@ -23,8 +23,8 @@ const AWARD_SHOWS: AwardShowDefinition[] = [
     eligibilityCutoffWeek: 5,
   },
   {
-    id: 'critics-choice',
-    name: 'Critics Choice',
+    id: 'critics-circle',
+    name: 'Critics Circle',
     medium: 'film',
     nominationWeek: 3,
     ceremonyWeek: 8,
@@ -32,8 +32,8 @@ const AWARD_SHOWS: AwardShowDefinition[] = [
     eligibilityCutoffWeek: 7,
   },
   {
-    id: 'oscar',
-    name: 'Oscar',
+    id: 'crown',
+    name: 'Crown',
     medium: 'film',
     nominationWeek: 4,
     ceremonyWeek: 10,
@@ -41,8 +41,8 @@ const AWARD_SHOWS: AwardShowDefinition[] = [
     eligibilityCutoffWeek: 9,
   },
   {
-    id: 'emmy',
-    name: 'Emmy',
+    id: 'beacon-tv',
+    name: 'Beacon TV',
     medium: 'tv',
     nominationWeek: 34,
     ceremonyWeek: 38,

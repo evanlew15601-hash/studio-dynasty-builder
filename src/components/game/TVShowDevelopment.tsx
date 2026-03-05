@@ -612,7 +612,7 @@ export const TVShowDevelopment: React.FC<TVShowDevelopmentProps> = ({
                   />
                   <div className="flex justify-between text-xs text-muted-foreground mt-1">
                     <span>Popcorn TV</span>
-                    <span>Emmy Bait</span>
+                    <span>Awards Bait</span>
                   </div>
                 </div>
               </div>

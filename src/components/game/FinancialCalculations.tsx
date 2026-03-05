@@ -185,9 +185,9 @@ const calculateAwardsRevenue = (project: Project): number => {
   // Awards create additional licensing and sale opportunities
   let awardsMultiplier = 0;
   awards.forEach(award => {
-    if (award.includes('Oscar') || award.includes('Academy')) {
-      awardsMultiplier += 0.15; // 15% bump for Oscar
-    } else if (award.includes('Golden Globe') || award.includes('SAG')) {
+    if (award.includes('Crown')) {
+      awardsMultiplier += 0.15; // 15% bump for top-tier awards
+    } else if (award.includes('Crystal Ring') || award.includes('Performers Guild')) {
       awardsMultiplier += 0.08; // 8% bump for major awards
     } else {
       awardsMultiplier += 0.03; // 3% bump for other awards
