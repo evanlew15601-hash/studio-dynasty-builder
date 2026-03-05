@@ -3171,7 +3171,7 @@ export const StudioMagnateGame: React.FC<StudioMagnateGameProps> = ({
         )}
 
         {currentPhase === 'database' && (
-          <IndustryDatabasePanel gameState={gameState} slotId="slot1" />
+          <IndustryDatabasePanel slotId="slot1" />
         )}
         
         {currentPhase === 'production' && (

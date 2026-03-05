@@ -1,7 +1,6 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState } from 'react';
 import { GameState, Project, Script } from '@/types/game';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
-import { Button } from '@/components/ui/button';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { TVShowDevelopment } from './TVShowDevelopment';
 import { TVProductionManagement } from './TVProductionManagement';
@@ -173,13 +172,12 @@ export const ComprehensiveTelevisionSystem: React.FC<ComprehensiveTelevisionSyst
                 handleTVProjectUpdate({ ...project, ...updates });
               }}
             />
-            <StreamingAnalyticsDashboard gameState={gameState} />
+            <StreamingAnalyticsDashboard />
           </div>
         </TabsContent>
 
         <TabsContent value="streaming">
           <StreamingContractSystem
-            gameState={gameState}
             onProjectUpdate={(projectId, updates) => {
               const project = gameState.projects.find(p => p.id === projectId);
               if (!project) return;

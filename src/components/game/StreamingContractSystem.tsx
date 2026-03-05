@@ -6,8 +6,9 @@ import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger } from 
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { useToast } from '@/hooks/use-toast';
 import { StreamingContract } from '@/types/streamingTypes';
-import { GameState, Project } from '@/types/game';
+import { Project } from '@/types/game';
 import { Monitor, Tv, Award } from 'lucide-react';
+import { useGameStore } from '@/game/store';
 import {
   getAllProviders,
   getCableProviders,
@@ -20,21 +21,34 @@ import { getModBundle } from '@/utils/moddingStore';
 import { FinancialEngine } from './FinancialEngine';
 
 interface StreamingContractSystemProps {
-  gameState: GameState;
   onProjectUpdate: (projectId: string, updates: Partial<Project>) => void;
   onUpdateBudget: (amount: number) => void;
 }
 
-
-
 export const StreamingContractSystem: React.FC<StreamingContractSystemProps> = ({
-  gameState,
   onProjectUpdate,
   onUpdateBudget
 }) => {
+  const gameState = useGameStore((s) => s.game);
   const { toast } = useToast();
   const [, setSelectedProject] = useState<Project | null>(null);
   const mods = useMemo(() => getModBundle(), []);
+
+  if (!gameState) {
+    return (
+      <Card>
+        <CardHeader>
+          <CardTitle className="flex items-center gap-2">
+            <Monitor className="h-5 w-5" />
+            Streaming &amp; TV Deals
+          </CardTitle>
+        </CardHeader>
+        <CardContent>
+          <p className="text-muted-foreground text-center py-8">Loading deals...</p>
+        </CardContent>
+      </Card>
+    );
+  }
 
   const isTVProject = (project: Project) => project.type === 'series' || project.type === 'limited-series';
   const isFilmProject = (project: Project) => project.type === 'feature' || project.type === 'documentary';

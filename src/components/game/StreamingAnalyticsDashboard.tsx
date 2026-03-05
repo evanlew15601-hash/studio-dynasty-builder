@@ -5,18 +5,30 @@ import { Badge } from '@/components/ui/badge';
 import { Progress } from '@/components/ui/progress';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
-import { GameState, Project } from '@/types/game';
+import { Project } from '@/types/game';
 import { BarChart3, TrendingUp, Users, Globe, Clock, Star, Award, Target } from 'lucide-react';
+import { useGameStore } from '@/game/store';
 
-interface StreamingAnalyticsDashboardProps {
-  gameState: GameState;
-}
-
-export const StreamingAnalyticsDashboard: React.FC<StreamingAnalyticsDashboardProps> = ({
-  gameState
-}) => {
+export const StreamingAnalyticsDashboard: React.FC = () => {
+  const gameState = useGameStore((s) => s.game);
   const [selectedProject, setSelectedProject] = useState<string>('');
   const [timeRange, setTimeRange] = useState<'week' | 'month' | 'season' | 'all'>('month');
+
+  if (!gameState) {
+    return (
+      <Card>
+        <CardHeader>
+          <CardTitle className="flex items-center gap-2">
+            <BarChart3 className="h-5 w-5" />
+            Streaming Analytics
+          </CardTitle>
+        </CardHeader>
+        <CardContent>
+          <p className="text-muted-foreground text-center py-8">Loading streaming analytics...</p>
+        </CardContent>
+      </Card>
+    );
+  }
 
   // Get streaming projects
   const getStreamingProjects = (): Project[] => {
