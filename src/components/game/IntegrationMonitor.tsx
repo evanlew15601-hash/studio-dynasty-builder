@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from 'react';
-import { GameState, Project, Studio } from '@/types/game';
+import { Project, Studio } from '@/types/game';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
@@ -9,7 +9,6 @@ import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { GameplayLoops } from './GameplayLoops';
 import { FinancialEngine } from './FinancialEngine';
 import { CalendarManager } from './CalendarManager';
-import { DeepReputationSystem } from './DeepReputationSystem';
 import { 
   CheckCircle, 
   AlertTriangle, 
@@ -23,32 +22,20 @@ import {
   Play
 } from 'lucide-react';
 
-interface TimeState {
-  week: number;
-  year: number;
-}
+import { useGameStore } from '@/game/store';
 
 interface IntegrationMonitorProps {
-  gameState: GameState;
   onRunLoop?: (projectId: string) => void;
 }
 
-export const IntegrationMonitor: React.FC<IntegrationMonitorProps> = ({ 
-  gameState, 
-  onRunLoop 
-}) => {
+export const IntegrationMonitor: React.FC<IntegrationMonitorProps> = ({ onRunLoop }) => {
+  const gameState = useGameStore((s) => s.game);
   const [integrationStatus, setIntegrationStatus] = useState<any>(null);
-  const [selectedProject, setSelectedProject] = useState<string>('');
   const [loopResults, setLoopResults] = useState<Record<string, any>>({});
-
-  const calendarTime = {
-    currentWeek: gameState.currentWeek,
-    currentYear: gameState.currentYear,
-    currentQuarter: Math.ceil(gameState.currentWeek / 13)
-  };
-  const upcomingCalendarEvents = CalendarManager.getUpcomingEvents(calendarTime, gameState.projects, 12);
   
   useEffect(() => {
+    if (!gameState) return;
+
     // Run integration verification on mount and when gameState changes
     const verification = GameplayLoops.verifySystemIntegration(
       gameState.projects,
@@ -57,6 +44,17 @@ export const IntegrationMonitor: React.FC<IntegrationMonitorProps> = ({
     );
     setIntegrationStatus(verification);
   }, [gameState]);
+
+  if (!gameState) {
+    return <div className="p-6 text-sm text-muted-foreground">Loading system integration status...</div>;
+  }
+
+  const calendarTime = {
+    currentWeek: gameState.currentWeek,
+    currentYear: gameState.currentYear,
+    currentQuarter: Math.ceil(gameState.currentWeek / 13)
+  };
+  const upcomingCalendarEvents = CalendarManager.getUpcomingEvents(calendarTime, gameState.projects, 12);
   
   const runProjectLoop = (project: Project) => {
     const studio = gameState.competitorStudios.find(s => s.id === (project as any).studioId) || gameState.studio;

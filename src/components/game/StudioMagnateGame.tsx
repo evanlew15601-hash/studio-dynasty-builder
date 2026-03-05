@@ -3298,7 +3298,6 @@ export const StudioMagnateGame: React.FC<StudioMagnateGameProps> = ({
               
               <TabsContent value="analytics">
                 <MediaAnalyticsPanel
-                  gameState={gameState}
                   onNavigatePhase={(phase) => handlePhaseChange(phase as any)}
                 />
               </TabsContent>
@@ -3383,16 +3382,14 @@ export const StudioMagnateGame: React.FC<StudioMagnateGameProps> = ({
         
         {currentPhase === 'stats' && (
           <div className="space-y-6">
-            <PerformanceMetrics gameState={gameState} />
+            <PerformanceMetrics />
             <BackgroundSimulationComponent
               gameState={gameState}
               onWorldUpdate={(updates) => setGameState(prev => ({ ...prev, ...updates }))}
               onStudioUpdate={handleStudioUpdate}
             />
             {import.meta.env.DEV && (
-              <IntegrationMonitor
-                gameState={gameState}
-              />
+              <IntegrationMonitor />
             )}
           </div>
         )}
