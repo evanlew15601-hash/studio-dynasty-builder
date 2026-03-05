@@ -1075,7 +1075,7 @@ export const StudioMagnateGame: React.FC<StudioMagnateGameProps> = ({
     releasedProjects: Project[];
   };
 
-  const processWeeklyProjectEffects = (projects: Project[], timeState: TimeState, baseState: GameState): WeeklyProjectEffectsResult => {
+  const processWeeklyProjectEffects = (projects: Project[], timeState: TimeState, baseState: GameState, toastEnabled: boolean): WeeklyProjectEffectsResult => {
     if (import.meta.env.DEV) {
       console.log(`=== WEEKLY PROJECT PROCESSING START ===`);
     }
@@ -1357,10 +1357,12 @@ export const StudioMagnateGame: React.FC<StudioMagnateGameProps> = ({
               readyForMarketing: true
             };
             
-            toast({
-              title: "Post-Production Complete!",
-              description: `${updatedProject.title} is ready for marketing campaign`,
-            });
+            if (toastEnabled) {
+              toast({
+                title: "Post-Production Complete!",
+                description: `${updatedProject.title} is ready for marketing campaign`,
+              });
+            }
           }
           // STOP auto-progression at marketing - only advance when campaign completes
           else if (updatedProject.currentPhase === 'marketing' && updatedProject.marketingCampaign && updatedProject.marketingCampaign.weeksRemaining === 0) {
@@ -1378,12 +1380,14 @@ export const StudioMagnateGame: React.FC<StudioMagnateGameProps> = ({
               readyForRelease: !hasScheduledRelease
             };
             
-            toast({
-              title: "Marketing Campaign Complete!",
-              description: hasScheduledRelease
-                ? `${updatedProject.title} is scheduled for release in Y${updatedProject.scheduledReleaseYear}W${updatedProject.scheduledReleaseWeek}.`
-                : `${updatedProject.title} is ready for release strategy`,
-            });
+            if (toastEnabled) {
+              toast({
+                title: "Marketing Campaign Complete!",
+                description: hasScheduledRelease
+                  ? `${updatedProject.title} is scheduled for release in Y${updatedProject.scheduledReleaseYear}W${updatedProject.scheduledReleaseWeek}.`
+                  : `${updatedProject.title} is ready for release strategy`,
+              });
+            }
           }
           // Normal progression with gating for early phases
           else if (['development', 'pre-production', 'production'].includes(updatedProject.currentPhase)) {
@@ -1395,7 +1399,9 @@ export const StudioMagnateGame: React.FC<StudioMagnateGameProps> = ({
               if (!roles || roles.length === 0) {
                 console.warn(`Cannot advance ${updatedProject.title}: no roles imported yet`);
                 updatedProject = { ...updatedProject, phaseDuration: 2 };
-                toast({ title: 'Roles Required', description: `${updatedProject.title} needs characters imported before pre-production`, variant: 'destructive' });
+                if (toastEnabled) {
+                  toast({ title: 'Roles Required', description: `${updatedProject.title} needs characters imported before pre-production`, variant: 'destructive' });
+                }
               } else {
                 updatedProject = {
                   ...updatedProject,
@@ -1404,7 +1410,9 @@ export const StudioMagnateGame: React.FC<StudioMagnateGameProps> = ({
                   phaseDuration: getPhaseWeeks(nextPhase),
                   status: nextPhase as any
                 };
-                toast({ title: 'Phase Complete!', description: `${updatedProject.title} advanced to ${nextPhase.replace('-', ' ')}` });
+                if (toastEnabled) {
+                  toast({ title: 'Phase Complete!', description: `${updatedProject.title} advanced to ${nextPhase.replace('-', ' ')}` });
+                }
               }
             }
             // Gate: require Director + Lead actor before entering production
@@ -1415,7 +1423,9 @@ export const StudioMagnateGame: React.FC<StudioMagnateGameProps> = ({
               if (!hasDirector || !hasLead) {
                 console.warn(`Cannot advance ${updatedProject.title}: missing mandatory cast (director=${hasDirector}, lead=${hasLead})`);
                 updatedProject = { ...updatedProject, phaseDuration: 2 };
-                toast({ title: 'Cast Required', description: 'Attach a Director and Lead before production', variant: 'destructive' });
+                if (toastEnabled) {
+                  toast({ title: 'Cast Required', description: 'Attach a Director and Lead before production', variant: 'destructive' });
+                }
               } else {
                 updatedProject = {
                   ...updatedProject,
@@ -1423,7 +1433,9 @@ export const StudioMagnateGame: React.FC<StudioMagnateGameProps> = ({
                   phaseDuration: getPhaseWeeks(nextPhase),
                   status: nextPhase as any
                 };
-                toast({ title: 'Phase Complete!', description: `${updatedProject.title} advanced to ${nextPhase.replace('-', ' ')}` });
+                if (toastEnabled) {
+                  toast({ title: 'Phase Complete!', description: `${updatedProject.title} advanced to ${nextPhase.replace('-', ' ')}` });
+                }
               }
             }
             // Other early phases progress normally
@@ -1435,7 +1447,9 @@ export const StudioMagnateGame: React.FC<StudioMagnateGameProps> = ({
                 phaseDuration: nextDuration,
                 status: nextPhase as any
               };
-              toast({ title: 'Phase Complete!', description: `${updatedProject.title} advanced to ${nextPhase.replace('-', ' ')}` });
+              if (toastEnabled) {
+                toast({ title: 'Phase Complete!', description: `${updatedProject.title} advanced to ${nextPhase.replace('-', ' ')}` });
+              }
             }
           }
         } else {
@@ -1725,8 +1739,8 @@ export const StudioMagnateGame: React.FC<StudioMagnateGameProps> = ({
     return { studio };
   };
 
-  const handleAdvanceWeek = (options?: { suppressToast?: boolean }) => {
-    if (import.meta.env.DEV) {
+  const handleAdvanceWeek = (options?: { suppressToast?: boolean; suppressLoading?: boolean; suppressDiagnostics?: boolean }) => {
+    if (import.meta.env.DEV && !options?.suppressDiagnostics) {
       console.log(`ADVANCING WEEK: Current Y${gameState.currentYear}W${gameState.currentWeek}`);
       console.log(`Projects count: ${gameState.projects.length}`);
       gameState.projects.forEach((p, i) => {
@@ -1734,14 +1748,19 @@ export const StudioMagnateGame: React.FC<StudioMagnateGameProps> = ({
       });
     }
     
-    // Start weekly processing with loading
-    startOperation(LOADING_OPERATIONS.WEEKLY_PROCESSING.id, LOADING_OPERATIONS.WEEKLY_PROCESSING.name, LOADING_OPERATIONS.WEEKLY_PROCESSING.estimatedTime);
-    
-    updateOperation(LOADING_OPERATIONS.WEEKLY_PROCESSING.id, 10, 'Advancing time...');
-    // Remove await since we'll handle this synchronously
+    const toastEnabled = !options?.suppressToast;
+    const loadingEnabled = !options?.suppressLoading;
 
-    updateOperation(LOADING_OPERATIONS.WEEKLY_PROCESSING.id, 50, 'Processing AI studios...');
-    
+    if (loadingEnabled) {
+      // Start weekly processing with loading
+      startOperation(LOADING_OPERATIONS.WEEKLY_PROCESSING.id, LOADING_OPERATIONS.WEEKLY_PROCESSING.name, LOADING_OPERATIONS.WEEKLY_PROCESSING.estimatedTime);
+
+      updateOperation(LOADING_OPERATIONS.WEEKLY_PROCESSING.id, 10, 'Advancing time...');
+      // Remove await since we'll handle this synchronously
+
+      updateOperation(LOADING_OPERATIONS.WEEKLY_PROCESSING.id, 50, 'Processing AI studios...');
+    }
+
     setGameState(prev => {
       const newTimeState = TimeSystem.advanceWeek({
         currentWeek: prev.currentWeek,
@@ -1777,20 +1796,6 @@ export const StudioMagnateGame: React.FC<StudioMagnateGameProps> = ({
       // Simulate box office and process weekly financial events
       // NOTE: This must be synchronous inside the state transition; async imports would
       // run after this updater returns and would not be applied to the new state.
-      const playerReleased = updatedProjects
-        .filter(p => p.status === 'released' && !!p.releaseWeek && !!p.releaseYear)
-        .map(p => ({
-          id: p.id,
-          title: p.title,
-          weeksSinceRelease: TimeSystem.calculateWeeksSince(
-            p.releaseWeek!,
-            p.releaseYear!,
-            newTimeState.currentWeek,
-            newTimeState.currentYear
-          ),
-          budget: p.budget?.total || 10000000,
-          genre: p.script?.genre || 'drama'
-        }));
       const aiReleased = prev.allReleases
         .filter((r): r is Project => 'script' in r && (r as any).status === 'released' && !!r.releaseWeek && !!r.releaseYear)
         .map(r => ({
@@ -1814,14 +1819,18 @@ export const StudioMagnateGame: React.FC<StudioMagnateGameProps> = ({
         updatedProjects
       );
       
-      updateOperation(LOADING_OPERATIONS.WEEKLY_PROCESSING.id, 70, 'Calculating finances...');
+      if (loadingEnabled) {
+        updateOperation(LOADING_OPERATIONS.WEEKLY_PROCESSING.id, 70, 'Calculating finances...');
+      }
       
-      const weeklyProjectEffects = processWeeklyProjectEffects(updatedProjects, newTimeState, prev);
+      const weeklyProjectEffects = processWeeklyProjectEffects(updatedProjects, newTimeState, prev, toastEnabled);
       updatedProjects = weeklyProjectEffects.projects;
 
       const newAIReleases: Project[] = [];
 
-      updateOperation(LOADING_OPERATIONS.WEEKLY_PROCESSING.id, 90, 'Finalizing updates...');
+      if (loadingEnabled) {
+        updateOperation(LOADING_OPERATIONS.WEEKLY_PROCESSING.id, 90, 'Finalizing updates...');
+      }
 
       // If the simulation has advanced into a year without a pre-generated competitor slate,
       // generate a full year's worth of AI releases now (so releases remain predictable).
@@ -2095,7 +2104,9 @@ export const StudioMagnateGame: React.FC<StudioMagnateGameProps> = ({
         FinancialEngine.performMemoryCleanup(newTimeState.currentWeek, newTimeState.currentYear);
       }
 
-      SystemIntegration.runDiagnostics(newState);
+      if (import.meta.env.DEV && !options?.suppressDiagnostics) {
+        SystemIntegration.runDiagnostics(newState);
+      }
 
       if (!options?.suppressToast) {
         toast({
@@ -2105,7 +2116,9 @@ export const StudioMagnateGame: React.FC<StudioMagnateGameProps> = ({
       }
 
       // Complete the loading operation
-      completeOperation(LOADING_OPERATIONS.WEEKLY_PROCESSING.id);
+      if (loadingEnabled) {
+        completeOperation(LOADING_OPERATIONS.WEEKLY_PROCESSING.id);
+      }
 
       return newState;
     });
@@ -2123,6 +2136,13 @@ export const StudioMagnateGame: React.FC<StudioMagnateGameProps> = ({
     const targetYear = Math.floor(targetAbs / 52);
     const targetWeek = (targetAbs % 52) + 1;
 
+    startOperation(
+      LOADING_OPERATIONS.WEEKLY_PROCESSING.id,
+      `Advancing ${totalWeeks} weeks`,
+      LOADING_OPERATIONS.WEEKLY_PROCESSING.estimatedTime
+    );
+    updateOperation(LOADING_OPERATIONS.WEEKLY_PROCESSING.id, 0, 'Starting time skip...');
+
     // Use requestAnimationFrame for smoother batch processing
     // and prevent setTimeout stacking that can overwhelm the browser
     let remaining = totalWeeks;
@@ -2130,21 +2150,30 @@ export const StudioMagnateGame: React.FC<StudioMagnateGameProps> = ({
 
     const step = () => {
       if (remaining <= 0 || isProcessing) return;
-      
+
       isProcessing = true;
-      handleAdvanceWeek({ suppressToast: true });
+
+      handleAdvanceWeek({ suppressToast: true, suppressLoading: true, suppressDiagnostics: true });
       remaining -= 1;
-      
+
+      const completed = totalWeeks - remaining;
+      updateOperation(
+        LOADING_OPERATIONS.WEEKLY_PROCESSING.id,
+        Math.round((completed / totalWeeks) * 100),
+        `Advancing time... (${completed}/${totalWeeks})`
+      );
+
       // Use requestAnimationFrame to yield to the browser between weeks
       // This prevents UI freezing and allows garbage collection
       if (remaining > 0) {
         requestAnimationFrame(() => {
           isProcessing = false;
           // Add small delay to let React state settle
-          setTimeout(step, 50);
+          setTimeout(step, 25);
         });
       } else {
         isProcessing = false;
+        completeOperation(LOADING_OPERATIONS.WEEKLY_PROCESSING.id);
         toast({
           title: 'Time Advanced',
           description: `Advanced ${totalWeeks} weeks → Week ${targetWeek}, ${targetYear}`,
