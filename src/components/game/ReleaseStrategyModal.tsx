@@ -3,27 +3,26 @@ import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription } f
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
-import { Calendar, Target, DollarSign, TrendingUp, Tv } from 'lucide-react';
-import { Project, GameState } from '@/types/game';
+import { Calendar, DollarSign, TrendingUp } from 'lucide-react';
+import { Project } from '@/types/game';
 import { ReleaseSystem } from './ReleaseSystem';
 import { CalendarManager } from './CalendarManager';
 import { useToast } from '@/hooks/use-toast';
+import { useGameStore } from '@/game/store';
 
 interface ReleaseStrategyModalProps {
   project: Project | null;
   isOpen: boolean;
   onClose: () => void;
-  gameState: GameState;
-  onProjectUpdate: (projectId: string, updates: Partial<Project>) => void;
 }
 
 export const ReleaseStrategyModal: React.FC<ReleaseStrategyModalProps> = ({
   project,
   isOpen,
-  onClose,
-  gameState,
-  onProjectUpdate
+  onClose
 }) => {
+  const gameState = useGameStore((s) => s.game);
+  const updateProject = useGameStore((s) => s.updateProject);
   const { toast } = useToast();
   const [selectedDate, setSelectedDate] = useState<{ week: number; year: number } | null>(null);
 
@@ -42,7 +41,7 @@ export const ReleaseStrategyModal: React.FC<ReleaseStrategyModalProps> = ({
     }
   }, [isOpen, project?.id, project?.scheduledReleaseWeek, project?.scheduledReleaseYear]);
 
-  if (!project) return null;
+  if (!project || !gameState) return null;
 
   const currentTime = {
     currentWeek: gameState.currentWeek,
@@ -107,7 +106,7 @@ export const ReleaseStrategyModal: React.FC<ReleaseStrategyModalProps> = ({
 
     const clearingDuringMarketing = project.currentPhase === 'marketing';
 
-    onProjectUpdate(project.id, {
+    updateProject(project.id, {
       scheduledReleaseWeek: undefined,
       scheduledReleaseYear: undefined,
       releaseStrategy: undefined,
@@ -165,7 +164,7 @@ export const ReleaseStrategyModal: React.FC<ReleaseStrategyModalProps> = ({
         !!project.marketingCampaign &&
         project.marketingCampaign.weeksRemaining > 0;
 
-      onProjectUpdate(project.id, {
+      updateProject(project.id, {
         scheduledReleaseWeek: result.releaseWeek,
         scheduledReleaseYear: result.releaseYear,
         status: 'scheduled-for-release',

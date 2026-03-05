@@ -25,7 +25,7 @@ export const MarketingReleaseManagement: React.FC<MarketingReleaseManagementProp
   projectTypeFilter
 }) => {
   const gameState = useGameStore((s) => s.game);
-  const updateProject = useGameStore((s) => s.updateProject);
+  
   const replaceProject = useGameStore((s) => s.replaceProject);
   const [selectedProjectId, setSelectedProjectId] = useState<string | null>(null);
   const [showMarketingModal, setShowMarketingModal] = useState(false);
@@ -395,12 +395,6 @@ export const MarketingReleaseManagement: React.FC<MarketingReleaseManagementProp
           project={selectedProject}
           isOpen={showReleaseModal}
           onClose={() => {
-            setShowReleaseModal(false);
-            setSelectedProjectId(null);
-          }}
-          gameState={gameState}
-          onProjectUpdate={(projectId, updates) => {
-            updateProject(projectId, updates);
             setShowReleaseModal(false);
             setSelectedProjectId(null);
           }}

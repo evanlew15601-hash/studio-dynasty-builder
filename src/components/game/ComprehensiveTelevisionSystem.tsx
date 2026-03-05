@@ -29,11 +29,9 @@ export const ComprehensiveTelevisionSystem: React.FC<ComprehensiveTelevisionSyst
   selectedPublicDomain
 }) => {
   const gameState = useGameStore((s) => s.game);
-  const setGameState = useGameStore((s) => s.setGameState);
   const mergeGameState = useGameStore((s) => s.mergeGameState);
   const updateBudget = useGameStore((s) => s.updateBudget);
   const updateProject = useGameStore((s) => s.updateProject);
-  const upsertScript = useGameStore((s) => s.upsertScript);
 
   if (!gameState) {
     return <div className="p-6 text-sm text-muted-foreground">Loading television systems...</div>;
@@ -41,9 +39,7 @@ export const ComprehensiveTelevisionSystem: React.FC<ComprehensiveTelevisionSyst
 
   
 
-  const handleTVScriptUpdate = (script: Script) => {
-    upsertScript(script);
-  };
+  
 
   // Get TV-specific projects for selection
   const tvProjects = gameState.projects.filter(p => 
@@ -102,45 +98,9 @@ export const ComprehensiveTelevisionSystem: React.FC<ComprehensiveTelevisionSyst
 
         <TabsContent value="development">
           <TVShowDevelopment
-            gameState={gameState}
             selectedFranchise={selectedFranchise}
             selectedPublicDomain={selectedPublicDomain}
             onProjectCreate={onCreateTVProject}
-            onSpendFunds={(amount) => {
-              const currentDebt = gameState.studio.debt || 0;
-              const maxLoanCapacity = Math.max(0, 50000000 - currentDebt);
-              const availableFunds = gameState.studio.budget + maxLoanCapacity;
-              if (amount > availableFunds) return { success: false };
-
-              const budgetAfter = gameState.studio.budget - amount;
-              const loanTaken = budgetAfter < 0 ? Math.min(-budgetAfter, maxLoanCapacity) : 0;
-
-              setGameState((prev) => {
-                const prevDebt = prev.studio.debt || 0;
-                const prevMaxLoan = Math.max(0, 50000000 - prevDebt);
-                const prevAvailable = prev.studio.budget + prevMaxLoan;
-                if (amount > prevAvailable) return prev;
-
-                let nextBudget = prev.studio.budget - amount;
-                let nextDebt = prevDebt;
-                if (nextBudget < 0) {
-                  nextDebt += -nextBudget;
-                  nextBudget = 0;
-                }
-
-                return {
-                  ...prev,
-                  studio: {
-                    ...prev.studio,
-                    budget: nextBudget,
-                    debt: nextDebt,
-                  },
-                };
-              });
-
-              return { success: true, loanTaken };
-            }}
-            onScriptUpdate={handleTVScriptUpdate}
           />
         </TabsContent>
 

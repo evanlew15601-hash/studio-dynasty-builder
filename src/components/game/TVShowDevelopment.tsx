@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from 'react';
-import { GameState, Script, Genre, ScriptCharacteristics } from '@/types/game';
+import { Script, Genre } from '@/types/game';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
@@ -14,29 +14,27 @@ import { importRolesForScript } from '@/utils/roleImport';
 import { finalizeScriptForGreenlight, finalizeScriptForSave, getScriptGreenlightReport } from '@/utils/scriptFinalization';
 import { getScriptStageAdvanceQuote, formatScriptStage } from '@/utils/scriptProgression';
 import { FinancialEngine } from './FinancialEngine';
-import { ScriptIcon, BudgetIcon, AwardIcon, ClapperboardIcon } from '@/components/ui/icons';
+import { ScriptIcon, ClapperboardIcon } from '@/components/ui/icons';
+import { useGameStore } from '@/game/store';
 
 type SpendFundsResult = { success: boolean; loanTaken?: number };
 
 type SpendFundsFn = (amount: number, description: string) => SpendFundsResult;
 
 interface TVShowDevelopmentProps {
-  gameState: GameState;
   selectedFranchise?: string | null;
   selectedPublicDomain?: string | null;
   onProjectCreate: (script: Script) => void;
-  onScriptUpdate: (script: Script) => void;
-  onSpendFunds: SpendFundsFn;
 }
 
 export const TVShowDevelopment: React.FC<TVShowDevelopmentProps> = ({
-  gameState,
   selectedFranchise,
   selectedPublicDomain,
   onProjectCreate,
-  onScriptUpdate,
-  onSpendFunds,
 }) => {
+  const gameState = useGameStore((s) => s.game);
+  const setGameState = useGameStore((s) => s.setGameState);
+  const upsertScript = useGameStore((s) => s.upsertScript);
   const { toast } = useToast();
   
   const [isCreating, setIsCreating] = useState(false);
@@ -46,6 +44,7 @@ export const TVShowDevelopment: React.FC<TVShowDevelopmentProps> = ({
   const stageOrder: Script['developmentStage'][] = ['concept', 'treatment', 'first-draft', 'polish', 'final'];
 
   const canAffordWriterFee = (amount: number): boolean => {
+    if (!gameState) return false;
     const maxLoanCapacity = Math.max(0, 50000000 - (gameState.studio.debt || 0));
     const availableFunds = gameState.studio.budget + maxLoanCapacity;
     return amount <= availableFunds;
@@ -54,6 +53,53 @@ export const TVShowDevelopment: React.FC<TVShowDevelopmentProps> = ({
   const formatMoney = (amount: number) => {
     if (amount >= 1_000_000) return '\u0024' + (amount / 1_000_000).toFixed(2) + 'M';
     return '\u0024' + amount.toLocaleString();
+  };
+
+  const spendFunds: SpendFundsFn = (amount, description) => {
+    if (!gameState) return { success: false };
+
+    const currentDebt = gameState.studio.debt || 0;
+    const maxLoanCapacity = Math.max(0, 50000000 - currentDebt);
+    const availableFunds = gameState.studio.budget + maxLoanCapacity;
+
+    if (amount > availableFunds) return { success: false };
+
+    const budgetAfter = gameState.studio.budget - amount;
+    const loanTaken = budgetAfter < 0 ? Math.min(-budgetAfter, maxLoanCapacity) : 0;
+
+    setGameState((prev) => {
+      const prevDebt = prev.studio.debt || 0;
+      const prevMaxLoan = Math.max(0, 50000000 - prevDebt);
+      const prevAvailable = prev.studio.budget + prevMaxLoan;
+      if (amount > prevAvailable) return prev;
+
+      let nextBudget = prev.studio.budget - amount;
+      let nextDebt = prevDebt;
+      if (nextBudget < 0) {
+        nextDebt += -nextBudget;
+        nextBudget = 0;
+      }
+
+      return {
+        ...prev,
+        studio: {
+          ...prev.studio,
+          budget: nextBudget,
+          debt: nextDebt,
+        },
+      };
+    });
+
+    FinancialEngine.recordTransaction(
+      'expense',
+      'talent',
+      amount,
+      gameState.currentWeek,
+      gameState.currentYear,
+      description
+    );
+
+    return { success: true, loanTaken };
   };
 
   const handleAdvanceStage = (script: Script) => {
@@ -69,10 +115,12 @@ export const TVShowDevelopment: React.FC<TVShowDevelopmentProps> = ({
       return;
     }
 
+    if (!gameState) return;
+
     const writerName = script.writer?.trim().length ? script.writer.trim() : `${gameState.studio.name} Writing Team`;
     const stageName = `${formatScriptStage(quote.fromStage)} -> ${formatScriptStage(quote.toStage)}`;
 
-    const spend = onSpendFunds(quote.writerFee, `Writer fee (${writerName}) - ${stageName}`);
+    const spend = spendFunds(quote.writerFee, `Writer fee (${writerName}) - ${stageName}`);
     if (!spend.success) {
       toast({
         title: 'Insufficient Budget',
@@ -82,22 +130,13 @@ export const TVShowDevelopment: React.FC<TVShowDevelopmentProps> = ({
       return;
     }
 
-    FinancialEngine.recordTransaction(
-      'expense',
-      'talent',
-      quote.writerFee,
-      gameState.currentWeek,
-      gameState.currentYear,
-      `Writer fee (${writerName}) - ${stageName}`
-    );
-
     const updated: Script = {
       ...script,
       developmentStage: quote.toStage,
       quality: Math.min(100, (script.quality || 0) + quote.qualityDelta),
     };
 
-    onScriptUpdate(updated);
+    upsertScript(updated);
 
     toast({
       title: 'TV Script Advanced',
@@ -113,6 +152,8 @@ export const TVShowDevelopment: React.FC<TVShowDevelopmentProps> = ({
   };
 
   const handleEditTVScript = (script: Script) => {
+    if (!gameState) return;
+
     const shouldSeedRoles =
       (!script.characters || script.characters.length === 0) &&
       (script.sourceType === 'franchise' || script.sourceType === 'public-domain');
@@ -121,7 +162,7 @@ export const TVShowDevelopment: React.FC<TVShowDevelopmentProps> = ({
 
     // Persist the seeded roles so this script carries them forward.
     if (shouldSeedRoles && seededCharacters.length > 0) {
-      onScriptUpdate({ ...script, characters: seededCharacters });
+      upsertScript({ ...script, characters: seededCharacters });
     }
 
     setEditingScript(script);
@@ -144,6 +185,31 @@ export const TVShowDevelopment: React.FC<TVShowDevelopmentProps> = ({
   
   // Auto-fill script based on selected franchise or PD for TV shows
   const getInitialTVScript = (): Partial<Script> => {
+    if (!gameState) {
+      return {
+        title: '',
+        genre: 'drama',
+        logline: '',
+        writer: '',
+        pages: 60,
+        quality: 50,
+        budget: 2000000,
+        developmentStage: 'concept',
+        themes: [],
+        targetAudience: 'general',
+        estimatedRuntime: 45,
+        characteristics: {
+          tone: 'balanced',
+          pacing: 'episodic',
+          dialogue: 'naturalistic',
+          visualStyle: 'realistic',
+          commercialAppeal: 5,
+          criticalPotential: 5,
+          cgiIntensity: 'minimal'
+        }
+      };
+    }
+
     if (selectedFranchise) {
       const franchise = gameState.franchises.find(f => f.id === selectedFranchise);
       if (franchise) {
@@ -229,9 +295,34 @@ export const TVShowDevelopment: React.FC<TVShowDevelopmentProps> = ({
     };
   };
 
-  const [newScript, setNewScript] = useState<Partial<Script>>(getInitialTVScript());
+  const [newScript, setNewScript] = useState<Partial<Script>>({
+    title: '',
+    genre: 'drama',
+    logline: '',
+    writer: '',
+    pages: 60,
+    quality: 50,
+    budget: 2000000,
+    developmentStage: 'concept',
+    themes: [],
+    targetAudience: 'general',
+    estimatedRuntime: 45,
+    characteristics: {
+      tone: 'balanced',
+      pacing: 'episodic',
+      dialogue: 'naturalistic',
+      visualStyle: 'realistic',
+      commercialAppeal: 5,
+      criticalPotential: 5,
+      cgiIntensity: 'minimal',
+    } as any,
+  });
+
+  const gameStateReady = !!gameState;
 
   useEffect(() => {
+    if (!gameState) return;
+
     const initial = getInitialTVScript();
     setNewScript(initial);
 
@@ -269,7 +360,11 @@ export const TVShowDevelopment: React.FC<TVShowDevelopmentProps> = ({
     } else {
       setScriptCharacters([]);
     }
-  }, [selectedFranchise, selectedPublicDomain]);
+  }, [selectedFranchise, selectedPublicDomain, gameStateReady]);
+
+  if (!gameState) {
+    return <div className="p-6 text-sm text-muted-foreground">Loading TV show development...</div>;
+  }
 
   const handleCreateTVScript = () => {
     if (!newScript.title || !newScript.logline) {
@@ -312,7 +407,7 @@ export const TVShowDevelopment: React.FC<TVShowDevelopmentProps> = ({
 
     const finalized = finalizeScriptForSave(script, gameState);
 
-    onScriptUpdate(finalized);
+    upsertScript(finalized);
     setIsCreating(false);
     setEditingScript(null);
     
@@ -339,7 +434,7 @@ export const TVShowDevelopment: React.FC<TVShowDevelopmentProps> = ({
     }
 
     const { script: finalized, report } = finalizeScriptForGreenlight(script, gameState);
-    onScriptUpdate(finalized);
+    upsertScript(finalized);
 
     if (!report.canFinalize) {
       toast({

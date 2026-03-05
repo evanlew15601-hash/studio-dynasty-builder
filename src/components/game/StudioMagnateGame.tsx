@@ -3227,14 +3227,6 @@ export const StudioMagnateGame: React.FC<StudioMagnateGameProps> = ({
                   project={filmReleaseProject}
                   isOpen={!!filmReleaseProject}
                   onClose={() => setFilmReleaseProject(null)}
-                  gameState={gameState}
-                  onProjectUpdate={(projectId, updates) => {
-                    const project = gameState.projects.find(p => p.id === projectId);
-                    if (project) {
-                      handleProjectUpdate({ ...project, ...updates });
-                    }
-                    setFilmReleaseProject(null);
-                  }}
                 />
               )}
             </div>
