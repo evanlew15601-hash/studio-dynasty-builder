@@ -1,14 +1,16 @@
 import React, { useEffect, useState } from 'react';
-import { GameState, Studio, Project, TalentPerson } from '@/types/game';
+import type { GameState, Studio } from '@/types/game';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
 import { Progress } from '@/components/ui/progress';
-import { Activity, Zap, Users, TrendingUp, Clock, Star } from 'lucide-react';
+import { Activity, Zap, Users, TrendingUp, Star } from 'lucide-react';
 
 interface BackgroundSimulationProps {
   gameState: GameState;
-  onWorldUpdate: (updates: Partial<GameState>) => void;
-  onStudioUpdate: (updates: Partial<Studio>) => void;
+  // Deprecated: state mutation must happen only inside the weekly tick (Advance Week).
+  // These are kept optional to avoid breaking older callers.
+  onWorldUpdate?: (updates: Partial<GameState>) => void;
+  onStudioUpdate?: (updates: Partial<Studio>) => void;
 }
 
 interface BackgroundActivity {
@@ -51,11 +53,7 @@ interface MarketUndercurrent {
   maturity: number; // weeks since emergence
 }
 
-export const BackgroundSimulation: React.FC<BackgroundSimulationProps> = ({
-  gameState,
-  onWorldUpdate,
-  onStudioUpdate
-}) => {
+export const BackgroundSimulation: React.FC<BackgroundSimulationProps> = ({ gameState }) => {
   const [backgroundActivities, setBackgroundActivities] = useState<BackgroundActivity[]>([]);
   const [competitorActivities, setCompetitorActivities] = useState<CompetitorActivity[]>([]);
   const [talentEvolution, setTalentEvolution] = useState<TalentEvolution[]>([]);
@@ -196,10 +194,11 @@ export const BackgroundSimulation: React.FC<BackgroundSimulationProps> = ({
 
   // Simulate competitor activities
   const updateCompetitorActivities = () => {
-    const aiStudios: Studio[] = []; // Will be populated when AI studios are implemented
-    
+    // View-only: use competitor studios from game state.
+    const aiStudios: Studio[] = gameState.competitorStudios || [];
+
     const newActivities: CompetitorActivity[] = [];
-    
+
     aiStudios.forEach(studio => {
       if (Math.random() < 0.4) { // 40% chance per studio per week
         const activities = [
@@ -355,32 +354,30 @@ export const BackgroundSimulation: React.FC<BackgroundSimulationProps> = ({
     setBackgroundActivities(prev => prev.filter(a => a.progress < 100));
   };
 
-  // Apply the impact of completed background activities
+  // NOTE: This component is informational only.
+  // It must not mutate GameState, otherwise progression becomes dependent on which UI panels are mounted.
   const applyActivityImpact = (activity: BackgroundActivity) => {
     switch (activity.type) {
       case 'talent_development': {
-        // Randomly boost a talent's skills
         const randomTalent = gameState.talent[Math.floor(Math.random() * gameState.talent.length)];
-        if (randomTalent) {
+        if (randomTalent && import.meta.env.DEV) {
           const reputationBoost = activity.intensity * 0.1;
-          // This would need to be handled by the parent component
-          console.log(`Background talent development: ${randomTalent.name} gains ${reputationBoost} reputation`);
+          console.log(`Background talent development (view only): ${randomTalent.name} would gain ${reputationBoost} reputation`);
         }
         break;
       }
 
       case 'market_shift': {
-        // Subtle reputation adjustment based on how well-positioned the studio is
-        const reputationChange = (Math.random() - 0.5) * activity.intensity * 0.05;
-        onStudioUpdate({ 
-          reputation: Math.max(0, Math.min(100, (gameState.studio.reputation || 50) + reputationChange))
-        });
+        if (import.meta.env.DEV) {
+          const reputationChange = (Math.random() - 0.5) * activity.intensity * 0.05;
+          console.log(`Market shift (view only): would change reputation by ${reputationChange.toFixed(2)}`);
+        }
         break;
       }
 
       case 'competitor_move':
-        // Increase competitive pressure
-        setSimulationIntensity(prev => Math.min(95, prev + activity.intensity * 0.1));
+        // Increase competitive pressure (local UI-only intensity)
+        setSimulationIntensity((prev) => Math.min(95, prev + activity.intensity * 0.1));
         break;
     }
   };
