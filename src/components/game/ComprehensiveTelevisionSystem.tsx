@@ -1,5 +1,5 @@
 import React from 'react';
-import { Project, Script } from '@/types/game';
+import { Script } from '@/types/game';
 
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { useGameStore } from '@/game/store';
@@ -33,16 +33,13 @@ export const ComprehensiveTelevisionSystem: React.FC<ComprehensiveTelevisionSyst
   const mergeGameState = useGameStore((s) => s.mergeGameState);
   const updateBudget = useGameStore((s) => s.updateBudget);
   const updateProject = useGameStore((s) => s.updateProject);
-  const replaceProject = useGameStore((s) => s.replaceProject);
   const upsertScript = useGameStore((s) => s.upsertScript);
 
   if (!gameState) {
     return <div className="p-6 text-sm text-muted-foreground">Loading television systems...</div>;
   }
 
-  const handleTVProjectUpdate = (updatedProject: Project) => {
-    replaceProject(updatedProject);
-  };
+  
 
   const handleTVScriptUpdate = (script: Script) => {
     upsertScript(script);
@@ -153,23 +150,13 @@ export const ComprehensiveTelevisionSystem: React.FC<ComprehensiveTelevisionSyst
 
         <TabsContent value="marketing">
           <MarketingReleaseManagement
-            gameState={gameState}
             projectTypeFilter="tv"
-            onProjectUpdate={(project, marketingCost) => {
-              handleTVProjectUpdate(project);
-              if (marketingCost) {
-                updateBudget(-marketingCost);
-              }
-            }}
           />
         </TabsContent>
 
         <TabsContent value="episodes">
           <div className="space-y-6">
-            <EpisodeTrackingSystem
-              gameState={gameState}
-              onProjectUpdate={(projectId, updates) => updateProject(projectId, updates)}
-            />
+            <EpisodeTrackingSystem />
             <StreamingAnalyticsDashboard />
           </div>
         </TabsContent>

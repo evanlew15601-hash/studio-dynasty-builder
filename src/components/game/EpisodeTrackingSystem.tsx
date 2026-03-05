@@ -8,27 +8,23 @@ import { Label } from '@/components/ui/label';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger } from '@/components/ui/dialog';
 import { useToast } from '@/hooks/use-toast';
-import { EpisodeData, SeasonData, WeeklyStreamingMetrics } from '@/types/streamingTypes';
-import { GameState, Project } from '@/types/game';
-import { Play, Users, Clock, TrendingUp, Calendar, BarChart3, Star, Edit, Settings } from 'lucide-react';
+import { EpisodeData, SeasonData } from '@/types/streamingTypes';
+import { Project } from '@/types/game';
+import { useGameStore } from '@/game/store';
+import { Play, Users, Calendar, BarChart3, Star, Edit, Settings } from 'lucide-react';
 import { TVRatingsSystem } from './TVRatingsSystem';
 
-interface EpisodeTrackingSystemProps {
-  gameState: GameState;
-  onProjectUpdate: (projectId: string, updates: Partial<Project>) => void;
-}
-
-export const EpisodeTrackingSystem: React.FC<EpisodeTrackingSystemProps> = ({
-  gameState,
-  onProjectUpdate
-}) => {
+export const EpisodeTrackingSystem: React.FC = () => {
+  const gameState = useGameStore((s) => s.game);
+  const updateProject = useGameStore((s) => s.updateProject);
   const { toast } = useToast();
-  const [selectedProject, setSelectedProject] = useState<Project | null>(null);
-  const [selectedSeason, setSelectedSeason] = useState<number>(1);
+  const [selectedSeason] = useState<number>(1);
+
+  
 
   // Get TV projects - both released AND those in marketing/release phase ready to set up episodes
   const getTVProjects = () => {
-    return gameState.projects.filter(p => 
+    return (gameState?.projects ?? []).filter(p => 
       (p.type === 'series' || p.type === 'limited-series') &&
       (p.status === 'released' || p.currentPhase === 'marketing' || p.currentPhase === 'release' || p.status === 'ready-for-release')
     );
@@ -36,7 +32,7 @@ export const EpisodeTrackingSystem: React.FC<EpisodeTrackingSystemProps> = ({
   
   // Get TV projects ready for episode setup (not yet released)
   const getPreReleaseProjects = () => {
-    return gameState.projects.filter(p =>
+    return (gameState?.projects ?? []).filter(p =>
       (p.type === 'series' || p.type === 'limited-series') &&
       p.status !== 'released' &&
       (p.currentPhase === 'marketing' || p.currentPhase === 'release' || p.status === 'ready-for-marketing' || p.status === 'ready-for-release')
@@ -89,12 +85,14 @@ export const EpisodeTrackingSystem: React.FC<EpisodeTrackingSystemProps> = ({
     
     season.episodes[episodeIndex] = { ...season.episodes[episodeIndex], ...updates };
     
-    onProjectUpdate(project.id, { seasons: updatedSeasons });
+    updateProject(project.id, { seasons: updatedSeasons });
     toast({ title: "Episode Updated", description: `Episode ${episodeIndex + 1} details saved.` });
   };
 
   // Release episodes based on format
   const releaseEpisodes = (project: Project, format: 'weekly' | 'binge' | 'batch') => {
+    if (!gameState) return;
+
     // Get fresh project data to avoid stale state
     const sourceProject = gameState.projects.find(p => p.id === project.id) || project;
 
@@ -240,7 +238,7 @@ export const EpisodeTrackingSystem: React.FC<EpisodeTrackingSystemProps> = ({
       };
     }
 
-    onProjectUpdate(sourceProject.id, {
+    updateProject(sourceProject.id, {
       ...updatedProject,
       seasons,
       releaseFormat: format,
@@ -261,14 +259,20 @@ export const EpisodeTrackingSystem: React.FC<EpisodeTrackingSystemProps> = ({
 
   // Pre-release: make sure episode/season data exists without triggering state updates during render.
   useEffect(() => {
+    if (!gameState) return;
+
     const preRelease = getPreReleaseProjects();
     preRelease.forEach(project => {
       if (!project.seasons || project.seasons.length === 0) {
         const seasonData = initializeSeasonData(project);
-        onProjectUpdate(project.id, { seasons: [seasonData] });
+        updateProject(project.id, { seasons: [seasonData] });
       }
     });
-  }, [gameState.projects]);
+  }, [gameState, updateProject]);
+
+  if (!gameState) {
+    return <div className="p-6 text-sm text-muted-foreground">Loading episode tracking...</div>;
+  }
 
   const tvProjects = getTVProjects();
   const preReleaseProjects = getPreReleaseProjects();
@@ -335,7 +339,7 @@ export const EpisodeTrackingSystem: React.FC<EpisodeTrackingSystemProps> = ({
                                 if (!project.seasons || project.seasons.length === 0) return;
                                 const seasons = [...project.seasons];
                                 seasons[0] = { ...seasons[0], releaseFormat: value };
-                                onProjectUpdate(project.id, { seasons, releaseFormat: value });
+                                updateProject(project.id, { seasons, releaseFormat: value });
                               }}
                             >
                               <SelectTrigger className="h-8">
@@ -454,7 +458,6 @@ export const EpisodeTrackingSystem: React.FC<EpisodeTrackingSystemProps> = ({
                               variant="outline" 
                               size="sm"
                               className="flex-1"
-                              onClick={() => setSelectedProject(project)}
                             >
                               {hasEpisodes ? 'Manage Episodes' : 'Release Episodes'}
                             </Button>
@@ -467,7 +470,6 @@ export const EpisodeTrackingSystem: React.FC<EpisodeTrackingSystemProps> = ({
                             <EpisodeManagementModal 
                               project={project}
                               onRelease={(format) => releaseEpisodes(project, format)}
-                              gameState={gameState}
                               onUpdateEpisode={(idx, updates) => updateEpisode(project, idx, updates)}
                             />
                           </DialogContent>
@@ -574,14 +576,12 @@ const EpisodeSetupPanel: React.FC<EpisodeSetupPanelProps> = ({ project, onUpdate
 interface EpisodeManagementModalProps {
   project: Project;
   onRelease: (format: 'weekly' | 'binge' | 'batch') => void;
-  gameState: GameState;
   onUpdateEpisode?: (episodeIndex: number, updates: Partial<EpisodeData>) => void;
 }
 
 const EpisodeManagementModal: React.FC<EpisodeManagementModalProps> = ({
   project,
   onRelease,
-  gameState,
   onUpdateEpisode
 }) => {
   const currentSeason = project.seasons?.[0] || {
