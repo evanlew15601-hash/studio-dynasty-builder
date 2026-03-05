@@ -8,11 +8,14 @@ export default defineConfig({
   reporter: 'list',
   use: {
     baseURL,
+    launchOptions: {
+      args: ['--proxy-bypass-list=<-loopback>'],
+    },
   },
   webServer: {
     // Using localhost avoids proxy setups that bypass only "localhost" (but not "127.0.0.1"),
     // which can manifest as Chromium "too many redirects or authentication replays".
-    command: 'npm run dev -- --port 4173 --strictPort',
+    command: 'npm run dev -- --host localhost --port 4173 --strictPort',
     url: baseURL,
     reuseExistingServer: !process.env.CI,
   },

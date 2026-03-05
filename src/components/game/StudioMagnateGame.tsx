@@ -602,13 +602,12 @@ export const StudioMagnateGame: React.FC<StudioMagnateGameProps> = ({
   const [selectedPublicDomain, setSelectedPublicDomain] = useState<string | null>(null);
   const [filmReleaseProject, setFilmReleaseProject] = useState<Project | null>(null);
 
-  // Persist a long-lived, cross-session industry catalog (films/TV/talent/awards/studios).
-  // This is separate from the save-game snapshot and continues to accrue even if the in-memory
-  // simulation prunes older releases for performance.
-  useEffect(() => {
-    syncAndPersistIndustryDatabase('slot1', gameState);
-  }, [gameState.currentWeek, gameState.currentYear]);
-  
+  // Post-tick persistence (strict single-button progression contract):
+  // Any persistence that should happen "because a week advanced" is scheduled by the tick
+  // and executed after the state commit (never as an ambient effect of mounting UI panels).
+  const pendingPostTickStateRef = useRef<GameState | null>(null);
+  const pendingPostTickPersistRef = useRef(false);
+
   // First week box office modal state
   const [firstWeekModalProject, setFirstWeekModalProject] = useState<Project | null>(null);
   const [showFirstWeekModal, setShowFirstWeekModal] = useState(false);
@@ -647,9 +646,25 @@ export const StudioMagnateGame: React.FC<StudioMagnateGameProps> = ({
   const [lastTickReport, setLastTickReport] = useState<TickReport | null>(null);
   const [showWeekRecap, setShowWeekRecap] = useState(false);
 
-  // Consume any tick report computed during the Advance Week reducer.
+  // Post-tick: consume any tick report computed during the Advance Week reducer.
   // The week/year change is our "tick committed" signal.
   useEffect(() => {
+    // Explicit post-tick persistence (industry DB, etc.)
+    if (pendingPostTickPersistRef.current) {
+      pendingPostTickPersistRef.current = false;
+
+      // Persist a long-lived, cross-session industry catalog (films/TV/talent/awards/studios).
+      // This is separate from the save-game snapshot and continues to accrue even if the in-memory
+      // simulation prunes older releases for performance.
+      try {
+        syncAndPersistIndustryDatabase('slot1', gameState);
+      } catch (e) {
+        console.warn('Failed to persist industry database', e);
+      }
+
+      pendingPostTickStateRef.current = null;
+    }
+
     const report = pendingTickReportRef.current;
     if (!report) return;
 
@@ -2184,6 +2199,10 @@ export const StudioMagnateGame: React.FC<StudioMagnateGameProps> = ({
       if (import.meta.env.DEV && !options?.suppressDiagnostics) {
         SystemIntegration.runDiagnostics(newState);
       }
+
+      // Post-tick persistence: schedule after the tick commits.
+      pendingPostTickStateRef.current = newState;
+      pendingPostTickPersistRef.current = true;
 
       // Tick report: store for the UI to show a "Week Recap".
       if (recapEnabled) {
