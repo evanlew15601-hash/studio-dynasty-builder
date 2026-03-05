@@ -11,6 +11,7 @@
     "preview": "vite preview",
     "test": "npx vitest run",
     "test:watch": "npx vitest",
+    "test:sim": "npx vitest run tests/longTermSimulation.test.ts",
     "test:e2e": "playwright test",
     "test:e2e:ui": "playwright test --ui"
   },
