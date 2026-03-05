@@ -42,8 +42,21 @@ export const AwardsSystem: React.FC<AwardsSystemProps> = ({
   const [processedCeremonies, setProcessedCeremonies] = useState<Set<string>>(new Set());
   const [seasonMomentum, setSeasonMomentum] = useState<Record<string, number>>({});
   const [seasonNominations, setSeasonNominations] = useState<Record<string, { year: number; categories: Record<string, Array<{ project: Project; score: number }>> }>>({});
-  // Check if it's awards season (Jan-Mar = weeks 1-12)
-  const isAwardsSeasonActive = gameState.currentWeek >= 1 && gameState.currentWeek <= 12;
+
+  const isTvProject = (project: Project) => project.type === 'series' || project.type === 'limited-series';
+
+  const awardShows = getAwardShowsForYear(gameState.currentYear);
+  const lastCeremonyWeekFor = (medium: 'film' | 'tv') => {
+    const weeks = awardShows.filter(s => s.medium === medium).map(s => s.ceremonyWeek);
+    return weeks.length > 0 ? Math.max(...weeks) : 0;
+  };
+
+  const filmAwardsEndWeek = lastCeremonyWeekFor('film');
+  const tvAwardsEndWeek = lastCeremonyWeekFor('tv');
+
+  const filmCampaignWindowOpen = gameState.currentWeek >= 1 && gameState.currentWeek <= filmAwardsEndWeek;
+  const tvCampaignWindowOpen = gameState.currentWeek >= 1 && gameState.currentWeek <= tvAwardsEndWeek;
+  const isAnyCampaignWindowOpen = filmCampaignWindowOpen || tvCampaignWindowOpen;
 
   // Get eligible projects for awards (completed releases from previous year, including AI studios)
   const getEligibleProjects = (): Project[] => {
@@ -70,14 +83,37 @@ const aiProjects = gameState.allReleases.filter((release): release is Project =>
   const calculateAwardsProbability = (project: Project): number => {
     const criticsScore = project.metrics?.criticsScore || 0;
     const audienceScore = project.metrics?.audienceScore || 0;
-    const boxOffice = project.metrics?.boxOfficeTotal || 0;
-    const budget = project.budget.total;
-    
-    // Higher scores = better chance
-    let probability = (criticsScore + audienceScore) / 2;
-    
-    // Bonus for profitable films
-    if (boxOffice > budget * 1.5) probability += 10;
+
+    const medium: 'film' | 'tv' = isTvProject(project) ? 'tv' : 'film';
+
+    let probability = criticsScore * 0.65 + audienceScore * 0.35;
+
+    if (medium === 'film') {
+      const boxOffice = project.metrics?.boxOfficeTotal || 0;
+      const budget = project.budget.total;
+
+      if (boxOffice > budget * 1.5) probability += 10;
+
+      // Genre bonuses during the early-year film awards window
+      if (gameState.currentWeek >= 1 && gameState.currentWeek <= 12) {
+        if (project.script.genre === 'drama') probability += 15;
+        if (project.script.genre === 'biography') probability += 10;
+        if (project.script.genre === 'historical') probability += 8;
+      }
+    } else {
+      const totalViews = project.metrics?.streaming?.totalViews || 0;
+      const share = project.metrics?.streaming?.audienceShare || 0;
+      const criticalPotential = project.script?.characteristics?.criticalPotential ?? 5;
+
+      probability += Math.max(-8, Math.min(8, (criticalPotential - 5) * 2));
+
+      if (totalViews >= 20_000_000) probability += 10;
+      else if (totalViews >= 8_000_000) probability += 6;
+      else if (totalViews >= 2_000_000) probability += 3;
+
+      if (share >= 15) probability += 6;
+      else if (share >= 8) probability += 3;
+    }
 
     // Awards campaign boost (for player projects only)
     const campaign = project.awardsCampaign as AwardsCampaign | undefined;
@@ -86,14 +122,7 @@ const aiProjects = gameState.allReleases.filter((release): release is Project =>
       const effectivenessBoost = (campaign.effectiveness || 0) * 0.1;
       probability += budgetBoost * 0.6 + effectivenessBoost * 0.4;
     }
-    
-    // Genre bonuses during awards season
-    if (isAwardsSeasonActive) {
-      if (project.script.genre === 'drama') probability += 15;
-      if (project.script.genre === 'biography') probability += 10;
-      if (project.script.genre === 'historical') probability += 8;
-    }
-    
+
     return Math.min(100, Math.max(0, probability));
   };
 
@@ -104,7 +133,7 @@ const aiProjects = gameState.allReleases.filter((release): release is Project =>
     if (!isPlayerProject) {
       toast({
         title: "Not Allowed",
-        description: "You can only run awards campaigns for your own films.",
+        description: "You can only run awards campaigns for your own projects.",
         variant: "destructive"
       });
       return;
@@ -121,9 +150,13 @@ const aiProjects = gameState.allReleases.filter((release): release is Project =>
 
     const baseEffectiveness = 60 + Math.min(20, Math.floor(budget / 500_000) * 5);
 
+    const targetCategories = isTvProject(project)
+      ? ['Best Drama Series', 'Best Actor - Drama Series', 'Best Directing']
+      : ['Best Picture', 'Best Director', 'Best Actor'];
+
     const campaign: AwardsCampaign = {
       projectId: project.id,
-      targetCategories: ['Best Picture', 'Best Director', 'Best Actor'],
+      targetCategories,
       budget,
       budgetSpent: 0,
       duration: 8, // 8 week campaign (tracked abstractly for now)
@@ -178,7 +211,7 @@ const aiProjects = gameState.allReleases.filter((release): release is Project =>
 
     const base = (() => {
       switch (ceremonyName) {
-        case 'Golden Globe':
+        case 'Crystal Ring':
           return {
             prestige: 6,
             categories: ['Best Picture - Drama', 'Best Director'],
@@ -186,7 +219,7 @@ const aiProjects = gameState.allReleases.filter((release): release is Project =>
             ceremonyWeek: 6,
             momentumBonus: 8
           } as const;
-        case 'Critics Choice':
+        case 'Critics Circle':
           return {
             prestige: 5,
             categories: ['Best Film', 'Best Acting'],
@@ -201,7 +234,7 @@ const aiProjects = gameState.allReleases.filter((release): release is Project =>
             nominationWeek: 4,
             ceremonyWeek: 10,
             momentumBonus: 12
-          } as const; // Oscar
+          } as const; // Crown
       }
     })();
 
@@ -298,7 +331,7 @@ const aiProjects = gameState.allReleases.filter((release): release is Project =>
     // Mark processed to avoid repeats
     setProcessedCeremonies(prev => new Set(prev).add(key));
 
-    // Momentum: winners gain momentumBonus for later shows (helps Oscars)
+    // Momentum: winners gain momentumBonus for later shows
     if (winnersThisShow.length > 0) {
       setSeasonMomentum(prev => {
         const next = { ...prev };
@@ -368,18 +401,22 @@ const aiProjects = gameState.allReleases.filter((release): release is Project =>
               <TrophyIcon className="text-primary-foreground" size={20} />
             </div>
             Awards Season {gameState.currentYear}
-            {isAwardsSeasonActive && (
-              <Badge variant="default" className="ml-3 animate-pulse">
-                ACTIVE (Weeks 1-12)
+            {filmCampaignWindowOpen && (
+              <Badge variant="default" className="ml-3">
+                FILM WINDOW (≤W{filmAwardsEndWeek || 0})
+              </Badge>
+            )}
+            {tvCampaignWindowOpen && (
+              <Badge variant="secondary" className="ml-2">
+                TV WINDOW (≤W{tvAwardsEndWeek || 0})
               </Badge>
             )}
           </CardTitle>
           <div className="text-sm text-muted-foreground mt-1">
-            <strong>Eligibility Period:</strong> Films released in {gameState.currentYear - 1} (January 1 - December 31)
-            {isAwardsSeasonActive && (
+            <strong>Eligibility Period:</strong> Projects released in {gameState.currentYear - 1} (January 1 - December 31)
+            {isAnyCampaignWindowOpen && (
               <div className="mt-1">
-                <strong>Current Phase:</strong> {gameState.currentWeek <= 4 ? 'Nominations Period' : 
-                gameState.currentWeek <= 8 ? 'Early Ceremonies' : 'Major Awards Season'}
+                <strong>Campaign Windows:</strong> {filmCampaignWindowOpen ? `Film ≤ Week ${filmAwardsEndWeek}` : 'Film closed'} • {tvCampaignWindowOpen ? `TV ≤ Week ${tvAwardsEndWeek}` : 'TV closed'}
               </div>
             )}
           </div>
@@ -387,17 +424,17 @@ const aiProjects = gameState.allReleases.filter((release): release is Project =>
         <CardContent>
           <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
             <div className="p-4 rounded-lg bg-gradient-to-r from-primary/10 to-accent/10">
-              <div className="text-sm text-muted-foreground">Season Status</div>
+              <div className="text-sm text-muted-foreground">Campaign Status</div>
               <div className="text-xl font-bold text-primary">
-                {isAwardsSeasonActive ? 'Active' : 'Inactive'}
+                {isAnyCampaignWindowOpen ? 'Open' : 'Closed'}
               </div>
               <div className="text-xs text-muted-foreground mt-1">
-                {isAwardsSeasonActive ? `Week ${gameState.currentWeek}/12` : 'Returns in January'}
+                Week {gameState.currentWeek}
               </div>
             </div>
             
             <div className="p-4 rounded-lg bg-gradient-to-r from-accent/10 to-primary/10">
-              <div className="text-sm text-muted-foreground">Eligible Films</div>
+              <div className="text-sm text-muted-foreground">Eligible Projects</div>
               <div className="text-xl font-bold text-accent">
                 {eligibleProjects.length}
               </div>
@@ -417,14 +454,14 @@ const aiProjects = gameState.allReleases.filter((release): release is Project =>
             </div>
           </div>
           
-          {isAwardsSeasonActive && (
+          {gameState.currentWeek >= 1 && gameState.currentWeek <= 12 && (
             <div className="mt-4 p-4 rounded-lg border border-primary/20 bg-primary/5">
               <div className="flex items-center space-x-2 mb-2">
                 <StarIcon className="text-primary" size={16} />
-                <span className="font-medium text-primary">Awards Season Boost Active</span>
+                <span className="font-medium text-primary">Film Awards Genre Boost Active</span>
               </div>
               <div className="text-sm text-muted-foreground">
-                Quality films get +15% chance for drama, +10% for biography, +8% for historical
+                Drama gets +15%, biography +10%, historical +8% (film awards window)
               </div>
             </div>
           )}
@@ -452,7 +489,7 @@ const aiProjects = gameState.allReleases.filter((release): release is Project =>
                     <div>
                       <div className="font-semibold text-lg">{project.title}</div>
                       <div className="text-sm text-muted-foreground">
-                        {project.script.genre} • Critics: {project.metrics?.criticsScore}/100 • 
+                        {isTvProject(project) ? 'TV' : 'Film'} • {project.script.genre} • Critics: {project.metrics?.criticsScore}/100 • 
                         Audience: {project.metrics?.audienceScore}/100
                       </div>
                     </div>
@@ -482,7 +519,7 @@ const aiProjects = gameState.allReleases.filter((release): release is Project =>
                     </div>
                   )}
                   
-                  {isAwardsSeasonActive && isPlayerProject && (
+                  {(isTvProject(project) ? tvCampaignWindowOpen : filmCampaignWindowOpen) && isPlayerProject && (
                     <div className="flex flex-col gap-2">
                       <div className="flex flex-wrap gap-2">
                         <Button
@@ -515,7 +552,7 @@ const aiProjects = gameState.allReleases.filter((release): release is Project =>
                       </div>
                       {campaign && (
                         <div className="text-xs text-muted-foreground">
-                          A campaign is already running for this film this season.
+                          A campaign is already running for this project this season.
                         </div>
                       )}
                     </div>
@@ -608,10 +645,10 @@ const aiProjects = gameState.allReleases.filter((release): release is Project =>
           <CardContent className="text-center py-12">
             <TrophyIcon className="mx-auto text-muted-foreground/50 mb-4" size={48} />
             <div className="text-lg font-medium text-muted-foreground mb-2">
-              No Films Eligible for Awards
+              No Projects Eligible for Awards
             </div>
             <div className="text-sm text-muted-foreground">
-              Release quality films to compete in next year's awards season
+              Release quality films or TV shows to compete in next year's awards season
             </div>
           </CardContent>
         </Card>

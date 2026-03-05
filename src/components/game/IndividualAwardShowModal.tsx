@@ -59,7 +59,7 @@ export const IndividualAwardShowModal: React.FC<IndividualAwardShowModalProps> =
 
   const isTalentCategory = (category: string) => {
     const cl = category.toLowerCase();
-    return cl.includes('actor') || cl.includes('actress') || cl.includes('director');
+    return cl.includes('actor') || cl.includes('actress') || cl.includes('director') || cl.includes('directing');
   };
 
   const nextCategory = () => {

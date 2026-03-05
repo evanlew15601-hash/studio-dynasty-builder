@@ -70,7 +70,7 @@ export const DistributionDashboard: React.FC<DistributionDashboardProps> = ({
         streamingViews: viewership,
         criticsScore,
         audienceScore,
-        awards: performance > 85 ? ['Critics Choice'] : performance > 70 ? ['Film Festival Award'] : [],
+        awards: performance > 85 ? ['Critics Circle'] : performance > 70 ? ['Film Festival Award'] : [],
         socialMediaMentions: Math.floor(1000 + (performance * 100)),
         internationalSales: revenue * 0.4
       }

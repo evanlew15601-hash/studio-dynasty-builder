@@ -217,7 +217,7 @@ describe('media system', () => {
         projects: [competitorProject.id],
         talent: ['talent-1']
       },
-      eventData: { project: competitorProject, awardName: 'Golden Globe - Best Film' },
+      eventData: { project: competitorProject, awardName: 'Crystal Ring - Best Film' },
       week: 1,
       year: 2025
     } as any);
@@ -226,7 +226,7 @@ describe('media system', () => {
     expect(items.length).toBe(1);
 
     const combined = `${items[0].headline} ${items[0].content}`;
-    expect(combined).toContain('Golden Globe');
+    expect(combined).toContain('Crystal Ring');
     expect(combined).not.toMatch(/\{[A-Za-z]+\}/);
   });
 

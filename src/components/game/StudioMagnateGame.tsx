@@ -462,18 +462,17 @@ export const StudioMagnateGame: React.FC<StudioMagnateGameProps> = ({
         const yearsToSeed = [currentYear - 1, currentYear];
         for (const year of yearsToSeed) {
           for (let w = 1; w <= 52; w++) {
-            let added = false;
+            let releasesThisWeek = 0;
             for (const st of competitorStudios) {
               const profile = sg.getStudioProfile(st.name);
               const rel = profile ? sg.generateStudioRelease(profile, w, year) : null;
               if (rel) {
                 releases.push(rel);
                 releases[releases.length - 1] = attachBasicCastForAI(releases[releases.length - 1] as Project, generatedTalent);
-                added = true;
-                break;
+                releasesThisWeek += 1;
               }
             }
-            if (!added && competitorStudios[0]) {
+            if (releasesThisWeek === 0 && competitorStudios[0]) {
               const fallback = sg.getStudioProfile(competitorStudios[0].name);
               if (fallback) {
                 const rel = sg.generateStudioRelease(fallback, w, year);
@@ -1820,48 +1819,123 @@ export const StudioMagnateGame: React.FC<StudioMagnateGameProps> = ({
       const weeklyProjectEffects = processWeeklyProjectEffects(updatedProjects, newTimeState, prev);
       updatedProjects = weeklyProjectEffects.projects;
 
-      // Generate AI studio releases every 2-4 weeks
-      const shouldGenerateRelease = Math.random() < 0.3; // 30% chance each week
       const newAIReleases: Project[] = [];
-      
+
       updateOperation(LOADING_OPERATIONS.WEEKLY_PROCESSING.id, 90, 'Finalizing updates...');
-      
-      if (shouldGenerateRelease && prev.competitorStudios.length > 0) {
-        const studioGenerator = new StudioGenerator();
-        const randomStudio = prev.competitorStudios[Math.floor(Math.random() * prev.competitorStudios.length)];
-        // Find corresponding studio profile by name
-        const studioProfile = studioGenerator.getStudioProfile(randomStudio.name);
-        if (studioProfile) {
-              let aiRelease = studioGenerator.generateStudioRelease(studioProfile, newTimeState.currentWeek, newTimeState.currentYear);
-              if (aiRelease) {
-                // Set proper release timing for AI films
-                aiRelease.releaseWeek = newTimeState.currentWeek;
-                aiRelease.releaseYear = newTimeState.currentYear;
-                aiRelease.studioName = studioProfile.name; // Track which AI studio made this
-                aiRelease = attachBasicCastForAI(aiRelease, prev.talent);
-                newAIReleases.push(aiRelease);
 
-                // Media coverage for competitor releases (hooked up to actual generated releases)
-                MediaEngine.queueMediaEvent({
-                  type: 'release',
-                  triggerType: 'competitor_action',
-                  priority: 'low',
-                  entities: {
-                    studios: [randomStudio.id],
-                    projects: [aiRelease.id],
-                    talent: (aiRelease.cast || []).slice(0, 2).map(c => c.talentId)
+      // If the simulation has advanced into a year without a pre-generated competitor slate,
+      // generate a full year's worth of AI releases now (so releases remain predictable).
+      const hasAiSlateForYear = prev.allReleases.some(
+        (r): r is Project => 'script' in r && r.releaseYear === newTimeState.currentYear
+      );
+
+      if (!hasAiSlateForYear && prev.competitorStudios.length > 0) {
+        const sg = new StudioGenerator();
+
+        for (let w = 1; w <= 52; w++) {
+          let releasesThisWeek = 0;
+
+          for (const st of prev.competitorStudios) {
+            const profile = sg.getStudioProfile(st.name);
+            const rel = profile ? sg.generateStudioRelease(profile, w, newTimeState.currentYear) : null;
+            if (rel) {
+              newAIReleases.push(attachBasicCastForAI(rel, prev.talent));
+              releasesThisWeek += 1;
+            }
+          }
+
+          if (releasesThisWeek === 0 && prev.competitorStudios[0]) {
+            const fallback = sg.getStudioProfile(prev.competitorStudios[0].name);
+            if (fallback) {
+              const rel = sg.generateStudioRelease(fallback, w, newTimeState.currentYear);
+              if (rel) {
+                newAIReleases.push(attachBasicCastForAI(rel, prev.talent));
+              } else {
+                // Guarantee at least one release per week: synthesize a small indie release
+                const genre = fallback.specialties[0] as Genre;
+                const script = {
+                  id: `script-${newTimeState.currentYear}-${w}-${Math.random().toString(36).slice(2, 8)}`,
+                  title: sg.generateFilmTitle(genre, fallback.name),
+                  genre,
+                  logline: 'An indie story released to keep the slate full.',
+                  writer: 'Staff Writer',
+                  pages: 100,
+                  quality: 60,
+                  budget: 12000000,
+                  developmentStage: 'final',
+                  themes: ['indie','festival'],
+                  targetAudience: 'general',
+                  estimatedRuntime: 110,
+                  characteristics: { tone: 'balanced', pacing: 'steady', dialogue: 'naturalistic', visualStyle: 'realistic', commercialAppeal: 5, criticalPotential: 6, cgiIntensity: 'minimal' }
+                } as Script;
+
+                const indie: Project = {
+                  id: `ai-project-${newTimeState.currentYear}-${w}-${Math.random().toString(36).slice(2, 6)}`,
+                  title: script.title,
+                  script,
+                  type: 'feature',
+                  currentPhase: 'release',
+                  status: 'released',
+                  phaseDuration: 0,
+                  contractedTalent: [],
+                  developmentProgress: { scriptCompletion: 100, budgetApproval: 100, talentAttached: 100, locationSecured: 100, completionThreshold: 100, issues: [] },
+                  budget: {
+                    total: script.budget,
+                    allocated: { aboveTheLine: script.budget * 0.2, belowTheLine: script.budget * 0.3, postProduction: script.budget * 0.15, marketing: script.budget * 0.25, distribution: script.budget * 0.1, contingency: 0 },
+                    spent: { aboveTheLine: script.budget * 0.2, belowTheLine: script.budget * 0.3, postProduction: script.budget * 0.15, marketing: script.budget * 0.25, distribution: script.budget * 0.1, contingency: 0 },
+                    overages: { aboveTheLine: 0, belowTheLine: 0, postProduction: 0, marketing: 0, distribution: 0, contingency: 0 }
                   },
-                  eventData: { project: aiRelease },
-                  week: newTimeState.currentWeek,
-                  year: newTimeState.currentYear
-                });
+                  cast: [],
+                  crew: [],
+                  timeline: { preProduction: { start: new Date(), end: new Date() }, principalPhotography: { start: new Date(), end: new Date() }, postProduction: { start: new Date(), end: new Date() }, release: new Date(), milestones: [] },
+                  locations: [],
+                  distributionStrategy: { primary: { platform: 'Theatrical', type: 'theatrical', revenue: { type: 'box-office', studioShare: 50 } }, international: [], windows: [], marketingBudget: script.budget * 0.25 },
+                  metrics: {
+                    inTheaters: true,
+                    boxOfficeTotal: Math.floor(script.budget * 2.2),
+                    theaterCount: 1200,
+                    weeksSinceRelease: 0,
+                    criticsScore: 70,
+                    audienceScore: 72,
+                    boxOfficeStatus: 'Current',
+                    theatricalRunLocked: false,
+                    boxOffice: { openingWeekend: 0, domesticTotal: 0, internationalTotal: 0, production: script.budget, marketing: script.budget * 0.25, profit: 0, theaters: 1200, weeks: 0 }
+                  },
+                  releaseWeek: w,
+                  releaseYear: newTimeState.currentYear,
+                  studioName: fallback.name
+                };
 
-                if (import.meta.env.DEV) {
-                  console.log(`AI STUDIO: ${studioProfile.name} released "${aiRelease.title}" (${aiRelease.script.genre})`);
-                }
+                newAIReleases.push(attachBasicCastForAI(indie, prev.talent));
               }
             }
           }
+        }
+
+        // Queue a single media story for one competitor release happening this week.
+        const thisWeekRelease = newAIReleases.find(r => r.releaseWeek === newTimeState.currentWeek);
+        if (thisWeekRelease) {
+          const studio = prev.competitorStudios.find(s => s.name === thisWeekRelease.studioName) || prev.competitorStudios[0];
+
+          MediaEngine.queueMediaEvent({
+            type: 'release',
+            triggerType: 'competitor_action',
+            priority: 'low',
+            entities: {
+              studios: studio ? [studio.id] : undefined,
+              projects: [thisWeekRelease.id],
+              talent: (thisWeekRelease.cast || []).slice(0, 2).map(c => c.talentId)
+            },
+            eventData: { project: thisWeekRelease },
+            week: newTimeState.currentWeek,
+            year: newTimeState.currentYear
+          });
+        }
+
+        if (import.meta.env.DEV) {
+          console.log(`AI SLATE: Generated competitor releases for ${newTimeState.currentYear} (${newAIReleases.length} total) (week ${newTimeState.currentWeek})`);
+        }
+      }
       
       // Process weekly costs and reputation with deep system
       const weeklyResults = processWeeklyCosts(prev, updatedProjects);

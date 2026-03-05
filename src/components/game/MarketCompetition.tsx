@@ -1,4 +1,4 @@
-import React from 'react';
+import React, { useMemo } from 'react';
 import { GameState, Project, CompetitorRelease, SeasonalTrend, IndustryTrend, Genre } from '@/types/game';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
@@ -44,7 +44,7 @@ export const MarketCompetition: React.FC<MarketCompetitionProps> = ({ gameState 
         season: 'holiday',
         weeks: [48, 49, 50, 51, 52, 1, 2],
         name: 'Holiday Family Season',
-        description: 'Family-friendly films and Oscar contenders',
+        description: 'Family-friendly films and awards contenders',
         impact: {
           favoredGenres: ['family', 'animation', 'drama', 'musical'],
           boxOfficeMultiplier: 1.2,
@@ -72,37 +72,42 @@ export const MarketCompetition: React.FC<MarketCompetitionProps> = ({ gameState 
     return trends;
   };
 
-  // Generate competitor releases for current week
-  const generateCompetitorReleases = (): CompetitorRelease[] => {
-    const competitorStudios = ['Universal', 'Warner Bros', 'Disney', 'Paramount', 'Sony Pictures', 'Fox'];
-    const releases: CompetitorRelease[] = [];
-    
-    // Generate 1-3 competitor releases per week
-    const releaseCount = Math.floor(Math.random() * 3) + 1;
-    
-    for (let i = 0; i < releaseCount; i++) {
-      const genres: Genre[] = ['action', 'drama', 'comedy', 'horror', 'sci-fi', 'romance'];
-      const genre = genres[Math.floor(Math.random() * genres.length)];
-      const studio = competitorStudios[Math.floor(Math.random() * competitorStudios.length)];
-      
-      releases.push({
-        id: `competitor-${Date.now()}-${i}`,
-        title: `${studio} Film ${Math.floor(Math.random() * 1000)}`,
-        studio,
-        genre,
-        budget: Math.floor(Math.random() * 150000000) + 20000000, // $20M-$170M
-        quality: Math.floor(Math.random() * 40) + 60, // 60-100
-        marketing: Math.floor(Math.random() * 50000000) + 10000000, // $10M-$60M
-        releaseWeek: gameState.currentWeek,
-        releaseYear: gameState.currentYear,
-        expectedRevenue: 0, // Will be calculated
-        targetAudience: ['general'],
-        marketingBuzz: Math.floor(Math.random() * 60) + 40 // 40-100
-      });
-    }
-    
-    return releases;
-  };
+  const competitorReleases = useMemo<CompetitorRelease[]>(() => {
+    const releasesThisWeek = gameState.allReleases
+      .filter((r): r is Project => 'script' in r)
+      .filter((r) =>
+        r.status === 'released' &&
+        r.releaseWeek === gameState.currentWeek &&
+        r.releaseYear === gameState.currentYear &&
+        r.type !== 'series' &&
+        r.type !== 'limited-series'
+      );
+
+    return releasesThisWeek.map((project) => {
+      const critics = project.metrics?.criticsScore ?? 65;
+      const audience = project.metrics?.audienceScore ?? 65;
+      const marketingSpend =
+        project.marketingCampaign?.budgetAllocated ??
+        project.distributionStrategy?.marketingBudget ??
+        project.budget?.allocated?.marketing ??
+        0;
+
+      return {
+        id: project.id,
+        title: project.title,
+        studio: project.studioName || 'Unknown Studio',
+        genre: project.script.genre as Genre,
+        budget: project.budget?.total ?? project.script.budget,
+        quality: Math.round((critics + audience) / 2),
+        marketing: marketingSpend,
+        releaseWeek: project.releaseWeek || gameState.currentWeek,
+        releaseYear: project.releaseYear || gameState.currentYear,
+        expectedRevenue: project.metrics?.boxOfficeTotal || 0,
+        targetAudience: [project.script.targetAudience || 'general'],
+        marketingBuzz: project.marketingData?.currentBuzz ?? 50,
+      };
+    });
+  }, [gameState.allReleases, gameState.currentWeek, gameState.currentYear]);
 
   // Calculate genre oversaturation
   const calculateGenreOversaturation = (releases: CompetitorRelease[]): { [genre: string]: number } => {
@@ -128,14 +133,10 @@ export const MarketCompetition: React.FC<MarketCompetitionProps> = ({ gameState 
     seasonalBonus: number;
     oversaturationPenalty: number;
   } => {
-    const currentTrends = getCurrentSeasonalTrends();
-    const competitorReleases = generateCompetitorReleases();
-    const oversaturation = calculateGenreOversaturation(competitorReleases);
-    
     // Competition level based on similar releases
     const similarReleases = competitorReleases.filter(r => r.genre === project.script.genre);
     const competitionLevel = Math.min(100, similarReleases.length * 25);
-    
+
     // Seasonal bonus
     let seasonalBonus = 0;
     currentTrends.forEach(trend => {
@@ -143,15 +144,14 @@ export const MarketCompetition: React.FC<MarketCompetitionProps> = ({ gameState 
         seasonalBonus = (trend.impact.boxOfficeMultiplier - 1) * 100;
       }
     });
-    
+
     // Oversaturation penalty
     const oversaturationPenalty = oversaturation[project.script.genre] || 0;
-    
+
     return { competitionLevel, seasonalBonus, oversaturationPenalty };
   };
 
   const currentTrends = getCurrentSeasonalTrends();
-  const competitorReleases = generateCompetitorReleases();
   const oversaturation = calculateGenreOversaturation(competitorReleases);
   
   // Get player's released projects for impact analysis

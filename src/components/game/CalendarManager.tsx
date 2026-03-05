@@ -105,6 +105,8 @@ export class CalendarManager {
     const weeksUntil = targetAbs - currentAbs;
 
     const project = projects.find(p => p.id === filmId);
+    const medium = project && (project.type === 'series' || project.type === 'limited-series') ? 'tv' : 'film';
+
     const requiredWeeksUntil = project?.marketingCampaign
       ? Math.max(1, project.marketingCampaign.weeksRemaining)
       : 4;
@@ -147,7 +149,7 @@ export class CalendarManager {
     }
     
     // Awards show cooldown and eligibility checks
-    const cooldown = isWithinAwardCooldown(targetWeek, targetYear);
+    const cooldown = isWithinAwardCooldown(targetWeek, targetYear, medium);
     if (cooldown.within) {
       const recommendedAbs = (targetYear * 52) + (cooldown.show!.ceremonyWeek + cooldown.show!.cooldownWeeks);
       const recommendedYear = Math.floor(recommendedAbs / 52);
@@ -161,7 +163,7 @@ export class CalendarManager {
       };
     }
 
-    const qualifiesFor = getEarliestEligibleShowForRelease(targetWeek, targetYear);
+    const qualifiesFor = getEarliestEligibleShowForRelease(targetWeek, targetYear, medium);
     const awardEligibility = qualifiesFor 
       ? `Qualifies for ${qualifiesFor.name} Awards (ceremony week ${qualifiesFor.ceremonyWeek})`
       : "Does not qualify for current year's award shows";

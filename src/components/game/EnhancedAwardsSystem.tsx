@@ -100,7 +100,7 @@ export const EnhancedAwardsSystem: React.FC<EnhancedAwardsSystemProps> = ({
 
     const ceremony: AwardsCeremony = {
       id: `awards-${gameState.currentYear}`,
-      name: `Academy Awards ${gameState.currentYear}`,
+      name: `Crown Awards ${gameState.currentYear}`,
       year: gameState.currentYear,
       week: 10,
       prestige: 100,

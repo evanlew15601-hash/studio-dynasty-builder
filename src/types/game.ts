@@ -989,7 +989,15 @@ export interface TalentAward {
 export interface AwardsEvent {
   id: string;
   name: string;
-  ceremony: 'Oscar' | 'Golden Globe' | 'BAFTA' | 'Critics Choice' | 'SAG' | 'DGA' | 'WGA';
+  ceremony:
+    | 'Crown'
+    | 'Crystal Ring'
+    | 'Critics Circle'
+    | 'Beacon TV'
+    | 'Britannia Screen'
+    | 'Performers Guild'
+    | 'Directors Circle'
+    | 'Writers Circle';
   category: string;
   eligibilityWeek: number; // nomination week
   ceremonyWeek: number; // awards ceremony week
