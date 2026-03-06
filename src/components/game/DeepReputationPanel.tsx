@@ -6,49 +6,51 @@ import { Progress } from '@/components/ui/progress';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { Button } from '@/components/ui/button';
 import { DeepReputationSystem } from './DeepReputationSystem';
-import { Studio, Project, TalentPerson } from '@/types/game';
-import { TimeState } from './TimeSystem';
 import { useUiStore } from '@/game/uiStore';
-import { 
-  TrendingUp, 
-  TrendingDown, 
-  Award, 
-  Users, 
-  Lightbulb, 
-  Shield, 
+import { useGameStore } from '@/game/store';
+import {
+  TrendingUp,
+  TrendingDown,
+  Award,
+  Users,
+  Lightbulb,
+  Shield,
   BarChart3,
   Target,
   AlertTriangle,
   CheckCircle,
   Star,
-  Building
+  Building,
 } from 'lucide-react';
 
 interface DeepReputationPanelProps {
-  studio: Studio;
-  projects: Project[];
-  talent: TalentPerson[];
-  timeState: TimeState;
-  allStudios: Studio[];
   onNavigatePhase?: (phase: 'media' | 'distribution') => void;
 }
 
-export const DeepReputationPanel: React.FC<DeepReputationPanelProps> = ({ 
-  studio, 
-  projects, 
-  talent, 
-  timeState, 
-  allStudios,
-  onNavigatePhase
-}) => {
+export const DeepReputationPanel: React.FC<DeepReputationPanelProps> = ({ onNavigatePhase }) => {
+  const gameState = useGameStore((s) => s.game);
   const setPhase = useUiStore((s) => s.setPhase);
   const navigatePhase = onNavigatePhase ?? ((phase: 'media' | 'distribution') => setPhase(phase));
 
+  if (!gameState) {
+    return <div className="p-6 text-sm text-muted-foreground">Loading reputation...</div>;
+  }
+
+  const studio = gameState.studio;
+  const projects = gameState.projects;
+  const talent = gameState.talent;
+  const timeState = {
+    currentWeek: gameState.currentWeek,
+    currentYear: gameState.currentYear,
+    currentQuarter: gameState.currentQuarter,
+  };
+  const allStudios = gameState.competitorStudios || [];
+
   const repResult = DeepReputationSystem.calculateDeepReputation(
-    studio, 
-    projects, 
-    talent, 
-    timeState, 
+    studio,
+    projects,
+    talent,
+    timeState,
     allStudios
   );
   

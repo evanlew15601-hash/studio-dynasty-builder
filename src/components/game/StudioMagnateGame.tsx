@@ -1,5 +1,5 @@
 import React, { useEffect, useRef, useState, Suspense } from 'react';
-import { GameState, Studio, Project, Script, TalentPerson, BoxOfficeWeek, BoxOfficeRelease, Genre, MarketingStrategy, ReleaseStrategy, ProductionPhase, ScriptCharacter } from '@/types/game';
+import type { GameState, Studio, Project, Script, TalentPerson, Genre, MarketingStrategy, ReleaseStrategy, ProductionPhase, ScriptCharacter } from '@/types/game';
 import { useLoadingContext } from '@/contexts/LoadingContext';
 import { LoadingOverlay } from '@/components/ui/loading-overlay';
 import { LOADING_OPERATIONS, delay, simulateProgress } from '@/utils/loadingUtils';
@@ -67,7 +67,7 @@ import { OwnedFranchiseManager } from './OwnedFranchiseManager';
 import { FranchiseProjectCreator } from './FranchiseProjectCreator';
 
 import { EnhancedMarketingSystem } from './EnhancedMarketingSystem';
-import { FilmStatsModal } from './FilmStatsModal';
+
 import { ReleaseStrategyModal } from './ReleaseStrategyModal';
 import { ComprehensiveTelevisionSystem } from './ComprehensiveTelevisionSystem';
 import { TelevisionSystemTests } from './TelevisionSystemTests';
@@ -392,14 +392,14 @@ export const StudioMagnateGame: React.FC<StudioMagnateGameProps> = ({
   const setGameState = useGameStore((s) => s.setGameState);
   const mergeGameState = useGameStore((s) => s.mergeGameState);
   const updateStudio = useGameStore((s) => s.updateStudio);
-  const updateReputation = useGameStore((s) => s.updateReputation);
   const updateTalent = useGameStore((s) => s.updateTalent);
-  const addProject = useGameStore((s) => s.addProject);
   const replaceProject = useGameStore((s) => s.replaceProject);
+  const addProject = useGameStore((s) => s.addProject);
   const appendFranchiseEntry = useGameStore((s) => s.appendFranchiseEntry);
   const upsertFranchise = useGameStore((s) => s.upsertFranchise);
   const upsertScript = useGameStore((s) => s.upsertScript);
   const updateBudget = useGameStore((s) => s.updateBudget);
+  const updateReputation = useGameStore((s) => s.updateReputation);
 
   const [bootstrapGameState] = useState<GameState>(() => {
     // If we have a loaded game, use it directly and skip heavy init
@@ -709,8 +709,9 @@ export const StudioMagnateGame: React.FC<StudioMagnateGameProps> = ({
 
   // Handle achievement rewards
   const handleAchievementRewards = (unlockedAchievements: Array<{ id?: string; reward?: { reputation?: number; budget?: number } }>) => {
-    unlockedAchievements.forEach(achievement => {
+    unlockedAchievements.forEach((achievement) => {
       if (!achievement.reward) return;
+
       if (achievement.reward.reputation) {
         updateReputation(achievement.reward.reputation);
       }
@@ -1753,18 +1754,17 @@ export const StudioMagnateGame: React.FC<StudioMagnateGameProps> = ({
       updateOperation(LOADING_OPERATIONS.WEEKLY_PROCESSING.id, 50, 'Processing AI studios...');
     }
 
-    setGameState(prev => {
-      const startedAtIso = new Date().toISOString();
+    setGameState((prev) => {
       const tickStart = performance.now();
+      const startedAtIso = new Date().toISOString();
 
       const systems: TickSystemReport[] = [];
       const recap: TickRecapCard[] = [];
 
-      const measure = <T,>(id: string, label: string, fn: () => T, extra?: Omit<Partial<TickSystemReport>, 'id' | 'label' | 'ms'>): T => {
-        const t0 = performance.now();
+      const measure = <T,>(id: string, label: string, fn: () => T): T => {
+        const start = performance.now();
         const result = fn();
-        const ms = performance.now() - t0;
-        systems.push({ id, label, ms, ...(extra || {}) });
+        systems.push({ id, label, durationMs: performance.now() - start });
         return result;
       };
 
@@ -3056,17 +3056,7 @@ export const StudioMagnateGame: React.FC<StudioMagnateGameProps> = ({
         
         {currentPhase === 'reputation' && (
           <div className="space-y-6">
-            <DeepReputationPanel 
-              studio={gameState.studio}
-              projects={gameState.projects}
-              talent={gameState.talent}
-              timeState={{
-                currentWeek: gameState.currentWeek,
-                currentYear: gameState.currentYear,
-                currentQuarter: gameState.currentQuarter
-              }}
-              allStudios={gameState.competitorStudios}
-            />
+            <DeepReputationPanel />
 
             <AchievementsPanel
               achievements={achievements.achievements}

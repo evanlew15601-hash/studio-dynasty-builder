@@ -1,8 +1,9 @@
 import React from 'react';
-import { GameState, Project, ProjectFinancials } from '@/types/game';
+import type { GameState, Project, ProjectFinancials } from '@/types/game';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
 import { Progress } from '@/components/ui/progress';
+import { useGameStore } from '@/game/store';
 import { 
   BudgetIcon, 
   TrendingIcon, 
@@ -12,10 +13,17 @@ import {
 } from '@/components/ui/icons';
 
 interface FinancialReportingProps {
-  gameState: GameState;
+  gameState?: GameState;
 }
 
-export const FinancialReporting: React.FC<FinancialReportingProps> = ({ gameState }) => {
+export const FinancialReporting: React.FC<FinancialReportingProps> = ({ gameState: propGameState }) => {
+  const storeGameState = useGameStore((s) => s.game);
+  const gameState = propGameState ?? storeGameState;
+
+  if (!gameState) {
+    return <div className="p-6 text-sm text-muted-foreground">Loading financial reporting...</div>;
+  }
+
   // Calculate studio-wide financial metrics
   const calculateStudioFinancials = () => {
     let totalRevenue = 0;
