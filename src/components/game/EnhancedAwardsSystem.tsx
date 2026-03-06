@@ -8,6 +8,7 @@ import { Project, TalentPerson, ScriptCharacter } from '@/types/game';
 import { calculateActingPerformanceScore } from '@/utils/actingPerformance';
 import { Trophy, Star, Calendar, Award, Crown, Users } from 'lucide-react';
 import { useGameStore } from '@/game/store';
+import { useUiStore } from '@/game/uiStore';
 
 interface AwardCategory {
   id: string;
@@ -46,6 +47,8 @@ export const EnhancedAwardsSystem: React.FC<EnhancedAwardsSystemProps> = ({
   onNavigatePhase
 }) => {
   const gameState = useGameStore((s) => s.game);
+  const setPhase = useUiStore((s) => s.setPhase);
+  const navigatePhase = onNavigatePhase ?? ((phase: 'media' | 'distribution') => setPhase(phase));
   const setGameState = useGameStore((s) => s.setGameState);
   const [activeCeremonies, setActiveCeremonies] = useState<AwardsCeremony[]>([]);
   const [viewMode, setViewMode] = useState<'upcoming' | 'nominees' | 'history'>('upcoming');
@@ -693,37 +696,35 @@ export const EnhancedAwardsSystem: React.FC<EnhancedAwardsSystemProps> = ({
         </div>
       )}
 
-      {onNavigatePhase && (
-        <Card>
-          <CardHeader>
-            <CardTitle className="flex items-center gap-2">
-              <Award className="h-5 w-5" />
-              Use Awards Momentum Strategically
-            </CardTitle>
-          </CardHeader>
-          <CardContent className="flex flex-col md:flex-row md:items-center md:justify-between gap-4">
-            <p className="text-sm text-muted-foreground md:max-w-md">
-              Convert awards momentum into sustained audience engagement and long-tail earnings via media and post-theatrical releases.
-            </p>
-            <div className="flex flex-wrap gap-2">
-              <Button
-                size="sm"
-                variant="outline"
-                onClick={() => onNavigatePhase('media')}
-              >
-                Open Media Dashboard
-              </Button>
-              <Button
-                size="sm"
-                variant="outline"
-                onClick={() => onNavigatePhase('distribution')}
-              >
-                Post-Theatrical & Distribution
-              </Button>
-            </div>
-          </CardContent>
-        </Card>
-      )}
+      <Card>
+        <CardHeader>
+          <CardTitle className="flex items-center gap-2">
+            <Award className="h-5 w-5" />
+            Use Awards Momentum Strategically
+          </CardTitle>
+        </CardHeader>
+        <CardContent className="flex flex-col md:flex-row md:items-center md:justify-between gap-4">
+          <p className="text-sm text-muted-foreground md:max-w-md">
+            Convert awards momentum into sustained audience engagement and long-tail earnings via media and post-theatrical releases.
+          </p>
+          <div className="flex flex-wrap gap-2">
+            <Button
+              size="sm"
+              variant="outline"
+              onClick={() => navigatePhase('media')}
+            >
+              Open Media Dashboard
+            </Button>
+            <Button
+              size="sm"
+              variant="outline"
+              onClick={() => navigatePhase('distribution')}
+            >
+              Post-Theatrical & Distribution
+            </Button>
+          </div>
+        </CardContent>
+      </Card>
     </div>
   );
 };

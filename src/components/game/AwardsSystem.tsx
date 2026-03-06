@@ -1,6 +1,7 @@
 import React, { useState } from 'react';
 import { Project, AwardsCampaign, StudioAward } from '@/types/game';
 import { useGameStore } from '@/game/store';
+import { useUiStore } from '@/game/uiStore';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
@@ -25,6 +26,8 @@ export const AwardsSystem: React.FC<AwardsSystemProps> = ({
   onNavigatePhase
 }) => {
   const gameState = useGameStore((s) => s.game);
+  const setPhase = useUiStore((s) => s.setPhase);
+  const navigatePhase = onNavigatePhase ?? ((phase: 'media' | 'distribution') => setPhase(phase));
   const replaceProject = useGameStore((s) => s.replaceProject);
   const setGameState = useGameStore((s) => s.setGameState);
   const updateBudget = useGameStore((s) => s.updateBudget);
@@ -610,37 +613,19 @@ const aiProjects = gameState.allReleases.filter((release): release is Project =>
         </Card>
       )}
 
-      {onNavigatePhase && (
-        <Card className="card-premium">
-          <CardHeader>
-            <CardTitle className="flex items-center font-studio text-primary">
-              <TrendingIcon className="mr-2" size={20} />
-              Connect Awards to Media & Distribution
-            </CardTitle>
-          </CardHeader>
-          <CardContent className="flex flex-col md:flex-row md:items-center md:justify-between gap-4">
-            <p className="text-sm text-muted-foreground md:max-w-md">
-              Turn nominations and wins into concrete strategy by driving media coverage and long-tail post-theatrical revenue.
-            </p>
-            <div className="flex flex-wrap gap-2">
-              <Button
-                size="sm"
-                variant="outline"
-                onClick={() => onNavigatePhase('media')}
-              >
-                Open Media Dashboard
-              </Button>
-              <Button
-                size="sm"
-                variant="outline"
-                onClick={() => onNavigatePhase('distribution')}
-              >
-                Manage Post-Theatrical Distribution
-              </Button>
-            </div>
-          </CardContent>
-        </Card>
-      )}
+      <Card className="card-premium">
+        <CardHeader>
+          <CardTitle className="text-sm font-medium">Navigate</CardTitle>
+        </CardHeader>
+        <CardContent className="flex flex-wrap gap-2">
+          <Button size="sm" variant="outline" onClick={() => navigatePhase('media')}>
+            Open Media Dashboard
+          </Button>
+          <Button size="sm" variant="outline" onClick={() => navigatePhase('distribution')}>
+            Manage Post-Theatrical Distribution
+          </Button>
+        </CardContent>
+      </Card>
 
       {/* Awards Calendar */}
       <AwardsCalendar 

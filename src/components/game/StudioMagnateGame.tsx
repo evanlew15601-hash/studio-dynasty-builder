@@ -29,6 +29,7 @@ import { FinancialEngine } from './FinancialEngine';
 import { updateProjectFinancials } from './FinancialCalculations';
 import { TalentFilmographyManager } from '@/utils/talentFilmographyManager';
 import { stablePick } from '@/utils/stablePick';
+import { useUiStore } from '@/game/uiStore';
 import { AwardsSystem } from './AwardsSystem';
 import { EnhancedAwardsSystem } from './EnhancedAwardsSystem';
 import { RoleBasedCasting } from './RoleBasedCasting';
@@ -611,15 +612,24 @@ export const StudioMagnateGame: React.FC<StudioMagnateGameProps> = ({
     gameState.currentWeek,
     gameState.currentYear
   );
-  const [currentPhase, setCurrentPhase] = useState<
-    'dashboard' | 'scripts' | 'casting' | 'talent' | 'franchise' | 'media' |
-    'production' | 'marketing' | 'distribution' | 'finance' |
-    'awards' | 'market' | 'topfilms' | 'stats' | 'reputation' | 'loans' |
-    'competition' | 'television' | 'tv-tests' | 'database'
-  >(((initialPhase === 'financials' ? 'finance' : initialPhase) as any) || 'dashboard');
+  const currentPhase = useUiStore((s) => s.phase) as any;
+  const setPhase = useUiStore((s) => s.setPhase);
+  const selectedProjectId = useUiStore((s) => s.selectedProjectId);
+  const setSelectedProjectId = useUiStore((s) => s.setSelectedProjectId);
+
+  const phaseInitRef = useRef(false);
+  const initialPhaseNormalized = (((initialPhase === 'financials' ? 'finance' : initialPhase) as any) || 'dashboard') as string;
+
+  useEffect(() => {
+    if (phaseInitRef.current) return;
+    phaseInitRef.current = true;
+    setPhase(initialPhaseNormalized);
+  }, [initialPhaseNormalized, setPhase]);
 
   const achievements = useAchievements(gameState, initialUnlockedAchievements);
-  const [selectedProject, setSelectedProject] = useState<Project | null>(null);
+  const selectedProject = selectedProjectId
+    ? (gameState.projects.find(p => p.id === selectedProjectId) || null)
+    : null;
   const [selectedFranchise, setSelectedFranchise] = useState<string | null>(null);
   const [selectedPublicDomain, setSelectedPublicDomain] = useState<string | null>(null);
   const [filmReleaseProject, setFilmReleaseProject] = useState<Project | null>(null);
@@ -736,8 +746,8 @@ export const StudioMagnateGame: React.FC<StudioMagnateGameProps> = ({
     }
   };
 
-  const handlePhaseChange = (phase: typeof currentPhase) => {
-    setCurrentPhase(phase);
+  const handlePhaseChange = (phase: string) => {
+    setPhase(phase);
     onPhaseChange?.(phase);
   };
 
@@ -917,7 +927,7 @@ export const StudioMagnateGame: React.FC<StudioMagnateGameProps> = ({
 
     updateOperation('project-create', 100, 'Project created successfully!');
 
-    setSelectedProject(newProject);
+    setSelectedProjectId(newProject.id);
     toast({
       title: "Project Greenlit!",
       description: `"${script.title}" has entered development.`,
@@ -957,40 +967,7 @@ export const StudioMagnateGame: React.FC<StudioMagnateGameProps> = ({
   // Always run awards engine in the background (independent of UI phase)
   useAwardsEngine(gameState, handleStudioUpdate, handleTalentUpdate, handleAwardShow);
 
-  const handleProjectUpdate = (project: Project, marketingCost?: number) => {
-    setGameState(prev => {
-      const prevProject = prev.projects.find(p => p.id === project.id);
-      const nextState = {
-        ...prev,
-        projects: prev.projects.map(p => p.id === project.id ? project : p),
-        studio: marketingCost ? {
-          ...prev.studio,
-          budget: prev.studio.budget - marketingCost
-        } : prev.studio
-      };
-
-      // If casting was just confirmed, lock talent availability for the production period
-      if (prevProject?.castingConfirmed !== true && project.castingConfirmed && ((project.cast?.length || 0) > 0 || (project.crew?.length || 0) > 0)) {
-        const totalProdWeeks = getPhaseWeeks('pre-production') + getPhaseWeeks('production') + getPhaseWeeks('post-production');
-        const busyUntilWeek = prev.currentWeek + totalProdWeeks;
-        nextState.talent = nextState.talent.map(t => {
-          const isAttached = project.cast.some(c => c.talentId === t.id) || (project.crew || []).some(c => c.talentId === t.id);
-          if (!isAttached) return t;
-          return {
-            ...t,
-            contractStatus: 'contracted',
-            currentContractWeeks: totalProdWeeks,
-            busyUntilWeek
-          };
-        });
-      }
-
-      return nextState;
-    });
-
-    // Keep the local selectedProject in sync so UI reflects changes immediately
-    setSelectedProject(prevSel => (prevSel && prevSel.id === project.id) ? project : prevSel);
-  };
+  
 
   // CRITICAL: Manual marketing campaign creation (no auto-progression)
   const handleMarketingCampaignCreate = (project: Project, strategy: MarketingStrategy, budget: number, duration: number) => {
@@ -2603,10 +2580,7 @@ export const StudioMagnateGame: React.FC<StudioMagnateGameProps> = ({
       {/* Main Content */}
       <div className="container mx-auto px-6 py-8 animate-slide-up">
         {currentPhase === 'dashboard' && (
-          <StudioDashboard 
-            onProjectSelect={setSelectedProject}
-            onPhaseChange={handlePhaseChange}
-          />
+          <StudioDashboard />
         )}
         
         {currentPhase === 'franchise' && (
@@ -3050,9 +3024,7 @@ export const StudioMagnateGame: React.FC<StudioMagnateGameProps> = ({
                 {React.createElement(React.lazy(() => 
                   import('./MediaDashboard').then(m => ({ default: m.MediaDashboard }))
                   .catch(() => import('./MediaNotifications').then(m => ({ default: m.MediaNotifications })))
-                ), {
-                  onNavigatePhase: (phase: 'reputation' | 'awards') => handlePhaseChange(phase as any)
-                })}
+                ), {})}
               </TabsContent>
               
               <TabsContent value="responses">
@@ -3063,9 +3035,7 @@ export const StudioMagnateGame: React.FC<StudioMagnateGameProps> = ({
               </TabsContent>
               
               <TabsContent value="analytics">
-                <MediaAnalyticsPanel
-                  onNavigatePhase={(phase) => handlePhaseChange(phase as any)}
-                />
+                <MediaAnalyticsPanel />
               </TabsContent>
             </Tabs>
           </Suspense>
@@ -3091,15 +3061,11 @@ export const StudioMagnateGame: React.FC<StudioMagnateGameProps> = ({
             </TabsList>
 
             <TabsContent value="core">
-              <AwardsSystem 
-                onNavigatePhase={(phase: 'media' | 'distribution') => handlePhaseChange(phase as any)}
-              />
+              <AwardsSystem />
             </TabsContent>
 
             <TabsContent value="season">
-              <EnhancedAwardsSystem
-                onNavigatePhase={(phase: 'media' | 'distribution') => handlePhaseChange(phase as any)}
-              />
+              <EnhancedAwardsSystem />
             </TabsContent>
           </Tabs>
         )}
@@ -3134,7 +3100,6 @@ export const StudioMagnateGame: React.FC<StudioMagnateGameProps> = ({
                 currentQuarter: gameState.currentQuarter
               }}
               allStudios={gameState.competitorStudios}
-              onNavigatePhase={(phase: 'media' | 'distribution') => handlePhaseChange(phase as any)}
             />
 
             <AchievementsPanel

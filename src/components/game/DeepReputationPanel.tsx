@@ -8,6 +8,7 @@ import { Button } from '@/components/ui/button';
 import { DeepReputationSystem } from './DeepReputationSystem';
 import { Studio, Project, TalentPerson } from '@/types/game';
 import { TimeState } from './TimeSystem';
+import { useUiStore } from '@/game/uiStore';
 import { 
   TrendingUp, 
   TrendingDown, 
@@ -40,6 +41,9 @@ export const DeepReputationPanel: React.FC<DeepReputationPanelProps> = ({
   allStudios,
   onNavigatePhase
 }) => {
+  const setPhase = useUiStore((s) => s.setPhase);
+  const navigatePhase = onNavigatePhase ?? ((phase: 'media' | 'distribution') => setPhase(phase));
+
   const repResult = DeepReputationSystem.calculateDeepReputation(
     studio, 
     projects, 
@@ -371,37 +375,35 @@ export const DeepReputationPanel: React.FC<DeepReputationPanelProps> = ({
         </TabsContent>
       </Tabs>
 
-      {onNavigatePhase && (
-        <Card>
-          <CardHeader>
-            <CardTitle className="flex items-center gap-2">
-              <TrendingUp className="w-5 h-5" />
-              Act on Reputation
-            </CardTitle>
-          </CardHeader>
-          <CardContent className="flex flex-col md:flex-row md:items-center md:justify-between gap-4">
-            <p className="text-sm text-muted-foreground md:max-w-md">
-              Use your current standing to drive proactive media coverage and smarter post-theatrical distribution choices.
-            </p>
-            <div className="flex flex-wrap gap-2">
-              <Button
-                size="sm"
-                variant="outline"
-                onClick={() => onNavigatePhase('media')}
-              >
-                Open Media Dashboard
-              </Button>
-              <Button
-                size="sm"
-                variant="outline"
-                onClick={() => onNavigatePhase('distribution')}
-              >
-                Manage Distribution & Post-Theatrical
-              </Button>
-            </div>
-          </CardContent>
-        </Card>
-      )}
+      <Card>
+        <CardHeader>
+          <CardTitle className="flex items-center gap-2">
+            <TrendingUp className="w-5 h-5" />
+            Act on Reputation
+          </CardTitle>
+        </CardHeader>
+        <CardContent className="flex flex-col md:flex-row md:items-center md:justify-between gap-4">
+          <p className="text-sm text-muted-foreground md:max-w-md">
+            Use your current standing to drive proactive media coverage and smarter post-theatrical distribution choices.
+          </p>
+          <div className="flex flex-wrap gap-2">
+            <Button
+              size="sm"
+              variant="outline"
+              onClick={() => navigatePhase('media')}
+            >
+              Open Media Dashboard
+            </Button>
+            <Button
+              size="sm"
+              variant="outline"
+              onClick={() => navigatePhase('distribution')}
+            >
+              Manage Distribution & Post-Theatrical
+            </Button>
+          </div>
+        </CardContent>
+      </Card>
     </div>
   );
 };

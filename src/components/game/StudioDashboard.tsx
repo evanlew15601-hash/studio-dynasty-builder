@@ -1,6 +1,7 @@
 import React from 'react';
 import { Project } from '@/types/game';
 import { useGameStore } from '@/game/store';
+import { useUiStore } from '@/game/uiStore';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Progress } from '@/components/ui/progress';
 import { Button } from '@/components/ui/button';
@@ -17,16 +18,12 @@ import {
   StudioIcon
 } from '@/components/ui/icons';
 
-interface StudioDashboardProps {
-  onProjectSelect: (project: Project | null) => void;
-  onPhaseChange?: (phase: string) => void;
-}
+interface StudioDashboardProps {}
 
-export const StudioDashboard: React.FC<StudioDashboardProps> = ({
-  onProjectSelect,
-  onPhaseChange,
-}) => {
+export const StudioDashboard: React.FC<StudioDashboardProps> = () => {
   const gameState = useGameStore((s) => s.game);
+  const setSelectedProjectId = useUiStore((s) => s.setSelectedProjectId);
+  const setPhase = useUiStore((s) => s.setPhase);
 
   if (!gameState) {
     return <div className="p-6 text-sm text-muted-foreground">Loading studio dashboard...</div>;
@@ -319,7 +316,7 @@ export const StudioDashboard: React.FC<StudioDashboardProps> = ({
                 <Card 
                   key={project.id} 
                   className="card-premium cursor-pointer hover:border-primary/50 hover:shadow-golden transition-all duration-300 group"
-                  onClick={() => onProjectSelect(project)}
+                  onClick={() => setSelectedProjectId(project.id)}
                 >
                   <CardHeader className="pb-4">
                     <div className="flex items-start justify-between">
@@ -458,7 +455,7 @@ export const StudioDashboard: React.FC<StudioDashboardProps> = ({
             <Button 
               variant="outline" 
               className="h-auto p-6 flex flex-col items-center space-y-3 btn-ghost-premium hover:border-primary/50 group"
-              onClick={() => onPhaseChange?.('scripts')}
+              onClick={() => setPhase('scripts')}
             >
               <div className="p-3 rounded-lg bg-gradient-to-r from-primary/10 to-accent/10 group-hover:from-primary/20 group-hover:to-accent/20 transition-all duration-300">
                 <ScriptIcon className="text-primary" size={24} />
@@ -470,8 +467,8 @@ export const StudioDashboard: React.FC<StudioDashboardProps> = ({
               className="h-auto p-6 flex flex-col items-center space-y-3 btn-ghost-premium hover:border-accent/50 group"
               onClick={() => {
                 const project = getBestProjectForCasting();
-                onProjectSelect(project);
-                onPhaseChange?.('casting');
+                setSelectedProjectId(project?.id ?? null);
+                setPhase('casting');
               }}
             >
               <div className="p-3 rounded-lg bg-gradient-to-r from-accent/10 to-primary/10 group-hover:from-accent/20 group-hover:to-primary/20 transition-all duration-300">
@@ -482,7 +479,7 @@ export const StudioDashboard: React.FC<StudioDashboardProps> = ({
             <Button 
               variant="outline" 
               className="h-auto p-6 flex flex-col items-center space-y-3 btn-ghost-premium hover:border-secondary/50 group"
-              onClick={() => onPhaseChange?.('production')}
+              onClick={() => setPhase('production')}
             >
               <div className="p-3 rounded-lg bg-gradient-to-r from-secondary/10 to-muted/10 group-hover:from-secondary/20 group-hover:to-muted/20 transition-all duration-300">
                 <StudioIcon className="text-secondary-foreground" size={24} />
@@ -492,7 +489,7 @@ export const StudioDashboard: React.FC<StudioDashboardProps> = ({
             <Button 
               variant="outline" 
               className="h-auto p-6 flex flex-col items-center space-y-3 btn-ghost-premium hover:border-primary/50 group"
-              onClick={() => onPhaseChange?.('distribution')}
+              onClick={() => setPhase('distribution')}
             >
               <div className="p-3 rounded-lg bg-gradient-to-r from-primary/10 to-accent/10 group-hover:from-primary/20 group-hover:to-accent/20 transition-all duration-300">
                 <MarketIcon className="text-primary" size={24} />
@@ -506,7 +503,7 @@ export const StudioDashboard: React.FC<StudioDashboardProps> = ({
             <Button 
               variant="outline" 
               className="h-auto p-4 flex items-center space-x-3 btn-ghost-premium hover:border-primary/50 group"
-              onClick={() => onPhaseChange?.('finance')}
+              onClick={() => setPhase('finance')}
             >
               <div className="p-2 rounded-lg bg-gradient-to-r from-primary/10 to-accent/10 group-hover:from-primary/20 group-hover:to-accent/20 transition-all duration-300">
                 <BudgetIcon className="text-primary" size={20} />
@@ -516,7 +513,7 @@ export const StudioDashboard: React.FC<StudioDashboardProps> = ({
             <Button 
               variant="outline" 
               className="h-auto p-4 flex items-center space-x-3 btn-ghost-premium hover:border-green-500/50 group"
-              onClick={() => onPhaseChange?.('loans')}
+              onClick={() => setPhase('loans')}
             >
               <div className="p-2 rounded-lg bg-gradient-to-r from-green-500/10 to-blue-500/10 group-hover:from-green-500/20 group-hover:to-blue-500/20 transition-all duration-300">
                 <BudgetIcon className="text-green-600" size={20} />
@@ -526,7 +523,7 @@ export const StudioDashboard: React.FC<StudioDashboardProps> = ({
             <Button 
               variant="outline" 
               className="h-auto p-4 flex items-center space-x-3 btn-ghost-premium hover:border-accent/50 group"
-              onClick={() => onPhaseChange?.('reputation')}
+              onClick={() => setPhase('reputation')}
             >
               <div className="p-2 rounded-lg bg-gradient-to-r from-accent/10 to-primary/10 group-hover:from-accent/20 group-hover:to-primary/20 transition-all duration-300">
                 <ReputationIcon className="text-accent" size={20} />

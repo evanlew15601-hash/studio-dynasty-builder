@@ -8,6 +8,7 @@ import { MediaItem, MediaSource } from '@/types/game';
 import { MediaEngine } from './MediaEngine';
 import { MediaReputationIntegration } from './MediaReputationIntegration';
 import { useGameStore } from '@/game/store';
+import { useUiStore } from '@/game/uiStore';
 import { 
   Newspaper,
   TrendingUp,
@@ -35,6 +36,8 @@ export const MediaDashboard: React.FC<MediaDashboardProps> = ({
   onNavigatePhase
 }) => {
   const gameState = useGameStore((s) => s.game);
+  const setPhase = useUiStore((s) => s.setPhase);
+  const navigatePhase = onNavigatePhase ?? ((phase: 'reputation' | 'awards') => setPhase(phase));
   const [recentMedia, setRecentMedia] = useState<MediaItem[]>([]);
   const [mediaStats, setMediaStats] = useState<any>({});
   const [selectedFilter, setSelectedFilter] = useState<'all' | 'positive' | 'negative' | 'player'>('all');
@@ -263,24 +266,22 @@ export const MediaDashboard: React.FC<MediaDashboardProps> = ({
             core reputation each week.
           </p>
 
-          {onNavigatePhase && (
-            <div className="mt-4 flex flex-wrap gap-2">
-              <Button
-                size="sm"
-                variant="outline"
-                onClick={() => onNavigatePhase('reputation')}
-              >
-                Open Reputation Panel
-              </Button>
-              <Button
-                size="sm"
-                variant="outline"
-                onClick={() => onNavigatePhase('awards')}
-              >
-                Awards & Campaigns
-              </Button>
-            </div>
-          )}
+          <div className="mt-4 flex flex-wrap gap-2">
+            <Button
+              size="sm"
+              variant="outline"
+              onClick={() => navigatePhase('reputation')}
+            >
+              Open Reputation Panel
+            </Button>
+            <Button
+              size="sm"
+              variant="outline"
+              onClick={() => navigatePhase('awards')}
+            >
+              Awards & Campaigns
+            </Button>
+          </div>
         </CardContent>
       </Card>
 
@@ -314,8 +315,7 @@ export const MediaDashboard: React.FC<MediaDashboardProps> = ({
               <div className="flex gap-2 mt-1">
                 {['all', 'positive', 'negative', 'player'].map(filter => (
                   <Button
-                    key={filter}
-                    variant={selectedFilter === filter ? 'default' : 'outline'}
+                    variant="outline"
                     size="sm"
                     onClick={() => setSelectedFilter(filter as any)}
                   >
