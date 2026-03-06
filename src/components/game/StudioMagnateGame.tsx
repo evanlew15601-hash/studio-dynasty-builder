@@ -2374,17 +2374,7 @@ export const StudioMagnateGame: React.FC<StudioMagnateGameProps> = ({
       />
 
       {/* Background financial accuracy service */}
-      <EnhancedFinancialAccuracy
-        gameState={gameState}
-        onProjectUpdate={(projectId, updates) => {
-          setGameState(prev => ({
-            ...prev,
-            projects: prev.projects.map(p =>
-              p.id === projectId ? { ...p, ...updates } : p
-            )
-          }));
-        }}
-      />
+      <EnhancedFinancialAccuracy />
 
       {/* Studio Header */}
       <div className="border-b border-border/50 card-premium backdrop-blur-lg">
@@ -2830,7 +2820,6 @@ export const StudioMagnateGame: React.FC<StudioMagnateGameProps> = ({
               }}
             />
             <SequelManagementComponent
-              gameState={gameState}
               onProjectCreate={(script) => {
                 // Route sequel scripts to Script Development for refinement instead of instant project creation
                 setSelectedFranchise(script.franchiseId || null);
@@ -2971,18 +2960,7 @@ export const StudioMagnateGame: React.FC<StudioMagnateGameProps> = ({
         )}
 
         {import.meta.env.DEV && currentPhase === 'tv-tests' && (
-          <TelevisionSystemTests 
-            gameState={gameState} 
-            onUpdateBudget={(amount) => {
-              setGameState(prev => ({
-                ...prev,
-                studio: { ...prev.studio, budget: prev.studio.budget + amount }
-              }));
-            }}
-            onGameStateUpdate={(updates) => {
-              setGameState(prev => ({ ...prev, ...updates }));
-            }}
-          />
+          <TelevisionSystemTests />
         )}
          
          {currentPhase === 'talent' && (

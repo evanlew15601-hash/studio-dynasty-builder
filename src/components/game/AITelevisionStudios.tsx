@@ -1,18 +1,16 @@
 import React from 'react';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
-import { Badge } from '@/components/ui/badge';
-import { GameState } from '@/types/game';
-import { Building, Tv } from 'lucide-react';
+import { useGameStore } from '@/game/store';
+import { Building } from 'lucide-react';
 
-interface AITelevisionStudiosProps {
-  gameState: GameState;
-  onGameStateUpdate: (updates: Partial<GameState>) => void;
-}
+interface AITelevisionStudiosProps {}
 
-export const AITelevisionStudios: React.FC<AITelevisionStudiosProps> = ({
-  gameState,
-  onGameStateUpdate
-}) => {
+export const AITelevisionStudios: React.FC<AITelevisionStudiosProps> = () => {
+  const gameState = useGameStore((s) => s.game);
+
+  if (!gameState) {
+    return <div className="p-6 text-sm text-muted-foreground">Loading AI studios...</div>;
+  }
   return (
     <Card>
       <CardHeader>

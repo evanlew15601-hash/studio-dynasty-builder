@@ -29,7 +29,6 @@ export const ComprehensiveTelevisionSystem: React.FC<ComprehensiveTelevisionSyst
   selectedPublicDomain
 }) => {
   const gameState = useGameStore((s) => s.game);
-  const mergeGameState = useGameStore((s) => s.mergeGameState);
   const updateBudget = useGameStore((s) => s.updateBudget);
   const updateProject = useGameStore((s) => s.updateProject);
 
@@ -130,10 +129,7 @@ export const ComprehensiveTelevisionSystem: React.FC<ComprehensiveTelevisionSyst
 
         {import.meta.env.DEV && (
           <TabsContent value="competition">
-            <AITelevisionStudios
-              gameState={gameState}
-              onGameStateUpdate={mergeGameState}
-            />
+            <AITelevisionStudios />
           </TabsContent>
         )}
       </Tabs>

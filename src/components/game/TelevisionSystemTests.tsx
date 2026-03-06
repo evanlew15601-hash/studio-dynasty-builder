@@ -4,7 +4,7 @@ import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
 import { Progress } from '@/components/ui/progress';
 import { useToast } from '@/hooks/use-toast';
-import { GameState, TalentPerson } from '@/types/game';
+import { useGameStore } from '@/game/store';
 import { 
   Tv, 
   Play, 
@@ -28,17 +28,12 @@ interface TestResult {
   error?: string;
 }
 
-interface TelevisionSystemTestsProps {
-  gameState: GameState;
-  onUpdateBudget: (amount: number) => void;
-  onGameStateUpdate: (updates: Partial<GameState>) => void;
-}
+interface TelevisionSystemTestsProps {}
 
-export const TelevisionSystemTests: React.FC<TelevisionSystemTestsProps> = ({
-  gameState,
-  onUpdateBudget,
-  onGameStateUpdate
-}) => {
+export const TelevisionSystemTests: React.FC<TelevisionSystemTestsProps> = () => {
+  const gameState = useGameStore((s) => s.game);
+  const updateBudget = useGameStore((s) => s.updateBudget);
+  const mergeGameState = useGameStore((s) => s.mergeGameState);
   const { toast } = useToast();
   const [testResults, setTestResults] = useState<TestResult[]>([]);
   const [isRunning, setIsRunning] = useState(false);
@@ -60,6 +55,10 @@ export const TelevisionSystemTests: React.FC<TelevisionSystemTestsProps> = ({
   useEffect(() => {
     setTestResults(initialTests);
   }, []);
+
+  if (!gameState) {
+    return <div className="p-6 text-sm text-muted-foreground">Loading television tests...</div>;
+  }
 
   const updateTestResult = (testId: string, status: TestResult['status'], details?: string, error?: string) => {
     setTestResults(prev => prev.map(test => 
@@ -570,13 +569,12 @@ export const TelevisionSystemTests: React.FC<TelevisionSystemTestsProps> = ({
       }
 
       // Test state update functions
-      if (typeof onUpdateBudget !== 'function') {
+      if (typeof updateBudget !== 'function') {
         throw new Error('Budget update function not available');
       }
 
-      // onGameStateUpdate is optional, so only test if provided
-      if (onGameStateUpdate && typeof onGameStateUpdate !== 'function') {
-        throw new Error('Game state update function has wrong type');
+      if (typeof mergeGameState !== 'function') {
+        throw new Error('Game state merge function not available');
       }
 
       // Test UI state management
