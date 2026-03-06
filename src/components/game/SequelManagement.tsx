@@ -13,7 +13,6 @@ import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger } from 
 
 interface SequelManagementProps {
   onProjectCreate: (script: Script) => void;
-  onProjectUpdate: (project: Project) => void;
   onCreateFranchise?: (franchise: Franchise) => void;
 }
 
@@ -35,10 +34,10 @@ interface SequelPlan {
 
 export const SequelManagement: React.FC<SequelManagementProps> = ({
   onProjectCreate,
-  onProjectUpdate,
   onCreateFranchise
 }) => {
   const gameState = useGameStore((s) => s.game);
+  const replaceProject = useGameStore((s) => s.replaceProject);
   const { toast } = useToast();
   const [selectedProject, setSelectedProject] = useState<Project | null>(null);
   const [sequelPlan, setSequelPlan] = useState<SequelPlan | null>(null);
@@ -228,7 +227,7 @@ export const SequelManagement: React.FC<SequelManagementProps> = ({
         },
         franchisePosition: 1
       };
-      onProjectUpdate(updatedOriginalProject);
+      replaceProject(updatedOriginalProject);
     }
     
     const sequelScript: Script = {

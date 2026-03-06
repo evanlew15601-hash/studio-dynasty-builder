@@ -20,16 +20,12 @@ import {
 import { getModBundle } from '@/utils/moddingStore';
 import { FinancialEngine } from './FinancialEngine';
 
-interface StreamingContractSystemProps {
-  onProjectUpdate: (projectId: string, updates: Partial<Project>) => void;
-  onUpdateBudget: (amount: number) => void;
-}
+interface StreamingContractSystemProps {}
 
-export const StreamingContractSystem: React.FC<StreamingContractSystemProps> = ({
-  onProjectUpdate,
-  onUpdateBudget
-}) => {
+export const StreamingContractSystem: React.FC<StreamingContractSystemProps> = () => {
   const gameState = useGameStore((s) => s.game);
+  const updateProject = useGameStore((s) => s.updateProject);
+  const updateBudget = useGameStore((s) => s.updateBudget);
   const { toast } = useToast();
   const [, setSelectedProject] = useState<Project | null>(null);
   const mods = useMemo(() => getModBundle(), []);
@@ -258,7 +254,7 @@ export const StreamingContractSystem: React.FC<StreamingContractSystemProps> = (
     const contract = generateContract(project, platformId, dealKind);
     const platform = getAllProviders(mods).find(p => p.id === platformId);
 
-    onProjectUpdate(project.id, {
+    updateProject(project.id, {
       streamingContract: contract,
       marketingCampaign: {
         ...project.marketingCampaign,
@@ -267,7 +263,7 @@ export const StreamingContractSystem: React.FC<StreamingContractSystemProps> = (
       }
     });
 
-    onUpdateBudget(contract.upfrontPayment);
+    updateBudget(contract.upfrontPayment);
 
     const category = dealKind === 'cable' ? 'licensing' : 'streaming';
 
@@ -338,14 +334,14 @@ export const StreamingContractSystem: React.FC<StreamingContractSystemProps> = (
       performanceScore: Math.floor(performanceScore)
     };
 
-    onProjectUpdate(project.id, {
+    updateProject(project.id, {
       streamingContract: updatedContract
     });
 
     const category = contract.dealKind === 'cable' ? 'licensing' : 'streaming';
 
     if (bonusEarned > 0) {
-      onUpdateBudget(bonusEarned);
+      updateBudget(bonusEarned);
       FinancialEngine.recordTransaction(
         'revenue',
         category,
@@ -362,7 +358,7 @@ export const StreamingContractSystem: React.FC<StreamingContractSystemProps> = (
     }
 
     if (penalty > 0) {
-      onUpdateBudget(-penalty);
+      updateBudget(-penalty);
       FinancialEngine.recordTransaction(
         'expense',
         category,

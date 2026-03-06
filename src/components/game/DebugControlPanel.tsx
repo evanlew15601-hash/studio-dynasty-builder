@@ -5,41 +5,38 @@ import { Input } from '@/components/ui/input';
 import { Slider } from '@/components/ui/slider';
 import { Badge } from '@/components/ui/badge';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
-import { TimeState } from './TimeSystem';
 import { Project } from '@/types/game';
-import type { SeasonData, EpisodeData, StreamingContract } from '@/types/streamingTypes';
+import type { SeasonData, EpisodeData } from '@/types/streamingTypes';
 import { BoxOfficeSystem } from './BoxOfficeSystem';
 import { TVRatingsSystem } from './TVRatingsSystem';
 import { Clock, FastForward, DollarSign, Star, Settings2, Film, Tv, MonitorPlay } from 'lucide-react';
+import { useGameStore } from '@/game/store';
 
 interface DebugControlPanelProps {
-  time: TimeState;
-  studioBudget: number;
-  studioDebt: number;
-  studioReputation: number;
-  projects: Project[];
   onAdvanceWeeks: (weeks: number) => void;
   onAdvanceToDate: (week: number, year: number) => void;
-  onSetBudget: (budget: number) => void;
-  onSetDebt: (debt: number) => void;
-  onSetReputation: (reputation: number) => void;
-  onProjectUpdate: (project: Project) => void;
-  onStreamingContractDebug?: (projectId: string, contract: StreamingContract) => void;
 }
 
 export const DebugControlPanel: React.FC<DebugControlPanelProps> = ({
-  time,
-  studioBudget,
-  studioDebt,
-  studioReputation,
-  projects,
   onAdvanceWeeks,
   onAdvanceToDate,
-  onSetBudget,
-  onSetDebt,
-  onSetReputation,
-  onProjectUpdate,
 }) => {
+  const gameState = useGameStore((s) => s.game);
+  const setGameState = useGameStore((s) => s.setGameState);
+  const replaceProject = useGameStore((s) => s.replaceProject);
+
+  const time = gameState
+    ? {
+        currentWeek: gameState.currentWeek,
+        currentYear: gameState.currentYear,
+        currentQuarter: gameState.currentQuarter,
+      }
+    : { currentWeek: 1, currentYear: 0, currentQuarter: 1 };
+
+  const studioBudget = gameState?.studio.budget ?? 0;
+  const studioDebt = gameState?.studio.debt ?? 0;
+  const studioReputation = gameState?.studio.reputation ?? 0;
+  const projects = gameState?.projects ?? [];
   const [weeksInput, setWeeksInput] = useState(4);
   const [targetWeek, setTargetWeek] = useState(time.currentWeek);
   const [targetYear, setTargetYear] = useState(time.currentYear);
@@ -91,17 +88,32 @@ export const DebugControlPanel: React.FC<DebugControlPanelProps> = ({
 
   const handleBudgetApply = () => {
     const value = Number.isFinite(budgetMillions) ? budgetMillions : 0;
-    onSetBudget(Math.max(0, value * 1_000_000));
+    const budget = Math.max(0, value * 1_000_000);
+
+    setGameState((prev) => ({
+      ...prev,
+      studio: { ...prev.studio, budget },
+    }));
   };
 
   const handleDebtApply = () => {
     const value = Number.isFinite(debtMillions) ? debtMillions : 0;
-    onSetDebt(Math.max(0, value * 1_000_000));
+    const debt = Math.max(0, value * 1_000_000);
+
+    setGameState((prev) => ({
+      ...prev,
+      studio: { ...prev.studio, debt },
+    }));
   };
 
   const handleReputationApply = () => {
     const value = Number.isFinite(reputation) ? reputation : 0;
-    onSetReputation(Math.max(0, Math.min(100, value)));
+    const next = Math.max(0, Math.min(100, value));
+
+    setGameState((prev) => ({
+      ...prev,
+      studio: { ...prev.studio, reputation: next },
+    }));
   };
 
   const createSeasonWithEpisodes = (
@@ -259,14 +271,14 @@ export const DebugControlPanel: React.FC<DebugControlPanelProps> = ({
       readyForRelease: true,
     } as Project;
 
-    onProjectUpdate(updated);
+    replaceProject(updated);
   };
 
   const handleSkipToTvDebut = () => {
     if (!selectedProject || !isTVProject) return;
 
     const updated = createSeasonWithEpisodes(selectedProject, 1);
-    onProjectUpdate(updated);
+    replaceProject(updated);
   };
 
   const handleSkipToStreamingDebut = () => {
@@ -276,7 +288,7 @@ export const DebugControlPanel: React.FC<DebugControlPanelProps> = ({
       ? Math.ceil(selectedProject.script.estimatedRuntime / 45)
       : 10;
     const updated = createSeasonWithEpisodes(selectedProject, episodeCount);
-    onProjectUpdate(updated);
+    replaceProject(updated);
   };
 
   return (

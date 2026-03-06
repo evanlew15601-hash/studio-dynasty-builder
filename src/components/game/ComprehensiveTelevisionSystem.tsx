@@ -29,8 +29,7 @@ export const ComprehensiveTelevisionSystem: React.FC<ComprehensiveTelevisionSyst
   selectedPublicDomain
 }) => {
   const gameState = useGameStore((s) => s.game);
-  const updateBudget = useGameStore((s) => s.updateBudget);
-  const updateProject = useGameStore((s) => s.updateProject);
+  
 
   if (!gameState) {
     return <div className="p-6 text-sm text-muted-foreground">Loading television systems...</div>;
@@ -121,10 +120,7 @@ export const ComprehensiveTelevisionSystem: React.FC<ComprehensiveTelevisionSyst
         </TabsContent>
 
         <TabsContent value="streaming">
-          <StreamingContractSystem
-            onProjectUpdate={(projectId, updates) => updateProject(projectId, updates)}
-            onUpdateBudget={updateBudget}
-          />
+          <StreamingContractSystem />
         </TabsContent>
 
         {import.meta.env.DEV && (

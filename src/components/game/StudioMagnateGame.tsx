@@ -2476,43 +2476,9 @@ export const StudioMagnateGame: React.FC<StudioMagnateGameProps> = ({
         <div className="border-b border-border/30 bg-background/80">
           <div className="container mx-auto px-6 py-3">
             <DebugControlPanel
-                time={{
-                  currentWeek: gameState.currentWeek,
-                  currentYear: gameState.currentYear,
-                  currentQuarter: gameState.currentQuarter,
-                }}
-                studioBudget={gameState.studio.budget}
-                studioDebt={gameState.studio.debt || 0}
-                studioReputation={gameState.studio.reputation}
-                projects={gameState.projects}
-                onAdvanceWeeks={handleAdvanceWeeks}
-                onAdvanceToDate={handleAdvanceToDate}
-                onSetBudget={(budget) =>
-                  setGameState((prev) => ({
-                    ...prev,
-                    studio: { ...prev.studio, budget },
-                  }))
-                }
-                onSetDebt={(debt) =>
-                  setGameState((prev) => ({
-                    ...prev,
-                    studio: { ...prev.studio, debt },
-                  }))
-                }
-                onSetReputation={(reputation) =>
-                  setGameState((prev) => ({
-                    ...prev,
-                    studio: { ...prev.studio, reputation },
-                  }))
-                }
-                onProjectUpdate={(project) => handleProjectUpdate(project)}
-                onStreamingContractDebug={(projectId, contract) => {
-                  const project = gameState.projects.find(p => p.id === projectId);
-                  if (project) {
-                    handleProjectUpdate({ ...project, streamingContract: contract });
-                  }
-                }}
-              />
+              onAdvanceWeeks={handleAdvanceWeeks}
+              onAdvanceToDate={handleAdvanceToDate}
+            />
           </div>
         </div>
       )}
@@ -2838,7 +2804,6 @@ export const StudioMagnateGame: React.FC<StudioMagnateGameProps> = ({
                   description: `"${script.title}" has been added to Script Development. Refine it to "final" stage before greenlighting.`,
                 });
               }}
-              onProjectUpdate={handleProjectUpdate}
               onCreateFranchise={handleCreateFranchise}
             />
           </div>
