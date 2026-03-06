@@ -1,4 +1,4 @@
 [[permission]]
 identifier = "saves:default"
 description = "Allow the frontend to persist/load save slots via Rust commands."
-commands.allow = ["save_slot", "load_slot", "list_slots", "delete_slot"]
+commands.allow = ["saveSlot", "loadSlot", "list_slots", "deleteSlot"]
