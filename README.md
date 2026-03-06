@@ -91,7 +91,7 @@ Notes:
 - This repo is configured to build Windows installers (`bundle.targets: ["nsis", "msi"]`).
 - MSI installers can only be created on Windows.
 - Installers are configured for **per-machine** install (requires admin).
-- The Windows installer bundles the **WebView2 bootstrapper** and runs it (`embedBootstrapper`).
+- The Windows installer bundles the **offline WebView2 installer** (no internet required) and runs it (`offlineInstaller`).
 - App icon currently points to `public/favicon.ico`. For a full icon set, generate icons with:
 
 ```sh
