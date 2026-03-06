@@ -16,7 +16,7 @@ import { MediaEngine } from './MediaEngine';
 import type { MediaItem } from '../../types/game';
 import { CrisisManagement, Crisis } from './CrisisManagement';
 import { MediaRelationships } from './MediaRelationships';
-import { GameState } from '../../types/game';
+import { useGameStore } from '@/game/store';
 
 interface MediaNotification {
   id: string;
@@ -31,18 +31,23 @@ interface MediaNotification {
 }
 
 interface Props {
-  gameState: GameState;
   onNotificationAction?: (notification: MediaNotification) => void;
 }
 
-export const MediaNotifications: React.FC<Props> = ({ gameState, onNotificationAction }) => {
+export const MediaNotifications: React.FC<Props> = ({ onNotificationAction }) => {
+  const gameState = useGameStore((s) => s.game);
   const [notifications, setNotifications] = useState<MediaNotification[]>([]);
   const [unreadCount, setUnreadCount] = useState(0);
   const [showAll, setShowAll] = useState(false);
 
   useEffect(() => {
+    if (!gameState) return;
     generateNotifications();
-  }, [gameState.currentWeek, gameState.currentYear]);
+  }, [gameState?.currentWeek, gameState?.currentYear]);
+
+  if (!gameState) {
+    return <div className="p-6 text-sm text-muted-foreground">Loading media notifications...</div>;
+  }
 
   const generateNotifications = () => {
     const newNotifications: MediaNotification[] = [];

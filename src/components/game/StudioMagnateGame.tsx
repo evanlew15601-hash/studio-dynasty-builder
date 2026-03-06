@@ -3123,9 +3123,7 @@ export const StudioMagnateGame: React.FC<StudioMagnateGameProps> = ({
         
         {currentPhase === 'production' && (
           <ProductionManagement 
-            gameState={gameState}
             selectedProject={selectedProject}
-            onProjectUpdate={handleProjectUpdate}
           />
         )}
         
@@ -3134,19 +3132,6 @@ export const StudioMagnateGame: React.FC<StudioMagnateGameProps> = ({
             <div className="space-y-6">
               <EnhancedMarketingSystem
                 project={selectedProject}
-                gameState={gameState}
-                onUpdateProject={(projectId, updates) => {
-                  const project = gameState.projects.find(p => p.id === projectId);
-                  if (project) {
-                    handleProjectUpdate({ ...project, ...updates });
-                  }
-                }}
-                onUpdateBudget={(amount) => {
-                  setGameState(prev => ({
-                    ...prev,
-                    studio: { ...prev.studio, budget: prev.studio.budget + amount }
-                  }));
-                }}
               />
 
               {/* Film release planning entry point (reuses unified ReleaseStrategyModal) */}
@@ -3209,7 +3194,6 @@ export const StudioMagnateGame: React.FC<StudioMagnateGameProps> = ({
                   import('./MediaDashboard').then(m => ({ default: m.MediaDashboard }))
                   .catch(() => import('./MediaNotifications').then(m => ({ default: m.MediaNotifications })))
                 ), {
-                  gameState: gameState,
                   onNavigatePhase: (phase: 'reputation' | 'awards') => handlePhaseChange(phase as any)
                 })}
               </TabsContent>
@@ -3322,11 +3306,7 @@ export const StudioMagnateGame: React.FC<StudioMagnateGameProps> = ({
         {currentPhase === 'stats' && (
           <div className="space-y-6">
             <PerformanceMetrics />
-            <BackgroundSimulationComponent
-              gameState={gameState}
-              onWorldUpdate={(updates) => setGameState(prev => ({ ...prev, ...updates }))}
-              onStudioUpdate={handleStudioUpdate}
-            />
+            <BackgroundSimulationComponent />
             {import.meta.env.DEV && (
               <IntegrationMonitor />
             )}

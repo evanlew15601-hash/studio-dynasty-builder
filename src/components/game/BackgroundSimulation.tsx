@@ -1,17 +1,12 @@
 import React, { useEffect, useState } from 'react';
-import type { GameState, Studio } from '@/types/game';
+import type { Studio } from '@/types/game';
+import { useGameStore } from '@/game/store';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
 import { Progress } from '@/components/ui/progress';
 import { Activity, Zap, Users, TrendingUp, Star } from 'lucide-react';
 
-interface BackgroundSimulationProps {
-  gameState: GameState;
-  // Deprecated: state mutation must happen only inside the weekly tick (Advance Week).
-  // These are kept optional to avoid breaking older callers.
-  onWorldUpdate?: (updates: Partial<GameState>) => void;
-  onStudioUpdate?: (updates: Partial<Studio>) => void;
-}
+interface BackgroundSimulationProps {}
 
 interface BackgroundActivity {
   id: string;
@@ -53,7 +48,10 @@ interface MarketUndercurrent {
   maturity: number; // weeks since emergence
 }
 
-export const BackgroundSimulation: React.FC<BackgroundSimulationProps> = ({ gameState }) => {
+export const BackgroundSimulation: React.FC<BackgroundSimulationProps> = () => {
+  const gameState = useGameStore((s) => s.game);
+  const gameStateReady = !!gameState;
+
   const [backgroundActivities, setBackgroundActivities] = useState<BackgroundActivity[]>([]);
   const [competitorActivities, setCompetitorActivities] = useState<CompetitorActivity[]>([]);
   const [talentEvolution, setTalentEvolution] = useState<TalentEvolution[]>([]);
@@ -62,8 +60,9 @@ export const BackgroundSimulation: React.FC<BackgroundSimulationProps> = ({ game
 
   // Initialize background systems
   useEffect(() => {
+    if (!gameState) return;
     initializeBackgroundSystems();
-  }, []);
+  }, [gameStateReady]);
 
   const initializeBackgroundSystems = () => {
     // Initialize market undercurrents
@@ -405,8 +404,13 @@ export const BackgroundSimulation: React.FC<BackgroundSimulationProps> = ({ game
 
   // Process updates when week advances
   useEffect(() => {
+    if (!gameState) return;
     processWeeklyBackground();
-  }, [gameState.currentWeek, gameState.currentYear]);
+  }, [gameState?.currentWeek, gameState?.currentYear]);
+
+  if (!gameState) {
+    return <div className="p-6 text-sm text-muted-foreground">Loading world simulation...</div>;
+  }
 
   const getActiveActivities = () => backgroundActivities.filter(a => a.progress < 100);
   const getRecentCompetitorMoves = () => competitorActivities.slice(0, 5);

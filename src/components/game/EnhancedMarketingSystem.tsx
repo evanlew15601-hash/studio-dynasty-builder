@@ -4,16 +4,13 @@ import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
 import { Progress } from '@/components/ui/progress';
 import { Slider } from '@/components/ui/slider';
-import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { useToast } from '@/hooks/use-toast';
-import { Project, GameState } from '@/types/game';
+import { Project } from '@/types/game';
+import { useGameStore } from '@/game/store';
 import { TrendingUp, Target, Zap, Users, Globe, Tv, Radio, Newspaper, Play, Monitor } from 'lucide-react';
 
 interface EnhancedMarketingSystemProps {
   project: Project;
-  gameState: GameState;
-  onUpdateProject: (projectId: string, updates: Partial<Project>) => void;
-  onUpdateBudget: (amount: number) => void;
 }
 
 interface MarketingCampaign {
@@ -156,14 +153,18 @@ const getMarketingCampaigns = (projectType: string): MarketingCampaign[] => {
 
 export const EnhancedMarketingSystem: React.FC<EnhancedMarketingSystemProps> = ({
   project,
-  gameState,
-  onUpdateProject,
-  onUpdateBudget
 }) => {
+  const gameState = useGameStore((s) => s.game);
+  const updateProject = useGameStore((s) => s.updateProject);
+  const updateBudget = useGameStore((s) => s.updateBudget);
   const { toast } = useToast();
   const [selectedCampaigns, setSelectedCampaigns] = useState<string[]>([]);
   const [intensity, setIntensity] = useState<number>(50);
   const [duration, setDuration] = useState<number>(4);
+
+  if (!gameState) {
+    return <div className="p-6 text-sm text-muted-foreground">Loading marketing tools...</div>;
+  }
 
   const availableCampaigns = getMarketingCampaigns(project.type);
 
@@ -255,7 +256,7 @@ export const EnhancedMarketingSystem: React.FC<EnhancedMarketingSystemProps> = (
       };
     });
 
-    onUpdateProject(project.id, {
+    updateProject(project.id, {
       currentPhase: 'marketing' as any,
       status: 'marketing' as any,
       phaseDuration: -1, // Manual control — campaign duration drives this
@@ -289,7 +290,7 @@ export const EnhancedMarketingSystem: React.FC<EnhancedMarketingSystemProps> = (
     });
 
     // Deduct budget
-    onUpdateBudget(-totalCost);
+    updateBudget(-totalCost);
     
     // Reset form
     setSelectedCampaigns([]);
