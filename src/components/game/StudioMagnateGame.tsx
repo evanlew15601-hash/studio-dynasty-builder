@@ -709,9 +709,8 @@ export const StudioMagnateGame: React.FC<StudioMagnateGameProps> = ({
 
   // Handle achievement rewards
   const handleAchievementRewards = (unlockedAchievements: Array<{ id?: string; reward?: { reputation?: number; budget?: number } }>) => {
-    unlockedAchievements.forEach((achievement) => {
+    unlockedAchievements.forEach(achievement => {
       if (!achievement.reward) return;
-
       if (achievement.reward.reputation) {
         updateReputation(achievement.reward.reputation);
       }
@@ -1764,7 +1763,7 @@ export const StudioMagnateGame: React.FC<StudioMagnateGameProps> = ({
       const measure = <T,>(id: string, label: string, fn: () => T): T => {
         const start = performance.now();
         const result = fn();
-        systems.push({ id, label, durationMs: performance.now() - start });
+        systems.push({ id, label, ms: performance.now() - start });
         return result;
       };
 

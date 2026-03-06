@@ -3,7 +3,8 @@ import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
 import { Progress } from '@/components/ui/progress';
 import { Button } from '@/components/ui/button';
-import { GameState, TalentPerson, Project } from '@/types/game';
+import type { GameState, TalentPerson, Project } from '@/types/game';
+import { useGameStore } from '@/game/store';
 import { Building, Film, Users, TrendingUp, Calendar, Star } from 'lucide-react';
 
 interface AIStudio {
