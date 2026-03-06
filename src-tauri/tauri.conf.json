@@ -29,14 +29,16 @@
     "icon": ["../public/favicon.ico"],
     "windows": {
       "webviewInstallMode": {
-        "type": "downloadBootstrapper"
+        "type": "embedBootstrapper",
+        "silent": true
       },
       "nsis": {
-        "installMode": "perUser",
+        "installMode": "perMachine",
         "displayLanguageSelector": true
       },
       "wix": {
-        "language": "en-US"
+        "language": "en-US",
+        "upgradeCode": "9a3c0de9-3c76-4c67-97da-1ad1cbf58c64"
       }
     }
   }
