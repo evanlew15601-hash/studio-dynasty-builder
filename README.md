@@ -59,6 +59,37 @@ This project is built with:
 - React
 - shadcn-ui
 - Tailwind CSS
+- Tauri v2 (desktop packaging)
+
+## Desktop builds (Tauri)
+
+### Prerequisites
+
+- Node.js + npm
+- Rust toolchain (stable) + Cargo
+- Tauri prerequisites for your OS (WebView, build tools)
+  - See: https://tauri.app/start/prerequisites/
+
+### Run as a desktop app (dev)
+
+```sh
+npm i
+npm run tauri:dev
+```
+
+### Build installable bundles
+
+```sh
+npm run tauri:build
+```
+
+Notes:
+- Bundling is enabled in `src-tauri/tauri.conf.json` (`bundle.active: true`).
+- If you want custom app icons, generate them with the Tauri CLI:
+
+```sh
+npx tauri icon public/placeholder.svg
+```
 
 ## How can I deploy this project?
 
