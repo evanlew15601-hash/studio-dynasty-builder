@@ -397,6 +397,10 @@ export const StudioMagnateGame: React.FC<StudioMagnateGameProps> = ({
   const loadGameToStore = useGameStore((s) => s.loadGame);
   const storeGameState = useGameStore((s) => s.game);
   const setGameState = useGameStore((s) => s.setGameState);
+  const updateStudio = useGameStore((s) => s.updateStudio);
+  const updateTalent = useGameStore((s) => s.updateTalent);
+  const upsertScript = useGameStore((s) => s.upsertScript);
+  const updateBudget = useGameStore((s) => s.updateBudget);
 
   const [bootstrapGameState] = useState<GameState>(() => {
     // If we have a loaded game, use it directly and skip heavy init
@@ -924,17 +928,11 @@ export const StudioMagnateGame: React.FC<StudioMagnateGameProps> = ({
   };
 
   const handleStudioUpdate = (updates: Partial<Studio>) => {
-    setGameState(prev => ({
-      ...prev,
-      studio: { ...prev.studio, ...updates }
-    }));
+    updateStudio(updates);
   };
 
   const handleTalentUpdate = (talentId: string, updates: Partial<TalentPerson>) => {
-    setGameState(prev => ({
-      ...prev,
-      talent: prev.talent.map(t => t.id === talentId ? { ...t, ...updates } : t)
-    }));
+    updateTalent(talentId, updates);
   };
 
   const handleCreateFranchise = (franchise: any) => {
@@ -948,14 +946,7 @@ export const StudioMagnateGame: React.FC<StudioMagnateGameProps> = ({
     });
   };
 
-  const handleUpdateFranchise = (franchiseId: string, updates: any) => {
-    setGameState(prev => ({
-      ...prev,
-      franchises: (prev.franchises || []).map(f => 
-        f.id === franchiseId ? { ...f, ...updates } : f
-      )
-    }));
-  };
+  
 
   // Handle award show triggers
   const handleAwardShow = (ceremony: AwardShowCeremony) => {
@@ -2621,7 +2612,6 @@ export const StudioMagnateGame: React.FC<StudioMagnateGameProps> = ({
         {currentPhase === 'franchise' && (
           <div className="space-y-6">
             <OwnedFranchiseManager
-              onUpdateFranchise={handleUpdateFranchise}
               onCreateProject={(franchiseId) => {
                 // Create a basic script for a franchise film project and send it to Script Development
                 const franchise = gameState.franchises.find(f => f.id === franchiseId);
@@ -2659,10 +2649,7 @@ export const StudioMagnateGame: React.FC<StudioMagnateGameProps> = ({
                 setSelectedPublicDomain(null);
                 handlePhaseChange('scripts');
 
-                setGameState(prev => ({
-                  ...prev,
-                  scripts: [...prev.scripts, finalized]
-                }));
+                upsertScript(finalized);
 
                 toast({
                   title: 'Script Draft Created',
@@ -2691,12 +2678,7 @@ export const StudioMagnateGame: React.FC<StudioMagnateGameProps> = ({
                 // Route to the appropriate development workspace
                 handlePhaseChange(isTVScript ? 'television' : 'scripts');
 
-                setGameState(prev => ({
-                  ...prev,
-                  scripts: prev.scripts.some(s => s.id === finalized.id)
-                    ? prev.scripts.map(s => (s.id === finalized.id ? finalized : s))
-                    : [...prev.scripts, finalized]
-                }));
+                upsertScript(finalized);
                 toast({
                   title: 'Script Draft Created',
                   description: isTVScript
@@ -2754,13 +2736,7 @@ export const StudioMagnateGame: React.FC<StudioMagnateGameProps> = ({
 
                 // Deduct franchise cost if applicable
                 if (cost) {
-                  setGameState(prev => ({
-                    ...prev,
-                    studio: {
-                      ...prev.studio,
-                      budget: prev.studio.budget - cost
-                    }
-                  }));
+                  updateBudget(-cost);
                   
                   toast({
                     title: "Franchise Acquired!",
@@ -2772,12 +2748,7 @@ export const StudioMagnateGame: React.FC<StudioMagnateGameProps> = ({
                 setSelectedFranchise(franchiseId || null);
                 setSelectedPublicDomain(publicDomainId || null);
                 handlePhaseChange('scripts');
-                setGameState(prev => ({
-                  ...prev,
-                  scripts: prev.scripts.some(s => s.id === finalized.id)
-                    ? prev.scripts.map(s => s.id === finalized.id ? finalized : s)
-                    : [...prev.scripts, finalized]
-                }));
+                upsertScript(finalized);
 
                 toast({
                   title: "Script Draft Created",
@@ -2792,12 +2763,7 @@ export const StudioMagnateGame: React.FC<StudioMagnateGameProps> = ({
                 setSelectedPublicDomain(null);
                 handlePhaseChange('scripts');
 
-                setGameState(prev => ({
-                  ...prev,
-                  scripts: prev.scripts.some(s => s.id === script.id)
-                    ? prev.scripts.map(s => s.id === script.id ? script : s)
-                    : [...prev.scripts, script]
-                }));
+                upsertScript(script);
 
                 toast({
                   title: 'Sequel Script Created',

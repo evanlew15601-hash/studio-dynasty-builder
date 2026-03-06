@@ -1,5 +1,5 @@
 import React, { useState } from 'react';
-import { Franchise, Project } from '@/types/game';
+import { Franchise } from '@/types/game';
 import { useGameStore } from '@/game/store';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
@@ -14,17 +14,16 @@ import { useToast } from '@/hooks/use-toast';
 import { FinancialEngine } from './FinancialEngine';
 
 interface OwnedFranchiseManagerProps {
-  onUpdateFranchise: (franchiseId: string, updates: Partial<Franchise>) => void;
   onCreateProject: (franchiseId?: string) => void;
   onCreateTVProject?: (franchiseId: string) => void;
 }
 
 export const OwnedFranchiseManager: React.FC<OwnedFranchiseManagerProps> = ({
-  onUpdateFranchise,
   onCreateProject,
   onCreateTVProject
 }) => {
   const gameState = useGameStore((s) => s.game);
+  const setGameState = useGameStore((s) => s.setGameState);
   const { toast } = useToast();
   const [editingFranchise, setEditingFranchise] = useState<Franchise | null>(null);
   const [editForm, setEditForm] = useState({
@@ -73,11 +72,19 @@ export const OwnedFranchiseManager: React.FC<OwnedFranchiseManagerProps> = ({
   const saveEdit = () => {
     if (!editingFranchise) return;
 
-    onUpdateFranchise(editingFranchise.id, {
-      title: editForm.title,
-      description: editForm.description,
-      status: editForm.status
-    });
+    setGameState((prev) => ({
+      ...prev,
+      franchises: prev.franchises.map((f) =>
+        f.id === editingFranchise.id
+          ? {
+              ...f,
+              title: editForm.title,
+              description: editForm.description,
+              status: editForm.status,
+            }
+          : f
+      ),
+    }));
 
     toast({
       title: "Franchise Updated",
