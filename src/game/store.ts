@@ -47,6 +47,9 @@ export interface GameStoreState {
   /** Rolling history of recent tick reports */
   tickHistory: TickReport[];
 
+  /** Monotonic tick counter — increments once per advanced week */
+  tickId: number;
+
   /** Whether the game has been initialized */
   initialized: boolean;
 
@@ -144,6 +147,7 @@ export const useGameStore = create<GameStoreState>()(
     registry: new SystemRegistry(),
     lastTickReport: null,
     tickHistory: [],
+    tickId: 0,
     initialized: false,
     mods: null,
 
@@ -156,6 +160,7 @@ export const useGameStore = create<GameStoreState>()(
         s.initialized = true;
         s.lastTickReport = null;
         s.tickHistory = [];
+        s.tickId = 0;
       });
     },
 
@@ -168,6 +173,7 @@ export const useGameStore = create<GameStoreState>()(
         s.initialized = true;
         s.lastTickReport = null;
         s.tickHistory = [];
+        s.tickId = 0;
       });
     },
 
@@ -197,6 +203,7 @@ export const useGameStore = create<GameStoreState>()(
         // Persist the PRNG state ("seed" here is treated as current RNG state).
         s.seed = rng.state;
         s.rng = createRng(rng.state);
+        s.tickId += 1;
 
         if (report) {
           s.lastTickReport = report as any;
@@ -248,6 +255,7 @@ export const useGameStore = create<GameStoreState>()(
         s.game = result.nextState as any;
         s.seed = rngState;
         s.rng = createRng(rngState);
+        s.tickId += 1;
 
         if (report) {
           s.lastTickReport = report as any;
