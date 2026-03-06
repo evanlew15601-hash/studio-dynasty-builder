@@ -24,7 +24,24 @@
     ]
   },
   "bundle": {
-    "active": false,
-    "targets": "all"
+    "active": true,
+    "targets": ["nsis", "msi"],
+    "icon": ["../public/favicon.ico"],
+    "windows": {
+      "webviewInstallMode": {
+        "type": "offlineInstaller",
+        "silent": true
+      },
+      "nsis": {
+        "installMode": "perMachine",
+        "displayLanguageSelector": true
+      },
+      "wix": {
+        "language": "en-US",
+        "upgradeCode": "9a3c0de9-3c76-4c67-97da-1ad1cbf58c64"
+      }
+    }
+  }
+}
   }
 }
