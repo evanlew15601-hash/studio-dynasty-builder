@@ -27,7 +27,7 @@ interface MediaResponseDashboardProps {}
 
 export const MediaResponseDashboard: React.FC<MediaResponseDashboardProps> = () => {
   const gameState = useGameStore((s) => s.game);
-  const setGameState = useGameStore((s) => s.setGameState);
+  const updateStudio = useGameStore((s) => s.updateStudio);
   const updateBudget = useGameStore((s) => s.updateBudget);
   const [selectedMedia, setSelectedMedia] = useState<MediaItem | null>(null);
   const [customMessage, setCustomMessage] = useState('');
@@ -71,22 +71,13 @@ export const MediaResponseDashboard: React.FC<MediaResponseDashboardProps> = () 
       const reputationDelta = reaction.impact?.reputationChange || 0;
 
       // Apply effects to game state
-      if (reaction.cost || reputationDelta) {
-        setGameState((prev) => {
-          const nextBudget = prev.studio.budget - (reaction.cost || 0);
-          const nextReputation = Math.max(
-            0,
-            Math.min(100, (prev.studio.reputation || 0) + reputationDelta)
-          );
+      if (reaction.cost) {
+        updateBudget(-reaction.cost);
+      }
 
-          return {
-            ...prev,
-            studio: {
-              ...prev.studio,
-              budget: nextBudget,
-              reputation: nextReputation,
-            },
-          };
+      if (reputationDelta) {
+        updateStudio({
+          reputation: Math.max(0, Math.min(100, (gameState.studio.reputation || 0) + reputationDelta)),
         });
       }
 

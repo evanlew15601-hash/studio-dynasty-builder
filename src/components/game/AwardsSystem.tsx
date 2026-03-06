@@ -29,7 +29,8 @@ export const AwardsSystem: React.FC<AwardsSystemProps> = ({
   const setPhase = useUiStore((s) => s.setPhase);
   const navigatePhase = onNavigatePhase ?? ((phase: 'media' | 'distribution') => setPhase(phase));
   const replaceProject = useGameStore((s) => s.replaceProject);
-  const setGameState = useGameStore((s) => s.setGameState);
+  const updateStudio = useGameStore((s) => s.updateStudio);
+  const addStudioAwards = useGameStore((s) => s.addStudioAwards);
   const updateBudget = useGameStore((s) => s.updateBudget);
   const { toast } = useToast();
   const [showAwardsModal, setShowAwardsModal] = useState(false);
@@ -365,15 +366,12 @@ const aiProjects = gameState.allReleases.filter((release): release is Project =>
       if (wonAwards.length > 0) {
         const totalReputation = wonAwards.reduce((sum, award) => sum + award.reputationBoost, 0);
         const totalRevenue = wonAwards.reduce((sum, award) => sum + award.revenueBoost, 0);
-        setGameState((prev) => ({
-          ...prev,
-          studio: {
-            ...prev.studio,
-            reputation: Math.min(100, (prev.studio.reputation || 0) + totalReputation),
-            budget: prev.studio.budget + totalRevenue,
-            awards: [...(prev.studio.awards || []), ...wonAwards]
-          }
-        }));
+
+        updateStudio({
+          reputation: Math.min(100, (gameState.studio.reputation || 0) + totalReputation),
+        });
+        updateBudget(totalRevenue);
+        addStudioAwards(wonAwards);
       }
     }
   };

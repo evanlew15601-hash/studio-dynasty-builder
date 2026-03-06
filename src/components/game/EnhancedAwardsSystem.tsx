@@ -49,7 +49,8 @@ export const EnhancedAwardsSystem: React.FC<EnhancedAwardsSystemProps> = ({
   const gameState = useGameStore((s) => s.game);
   const setPhase = useUiStore((s) => s.setPhase);
   const navigatePhase = onNavigatePhase ?? ((phase: 'media' | 'distribution') => setPhase(phase));
-  const setGameState = useGameStore((s) => s.setGameState);
+  const updateReputation = useGameStore((s) => s.updateReputation);
+  const bumpTalent = useGameStore((s) => s.bumpTalent);
   const [activeCeremonies, setActiveCeremonies] = useState<AwardsCeremony[]>([]);
   const [viewMode, setViewMode] = useState<'upcoming' | 'nominees' | 'history'>('upcoming');
 
@@ -458,16 +459,7 @@ export const EnhancedAwardsSystem: React.FC<EnhancedAwardsSystemProps> = ({
     if (winner.projectId) {
       const project = gameState.projects.find(p => p.id === winner.projectId);
       if (project) {
-        setGameState(prev => ({
-          ...prev,
-          studio: {
-            ...prev.studio,
-            reputation: Math.max(
-              0,
-              Math.min(100, (prev.studio.reputation || 0) + reputationBonus)
-            )
-          }
-        }));
+        updateReputation(reputationBonus);
       } else {
         const aiProject = gameState.allReleases.find((r): r is Project => 'script' in r && r.id === winner.projectId);
         if (aiProject) {
@@ -478,21 +470,7 @@ export const EnhancedAwardsSystem: React.FC<EnhancedAwardsSystemProps> = ({
     
     if (winner.talentId) {
       const talentId = winner.talentId;
-      setGameState(prev => ({
-        ...prev,
-        talent: prev.talent.map(t =>
-          t.id === talentId
-            ? {
-                ...t,
-                reputation: (t.reputation || 0) + reputationBonus,
-                publicImage: Math.max(
-                  0,
-                  Math.min(100, (t.publicImage || t.reputation || 0) + reputationBonus)
-                )
-              }
-            : t
-        )
-      }));
+      bumpTalent(talentId, { reputation: reputationBonus, publicImage: reputationBonus });
     }
   };
 

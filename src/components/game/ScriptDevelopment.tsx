@@ -33,7 +33,7 @@ export const ScriptDevelopment: React.FC<ScriptDevelopmentProps> = ({
   onProjectCreate,
 }) => {
   const gameState = useGameStore((s) => s.game);
-  const setGameState = useGameStore((s) => s.setGameState);
+  const spendStudioFunds = useGameStore((s) => s.spendStudioFunds);
   const upsertScript = useGameStore((s) => s.upsertScript);
   const { toast } = useToast();
   
@@ -70,7 +70,7 @@ export const ScriptDevelopment: React.FC<ScriptDevelopmentProps> = ({
     if (selectedFranchise) {
       const franchise = gameState.franchises.find(f => f.id === selectedFranchise);
       if (franchise) {
-return {
+        return {
           title: `${franchise.title}${franchise.entries.length > 0 ? ` ${franchise.entries.length + 1}` : ''}`,
           genre: franchise.genre[0] || 'drama',
           logline: `${franchise.description || 'A continuation of the beloved franchise'} This installment explores new depths while honoring the legacy that fans love.`,
@@ -100,7 +100,7 @@ return {
     if (selectedPublicDomain) {
       const pd = gameState.publicDomainIPs.find(p => p.id === selectedPublicDomain);
       if (pd) {
-return {
+        return {
           title: `${pd.name}: A New Vision`,
           genre: pd.genreFlexibility[0] || 'drama',
           logline: `${pd.description || 'A fresh adaptation of a timeless classic'} This modern interpretation brings new relevance to the beloved story.`,
@@ -231,37 +231,8 @@ return {
   };
 
   const spendFunds: SpendFundsFn = (amount, description) => {
-    const currentDebt = gameState.studio.debt || 0;
-    const maxLoanCapacity = Math.max(0, 50000000 - currentDebt);
-    const availableFunds = gameState.studio.budget + maxLoanCapacity;
-
-    if (amount > availableFunds) return { success: false };
-
-    const budgetAfter = gameState.studio.budget - amount;
-    const loanTaken = budgetAfter < 0 ? Math.min(-budgetAfter, maxLoanCapacity) : 0;
-
-    setGameState((prev) => {
-      const prevDebt = prev.studio.debt || 0;
-      const prevMaxLoan = Math.max(0, 50000000 - prevDebt);
-      const prevAvailable = prev.studio.budget + prevMaxLoan;
-      if (amount > prevAvailable) return prev;
-
-      let nextBudget = prev.studio.budget - amount;
-      let nextDebt = prevDebt;
-      if (nextBudget < 0) {
-        nextDebt += -nextBudget;
-        nextBudget = 0;
-      }
-
-      return {
-        ...prev,
-        studio: {
-          ...prev.studio,
-          budget: nextBudget,
-          debt: nextDebt,
-        },
-      };
-    });
+    const result = spendStudioFunds(amount);
+    if (!result.success) return result;
 
     FinancialEngine.recordTransaction(
       'expense',
@@ -272,7 +243,7 @@ return {
       description
     );
 
-    return { success: true, loanTaken };
+    return result;
   };
 
   const handleAdvanceStage = (script: Script) => {

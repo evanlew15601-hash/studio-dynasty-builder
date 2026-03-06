@@ -399,8 +399,11 @@ export const StudioMagnateGame: React.FC<StudioMagnateGameProps> = ({
   const storeGameState = useGameStore((s) => s.game);
   const setGameState = useGameStore((s) => s.setGameState);
   const updateStudio = useGameStore((s) => s.updateStudio);
+  const updateReputation = useGameStore((s) => s.updateReputation);
   const updateTalent = useGameStore((s) => s.updateTalent);
+  const addProject = useGameStore((s) => s.addProject);
   const replaceProject = useGameStore((s) => s.replaceProject);
+  const appendFranchiseEntry = useGameStore((s) => s.appendFranchiseEntry);
   const upsertFranchise = useGameStore((s) => s.upsertFranchise);
   const upsertScript = useGameStore((s) => s.upsertScript);
   const updateBudget = useGameStore((s) => s.updateBudget);
@@ -714,15 +717,12 @@ export const StudioMagnateGame: React.FC<StudioMagnateGameProps> = ({
   // Handle achievement rewards
   const handleAchievementRewards = (unlockedAchievements: Array<{ id?: string; reward?: { reputation?: number; budget?: number } }>) => {
     unlockedAchievements.forEach(achievement => {
-      if (achievement.reward) {
-        setGameState(prev => ({
-          ...prev,
-          studio: {
-            ...prev.studio,
-            reputation: prev.studio.reputation + (achievement.reward.reputation || 0),
-            budget: prev.studio.budget + (achievement.reward.budget || 0)
-          }
-        }));
+      if (!achievement.reward) return;
+      if (achievement.reward.reputation) {
+        updateReputation(achievement.reward.reputation);
+      }
+      if (achievement.reward.budget) {
+        updateBudget(achievement.reward.budget);
       }
     });
   };
@@ -898,34 +898,19 @@ export const StudioMagnateGame: React.FC<StudioMagnateGameProps> = ({
       });
     }
 
-    setGameState(prev => {
-      // If this project belongs to a franchise, append it to that franchise's entries
-      const franchiseId = enrichedProject.script?.franchiseId;
-      const updatedFranchises = franchiseId
-        ? (prev.franchises || []).map(f => {
-            if (f.id !== franchiseId) return f;
-            const existingEntries = f.entries || [];
-            if (existingEntries.includes(enrichedProject.id)) return f;
-            return {
-              ...f,
-              entries: [...existingEntries, enrichedProject.id],
-            };
-          })
-        : prev.franchises;
+    addProject(enrichedProject);
 
-      return {
-        ...prev,
-        projects: [...prev.projects, enrichedProject],
-        studio: {
-          ...prev.studio,
-          budget: finalBudget,
-          debt: newDebt,
-          lastProjectWeek: prev.currentWeek,
-          weeksSinceLastProject: 0,
-        },
-        franchises: updatedFranchises,
-      };
+    updateStudio({
+      budget: finalBudget,
+      debt: newDebt,
+      lastProjectWeek: gameState.currentWeek,
+      weeksSinceLastProject: 0,
     });
+
+    const franchiseId = enrichedProject.script?.franchiseId;
+    if (franchiseId) {
+      appendFranchiseEntry(franchiseId, enrichedProject.id);
+    }
 
     updateOperation('project-create', 100, 'Project created successfully!');
 

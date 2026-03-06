@@ -15,7 +15,8 @@ interface EnhancedFranchiseSystemProps {}
 
 export const EnhancedFranchiseSystem: React.FC<EnhancedFranchiseSystemProps> = () => {
   const gameState = useGameStore((s) => s.game);
-  const setGameState = useGameStore((s) => s.setGameState);
+  const upsertFranchise = useGameStore((s) => s.upsertFranchise);
+  const appendFranchiseEntry = useGameStore((s) => s.appendFranchiseEntry);
   const updateProject = useGameStore((s) => s.updateProject);
   const { toast } = useToast();
   const [isCreating, setIsCreating] = useState(false);
@@ -116,10 +117,7 @@ export const EnhancedFranchiseSystem: React.FC<EnhancedFranchiseSystemProps> = (
       franchisePosition: 1
     });
 
-    setGameState((prev) => ({
-      ...prev,
-      franchises: [...(prev.franchises || []), franchise]
-    }));
+    upsertFranchise(franchise);
     
     toast({
       title: "Franchise Established!",
@@ -165,10 +163,7 @@ export const EnhancedFranchiseSystem: React.FC<EnhancedFranchiseSystemProps> = (
       cost: 0
     };
 
-    setGameState((prev) => ({
-      ...prev,
-      franchises: [...(prev.franchises || []), franchise]
-    }));
+    upsertFranchise(franchise);
     
     toast({
       title: "Original Franchise Created",
@@ -200,14 +195,7 @@ export const EnhancedFranchiseSystem: React.FC<EnhancedFranchiseSystemProps> = (
       franchisePosition: nextPosition
     });
 
-    setGameState((prev) => ({
-      ...prev,
-      franchises: (prev.franchises || []).map((f) =>
-        f.id === franchise.id
-          ? { ...f, entries: [...(f.entries || []), project.id] }
-          : f
-      )
-    }));
+    appendFranchiseEntry(franchise.id, project.id);
 
     toast({
       title: "Added to Franchise",

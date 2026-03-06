@@ -33,7 +33,7 @@ export const TVShowDevelopment: React.FC<TVShowDevelopmentProps> = ({
   onProjectCreate,
 }) => {
   const gameState = useGameStore((s) => s.game);
-  const setGameState = useGameStore((s) => s.setGameState);
+  const spendStudioFunds = useGameStore((s) => s.spendStudioFunds);
   const upsertScript = useGameStore((s) => s.upsertScript);
   const { toast } = useToast();
   
@@ -58,37 +58,8 @@ export const TVShowDevelopment: React.FC<TVShowDevelopmentProps> = ({
   const spendFunds: SpendFundsFn = (amount, description) => {
     if (!gameState) return { success: false };
 
-    const currentDebt = gameState.studio.debt || 0;
-    const maxLoanCapacity = Math.max(0, 50000000 - currentDebt);
-    const availableFunds = gameState.studio.budget + maxLoanCapacity;
-
-    if (amount > availableFunds) return { success: false };
-
-    const budgetAfter = gameState.studio.budget - amount;
-    const loanTaken = budgetAfter < 0 ? Math.min(-budgetAfter, maxLoanCapacity) : 0;
-
-    setGameState((prev) => {
-      const prevDebt = prev.studio.debt || 0;
-      const prevMaxLoan = Math.max(0, 50000000 - prevDebt);
-      const prevAvailable = prev.studio.budget + prevMaxLoan;
-      if (amount > prevAvailable) return prev;
-
-      let nextBudget = prev.studio.budget - amount;
-      let nextDebt = prevDebt;
-      if (nextBudget < 0) {
-        nextDebt += -nextBudget;
-        nextBudget = 0;
-      }
-
-      return {
-        ...prev,
-        studio: {
-          ...prev.studio,
-          budget: nextBudget,
-          debt: nextDebt,
-        },
-      };
-    });
+    const result = spendStudioFunds(amount);
+    if (!result.success) return result;
 
     FinancialEngine.recordTransaction(
       'expense',
@@ -99,7 +70,7 @@ export const TVShowDevelopment: React.FC<TVShowDevelopmentProps> = ({
       description
     );
 
-    return { success: true, loanTaken };
+    return result;
   };
 
   const handleAdvanceStage = (script: Script) => {
