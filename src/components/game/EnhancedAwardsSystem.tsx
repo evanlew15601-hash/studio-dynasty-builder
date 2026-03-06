@@ -4,9 +4,11 @@ import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
 import { Progress } from '@/components/ui/progress';
-import { Project, TalentPerson, Studio, GameState, ScriptCharacter } from '@/types/game';
+import { Project, TalentPerson, ScriptCharacter } from '@/types/game';
 import { calculateActingPerformanceScore } from '@/utils/actingPerformance';
 import { Trophy, Star, Calendar, Award, Crown, Users } from 'lucide-react';
+import { useGameStore } from '@/game/store';
+import { useUiStore } from '@/game/uiStore';
 
 interface AwardCategory {
   id: string;
@@ -38,24 +40,24 @@ interface AwardsCeremony {
 }
 
 interface EnhancedAwardsSystemProps {
-  gameState: GameState;
-  onReputationUpdate?: (studioId: string, change: number) => void;
-  onTalentReputationUpdate?: (talentId: string, change: number) => void;
   onNavigatePhase?: (phase: 'media' | 'distribution') => void;
 }
 
 export const EnhancedAwardsSystem: React.FC<EnhancedAwardsSystemProps> = ({
-  gameState,
-  onReputationUpdate,
-  onTalentReputationUpdate,
   onNavigatePhase
 }) => {
+  const gameState = useGameStore((s) => s.game);
+  const setPhase = useUiStore((s) => s.setPhase);
+  const navigatePhase = onNavigatePhase ?? ((phase: 'media' | 'distribution') => setPhase(phase));
+  const updateReputation = useGameStore((s) => s.updateReputation);
+  const bumpTalent = useGameStore((s) => s.bumpTalent);
   const [activeCeremonies, setActiveCeremonies] = useState<AwardsCeremony[]>([]);
   const [viewMode, setViewMode] = useState<'upcoming' | 'nominees' | 'history'>('upcoming');
 
   useEffect(() => {
+    if (!gameState) return;
     processAnnualAwards();
-  }, [gameState.currentYear, gameState.currentWeek, gameState.projects, gameState.allReleases]);
+  }, [gameState?.currentYear, gameState?.currentWeek, gameState?.projects, gameState?.allReleases]);
 
   const AWARD_CATEGORIES: AwardCategory[] = [
     { id: 'best-picture', name: 'Best Picture', type: 'film', weight: 10 },
@@ -457,7 +459,7 @@ export const EnhancedAwardsSystem: React.FC<EnhancedAwardsSystemProps> = ({
     if (winner.projectId) {
       const project = gameState.projects.find(p => p.id === winner.projectId);
       if (project) {
-        onReputationUpdate?.(gameState.studio.id, reputationBonus);
+        updateReputation(reputationBonus);
       } else {
         const aiProject = gameState.allReleases.find((r): r is Project => 'script' in r && r.id === winner.projectId);
         if (aiProject) {
@@ -467,7 +469,8 @@ export const EnhancedAwardsSystem: React.FC<EnhancedAwardsSystemProps> = ({
     }
     
     if (winner.talentId) {
-      onTalentReputationUpdate?.(winner.talentId, reputationBonus);
+      const talentId = winner.talentId;
+      bumpTalent(talentId, { reputation: reputationBonus, publicImage: reputationBonus });
     }
   };
 
@@ -493,6 +496,10 @@ export const EnhancedAwardsSystem: React.FC<EnhancedAwardsSystemProps> = ({
   const getCompletedCeremonies = () => {
     return activeCeremonies.filter(c => c.status === 'completed').reverse();
   };
+
+  if (!gameState) {
+    return <div className="p-6 text-sm text-muted-foreground">Loading awards season...</div>;
+  }
 
   return (
     <div className="space-y-6">
@@ -667,37 +674,35 @@ export const EnhancedAwardsSystem: React.FC<EnhancedAwardsSystemProps> = ({
         </div>
       )}
 
-      {onNavigatePhase && (
-        <Card>
-          <CardHeader>
-            <CardTitle className="flex items-center gap-2">
-              <Award className="h-5 w-5" />
-              Use Awards Momentum Strategically
-            </CardTitle>
-          </CardHeader>
-          <CardContent className="flex flex-col md:flex-row md:items-center md:justify-between gap-4">
-            <p className="text-sm text-muted-foreground md:max-w-md">
-              Convert awards momentum into sustained audience engagement and long-tail earnings via media and post-theatrical releases.
-            </p>
-            <div className="flex flex-wrap gap-2">
-              <Button
-                size="sm"
-                variant="outline"
-                onClick={() => onNavigatePhase('media')}
-              >
-                Open Media Dashboard
-              </Button>
-              <Button
-                size="sm"
-                variant="outline"
-                onClick={() => onNavigatePhase('distribution')}
-              >
-                Post-Theatrical & Distribution
-              </Button>
-            </div>
-          </CardContent>
-        </Card>
-      )}
+      <Card>
+        <CardHeader>
+          <CardTitle className="flex items-center gap-2">
+            <Award className="h-5 w-5" />
+            Use Awards Momentum Strategically
+          </CardTitle>
+        </CardHeader>
+        <CardContent className="flex flex-col md:flex-row md:items-center md:justify-between gap-4">
+          <p className="text-sm text-muted-foreground md:max-w-md">
+            Convert awards momentum into sustained audience engagement and long-tail earnings via media and post-theatrical releases.
+          </p>
+          <div className="flex flex-wrap gap-2">
+            <Button
+              size="sm"
+              variant="outline"
+              onClick={() => navigatePhase('media')}
+            >
+              Open Media Dashboard
+            </Button>
+            <Button
+              size="sm"
+              variant="outline"
+              onClick={() => navigatePhase('distribution')}
+            >
+              Post-Theatrical & Distribution
+            </Button>
+          </div>
+        </CardContent>
+      </Card>
     </div>
   );
 };

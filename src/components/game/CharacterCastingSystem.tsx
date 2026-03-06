@@ -1,5 +1,6 @@
 import React, { useState } from 'react';
-import { Project, TalentPerson, GameState, ScriptCharacter } from '@/types/game';
+import { Project, TalentPerson, ScriptCharacter } from '@/types/game';
+import { useGameStore } from '@/game/store';
 import { talentMatchesRole } from '@/utils/castingEligibility';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
@@ -12,8 +13,6 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@
 
 interface CharacterCastingSystemProps {
   project: Project;
-  gameState: GameState;
-  onProjectUpdate: (project: Project) => void;
 }
 
 interface CastingSlot {
@@ -24,12 +23,21 @@ interface CastingSlot {
 }
 
 export const CharacterCastingSystem: React.FC<CharacterCastingSystemProps> = ({
-  project,
-  gameState,
-  onProjectUpdate
+  project: propProject
 }) => {
+  const gameState = useGameStore((s) => s.game);
+  const project = useGameStore((s) => s.game?.projects.find(p => p.id === propProject.id) || propProject);
+  const replaceProject = useGameStore((s) => s.replaceProject);
   const { toast } = useToast();
   const [filterType, setFilterType] = useState<'all' | 'cast' | 'crew'>('all');
+
+  if (!gameState) {
+    return (
+      <div className="p-8 text-center">
+        <p className="text-muted-foreground">Loading casting...</p>
+      </div>
+    );
+  }
 
   // Early return if project or script is null
   if (!project || !project.script) {
@@ -121,7 +129,7 @@ export const CharacterCastingSystem: React.FC<CharacterCastingSystemProps> = ({
       }
     };
 
-    onProjectUpdate(updatedProject);
+    replaceProject(updatedProject);
 
     toast({
       title: character.requiredType === 'director' ? 'Key Crew Assigned' : 'Role Cast',
@@ -144,7 +152,7 @@ export const CharacterCastingSystem: React.FC<CharacterCastingSystemProps> = ({
       }
     };
 
-    onProjectUpdate(updatedProject);
+    replaceProject(updatedProject);
 
     toast({
       title: "Talent Removed",
@@ -261,7 +269,7 @@ const updatedProject: Project = {
   }
 };
 
-    onProjectUpdate(updatedProject);
+    replaceProject(updatedProject);
 
     toast({
       title: 'Casting Confirmed',

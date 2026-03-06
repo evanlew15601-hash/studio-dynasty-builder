@@ -1,5 +1,5 @@
 import React, { useEffect, useRef, useState, Suspense } from 'react';
-import { GameState, Studio, Project, Script, TalentPerson, BoxOfficeWeek, BoxOfficeRelease, Genre, MarketingStrategy, ReleaseStrategy, ProductionPhase, ScriptCharacter } from '@/types/game';
+import type { GameState, Studio, Project, Script, TalentPerson, Genre, MarketingStrategy, ReleaseStrategy, ProductionPhase, ScriptCharacter } from '@/types/game';
 import { useLoadingContext } from '@/contexts/LoadingContext';
 import { LoadingOverlay } from '@/components/ui/loading-overlay';
 import { LOADING_OPERATIONS, delay, simulateProgress } from '@/utils/loadingUtils';
@@ -8,18 +8,11 @@ import { PublicDomainGenerator } from '@/data/PublicDomainGenerator';
 import { ScriptDevelopment } from './ScriptDevelopment';
 import { CastingBoard } from './CastingBoard';
 import { ProductionManagement } from './ProductionManagement';
-import { DistributionDashboard } from './DistributionDashboard';
-import { MarketingReleaseManagement } from './MarketingReleaseManagement';
 import { PostTheatricalManagement } from './PostTheatricalManagement';
 import { StudioDashboard } from './StudioDashboard';
-import { StudioStats } from './StudioStats';
-import { FinancialReporting } from './FinancialReporting';
 import { FinancialDashboard } from './FinancialDashboard';
-import { GameplayLoops } from './GameplayLoops';
 import { IntegrationMonitor } from './IntegrationMonitor';
-import { AwardsCalendar } from './AwardsCalendar';
 import { AIStudioManager } from './AIStudioManager';
-import { AIStudioIntegrationTests } from './AIStudioIntegrationTests';
 import { CompetitorMonitor } from './CompetitorMonitor';
 import { TimeSystem, TimeState } from './TimeSystem';
 import { BoxOfficeSystem } from './BoxOfficeSystem';
@@ -29,6 +22,7 @@ import { FinancialEngine } from './FinancialEngine';
 import { updateProjectFinancials } from './FinancialCalculations';
 import { TalentFilmographyManager } from '@/utils/talentFilmographyManager';
 import { stablePick } from '@/utils/stablePick';
+import { useUiStore } from '@/game/uiStore';
 import { AwardsSystem } from './AwardsSystem';
 import { EnhancedAwardsSystem } from './EnhancedAwardsSystem';
 import { RoleBasedCasting } from './RoleBasedCasting';
@@ -42,7 +36,6 @@ import { TopFilmsChart } from './TopFilmsChart';
 import { AchievementsPanel } from './AchievementsPanel';
 import { PerformanceMetrics } from './PerformanceMetrics';
 import { AchievementNotifications } from './AchievementNotifications';
-import { ReputationPanel } from './ReputationPanel';
 import { DeepReputationPanel } from './DeepReputationPanel';
 import { MediaAnalyticsPanel } from './MediaAnalyticsPanel';
 import { BackgroundSimulation as BackgroundSimulationComponent } from './BackgroundSimulation';
@@ -72,9 +65,9 @@ import { EnhancedFranchiseSystem } from './EnhancedFranchiseSystem';
 import { FranchiseManager } from './FranchiseManager';
 import { OwnedFranchiseManager } from './OwnedFranchiseManager';
 import { FranchiseProjectCreator } from './FranchiseProjectCreator';
-import { EnhancedTalentManagement } from './EnhancedTalentManagement';
+
 import { EnhancedMarketingSystem } from './EnhancedMarketingSystem';
-import { FilmStatsModal } from './FilmStatsModal';
+
 import { ReleaseStrategyModal } from './ReleaseStrategyModal';
 import { ComprehensiveTelevisionSystem } from './ComprehensiveTelevisionSystem';
 import { TelevisionSystemTests } from './TelevisionSystemTests';
@@ -101,7 +94,8 @@ import { MediaResponseSystem } from './MediaResponseSystem';
 import { CrisisManagement } from './CrisisManagement';
 import { MediaRelationships } from './MediaRelationships';
 import { SystemIntegration } from './SystemIntegration';
-import { saveGame } from '@/utils/saveLoad';
+import { useGameStore } from '@/game/store';
+import { saveGameAsync } from '@/utils/saveLoad';
 import { syncAndPersistIndustryDatabase } from '@/utils/industryDatabase';
 import { applyPatchesByKey, getPatchesForEntity } from '@/utils/modding';
 import { getModBundle } from '@/utils/moddingStore';
@@ -392,7 +386,22 @@ export const StudioMagnateGame: React.FC<StudioMagnateGameProps> = ({
     }
   };
   
-  const [gameState, setGameState] = useState<GameState>(() => {
+  const initGame = useGameStore((s) => s.initGame);
+  const loadGameToStore = useGameStore((s) => s.loadGame);
+  const storeGameState = useGameStore((s) => s.game);
+  const setGameState = useGameStore((s) => s.setGameState);
+  const mergeGameState = useGameStore((s) => s.mergeGameState);
+  const updateStudio = useGameStore((s) => s.updateStudio);
+  const updateTalent = useGameStore((s) => s.updateTalent);
+  const replaceProject = useGameStore((s) => s.replaceProject);
+  const addProject = useGameStore((s) => s.addProject);
+  const appendFranchiseEntry = useGameStore((s) => s.appendFranchiseEntry);
+  const upsertFranchise = useGameStore((s) => s.upsertFranchise);
+  const upsertScript = useGameStore((s) => s.upsertScript);
+  const updateBudget = useGameStore((s) => s.updateBudget);
+  const updateReputation = useGameStore((s) => s.updateReputation);
+
+  const [bootstrapGameState] = useState<GameState>(() => {
     // If we have a loaded game, use it directly and skip heavy init
     if (initialGameState) {
       return initialGameState;
@@ -582,6 +591,18 @@ export const StudioMagnateGame: React.FC<StudioMagnateGameProps> = ({
     return initialState;
   });
 
+  useEffect(() => {
+    if (storeGameState) return;
+
+    if (initialGameState) {
+      loadGameToStore(initialGameState);
+    } else {
+      initGame(bootstrapGameState);
+    }
+  }, [storeGameState, initialGameState, loadGameToStore, initGame, bootstrapGameState]);
+
+  const gameState = storeGameState ?? bootstrapGameState;
+
   // Market dynamics hooks  
   const talentMarket = useTalentMarket(gameState.talent, gameState.currentWeek);
   const genreSaturation = useGenreSaturation(
@@ -589,15 +610,24 @@ export const StudioMagnateGame: React.FC<StudioMagnateGameProps> = ({
     gameState.currentWeek,
     gameState.currentYear
   );
-  const [currentPhase, setCurrentPhase] = useState<
-    'dashboard' | 'scripts' | 'casting' | 'talent' | 'franchise' | 'media' |
-    'production' | 'marketing' | 'distribution' | 'finance' |
-    'awards' | 'market' | 'topfilms' | 'stats' | 'reputation' | 'loans' |
-    'competition' | 'television' | 'tv-tests' | 'database'
-  >(((initialPhase === 'financials' ? 'finance' : initialPhase) as any) || 'dashboard');
+  const currentPhase = useUiStore((s) => s.phase) as any;
+  const setPhase = useUiStore((s) => s.setPhase);
+  const selectedProjectId = useUiStore((s) => s.selectedProjectId);
+  const setSelectedProjectId = useUiStore((s) => s.setSelectedProjectId);
+
+  const phaseInitRef = useRef(false);
+  const initialPhaseNormalized = (((initialPhase === 'financials' ? 'finance' : initialPhase) as any) || 'dashboard') as string;
+
+  useEffect(() => {
+    if (phaseInitRef.current) return;
+    phaseInitRef.current = true;
+    setPhase(initialPhaseNormalized);
+  }, [initialPhaseNormalized, setPhase]);
 
   const achievements = useAchievements(gameState, initialUnlockedAchievements);
-  const [selectedProject, setSelectedProject] = useState<Project | null>(null);
+  const selectedProject = selectedProjectId
+    ? (gameState.projects.find(p => p.id === selectedProjectId) || null)
+    : null;
   const [selectedFranchise, setSelectedFranchise] = useState<string | null>(null);
   const [selectedPublicDomain, setSelectedPublicDomain] = useState<string | null>(null);
   const [filmReleaseProject, setFilmReleaseProject] = useState<Project | null>(null);
@@ -679,30 +709,28 @@ export const StudioMagnateGame: React.FC<StudioMagnateGameProps> = ({
 
   // Handle achievement rewards
   const handleAchievementRewards = (unlockedAchievements: Array<{ id?: string; reward?: { reputation?: number; budget?: number } }>) => {
-    unlockedAchievements.forEach(achievement => {
-      if (achievement.reward) {
-        setGameState(prev => ({
-          ...prev,
-          studio: {
-            ...prev.studio,
-            reputation: prev.studio.reputation + (achievement.reward.reputation || 0),
-            budget: prev.studio.budget + (achievement.reward.budget || 0)
-          }
-        }));
+    unlockedAchievements.forEach((achievement) => {
+      if (!achievement.reward) return;
+
+      if (achievement.reward.reputation) {
+        updateReputation(achievement.reward.reputation);
+      }
+      if (achievement.reward.budget) {
+        updateBudget(achievement.reward.budget);
       }
     });
   };
 
-  const handleSaveGame = () => {
+  const handleSaveGame = async () => {
     try {
       const unlockedIds = achievements.getUnlockedAchievements().map(a => a.id);
-      saveGame('slot1', gameState, {
+      await saveGameAsync('slot1', gameState, {
         currentPhase,
         unlockedAchievementIds: unlockedIds
       });
       toast({
         title: 'Game Saved',
-        description: 'Your progress has been saved in this browser.',
+        description: 'Your progress has been saved.',
       });
     } catch (error) {
       console.error('Failed to save game', error);
@@ -714,8 +742,8 @@ export const StudioMagnateGame: React.FC<StudioMagnateGameProps> = ({
     }
   };
 
-  const handlePhaseChange = (phase: typeof currentPhase) => {
-    setCurrentPhase(phase);
+  const handlePhaseChange = (phase: string) => {
+    setPhase(phase);
     onPhaseChange?.(phase);
   };
 
@@ -864,38 +892,23 @@ export const StudioMagnateGame: React.FC<StudioMagnateGameProps> = ({
       });
     }
 
-    setGameState(prev => {
-      // If this project belongs to a franchise, append it to that franchise's entries
-      const franchiseId = enrichedProject.script?.franchiseId;
-      const updatedFranchises = franchiseId
-        ? (prev.franchises || []).map(f => {
-            if (f.id !== franchiseId) return f;
-            const existingEntries = f.entries || [];
-            if (existingEntries.includes(enrichedProject.id)) return f;
-            return {
-              ...f,
-              entries: [...existingEntries, enrichedProject.id],
-            };
-          })
-        : prev.franchises;
+    addProject(enrichedProject);
 
-      return {
-        ...prev,
-        projects: [...prev.projects, enrichedProject],
-        studio: {
-          ...prev.studio,
-          budget: finalBudget,
-          debt: newDebt,
-          lastProjectWeek: prev.currentWeek,
-          weeksSinceLastProject: 0,
-        },
-        franchises: updatedFranchises,
-      };
+    updateStudio({
+      budget: finalBudget,
+      debt: newDebt,
+      lastProjectWeek: gameState.currentWeek,
+      weeksSinceLastProject: 0,
     });
+
+    const franchiseId = enrichedProject.script?.franchiseId;
+    if (franchiseId) {
+      appendFranchiseEntry(franchiseId, enrichedProject.id);
+    }
 
     updateOperation('project-create', 100, 'Project created successfully!');
 
-    setSelectedProject(newProject);
+    setSelectedProjectId(newProject.id);
     toast({
       title: "Project Greenlit!",
       description: `"${script.title}" has entered development.`,
@@ -906,38 +919,22 @@ export const StudioMagnateGame: React.FC<StudioMagnateGameProps> = ({
   };
 
   const handleStudioUpdate = (updates: Partial<Studio>) => {
-    setGameState(prev => ({
-      ...prev,
-      studio: { ...prev.studio, ...updates }
-    }));
+    updateStudio(updates);
   };
 
   const handleTalentUpdate = (talentId: string, updates: Partial<TalentPerson>) => {
-    setGameState(prev => ({
-      ...prev,
-      talent: prev.talent.map(t => t.id === talentId ? { ...t, ...updates } : t)
-    }));
+    updateTalent(talentId, updates);
   };
 
   const handleCreateFranchise = (franchise: any) => {
-    setGameState(prev => ({
-      ...prev,
-      franchises: [...(prev.franchises || []), franchise]
-    }));
+    upsertFranchise(franchise);
     toast({
       title: "Franchise Created",
       description: `"${franchise.title}" franchise has been established`,
     });
   };
 
-  const handleUpdateFranchise = (franchiseId: string, updates: any) => {
-    setGameState(prev => ({
-      ...prev,
-      franchises: (prev.franchises || []).map(f => 
-        f.id === franchiseId ? { ...f, ...updates } : f
-      )
-    }));
-  };
+  
 
   // Handle award show triggers
   const handleAwardShow = (ceremony: AwardShowCeremony) => {
@@ -948,40 +945,7 @@ export const StudioMagnateGame: React.FC<StudioMagnateGameProps> = ({
   // Always run awards engine in the background (independent of UI phase)
   useAwardsEngine(gameState, handleStudioUpdate, handleTalentUpdate, handleAwardShow);
 
-  const handleProjectUpdate = (project: Project, marketingCost?: number) => {
-    setGameState(prev => {
-      const prevProject = prev.projects.find(p => p.id === project.id);
-      const nextState = {
-        ...prev,
-        projects: prev.projects.map(p => p.id === project.id ? project : p),
-        studio: marketingCost ? {
-          ...prev.studio,
-          budget: prev.studio.budget - marketingCost
-        } : prev.studio
-      };
-
-      // If casting was just confirmed, lock talent availability for the production period
-      if (prevProject?.castingConfirmed !== true && project.castingConfirmed && ((project.cast?.length || 0) > 0 || (project.crew?.length || 0) > 0)) {
-        const totalProdWeeks = getPhaseWeeks('pre-production') + getPhaseWeeks('production') + getPhaseWeeks('post-production');
-        const busyUntilWeek = prev.currentWeek + totalProdWeeks;
-        nextState.talent = nextState.talent.map(t => {
-          const isAttached = project.cast.some(c => c.talentId === t.id) || (project.crew || []).some(c => c.talentId === t.id);
-          if (!isAttached) return t;
-          return {
-            ...t,
-            contractStatus: 'contracted',
-            currentContractWeeks: totalProdWeeks,
-            busyUntilWeek
-          };
-        });
-      }
-
-      return nextState;
-    });
-
-    // Keep the local selectedProject in sync so UI reflects changes immediately
-    setSelectedProject(prevSel => (prevSel && prevSel.id === project.id) ? project : prevSel);
-  };
+  
 
   // CRITICAL: Manual marketing campaign creation (no auto-progression)
   const handleMarketingCampaignCreate = (project: Project, strategy: MarketingStrategy, budget: number, duration: number) => {
@@ -1026,14 +990,8 @@ export const StudioMagnateGame: React.FC<StudioMagnateGameProps> = ({
       status: 'marketing' as any
     };
 
-    setGameState(prev => ({
-      ...prev,
-      projects: prev.projects.map(p => p.id === project.id ? updatedProject : p),
-      studio: {
-        ...prev.studio,
-        budget: prev.studio.budget - budget
-      }
-    }));
+    replaceProject(updatedProject);
+    updateBudget(-budget);
     
     toast({
       title: "Marketing Campaign Launched!",
@@ -1097,10 +1055,7 @@ export const StudioMagnateGame: React.FC<StudioMagnateGameProps> = ({
       }
     };
 
-    setGameState(prev => ({
-      ...prev,
-      projects: prev.projects.map(p => p.id === project.id ? updatedProject : p)
-    }));
+    replaceProject(updatedProject);
 
     toast({
       title: "Release Strategy Set!",
@@ -1660,11 +1615,9 @@ export const StudioMagnateGame: React.FC<StudioMagnateGameProps> = ({
       }
     };
 
-    setGameState(prev => ({
-      ...prev,
-      projects: [testProject, ...prev.projects.slice(1)],
-      currentView: 'distribution'
-    }));
+    mergeGameState({
+      projects: [testProject, ...gameState.projects.slice(1)],
+    });
 
     toast({
       title: "Skipped to Post-Theatrical Testing",
@@ -1801,18 +1754,17 @@ export const StudioMagnateGame: React.FC<StudioMagnateGameProps> = ({
       updateOperation(LOADING_OPERATIONS.WEEKLY_PROCESSING.id, 50, 'Processing AI studios...');
     }
 
-    setGameState(prev => {
-      const startedAtIso = new Date().toISOString();
+    setGameState((prev) => {
       const tickStart = performance.now();
+      const startedAtIso = new Date().toISOString();
 
       const systems: TickSystemReport[] = [];
       const recap: TickRecapCard[] = [];
 
-      const measure = <T,>(id: string, label: string, fn: () => T, extra?: Omit<Partial<TickSystemReport>, 'id' | 'label' | 'ms'>): T => {
-        const t0 = performance.now();
+      const measure = <T,>(id: string, label: string, fn: () => T): T => {
+        const start = performance.now();
         const result = fn();
-        const ms = performance.now() - t0;
-        systems.push({ id, label, ms, ...(extra || {}) });
+        systems.push({ id, label, durationMs: performance.now() - start });
         return result;
       };
 
@@ -2356,17 +2308,7 @@ export const StudioMagnateGame: React.FC<StudioMagnateGameProps> = ({
       />
 
       {/* Background financial accuracy service */}
-      <EnhancedFinancialAccuracy
-        gameState={gameState}
-        onProjectUpdate={(projectId, updates) => {
-          setGameState(prev => ({
-            ...prev,
-            projects: prev.projects.map(p =>
-              p.id === projectId ? { ...p, ...updates } : p
-            )
-          }));
-        }}
-      />
+      <EnhancedFinancialAccuracy />
 
       {/* Studio Header */}
       <div className="border-b border-border/50 card-premium backdrop-blur-lg">
@@ -2468,43 +2410,9 @@ export const StudioMagnateGame: React.FC<StudioMagnateGameProps> = ({
         <div className="border-b border-border/30 bg-background/80">
           <div className="container mx-auto px-6 py-3">
             <DebugControlPanel
-                time={{
-                  currentWeek: gameState.currentWeek,
-                  currentYear: gameState.currentYear,
-                  currentQuarter: gameState.currentQuarter,
-                }}
-                studioBudget={gameState.studio.budget}
-                studioDebt={gameState.studio.debt || 0}
-                studioReputation={gameState.studio.reputation}
-                projects={gameState.projects}
-                onAdvanceWeeks={handleAdvanceWeeks}
-                onAdvanceToDate={handleAdvanceToDate}
-                onSetBudget={(budget) =>
-                  setGameState((prev) => ({
-                    ...prev,
-                    studio: { ...prev.studio, budget },
-                  }))
-                }
-                onSetDebt={(debt) =>
-                  setGameState((prev) => ({
-                    ...prev,
-                    studio: { ...prev.studio, debt },
-                  }))
-                }
-                onSetReputation={(reputation) =>
-                  setGameState((prev) => ({
-                    ...prev,
-                    studio: { ...prev.studio, reputation },
-                  }))
-                }
-                onProjectUpdate={(project) => handleProjectUpdate(project)}
-                onStreamingContractDebug={(projectId, contract) => {
-                  const project = gameState.projects.find(p => p.id === projectId);
-                  if (project) {
-                    handleProjectUpdate({ ...project, streamingContract: contract });
-                  }
-                }}
-              />
+              onAdvanceWeeks={handleAdvanceWeeks}
+              onAdvanceToDate={handleAdvanceToDate}
+            />
           </div>
         </div>
       )}
@@ -2638,19 +2546,12 @@ export const StudioMagnateGame: React.FC<StudioMagnateGameProps> = ({
       {/* Main Content */}
       <div className="container mx-auto px-6 py-8 animate-slide-up">
         {currentPhase === 'dashboard' && (
-          <StudioDashboard 
-            gameState={gameState}
-            onStudioUpdate={handleStudioUpdate}
-            onProjectSelect={setSelectedProject}
-            onPhaseChange={handlePhaseChange}
-          />
+          <StudioDashboard />
         )}
         
         {currentPhase === 'franchise' && (
           <div className="space-y-6">
             <OwnedFranchiseManager
-              gameState={gameState}
-              onUpdateFranchise={handleUpdateFranchise}
               onCreateProject={(franchiseId) => {
                 // Create a basic script for a franchise film project and send it to Script Development
                 const franchise = gameState.franchises.find(f => f.id === franchiseId);
@@ -2688,10 +2589,7 @@ export const StudioMagnateGame: React.FC<StudioMagnateGameProps> = ({
                 setSelectedPublicDomain(null);
                 handlePhaseChange('scripts');
 
-                setGameState(prev => ({
-                  ...prev,
-                  scripts: [...prev.scripts, finalized]
-                }));
+                upsertScript(finalized);
 
                 toast({
                   title: 'Script Draft Created',
@@ -2705,19 +2603,8 @@ export const StudioMagnateGame: React.FC<StudioMagnateGameProps> = ({
                 handlePhaseChange('television');
               }}
             />
-            <EnhancedFranchiseSystem
-              gameState={gameState}
-              onCreateFranchise={handleCreateFranchise}
-              onUpdateFranchise={handleUpdateFranchise}
-              onProjectUpdate={(projectId, updates) => {
-                const project = gameState.projects.find(p => p.id === projectId);
-                if (project) {
-                  handleProjectUpdate({ ...project, ...updates });
-                }
-              }}
-            />
+            <EnhancedFranchiseSystem />
             <FranchiseProjectCreator
-              gameState={gameState}
               onProjectCreate={(script) => {
                 const finalized = finalizeScriptForSave(script, gameState);
 
@@ -2731,12 +2618,7 @@ export const StudioMagnateGame: React.FC<StudioMagnateGameProps> = ({
                 // Route to the appropriate development workspace
                 handlePhaseChange(isTVScript ? 'television' : 'scripts');
 
-                setGameState(prev => ({
-                  ...prev,
-                  scripts: prev.scripts.some(s => s.id === finalized.id)
-                    ? prev.scripts.map(s => (s.id === finalized.id ? finalized : s))
-                    : [...prev.scripts, finalized]
-                }));
+                upsertScript(finalized);
                 toast({
                   title: 'Script Draft Created',
                   description: isTVScript
@@ -2746,7 +2628,6 @@ export const StudioMagnateGame: React.FC<StudioMagnateGameProps> = ({
               }}
             />
             <FranchiseManager
-              gameState={gameState}
               onCreateProject={(franchiseId, publicDomainId, cost) => {
                 // Use existing handleCreateProject logic but adapted for the new interface
                 if (cost && cost > gameState.studio.budget) {
@@ -2795,13 +2676,7 @@ export const StudioMagnateGame: React.FC<StudioMagnateGameProps> = ({
 
                 // Deduct franchise cost if applicable
                 if (cost) {
-                  setGameState(prev => ({
-                    ...prev,
-                    studio: {
-                      ...prev.studio,
-                      budget: prev.studio.budget - cost
-                    }
-                  }));
+                  updateBudget(-cost);
                   
                   toast({
                     title: "Franchise Acquired!",
@@ -2813,12 +2688,7 @@ export const StudioMagnateGame: React.FC<StudioMagnateGameProps> = ({
                 setSelectedFranchise(franchiseId || null);
                 setSelectedPublicDomain(publicDomainId || null);
                 handlePhaseChange('scripts');
-                setGameState(prev => ({
-                  ...prev,
-                  scripts: prev.scripts.some(s => s.id === finalized.id)
-                    ? prev.scripts.map(s => s.id === finalized.id ? finalized : s)
-                    : [...prev.scripts, finalized]
-                }));
+                upsertScript(finalized);
 
                 toast({
                   title: "Script Draft Created",
@@ -2827,81 +2697,29 @@ export const StudioMagnateGame: React.FC<StudioMagnateGameProps> = ({
               }}
             />
             <SequelManagementComponent
-              gameState={gameState}
               onProjectCreate={(script) => {
                 // Route sequel scripts to Script Development for refinement instead of instant project creation
                 setSelectedFranchise(script.franchiseId || null);
                 setSelectedPublicDomain(null);
                 handlePhaseChange('scripts');
 
-                setGameState(prev => ({
-                  ...prev,
-                  scripts: prev.scripts.some(s => s.id === script.id)
-                    ? prev.scripts.map(s => s.id === script.id ? script : s)
-                    : [...prev.scripts, script]
-                }));
+                upsertScript(script);
 
                 toast({
                   title: 'Sequel Script Created',
                   description: `"${script.title}" has been added to Script Development. Refine it to "final" stage before greenlighting.`,
                 });
               }}
-              onProjectUpdate={handleProjectUpdate}
               onCreateFranchise={handleCreateFranchise}
             />
           </div>
         )}
         
         {currentPhase === 'scripts' && (
-          <ScriptDevelopment 
-            gameState={gameState}
+          <ScriptDevelopment
             selectedFranchise={selectedFranchise}
             selectedPublicDomain={selectedPublicDomain}
             onProjectCreate={handleProjectCreate}
-            onSpendFunds={(amount) => {
-              const currentDebt = gameState.studio.debt || 0;
-              const maxLoanCapacity = Math.max(0, 50000000 - currentDebt);
-              const availableFunds = gameState.studio.budget + maxLoanCapacity;
-
-              if (amount > availableFunds) return { success: false };
-
-              const budgetAfter = gameState.studio.budget - amount;
-              const loanTaken = budgetAfter < 0 ? Math.min(-budgetAfter, maxLoanCapacity) : 0;
-
-              setGameState(prev => {
-                const prevDebt = prev.studio.debt || 0;
-                const prevMaxLoan = Math.max(0, 50000000 - prevDebt);
-                const prevAvailable = prev.studio.budget + prevMaxLoan;
-                if (amount > prevAvailable) return prev;
-
-                let nextBudget = prev.studio.budget - amount;
-                let nextDebt = prevDebt;
-                if (nextBudget < 0) {
-                  nextDebt += -nextBudget;
-                  nextBudget = 0;
-                }
-
-                return {
-                  ...prev,
-                  studio: {
-                    ...prev.studio,
-                    budget: nextBudget,
-                    debt: nextDebt,
-                  },
-                };
-              });
-
-              return { success: true, loanTaken };
-            }}
-            onScriptUpdate={(script) => {
-              // Persist selections so multiple scripts can be created within the same franchise/IP
-              setGameState(prev => ({
-                ...prev,
-                scripts: prev.scripts.some(s => s.id === script.id)
-                  ? prev.scripts.map(s => s.id === script.id ? script : s)
-                  : [...prev.scripts, script]
-              }));
-            }}
           />
         )}
         
@@ -2921,8 +2739,6 @@ export const StudioMagnateGame: React.FC<StudioMagnateGameProps> = ({
                 {selectedProject ? (
                   <CharacterCastingSystem
                     project={selectedProject}
-                    gameState={gameState}
-                    onProjectUpdate={handleProjectUpdate}
                   />
                 ) : (
                   <div className="p-6 border rounded-lg bg-card text-sm text-muted-foreground">
@@ -2938,29 +2754,6 @@ export const StudioMagnateGame: React.FC<StudioMagnateGameProps> = ({
                 {selectedProject ? (
                   <RoleBasedCasting
                     project={selectedProject}
-                    gameState={gameState}
-                    onCastRole={(characterId: string, talentId: string) => {
-                      if (!selectedProject) return;
-                      const updatedCharacters = (selectedProject.script?.characters || []).map(c =>
-                        c.id === characterId ? { ...c, assignedTalentId: talentId } : c
-                      );
-                      const updatedProject = {
-                        ...selectedProject,
-                        script: { ...selectedProject.script!, characters: updatedCharacters }
-                      };
-                      handleProjectUpdate(updatedProject);
-                    }}
-                    onCreateRole={(role) => {
-                      if (!selectedProject) return;
-                      const updatedProject = {
-                        ...selectedProject,
-                        script: {
-                          ...selectedProject.script!,
-                          characters: [...(selectedProject.script?.characters || []), role]
-                        }
-                      };
-                      handleProjectUpdate(updatedProject);
-                    }}
                   />
                 ) : (
                   <div className="p-6 border rounded-lg bg-card text-sm text-muted-foreground">
@@ -2974,17 +2767,7 @@ export const StudioMagnateGame: React.FC<StudioMagnateGameProps> = ({
               
               <TabsContent value="casting-board">
                 <CastingBoard
-                  gameState={gameState}
                   selectedProject={selectedProject}
-                  onProjectUpdate={handleProjectUpdate}
-                  onTalentHire={(talent) => {
-                    setGameState(prev => ({
-                      ...prev,
-                      talent: prev.talent.some(t => t.id === talent.id)
-                        ? prev.talent.map(t => t.id === talent.id ? talent : t)
-                        : [...prev.talent, talent]
-                    }));
-                  }}
                 />
               </TabsContent>
             </Tabs>
@@ -2993,16 +2776,8 @@ export const StudioMagnateGame: React.FC<StudioMagnateGameProps> = ({
 
         {currentPhase === 'television' && (
           <ComprehensiveTelevisionSystem 
-            gameState={gameState}
             selectedFranchise={selectedFranchise}
             selectedPublicDomain={selectedPublicDomain}
-            onUpdateBudget={(amount) => {
-              setGameState(prev => ({
-                ...prev,
-                studio: { ...prev.studio, budget: prev.studio.budget + amount }
-              }));
-            }}
-            onGameStateUpdate={(updates) => setGameState(prev => ({ ...prev, ...updates }))}
             onCreateTVProject={(script) => {
               // For now, assume a 13-episode season budget for TV series
               const episodes = 13;
@@ -3056,18 +2831,7 @@ export const StudioMagnateGame: React.FC<StudioMagnateGameProps> = ({
         )}
 
         {import.meta.env.DEV && currentPhase === 'tv-tests' && (
-          <TelevisionSystemTests 
-            gameState={gameState} 
-            onUpdateBudget={(amount) => {
-              setGameState(prev => ({
-                ...prev,
-                studio: { ...prev.studio, budget: prev.studio.budget + amount }
-              }));
-            }}
-            onGameStateUpdate={(updates) => {
-              setGameState(prev => ({ ...prev, ...updates }));
-            }}
-          />
+          <TelevisionSystemTests />
         )}
          
          {currentPhase === 'talent' && (
@@ -3132,9 +2896,7 @@ export const StudioMagnateGame: React.FC<StudioMagnateGameProps> = ({
 
               <TabsContent value="top-actors">
                 <Suspense fallback={<div>Loading top actors...</div>}>
-                  {React.createElement(React.lazy(() => import('./TopActorsPanel').then(m => ({ default: m.TopActorsPanel }))), {
-                    gameState
-                  })}
+                  {React.createElement(React.lazy(() => import('./TopActorsPanel').then(m => ({ default: m.TopActorsPanel }))), {})}
                 </Suspense>
               </TabsContent>
               
@@ -3153,14 +2915,12 @@ export const StudioMagnateGame: React.FC<StudioMagnateGameProps> = ({
         )}
 
         {currentPhase === 'database' && (
-          <IndustryDatabasePanel gameState={gameState} slotId="slot1" />
+          <IndustryDatabasePanel slotId="slot1" />
         )}
         
         {currentPhase === 'production' && (
           <ProductionManagement 
-            gameState={gameState}
             selectedProject={selectedProject}
-            onProjectUpdate={handleProjectUpdate}
           />
         )}
         
@@ -3169,19 +2929,6 @@ export const StudioMagnateGame: React.FC<StudioMagnateGameProps> = ({
             <div className="space-y-6">
               <EnhancedMarketingSystem
                 project={selectedProject}
-                gameState={gameState}
-                onUpdateProject={(projectId, updates) => {
-                  const project = gameState.projects.find(p => p.id === projectId);
-                  if (project) {
-                    handleProjectUpdate({ ...project, ...updates });
-                  }
-                }}
-                onUpdateBudget={(amount) => {
-                  setGameState(prev => ({
-                    ...prev,
-                    studio: { ...prev.studio, budget: prev.studio.budget + amount }
-                  }));
-                }}
               />
 
               {/* Film release planning entry point (reuses unified ReleaseStrategyModal) */}
@@ -3217,14 +2964,6 @@ export const StudioMagnateGame: React.FC<StudioMagnateGameProps> = ({
                   project={filmReleaseProject}
                   isOpen={!!filmReleaseProject}
                   onClose={() => setFilmReleaseProject(null)}
-                  gameState={gameState}
-                  onProjectUpdate={(projectId, updates) => {
-                    const project = gameState.projects.find(p => p.id === projectId);
-                    if (project) {
-                      handleProjectUpdate({ ...project, ...updates });
-                    }
-                    setFilmReleaseProject(null);
-                  }}
                 />
               )}
             </div>
@@ -3251,64 +2990,33 @@ export const StudioMagnateGame: React.FC<StudioMagnateGameProps> = ({
                 {React.createElement(React.lazy(() => 
                   import('./MediaDashboard').then(m => ({ default: m.MediaDashboard }))
                   .catch(() => import('./MediaNotifications').then(m => ({ default: m.MediaNotifications })))
-                ), {
-                  gameState: gameState,
-                  onNavigatePhase: (phase: 'reputation' | 'awards') => handlePhaseChange(phase as any)
-                })}
+                ), {})}
               </TabsContent>
               
               <TabsContent value="responses">
                 {React.createElement(React.lazy(() => 
                   import('./MediaResponseDashboard').then(m => ({ default: m.MediaResponseDashboard }))
                   .catch(() => ({ default: () => <div className="text-center py-8 text-muted-foreground">Media Response Dashboard loading...</div> }))
-                ), {
-                  gameState: gameState,
-                  onBudgetUpdate: (newBudget: number) => {
-                    setGameState(prev => ({
-                      ...prev,
-                      studio: { ...prev.studio, budget: newBudget }
-                    }));
-                  },
-                  onReputationUpdate: (change: number) => {
-                    setGameState(prev => ({
-                      ...prev,
-                      studio: { ...prev.studio, reputation: Math.max(0, Math.min(100, prev.studio.reputation + change)) }
-                    }));
-                  }
-                })}
+                ), {})}
               </TabsContent>
               
               <TabsContent value="analytics">
-                <MediaAnalyticsPanel
-                  gameState={gameState}
-                  onNavigatePhase={(phase) => handlePhaseChange(phase as any)}
-                />
+                <MediaAnalyticsPanel />
               </TabsContent>
             </Tabs>
           </Suspense>
         )}
         
         {currentPhase === 'distribution' && (
-          <PostTheatricalManagement 
-            gameState={gameState}
-            onProjectUpdate={handleProjectUpdate}
-          />
+          <PostTheatricalManagement />
         )}
         
         {currentPhase === 'finance' && (
-          <FinancialDashboard
-            currentWeek={gameState.currentWeek}
-            currentYear={gameState.currentYear}
-            projects={gameState.projects}
-          />
+          <FinancialDashboard />
         )}
         
         {currentPhase === 'competition' && (
-          <CompetitorMonitor 
-            competitorStudios={gameState.competitorStudios}
-            currentWeek={gameState.currentWeek}
-            currentYear={gameState.currentYear}
-          />
+          <CompetitorMonitor />
         )}
         
         {currentPhase === 'awards' && (
@@ -3319,88 +3027,36 @@ export const StudioMagnateGame: React.FC<StudioMagnateGameProps> = ({
             </TabsList>
 
             <TabsContent value="core">
-              <AwardsSystem 
-                gameState={gameState}
-                onProjectUpdate={handleProjectUpdate}
-                onStudioUpdate={handleStudioUpdate}
-                onNavigatePhase={(phase: 'media' | 'distribution') => handlePhaseChange(phase as any)}
-              />
+              <AwardsSystem />
             </TabsContent>
 
             <TabsContent value="season">
-              <EnhancedAwardsSystem
-                gameState={gameState}
-                onReputationUpdate={(studioId, change) => {
-                  if (studioId === gameState.studio.id) {
-                    handleStudioUpdate({
-                      reputation: Math.max(
-                        0,
-                        Math.min(100, gameState.studio.reputation + change)
-                      )
-                    });
-                  }
-                }}
-                onTalentReputationUpdate={(talentId, change) => {
-                  setGameState(prev => ({
-                    ...prev,
-                    talent: prev.talent.map(t =>
-                      t.id === talentId
-                        ? {
-                            ...t,
-                            reputation: (t.reputation || 0) + change,
-                            publicImage: Math.max(
-                              0,
-                              Math.min(100, (t.publicImage || t.reputation || 0) + change)
-                            )
-                          }
-                        : t
-                    )
-                  }));
-                }}
-                onNavigatePhase={(phase: 'media' | 'distribution') => handlePhaseChange(phase as any)}
-              />
+              <EnhancedAwardsSystem />
             </TabsContent>
           </Tabs>
         )}
         
         {currentPhase === 'market' && (
-          <MarketCompetition gameState={gameState} />
+          <MarketCompetition />
         )}
         
         {currentPhase === 'topfilms' && (
-          <TopFilmsChart gameState={gameState} allReleases={gameState.allReleases.filter((item): item is Project => 'script' in item)} />
+          <TopFilmsChart />
         )}
         
         {currentPhase === 'stats' && (
           <div className="space-y-6">
-            <PerformanceMetrics gameState={gameState} />
-            <BackgroundSimulationComponent
-              gameState={gameState}
-              onWorldUpdate={(updates) => setGameState(prev => ({ ...prev, ...updates }))}
-              onStudioUpdate={handleStudioUpdate}
-            />
+            <PerformanceMetrics />
+            <BackgroundSimulationComponent />
             {import.meta.env.DEV && (
-              <IntegrationMonitor
-                gameState={gameState}
-              />
+              <IntegrationMonitor />
             )}
           </div>
         )}
         
         {currentPhase === 'reputation' && (
           <div className="space-y-6">
-            <DeepReputationPanel 
-              studio={gameState.studio}
-              projects={gameState.projects}
-              talent={gameState.talent}
-              timeState={{
-                currentWeek: gameState.currentWeek,
-                currentYear: gameState.currentYear,
-                currentQuarter: gameState.currentQuarter
-              }}
-              allStudios={gameState.competitorStudios}
-              onNavigatePhase={(phase: 'media' | 'distribution') => handlePhaseChange(phase as any)}
-            />
+            <DeepReputationPanel />
 
             <AchievementsPanel
               achievements={achievements.achievements}
@@ -3411,28 +3067,7 @@ export const StudioMagnateGame: React.FC<StudioMagnateGameProps> = ({
         )}
         
 {currentPhase === 'loans' && (
-  <EnhancedLoanSystem
-    gameState={gameState}
-    onBudgetUpdate={(newBudget) => setGameState(prev => ({
-      ...prev,
-      studio: { ...prev.studio, budget: newBudget }
-    }))}
-    onReputationChange={(change) => {
-      setGameState(prev => ({
-        ...prev,
-        studio: {
-          ...prev.studio,
-          reputation: Math.max(0, Math.min(100, prev.studio.reputation + change))
-        }
-      }));
-    }}
-    onLoansUpdate={(loans) => {
-      setGameState(prev => ({
-        ...prev,
-        studio: { ...prev.studio, loans }
-      }));
-    }}
-  />
+  <EnhancedLoanSystem />
 )}
       </div>
       

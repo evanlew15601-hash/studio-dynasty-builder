@@ -3,7 +3,7 @@
 import { GameLanding } from '@/components/game/GameLanding';
 import { LoadingProvider } from '@/contexts/LoadingContext';
 import { Suspense, lazy, useState } from 'react';
-import { loadGame, SaveGameSnapshot } from '@/utils/saveLoad';
+import { loadGameAsync, SaveGameSnapshot } from '@/utils/saveLoad';
 import { ensureGameStateRoleGenders, ensureTalentDemographics } from '@/utils/demographics';
 import { ensureGameStateFictionalAwardNames } from '@/utils/awardsNaming';
 import { Genre } from '@/types/game';
@@ -35,8 +35,8 @@ const Index = () => {
     setGameStarted(true);
   };
 
-  const handleLoadGame = () => {
-    const snapshot = loadGame('slot1');
+  const handleLoadGame = async () => {
+    const snapshot = await loadGameAsync('slot1');
 
     if (!snapshot) {
       // Basic fallback messaging; main toasts live inside the game shell

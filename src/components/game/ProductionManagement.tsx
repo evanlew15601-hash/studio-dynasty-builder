@@ -1,5 +1,6 @@
 import React, { useState } from 'react';
-import { GameState, Project } from '@/types/game';
+import { Project } from '@/types/game';
+import { useGameStore } from '@/game/store';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Progress } from '@/components/ui/progress';
@@ -19,19 +20,21 @@ import {
 } from '@/components/ui/icons';
 
 interface ProductionManagementProps {
-  gameState: GameState;
   selectedProject: Project | null;
-  onProjectUpdate: (project: Project) => void;
 }
 
 export const ProductionManagement: React.FC<ProductionManagementProps> = ({
-  gameState,
   selectedProject,
-  onProjectUpdate,
 }) => {
+  const gameState = useGameStore((s) => s.game);
+  const updateProject = useGameStore((s) => s.updateProject);
   const { toast } = useToast();
   const [currentPhase, setCurrentPhase] = useState<'pre' | 'principal' | 'post'>('pre');
   const [selectedDevProject, setSelectedDevProject] = useState<Project | null>(null);
+
+  if (!gameState) {
+    return <div className="p-6 text-sm text-muted-foreground">Loading production workspace...</div>;
+  }
 
   const getProjectsInProduction = () => {
     return gameState.projects.filter(p => 
@@ -111,7 +114,7 @@ export const ProductionManagement: React.FC<ProductionManagementProps> = ({
         break;
     }
 
-    onProjectUpdate(updatedProject);
+    updateProject(project.id, updatedProject as any);
 
     toast({
       title: "Production Advanced",

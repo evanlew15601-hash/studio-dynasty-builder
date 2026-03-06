@@ -1,5 +1,6 @@
 import React, { useState } from 'react';
-import { GameState, Franchise, Script } from '@/types/game';
+import { Franchise, Script } from '@/types/game';
+import { useGameStore } from '@/game/store';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
@@ -13,7 +14,6 @@ import { Plus, Film, Crown, TrendingUp } from 'lucide-react';
 import { finalizeScriptForSave } from '@/utils/scriptFinalization';
 
 interface FranchiseProjectCreatorProps {
-  gameState: GameState;
   onProjectCreate: (script: Script) => void;
 }
 
@@ -30,9 +30,9 @@ interface NewProjectForm {
 }
 
 export const FranchiseProjectCreator: React.FC<FranchiseProjectCreatorProps> = ({
-  gameState,
   onProjectCreate
 }) => {
+  const gameState = useGameStore((s) => s.game);
   const { toast } = useToast();
   const [selectedFranchise, setSelectedFranchise] = useState<Franchise | null>(null);
   const [isCreating, setIsCreating] = useState(false);
@@ -47,6 +47,10 @@ export const FranchiseProjectCreator: React.FC<FranchiseProjectCreatorProps> = (
     estimatedRuntime: 120,
     projectType: 'film'
   });
+
+  if (!gameState) {
+    return <div className="p-6 text-sm text-muted-foreground">Loading franchise projects...</div>;
+  }
 
   // Get franchises owned by the player
   const ownedFranchises = gameState.franchises.filter(f => f.creatorStudioId === gameState.studio.id);

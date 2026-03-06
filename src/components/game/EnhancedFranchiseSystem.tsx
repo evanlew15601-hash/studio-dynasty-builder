@@ -1,5 +1,6 @@
-import React, { useState, useEffect } from 'react';
-import { GameState, Franchise, Project } from '@/types/game';
+import React, { useState } from 'react';
+import { Franchise, Project } from '@/types/game';
+import { useGameStore } from '@/game/store';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
@@ -10,19 +11,13 @@ import { useToast } from '@/hooks/use-toast';
 import { Crown, Star, Users, Plus, TrendingUp, Film } from 'lucide-react';
 import { FinancialEngine } from './FinancialEngine';
 
-interface EnhancedFranchiseSystemProps {
-  gameState: GameState;
-  onCreateFranchise: (franchise: Franchise) => void;
-  onUpdateFranchise: (franchiseId: string, updates: Partial<Franchise>) => void;
-  onProjectUpdate: (projectId: string, updates: Partial<Project>) => void;
-}
+interface EnhancedFranchiseSystemProps {}
 
-export const EnhancedFranchiseSystem: React.FC<EnhancedFranchiseSystemProps> = ({
-  gameState,
-  onCreateFranchise,
-  onUpdateFranchise,
-  onProjectUpdate
-}) => {
+export const EnhancedFranchiseSystem: React.FC<EnhancedFranchiseSystemProps> = () => {
+  const gameState = useGameStore((s) => s.game);
+  const upsertFranchise = useGameStore((s) => s.upsertFranchise);
+  const appendFranchiseEntry = useGameStore((s) => s.appendFranchiseEntry);
+  const updateProject = useGameStore((s) => s.updateProject);
   const { toast } = useToast();
   const [isCreating, setIsCreating] = useState(false);
   const [selectedProject, setSelectedProject] = useState<Project | null>(null);
@@ -35,6 +30,10 @@ export const EnhancedFranchiseSystem: React.FC<EnhancedFranchiseSystemProps> = (
     culturalWeight: 50,
     cost: 0
   });
+
+  if (!gameState) {
+    return <div className="p-6 text-sm text-muted-foreground">Loading franchise system...</div>;
+  }
 
   // Get franchises created by the player studio
   const ownedFranchises = gameState.franchises.filter(f => f.creatorStudioId === gameState.studio.id);
@@ -110,7 +109,7 @@ export const EnhancedFranchiseSystem: React.FC<EnhancedFranchiseSystemProps> = (
     };
 
     // Update the original project to be part of the franchise
-    onProjectUpdate(project.id, {
+    updateProject(project.id, {
       script: {
         ...project.script,
         franchiseId: franchise.id
@@ -118,7 +117,7 @@ export const EnhancedFranchiseSystem: React.FC<EnhancedFranchiseSystemProps> = (
       franchisePosition: 1
     });
 
-    onCreateFranchise(franchise);
+    upsertFranchise(franchise);
     
     toast({
       title: "Franchise Established!",
@@ -164,7 +163,7 @@ export const EnhancedFranchiseSystem: React.FC<EnhancedFranchiseSystemProps> = (
       cost: 0
     };
 
-    onCreateFranchise(franchise);
+    upsertFranchise(franchise);
     
     toast({
       title: "Original Franchise Created",
@@ -188,7 +187,7 @@ export const EnhancedFranchiseSystem: React.FC<EnhancedFranchiseSystemProps> = (
   const addProjectToFranchise = (project: Project, franchise: Franchise) => {
     const nextPosition = (franchise.entries?.length || 0) + 1;
     
-    onProjectUpdate(project.id, {
+    updateProject(project.id, {
       script: {
         ...project.script,
         franchiseId: franchise.id
@@ -196,9 +195,7 @@ export const EnhancedFranchiseSystem: React.FC<EnhancedFranchiseSystemProps> = (
       franchisePosition: nextPosition
     });
 
-    onUpdateFranchise(franchise.id, {
-      entries: [...(franchise.entries || []), project.id]
-    });
+    appendFranchiseEntry(franchise.id, project.id);
 
     toast({
       title: "Added to Franchise",

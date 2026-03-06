@@ -1,43 +1,44 @@
-import React, { useState } from 'react';
-import { GameState, Project, MarketingStrategy, ReleaseStrategy } from '@/types/game';
+import React, { useMemo, useState } from 'react';
+import { Project } from '@/types/game';
 import { TimeSystem } from './TimeSystem';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
-import { Progress } from '@/components/ui/progress';
 import { Badge } from '@/components/ui/badge';
-import { useToast } from '@/hooks/use-toast';
 import { MarketingCampaignModal } from './MarketingCampaignModal';
 import { ReleaseStrategyModal } from './ReleaseStrategyModal';
 import { MarketingActivities } from './MarketingActivities';
+import { useGameStore } from '@/game/store';
 import { 
   MarketingIcon, 
   TrendingIcon,
   CalendarIcon,
   StreamingIcon,
-  BoxOfficeIcon,
-  AwardIcon
+  BoxOfficeIcon
 } from '@/components/ui/icons';
 
 interface MarketingReleaseManagementProps {
-  gameState: GameState;
-  onProjectUpdate: (project: Project, marketingCost?: number) => void;
-  onMarketingCampaignCreate?: (project: Project, strategy: MarketingStrategy, budget: number, duration: number) => void;
-  onReleaseStrategyCreate?: (project: Project, strategy: ReleaseStrategy) => void;
   // Filter to only show TV or only show films - undefined shows all
   projectTypeFilter?: 'tv' | 'film';
 }
 
 export const MarketingReleaseManagement: React.FC<MarketingReleaseManagementProps> = ({
-  gameState,
-  onProjectUpdate,
-  onMarketingCampaignCreate,
-  onReleaseStrategyCreate,
   projectTypeFilter
 }) => {
-  const { toast } = useToast();
-  const [selectedProject, setSelectedProject] = useState<Project | null>(null);
+  const gameState = useGameStore((s) => s.game);
+  
+  const replaceProject = useGameStore((s) => s.replaceProject);
+  const [selectedProjectId, setSelectedProjectId] = useState<string | null>(null);
   const [showMarketingModal, setShowMarketingModal] = useState(false);
   const [showReleaseModal, setShowReleaseModal] = useState(false);
+
+  const selectedProject = useMemo(() => {
+    if (!gameState || !selectedProjectId) return null;
+    return gameState.projects.find((p) => p.id === selectedProjectId) ?? null;
+  }, [gameState, selectedProjectId]);
+
+  if (!gameState) {
+    return <div className="p-6 text-sm text-muted-foreground">Loading marketing & release...</div>;
+  }
 
   // Helper to check if project matches type filter
   const matchesTypeFilter = (p: Project) => {
@@ -86,32 +87,16 @@ export const MarketingReleaseManagement: React.FC<MarketingReleaseManagementProp
   };
 
   const handleMarketingCampaign = (project: Project) => {
-    setSelectedProject(project);
+    setSelectedProjectId(project.id);
     setShowMarketingModal(true);
   };
 
   const handleReleaseStrategy = (project: Project) => {
-    setSelectedProject(project);
+    setSelectedProjectId(project.id);
     setShowReleaseModal(true);
   };
 
-  const handlePostTheatricalRelease = (project: Project, platform: 'streaming' | 'digital' | 'dvd') => {
-    const updatedProject = {
-      ...project,
-      postTheatrical: {
-        platform,
-        releaseDate: new Date(Date.now() + 90 * 24 * 60 * 60 * 1000), // 90 days after theatrical
-        revenue: 0
-      }
-    };
-
-    onProjectUpdate(updatedProject);
-    
-    toast({
-      title: "Post-Theatrical Release Scheduled",
-      description: `${project.title} will be available on ${platform} in 90 days.`,
-    });
-  };
+  
 
   return (
     <div className="space-y-6">
@@ -158,8 +143,6 @@ export const MarketingReleaseManagement: React.FC<MarketingReleaseManagementProp
                       <div className="space-y-3">
                         <MarketingActivities 
                           project={project}
-                          onProjectUpdate={onProjectUpdate}
-                          studioBudget={gameState.studio.budget}
                         />
 
                         <div className="flex items-center justify-between text-sm">
@@ -381,33 +364,27 @@ export const MarketingReleaseManagement: React.FC<MarketingReleaseManagementProp
           open={showMarketingModal}
           onClose={() => {
             setShowMarketingModal(false);
-            setSelectedProject(null);
+            setSelectedProjectId(null);
           }}
           onCreateCampaign={(strategy, budget, duration) => {
-            // Use the provided callback if available
-            if (onMarketingCampaignCreate) {
-              onMarketingCampaignCreate(selectedProject, strategy, budget, duration);
-            } else {
-              // Fallback handling
-              const updatedProject = {
-                ...selectedProject,
-                marketingCampaign: {
-                  id: `campaign-${Date.now()}`,
-                  strategy,
-                  budgetAllocated: budget,
-                  budgetSpent: 0,
-                  duration,
-                  weeksRemaining: duration,
-                  buzz: 0,
-                  activities: [],
-                  targetAudience: ['general'],
-                  effectiveness: 50
-                }
-              };
-              onProjectUpdate(updatedProject);
-            }
+            const updatedProject = {
+              ...selectedProject,
+              marketingCampaign: {
+                id: `campaign-${Date.now()}`,
+                strategy,
+                budgetAllocated: budget,
+                budgetSpent: 0,
+                duration,
+                weeksRemaining: duration,
+                buzz: 0,
+                activities: [],
+                targetAudience: ['general'],
+                effectiveness: 50
+              }
+            };
+            replaceProject(updatedProject);
             setShowMarketingModal(false);
-            setSelectedProject(null);
+            setSelectedProjectId(null);
           }}
           studioBudget={gameState.studio.budget}
         />
@@ -419,16 +396,7 @@ export const MarketingReleaseManagement: React.FC<MarketingReleaseManagementProp
           isOpen={showReleaseModal}
           onClose={() => {
             setShowReleaseModal(false);
-            setSelectedProject(null);
-          }}
-          gameState={gameState}
-          onProjectUpdate={(projectId, updates) => {
-            const project = gameState.projects.find(p => p.id === projectId);
-            if (project) {
-              onProjectUpdate({ ...project, ...updates });
-            }
-            setShowReleaseModal(false);
-            setSelectedProject(null);
+            setSelectedProjectId(null);
           }}
         />
       )}

@@ -2,11 +2,13 @@ import React, { useState, useEffect } from 'react';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
-import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
+
 import { ScrollArea } from '@/components/ui/scroll-area';
-import { MediaItem, MediaSource, GameState } from '@/types/game';
+import { MediaItem, MediaSource } from '@/types/game';
 import { MediaEngine } from './MediaEngine';
 import { MediaReputationIntegration } from './MediaReputationIntegration';
+import { useGameStore } from '@/game/store';
+import { useUiStore } from '@/game/uiStore';
 import { 
   Newspaper,
   TrendingUp,
@@ -14,7 +16,7 @@ import {
   Clock,
   Users,
   Star,
-  AlertTriangle,
+  
   Activity,
   Eye,
   BookOpen,
@@ -25,16 +27,17 @@ import {
 } from 'lucide-react';
 
 interface MediaDashboardProps {
-  gameState: GameState;
   onProcessEvents?: () => void;
   onNavigatePhase?: (phase: 'reputation' | 'awards') => void;
 }
 
 export const MediaDashboard: React.FC<MediaDashboardProps> = ({
-  gameState,
   onProcessEvents,
   onNavigatePhase
 }) => {
+  const gameState = useGameStore((s) => s.game);
+  const setPhase = useUiStore((s) => s.setPhase);
+  const navigatePhase = onNavigatePhase ?? ((phase: 'reputation' | 'awards') => setPhase(phase));
   const [recentMedia, setRecentMedia] = useState<MediaItem[]>([]);
   const [mediaStats, setMediaStats] = useState<any>({});
   const [selectedFilter, setSelectedFilter] = useState<'all' | 'positive' | 'negative' | 'player'>('all');
@@ -49,10 +52,12 @@ export const MediaDashboard: React.FC<MediaDashboardProps> = ({
   }, []);
 
   useEffect(() => {
+    if (!gameState) return;
+
     // Keep the dashboard live as weeks advance (and auto-drain queued events)
     MediaEngine.processMediaEvents(gameState);
     updateMediaData();
-  }, [gameState.currentWeek, gameState.currentYear]);
+  }, [gameState?.currentWeek, gameState?.currentYear]);
 
   const updateMediaData = () => {
     const media = MediaEngine.getRecentMedia(50);
@@ -60,6 +65,10 @@ export const MediaDashboard: React.FC<MediaDashboardProps> = ({
     setRecentMedia(media);
     setMediaStats(stats);
   };
+
+  if (!gameState) {
+    return <div className="p-6 text-sm text-muted-foreground">Loading media dashboard...</div>;
+  }
 
   const studioMediaProfile = MediaReputationIntegration.calculateStudioReputationEffects(
     gameState.studio
@@ -257,24 +266,22 @@ export const MediaDashboard: React.FC<MediaDashboardProps> = ({
             core reputation each week.
           </p>
 
-          {onNavigatePhase && (
-            <div className="mt-4 flex flex-wrap gap-2">
-              <Button
-                size="sm"
-                variant="outline"
-                onClick={() => onNavigatePhase('reputation')}
-              >
-                Open Reputation Panel
-              </Button>
-              <Button
-                size="sm"
-                variant="outline"
-                onClick={() => onNavigatePhase('awards')}
-              >
-                Awards & Campaigns
-              </Button>
-            </div>
-          )}
+          <div className="mt-4 flex flex-wrap gap-2">
+            <Button
+              size="sm"
+              variant="outline"
+              onClick={() => navigatePhase('reputation')}
+            >
+              Open Reputation Panel
+            </Button>
+            <Button
+              size="sm"
+              variant="outline"
+              onClick={() => navigatePhase('awards')}
+            >
+              Awards & Campaigns
+            </Button>
+          </div>
         </CardContent>
       </Card>
 
@@ -308,8 +315,7 @@ export const MediaDashboard: React.FC<MediaDashboardProps> = ({
               <div className="flex gap-2 mt-1">
                 {['all', 'positive', 'negative', 'player'].map(filter => (
                   <Button
-                    key={filter}
-                    variant={selectedFilter === filter ? 'default' : 'outline'}
+                    variant="outline"
                     size="sm"
                     onClick={() => setSelectedFilter(filter as any)}
                   >

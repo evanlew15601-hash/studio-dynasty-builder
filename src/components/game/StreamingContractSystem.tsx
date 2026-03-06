@@ -6,8 +6,9 @@ import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger } from 
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { useToast } from '@/hooks/use-toast';
 import { StreamingContract } from '@/types/streamingTypes';
-import { GameState, Project } from '@/types/game';
+import { Project } from '@/types/game';
 import { Monitor, Tv, Award } from 'lucide-react';
+import { useGameStore } from '@/game/store';
 import {
   getAllProviders,
   getCableProviders,
@@ -19,22 +20,31 @@ import {
 import { getModBundle } from '@/utils/moddingStore';
 import { FinancialEngine } from './FinancialEngine';
 
-interface StreamingContractSystemProps {
-  gameState: GameState;
-  onProjectUpdate: (projectId: string, updates: Partial<Project>) => void;
-  onUpdateBudget: (amount: number) => void;
-}
+interface StreamingContractSystemProps {}
 
-
-
-export const StreamingContractSystem: React.FC<StreamingContractSystemProps> = ({
-  gameState,
-  onProjectUpdate,
-  onUpdateBudget
-}) => {
+export const StreamingContractSystem: React.FC<StreamingContractSystemProps> = () => {
+  const gameState = useGameStore((s) => s.game);
+  const updateProject = useGameStore((s) => s.updateProject);
+  const updateBudget = useGameStore((s) => s.updateBudget);
   const { toast } = useToast();
   const [, setSelectedProject] = useState<Project | null>(null);
   const mods = useMemo(() => getModBundle(), []);
+
+  if (!gameState) {
+    return (
+      <Card>
+        <CardHeader>
+          <CardTitle className="flex items-center gap-2">
+            <Monitor className="h-5 w-5" />
+            Streaming &amp; TV Deals
+          </CardTitle>
+        </CardHeader>
+        <CardContent>
+          <p className="text-muted-foreground text-center py-8">Loading deals...</p>
+        </CardContent>
+      </Card>
+    );
+  }
 
   const isTVProject = (project: Project) => project.type === 'series' || project.type === 'limited-series';
   const isFilmProject = (project: Project) => project.type === 'feature' || project.type === 'documentary';
@@ -244,7 +254,7 @@ export const StreamingContractSystem: React.FC<StreamingContractSystemProps> = (
     const contract = generateContract(project, platformId, dealKind);
     const platform = getAllProviders(mods).find(p => p.id === platformId);
 
-    onProjectUpdate(project.id, {
+    updateProject(project.id, {
       streamingContract: contract,
       marketingCampaign: {
         ...project.marketingCampaign,
@@ -253,7 +263,7 @@ export const StreamingContractSystem: React.FC<StreamingContractSystemProps> = (
       }
     });
 
-    onUpdateBudget(contract.upfrontPayment);
+    updateBudget(contract.upfrontPayment);
 
     const category = dealKind === 'cable' ? 'licensing' : 'streaming';
 
@@ -324,14 +334,14 @@ export const StreamingContractSystem: React.FC<StreamingContractSystemProps> = (
       performanceScore: Math.floor(performanceScore)
     };
 
-    onProjectUpdate(project.id, {
+    updateProject(project.id, {
       streamingContract: updatedContract
     });
 
     const category = contract.dealKind === 'cable' ? 'licensing' : 'streaming';
 
     if (bonusEarned > 0) {
-      onUpdateBudget(bonusEarned);
+      updateBudget(bonusEarned);
       FinancialEngine.recordTransaction(
         'revenue',
         category,
@@ -348,7 +358,7 @@ export const StreamingContractSystem: React.FC<StreamingContractSystemProps> = (
     }
 
     if (penalty > 0) {
-      onUpdateBudget(-penalty);
+      updateBudget(-penalty);
       FinancialEngine.recordTransaction(
         'expense',
         category,

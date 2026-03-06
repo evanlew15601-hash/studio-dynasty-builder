@@ -6,13 +6,10 @@
 //
 // We keep this file as a no-op placeholder to avoid breaking imports in older branches.
 import React from 'react';
-import { GameState, Project } from '@/types/game';
+import { Project } from '@/types/game';
 import { calculateAccurateFinancials as calculateAccurateFinancialsUtil } from '@/utils/financialAccuracy';
 
-interface EnhancedFinancialAccuracyProps {
-  gameState: GameState;
-  onProjectUpdate: (projectId: string, updates: Partial<Project>) => void;
-}
+interface EnhancedFinancialAccuracyProps {}
 
 export const calculateAccurateFinancials = calculateAccurateFinancialsUtil;
 

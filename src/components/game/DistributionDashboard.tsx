@@ -1,10 +1,11 @@
-import React, { useState } from 'react';
-import { GameState, Project } from '@/types/game';
+import React from 'react';
+import type { GameState, Project } from '@/types/game';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
 import { Progress } from '@/components/ui/progress';
 import { useToast } from '@/hooks/use-toast';
+import { useGameStore } from '@/game/store';
 import { 
   DistributionIcon, 
   BoxOfficeIcon, 
@@ -17,15 +18,23 @@ import {
 } from '@/components/ui/icons';
 
 interface DistributionDashboardProps {
-  gameState: GameState;
-  onProjectUpdate: (project: Project) => void;
+  gameState?: GameState;
+  onProjectUpdate?: (project: Project) => void;
 }
 
 export const DistributionDashboard: React.FC<DistributionDashboardProps> = ({
-  gameState,
-  onProjectUpdate,
+  gameState: propGameState,
+  onProjectUpdate: propOnProjectUpdate,
 }) => {
+  const storeGameState = useGameStore((s) => s.game);
+  const replaceProject = useGameStore((s) => s.replaceProject);
+  const gameState = propGameState ?? storeGameState;
+  const onProjectUpdate = propOnProjectUpdate ?? replaceProject;
   const { toast } = useToast();
+
+  if (!gameState) {
+    return <div className="p-6 text-sm text-muted-foreground">Loading distribution...</div>;
+  }
 
   const getCompletedProjects = () => {
     return gameState.projects.filter(p => 
@@ -78,9 +87,6 @@ export const DistributionDashboard: React.FC<DistributionDashboardProps> = ({
 
     onProjectUpdate(updatedProject);
 
-    // Update studio reputation and budget
-    const reputationChange = Math.floor((performance - 50) * 0.5);
-    
     toast({
       title: "Project Released!",
       description: `"${project.title}" earned ${(revenue / 1000000).toFixed(1)}M on ${platform}`,

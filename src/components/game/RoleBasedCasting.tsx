@@ -3,29 +3,27 @@ import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
 import { useToast } from '@/hooks/use-toast';
-import { Project, TalentPerson, GameState, ScriptCharacter } from '@/types/game';
+import { Project, TalentPerson, ScriptCharacter } from '@/types/game';
 import { talentMatchesRole } from '@/utils/castingEligibility';
 import { Users, User, Crown, Star, CheckCircle } from 'lucide-react';
 import { importRolesForScript } from '@/utils/roleImport';
+import { useGameStore } from '@/game/store';
 
 interface RoleBasedCastingProps {
   project: Project;
-  gameState: GameState;
-  onCastRole: (characterId: string, talentId: string) => void;
-  onCreateRole: (role: ScriptCharacter) => void;
 }
 
 export const RoleBasedCasting: React.FC<RoleBasedCastingProps> = ({
-  project,
-  gameState,
-  onCastRole,
-  onCreateRole
+  project: propProject
 }) => {
+  const gameState = useGameStore((s) => s.game);
+  const project = useGameStore((s) => s.game?.projects.find(p => p.id === propProject.id) || propProject);
+  const updateProject = useGameStore((s) => s.updateProject);
   const { toast } = useToast();
 
   // Import roles when project changes or script updates (auto-add mandatory TV roles)
   React.useEffect(() => {
-    if (!project?.script) return;
+    if (!gameState || !project?.script) return;
 
     const existing = project.script.characters || [];
     const importedRoles = (!existing || existing.length === 0)
@@ -66,13 +64,23 @@ export const RoleBasedCasting: React.FC<RoleBasedCastingProps> = ({
     }
 
     if (rolesToCreate.length > 0) {
-      rolesToCreate.forEach(onCreateRole);
+      updateProject(project.id, {
+        script: {
+          ...project.script,
+          characters: [...existing, ...rolesToCreate]
+        }
+      } as any);
+
       toast({
         title: 'Roles Ready',
         description: `${rolesToCreate.length} role${rolesToCreate.length > 1 ? 's' : ''} prepared (Director/Lead ensured)`,
       });
     }
-  }, [project?.id, project?.script?.franchiseId, project?.script?.publicDomainId, project?.script?.characters?.length]);
+  }, [project?.id, project?.script?.franchiseId, project?.script?.publicDomainId, project?.script?.characters?.length, gameState]);
+
+  if (!gameState) {
+    return <div className="p-6 text-sm text-muted-foreground">Loading casting system...</div>;
+  }
 
   const getAvailableTalent = (role: ScriptCharacter) => {
     return gameState.talent.filter(talent => {
@@ -93,7 +101,16 @@ export const RoleBasedCasting: React.FC<RoleBasedCastingProps> = ({
       return;
     }
 
-    onCastRole(character.id, talent.id);
+    const updatedCharacters = (project.script?.characters || []).map(c =>
+      c.id === character.id ? { ...c, assignedTalentId: talent.id } : c
+    );
+
+    updateProject(project.id, {
+      script: {
+        ...project.script,
+        characters: updatedCharacters
+      }
+    } as any);
     
     toast({
       title: "Role Cast",
@@ -124,7 +141,12 @@ export const RoleBasedCasting: React.FC<RoleBasedCastingProps> = ({
           requiredGender: 'Male'
         }
       ];
-      defaultRoles.forEach(onCreateRole);
+      updateProject(project.id, {
+        script: {
+          ...project.script!,
+          characters: [...(project.script?.characters || []), ...defaultRoles]
+        }
+      } as any);
       toast({
         title: 'Default Roles Added',
         description: 'Added Director and Lead Actor roles'
@@ -135,7 +157,15 @@ export const RoleBasedCasting: React.FC<RoleBasedCastingProps> = ({
     const imported = importRolesForScript(script, gameState);
     const existingIds = new Set((project.script?.characters || []).map(c => c.id));
     const toAdd = imported.filter(r => !existingIds.has(r.id));
-    toAdd.forEach(onCreateRole);
+    if (toAdd.length > 0) {
+      updateProject(project.id, {
+        script: {
+          ...project.script!,
+          characters: [...(project.script?.characters || []), ...toAdd]
+        }
+      } as any);
+    }
+
     if (toAdd.length > 0) {
       const sourceLabel = script.sourceType === 'franchise'
         ? gameState.franchises.find(f => f.id === script.franchiseId)?.title
@@ -196,14 +226,23 @@ export const RoleBasedCasting: React.FC<RoleBasedCastingProps> = ({
               Import Predefined Roles
             </Button>
             <Button 
-              onClick={() => onCreateRole({
-                id: `custom-${Date.now()}`,
-                name: 'Custom Role',
-                importance: 'supporting',
-                description: 'A custom character role',
-                requiredType: 'actor',
-                requiredGender: 'Male'
-              })}
+              onClick={() => {
+                const newRole: ScriptCharacter = {
+                  id: `custom-${Date.now()}`,
+                  name: 'Custom Role',
+                  importance: 'supporting',
+                  description: 'A custom character role',
+                  requiredType: 'actor',
+                  requiredGender: 'Male'
+                };
+
+                updateProject(project.id, {
+                  script: {
+                    ...project.script!,
+                    characters: [...(project.script?.characters || []), newRole]
+                  }
+                } as any);
+              }}
               variant="outline"
             >
               Add Custom Role

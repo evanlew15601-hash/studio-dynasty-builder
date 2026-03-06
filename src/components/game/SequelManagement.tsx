@@ -1,5 +1,6 @@
 import React, { useState } from 'react';
-import { GameState, Project, Franchise, Script } from '@/types/game';
+import { Project, Franchise, Script } from '@/types/game';
+import { useGameStore } from '@/game/store';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
@@ -11,9 +12,7 @@ import { Crown, Film, Users, TrendingUp, Plus, ArrowRight, Star } from 'lucide-r
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger } from '@/components/ui/dialog';
 
 interface SequelManagementProps {
-  gameState: GameState;
   onProjectCreate: (script: Script) => void;
-  onProjectUpdate: (project: Project) => void;
   onCreateFranchise?: (franchise: Franchise) => void;
 }
 
@@ -34,15 +33,19 @@ interface SequelPlan {
 }
 
 export const SequelManagement: React.FC<SequelManagementProps> = ({
-  gameState,
   onProjectCreate,
-  onProjectUpdate,
   onCreateFranchise
 }) => {
+  const gameState = useGameStore((s) => s.game);
+  const replaceProject = useGameStore((s) => s.replaceProject);
   const { toast } = useToast();
   const [selectedProject, setSelectedProject] = useState<Project | null>(null);
   const [sequelPlan, setSequelPlan] = useState<SequelPlan | null>(null);
   const [isCreating, setIsCreating] = useState(false);
+
+  if (!gameState) {
+    return <div className="p-6 text-sm text-muted-foreground">Loading sequel planning...</div>;
+  }
 
   // Get projects eligible for sequels - REMOVED SUCCESS RESTRICTIONS
   const getSequelEligibleProjects = () => {
@@ -224,7 +227,7 @@ export const SequelManagement: React.FC<SequelManagementProps> = ({
         },
         franchisePosition: 1
       };
-      onProjectUpdate(updatedOriginalProject);
+      replaceProject(updatedOriginalProject);
     }
     
     const sequelScript: Script = {

@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React from 'react';
 import { Project, MarketingActivity } from '@/types/game';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
@@ -6,6 +6,7 @@ import { Progress } from '@/components/ui/progress';
 import { Badge } from '@/components/ui/badge';
 import { Separator } from '@/components/ui/separator';
 import { useToast } from '@/hooks/use-toast';
+import { useGameStore } from '@/game/store';
 import { 
   PlayIcon, 
   TvIcon,
@@ -19,8 +20,6 @@ import {
 
 interface MarketingActivitiesProps {
   project: Project;
-  onProjectUpdate: (project: Project, marketingCost?: number) => void;
-  studioBudget: number;
 }
 
 const MARKETING_ACTIVITIES = [
@@ -117,11 +116,16 @@ const MARKETING_ACTIVITIES = [
 ];
 
 export const MarketingActivities: React.FC<MarketingActivitiesProps> = ({
-  project,
-  onProjectUpdate,
-  studioBudget
+  project
 }) => {
+  const gameState = useGameStore((s) => s.game);
+  const replaceProject = useGameStore((s) => s.replaceProject);
+  const updateBudget = useGameStore((s) => s.updateBudget);
   const { toast } = useToast();
+
+  if (!gameState) {
+    return null;
+  }
   
   // FIXED: Always use current project data, don't store stale state
   const activeActivities = project.marketingCampaign?.activities || [];
@@ -140,7 +144,7 @@ export const MarketingActivities: React.FC<MarketingActivitiesProps> = ({
     const cost = calculateActivityCost(activity, project.budget.total);
     
     // Check budget
-    if (studioBudget < cost) return { canLaunch: false, reason: 'Insufficient studio budget' };
+    if (gameState.studio.budget < cost) return { canLaunch: false, reason: 'Insufficient studio budget' };
     
     // Check campaign budget
     const campaignBudget = project.marketingCampaign?.budgetAllocated || 0;
@@ -209,8 +213,8 @@ export const MarketingActivities: React.FC<MarketingActivitiesProps> = ({
 
     // REMOVED: No longer managing local state
     
-    // CALL THE UPDATE FUNCTION WITH BUDGET DEDUCTION
-    onProjectUpdate(updatedProject, cost);
+    replaceProject(updatedProject);
+    updateBudget(-cost);
 
     toast({
       title: "Marketing Activity Launched!",

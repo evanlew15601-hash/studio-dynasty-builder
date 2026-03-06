@@ -4,25 +4,21 @@ import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
 import { ScrollArea } from '@/components/ui/scroll-area';
-import { Studio } from '@/types/game';
 import { AIStudioManager, AIFilmProject, TalentCommitment } from './AIStudioManager';
 import { AIStudioIntegrationTests } from './AIStudioIntegrationTests';
 import { Building, Film, Users, TrendingUp, Play, TestTube } from 'lucide-react';
+import { useGameStore } from '@/game/store';
 
-interface CompetitorMonitorProps {
-  competitorStudios: Studio[];
-  currentWeek: number;
-  currentYear: number;
-}
-
-export const CompetitorMonitor: React.FC<CompetitorMonitorProps> = ({
-  competitorStudios,
-  currentWeek,
-  currentYear
-}) => {
+export const CompetitorMonitor: React.FC = () => {
   const [aiFilms, setAIFilms] = useState<AIFilmProject[]>([]);
   const [commitments, setCommitments] = useState<TalentCommitment[]>([]);
   const [testResults, setTestResults] = useState<any>(null);
+
+  const game = useGameStore((s) => s.game);
+
+  const competitorStudios = game?.competitorStudios ?? [];
+  const currentWeek = game?.currentWeek ?? 0;
+  const currentYear = game?.currentYear ?? 0;
 
   useEffect(() => {
     // Refresh AI data
@@ -52,6 +48,10 @@ export const CompetitorMonitor: React.FC<CompetitorMonitorProps> = ({
     const results = AIStudioIntegrationTests.runAllTests();
     setTestResults(results);
   };
+
+  if (!game) {
+    return <div className="p-6 text-sm text-muted-foreground">Loading competitor data...</div>;
+  }
 
   return (
     <div className="space-y-6">

@@ -1,5 +1,5 @@
 import React, { useState } from 'react';
-import { GameState, Project } from '@/types/game';
+import { Project } from '@/types/game';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Progress } from '@/components/ui/progress';
@@ -11,31 +11,27 @@ import { Dialog, DialogContent, DialogHeader, DialogTitle } from '@/components/u
 import { 
   ProductionIcon, 
   CalendarIcon, 
-  LocationIcon, 
-  BudgetIcon,
-  CrewIcon,
   CameraIcon,
   EditIcon,
-  ScriptIcon,
-  AlertIcon
+  ScriptIcon
 } from '@/components/ui/icons';
+import { useGameStore } from '@/game/store';
 
-interface TVProductionManagementProps {
-  gameState: GameState;
-  selectedProject: Project | null;
-  onProjectUpdate: (project: Project) => void;
-}
-
-export const TVProductionManagement: React.FC<TVProductionManagementProps> = ({
-  gameState,
-  selectedProject,
-  onProjectUpdate,
-}) => {
+export const TVProductionManagement: React.FC = () => {
+  const gameState = useGameStore((s) => s.game);
+  const replaceProject = useGameStore((s) => s.replaceProject);
   const { toast } = useToast();
-  const [currentPhase, setCurrentPhase] = useState<'pre' | 'principal' | 'post'>('pre');
   const [selectedDevProject, setSelectedDevProject] = useState<Project | null>(null);
   const [castingProject, setCastingProject] = useState<Project | null>(null);
   const [showCastingModal, setShowCastingModal] = useState(false);
+
+  if (!gameState) {
+    return <div className="p-6 text-sm text-muted-foreground">Loading TV production...</div>;
+  }
+
+  const currentCastingProject = castingProject
+    ? gameState.projects.find(p => p.id === castingProject.id) || castingProject
+    : null;
 
   const getTVProjectsInProduction = () => {
     return gameState.projects.filter(p => 
@@ -108,7 +104,7 @@ export const TVProductionManagement: React.FC<TVProductionManagementProps> = ({
         break;
     }
 
-    onProjectUpdate(updatedProject);
+    replaceProject(updatedProject);
 
     toast({
       title: "TV Production Advanced",
@@ -362,39 +358,14 @@ export const TVProductionManagement: React.FC<TVProductionManagementProps> = ({
       )}
 
       {/* Casting Modal */}
-      {showCastingModal && castingProject && (
+      {showCastingModal && currentCastingProject && (
         <Dialog open={showCastingModal} onOpenChange={() => { setShowCastingModal(false); setCastingProject(null); }}>
           <DialogContent className="max-w-3xl max-h-[80vh] overflow-y-auto">
             <DialogHeader>
-              <DialogTitle>Casting - {castingProject.title}</DialogTitle>
+              <DialogTitle>Casting - {currentCastingProject.title}</DialogTitle>
             </DialogHeader>
             <RoleBasedCasting
-              project={castingProject}
-              gameState={gameState}
-              onCastRole={(characterId, talentId) => {
-                const updatedCharacters = (castingProject.script?.characters || []).map(c =>
-                  c.id === characterId ? { ...c, assignedTalentId: talentId } : c
-                );
-                const hasDirector = updatedCharacters.some(c => c.requiredType === 'director' && c.assignedTalentId);
-                const hasLead = updatedCharacters.some(c => c.importance === 'lead' && c.requiredType === 'actor' && c.assignedTalentId);
-                const updated = { 
-                  ...castingProject, 
-                  script: { ...castingProject.script, characters: updatedCharacters }, 
-                  castingConfirmed: hasDirector && hasLead 
-                };
-                onProjectUpdate(updated);
-              }}
-              onCreateRole={(role) => {
-                const updatedCharacters = [...(castingProject.script?.characters || []), role];
-                const hasDirector = updatedCharacters.some(c => c.requiredType === 'director' && c.assignedTalentId);
-                const hasLead = updatedCharacters.some(c => c.importance === 'lead' && c.requiredType === 'actor' && c.assignedTalentId);
-                const updated = { 
-                  ...castingProject, 
-                  script: { ...castingProject.script, characters: updatedCharacters }, 
-                  castingConfirmed: hasDirector && hasLead 
-                };
-                onProjectUpdate(updated);
-              }}
+              project={currentCastingProject}
             />
           </DialogContent>
         </Dialog>

@@ -1,13 +1,16 @@
 import React from 'react';
-import { GameState } from '@/types/game';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
+import { useGameStore } from '@/game/store';
 
-interface TopActorsPanelProps {
-  gameState: GameState;
-}
+interface TopActorsPanelProps {}
 
-export const TopActorsPanel: React.FC<TopActorsPanelProps> = ({ gameState }) => {
+export const TopActorsPanel: React.FC<TopActorsPanelProps> = () => {
+  const gameState = useGameStore((s) => s.game);
+
+  if (!gameState) {
+    return <div className="p-6 text-sm text-muted-foreground">Loading top actors...</div>;
+  }
   const actors = [...gameState.talent]
     .filter(t => t.type === 'actor')
     .sort((a, b) => (b.fame ?? Math.round(b.reputation)) - (a.fame ?? Math.round(a.reputation)))

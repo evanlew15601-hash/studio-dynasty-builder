@@ -1,19 +1,23 @@
-import React, { useEffect, useState } from 'react';
+import React, { useEffect, useMemo, useState } from 'react';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
 import { Progress } from '@/components/ui/progress';
 import { ScrollArea } from '@/components/ui/scroll-area';
 import { Button } from '@/components/ui/button';
-import { GameState, MediaItem } from '@/types/game';
+import { MediaItem } from '@/types/game';
 import { MediaEngine } from './MediaEngine';
 import { Activity, BarChart2, Clock, Eye, Newspaper, TrendingDown, TrendingUp } from 'lucide-react';
+import { useGameStore } from '@/game/store';
+import { useUiStore } from '@/game/uiStore';
 
 interface MediaAnalyticsPanelProps {
-  gameState: GameState;
   onNavigatePhase?: (phase: 'reputation' | 'awards') => void;
 }
 
-export const MediaAnalyticsPanel: React.FC<MediaAnalyticsPanelProps> = ({ gameState, onNavigatePhase }) => {
+export const MediaAnalyticsPanel: React.FC<MediaAnalyticsPanelProps> = ({ onNavigatePhase }) => {
+  const gameState = useGameStore((s) => s.game);
+  const setPhase = useUiStore((s) => s.setPhase);
+  const navigatePhase = onNavigatePhase ?? ((phase: 'reputation' | 'awards') => setPhase(phase));
   const [recentMedia, setRecentMedia] = useState<MediaItem[]>([]);
   const [mediaStats, setMediaStats] = useState<any>({});
 
@@ -39,12 +43,20 @@ export const MediaAnalyticsPanel: React.FC<MediaAnalyticsPanelProps> = ({ gameSt
 
   const totalSentiment = sentimentCounts.positive + sentimentCounts.neutral + sentimentCounts.negative || 1;
 
-  const studioCoverage = recentMedia.filter(item =>
-    item.targets.studios?.includes(gameState.studio.id) ||
-    item.targets.projects?.some(projectId => gameState.projects.some(p => p.id === projectId))
-  );
+  const studioCoverage = useMemo(() => {
+    if (!gameState) return [] as MediaItem[];
+
+    return recentMedia.filter(item =>
+      item.targets.studios?.includes(gameState.studio.id) ||
+      item.targets.projects?.some(projectId => gameState.projects.some(p => p.id === projectId))
+    );
+  }, [gameState, recentMedia]);
 
   const recentStudioStories = studioCoverage.slice(0, 5);
+
+  if (!gameState) {
+    return <div className="p-6 text-sm text-muted-foreground">Loading media analytics...</div>;
+  }
 
   return (
     <div className="space-y-6">
@@ -193,37 +205,22 @@ export const MediaAnalyticsPanel: React.FC<MediaAnalyticsPanelProps> = ({ gameSt
         </CardContent>
       </Card>
 
-      {onNavigatePhase && (
-        <Card>
-          <CardHeader>
-            <CardTitle className="flex items-center gap-2">
-              <TrendingUp className="h-5 w-5" />
-              Turn Coverage into Strategy
-            </CardTitle>
-          </CardHeader>
-          <CardContent className="flex flex-col md:flex-row md:items-center md:justify-between gap-4">
-            <p className="text-sm text-muted-foreground md:max-w-md">
-              Use your media momentum to improve long-term reputation or convert buzz into awards campaigns.
-            </p>
-            <div className="flex flex-wrap gap-2">
-              <Button
-                size="sm"
-                variant="outline"
-                onClick={() => onNavigatePhase('reputation')}
-              >
-                View Reputation Panel
-              </Button>
-              <Button
-                size="sm"
-                variant="outline"
-                onClick={() => onNavigatePhase('awards')}
-              >
-                Go to Awards Strategy
-              </Button>
-            </div>
-          </CardContent>
-        </Card>
-      )}
+      <Card>
+        <CardHeader>
+          <CardTitle className="flex items-center gap-2">
+            <BarChart2 className="h-5 w-5" />
+            Next Steps
+          </CardTitle>
+        </CardHeader>
+        <CardContent className="flex flex-wrap gap-2">
+          <Button size="sm" variant="outline" onClick={() => navigatePhase('reputation')}>
+            View Reputation Panel
+          </Button>
+          <Button size="sm" variant="outline" onClick={() => navigatePhase('awards')}>
+            Go to Awards Strategy
+          </Button>
+        </CardContent>
+      </Card>
     </div>
   );
 };

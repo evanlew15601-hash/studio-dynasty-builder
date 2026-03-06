@@ -1,4 +1,5 @@
 import { GameState } from '@/types/game';
+import { isTauriRuntime, loadSlotJson, saveSlotJson } from '@/integrations/tauri/saves';
 
 export interface SaveGameMeta {
   savedAt: string;
@@ -24,9 +25,30 @@ export interface SaveGameSnapshot {
 const SAVE_KEY_PREFIX = 'studio-magnate-save-';
 const CURRENT_SAVE_VERSION = 'alpha-1';
 
+function buildSnapshot(
+  gameState: GameState,
+  options?: {
+    note?: string;
+    currentPhase?: string;
+    unlockedAchievementIds?: string[];
+  }
+): SaveGameSnapshot {
+  return {
+    gameState,
+    meta: {
+      savedAt: new Date().toISOString(),
+      version: CURRENT_SAVE_VERSION,
+      note: options?.note,
+      currentPhase: options?.currentPhase,
+    },
+    unlockedAchievements: options?.unlockedAchievementIds,
+  };
+}
+
 /**
- * Persist a game snapshot to localStorage.
- * Uses a simple slot-based scheme: studio-magnate-save-{slotId}
+ * Persist a game snapshot.
+ * - Web: localStorage
+ * - Tauri: filesystem via Rust command
  */
 export function saveGame(
   slotId: string,
@@ -37,20 +59,16 @@ export function saveGame(
     unlockedAchievementIds?: string[];
   }
 ): void {
+  if (isTauriRuntime()) {
+    void saveGameAsync(slotId, gameState, options);
+    return;
+  }
+
   if (typeof window === 'undefined' || typeof window.localStorage === 'undefined') {
     return;
   }
 
-  const snapshot: SaveGameSnapshot = {
-    gameState,
-    meta: {
-      savedAt: new Date().toISOString(),
-      version: CURRENT_SAVE_VERSION,
-      note: options?.note,
-      currentPhase: options?.currentPhase,
-    },
-    unlockedAchievements: options?.unlockedAchievementIds,
-  };
+  const snapshot = buildSnapshot(gameState, options);
 
   try {
     const key = `${SAVE_KEY_PREFIX}${slotId}`;
@@ -60,11 +78,35 @@ export function saveGame(
   }
 }
 
+export async function saveGameAsync(
+  slotId: string,
+  gameState: GameState,
+  options?: {
+    note?: string;
+    currentPhase?: string;
+    unlockedAchievementIds?: string[];
+  }
+): Promise<void> {
+  const snapshot = buildSnapshot(gameState, options);
+
+  if (isTauriRuntime()) {
+    await saveSlotJson(slotId, JSON.stringify(snapshot));
+    return;
+  }
+
+  saveGame(slotId, gameState, options);
+}
+
 /**
- * Load a previously saved game snapshot from localStorage.
- * Returns null if no save is present or parsing fails.
+ * Load a previously saved game snapshot.
+ * - Web: localStorage
+ * - Tauri: filesystem via Rust command
  */
 export function loadGame(slotId: string): SaveGameSnapshot | null {
+  if (isTauriRuntime()) {
+    return null;
+  }
+
   if (typeof window === 'undefined' || typeof window.localStorage === 'undefined') {
     return null;
   }
@@ -86,4 +128,25 @@ export function loadGame(slotId: string): SaveGameSnapshot | null {
     console.error('Failed to load game snapshot', error);
     return null;
   }
+}
+
+export async function loadGameAsync(slotId: string): Promise<SaveGameSnapshot | null> {
+  if (isTauriRuntime()) {
+    try {
+      const raw = await loadSlotJson(slotId);
+      if (!raw) return null;
+      const parsed = JSON.parse(raw) as SaveGameSnapshot;
+
+      if (!parsed || !parsed.gameState || !parsed.meta) {
+        return null;
+      }
+
+      return parsed;
+    } catch (error) {
+      console.error('Failed to load game snapshot', error);
+      return null;
+    }
+  }
+
+  return loadGame(slotId);
 }

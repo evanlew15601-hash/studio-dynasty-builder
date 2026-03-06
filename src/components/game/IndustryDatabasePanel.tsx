@@ -1,5 +1,5 @@
 import React, { useEffect, useMemo, useState } from 'react';
-import type { GameState, Genre } from '@/types/game';
+import type { Genre } from '@/types/game';
 import type { AwardDbRecord, FilmDbRecord, IndustryDatabase, TalentDbRecord, TvShowDbRecord } from '@/types/industryDatabase';
 import { clearIndustryDatabase, createEmptyIndustryDatabase, loadIndustryDatabase, saveIndustryDatabase, syncIndustryDatabase } from '@/utils/industryDatabase';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
@@ -12,9 +12,9 @@ import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@
 import { Button } from '@/components/ui/button';
 import { useToast } from '@/hooks/use-toast';
 import { ModsPanel } from './ModsPanel';
+import { useGameStore } from '@/game/store';
 
 interface IndustryDatabasePanelProps {
-  gameState: GameState;
   slotId?: string;
 }
 
@@ -58,7 +58,8 @@ const ALL_GENRES: Genre[] = [
   'historical',
 ];
 
-export const IndustryDatabasePanel: React.FC<IndustryDatabasePanelProps> = ({ gameState, slotId }) => {
+export const IndustryDatabasePanel: React.FC<IndustryDatabasePanelProps> = ({ slotId }) => {
+  const gameState = useGameStore((s) => s.game);
   const { toast } = useToast();
   const slot = slotId || 'slot1';
 
@@ -71,6 +72,8 @@ export const IndustryDatabasePanel: React.FC<IndustryDatabasePanelProps> = ({ ga
   // We sync on week/year changes and on major catalog size changes to avoid doing
   // a full scan on every small UI interaction.
   useEffect(() => {
+    if (!gameState) return;
+
     setDb((prev) => {
       const synced = syncIndustryDatabase(prev, gameState);
       if (synced !== prev) {
@@ -80,13 +83,13 @@ export const IndustryDatabasePanel: React.FC<IndustryDatabasePanelProps> = ({ ga
     });
   }, [
     slot,
-    gameState.currentWeek,
-    gameState.currentYear,
-    gameState.projects.length,
-    gameState.allReleases.length,
-    gameState.talent.length,
-    gameState.competitorStudios.length,
-    gameState.studio.awards?.length || 0,
+    gameState?.currentWeek,
+    gameState?.currentYear,
+    gameState?.projects.length,
+    gameState?.allReleases.length,
+    gameState?.talent.length,
+    gameState?.competitorStudios.length,
+    gameState?.studio.awards?.length || 0,
   ]);
 
   const handleCopyDatabaseJson = async () => {
@@ -261,11 +264,18 @@ export const IndustryDatabasePanel: React.FC<IndustryDatabasePanelProps> = ({ ga
     return Array.from(names).sort((a, b) => a.localeCompare(b));
   }, [db.films, db.studios, db.tvShows]);
 
-  const [selectedStudio, setSelectedStudio] = useState<string>(() => studios[0] || gameState.studio.name);
+  const [selectedStudio, setSelectedStudio] = useState<string>('');
 
   useEffect(() => {
-    if (!selectedStudio && studios.length > 0) setSelectedStudio(studios[0]);
-  }, [selectedStudio, studios]);
+    if (!selectedStudio && studios.length > 0) {
+      setSelectedStudio(studios[0]);
+      return;
+    }
+
+    if (!selectedStudio && gameState?.studio.name) {
+      setSelectedStudio(gameState.studio.name);
+    }
+  }, [gameState, selectedStudio, studios]);
 
   const studioFilms = useMemo(() => {
     return db.films

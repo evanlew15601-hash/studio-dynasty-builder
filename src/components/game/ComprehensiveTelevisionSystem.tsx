@@ -1,8 +1,8 @@
-import React, { useState, useEffect } from 'react';
-import { GameState, Project, Script } from '@/types/game';
-import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
-import { Button } from '@/components/ui/button';
+import React from 'react';
+import { Script } from '@/types/game';
+
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
+import { useGameStore } from '@/game/store';
 import { TVShowDevelopment } from './TVShowDevelopment';
 import { TVProductionManagement } from './TVProductionManagement';
 import { AITelevisionStudios } from './AITelevisionStudios';
@@ -18,45 +18,26 @@ import {
 } from 'lucide-react';
 
 interface ComprehensiveTelevisionSystemProps {
-  gameState: GameState;
-  onUpdateBudget: (amount: number) => void;
-  onGameStateUpdate: (updates: Partial<GameState>) => void;
-  onTalentCommitmentChange?: (talentId: string, busy: boolean, project?: string) => void;
   onCreateTVProject: (script: Script) => void;
   selectedFranchise?: string | null;
   selectedPublicDomain?: string | null;
 }
 
 export const ComprehensiveTelevisionSystem: React.FC<ComprehensiveTelevisionSystemProps> = ({
-  gameState,
-  onUpdateBudget,
-  onGameStateUpdate,
-  onTalentCommitmentChange,
   onCreateTVProject,
   selectedFranchise,
   selectedPublicDomain
 }) => {
-  const [selectedProject, setSelectedProject] = useState<Project | null>(null);
+  const gameState = useGameStore((s) => s.game);
+  
 
-  const handleTVProjectUpdate = (updatedProject: Project) => {
-    const updatedProjects = gameState.projects.map(p => 
-      p.id === updatedProject.id ? updatedProject : p
-    );
+  if (!gameState) {
+    return <div className="p-6 text-sm text-muted-foreground">Loading television systems...</div>;
+  }
 
-    onGameStateUpdate({
-      projects: updatedProjects
-    });
-  };
+  
 
-  const handleTVScriptUpdate = (script: Script) => {
-    const updatedScripts = gameState.scripts.some(s => s.id === script.id)
-      ? gameState.scripts.map(s => s.id === script.id ? script : s)
-      : [...gameState.scripts, script];
-
-    onGameStateUpdate({
-      scripts: updatedScripts
-    });
-  };
+  
 
   // Get TV-specific projects for selection
   const tvProjects = gameState.projects.filter(p => 
@@ -115,86 +96,36 @@ export const ComprehensiveTelevisionSystem: React.FC<ComprehensiveTelevisionSyst
 
         <TabsContent value="development">
           <TVShowDevelopment
-            gameState={gameState}
             selectedFranchise={selectedFranchise}
             selectedPublicDomain={selectedPublicDomain}
             onProjectCreate={onCreateTVProject}
-            onSpendFunds={(amount) => {
-              const currentDebt = gameState.studio.debt || 0;
-              const maxLoanCapacity = Math.max(0, 50000000 - currentDebt);
-              const availableFunds = gameState.studio.budget + maxLoanCapacity;
-              if (amount > availableFunds) return { success: false };
-
-              const budgetAfter = gameState.studio.budget - amount;
-              const loanTaken = budgetAfter < 0 ? Math.min(-budgetAfter, maxLoanCapacity) : 0;
-
-              onGameStateUpdate({
-                studio: {
-                  ...gameState.studio,
-                  budget: Math.max(0, budgetAfter),
-                  debt: currentDebt + loanTaken,
-                },
-              });
-
-              return { success: true, loanTaken };
-            }}
-            onScriptUpdate={handleTVScriptUpdate}
           />
         </TabsContent>
 
         <TabsContent value="production">
-          <TVProductionManagement
-            gameState={gameState}
-            selectedProject={selectedProject}
-            onProjectUpdate={handleTVProjectUpdate}
-          />
+          <TVProductionManagement />
         </TabsContent>
 
         <TabsContent value="marketing">
           <MarketingReleaseManagement
-            gameState={gameState}
             projectTypeFilter="tv"
-            onProjectUpdate={(project, marketingCost) => {
-              handleTVProjectUpdate(project);
-              if (marketingCost) {
-                onUpdateBudget(-marketingCost);
-              }
-            }}
           />
         </TabsContent>
 
         <TabsContent value="episodes">
           <div className="space-y-6">
-            <EpisodeTrackingSystem
-              gameState={gameState}
-              onProjectUpdate={(projectId, updates) => {
-                const project = gameState.projects.find(p => p.id === projectId);
-                if (!project) return;
-                handleTVProjectUpdate({ ...project, ...updates });
-              }}
-            />
-            <StreamingAnalyticsDashboard gameState={gameState} />
+            <EpisodeTrackingSystem />
+            <StreamingAnalyticsDashboard />
           </div>
         </TabsContent>
 
         <TabsContent value="streaming">
-          <StreamingContractSystem
-            gameState={gameState}
-            onProjectUpdate={(projectId, updates) => {
-              const project = gameState.projects.find(p => p.id === projectId);
-              if (!project) return;
-              handleTVProjectUpdate({ ...project, ...updates });
-            }}
-            onUpdateBudget={onUpdateBudget}
-          />
+          <StreamingContractSystem />
         </TabsContent>
 
         {import.meta.env.DEV && (
           <TabsContent value="competition">
-            <AITelevisionStudios
-              gameState={gameState}
-              onGameStateUpdate={onGameStateUpdate}
-            />
+            <AITelevisionStudios />
           </TabsContent>
         )}
       </Tabs>

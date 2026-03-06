@@ -1,9 +1,10 @@
 import React, { useState } from 'react';
-import { GameState, Project } from '@/types/game';
+import type { GameState, Project } from '@/types/game';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
 import { Progress } from '@/components/ui/progress';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
+import { useGameStore } from '@/game/store';
 import { 
   TrendingIcon, 
   DollarIcon,
@@ -14,7 +15,7 @@ import {
 } from '@/components/ui/icons';
 
 interface StudioStatsProps {
-  gameState: GameState;
+  gameState?: GameState;
 }
 
 interface FilmStats {
@@ -30,10 +31,14 @@ interface FilmStats {
   releaseYear?: number;
 }
 
-export const StudioStats: React.FC<StudioStatsProps> = ({
-  gameState
-}) => {
+export const StudioStats: React.FC<StudioStatsProps> = ({ gameState: propGameState }) => {
+  const storeGameState = useGameStore((s) => s.game);
+  const gameState = propGameState ?? storeGameState;
   const [selectedPeriod, setSelectedPeriod] = useState<'all' | 'current-year' | 'last-year'>('all');
+
+  if (!gameState) {
+    return <div className="p-6 text-sm text-muted-foreground">Loading studio stats...</div>;
+  }
 
   const getCompletedFilms = (): FilmStats[] => {
     return gameState.projects

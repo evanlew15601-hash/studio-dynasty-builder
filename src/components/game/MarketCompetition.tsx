@@ -1,5 +1,5 @@
 import React, { useMemo } from 'react';
-import { GameState, Project, CompetitorRelease, SeasonalTrend, IndustryTrend, Genre } from '@/types/game';
+import { Project, CompetitorRelease, SeasonalTrend, Genre } from '@/types/game';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
 import { Progress } from '@/components/ui/progress';
@@ -9,19 +9,16 @@ import {
   TrendingIcon, 
   CalendarIcon,
   AlertIcon,
-  BarChartIcon,
-  DollarIcon 
+  BarChartIcon
 } from '@/components/ui/icons';
+import { useGameStore } from '@/game/store';
 
-interface MarketCompetitionProps {
-  gameState: GameState;
-}
-
-export const MarketCompetition: React.FC<MarketCompetitionProps> = ({ gameState }) => {
+export const MarketCompetition: React.FC = () => {
+  const gameState = useGameStore((s) => s.game);
   
   // Generate seasonal trends based on current week
   const getCurrentSeasonalTrends = (): SeasonalTrend[] => {
-    const week = gameState.currentWeek;
+    const week = gameState?.currentWeek ?? 0;
     const trends: SeasonalTrend[] = [];
     
     if (week >= 20 && week <= 35) { // Summer (May-August)
@@ -73,6 +70,8 @@ export const MarketCompetition: React.FC<MarketCompetitionProps> = ({ gameState 
   };
 
   const competitorReleases = useMemo<CompetitorRelease[]>(() => {
+    if (!gameState) return [];
+
     const releasesThisWeek = gameState.allReleases
       .filter((r): r is Project => 'script' in r)
       .filter((r) =>
@@ -107,7 +106,7 @@ export const MarketCompetition: React.FC<MarketCompetitionProps> = ({ gameState 
         marketingBuzz: project.marketingData?.currentBuzz ?? 50,
       };
     });
-  }, [gameState.allReleases, gameState.currentWeek, gameState.currentYear]);
+  }, [gameState]);
 
   // Calculate genre oversaturation
   const calculateGenreOversaturation = (releases: CompetitorRelease[]): { [genre: string]: number } => {
@@ -150,6 +149,10 @@ export const MarketCompetition: React.FC<MarketCompetitionProps> = ({ gameState 
 
     return { competitionLevel, seasonalBonus, oversaturationPenalty };
   };
+
+  if (!gameState) {
+    return <div className="p-6 text-sm text-muted-foreground">Loading market data...</div>;
+  }
 
   const currentTrends = getCurrentSeasonalTrends();
   const oversaturation = calculateGenreOversaturation(competitorReleases);

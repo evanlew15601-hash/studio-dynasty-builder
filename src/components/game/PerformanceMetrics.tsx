@@ -3,13 +3,15 @@ import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
 import { Progress } from '@/components/ui/progress';
 import { TrendingUp, TrendingDown, DollarSign, Calendar, Users } from 'lucide-react';
-import { GameState, Project } from '@/types/game';
+import { Project } from '@/types/game';
+import { useGameStore } from '@/game/store';
 
-interface PerformanceMetricsProps {
-  gameState: GameState;
-}
+export const PerformanceMetrics: React.FC = () => {
+  const gameState = useGameStore((s) => s.game);
 
-export const PerformanceMetrics: React.FC<PerformanceMetricsProps> = ({ gameState }) => {
+  if (!gameState) {
+    return <div className="p-6 text-sm text-muted-foreground">Loading performance metrics...</div>;
+  }
   const calculateMetrics = () => {
     const releasedProjects = gameState.projects.filter(p => p.status === 'released');
     const totalRevenue = releasedProjects.reduce((sum, p) => sum + (p.metrics?.boxOfficeTotal || 0), 0);

@@ -1,5 +1,6 @@
 import React, { useState } from 'react';
-import { GameState, Project, TalentPerson, ProductionRole, ScriptCharacter } from '@/types/game';
+import { Project, TalentPerson, ProductionRole, ScriptCharacter } from '@/types/game';
+import { useGameStore } from '@/game/store';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
@@ -16,20 +17,16 @@ import {
 } from '@/components/ui/icons';
 
 interface CastingBoardProps {
-  gameState: GameState;
   selectedProject: Project | null;
-  onProjectUpdate: (project: Project) => void;
-  onTalentHire: (talent: TalentPerson) => void;
 }
 
 export const CastingBoard: React.FC<CastingBoardProps> = ({
-  gameState,
-  selectedProject,
-  onProjectUpdate,
-  onTalentHire,
+  selectedProject: propSelectedProject,
 }) => {
+  const gameState = useGameStore((s) => s.game);
+  const replaceProject = useGameStore((s) => s.replaceProject);
+  const updateTalent = useGameStore((s) => s.updateTalent);
   const { toast } = useToast();
-  const [selectedTalent, setSelectedTalent] = useState<TalentPerson | null>(null);
   const [filters, setFilters] = useState<CastingFilters>({
     talentType: 'all',
     genre: 'all',
@@ -40,6 +37,14 @@ export const CastingBoard: React.FC<CastingBoardProps> = ({
     hasAwards: null,
     searchQuery: ''
   });
+
+  if (!gameState) {
+    return <div className="p-6 text-sm text-muted-foreground">Loading casting board...</div>;
+  }
+
+  const selectedProject = propSelectedProject
+    ? gameState.projects.find(p => p.id === propSelectedProject.id) || propSelectedProject
+    : null;
 
   const availableTalent = gameState.talent.filter(talent => {
     if (talent.contractStatus !== 'available') return false;
@@ -179,14 +184,11 @@ export const CastingBoard: React.FC<CastingBoardProps> = ({
       }
     }
 
-    onProjectUpdate(updatedProject);
-    
-    const updatedTalent = {
-      ...talent,
+    replaceProject(updatedProject);
+
+    updateTalent(talent.id, {
       contractStatus: 'contracted' as const
-    };
-    
-    onTalentHire(updatedTalent);
+    });
 
     toast({
       title: "Talent Hired!",
