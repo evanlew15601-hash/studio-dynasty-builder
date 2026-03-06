@@ -1,4 +1,4 @@
-name: windows-tauri-build
+name: Windows Tauri Build
 
 on:
   workflow_dispatch:
