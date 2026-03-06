@@ -2989,7 +2989,7 @@ export const StudioMagnateGame: React.FC<StudioMagnateGameProps> = ({
               <TabsContent value="feed">
                 {React.createElement(React.lazy(() => 
                   import('./MediaDashboard').then(m => ({ default: m.MediaDashboard }))
-                  .catch(() => import('./MediaNotifications').then(m => ({ default: m.MediaNotifications })))
+                  .catch(() => import('./MediaNotifications').then(m => ({ default: m.MediaNotifications as any })))
                 ), {})}
               </TabsContent>
               
