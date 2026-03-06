@@ -1764,7 +1764,7 @@ export const StudioMagnateGame: React.FC<StudioMagnateGameProps> = ({
       const measure = <T,>(id: string, label: string, fn: () => T): T => {
         const start = performance.now();
         const result = fn();
-        systems.push({ id, label, durationMs: performance.now() - start });
+        systems.push({ id, label, ms: performance.now() - start });
         return result;
       };
 
@@ -2989,7 +2989,7 @@ export const StudioMagnateGame: React.FC<StudioMagnateGameProps> = ({
               <TabsContent value="feed">
                 {React.createElement(React.lazy(() => 
                   import('./MediaDashboard').then(m => ({ default: m.MediaDashboard }))
-                  .catch(() => import('./MediaNotifications').then(m => ({ default: m.MediaNotifications })))
+                  .catch(() => import('./MediaNotifications').then(m => ({ default: m.MediaNotifications as any })))
                 ), {})}
               </TabsContent>
               
