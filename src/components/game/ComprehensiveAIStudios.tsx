@@ -55,14 +55,16 @@ interface AIProject {
 }
 
 interface ComprehensiveAIStudiosProps {
-  gameState: GameState;
+  gameState?: GameState;
   onTalentCommitmentChange?: (talentId: string, busy: boolean, project?: string) => void;
 }
 
 export const ComprehensiveAIStudios: React.FC<ComprehensiveAIStudiosProps> = ({
-  gameState,
+  gameState: propGameState,
   onTalentCommitmentChange
 }) => {
+  const storeGameState = useGameStore((s) => s.game);
+  const gameState = propGameState ?? storeGameState;
   const [aiStudios, setAIStudios] = useState<AIStudio[]>([]);
   const [viewMode, setViewMode] = useState<'studios' | 'projects' | 'talent'>('studios');
 
@@ -73,8 +75,13 @@ export const ComprehensiveAIStudios: React.FC<ComprehensiveAIStudiosProps> = ({
   }, []);
 
   useEffect(() => {
+    if (!gameState) return;
     processWeeklyAIActivity();
-  }, [gameState.currentWeek, gameState.currentYear]);
+  }, [gameState?.currentWeek, gameState?.currentYear]);
+
+  if (!gameState) {
+    return <div className="p-6 text-sm text-muted-foreground">Loading AI studios...</div>;
+  }
 
   const initializeAIStudios = () => {
     const studioTemplates = [

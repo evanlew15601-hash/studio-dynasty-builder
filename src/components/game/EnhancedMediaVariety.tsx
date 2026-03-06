@@ -1,5 +1,6 @@
 import React, { useState, useEffect } from 'react';
-import { GameState, Project, TalentPerson } from '@/types/game';
+import type { GameState, Project, TalentPerson } from '@/types/game';
+import { useGameStore } from '@/game/store';
 
 interface MediaStory {
   id: string;
@@ -14,21 +15,30 @@ interface MediaStory {
 }
 
 interface EnhancedMediaVarietyProps {
-  gameState: GameState;
+  gameState?: GameState;
   onMediaStoryGenerated?: (story: MediaStory) => void;
 }
 
 export const EnhancedMediaVariety: React.FC<EnhancedMediaVarietyProps> = ({
-  gameState,
+  gameState: propGameState,
   onMediaStoryGenerated
 }) => {
+  const storeGameState = useGameStore((s) => s.game);
+  const gameState = propGameState ?? storeGameState;
+
   const [weeklyStories, setWeeklyStories] = useState<MediaStory[]>([]);
 
   useEffect(() => {
+    if (!gameState) return;
     generateVariedMediaStories();
-  }, [gameState.currentWeek, gameState.currentYear]);
+  }, [gameState?.currentWeek, gameState?.currentYear]);
+
+  if (!gameState) {
+    return <div className="p-6 text-sm text-muted-foreground">Loading media...</div>;
+  }
 
   const generateVariedMediaStories = () => {
+
     const stories: MediaStory[] = [];
     
     // Awards season stories (weeks 1-12)
@@ -242,6 +252,7 @@ export const EnhancedMediaVariety: React.FC<EnhancedMediaVarietyProps> = ({
     if (releasedProjects.length > 0 && Math.random() < 0.3) {
       const recentReleases = releasedProjects
         .filter(p => p.releaseYear === gameState.currentYear)
+        .so        .filter(p => p.releaseYear === gameState.currentYear)
         .sort((a, b) => (b.metrics?.boxOfficeTotal || 0) - (a.metrics?.boxOfficeTotal || 0));
       
       if (recentReleases.length > 0) {

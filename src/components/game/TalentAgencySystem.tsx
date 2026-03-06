@@ -2,34 +2,57 @@ import React, { useState } from 'react';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
-import { TalentAgent, TalentPerson, TalentHold } from '@/types/game';
-import { Star, Users, DollarSign, Handshake } from 'lucide-react';
+import type { TalentAgent, TalentPerson, TalentHold } from '@/types/game';
+import { useGameStore } from '@/game/store';
+import { DollarSign, Handshake } from 'lucide-react';
 
 interface TalentAgencySystemProps {
-  agents: TalentAgent[];
-  talent: TalentPerson[];
-  studioId: string;
-  currentWeek: number;
-  currentYear: number;
-  onNegotiateDeal: (agentId: string, talentId: string, terms: any) => void;
-  onCreateHold: (hold: TalentHold) => void;
+  agents?: TalentAgent[];
+  talent?: TalentPerson[];
+  studioId?: string;
+  currentWeek?: number;
+  currentYear?: number;
+  onNegotiateDeal?: (agentId: string, talentId: string, terms: any) => void;
+  onCreateHold?: (hold: TalentHold) => void;
 }
 
 export const TalentAgencySystem: React.FC<TalentAgencySystemProps> = ({
-  agents,
-  talent,
-  studioId,
-  currentWeek,
-  currentYear,
-  onNegotiateDeal,
-  onCreateHold
+  agents: propAgents,
+  talent: propTalent,
+  studioId: propStudioId,
+  currentWeek: propCurrentWeek,
+  currentYear: propCurrentYear,
+  onNegotiateDeal: propOnNegotiateDeal,
+  onCreateHold: propOnCreateHold,
 }) => {
+  const gameState = useGameStore((s) => s.game);
+
+  const talent = propTalent ?? gameState?.talent;
+  const agents =
+    propAgents ??
+    (talent
+      ? talent
+          .filter((t) => t.agent)
+          .map((t) => t.agent!)
+          .filter((a, i, arr) => arr.findIndex((x) => x.id === a.id) === i)
+      : undefined);
+  const studioId = propStudioId ?? gameState?.studio.id;
+  const currentWeek = propCurrentWeek ?? gameState?.currentWeek;
+  const currentYear = propCurrentYear ?? gameState?.currentYear;
+
+  const onNegotiateDeal = propOnNegotiateDeal ?? (() => {});
+  const onCreateHold = propOnCreateHold ?? (() => {});
+
   const [selectedAgent, setSelectedAgent] = useState<TalentAgent | null>(null);
   const [selectedTalent, setSelectedTalent] = useState<TalentPerson | null>(null);
   const [dealType, setDealType] = useState<'standard' | 'priority' | 'exclusive'>('standard');
 
+  if (!talent || !agents || !studioId || currentWeek == null || currentYear == null) {
+    return <div className="p-6 text-sm text-muted-foreground">Loading agency system...</div>;
+  }
+
   const getAgentClients = (agentId: string) => {
-    return talent.filter(t => t.agent?.id === agentId);
+    return talent.filter((t) => t.agent?.id === agentId);
   };
 
   const calculateDealSuccess = (agent: TalentAgent, talentPerson: TalentPerson) => {
@@ -38,7 +61,7 @@ export const TalentAgencySystem: React.FC<TalentAgencySystemProps> = ({
     const reputationBonus = agent.reputation * 0.2;
     const connectionBonus = agent.connectionStrength * 0.3;
     const talentDifficulty = talentPerson.reputation * 0.1;
-    
+
     return Math.min(95, baseSuccess + powerBonus + reputationBonus + connectionBonus - talentDifficulty);
   };
 
@@ -51,7 +74,7 @@ export const TalentAgencySystem: React.FC<TalentAgencySystemProps> = ({
       commission: selectedAgent.commission,
       priority: dealType === 'priority',
       exclusive: dealType === 'exclusive',
-      successChance
+      successChance,
     };
 
     onNegotiateDeal(selectedAgent.id, selectedTalent.id, terms);
@@ -71,8 +94,8 @@ export const TalentAgencySystem: React.FC<TalentAgencySystemProps> = ({
       status: 'pending',
       terms: {
         salary: selectedTalent.marketValue * 1.1,
-        bonuses: selectedTalent.marketValue * 0.1
-      }
+        bonuses: selectedTalent.marketValue * 0.1,
+      },
     };
 
     onCreateHold(hold);
@@ -89,12 +112,11 @@ export const TalentAgencySystem: React.FC<TalentAgencySystemProps> = ({
         </CardHeader>
         <CardContent>
           <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-            {/* Agent Selection */}
             <div>
               <h3 className="text-lg font-semibold mb-3">Select Agent</h3>
               <div className="space-y-2 max-h-64 overflow-y-auto">
-                {agents.map(agent => (
-                  <Card 
+                {agents.map((agent) => (
+                  <Card
                     key={agent.id}
                     className={`cursor-pointer transition-colors ${
                       selectedAgent?.id === agent.id ? 'ring-2 ring-primary' : 'hover:bg-accent'
@@ -106,15 +128,10 @@ export const TalentAgencySystem: React.FC<TalentAgencySystemProps> = ({
                         <div>
                           <h4 className="font-medium">{agent.name}</h4>
                           <p className="text-sm text-muted-foreground">{agent.agency}</p>
-                          <div className="flex items-center gap-2 mt-1">
-                            <Badge variant="secondary" className="text-xs">
-                              <Star className="h-3 w-3 mr-1" />
-                              Power: {agent.powerLevel}/10
-                            </Badge>
-                            <Badge variant="outline" className="text-xs">
-                              <Users className="h-3 w-3 mr-1" />
-                              {getAgentClients(agent.id).length} clients
-                            </Badge>
+                          <div className="flex flex-wrap gap-1 mt-1">
+                            <Badge variant="outline">Power {agent.powerLevel}</Badge>
+                            <Badge variant="outline">Rep {agent.reputation}</Badge>
+                            <Badge variant="outline">Conn {agent.connectionStrength}</Badge>
                           </div>
                         </div>
                         <div className="text-right text-sm">
@@ -128,7 +145,6 @@ export const TalentAgencySystem: React.FC<TalentAgencySystemProps> = ({
               </div>
             </div>
 
-            {/* Talent Selection */}
             <div>
               <h3 className="text-lg font-semibold mb-3">
                 Available Talent
@@ -139,8 +155,8 @@ export const TalentAgencySystem: React.FC<TalentAgencySystemProps> = ({
                 )}
               </h3>
               <div className="space-y-2 max-h-64 overflow-y-auto">
-                {(selectedAgent ? getAgentClients(selectedAgent.id) : talent.slice(0, 10)).map(person => (
-                  <Card 
+                {(selectedAgent ? getAgentClients(selectedAgent.id) : talent.slice(0, 10)).map((person) => (
+                  <Card
                     key={person.id}
                     className={`cursor-pointer transition-colors ${
                       selectedTalent?.id === person.id ? 'ring-2 ring-primary' : 'hover:bg-accent'
@@ -152,15 +168,13 @@ export const TalentAgencySystem: React.FC<TalentAgencySystemProps> = ({
                         <div>
                           <h4 className="font-medium">{person.name}</h4>
                           <p className="text-sm text-muted-foreground capitalize">{person.type}</p>
-                            <Badge variant="outline" className="text-xs mt-1">
-                              Rep: {Math.round(person.reputation)}/100
-                            </Badge>
+                          <div className="flex flex-wrap gap-1 mt-1">
+                            <Badge variant="outline">Rep {person.reputation}</Badge>
+                          </div>
                         </div>
                         <div className="text-right text-sm">
-                          <p className="font-medium">
-                            ${(person.marketValue / 1000000).toFixed(1)}M
-                          </p>
-                          <p className="text-muted-foreground">market value</p>
+                          <p className="font-medium">\u0024{(person.marketValue / 1000000).toFixed(1)}M</p>
+                          <p className="text-muted-foreground">value</p>
                         </div>
                       </div>
                     </CardContent>
@@ -170,11 +184,10 @@ export const TalentAgencySystem: React.FC<TalentAgencySystemProps> = ({
             </div>
           </div>
 
-          {/* Deal Controls */}
           {selectedAgent && selectedTalent && (
             <div className="mt-6 p-4 border rounded-lg bg-muted/50">
               <h3 className="text-lg font-semibold mb-3">Negotiate Deal</h3>
-              <div className="flex gap-4 mb-4">
+              <div className="flex flex-wrap gap-2 mb-4">
                 <Button
                   variant={dealType === 'standard' ? 'default' : 'outline'}
                   onClick={() => setDealType('standard')}
@@ -195,12 +208,10 @@ export const TalentAgencySystem: React.FC<TalentAgencySystemProps> = ({
                 </Button>
               </div>
 
-              <div className="flex justify-between items-center">
+              <div className="flex justify-between items-center flex-wrap gap-3">
                 <div>
                   <p className="text-sm">
-                    Success Chance: <span className="font-medium">
-                      {calculateDealSuccess(selectedAgent, selectedTalent)}%
-                    </span>
+                    Success Chance: <span className="font-medium">{calculateDealSuccess(selectedAgent, selectedTalent)}%</span>
                   </p>
                   <p className="text-sm text-muted-foreground">
                     Commission: {selectedAgent.commission}% + deal premiums

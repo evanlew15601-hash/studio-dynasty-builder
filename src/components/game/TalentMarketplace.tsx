@@ -6,31 +6,42 @@ import { Button } from '@/components/ui/button';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { Switch } from '@/components/ui/switch';
 import { AIStudioManager, TalentCommitment } from './AIStudioManager';
-import { TalentPerson } from '@/types/game';
+import type { TalentPerson } from '@/types/game';
+import { useGameStore } from '@/game/store';
 import { Calendar, Clock, Star, Film, DollarSign } from 'lucide-react';
 
 interface TalentMarketplaceProps {
-  talent: TalentPerson[];
-  currentWeek: number;
-  currentYear: number;
+  talent?: TalentPerson[];
+  currentWeek?: number;
+  currentYear?: number;
   onCastTalent?: (talentId: string, role: string) => void;
 }
 
 export const TalentMarketplace: React.FC<TalentMarketplaceProps> = ({
-  talent,
-  currentWeek,
-  currentYear,
+  talent: propTalent,
+  currentWeek: propCurrentWeek,
+  currentYear: propCurrentYear,
   onCastTalent
 }) => {
+  const gameState = useGameStore((s) => s.game);
+
+  const talent = propTalent ?? gameState?.talent;
+  const currentWeek = propCurrentWeek ?? gameState?.currentWeek;
+  const currentYear = propCurrentYear ?? gameState?.currentYear;
   const [showAvailableOnly, setShowAvailableOnly] = useState(false);
   const [selectedRole, setSelectedRole] = useState<string>('all');
   const [commitments, setCommitments] = useState<TalentCommitment[]>([]);
 
   // **CHECKPOINT 2 TEST**: Load talent commitments
   useEffect(() => {
+    if (currentWeek == null || currentYear == null) return;
     const allCommitments = AIStudioManager.getAllCommitments();
     setCommitments(allCommitments);
   }, [currentWeek, currentYear]);
+
+  if (!talent || currentWeek == null || currentYear == null) {
+    return <div className="p-6 text-sm text-muted-foreground">Loading talent marketplace...</div>;
+  }
 
   // **CHECKPOINT 2 TEST**: Filter talent by availability
   const getFilteredTalent = () => {

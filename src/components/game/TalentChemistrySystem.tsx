@@ -2,27 +2,38 @@ import React, { useState } from 'react';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
-import { TalentPerson, ChemistryEvent } from '@/types/game';
+import type { TalentPerson, ChemistryEvent } from '@/types/game';
+import { useGameStore } from '@/game/store';
 import { Heart, Zap, Users, TrendingUp, TrendingDown, Minus } from 'lucide-react';
 
 interface TalentChemistrySystemProps {
-  talent: TalentPerson[];
-  chemistryEvents: ChemistryEvent[];
-  currentWeek: number;
-  currentYear: number;
+  talent?: TalentPerson[];
+  chemistryEvents?: ChemistryEvent[];
+  currentWeek?: number;
+  currentYear?: number;
   onCreateChemistryEvent?: (event: ChemistryEvent) => void;
 }
 
 export const TalentChemistrySystem: React.FC<TalentChemistrySystemProps> = ({
-  talent,
-  chemistryEvents,
-  currentWeek,
-  currentYear,
+  talent: propTalent,
+  chemistryEvents: propChemistryEvents,
+  currentWeek: propCurrentWeek,
+  currentYear: propCurrentYear,
   onCreateChemistryEvent
 }) => {
+  const gameState = useGameStore((s) => s.game);
+
+  const talent = propTalent ?? gameState?.talent;
+  const chemistryEvents = propChemistryEvents ?? [];
+  const currentWeek = propCurrentWeek ?? gameState?.currentWeek;
+  const currentYear = propCurrentYear ?? gameState?.currentYear;
   const [selectedTalent1, setSelectedTalent1] = useState<TalentPerson | null>(null);
   const [selectedTalent2, setSelectedTalent2] = useState<TalentPerson | null>(null);
   const [viewMode, setViewMode] = useState<'matrix' | 'relationships' | 'events'>('matrix');
+
+  if (!talent || currentWeek == null || currentYear == null) {
+    return <div className="p-6 text-sm text-muted-foreground">Loading chemistry system...</div>;
+  }
 
   const getChemistryScore = (talent1Id: string, talent2Id: string): number => {
     const talent1 = talent.find(t => t.id === talent1Id);

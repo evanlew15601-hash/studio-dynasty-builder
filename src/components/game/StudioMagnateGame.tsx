@@ -2850,47 +2850,25 @@ export const StudioMagnateGame: React.FC<StudioMagnateGameProps> = ({
               
               <TabsContent value="marketplace">
                 <Suspense fallback={<div>Loading talent marketplace...</div>}>
-                  {React.createElement(React.lazy(() => import('./TalentMarketplace').then(m => ({ default: m.TalentMarketplace }))), {
-                    talent: gameState.talent,
-                    currentWeek: gameState.currentWeek,
-                    currentYear: gameState.currentYear,
-                    onCastTalent: (talentId: string) => console.log('Cast talent:', talentId)
-                  })}
+                  {React.createElement(React.lazy(() => import('./TalentMarketplace').then(m => ({ default: m.TalentMarketplace }))), {})}
                 </Suspense>
               </TabsContent>
               
               <TabsContent value="agencies">
                 <Suspense fallback={<div>Loading agency system...</div>}>
-                  {React.createElement(React.lazy(() => import('./TalentAgencySystem').then(m => ({ default: m.TalentAgencySystem }))), {
-                    agents: gameState.talent.filter(t => t.agent).map(t => t.agent!),
-                    talent: gameState.talent,
-                    studioId: gameState.studio.id,
-                    currentWeek: gameState.currentWeek,
-                    currentYear: gameState.currentYear,
-                    onNegotiateDeal: (agentId: string, talentId: string, terms: any) => console.log('Negotiating deal:', { agentId, talentId, terms }),
-                    onCreateHold: (hold: any) => console.log('Creating hold:', hold)
-                  })}
+                  {React.createElement(React.lazy(() => import('./TalentAgencySystem').then(m => ({ default: m.TalentAgencySystem }))), {})}
                 </Suspense>
               </TabsContent>
               
               <TabsContent value="wellness">
                 <Suspense fallback={<div>Loading wellness monitor...</div>}>
-                  {React.createElement(React.lazy(() => import('./TalentBurnoutSystem').then(m => ({ default: m.TalentBurnoutSystem }))), {
-                    talent: gameState.talent,
-                    currentWeek: gameState.currentWeek,
-                    currentYear: gameState.currentYear
-                  })}
+                  {React.createElement(React.lazy(() => import('./TalentBurnoutSystem').then(m => ({ default: m.TalentBurnoutSystem }))), {})}
                 </Suspense>
               </TabsContent>
               
               <TabsContent value="chemistry">
                 <Suspense fallback={<div>Loading chemistry system...</div>}>
-                  {React.createElement(React.lazy(() => import('./TalentChemistrySystem').then(m => ({ default: m.TalentChemistrySystem }))), {
-                    talent: gameState.talent,
-                    chemistryEvents: [],
-                    currentWeek: gameState.currentWeek,
-                    currentYear: gameState.currentYear
-                  })}
+                  {React.createElement(React.lazy(() => import('./TalentChemistrySystem').then(m => ({ default: m.TalentChemistrySystem }))), {})}
                 </Suspense>
               </TabsContent>
 
