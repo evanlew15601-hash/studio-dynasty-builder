@@ -29,6 +29,10 @@ export const TVProductionManagement: React.FC = () => {
     return <div className="p-6 text-sm text-muted-foreground">Loading TV production...</div>;
   }
 
+  const currentCastingProject = castingProject
+    ? gameState.projects.find(p => p.id === castingProject.id) || castingProject
+    : null;
+
   const getTVProjectsInProduction = () => {
     return gameState.projects.filter(p => 
       (p.type === 'series' || p.type === 'limited-series') && (
@@ -354,41 +358,14 @@ export const TVProductionManagement: React.FC = () => {
       )}
 
       {/* Casting Modal */}
-      {showCastingModal && castingProject && (
+      {showCastingModal && currentCastingProject && (
         <Dialog open={showCastingModal} onOpenChange={() => { setShowCastingModal(false); setCastingProject(null); }}>
           <DialogContent className="max-w-3xl max-h-[80vh] overflow-y-auto">
             <DialogHeader>
-              <DialogTitle>Casting - {castingProject.title}</DialogTitle>
+              <DialogTitle>Casting - {currentCastingProject.title}</DialogTitle>
             </DialogHeader>
             <RoleBasedCasting
-              project={castingProject}
-              gameState={gameState}
-              onCastRole={(characterId, talentId) => {
-                const updatedCharacters = (castingProject.script?.characters || []).map(c =>
-                  c.id === characterId ? { ...c, assignedTalentId: talentId } : c
-                );
-                const hasDirector = updatedCharacters.some(c => c.requiredType === 'director' && c.assignedTalentId);
-                const hasLead = updatedCharacters.some(c => c.importance === 'lead' && c.requiredType === 'actor' && c.assignedTalentId);
-                const updated = { 
-                  ...castingProject, 
-                  script: { ...castingProject.script, characters: updatedCharacters }, 
-                  castingConfirmed: hasDirector && hasLead 
-                };
-                replaceProject(updated);
-                setCastingProject(updated);
-              }}
-              onCreateRole={(role) => {
-                const updatedCharacters = [...(castingProject.script?.characters || []), role];
-                const hasDirector = updatedCharacters.some(c => c.requiredType === 'director' && c.assignedTalentId);
-                const hasLead = updatedCharacters.some(c => c.importance === 'lead' && c.requiredType === 'actor' && c.assignedTalentId);
-                const updated = { 
-                  ...castingProject, 
-                  script: { ...castingProject.script, characters: updatedCharacters }, 
-                  castingConfirmed: hasDirector && hasLead 
-                };
-                replaceProject(updated);
-                setCastingProject(updated);
-              }}
+              project={currentCastingProject}
             />
           </DialogContent>
         </Dialog>

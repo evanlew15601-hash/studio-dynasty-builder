@@ -1,12 +1,12 @@
 import React, { useState } from 'react';
-import { Studio, GameState } from '@/types/game';
+import { useGameStore } from '@/game/store';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
 import { Progress } from '@/components/ui/progress';
 import { Slider } from '@/components/ui/slider';
 import { useToast } from '@/hooks/use-toast';
-import { DollarSign, TrendingUp, AlertTriangle, Calendar, Banknote } from 'lucide-react';
+import { DollarSign, TrendingUp, AlertTriangle, Banknote } from 'lucide-react';
 
 interface Loan {
   id: string;
@@ -20,22 +20,18 @@ interface Loan {
   status: 'active' | 'paid' | 'defaulted';
 }
 
-interface EnhancedLoanSystemProps {
-  gameState: GameState;
-  onBudgetUpdate: (newBudget: number) => void;
-  onReputationChange: (change: number) => void;
-  onLoansUpdate?: (loans: Loan[]) => void;
-}
+interface EnhancedLoanSystemProps {}
 
-export const EnhancedLoanSystem: React.FC<EnhancedLoanSystemProps> = ({
-  gameState,
-  onBudgetUpdate,
-  onReputationChange,
-  onLoansUpdate
-}) => {
+export const EnhancedLoanSystem: React.FC<EnhancedLoanSystemProps> = () => {
+  const gameState = useGameStore((s) => s.game);
+  const setGameState = useGameStore((s) => s.setGameState);
   const { toast } = useToast();
   const [loanAmount, setLoanAmount] = useState([5000000]); // $5M default
   const [loanTerm, setLoanTerm] = useState([52]); // 1 year default
+
+  if (!gameState) {
+    return <div className="p-6 text-sm text-muted-foreground">Loading loan system...</div>;
+  }
 
   const calculateLoanTerms = (amount: number, weeks: number) => {
     const baseRate = 0.08; // 8% base annual rate
@@ -102,12 +98,14 @@ const newLoan: Loan = {
   status: 'active'
 };
 
-const existingLoans = gameState.studio.loans || [];
-if (onLoansUpdate) {
-  onLoansUpdate([...existingLoans, newLoan]);
-}
-
-onBudgetUpdate(gameState.studio.budget + amount);
+setGameState((prev) => ({
+  ...prev,
+  studio: {
+    ...prev.studio,
+    loans: [...(prev.studio.loans || []), newLoan],
+    budget: prev.studio.budget + amount,
+  },
+}));
 
 toast({
   title: "Loan Approved",
@@ -143,17 +141,28 @@ toast({
       missedPayments: 0 // Reset missed payments on successful payment
     };
 
-const updatedLoans = gameState.studio.loans?.map(l => 
-  l.id === loanId ? updatedLoan : l
-) || [];
+setGameState((prev) => {
+  const updatedLoans = (prev.studio.loans || []).map(l => 
+    l.id === loanId ? updatedLoan : l
+  );
 
-if (onLoansUpdate) {
-  onLoansUpdate(updatedLoans);
-}
+  const nextReputation = isPaidOff
+    ? Math.max(0, Math.min(100, (prev.studio.reputation || 0) + 5))
+    : prev.studio.reputation;
+
+  return {
+    ...prev,
+    studio: {
+      ...prev.studio,
+      loans: updatedLoans,
+      budget: prev.studio.budget - paymentAmount,
+      reputation: nextReputation,
+    },
+  };
+});
 
     
     if (isPaidOff) {
-      onReputationChange(5); // Bonus for paying off loan
       toast({
         title: "Loan Paid Off",
         description: `Congratulations! You've paid off your loan. +5 reputation.`,
@@ -161,17 +170,18 @@ if (onLoansUpdate) {
     } else {
       toast({
         title: "Payment Made",
-        description: `Payment of $${(paymentAmount / 1000000).toFixed(2)}M applied to loan`,
+        description: `Payment of ${(paymentAmount / 1000000).toFixed(2)}M applied to loan`,
       });
     }
   };
 
   const processWeeklyPayments = () => {
-    const activeLoans = getActiveLoans();
     let totalPayments = 0;
     let missedPayments = 0;
 
-const updatedLoans = activeLoans.map(loan => {
+const updatedLoans = (gameState.studio.loans || []).map(loan => {
+  if (loan.status !== 'active') return loan;
+
   if (gameState.studio.budget >= loan.weeklyPayment) {
     totalPayments += loan.weeklyPayment;
     const newBalance = Math.max(0, loan.remainingBalance - loan.weeklyPayment);
@@ -182,27 +192,30 @@ const updatedLoans = activeLoans.map(loan => {
       status: newBalance === 0 ? 'paid' as const : loan.status,
       missedPayments: 0
     };
-  } else {
-    missedPayments++;
-    return {
-      ...loan,
-      weeksRemaining: loan.weeksRemaining - 1,
-      missedPayments: loan.missedPayments + 1
-    };
   }
+
+  missedPayments++;
+  return {
+    ...loan,
+    weeksRemaining: loan.weeksRemaining - 1,
+    missedPayments: loan.missedPayments + 1
+  };
 });
 
-if (onLoansUpdate) {
-  onLoansUpdate(updatedLoans);
-}
-
-
-    if (totalPayments > 0) {
-      onBudgetUpdate(gameState.studio.budget - totalPayments);
-    }
+setGameState((prev) => ({
+  ...prev,
+  studio: {
+    ...prev.studio,
+    loans: updatedLoans,
+    budget: prev.studio.budget - totalPayments,
+    reputation:
+      missedPayments > 0
+        ? Math.max(0, Math.min(100, (prev.studio.reputation || 0) - missedPayments * 3))
+        : prev.studio.reputation,
+  },
+}));
 
     if (missedPayments > 0) {
-      onReputationChange(-missedPayments * 3);
       toast({
         title: "Missed Loan Payments",
         description: `Missed ${missedPayments} payments. -${missedPayments * 3} reputation.`,

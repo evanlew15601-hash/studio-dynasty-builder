@@ -4,9 +4,10 @@ import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
 import { Progress } from '@/components/ui/progress';
-import { Project, TalentPerson, Studio, GameState, ScriptCharacter } from '@/types/game';
+import { Project, TalentPerson, ScriptCharacter } from '@/types/game';
 import { calculateActingPerformanceScore } from '@/utils/actingPerformance';
 import { Trophy, Star, Calendar, Award, Crown, Users } from 'lucide-react';
+import { useGameStore } from '@/game/store';
 
 interface AwardCategory {
   id: string;
@@ -38,24 +39,21 @@ interface AwardsCeremony {
 }
 
 interface EnhancedAwardsSystemProps {
-  gameState: GameState;
-  onReputationUpdate?: (studioId: string, change: number) => void;
-  onTalentReputationUpdate?: (talentId: string, change: number) => void;
   onNavigatePhase?: (phase: 'media' | 'distribution') => void;
 }
 
 export const EnhancedAwardsSystem: React.FC<EnhancedAwardsSystemProps> = ({
-  gameState,
-  onReputationUpdate,
-  onTalentReputationUpdate,
   onNavigatePhase
 }) => {
+  const gameState = useGameStore((s) => s.game);
+  const setGameState = useGameStore((s) => s.setGameState);
   const [activeCeremonies, setActiveCeremonies] = useState<AwardsCeremony[]>([]);
   const [viewMode, setViewMode] = useState<'upcoming' | 'nominees' | 'history'>('upcoming');
 
   useEffect(() => {
+    if (!gameState) return;
     processAnnualAwards();
-  }, [gameState.currentYear, gameState.currentWeek, gameState.projects, gameState.allReleases]);
+  }, [gameState?.currentYear, gameState?.currentWeek, gameState?.projects, gameState?.allReleases]);
 
   const AWARD_CATEGORIES: AwardCategory[] = [
     { id: 'best-picture', name: 'Best Picture', type: 'film', weight: 10 },
@@ -457,7 +455,16 @@ export const EnhancedAwardsSystem: React.FC<EnhancedAwardsSystemProps> = ({
     if (winner.projectId) {
       const project = gameState.projects.find(p => p.id === winner.projectId);
       if (project) {
-        onReputationUpdate?.(gameState.studio.id, reputationBonus);
+        setGameState(prev => ({
+          ...prev,
+          studio: {
+            ...prev.studio,
+            reputation: Math.max(
+              0,
+              Math.min(100, (prev.studio.reputation || 0) + reputationBonus)
+            )
+          }
+        }));
       } else {
         const aiProject = gameState.allReleases.find((r): r is Project => 'script' in r && r.id === winner.projectId);
         if (aiProject) {
@@ -467,7 +474,22 @@ export const EnhancedAwardsSystem: React.FC<EnhancedAwardsSystemProps> = ({
     }
     
     if (winner.talentId) {
-      onTalentReputationUpdate?.(winner.talentId, reputationBonus);
+      const talentId = winner.talentId;
+      setGameState(prev => ({
+        ...prev,
+        talent: prev.talent.map(t =>
+          t.id === talentId
+            ? {
+                ...t,
+                reputation: (t.reputation || 0) + reputationBonus,
+                publicImage: Math.max(
+                  0,
+                  Math.min(100, (t.publicImage || t.reputation || 0) + reputationBonus)
+                )
+              }
+            : t
+        )
+      }));
     }
   };
 
@@ -493,6 +515,10 @@ export const EnhancedAwardsSystem: React.FC<EnhancedAwardsSystemProps> = ({
   const getCompletedCeremonies = () => {
     return activeCeremonies.filter(c => c.status === 'completed').reverse();
   };
+
+  if (!gameState) {
+    return <div className="p-6 text-sm text-muted-foreground">Loading awards season...</div>;
+  }
 
   return (
     <div className="space-y-6">

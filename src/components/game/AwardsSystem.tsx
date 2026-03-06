@@ -1,5 +1,6 @@
 import React, { useState } from 'react';
-import { GameState, Project, AwardsEvent, AwardsCampaign, StudioAward } from '@/types/game';
+import { Project, AwardsCampaign, StudioAward } from '@/types/game';
+import { useGameStore } from '@/game/store';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
@@ -17,18 +18,16 @@ import {
 import { getAwardShowsForYear } from '@/data/AwardsSchedule';
 
 interface AwardsSystemProps {
-  gameState: GameState;
-  onProjectUpdate: (project: Project) => void;
-  onStudioUpdate: (updates: any) => void;
   onNavigatePhase?: (phase: 'media' | 'distribution') => void;
 }
 
 export const AwardsSystem: React.FC<AwardsSystemProps> = ({ 
-  gameState, 
-  onProjectUpdate, 
-  onStudioUpdate,
   onNavigatePhase
 }) => {
+  const gameState = useGameStore((s) => s.game);
+  const replaceProject = useGameStore((s) => s.replaceProject);
+  const setGameState = useGameStore((s) => s.setGameState);
+  const updateBudget = useGameStore((s) => s.updateBudget);
   const { toast } = useToast();
   const [showAwardsModal, setShowAwardsModal] = useState(false);
   const [currentCeremony, setCurrentCeremony] = useState<string>('');
@@ -44,6 +43,20 @@ export const AwardsSystem: React.FC<AwardsSystemProps> = ({
   const [seasonNominations, setSeasonNominations] = useState<Record<string, { year: number; categories: Record<string, Array<{ project: Project; score: number }>> }>>({});
 
   const isTvProject = (project: Project) => project.type === 'series' || project.type === 'limited-series';
+
+  React.useEffect(() => {
+    if (!gameState) return;
+
+    if (gameState.currentWeek === 1) {
+      setProcessedCeremonies(new Set());
+      setSeasonNominations({});
+      setSeasonMomentum({});
+    }
+  }, [gameState?.currentYear, gameState?.currentWeek]);
+
+  if (!gameState) {
+    return <div className="p-6 text-sm text-muted-foreground">Loading awards system...</div>;
+  }
 
   const awardShows = getAwardShowsForYear(gameState.currentYear);
   const lastCeremonyWeekFor = (medium: 'film' | 'tv') => {
@@ -188,15 +201,13 @@ const aiProjects = gameState.allReleases.filter((release): release is Project =>
     };
 
     // Persist campaign on the project so the headless awards engine can see it
-    onProjectUpdate({
+    replaceProject({
       ...project,
       awardsCampaign: campaign
     });
 
     // Deduct budget
-    onStudioUpdate({
-      budget: gameState.studio.budget - budget
-    });
+    updateBudget(-budget);
 
     toast({
       title: "Awards Campaign Started!",
@@ -351,23 +362,20 @@ const aiProjects = gameState.allReleases.filter((release): release is Project =>
       if (wonAwards.length > 0) {
         const totalReputation = wonAwards.reduce((sum, award) => sum + award.reputationBoost, 0);
         const totalRevenue = wonAwards.reduce((sum, award) => sum + award.revenueBoost, 0);
-        onStudioUpdate({
-          reputation: Math.min(100, gameState.studio.reputation + totalReputation),
-          budget: gameState.studio.budget + totalRevenue,
-          awards: [...(gameState.studio.awards || []), ...wonAwards]
-        });
+        setGameState((prev) => ({
+          ...prev,
+          studio: {
+            ...prev.studio,
+            reputation: Math.min(100, (prev.studio.reputation || 0) + totalReputation),
+            budget: prev.studio.budget + totalRevenue,
+            awards: [...(prev.studio.awards || []), ...wonAwards]
+          }
+        }));
       }
     }
   };
 
-  // Reset season state at the start of a new season
-  React.useEffect(() => {
-    if (gameState.currentWeek === 1) {
-      setProcessedCeremonies(new Set());
-      setSeasonNominations({});
-      setSeasonMomentum({});
-    }
-  }, [gameState.currentYear, gameState.currentWeek]);
+  
 
   // Weekly triggers for nominations and ceremonies
   // Note: Headless engine now handles triggers globally. This UI remains view-only.

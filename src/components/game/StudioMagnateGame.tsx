@@ -2657,8 +2657,6 @@ export const StudioMagnateGame: React.FC<StudioMagnateGameProps> = ({
       <div className="container mx-auto px-6 py-8 animate-slide-up">
         {currentPhase === 'dashboard' && (
           <StudioDashboard 
-            gameState={gameState}
-            onStudioUpdate={handleStudioUpdate}
             onProjectSelect={setSelectedProject}
             onPhaseChange={handlePhaseChange}
           />
@@ -2667,7 +2665,6 @@ export const StudioMagnateGame: React.FC<StudioMagnateGameProps> = ({
         {currentPhase === 'franchise' && (
           <div className="space-y-6">
             <OwnedFranchiseManager
-              gameState={gameState}
               onUpdateFranchise={handleUpdateFranchise}
               onCreateProject={(franchiseId) => {
                 // Create a basic script for a franchise film project and send it to Script Development
@@ -2894,8 +2891,6 @@ export const StudioMagnateGame: React.FC<StudioMagnateGameProps> = ({
                 {selectedProject ? (
                   <CharacterCastingSystem
                     project={selectedProject}
-                    gameState={gameState}
-                    onProjectUpdate={handleProjectUpdate}
                   />
                 ) : (
                   <div className="p-6 border rounded-lg bg-card text-sm text-muted-foreground">
@@ -2911,29 +2906,6 @@ export const StudioMagnateGame: React.FC<StudioMagnateGameProps> = ({
                 {selectedProject ? (
                   <RoleBasedCasting
                     project={selectedProject}
-                    gameState={gameState}
-                    onCastRole={(characterId: string, talentId: string) => {
-                      if (!selectedProject) return;
-                      const updatedCharacters = (selectedProject.script?.characters || []).map(c =>
-                        c.id === characterId ? { ...c, assignedTalentId: talentId } : c
-                      );
-                      const updatedProject = {
-                        ...selectedProject,
-                        script: { ...selectedProject.script!, characters: updatedCharacters }
-                      };
-                      handleProjectUpdate(updatedProject);
-                    }}
-                    onCreateRole={(role) => {
-                      if (!selectedProject) return;
-                      const updatedProject = {
-                        ...selectedProject,
-                        script: {
-                          ...selectedProject.script!,
-                          characters: [...(selectedProject.script?.characters || []), role]
-                        }
-                      };
-                      handleProjectUpdate(updatedProject);
-                    }}
                   />
                 ) : (
                   <div className="p-6 border rounded-lg bg-card text-sm text-muted-foreground">
@@ -2947,17 +2919,7 @@ export const StudioMagnateGame: React.FC<StudioMagnateGameProps> = ({
               
               <TabsContent value="casting-board">
                 <CastingBoard
-                  gameState={gameState}
                   selectedProject={selectedProject}
-                  onProjectUpdate={handleProjectUpdate}
-                  onTalentHire={(talent) => {
-                    setGameState(prev => ({
-                      ...prev,
-                      talent: prev.talent.some(t => t.id === talent.id)
-                        ? prev.talent.map(t => t.id === talent.id ? talent : t)
-                        : [...prev.talent, talent]
-                    }));
-                  }}
                 />
               </TabsContent>
             </Tabs>
@@ -3097,9 +3059,7 @@ export const StudioMagnateGame: React.FC<StudioMagnateGameProps> = ({
 
               <TabsContent value="top-actors">
                 <Suspense fallback={<div>Loading top actors...</div>}>
-                  {React.createElement(React.lazy(() => import('./TopActorsPanel').then(m => ({ default: m.TopActorsPanel }))), {
-                    gameState
-                  })}
+                  {React.createElement(React.lazy(() => import('./TopActorsPanel').then(m => ({ default: m.TopActorsPanel }))), {})}
                 </Suspense>
               </TabsContent>
               
@@ -3202,21 +3162,7 @@ export const StudioMagnateGame: React.FC<StudioMagnateGameProps> = ({
                 {React.createElement(React.lazy(() => 
                   import('./MediaResponseDashboard').then(m => ({ default: m.MediaResponseDashboard }))
                   .catch(() => ({ default: () => <div className="text-center py-8 text-muted-foreground">Media Response Dashboard loading...</div> }))
-                ), {
-                  gameState: gameState,
-                  onBudgetUpdate: (newBudget: number) => {
-                    setGameState(prev => ({
-                      ...prev,
-                      studio: { ...prev.studio, budget: newBudget }
-                    }));
-                  },
-                  onReputationUpdate: (change: number) => {
-                    setGameState(prev => ({
-                      ...prev,
-                      studio: { ...prev.studio, reputation: Math.max(0, Math.min(100, prev.studio.reputation + change)) }
-                    }));
-                  }
-                })}
+                ), {})}
               </TabsContent>
               
               <TabsContent value="analytics">
@@ -3229,10 +3175,7 @@ export const StudioMagnateGame: React.FC<StudioMagnateGameProps> = ({
         )}
         
         {currentPhase === 'distribution' && (
-          <PostTheatricalManagement 
-            gameState={gameState}
-            onProjectUpdate={handleProjectUpdate}
-          />
+          <PostTheatricalManagement />
         )}
         
         {currentPhase === 'finance' && (
@@ -3252,43 +3195,12 @@ export const StudioMagnateGame: React.FC<StudioMagnateGameProps> = ({
 
             <TabsContent value="core">
               <AwardsSystem 
-                gameState={gameState}
-                onProjectUpdate={handleProjectUpdate}
-                onStudioUpdate={handleStudioUpdate}
                 onNavigatePhase={(phase: 'media' | 'distribution') => handlePhaseChange(phase as any)}
               />
             </TabsContent>
 
             <TabsContent value="season">
               <EnhancedAwardsSystem
-                gameState={gameState}
-                onReputationUpdate={(studioId, change) => {
-                  if (studioId === gameState.studio.id) {
-                    handleStudioUpdate({
-                      reputation: Math.max(
-                        0,
-                        Math.min(100, gameState.studio.reputation + change)
-                      )
-                    });
-                  }
-                }}
-                onTalentReputationUpdate={(talentId, change) => {
-                  setGameState(prev => ({
-                    ...prev,
-                    talent: prev.talent.map(t =>
-                      t.id === talentId
-                        ? {
-                            ...t,
-                            reputation: (t.reputation || 0) + change,
-                            publicImage: Math.max(
-                              0,
-                              Math.min(100, (t.publicImage || t.reputation || 0) + change)
-                            )
-                          }
-                        : t
-                    )
-                  }));
-                }}
                 onNavigatePhase={(phase: 'media' | 'distribution') => handlePhaseChange(phase as any)}
               />
             </TabsContent>
@@ -3337,28 +3249,7 @@ export const StudioMagnateGame: React.FC<StudioMagnateGameProps> = ({
         )}
         
 {currentPhase === 'loans' && (
-  <EnhancedLoanSystem
-    gameState={gameState}
-    onBudgetUpdate={(newBudget) => setGameState(prev => ({
-      ...prev,
-      studio: { ...prev.studio, budget: newBudget }
-    }))}
-    onReputationChange={(change) => {
-      setGameState(prev => ({
-        ...prev,
-        studio: {
-          ...prev.studio,
-          reputation: Math.max(0, Math.min(100, prev.studio.reputation + change))
-        }
-      }));
-    }}
-    onLoansUpdate={(loans) => {
-      setGameState(prev => ({
-        ...prev,
-        studio: { ...prev.studio, loans }
-      }));
-    }}
-  />
+  <EnhancedLoanSystem />
 )}
       </div>
       

@@ -1,15 +1,14 @@
 import React, { useState } from 'react';
-import { Project, GameState, PostTheatricalRelease } from '@/types/game';
+import { Project, PostTheatricalRelease } from '@/types/game';
+import { useGameStore } from '@/game/store';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
-import { Badge } from '@/components/ui/badge';
-import { Progress } from '@/components/ui/progress';
+
 import { Separator } from '@/components/ui/separator';
 import { useToast } from '@/hooks/use-toast';
 import { 
   StreamingIcon, 
   DollarIcon,
-  CalendarIcon,
   PlayIcon,
   DiscIcon,
   TrendingIcon,
@@ -17,10 +16,7 @@ import {
 } from '@/components/ui/icons';
 import { MediaFinancialIntegration } from './MediaFinancialIntegration';
 
-interface PostTheatricalManagementProps {
-  gameState: GameState;
-  onProjectUpdate: (project: Project) => void;
-}
+interface PostTheatricalManagementProps {}
 
 const POST_THEATRICAL_OPTIONS = [
   {
@@ -69,15 +65,17 @@ const POST_THEATRICAL_OPTIONS = [
   }
 ];
 
-export const PostTheatricalManagement: React.FC<PostTheatricalManagementProps> = ({
-  gameState,
-  onProjectUpdate
-}) => {
+export const PostTheatricalManagement: React.FC<PostTheatricalManagementProps> = () => {
+  const gameState = useGameStore((s) => s.game);
+  const updateProject = useGameStore((s) => s.updateProject);
+  const updateBudget = useGameStore((s) => s.updateBudget);
   const { toast } = useToast();
   const [activeReleases, setActiveReleases] = useState<PostTheatricalRelease[]>([]);
 
   // Process weekly revenue and check for expired releases
   React.useEffect(() => {
+    if (!gameState) return;
+
     const currentWeek = gameState.currentWeek;
     const currentYear = gameState.currentYear;
     
@@ -138,7 +136,11 @@ export const PostTheatricalManagement: React.FC<PostTheatricalManagementProps> =
         console.log(`POST-THEATRICAL REVENUE: ${weeklyRevenue.toLocaleString()} this week`);
       }
     }
-  }, [gameState.currentWeek, gameState.currentYear]);
+  }, [gameState?.currentWeek, gameState?.currentYear]);
+
+  if (!gameState) {
+    return <div className="p-6 text-sm text-muted-foreground">Loading post-theatrical distribution...</div>;
+  }
 
   const getEligibleProjects = () => {
     return gameState.projects.filter(project => 
@@ -282,14 +284,13 @@ export const PostTheatricalManagement: React.FC<PostTheatricalManagementProps> =
       cost: option.baseCost
     };
 
-    // Update studio budget
-    const updatedProject = {
-      ...project,
+    updateBudget(-option.baseCost);
+
+    updateProject(project.id, {
       postTheatricalReleases: [...(project.postTheatricalReleases || []), newRelease]
-    };
+    });
 
     setActiveReleases([...activeReleases, newRelease]);
-    onProjectUpdate(updatedProject);
 
     toast({
       title: "Post-Theatrical Release Scheduled",

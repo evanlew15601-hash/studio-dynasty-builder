@@ -1,5 +1,6 @@
 import React, { useState } from 'react';
-import { Franchise, GameState, Project } from '@/types/game';
+import { Franchise, Project } from '@/types/game';
+import { useGameStore } from '@/game/store';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
@@ -13,18 +14,17 @@ import { useToast } from '@/hooks/use-toast';
 import { FinancialEngine } from './FinancialEngine';
 
 interface OwnedFranchiseManagerProps {
-  gameState: GameState;
   onUpdateFranchise: (franchiseId: string, updates: Partial<Franchise>) => void;
   onCreateProject: (franchiseId?: string) => void;
   onCreateTVProject?: (franchiseId: string) => void;
 }
 
 export const OwnedFranchiseManager: React.FC<OwnedFranchiseManagerProps> = ({
-  gameState,
   onUpdateFranchise,
   onCreateProject,
   onCreateTVProject
 }) => {
+  const gameState = useGameStore((s) => s.game);
   const { toast } = useToast();
   const [editingFranchise, setEditingFranchise] = useState<Franchise | null>(null);
   const [editForm, setEditForm] = useState({
@@ -32,6 +32,10 @@ export const OwnedFranchiseManager: React.FC<OwnedFranchiseManagerProps> = ({
     description: '',
     status: 'active' as 'active' | 'dormant' | 'rebooted' | 'retired'
   });
+
+  if (!gameState) {
+    return <div className="p-6 text-sm text-muted-foreground">Loading franchises...</div>;
+  }
 
   // Get franchises owned by the player
   const ownedFranchises = gameState.franchises.filter(f => f.creatorStudioId === gameState.studio.id);

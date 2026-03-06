@@ -1,5 +1,6 @@
 import React from 'react';
-import { GameState, Studio, Project } from '@/types/game';
+import { Project } from '@/types/game';
+import { useGameStore } from '@/game/store';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Progress } from '@/components/ui/progress';
 import { Button } from '@/components/ui/button';
@@ -17,20 +18,20 @@ import {
 } from '@/components/ui/icons';
 
 interface StudioDashboardProps {
-  gameState: GameState;
-  onStudioUpdate: (updates: Partial<Studio>) => void;
   onProjectSelect: (project: Project | null) => void;
   onPhaseChange?: (phase: string) => void;
 }
 
 export const StudioDashboard: React.FC<StudioDashboardProps> = ({
-  gameState,
-  onStudioUpdate,
   onProjectSelect,
   onPhaseChange,
 }) => {
+  const gameState = useGameStore((s) => s.game);
+
+  if (!gameState) {
+    return <div className="p-6 text-sm text-muted-foreground">Loading studio dashboard...</div>;
+  }
   const activeProjects = gameState.projects.filter(p => p.status !== 'archived');
-  const releasedProjects = gameState.projects.filter(p => p.status === 'released');
 
   const getBestProjectForCasting = (): Project | null => {
     const castingCandidates = activeProjects.filter(p =>
