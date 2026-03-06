@@ -1,5 +1,6 @@
 import React, { useState } from 'react';
-import { Franchise, PublicDomainIP, GameState } from '@/types/game';
+import { Franchise, PublicDomainIP } from '@/types/game';
+import { useGameStore } from '@/game/store';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
@@ -10,17 +11,20 @@ import { Search, Star, Crown, Clock, TrendingUp, BookOpen, Sparkles, DollarSign,
 import { Progress } from '@/components/ui/progress';
 
 interface FranchiseManagerProps {
-  gameState: GameState;
   onCreateProject: (franchiseId?: string, publicDomainId?: string, cost?: number) => void;
 }
 
 export const FranchiseManager: React.FC<FranchiseManagerProps> = ({
-  gameState,
   onCreateProject
 }) => {
+  const gameState = useGameStore((s) => s.game);
   const [searchTerm, setSearchTerm] = useState('');
   const [selectedGenre, setSelectedGenre] = useState<string>('all');
   const [selectedDomain, setSelectedDomain] = useState<string>('all');
+
+  if (!gameState) {
+    return <div className="p-6 text-sm text-muted-foreground">Loading franchise marketplace...</div>;
+  }
 
   // Check which franchises are owned by player
   const ownedFranchiseIds = gameState.franchises

@@ -2720,19 +2720,8 @@ export const StudioMagnateGame: React.FC<StudioMagnateGameProps> = ({
                 handlePhaseChange('television');
               }}
             />
-            <EnhancedFranchiseSystem
-              gameState={gameState}
-              onCreateFranchise={handleCreateFranchise}
-              onUpdateFranchise={handleUpdateFranchise}
-              onProjectUpdate={(projectId, updates) => {
-                const project = gameState.projects.find(p => p.id === projectId);
-                if (project) {
-                  handleProjectUpdate({ ...project, ...updates });
-                }
-              }}
-            />
+            <EnhancedFranchiseSystem />
             <FranchiseProjectCreator
-              gameState={gameState}
               onProjectCreate={(script) => {
                 const finalized = finalizeScriptForSave(script, gameState);
 
@@ -2761,7 +2750,6 @@ export const StudioMagnateGame: React.FC<StudioMagnateGameProps> = ({
               }}
             />
             <FranchiseManager
-              gameState={gameState}
               onCreateProject={(franchiseId, publicDomainId, cost) => {
                 // Use existing handleCreateProject logic but adapted for the new interface
                 if (cost && cost > gameState.studio.budget) {
