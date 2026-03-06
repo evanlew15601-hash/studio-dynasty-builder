@@ -77,19 +77,30 @@ npm i
 npm run tauri:dev
 ```
 
-### Build installable bundles
+### Build installable bundles (Windows)
 
 ```sh
 npm run tauri:build
 ```
 
+Outputs:
+- NSIS: `src-tauri/target/release/bundle/nsis/*-setup.exe`
+- MSI: `src-tauri/target/release/bundle/msi/*.msi`
+
 Notes:
-- Bundling is enabled in `src-tauri/tauri.conf.json` (`bundle.active: true`).
-- If you want custom app icons, generate them with the Tauri CLI:
+- This repo is configured to build Windows installers (`bundle.targets: ["nsis", "msi"]`).
+- MSI installers can only be created on Windows.
+- The Windows installer will download the WebView2 bootstrapper by default.
+- App icon currently points to `public/favicon.ico`. For a full icon set, generate icons with:
 
 ```sh
 npx tauri icon public/placeholder.svg
 ```
+
+### CI (optional): build Windows installers via GitHub Actions
+
+This repo includes a workflow you can run from the Actions tab:
+- `.github/workflows/windows-tauri-build.yml`
 
 ## How can I deploy this project?
 

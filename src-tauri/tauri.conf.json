@@ -25,6 +25,19 @@
   },
   "bundle": {
     "active": true,
-    "targets": "all"
+    "targets": ["nsis", "msi"],
+    "icon": ["../public/favicon.ico"],
+    "windows": {
+      "webviewInstallMode": {
+        "type": "downloadBootstrapper"
+      },
+      "nsis": {
+        "installMode": "perUser",
+        "displayLanguageSelector": true
+      },
+      "wix": {
+        "language": "en-US"
+      }
+    }
   }
 }
