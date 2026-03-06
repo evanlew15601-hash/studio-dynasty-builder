@@ -22,6 +22,7 @@ import { SystemRegistry } from './core/registry';
 import type { TickResult, TickSystem } from './core/types';
 import { advanceWeekInWorker } from './worker/client';
 import { saveGame } from '@/utils/saveLoad';
+import { createTickReport } from '@/utils/tickReport';
 
 // ---------------------------------------------------------------------------
 // Store shape
@@ -179,27 +180,30 @@ export const useGameStore = create<GameStoreState>()(
         debug: import.meta.env.DEV,
       });
 
-      const report: TickReport = {
-        week: result.nextState.currentWeek,
-        year: result.nextState.currentYear,
-        startedAtIso: result.startedAtIso,
-        finishedAtIso: result.finishedAtIso,
-        totalMs: result.totalMs,
-        systems: result.systems,
-        recap: result.recap,
-        summary: {
-          budgetDelta: (result.nextState.studio.budget ?? 0) - (game.studio.budget ?? 0),
-          reputationDelta: (result.nextState.studio.reputation ?? 0) - (game.studio.reputation ?? 0),
-        },
-      };
+      const report = options?.suppressRecap
+        ? null
+        : createTickReport({
+            prev: game,
+            next: result.nextState,
+            systems: result.systems,
+            recap: result.recap,
+            startedAtIso: result.startedAtIso,
+            finishedAtIso: result.finishedAtIso,
+            totalMs: result.totalMs,
+          });
 
       set((s) => {
         s.game = result.nextState as any;
         // Persist the PRNG state ("seed" here is treated as current RNG state).
         s.seed = rng.state;
         s.rng = createRng(rng.state);
-        s.lastTickReport = report as any;
-        s.tickHistory = [...s.tickHistory.slice(-(MAX_TICK_HISTORY - 1)), report] as any;
+
+        if (report) {
+          s.lastTickReport = report as any;
+          s.tickHistory = [...s.tickHistory.slice(-(MAX_TICK_HISTORY - 1)), report] as any;
+        } else {
+          s.lastTickReport = null;
+        }
       });
 
       return report;
@@ -228,26 +232,29 @@ export const useGameStore = create<GameStoreState>()(
 
       const { result, rngState } = workerResult;
 
-      const report: TickReport = {
-        week: result.nextState.currentWeek,
-        year: result.nextState.currentYear,
-        startedAtIso: result.startedAtIso,
-        finishedAtIso: result.finishedAtIso,
-        totalMs: result.totalMs,
-        systems: result.systems,
-        recap: result.recap,
-        summary: {
-          budgetDelta: (result.nextState.studio.budget ?? 0) - (game.studio.budget ?? 0),
-          reputationDelta: (result.nextState.studio.reputation ?? 0) - (game.studio.reputation ?? 0),
-        },
-      };
+      const report = options?.suppressRecap
+        ? null
+        : createTickReport({
+            prev: game,
+            next: result.nextState,
+            systems: result.systems,
+            recap: result.recap,
+            startedAtIso: result.startedAtIso,
+            finishedAtIso: result.finishedAtIso,
+            totalMs: result.totalMs,
+          });
 
       set((s) => {
         s.game = result.nextState as any;
         s.seed = rngState;
         s.rng = createRng(rngState);
-        s.lastTickReport = report as any;
-        s.tickHistory = [...s.tickHistory.slice(-(MAX_TICK_HISTORY - 1)), report] as any;
+
+        if (report) {
+          s.lastTickReport = report as any;
+          s.tickHistory = [...s.tickHistory.slice(-(MAX_TICK_HISTORY - 1)), report] as any;
+        } else {
+          s.lastTickReport = null;
+        }
       });
 
       return report;
