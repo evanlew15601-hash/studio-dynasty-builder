@@ -1,13 +1,14 @@
 import React, { useEffect, useState } from 'react';
-import { GameState, Studio, Project, TalentPerson } from '@/types/game';
+import type { GameState, Studio, Project, TalentPerson } from '@/types/game';
+import { useGameStore } from '@/game/store';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
 import { TrendingUp, TrendingDown, Users, AlertTriangle, Crown, Star } from 'lucide-react';
 
 interface DynamicWorldSystemProps {
-  gameState: GameState;
-  onWorldUpdate: (updates: Partial<GameState>) => void;
-  onStudioUpdate: (updates: Partial<Studio>) => void;
+  gameState?: GameState;
+  onWorldUpdate?: (updates: Partial<GameState>) => void;
+  onStudioUpdate?: (updates: Partial<Studio>) => void;
 }
 
 export interface WorldEvent {
@@ -55,10 +56,18 @@ export interface MarketTrendData {
 }
 
 export const DynamicWorldSystem: React.FC<DynamicWorldSystemProps> = ({
-  gameState,
-  onWorldUpdate,
-  onStudioUpdate
+  gameState: propGameState,
+  onWorldUpdate: propOnWorldUpdate,
+  onStudioUpdate: propOnStudioUpdate,
 }) => {
+  const storeGameState = useGameStore((s) => s.game);
+  const mergeGameState = useGameStore((s) => s.mergeGameState);
+  const updateStudio = useGameStore((s) => s.updateStudio);
+
+  const gameState = propGameState ?? storeGameState;
+  const onWorldUpdate = propOnWorldUpdate ?? ((updates: Partial<GameState>) => mergeGameState(updates));
+  const onStudioUpdate = propOnStudioUpdate ?? ((updates: Partial<Studio>) => updateStudio(updates));
+
   const [worldEvents, setWorldEvents] = useState<WorldEvent[]>([]);
   const [rivalries, setRivalries] = useState<StudioRivalry[]>([]);
   const [marketTrends, setMarketTrends] = useState<MarketTrendData[]>([]);
@@ -87,6 +96,8 @@ export const DynamicWorldSystem: React.FC<DynamicWorldSystemProps> = ({
 
   // Generate weekly world events
   const generateWorldEvent = (): WorldEvent | null => {
+    if (!gameState) return null;
+
     const eventTypes = [
       {
         type: 'trend_shift' as const,
@@ -187,6 +198,8 @@ export const DynamicWorldSystem: React.FC<DynamicWorldSystemProps> = ({
 
   // Update market trends based on world events and natural cycles
   const updateMarketTrends = () => {
+    if (!gameState) return;
+
     setMarketTrends(prev => prev.map(trend => {
       let newMomentum = trend.momentum;
       let newPopularity = trend.popularity;
@@ -248,6 +261,8 @@ export const DynamicWorldSystem: React.FC<DynamicWorldSystemProps> = ({
 
   // Generate studio rivalries based on competition
   const updateRivalries = () => {
+    if (!gameState) return;
+
     // Find competing projects (same genre, similar release dates)
     const playerProjects = gameState.projects.filter(p => p.status === 'released');
     const aiStudioIds: string[] = []; // Will be populated when AI studios are implemented
@@ -278,6 +293,8 @@ export const DynamicWorldSystem: React.FC<DynamicWorldSystemProps> = ({
 
   // Update industry buzz
   const updateIndustryBuzz = () => {
+    if (!gameState) return;
+
     const recentlyReleased = gameState.projects.filter(p => 
       p.status === 'released' &&
       (gameState.currentWeek - (p.releaseWeek || 0) + (gameState.currentYear - (p.releaseYear || 0)) * 52) < 4
@@ -299,6 +316,8 @@ export const DynamicWorldSystem: React.FC<DynamicWorldSystemProps> = ({
 
   // Main weekly update function
   const processWeeklyUpdate = () => {
+    if (!gameState) return;
+
     // Generate new world event
     const newEvent = generateWorldEvent();
     if (newEvent) {
@@ -321,13 +340,21 @@ export const DynamicWorldSystem: React.FC<DynamicWorldSystemProps> = ({
 
   // Process updates when week advances
   useEffect(() => {
+    if (!gameState) return;
     processWeeklyUpdate();
-  }, [gameState.currentWeek, gameState.currentYear]);
+  }, [gameState?.currentWeek, gameState?.currentYear]);
 
   const getActiveTrends = () => marketTrends.filter(t => Math.abs(t.momentum) > 5);
-  const getActiveEvents = () => worldEvents.filter(e => 
-    (gameState.currentWeek - e.week + (gameState.currentYear - e.year) * 52) < e.duration
-  );
+  const getActiveEvents = () => {
+    if (!gameState) return [];
+    return worldEvents.filter(e => 
+      (gameState.currentWeek - e.week + (gameState.currentYear - e.year) * 52) < e.duration
+    );
+  };
+
+  if (!gameState) {
+    return <div className="p-6 text-sm text-muted-foreground">Loading world simulation...</div>;
+  }
 
   return (
     <div className="space-y-6">

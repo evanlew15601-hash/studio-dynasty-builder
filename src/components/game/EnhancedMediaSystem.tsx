@@ -2,7 +2,8 @@ import React, { useState, useEffect } from 'react';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
-import { GameState, Project, TalentPerson, MediaItem } from '@/types/game';
+import type { GameState, Project, TalentPerson, MediaItem } from '@/types/game';
+import { useGameStore } from '@/game/store';
 import { MediaEngine } from './MediaEngine';
 import { Newspaper, TrendingUp, MessageSquare, Eye, Users, Zap } from 'lucide-react';
 
@@ -34,17 +35,32 @@ interface MediaStory {
 }
 
 interface EnhancedMediaSystemProps {
-  gameState: GameState;
+  gameState?: GameState;
   onReputationImpact?: (entityId: string, impact: number, reason: string) => void;
 }
 
 export const EnhancedMediaSystem: React.FC<EnhancedMediaSystemProps> = ({
-  gameState,
-  onReputationImpact
+  gameState: propGameState,
+  onReputationImpact: propOnReputationImpact,
 }) => {
+  const storeGameState = useGameStore((s) => s.game);
+  const updateReputation = useGameStore((s) => s.updateReputation);
+
+  const gameState = propGameState ?? storeGameState;
+  const onReputationImpact =
+    propOnReputationImpact ?? ((entityId: string, impact: number) => {
+      if (gameState && entityId === gameState.studio.id) {
+        updateReputation(impact);
+      }
+    });
   const [recentStories, setRecentStories] = useState<MediaStory[]>([]);
   const [selectedOutlet, setSelectedOutlet] = useState<string>('all');
   const [storyFilter, setStoryFilter] = useState<string>('all');
+
+  const studioName = gameState?.studio.name ?? 'Studio';
+  const studioId = gameState?.studio.id ?? 'studio';
+  const currentWeek = gameState?.currentWeek ?? 0;
+  const currentYear = gameState?.currentYear ?? 0;
 
   const MEDIA_OUTLETS: MediaOutlet[] = [
     {
@@ -113,10 +129,13 @@ export const EnhancedMediaSystem: React.FC<EnhancedMediaSystemProps> = ({
   ];
 
   useEffect(() => {
+    if (!gameState) return;
     generateWeeklyMedia();
-  }, [gameState.currentWeek, gameState.currentYear]);
+  }, [gameState?.currentWeek, gameState?.currentYear]);
 
   const generateWeeklyMedia = () => {
+    if (!gameState) return;
+
     const newStories: MediaStory[] = [];
     
     // Generate stories based on current game events
@@ -163,7 +182,7 @@ export const EnhancedMediaSystem: React.FC<EnhancedMediaSystemProps> = ({
     const templates = [
       `"${project.title}" Production Enters New Phase`,
       `Exclusive: Behind the Scenes of "${project.title}"`,
-      `${gameState.studio.name} Ramps Up Production on "${project.title}"`,
+      `${studioName} Ramps Up Production on "${project.title}"`,
       `"${project.title}" Filming Progresses Ahead of Schedule`,
       `Inside Look: "${project.title}" Takes Shape`
     ];
@@ -175,12 +194,12 @@ export const EnhancedMediaSystem: React.FC<EnhancedMediaSystemProps> = ({
       content: generateStoryContent(project, 'production'),
       sentiment: Math.random() > 0.2 ? 'positive' : 'neutral',
       targets: {
-        studios: [gameState.studio.id],
+        studios: [studioId],
         projects: [project.id]
       },
       virality: Math.floor(Math.random() * 30) + 20,
-      week: gameState.currentWeek,
-      year: gameState.currentYear,
+      week: currentWeek,
+      year: currentYear,
       storyType: 'production'
     };
   };
@@ -194,8 +213,8 @@ export const EnhancedMediaSystem: React.FC<EnhancedMediaSystemProps> = ({
     const templates = {
       hit: [
         `"${project.title}" Dominates Weekend Box Office`,
-        `${gameState.studio.name}'s "${project.title}" Exceeds Expectations`,
-        `"${project.title}" Proves to be Major Success for ${gameState.studio.name}`,
+        `${studioName}'s "${project.title}" Exceeds Expectations`,
+        `"${project.title}" Proves to be Major Success for ${studioName}`,
         `Box Office Gold: "${project.title}" Strikes Big`
       ],
       modest: [
@@ -205,7 +224,7 @@ export const EnhancedMediaSystem: React.FC<EnhancedMediaSystemProps> = ({
       ],
       disappointing: [
         `"${project.title}" Struggles at Box Office`,
-        `Disappointing Opening for ${gameState.studio.name}'s "${project.title}"`,
+        `Disappointing Opening for ${studioName}'s "${project.title}"`,
         `"${project.title}" Fails to Connect with Audiences`
       ]
     };
@@ -220,19 +239,21 @@ export const EnhancedMediaSystem: React.FC<EnhancedMediaSystemProps> = ({
       content: generateBoxOfficeContent(project, performance),
       sentiment,
       targets: {
-        studios: [gameState.studio.id],
+        studios: [studioId],
         projects: [project.id]
       },
       virality: performance === 'hit' ? Math.floor(Math.random() * 40) + 40 : 
                 performance === 'disappointing' ? Math.floor(Math.random() * 50) + 30 : 
                 Math.floor(Math.random() * 25) + 15,
-      week: gameState.currentWeek,
-      year: gameState.currentYear,
+      week: currentWeek,
+      year: currentYear,
       storyType: 'boxoffice'
     };
   };
 
   const createCastingStory = (project: Project): MediaStory => {
+    if (!gameState) return createRandomIndustryStory();
+
     const outlet = getRandomOutletByType(['trade', 'mainstream', 'online']);
     const castMember = project.cast[Math.floor(Math.random() * project.cast.length)];
     const talent = gameState.talent.find(t => t.id === castMember.talentId);
@@ -242,7 +263,7 @@ export const EnhancedMediaSystem: React.FC<EnhancedMediaSystemProps> = ({
     const templates = [
       `${talent.name} Joins "${project.title}" Cast`,
       `Exclusive: ${talent.name} Set to Star in "${project.title}"`,
-      `${gameState.studio.name} Lands ${talent.name} for "${project.title}"`,
+      `${studioName} Lands ${talent.name} for "${project.title}"`,
       `Casting Coup: ${talent.name} Signs On for "${project.title}"`
     ];
     
@@ -253,13 +274,13 @@ export const EnhancedMediaSystem: React.FC<EnhancedMediaSystemProps> = ({
       content: generateCastingContent(project, talent),
       sentiment: 'positive',
       targets: {
-        studios: [gameState.studio.id],
+        studios: [studioId],
         projects: [project.id],
         talent: [talent.id]
       },
       virality: Math.floor(talent.reputation / 2) + Math.floor(Math.random() * 20),
-      week: gameState.currentWeek,
-      year: gameState.currentYear,
+      week: currentWeek,
+      year: currentYear,
       storyType: 'casting'
     };
   };
@@ -284,8 +305,8 @@ export const EnhancedMediaSystem: React.FC<EnhancedMediaSystemProps> = ({
         projects: [project.id]
       },
       virality: Math.floor(Math.random() * 15) + 10,
-      week: gameState.currentWeek,
-      year: gameState.currentYear,
+      week: currentWeek,
+      year: currentYear,
       storyType: 'production'
     };
   };
@@ -308,13 +329,15 @@ export const EnhancedMediaSystem: React.FC<EnhancedMediaSystemProps> = ({
       sentiment: 'neutral',
       targets: {},
       virality: Math.floor(Math.random() * 20) + 10,
-      week: gameState.currentWeek,
-      year: gameState.currentYear,
+      week: currentWeek,
+      year: currentYear,
       storyType: 'interview'
     };
   };
 
   const createTalentStory = (): MediaStory => {
+    if (!gameState || gameState.talent.length === 0) return createRandomIndustryStory();
+
     const talent = gameState.talent[Math.floor(Math.random() * gameState.talent.length)];
     const outlet = getRandomOutletByType(['tabloid', 'mainstream', 'online']);
     
@@ -352,8 +375,8 @@ export const EnhancedMediaSystem: React.FC<EnhancedMediaSystemProps> = ({
         talent: [talent.id]
       },
       virality: Math.floor(talent.reputation / 3) + Math.floor(Math.random() * 30),
-      week: gameState.currentWeek,
-      year: gameState.currentYear,
+      week: currentWeek,
+      year: currentYear,
       storyType: storyType as any
     };
   };
@@ -364,18 +387,18 @@ export const EnhancedMediaSystem: React.FC<EnhancedMediaSystemProps> = ({
   };
 
   const generateStoryContent = (project: Project, type: string): string => {
-    return `${gameState.studio.name} continues development on "${project.title}", with the ${project.script?.genre} film progressing through ${type}. Industry watchers are keeping close tabs on this ${((project.budget.total || 0) / 1000000).toFixed(0)}M production.`;
+    return `${studioName} continues development on "${project.title}", with the ${project.script?.genre} film progressing through ${type}. Industry watchers are keeping close tabs on this ${((project.budget.total || 0) / 1000000).toFixed(0)}M production.`;
   };
 
   const generateBoxOfficeContent = (project: Project, performance: string): string => {
     const boxOffice = (project.metrics?.boxOfficeTotal || 0) / 1000000;
     const budget = project.budget.total / 1000000;
     
-    return `"${project.title}" earned $${boxOffice.toFixed(1)}M against its $${budget.toFixed(0)}M budget. ${performance === 'hit' ? 'The film exceeded all expectations and demonstrates the continued strength of' : performance === 'modest' ? 'While not a breakout hit, the film shows solid appeal for' : 'Despite high hopes, the film struggled to find its audience, raising questions about'} ${gameState.studio.name}'s strategy.`;
+    return `"${project.title}" earned ${boxOffice.toFixed(1)}M against its ${budget.toFixed(0)}M budget. ${performance === 'hit' ? 'The film exceeded all expectations and demonstrates the continued strength of' : performance === 'modest' ? 'While not a breakout hit, the film shows solid appeal for' : 'Despite high hopes, the film struggled to find its audience, raising questions about'} ${studioName}'s strategy.`;
   };
 
   const generateCastingContent = (project: Project, talent: TalentPerson): string => {
-    return `${talent.name} has officially joined the cast of "${project.title}" in what promises to be a significant role. The ${talent.type} brings considerable experience to the ${project.script?.genre} project from ${gameState.studio.name}.`;
+    return `${talent.name} has officially joined the cast of "${project.title}" in what promises to be a significant role. The ${talent.type} brings considerable experience to the ${project.script?.genre} project from ${studioName}.`;
   };
 
   const generateTalentContent = (talent: TalentPerson, storyType: string): string => {
@@ -409,6 +432,10 @@ export const EnhancedMediaSystem: React.FC<EnhancedMediaSystemProps> = ({
       default: return <MessageSquare className="h-4 w-4 text-blue-500" />;
     }
   };
+
+  if (!gameState) {
+    return <div className="p-6 text-sm text-muted-foreground">Loading media coverage...</div>;
+  }
 
   return (
     <div className="space-y-6">

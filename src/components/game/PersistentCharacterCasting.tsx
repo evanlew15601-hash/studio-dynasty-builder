@@ -1,5 +1,6 @@
 import React, { useState } from 'react';
-import { GameState, Project, TalentPerson, ScriptCharacter } from '@/types/game';
+import type { GameState, Project, TalentPerson, ScriptCharacter } from '@/types/game';
+import { useGameStore } from '@/game/store';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
@@ -10,8 +11,8 @@ import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger } from 
 
 interface PersistentCharacterCastingProps {
   project: Project;
-  gameState: GameState;
-  onProjectUpdate: (project: Project) => void;
+  gameState?: GameState;
+  onProjectUpdate?: (project: Project) => void;
 }
 
 interface CharacterHistory {
@@ -44,25 +45,39 @@ interface ContractOffer {
 }
 
 export const PersistentCharacterCasting: React.FC<PersistentCharacterCastingProps> = ({
-  project,
-  gameState,
-  onProjectUpdate
+  project: propProject,
+  gameState: propGameState,
+  onProjectUpdate: propOnProjectUpdate,
 }) => {
+  const storeGameState = useGameStore((s) => s.game);
+  const replaceProject = useGameStore((s) => s.replaceProject);
+  const liveProject = useGameStore((s) => s.game?.projects.find((p) => p.id === propProject.id) ?? null);
+
+  const gameState = propGameState ?? storeGameState;
+  const project = liveProject ?? propProject;
+  const onProjectUpdate = propOnProjectUpdate ?? ((p: Project) => replaceProject(p));
+
   const { toast } = useToast();
   const [selectedCharacter, setSelectedCharacter] = useState<ScriptCharacter | null>(null);
   const [contractOffers, setContractOffers] = useState<ContractOffer[]>([]);
+
+  if (!gameState) {
+    return <div className="p-6 text-sm text-muted-foreground">Loading casting...</div>;
+  }
+
+  const gs = gameState;
 
   // Get character casting history from all previous projects
   const getCharacterHistory = (): CharacterHistory[] => {
     const history: CharacterHistory[] = [];
     
     // Check all completed projects for character casting
-    gameState.projects
+    gs.projects
       .filter(p => p.status === 'released' && p.script?.characters)
       .forEach(pastProject => {
         pastProject.script?.characters?.forEach(character => {
           if (character.assignedTalentId) {
-            const talent = gameState.talent.find(t => t.id === character.assignedTalentId);
+            const talent = gs.talent.find(t => t.id === character.assignedTalentId);
             if (talent) {
               history.push({
                 characterName: character.name,
@@ -99,7 +114,7 @@ export const PersistentCharacterCasting: React.FC<PersistentCharacterCastingProp
     
     // Look for similar character types and importance levels
     return history.filter(h => {
-      const pastProject = gameState.projects.find(p => p.id === h.projectId);
+      const pastProject = gs.projects.find(p => p.id === h.projectId);
       const pastCharacter = pastProject?.script?.characters?.find(c => c.name === h.characterName);
       
       if (!pastCharacter) return false;
@@ -158,7 +173,7 @@ export const PersistentCharacterCasting: React.FC<PersistentCharacterCastingProp
     const history = findReturningActors(character);
     const offer = calculateReturningActorOffer(talent, character, history);
     
-    if (offer.totalCost > gameState.studio.budget) {
+    if (offer.totalCost > gs.studio.budget) {
       toast({
         title: "Insufficient Budget",
         description: `Cannot afford ${talent.name} - need $${(offer.totalCost / 1000000).toFixed(1)}M`,
@@ -230,7 +245,7 @@ export const PersistentCharacterCasting: React.FC<PersistentCharacterCastingProp
         {(project.script?.characters || []).map(character => {
           const returningActors = findReturningActors(character);
           const currentTalent = character.assignedTalentId ? 
-            gameState.talent.find(t => t.id === character.assignedTalentId) : null;
+            gs.talent.find(t => t.id === character.assignedTalentId) : null;
           
           return (
             <Card key={character.id} className="border-l-4 border-l-primary/30">
@@ -287,7 +302,7 @@ export const PersistentCharacterCasting: React.FC<PersistentCharacterCastingProp
                     
                     <div className="space-y-3">
                       {returningActors.slice(0, 3).map(history => {
-                        const talent = gameState.talent.find(t => t.id === history.talentId);
+                        const talent = gs.talent.find(t => t.id === history.talentId);
                         if (!talent || talent.contractStatus !== 'available') return null;
                         
                         const offer = calculateReturningActorOffer(talent, character, [history]);
@@ -397,7 +412,7 @@ export const PersistentCharacterCasting: React.FC<PersistentCharacterCastingProp
           <CardContent>
             <div className="space-y-4">
               {contractOffers.map(offer => {
-                const talent = gameState.talent.find(t => t.id === offer.talentId);
+                const talent = gs.talent.find(t => t.id === offer.talentId);
                 const character = project.script?.characters?.find(c => c.id === offer.characterId);
                 
                 if (!talent || !character) return null;
@@ -427,7 +442,7 @@ export const PersistentCharacterCasting: React.FC<PersistentCharacterCastingProp
                       <Button
                         size="sm"
                         onClick={() => quickCastReturningActor(character, talent)}
-                        disabled={offer.totalCost > gameState.studio.budget}
+                        disabled={offer.totalCost > gs.studio.budget}
                       >
                         Accept Terms
                       </Button>

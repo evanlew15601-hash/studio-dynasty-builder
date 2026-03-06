@@ -1,27 +1,31 @@
-import React, { useState, useEffect } from 'react';
-import { Project, GameState } from '@/types/game';
+import React, { useEffect } from 'react';
+import type { Project, GameState } from '@/types/game';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
-import { Progress } from '@/components/ui/progress';
 import { useToast } from '@/hooks/use-toast';
-import { Calendar, Clock, AlertTriangle, CheckCircle, Film } from 'lucide-react';
+import { useGameStore } from '@/game/store';
+import { Calendar, Clock, AlertTriangle, Film } from 'lucide-react';
 
 interface EnhancedReleaseSystemProps {
-  gameState: GameState;
-  projects: Project[];
-  onProjectUpdate: (project: Project) => void;
-  onAdvanceTime: () => void;
+  gameState?: GameState;
+  projects?: Project[];
+  onProjectUpdate?: (project: Project) => void;
 }
 
 export const EnhancedReleaseSystem: React.FC<EnhancedReleaseSystemProps> = ({
-  gameState,
-  projects,
-  onProjectUpdate,
-  onAdvanceTime
+  gameState: propGameState,
+  projects: propProjects,
+  onProjectUpdate: propOnProjectUpdate,
 }) => {
+  const storeGameState = useGameStore((s) => s.game);
+  const replaceProject = useGameStore((s) => s.replaceProject);
+
+  const gameState = propGameState ?? storeGameState;
+  const projects = propProjects ?? gameState?.projects ?? [];
+  const onProjectUpdate = propOnProjectUpdate ?? ((project: Project) => replaceProject(project));
+
   const { toast } = useToast();
-  const [selectedProject, setSelectedProject] = useState<Project | null>(null);
 
   const validateForRelease = (project: Project) => {
     const errors: string[] = [];
@@ -83,6 +87,8 @@ export const EnhancedReleaseSystem: React.FC<EnhancedReleaseSystemProps> = ({
   };
 
   const scheduleRelease = (project: Project, releaseWeek: number, releaseYear: number) => {
+    if (!gameState) return;
+
     const validation = validateForRelease(project);
     
     if (!validation.canRelease) {
@@ -134,6 +140,8 @@ export const EnhancedReleaseSystem: React.FC<EnhancedReleaseSystemProps> = ({
   };
 
   const processReleases = () => {
+    if (!gameState) return;
+
     const currentTime = (gameState.currentYear * 52) + gameState.currentWeek;
     
     projects.forEach(project => {
@@ -165,8 +173,9 @@ export const EnhancedReleaseSystem: React.FC<EnhancedReleaseSystemProps> = ({
   };
 
   useEffect(() => {
+    if (!gameState) return;
     processReleases();
-  }, [gameState.currentWeek, gameState.currentYear]);
+  }, [gameState?.currentWeek, gameState?.currentYear]);
 
   const getReleasableProjects = () => {
     return projects.filter(p => 
@@ -175,6 +184,8 @@ export const EnhancedReleaseSystem: React.FC<EnhancedReleaseSystemProps> = ({
   };
 
   const getUpcomingReleases = () => {
+    if (!gameState) return [];
+
     return projects.filter(p => p.status === 'scheduled-for-release')
       .map(p => {
         // Fix calculation to handle missing or invalid scheduled dates
@@ -194,6 +205,8 @@ export const EnhancedReleaseSystem: React.FC<EnhancedReleaseSystemProps> = ({
   };
 
   const handlePostTheatrical = (project: Project) => {
+    if (!gameState) return;
+
     if (project.hasReleasedPostTheatrical) {
       toast({
         title: "Already Released",
@@ -238,6 +251,10 @@ export const EnhancedReleaseSystem: React.FC<EnhancedReleaseSystemProps> = ({
         description: `${project.title} earned additional $${(postTheatricalRevenue / 1000000).toFixed(0)}M from streaming/digital`,
       });
   };
+
+  if (!gameState) {
+    return <div className="p-6 text-sm text-muted-foreground">Loading release management...</div>;
+  }
 
   return (
     <div className="space-y-6">
