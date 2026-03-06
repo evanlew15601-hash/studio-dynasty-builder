@@ -8,18 +8,11 @@ import { PublicDomainGenerator } from '@/data/PublicDomainGenerator';
 import { ScriptDevelopment } from './ScriptDevelopment';
 import { CastingBoard } from './CastingBoard';
 import { ProductionManagement } from './ProductionManagement';
-import { DistributionDashboard } from './DistributionDashboard';
-import { MarketingReleaseManagement } from './MarketingReleaseManagement';
 import { PostTheatricalManagement } from './PostTheatricalManagement';
 import { StudioDashboard } from './StudioDashboard';
-import { StudioStats } from './StudioStats';
-import { FinancialReporting } from './FinancialReporting';
 import { FinancialDashboard } from './FinancialDashboard';
-import { GameplayLoops } from './GameplayLoops';
 import { IntegrationMonitor } from './IntegrationMonitor';
-import { AwardsCalendar } from './AwardsCalendar';
 import { AIStudioManager } from './AIStudioManager';
-import { AIStudioIntegrationTests } from './AIStudioIntegrationTests';
 import { CompetitorMonitor } from './CompetitorMonitor';
 import { TimeSystem, TimeState } from './TimeSystem';
 import { BoxOfficeSystem } from './BoxOfficeSystem';
@@ -43,7 +36,6 @@ import { TopFilmsChart } from './TopFilmsChart';
 import { AchievementsPanel } from './AchievementsPanel';
 import { PerformanceMetrics } from './PerformanceMetrics';
 import { AchievementNotifications } from './AchievementNotifications';
-import { ReputationPanel } from './ReputationPanel';
 import { DeepReputationPanel } from './DeepReputationPanel';
 import { MediaAnalyticsPanel } from './MediaAnalyticsPanel';
 import { BackgroundSimulation as BackgroundSimulationComponent } from './BackgroundSimulation';
@@ -73,7 +65,7 @@ import { EnhancedFranchiseSystem } from './EnhancedFranchiseSystem';
 import { FranchiseManager } from './FranchiseManager';
 import { OwnedFranchiseManager } from './OwnedFranchiseManager';
 import { FranchiseProjectCreator } from './FranchiseProjectCreator';
-import { EnhancedTalentManagement } from './EnhancedTalentManagement';
+
 import { EnhancedMarketingSystem } from './EnhancedMarketingSystem';
 import { FilmStatsModal } from './FilmStatsModal';
 import { ReleaseStrategyModal } from './ReleaseStrategyModal';
@@ -398,6 +390,7 @@ export const StudioMagnateGame: React.FC<StudioMagnateGameProps> = ({
   const loadGameToStore = useGameStore((s) => s.loadGame);
   const storeGameState = useGameStore((s) => s.game);
   const setGameState = useGameStore((s) => s.setGameState);
+  const mergeGameState = useGameStore((s) => s.mergeGameState);
   const updateStudio = useGameStore((s) => s.updateStudio);
   const updateReputation = useGameStore((s) => s.updateReputation);
   const updateTalent = useGameStore((s) => s.updateTalent);
@@ -1621,11 +1614,9 @@ export const StudioMagnateGame: React.FC<StudioMagnateGameProps> = ({
       }
     };
 
-    setGameState(prev => ({
-      ...prev,
-      projects: [testProject, ...prev.projects.slice(1)],
-      currentView: 'distribution'
-    }));
+    mergeGameState({
+      projects: [testProject, ...gameState.projects.slice(1)],
+    });
 
     toast({
       title: "Skipped to Post-Theatrical Testing",

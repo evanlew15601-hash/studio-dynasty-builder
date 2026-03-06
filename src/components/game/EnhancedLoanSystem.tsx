@@ -24,7 +24,9 @@ interface EnhancedLoanSystemProps {}
 
 export const EnhancedLoanSystem: React.FC<EnhancedLoanSystemProps> = () => {
   const gameState = useGameStore((s) => s.game);
-  const setGameState = useGameStore((s) => s.setGameState);
+  const updateStudio = useGameStore((s) => s.updateStudio);
+  const updateBudget = useGameStore((s) => s.updateBudget);
+  const updateReputation = useGameStore((s) => s.updateReputation);
   const { toast } = useToast();
   const [loanAmount, setLoanAmount] = useState([5000000]); // $5M default
   const [loanTerm, setLoanTerm] = useState([52]); // 1 year default
@@ -98,14 +100,10 @@ const newLoan: Loan = {
   status: 'active'
 };
 
-setGameState((prev) => ({
-  ...prev,
-  studio: {
-    ...prev.studio,
-    loans: [...(prev.studio.loans || []), newLoan],
-    budget: prev.studio.budget + amount,
-  },
-}));
+updateStudio({
+  loans: [...(gameState.studio.loans || []), newLoan],
+});
+updateBudget(amount);
 
 toast({
   title: "Loan Approved",
@@ -141,25 +139,15 @@ toast({
       missedPayments: 0 // Reset missed payments on successful payment
     };
 
-setGameState((prev) => {
-  const updatedLoans = (prev.studio.loans || []).map(l => 
-    l.id === loanId ? updatedLoan : l
-  );
+const updatedLoans = (gameState.studio.loans || []).map(l => 
+  l.id === loanId ? updatedLoan : l
+);
 
-  const nextReputation = isPaidOff
-    ? Math.max(0, Math.min(100, (prev.studio.reputation || 0) + 5))
-    : prev.studio.reputation;
-
-  return {
-    ...prev,
-    studio: {
-      ...prev.studio,
-      loans: updatedLoans,
-      budget: prev.studio.budget - paymentAmount,
-      reputation: nextReputation,
-    },
-  };
-});
+updateStudio({ loans: updatedLoans });
+updateBudget(-paymentAmount);
+if (isPaidOff) {
+  updateReputation(5);
+}
 
     
     if (isPaidOff) {
@@ -202,18 +190,11 @@ const updatedLoans = (gameState.studio.loans || []).map(loan => {
   };
 });
 
-setGameState((prev) => ({
-  ...prev,
-  studio: {
-    ...prev.studio,
-    loans: updatedLoans,
-    budget: prev.studio.budget - totalPayments,
-    reputation:
-      missedPayments > 0
-        ? Math.max(0, Math.min(100, (prev.studio.reputation || 0) - missedPayments * 3))
-        : prev.studio.reputation,
-  },
-}));
+updateStudio({ loans: updatedLoans });
+updateBudget(-totalPayments);
+if (missedPayments > 0) {
+  updateReputation(-missedPayments * 3);
+}
 
     if (missedPayments > 0) {
       toast({

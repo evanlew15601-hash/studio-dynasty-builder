@@ -22,7 +22,7 @@ export const DebugControlPanel: React.FC<DebugControlPanelProps> = ({
   onAdvanceToDate,
 }) => {
   const gameState = useGameStore((s) => s.game);
-  const setGameState = useGameStore((s) => s.setGameState);
+  const updateStudio = useGameStore((s) => s.updateStudio);
   const replaceProject = useGameStore((s) => s.replaceProject);
 
   const time = gameState
@@ -90,30 +90,21 @@ export const DebugControlPanel: React.FC<DebugControlPanelProps> = ({
     const value = Number.isFinite(budgetMillions) ? budgetMillions : 0;
     const budget = Math.max(0, value * 1_000_000);
 
-    setGameState((prev) => ({
-      ...prev,
-      studio: { ...prev.studio, budget },
-    }));
+    updateStudio({ budget });
   };
 
   const handleDebtApply = () => {
     const value = Number.isFinite(debtMillions) ? debtMillions : 0;
     const debt = Math.max(0, value * 1_000_000);
 
-    setGameState((prev) => ({
-      ...prev,
-      studio: { ...prev.studio, debt },
-    }));
+    updateStudio({ debt });
   };
 
   const handleReputationApply = () => {
     const value = Number.isFinite(reputation) ? reputation : 0;
     const next = Math.max(0, Math.min(100, value));
 
-    setGameState((prev) => ({
-      ...prev,
-      studio: { ...prev.studio, reputation: next },
-    }));
+    updateStudio({ reputation: next });
   };
 
   const createSeasonWithEpisodes = (

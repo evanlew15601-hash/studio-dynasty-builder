@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React from 'react';
 import { GameState, Project } from '@/types/game';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
@@ -78,9 +78,6 @@ export const DistributionDashboard: React.FC<DistributionDashboardProps> = ({
 
     onProjectUpdate(updatedProject);
 
-    // Update studio reputation and budget
-    const reputationChange = Math.floor((performance - 50) * 0.5);
-    
     toast({
       title: "Project Released!",
       description: `"${project.title}" earned ${(revenue / 1000000).toFixed(1)}M on ${platform}`,
