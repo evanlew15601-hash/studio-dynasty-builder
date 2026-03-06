@@ -23,7 +23,7 @@ export const OwnedFranchiseManager: React.FC<OwnedFranchiseManagerProps> = ({
   onCreateTVProject
 }) => {
   const gameState = useGameStore((s) => s.game);
-  const setGameState = useGameStore((s) => s.setGameState);
+  const updateFranchise = useGameStore((s) => s.updateFranchise);
   const { toast } = useToast();
   const [editingFranchise, setEditingFranchise] = useState<Franchise | null>(null);
   const [editForm, setEditForm] = useState({
@@ -72,19 +72,11 @@ export const OwnedFranchiseManager: React.FC<OwnedFranchiseManagerProps> = ({
   const saveEdit = () => {
     if (!editingFranchise) return;
 
-    setGameState((prev) => ({
-      ...prev,
-      franchises: prev.franchises.map((f) =>
-        f.id === editingFranchise.id
-          ? {
-              ...f,
-              title: editForm.title,
-              description: editForm.description,
-              status: editForm.status,
-            }
-          : f
-      ),
-    }));
+    updateFranchise(editingFranchise.id, {
+      title: editForm.title,
+      description: editForm.description,
+      status: editForm.status,
+    });
 
     toast({
       title: "Franchise Updated",

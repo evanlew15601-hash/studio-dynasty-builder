@@ -12,7 +12,7 @@
 
 import { create } from 'zustand';
 import { immer } from 'zustand/middleware/immer';
-import type { GameState, Project, Script, Studio, TalentPerson } from '@/types/game';
+import type { Franchise, GameState, Project, Script, Studio, TalentPerson } from '@/types/game';
 import type { TickReport } from '@/types/tickReport';
 import type { ModBundle } from '@/types/modding';
 import type { SeededRng } from './core/rng';
@@ -85,6 +85,12 @@ export interface GameStoreState {
 
   /** Update talent */
   updateTalent: (talentId: string, updates: Partial<TalentPerson>) => void;
+
+  /** Upsert a franchise */
+  upsertFranchise: (franchise: Franchise) => void;
+
+  /** Update a franchise */
+  updateFranchise: (franchiseId: string, updates: Partial<Franchise>) => void;
 
   /** Upsert a script */
   upsertScript: (script: Script) => void;
@@ -279,6 +285,28 @@ export const useGameStore = create<GameStoreState>()(
         const idx = s.game.talent.findIndex((t) => t.id === talentId);
         if (idx >= 0) {
           Object.assign(s.game.talent[idx], updates);
+        }
+      });
+    },
+
+    upsertFranchise: (franchise) => {
+      set((s) => {
+        if (!s.game) return;
+        const idx = s.game.franchises.findIndex((f) => f.id === franchise.id);
+        if (idx >= 0) {
+          s.game.franchises[idx] = franchise as any;
+        } else {
+          s.game.franchises.push(franchise as any);
+        }
+      });
+    },
+
+    updateFranchise: (franchiseId, updates) => {
+      set((s) => {
+        if (!s.game) return;
+        const idx = s.game.franchises.findIndex((f) => f.id === franchiseId);
+        if (idx >= 0) {
+          Object.assign(s.game.franchises[idx], updates);
         }
       });
     },

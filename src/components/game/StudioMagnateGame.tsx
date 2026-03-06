@@ -400,6 +400,8 @@ export const StudioMagnateGame: React.FC<StudioMagnateGameProps> = ({
   const setGameState = useGameStore((s) => s.setGameState);
   const updateStudio = useGameStore((s) => s.updateStudio);
   const updateTalent = useGameStore((s) => s.updateTalent);
+  const replaceProject = useGameStore((s) => s.replaceProject);
+  const upsertFranchise = useGameStore((s) => s.upsertFranchise);
   const upsertScript = useGameStore((s) => s.upsertScript);
   const updateBudget = useGameStore((s) => s.updateBudget);
 
@@ -946,10 +948,7 @@ export const StudioMagnateGame: React.FC<StudioMagnateGameProps> = ({
   };
 
   const handleCreateFranchise = (franchise: any) => {
-    setGameState(prev => ({
-      ...prev,
-      franchises: [...(prev.franchises || []), franchise]
-    }));
+    upsertFranchise(franchise);
     toast({
       title: "Franchise Created",
       description: `"${franchise.title}" franchise has been established`,
@@ -1012,14 +1011,8 @@ export const StudioMagnateGame: React.FC<StudioMagnateGameProps> = ({
       status: 'marketing' as any
     };
 
-    setGameState(prev => ({
-      ...prev,
-      projects: prev.projects.map(p => p.id === project.id ? updatedProject : p),
-      studio: {
-        ...prev.studio,
-        budget: prev.studio.budget - budget
-      }
-    }));
+    replaceProject(updatedProject);
+    updateBudget(-budget);
     
     toast({
       title: "Marketing Campaign Launched!",
@@ -1083,10 +1076,7 @@ export const StudioMagnateGame: React.FC<StudioMagnateGameProps> = ({
       }
     };
 
-    setGameState(prev => ({
-      ...prev,
-      projects: prev.projects.map(p => p.id === project.id ? updatedProject : p)
-    }));
+    replaceProject(updatedProject);
 
     toast({
       title: "Release Strategy Set!",
