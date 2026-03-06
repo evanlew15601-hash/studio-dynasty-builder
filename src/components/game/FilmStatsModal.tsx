@@ -3,7 +3,8 @@ import { Dialog, DialogContent, DialogHeader, DialogTitle } from '@/components/u
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
 import { Progress } from '@/components/ui/progress';
-import { Project, GameState } from '@/types/game';
+import type { Project, GameState } from '@/types/game';
+import { useGameStore } from '@/game/store';
 import { 
   Film, 
   DollarSign, 
@@ -20,15 +21,17 @@ interface FilmStatsModalProps {
   project: Project | null;
   isOpen: boolean;
   onClose: () => void;
-  gameState: GameState;
+  gameState?: GameState;
 }
 
 export const FilmStatsModal: React.FC<FilmStatsModalProps> = ({
   project,
   isOpen,
   onClose,
-  gameState
+  gameState: propGameState,
 }) => {
+  const storeGameState = useGameStore((s) => s.game);
+  const gameState = propGameState ?? storeGameState;
   if (!project) return null;
 
   const formatCurrency = (amount: number) => {
@@ -59,6 +62,8 @@ export const FilmStatsModal: React.FC<FilmStatsModalProps> = ({
 
   const getCastInfo = () => {
     if (!project.script?.characters) return [];
+    if (!gameState) return [];
+
     return project.script.characters
       .filter(char => char.assignedTalentId)
       .map(char => {

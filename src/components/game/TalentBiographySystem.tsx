@@ -1,12 +1,13 @@
 import React, { useState, useEffect } from 'react';
-import { GameState, TalentPerson, Studio } from '@/types/game';
+import type { GameState, TalentPerson, Studio } from '@/types/game';
+import { useGameStore } from '@/game/store';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
 import { Separator } from '@/components/ui/separator';
 import { User, Building, Star, Award, Calendar, Heart } from 'lucide-react';
 
 interface TalentBiographyProps {
-  gameState: GameState;
+  gameState?: GameState;
 }
 
 export interface TalentBiography {
@@ -263,7 +264,9 @@ const generateStudioLore = (studio: Studio): StudioLore => {
   };
 };
 
-export const TalentBiographySystem: React.FC<TalentBiographyProps> = ({ gameState }) => {
+export const TalentBiographySystem: React.FC<TalentBiographyProps> = ({ gameState: propGameState }) => {
+  const storeGameState = useGameStore((s) => s.game);
+  const gameState = propGameState ?? storeGameState;
   const [talentBiographies, setTalentBiographies] = useState<Map<string, TalentBiography>>(new Map());
   const [studioLore, setStudioLore] = useState<Map<string, StudioLore>>(new Map());
   const [selectedTalent, setSelectedTalent] = useState<TalentPerson | null>(null);
@@ -271,6 +274,8 @@ export const TalentBiographySystem: React.FC<TalentBiographyProps> = ({ gameStat
 
   // Generate biographies for top talent
   useEffect(() => {
+    if (!gameState) return;
+
     const topTalent = gameState.talent
       .filter(t => (t.reputation || 0) > 60)
       .sort((a, b) => (b.reputation || 0) - (a.reputation || 0))
@@ -290,7 +295,11 @@ export const TalentBiographySystem: React.FC<TalentBiographyProps> = ({ gameStat
       newLore.set(gameState.studio.id, generateStudioLore(gameState.studio));
     }
     setStudioLore(newLore);
-  }, [gameState.talent, gameState.studio]);
+  }, [gameState?.talent, gameState?.studio]);
+
+  if (!gameState) {
+    return <div className="p-6 text-sm text-muted-foreground">Loading biographies...</div>;
+  }
 
   const getMostPopularActors = () => gameState.talent
     .filter(t => t.type === 'actor')

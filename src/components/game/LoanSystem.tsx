@@ -5,7 +5,8 @@ import { Badge } from '@/components/ui/badge';
 import { Progress } from '@/components/ui/progress';
 import { Alert, AlertDescription } from '@/components/ui/alert';
 import { useToast } from '@/hooks/use-toast';
-import { GameState } from '@/types/game';
+import type { GameState } from '@/types/game';
+import { useGameStore } from '@/game/store';
 import { DollarSign, AlertTriangle, TrendingDown, Calculator, CreditCard } from 'lucide-react';
 
 interface Loan {
@@ -36,16 +37,26 @@ interface LoanOffer {
 }
 
 interface LoanSystemProps {
-  gameState: GameState;
-  onBudgetUpdate: (amount: number, reason: string) => void;
+  gameState?: GameState;
+  onBudgetUpdate?: (amount: number, reason: string) => void;
   onReputationUpdate?: (change: number, reason: string) => void;
 }
 
 export const LoanSystem: React.FC<LoanSystemProps> = ({
-  gameState,
-  onBudgetUpdate,
-  onReputationUpdate
+  gameState: propGameState,
+  onBudgetUpdate: propOnBudgetUpdate,
+  onReputationUpdate: propOnReputationUpdate,
 }) => {
+  const storeGameState = useGameStore((s) => s.game);
+  const updateBudget = useGameStore((s) => s.updateBudget);
+  const updateReputation = useGameStore((s) => s.updateReputation);
+
+  const gameState = propGameState ?? storeGameState;
+  const onBudgetUpdate =
+    propOnBudgetUpdate ?? ((amount: number) => updateBudget(amount));
+  const onReputationUpdate =
+    propOnReputationUpdate ?? ((change: number) => updateReputation(change));
+
   const { toast } = useToast();
   const [activeLoans, setActiveLoans] = useState<Loan[]>([]);
   const [loanOffers, setLoanOffers] = useState<LoanOffer[]>([]);
@@ -57,8 +68,9 @@ export const LoanSystem: React.FC<LoanSystemProps> = ({
   }, []);
 
   useEffect(() => {
+    if (!gameState) return;
     processWeeklyPayments();
-  }, [gameState.currentWeek, gameState.currentYear]);
+  }, [gameState?.currentWeek, gameState?.currentYear]);
 
   const initializeLoanOffers = () => {
     const offers: LoanOffer[] = [
@@ -123,6 +135,8 @@ export const LoanSystem: React.FC<LoanSystemProps> = ({
   };
 
   const processWeeklyPayments = () => {
+    if (!gameState) return;
+
     setActiveLoans(prev => {
       return prev.map(loan => {
         if (loan.status !== 'active') return loan;
@@ -139,9 +153,9 @@ export const LoanSystem: React.FC<LoanSystemProps> = ({
             title: "Loan Paid Off",
             description: `Congratulations! You've fully repaid your loan from ${loan.lender}`,
           });
-          
-          onReputationUpdate?.(5, `Loan Completion: ${loan.lender}`);
-          
+
+          onReputationUpdate(5, `Loan Completion: ${loan.lender}`);
+
           return {
             ...loan,
             status: 'paid_off' as const,
@@ -157,9 +171,9 @@ export const LoanSystem: React.FC<LoanSystemProps> = ({
             description: `Unable to make payment to ${loan.lender}. Default proceedings may begin.`,
             variant: "destructive"
           });
-          
-          onReputationUpdate?.(-15, `Loan Default: ${loan.lender}`);
-          
+
+          onReputationUpdate(-15, `Loan Default: ${loan.lender}`);
+
           return {
             ...loan,
             status: 'defaulted' as const
@@ -185,17 +199,21 @@ export const LoanSystem: React.FC<LoanSystemProps> = ({
   };
 
   const getCurrentDebtRatio = (): number => {
+    if (!gameState) return 0;
+
     const totalWeeklyPayments = activeLoans
       .filter(loan => loan.status === 'active')
       .reduce((sum, loan) => sum + loan.weeklyPayment, 0);
-    
+
     const estimatedWeeklyRevenue = gameState.studio.budget * 0.02; // Estimate 2% of budget as weekly revenue
     return estimatedWeeklyRevenue > 0 ? totalWeeklyPayments / estimatedWeeklyRevenue : 0;
   };
 
   const getEligibleOffers = (): LoanOffer[] => {
+    if (!gameState) return [];
+
     const currentDebtRatio = getCurrentDebtRatio();
-    
+
     return loanOffers.filter(offer => 
       gameState.studio.reputation >= offer.requirements.minReputation &&
       currentDebtRatio <= offer.requirements.maxDebtRatio
@@ -203,6 +221,8 @@ export const LoanSystem: React.FC<LoanSystemProps> = ({
   };
 
   const takeLoan = (offer: LoanOffer, amount: number) => {
+    if (!gameState) return;
+
     const weeklyPayment = calculateWeeklyPayment(amount, offer.interestRate, offer.termWeeks);
     
     const newLoan: Loan = {
@@ -224,7 +244,7 @@ export const LoanSystem: React.FC<LoanSystemProps> = ({
     onBudgetUpdate(amount, `Loan from ${offer.lender}`);
     
     // Small reputation hit for taking on debt
-    onReputationUpdate?.(-2, `New Debt: ${offer.lender}`);
+    onReputationUpdate(-2, `New Debt: ${offer.lender}`);
 
     toast({
       title: "Loan Approved",
@@ -255,10 +275,16 @@ export const LoanSystem: React.FC<LoanSystemProps> = ({
   };
 
   const isInCrisis = (): boolean => {
+    if (!gameState) return false;
+
     return gameState.studio.budget < 1000000 || // Less than 1M budget
            getCurrentDebtRatio() > 0.8 || // Debt payments over 80% of revenue
            activeLoans.some(loan => loan.status === 'defaulted');
   };
+
+  if (!gameState) {
+    return <div className="p-6 text-sm text-muted-foreground">Loading loans...</div>;
+  }
 
   return (
     <div className="space-y-6">

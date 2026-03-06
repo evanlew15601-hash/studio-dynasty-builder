@@ -2,20 +2,30 @@ import React from 'react';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
 import { Progress } from '@/components/ui/progress';
-import { TalentPerson, BurnoutCalculation } from '@/types/game';
+import type { TalentPerson, BurnoutCalculation } from '@/types/game';
+import { useGameStore } from '@/game/store';
 import { AlertTriangle, TrendingDown, Clock, Battery } from 'lucide-react';
 
 interface TalentBurnoutSystemProps {
-  talent: TalentPerson[];
-  currentWeek: number;
-  currentYear: number;
+  talent?: TalentPerson[];
+  currentWeek?: number;
+  currentYear?: number;
 }
 
 export const TalentBurnoutSystem: React.FC<TalentBurnoutSystemProps> = ({
-  talent,
-  currentWeek,
-  currentYear
+  talent: propTalent,
+  currentWeek: propCurrentWeek,
+  currentYear: propCurrentYear
 }) => {
+  const gameState = useGameStore((s) => s.game);
+
+  const talent = propTalent ?? gameState?.talent;
+  const currentWeek = propCurrentWeek ?? gameState?.currentWeek;
+  const currentYear = propCurrentYear ?? gameState?.currentYear;
+
+  if (!talent || currentWeek == null || currentYear == null) {
+    return <div className="p-6 text-sm text-muted-foreground">Loading wellness monitor...</div>;
+  }
   const calculateBurnout = (person: TalentPerson): BurnoutCalculation => {
     const recentProjects = person.recentProjects?.length || 0;
     const lastWorkWeek = person.lastWorkWeek || 0;

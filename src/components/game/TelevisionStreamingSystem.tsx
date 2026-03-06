@@ -1,5 +1,6 @@
 import React, { useState, useEffect } from 'react';
-import { GameState, Project, Genre } from '@/types/game';
+import type { GameState, Project, Genre } from '@/types/game';
+import { useGameStore } from '@/game/store';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
@@ -7,9 +8,8 @@ import { Progress } from '@/components/ui/progress';
 import { Tv, Monitor, Clock, Users, TrendingUp, Calendar } from 'lucide-react';
 
 interface TelevisionStreamingProps {
-  gameState: GameState;
-  onProjectCreate: (project: Partial<Project>) => void;
-  onProjectUpdate: (projectId: string, updates: Partial<Project>) => void;
+  gameState?: GameState;
+  onProjectCreate?: (project: Partial<Project>) => void;
 }
 
 export interface TVShowConcept {
@@ -200,10 +200,13 @@ const generateStreamingFeature = (): StreamingFeature => {
 };
 
 export const TelevisionStreamingSystem: React.FC<TelevisionStreamingProps> = ({
-  gameState,
-  onProjectCreate,
-  onProjectUpdate
+  gameState: propGameState,
+  onProjectCreate: propOnProjectCreate,
 }) => {
+  const storeGameState = useGameStore((s) => s.game);
+
+  const gameState = propGameState ?? storeGameState;
+  const onProjectCreate = propOnProjectCreate ?? (() => {});
   const [tvConcepts, setTvConcepts] = useState<TVShowConcept[]>([]);
   const [streamingFeatures, setStreamingFeatures] = useState<StreamingFeature[]>([]);
   const [selectedView, setSelectedView] = useState<'tv' | 'streaming'>('tv');
@@ -211,6 +214,8 @@ export const TelevisionStreamingSystem: React.FC<TelevisionStreamingProps> = ({
 
   // Generate background TV and streaming content
   useEffect(() => {
+    if (!gameState) return;
+
     const generateBackgroundContent = () => {
       // Generate TV concepts weekly
       if (Math.random() < 0.3) { // 30% chance per week
@@ -230,7 +235,11 @@ export const TelevisionStreamingSystem: React.FC<TelevisionStreamingProps> = ({
     };
 
     generateBackgroundContent();
-  }, [gameState.currentWeek]);
+  }, [gameState?.currentWeek, gameState?.currentYear]);
+
+  if (!gameState) {
+    return <div className="p-6 text-sm text-muted-foreground">Loading television & streaming...</div>;
+  }
 
   const handleDevelopTVShow = (concept: TVShowConcept) => {
     setIsGenerating(true);

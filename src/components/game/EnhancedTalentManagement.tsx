@@ -1,5 +1,6 @@
-import React, { useState, useEffect } from 'react';
-import { GameState, TalentPerson, ContractedTalent } from '@/types/game';
+import React, { useState } from 'react';
+import type { GameState, TalentPerson } from '@/types/game';
+import { useGameStore } from '@/game/store';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
@@ -10,21 +11,31 @@ import { useToast } from '@/hooks/use-toast';
 import { Star, Users, TrendingUp, Clock, DollarSign, Search } from 'lucide-react';
 
 interface EnhancedTalentManagementProps {
-  gameState: GameState;
-  onTalentUpdate: (talentId: string, updates: Partial<TalentPerson>) => void;
-  onContractTalent: (talent: TalentPerson, terms: any) => void;
+  gameState?: GameState;
+  onTalentUpdate?: (talentId: string, updates: Partial<TalentPerson>) => void;
+  onContractTalent?: (talent: TalentPerson, terms: any) => void;
 }
 
 export const EnhancedTalentManagement: React.FC<EnhancedTalentManagementProps> = ({
-  gameState,
-  onTalentUpdate,
-  onContractTalent
+  gameState: propGameState,
+  onTalentUpdate: propOnTalentUpdate,
+  onContractTalent: propOnContractTalent
 }) => {
+  const storeGameState = useGameStore((s) => s.game);
+  const updateTalent = useGameStore((s) => s.updateTalent);
+
+  const gameState = propGameState ?? storeGameState;
+  const onTalentUpdate = propOnTalentUpdate ?? ((id: string, updates: Partial<TalentPerson>) => updateTalent(id, updates));
+  const onContractTalent = propOnContractTalent ?? (() => {});
   const { toast } = useToast();
   const [searchTerm, setSearchTerm] = useState('');
   const [filterType, setFilterType] = useState<'all' | 'actor' | 'director'>('all');
   const [filterAvailability, setFilterAvailability] = useState<'all' | 'available' | 'busy'>('all');
   const [sortBy, setSortBy] = useState<'reputation' | 'marketValue' | 'name'>('reputation');
+
+  if (!gameState) {
+    return <div className="p-6 text-sm text-muted-foreground">Loading talent...</div>;
+  }
 
   // Get all talent with current project status
   const getEnhancedTalentList = () => {

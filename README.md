@@ -59,6 +59,49 @@ This project is built with:
 - React
 - shadcn-ui
 - Tailwind CSS
+- Tauri v2 (desktop packaging)
+
+## Desktop builds (Tauri)
+
+### Prerequisites
+
+- Node.js + npm
+- Rust toolchain (stable) + Cargo
+- Tauri prerequisites for your OS (WebView, build tools)
+  - See: https://tauri.app/start/prerequisites/
+
+### Run as a desktop app (dev)
+
+```sh
+npm i
+npm run tauri:dev
+```
+
+### Build installable bundles (Windows)
+
+```sh
+npm run tauri:build
+```
+
+Outputs:
+- NSIS: `src-tauri/target/release/bundle/nsis/*-setup.exe`
+- MSI: `src-tauri/target/release/bundle/msi/*.msi`
+
+Notes:
+- This repo is configured to build Windows installers (`bundle.targets: ["nsis", "msi"]`).
+- MSI installers can only be created on Windows.
+- Installers are configured for **per-machine** install (requires admin).
+- The Windows installer bundles the **offline WebView2 installer** (no internet required) and runs it (`offlineInstaller`).
+- App icon currently points to `public/favicon.ico`. For a full icon set, generate icons with:
+
+```sh
+npx tauri icon public/placeholder.svg
+```
+
+### CI (optional): build Windows installers via GitHub Actions
+
+This repo includes a workflow you can run from the Actions tab:
+- `.github/workflows/windows-tauri-build.yml`
 
 ## How can I deploy this project?
 

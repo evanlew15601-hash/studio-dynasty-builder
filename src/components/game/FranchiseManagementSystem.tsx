@@ -1,5 +1,6 @@
 import React, { useState } from 'react';
-import { GameState, Franchise, ScriptCharacter } from '@/types/game';
+import type { GameState, Franchise, ScriptCharacter } from '@/types/game';
+import { useGameStore } from '@/game/store';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
@@ -11,16 +12,26 @@ import { useToast } from '@/hooks/use-toast';
 import { Crown, Star, Users, Plus, Zap } from 'lucide-react';
 
 interface FranchiseManagementSystemProps {
-  gameState: GameState;
-  onCreateFranchise: (franchise: Franchise) => void;
-  onUpdateFranchise: (franchiseId: string, updates: Partial<Franchise>) => void;
+  gameState?: GameState;
+  onCreateFranchise?: (franchise: Franchise) => void;
 }
 
 export const FranchiseManagementSystem: React.FC<FranchiseManagementSystemProps> = ({
-  gameState,
-  onCreateFranchise,
-  onUpdateFranchise
+  gameState: propGameState,
+  onCreateFranchise: propOnCreateFranchise,
 }) => {
+  const storeGameState = useGameStore((s) => s.game);
+  const upsertFranchise = useGameStore((s) => s.upsertFranchise);
+  const updateBudget = useGameStore((s) => s.updateBudget);
+
+  const gameState = propGameState ?? storeGameState;
+  const onCreateFranchise =
+    propOnCreateFranchise ??
+    ((franchise: Franchise) => {
+      upsertFranchise(franchise);
+      // Match this component's cost model
+      updateBudget(-Math.floor((franchise.culturalWeight || 0) * 100000));
+    });
   const { toast } = useToast();
   const [isCreating, setIsCreating] = useState(false);
   const [newFranchise, setNewFranchise] = useState({
@@ -31,6 +42,10 @@ export const FranchiseManagementSystem: React.FC<FranchiseManagementSystemProps>
     culturalWeight: 50,
     cost: 0
   });
+
+  if (!gameState) {
+    return <div className="p-6 text-sm text-muted-foreground">Loading franchise management...</div>;
+  }
 
   const ownedFranchises = gameState.franchises.filter(f => f.creatorStudioId === gameState.studio.id);
 

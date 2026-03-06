@@ -8,7 +8,8 @@ import { Label } from '@/components/ui/label';
 import { Textarea } from '@/components/ui/textarea';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { useToast } from '@/hooks/use-toast';
-import { GameState, Studio } from '@/types/game';
+import type { GameState, Studio } from '@/types/game';
+import { useGameStore } from '@/game/store';
 import { Megaphone, Timer, TrendingUp, AlertTriangle, DollarSign, Clock } from 'lucide-react';
 
 interface PRCampaign {
@@ -62,16 +63,23 @@ interface CrisisEvent {
 }
 
 interface EnhancedPRSystemProps {
-  gameState: GameState;
-  onReputationUpdate: (change: number, reason: string) => void;
-  onBudgetUpdate: (cost: number, reason: string) => void;
+  gameState?: GameState;
+  onReputationUpdate?: (change: number, reason: string) => void;
+  onBudgetUpdate?: (cost: number, reason: string) => void;
 }
 
 export const EnhancedPRSystem: React.FC<EnhancedPRSystemProps> = ({
-  gameState,
-  onReputationUpdate,
-  onBudgetUpdate
+  gameState: propGameState,
+  onReputationUpdate: propOnReputationUpdate,
+  onBudgetUpdate: propOnBudgetUpdate,
 }) => {
+  const storeGameState = useGameStore((s) => s.game);
+  const updateReputation = useGameStore((s) => s.updateReputation);
+  const updateBudget = useGameStore((s) => s.updateBudget);
+
+  const gameState = propGameState ?? storeGameState;
+  const onReputationUpdate = propOnReputationUpdate ?? ((change: number) => updateReputation(change));
+  const onBudgetUpdate = propOnBudgetUpdate ?? ((cost: number) => updateBudget(-cost));
   const { toast } = useToast();
   const [activeCampaigns, setActiveCampaigns] = useState<PRCampaign[]>([]);
   const [activeCrises, setActiveCrises] = useState<CrisisEvent[]>([]);
@@ -85,11 +93,14 @@ export const EnhancedPRSystem: React.FC<EnhancedPRSystemProps> = ({
   });
 
   useEffect(() => {
+    if (!gameState) return;
     processWeeklyPR();
     checkForCrises();
-  }, [gameState.currentWeek, gameState.currentYear]);
+  }, [gameState?.currentWeek, gameState?.currentYear]);
 
   const processWeeklyPR = () => {
+    if (!gameState) return;
+
     setActiveCampaigns(prev => {
       return prev.map(campaign => {
         if (campaign.status !== 'active') return campaign;
@@ -171,6 +182,8 @@ export const EnhancedPRSystem: React.FC<EnhancedPRSystemProps> = ({
   };
 
   const checkForCrises = () => {
+    if (!gameState) return;
+
     // Random crisis generation (low probability)
     if (Math.random() < 0.02) { // 2% chance per week
       generateRandomCrisis();
@@ -190,6 +203,8 @@ export const EnhancedPRSystem: React.FC<EnhancedPRSystemProps> = ({
   };
 
   const generateRandomCrisis = () => {
+    if (!gameState) return;
+
     const crisisTypes = [
       {
         type: 'scandal' as const,
@@ -235,9 +250,11 @@ export const EnhancedPRSystem: React.FC<EnhancedPRSystemProps> = ({
   };
 
   const generateProjectCrisis = (project: any, type: 'flop') => {
+    if (!gameState) return;
+
     const newCrisis: CrisisEvent = {
       id: `crisis-${Date.now()}`,
-      type: 'flop',
+      type,
       title: `"${project.title}" Box Office Disaster`,
       description: `The film's poor performance raises questions about studio decision-making`,
       severity: 5,
@@ -245,11 +262,17 @@ export const EnhancedPRSystem: React.FC<EnhancedPRSystemProps> = ({
       year: gameState.currentYear,
       reputationImpact: -10,
       status: 'active',
-      resolutionOptions: generateResolutionOptions('flop', 5)
+      resolutionOptions: generateResolutionOptions(type, 5)
     };
     
     setActiveCrises(prev => [...prev, newCrisis]);
-    onReputationUpdate(-10, `Box Office Flop: ${project.title}`);
+    onReputationUpdate(newCrisis.reputationImpact, `Box Office Flop: ${project.title}`);
+
+    toast({
+      title: "Crisis Situation",
+      description: newCrisis.title,
+      variant: "destructive"
+    });
   };
 
   const generateResolutionOptions = (type: CrisisEvent['type'], severity: number) => {
@@ -287,6 +310,8 @@ export const EnhancedPRSystem: React.FC<EnhancedPRSystemProps> = ({
   };
 
   const createPRCampaign = () => {
+    if (!gameState) return;
+
     const campaign: PRCampaign = {
       id: `pr-${Date.now()}`,
       name: campaignForm.name,
@@ -331,7 +356,7 @@ export const EnhancedPRSystem: React.FC<EnhancedPRSystemProps> = ({
 
   const calculateCampaignEffectiveness = (): number => {
     const budgetMultiplier = Math.min(2.0, campaignForm.budget / 1000000); // More money = more effective
-    const reputationMultiplier = Math.max(0.5, gameState.studio.reputation / 100); // Better reputation = more effective
+    const reputationMultiplier = Math.max(0.5, (gameState?.studio.reputation ?? 50) / 100); // Better reputation = more effective
     const baseEffectiveness = 50;
     
     return Math.min(95, baseEffectiveness * budgetMultiplier * reputationMultiplier);
@@ -391,6 +416,10 @@ export const EnhancedPRSystem: React.FC<EnhancedPRSystemProps> = ({
   const getWeeklyPRCost = () => activeCampaigns
     .filter(c => c.status === 'active')
     .reduce((sum, c) => sum + (c.cost / c.duration), 0);
+
+  if (!gameState) {
+    return <div className="p-6 text-sm text-muted-foreground">Loading PR system...</div>;
+  }
 
   return (
     <div className="space-y-6">

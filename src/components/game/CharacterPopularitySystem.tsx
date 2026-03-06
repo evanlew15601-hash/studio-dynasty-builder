@@ -1,13 +1,13 @@
 import React, { useState, useEffect } from 'react';
-import { GameState, Project, TalentPerson, ScriptCharacter } from '@/types/game';
+import type { GameState, Project, TalentPerson, ScriptCharacter } from '@/types/game';
+import { useGameStore } from '@/game/store';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
 import { Progress } from '@/components/ui/progress';
-import { Star, TrendingUp, Users, Award, Crown } from 'lucide-react';
+import { Star, TrendingUp, Users, Crown } from 'lucide-react';
 
 interface CharacterPopularityProps {
-  gameState: GameState;
-  onGameStateUpdate: (updates: Partial<GameState>) => void;
+  gameState?: GameState;
 }
 
 export interface CharacterPerformance {
@@ -64,9 +64,14 @@ export interface TalentCharacterExpertise {
 }
 
 export const CharacterPopularitySystem: React.FC<CharacterPopularityProps> = ({
-  gameState,
-  onGameStateUpdate
+  gameState: propGameState,
 }) => {
+  const storeGameState = useGameStore((s) => s.game);
+  const gameState = propGameState ?? storeGameState;
+
+  const currentYear = gameState?.currentYear ?? 0;
+  const currentWeek = gameState?.currentWeek ?? 0;
+
   const [characterPopularities, setCharacterPopularities] = useState<CharacterPopularity[]>([]);
   const [talentExpertise, setTalentExpertise] = useState<TalentCharacterExpertise[]>([]);
   const [selectedCharacter, setSelectedCharacter] = useState<CharacterPopularity | null>(null);
@@ -96,8 +101,8 @@ export const CharacterPopularitySystem: React.FC<CharacterPopularityProps> = ({
       performanceScore,
       popularityGain,
       screenTimeMinutes: screenTime,
-      releaseYear: project.releaseYear || gameState.currentYear,
-      releaseWeek: project.releaseWeek || gameState.currentWeek,
+      releaseYear: project.releaseYear || currentYear,
+      releaseWeek: project.releaseWeek || currentWeek,
       boxOfficeImpact: calculateBoxOfficeImpact(performanceScore, screenTime, project),
       criticalReception: Math.min(100, performanceScore + (Math.random() * 20 - 10)),
       audienceReception: Math.min(100, performanceScore + (Math.random() * 15 - 7.5)),
@@ -166,7 +171,7 @@ export const CharacterPopularitySystem: React.FC<CharacterPopularityProps> = ({
           fanbaseSize: Math.round(totalPopularity * 1000),
           culturalImpact: calculateCulturalImpact(updatedPerformances),
           lastActiveYear: performance.releaseYear,
-          trendingScore: calculateTrendingScore(updatedPerformances, gameState.currentYear)
+          trendingScore: calculateTrendingScore(updatedPerformances, currentYear)
         } : p);
       } else {
         const newCharacter: CharacterPopularity = {
@@ -195,7 +200,7 @@ export const CharacterPopularitySystem: React.FC<CharacterPopularityProps> = ({
     performances: CharacterPerformance[]
   ): number => {
     const recencyBonus = performances.length > 0 ? 
-      Math.max(0, 50 - (gameState.currentYear - performances[performances.length - 1].releaseYear) * 10) : 0;
+      Math.max(0, 50 - (currentYear - performances[performances.length - 1].releaseYear) * 10) : 0;
     const consistencyBonus = performances.length > 1 ? 
       Math.min(20, performances.filter(p => p.performanceScore > 70).length * 5) : 0;
     
@@ -232,6 +237,8 @@ export const CharacterPopularitySystem: React.FC<CharacterPopularityProps> = ({
 
   // Process completed projects to generate character performances
   useEffect(() => {
+    if (!gameState) return;
+
     const completedProjects = gameState.projects.filter(p => 
       p.status === 'released' && 
       p.script?.characters?.length > 0 &&
@@ -252,7 +259,7 @@ export const CharacterPopularitySystem: React.FC<CharacterPopularityProps> = ({
         }
       });
     });
-  }, [gameState.projects]);
+  }, [gameState?.projects]);
 
   const updateTalentExpertise = (performance: CharacterPerformance) => {
     setTalentExpertise(prev => {
@@ -305,6 +312,10 @@ export const CharacterPopularitySystem: React.FC<CharacterPopularityProps> = ({
     .filter(c => c.spinoffPotential > 60)
     .sort((a, b) => b.spinoffPotential - a.spinoffPotential)
     .slice(0, 8);
+
+  if (!gameState) {
+    return <div className="p-6 text-sm text-muted-foreground">Loading character popularity...</div>;
+  }
 
   return (
     <div className="space-y-6">

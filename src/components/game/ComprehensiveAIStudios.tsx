@@ -3,7 +3,8 @@ import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
 import { Progress } from '@/components/ui/progress';
 import { Button } from '@/components/ui/button';
-import { GameState, TalentPerson, Project } from '@/types/game';
+import type { GameState, TalentPerson, Project } from '@/types/game';
+import { useGameStore } from '@/game/store';
 import { Building, Film, Users, TrendingUp, Calendar, Star } from 'lucide-react';
 
 interface AIStudio {
@@ -55,14 +56,16 @@ interface AIProject {
 }
 
 interface ComprehensiveAIStudiosProps {
-  gameState: GameState;
+  gameState?: GameState;
   onTalentCommitmentChange?: (talentId: string, busy: boolean, project?: string) => void;
 }
 
 export const ComprehensiveAIStudios: React.FC<ComprehensiveAIStudiosProps> = ({
-  gameState,
+  gameState: propGameState,
   onTalentCommitmentChange
 }) => {
+  const storeGameState = useGameStore((s) => s.game);
+  const gameState = propGameState ?? storeGameState;
   const [aiStudios, setAIStudios] = useState<AIStudio[]>([]);
   const [viewMode, setViewMode] = useState<'studios' | 'projects' | 'talent'>('studios');
 
@@ -73,8 +76,13 @@ export const ComprehensiveAIStudios: React.FC<ComprehensiveAIStudiosProps> = ({
   }, []);
 
   useEffect(() => {
+    if (!gameState) return;
     processWeeklyAIActivity();
-  }, [gameState.currentWeek, gameState.currentYear]);
+  }, [gameState?.currentWeek, gameState?.currentYear]);
+
+  if (!gameState) {
+    return <div className="p-6 text-sm text-muted-foreground">Loading AI studios...</div>;
+  }
 
   const initializeAIStudios = () => {
     const studioTemplates = [
