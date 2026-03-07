@@ -967,6 +967,7 @@ export interface PostTheatricalRelease {
   weeksActive: number;
   status: 'planned' | 'active' | 'declining' | 'ended';
   cost: number;
+  durationWeeks?: number;
 }
 
 // Awards & Recognition System Interfaces

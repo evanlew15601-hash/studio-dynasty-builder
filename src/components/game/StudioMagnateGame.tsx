@@ -971,6 +971,9 @@ export const StudioMagnateGame: React.FC<StudioMagnateGameProps> = ({
       return;
     }
 
+    const hasScheduledRelease = !!project.scheduledReleaseWeek && !!project.scheduledReleaseYear;
+    const startingBuzz = project.marketingData?.currentBuzz ?? project.marketingCampaign?.buzz ?? 20;
+
     const updatedProject = {
       ...project,
       currentPhase: 'marketing' as any,
@@ -981,13 +984,13 @@ export const StudioMagnateGame: React.FC<StudioMagnateGameProps> = ({
         budgetSpent: 0,
         duration,
         weeksRemaining: duration,
-        buzz: 20,
+        buzz: startingBuzz,
         activities: [],
         targetAudience: strategy.targeting.demographic,
         effectiveness: 60
       },
       phaseDuration: duration,
-      status: 'marketing' as any
+      status: (hasScheduledRelease ? 'scheduled-for-release' : 'marketing') as any
     };
 
     replaceProject(updatedProject);
@@ -1233,7 +1236,8 @@ export const StudioMagnateGame: React.FC<StudioMagnateGameProps> = ({
     const campaignBudget = updatedProject.marketingCampaign.budgetAllocated || 0;
     const weeklySpend = campaignBudget / updatedProject.marketingCampaign.duration;
     const weeklyBuzzGrowth = Math.max(2, Math.floor(weeklySpend / 500000)); // ~2-10 buzz per week
-    const newBuzz = Math.min(100, (updatedProject.marketingCampaign.buzz || 0) + weeklyBuzzGrowth);
+    const buzzCap = (updatedProject.type === 'series' || updatedProject.type === 'limited-series') ? 250 : 150;
+    const newBuzz = Math.min(buzzCap, (updatedProject.marketingCampaign.buzz || 0) + weeklyBuzzGrowth);
     const newBudgetSpent = (updatedProject.marketingCampaign.budgetSpent || 0) + weeklySpend;
 
     updatedProject = {
@@ -1279,47 +1283,73 @@ export const StudioMagnateGame: React.FC<StudioMagnateGameProps> = ({
           console.log(`    PROCESSING POST-THEATRICAL: ${updatedProject.title}`);
         }
         
+        const POST_THEATRICAL_DURATIONS: Record<string, number> = {
+          streaming: 26,
+          digital: 104,
+          physical: 52,
+          'tv-licensing': 156,
+        };
+
         const updatedReleases = updatedProject.postTheatricalReleases.map(release => {
+          if (release.status === 'ended') return release;
+
+          const durationWeeks = release.durationWeeks || POST_THEATRICAL_DURATIONS[release.platform] || 52;
+
           if (release.status === 'planned') {
             // Start the release
             if (diagnosticsEnabled) {
               console.log(`      STARTING: ${release.platform} release`);
             }
+
+            const weeksActive = 1;
+            const revenue = (release.revenue || 0) + Math.round(release.weeklyRevenue || 0);
+
             return {
               ...release,
-              status: 'active' as const,
-              weeksActive: 1,
-              revenue: release.weeklyRevenue
-            };
-          } else if (release.status === 'active') {
-            // Continue generating revenue
-            const newWeeksActive = release.weeksActive + 1;
-            const newRevenue = release.revenue + release.weeklyRevenue;
-            
-            if (diagnosticsEnabled) {
-              console.log(`      ${release.platform}: Week ${newWeeksActive}, +${release.weeklyRevenue.toLocaleString()}, Total: ${newRevenue.toLocaleString()}`);
-            }
-            
-            return {
-              ...release,
-              weeksActive: newWeeksActive,
-              revenue: newRevenue
+              status: (weeksActive >= durationWeeks * 0.8 ? 'declining' : 'active') as any,
+              weeksActive,
+              revenue
             };
           }
+
+          if (release.status === 'active' || release.status === 'declining') {
+            // Continue generating revenue
+            const newWeeksActive = (release.weeksActive || 0) + 1;
+            const newRevenue = (release.revenue || 0) + Math.round(release.weeklyRevenue || 0);
+
+            const ended = newWeeksActive >= durationWeeks;
+            const nextStatus = ended
+              ? 'ended'
+              : (newWeeksActive >= durationWeeks * 0.8 ? 'declining' : 'active');
+
+            if (diagnosticsEnabled) {
+              console.log(`      ${release.platform}: Week ${newWeeksActive}/${durationWeeks}, +${Math.round(release.weeklyRevenue || 0).toLocaleString()}, Total: ${newRevenue.toLocaleString()} (${nextStatus})`);
+            }
+
+            return {
+              ...release,
+              weeksActive: ended ? durationWeeks : newWeeksActive,
+              revenue: newRevenue,
+              status: nextStatus as any
+            };
+          }
+
           return release;
         });
 
-        // Calculate total weekly revenue from all active releases
-        const weeklyPostTheatricalRevenue = updatedReleases
-          .filter(r => r.status === 'active')
-          .reduce((sum, r) => sum + r.weeklyRevenue, 0);
+        // Calculate total weekly revenue earned this tick (including releases that end this week).
+        const weeklyPostTheatricalRevenue = updatedProject.postTheatricalReleases
+          .filter(r => r.status === 'planned' || r.status === 'active' || r.status === 'declining')
+          .reduce((sum, r) => sum + (r.weeklyRevenue || 0), 0);
 
-        if (weeklyPostTheatricalRevenue > 0) {
+        const weeklyPostTheatricalRevenueRounded = Math.round(weeklyPostTheatricalRevenue);
+
+        if (weeklyPostTheatricalRevenueRounded > 0) {
           if (diagnosticsEnabled) {
-            console.log(`      TOTAL WEEKLY POST-THEATRICAL: +${weeklyPostTheatricalRevenue.toLocaleString()}`);
+            console.log(`      TOTAL WEEKLY POST-THEATRICAL: +${weeklyPostTheatricalRevenueRounded.toLocaleString()}`);
           }
 
-          studioRevenueDelta += weeklyPostTheatricalRevenue;
+          studioRevenueDelta += weeklyPostTheatricalRevenueRounded;
         }
 
         updatedProject = {
@@ -2117,7 +2147,24 @@ export const StudioMagnateGame: React.FC<StudioMagnateGameProps> = ({
       const MAX_RELEASE_AGE_WEEKS = 156; // ~3 years
       const currentAbsoluteWeek = (newTimeState.currentYear * 52) + newTimeState.currentWeek;
       
-      const prunedReleases = [...prev.allReleases, ...newAIReleases].filter((release) => {
+      const playerReleases = updatedProjects.filter(
+        (p) => p.status === 'released' && !!p.releaseWeek && !!p.releaseYear
+      );
+
+      const releasePool = [...prev.allReleases, ...newAIReleases, ...playerReleases];
+
+      const dedupedReleases = (() => {
+        const seen = new Set<string>();
+        return releasePool.filter((release) => {
+          const id = 'script' in release ? release.id : release.projectId;
+          if (!id) return true;
+          if (seen.has(id)) return false;
+          seen.add(id);
+          return true;
+        });
+      })();
+
+      const prunedReleases = dedupedReleases.filter((release) => {
         if (!('releaseWeek' in release) || !('releaseYear' in release)) return true;
         const releaseAbsWeek = ((release as Project).releaseYear! * 52) + (release as Project).releaseWeek!;
         return (currentAbsoluteWeek - releaseAbsWeek) <= MAX_RELEASE_AGE_WEEKS;
@@ -2141,7 +2188,9 @@ export const StudioMagnateGame: React.FC<StudioMagnateGameProps> = ({
         projects: updatedProjects,
         studio: enhancedStudio,
         allReleases: prunedReleases,
-        aiStudioProjects: prunedReleases.filter((r): r is Project => 'script' in r),
+        aiStudioProjects: prunedReleases.filter(
+          (r): r is Project => 'script' in r && !!(r as any).studioName && (r as any).studioName !== enhancedStudio.name
+        ),
         talent: updatedTalent,
         boxOfficeHistory: prunedBoxOfficeHistory,
         topFilmsHistory: prunedTopFilmsHistory,

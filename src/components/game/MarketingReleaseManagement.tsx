@@ -27,6 +27,7 @@ export const MarketingReleaseManagement: React.FC<MarketingReleaseManagementProp
   const gameState = useGameStore((s) => s.game);
   
   const replaceProject = useGameStore((s) => s.replaceProject);
+  const updateBudget = useGameStore((s) => s.updateBudget);
   const [selectedProjectId, setSelectedProjectId] = useState<string | null>(null);
   const [showMarketingModal, setShowMarketingModal] = useState(false);
   const [showReleaseModal, setShowReleaseModal] = useState(false);
@@ -48,18 +49,26 @@ export const MarketingReleaseManagement: React.FC<MarketingReleaseManagementProp
   };
 
   const getProjectsInMarketing = () => {
-    return gameState.projects.filter(p => 
-      p.currentPhase === 'marketing' && 
+    return gameState.projects.filter(p =>
       p.status !== 'released' &&
-      matchesTypeFilter(p)
+      matchesTypeFilter(p) &&
+      (
+        p.currentPhase === 'marketing' ||
+        p.status === 'ready-for-marketing' ||
+        (p.status === 'scheduled-for-release' && p.currentPhase === 'marketing')
+      )
     );
   };
 
   const getProjectsInRelease = () => {
-    return gameState.projects.filter(p => 
-      p.currentPhase === 'release' && 
+    return gameState.projects.filter(p =>
       p.status !== 'released' &&
-      matchesTypeFilter(p)
+      matchesTypeFilter(p) &&
+      (
+        p.currentPhase === 'release' ||
+        p.status === 'ready-for-release' ||
+        (p.status === 'scheduled-for-release' && p.currentPhase !== 'marketing')
+      )
     );
   };
 
@@ -367,8 +376,14 @@ export const MarketingReleaseManagement: React.FC<MarketingReleaseManagementProp
             setSelectedProjectId(null);
           }}
           onCreateCampaign={(strategy, budget, duration) => {
+            const hasScheduledRelease = !!selectedProject.scheduledReleaseWeek && !!selectedProject.scheduledReleaseYear;
+            const startingBuzz = selectedProject.marketingData?.currentBuzz ?? selectedProject.marketingCampaign?.buzz ?? 0;
+
             const updatedProject = {
               ...selectedProject,
+              currentPhase: 'marketing' as any,
+              status: (hasScheduledRelease ? 'scheduled-for-release' : 'marketing') as any,
+              phaseDuration: -1,
               marketingCampaign: {
                 id: `campaign-${Date.now()}`,
                 strategy,
@@ -376,13 +391,30 @@ export const MarketingReleaseManagement: React.FC<MarketingReleaseManagementProp
                 budgetSpent: 0,
                 duration,
                 weeksRemaining: duration,
-                buzz: 0,
+                buzz: startingBuzz,
                 activities: [],
                 targetAudience: ['general'],
                 effectiveness: 50
+              },
+              marketingData: {
+                ...selectedProject.marketingData,
+                currentBuzz: selectedProject.marketingData?.currentBuzz || 0,
+                totalSpent: (selectedProject.marketingData?.totalSpent || 0) + budget,
+                campaigns: [
+                  ...(selectedProject.marketingData?.campaigns || []),
+                  {
+                    type: strategy.type,
+                    cost: budget,
+                    buzz: 0,
+                    week: gameState.currentWeek,
+                    year: gameState.currentYear
+                  }
+                ]
               }
             };
+
             replaceProject(updatedProject);
+            updateBudget(-budget);
             setShowMarketingModal(false);
             setSelectedProjectId(null);
           }}

@@ -155,26 +155,22 @@ export const RoleBasedCasting: React.FC<RoleBasedCastingProps> = ({
     }
     
     const imported = importRolesForScript(script, gameState);
-    const existingIds = new Set((project.script?.characters || []).map(c => c.id));
-    const toAdd = imported.filter(r => !existingIds.has(r.id));
-    if (toAdd.length > 0) {
-      updateProject(project.id, {
-        script: {
-          ...project.script!,
-          characters: [...(project.script?.characters || []), ...toAdd]
-        }
-      } as any);
-    }
 
-    if (toAdd.length > 0) {
-      const sourceLabel = script.sourceType === 'franchise'
-        ? gameState.franchises.find(f => f.id === script.franchiseId)?.title
-        : gameState.publicDomainIPs.find(p => p.id === script.publicDomainId)?.name;
-      toast({
-        title: 'Roles Imported',
-        description: `Added ${toAdd.length} predefined roles${sourceLabel ? ` from ${sourceLabel}` : ''}`
-      });
-    }
+    updateProject(project.id, {
+      script: {
+        ...project.script!,
+        characters: imported
+      }
+    } as any);
+
+    const sourceLabel = script.sourceType === 'franchise'
+      ? gameState.franchises.find(f => f.id === script.franchiseId)?.title
+      : gameState.publicDomainIPs.find(p => p.id === script.publicDomainId)?.name;
+
+    toast({
+      title: 'Roles Imported',
+      description: `Imported ${imported.length} roles${sourceLabel ? ` from ${sourceLabel}` : ''}`
+    });
   };
 
   const getCastingProgress = () => {

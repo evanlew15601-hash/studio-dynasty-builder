@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React from 'react';
 import { Project, PostTheatricalRelease } from '@/types/game';
 import { useGameStore } from '@/game/store';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
@@ -70,77 +70,17 @@ export const PostTheatricalManagement: React.FC<PostTheatricalManagementProps> =
   const updateProject = useGameStore((s) => s.updateProject);
   const updateBudget = useGameStore((s) => s.updateBudget);
   const { toast } = useToast();
-  const [activeReleases, setActiveReleases] = useState<PostTheatricalRelease[]>([]);
 
-  // Process weekly revenue and check for expired releases
-  React.useEffect(() => {
-    if (!gameState) return;
-
-    const currentWeek = gameState.currentWeek;
-    const currentYear = gameState.currentYear;
-    
-    // Update active releases and handle expiration
-    const updatedReleases = activeReleases.map(release => {
-      if (release.status === 'ended') return release;
-      
-      const project = gameState.projects.find(p => p.id === release.projectId);
-      if (!project) return release;
-      
-      // Calculate weeks since this release started
-      const releaseStartWeek = (release.releaseDate.getFullYear() - 2024) * 52 + 
-        Math.floor((release.releaseDate.getTime() - new Date(2024, 0, 1).getTime()) / (1000 * 60 * 60 * 24 * 7));
-      const currentGameWeek = (currentYear - 2024) * 52 + currentWeek;
-      const weeksActive = Math.max(0, currentGameWeek - releaseStartWeek);
-      
-      // Find platform duration
-      const platformOption = POST_THEATRICAL_OPTIONS.find(opt => opt.platform === release.platform);
-      const maxDuration = platformOption?.duration || 52;
-      
-      // Check if release should end
-      if (weeksActive >= maxDuration) {
-        console.log(`POST-THEATRICAL ENDED: ${project.title} on ${release.platform} after ${weeksActive} weeks`);
-        return {
-          ...release,
-          status: 'ended' as const,
-          weeksActive: maxDuration
-        };
-      }
-      
-      // Continue generating revenue if still active
-      const newRevenue = release.revenue + release.weeklyRevenue;
-      
-      return {
-        ...release,
-        revenue: newRevenue,
-        weeksActive,
-        status: weeksActive >= maxDuration * 0.8 ? 'declining' as const : 'active' as const
-      };
-    });
-    
-    // Update the state if there are changes
-    const hasChanges = updatedReleases.some((release, index) => 
-      !activeReleases[index] || 
-      release.revenue !== activeReleases[index].revenue || 
-      release.status !== activeReleases[index].status
-    );
-    
-    if (hasChanges) {
-      setActiveReleases(updatedReleases);
-      
-      // Update studio budget with new revenue from active releases
-      const weeklyRevenue = updatedReleases
-        .filter(r => r.status === 'active' || r.status === 'declining')
-        .reduce((sum, r) => sum + r.weeklyRevenue, 0);
-      
-      if (weeklyRevenue > 0) {
-        console.log(`POST-THEATRICAL REVENUE: ${weeklyRevenue.toLocaleString()} this week`);
-      }
-    }
-  }, [gameState?.currentWeek, gameState?.currentYear]);
+  const diagnosticsEnabled = import.meta.env.DEV;
 
   if (!gameState) {
     return <div className="p-6 text-sm text-muted-foreground">Loading post-theatrical distribution...</div>;
   }
+
+  const allReleases: PostTheatricalRelease[] = gameState.projects.flatMap(p => p.postTheatricalReleases || []);
+  const activeReleases = allReleases.filter(r => r.status === 'active' || r.status === 'declining');
+  const totalPostTheatricalRevenue = allReleases.reduce((sum, r) => sum + (r.revenue || 0), 0);
+  const weeklyPostTheatricalRevenue = activeReleases.reduce((sum, r) => sum + (r.weeklyRevenue || 0), 0);
 
   const getEligibleProjects = () => {
     return gameState.projects.filter(project => 
@@ -162,12 +102,14 @@ export const PostTheatricalManagement: React.FC<PostTheatricalManagementProps> =
     const theatricalRunWeeks = project.metrics.weeksSinceRelease || 0;
     const weeksSinceTheatricalEnd = Math.max(0, weeksSinceRelease - theatricalRunWeeks);
     
-    console.log(`POST-THEATRICAL CHECK: ${project.title}`);
-    console.log(`   Release: Y${project.releaseYear}W${project.releaseWeek} (${releaseGameWeek})`);
-    console.log(`   Current: Y${gameState.currentYear}W${gameState.currentWeek} (${currentGameWeek})`);
-    console.log(`   Weeks since release: ${weeksSinceRelease}`);
-    console.log(`   Theatrical run weeks: ${theatricalRunWeeks}`);
-    console.log(`   Weeks since theatrical end: ${weeksSinceTheatricalEnd}`);
+    if (diagnosticsEnabled) {
+      console.log(`POST-THEATRICAL CHECK: ${project.title}`);
+      console.log(`   Release: Y${project.releaseYear}W${project.releaseWeek} (${releaseGameWeek})`);
+      console.log(`   Current: Y${gameState.currentYear}W${gameState.currentWeek} (${currentGameWeek})`);
+      console.log(`   Weeks since release: ${weeksSinceRelease}`);
+      console.log(`   Theatrical run weeks: ${theatricalRunWeeks}`);
+      console.log(`   Weeks since theatrical end: ${weeksSinceTheatricalEnd}`);
+    }
     
     return weeksSinceTheatricalEnd;
   };
@@ -244,9 +186,7 @@ export const PostTheatricalManagement: React.FC<PostTheatricalManagementProps> =
     
     // Check if already released on this platform
     const alreadyReleasedOnPlatform = (project.postTheatricalReleases || []).some(r => r.platform === option.platform);
-    const activeOrPastOnPlatform = alreadyReleasedOnPlatform || activeReleases.some(r => r.projectId === project.id && r.platform === option.platform);
-    
-    if (activeOrPastOnPlatform) {
+    if (alreadyReleasedOnPlatform) {
       return { canRelease: false, reason: 'Already released on this platform' };
     }
     
@@ -278,10 +218,11 @@ export const PostTheatricalManagement: React.FC<PostTheatricalManagementProps> =
       platform: option.platform,
       releaseDate: new Date(),
       revenue: 0,
-      weeklyRevenue: estimatedRevenue / option.duration,
+      weeklyRevenue: Math.round(estimatedRevenue / option.duration),
       weeksActive: 0,
       status: 'planned',
-      cost: option.baseCost
+      cost: option.baseCost,
+      durationWeeks: option.duration
     };
 
     updateBudget(-option.baseCost);
@@ -290,7 +231,7 @@ export const PostTheatricalManagement: React.FC<PostTheatricalManagementProps> =
       postTheatricalReleases: [...(project.postTheatricalReleases || []), newRelease]
     });
 
-    setActiveReleases([...activeReleases, newRelease]);
+    
 
     toast({
       title: "Post-Theatrical Release Scheduled",
@@ -330,7 +271,7 @@ export const PostTheatricalManagement: React.FC<PostTheatricalManagementProps> =
         <Card>
           <CardContent className="p-4 text-center">
             <div className="text-2xl font-bold text-success">
-              ${(activeReleases.reduce((sum, r) => sum + r.revenue, 0) / 1000000).toFixed(1)}M
+              ${(totalPostTheatricalRevenue / 1000000).toFixed(1)}M
             </div>
             <div className="text-sm text-muted-foreground">Post-Theatrical Revenue</div>
           </CardContent>
@@ -338,7 +279,7 @@ export const PostTheatricalManagement: React.FC<PostTheatricalManagementProps> =
         <Card>
           <CardContent className="p-4 text-center">
             <div className="text-2xl font-bold text-secondary-foreground">
-              {Math.round(activeReleases.reduce((sum, r) => sum + r.weeklyRevenue, 0) / 1000)}K
+              {Math.round(weeklyPostTheatricalRevenue / 1000)}K
             </div>
             <div className="text-sm text-muted-foreground">Weekly Revenue</div>
           </CardContent>
