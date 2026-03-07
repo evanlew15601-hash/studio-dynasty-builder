@@ -22,6 +22,7 @@ import { FinancialEngine } from './FinancialEngine';
 import { updateProjectFinancials } from './FinancialCalculations';
 import { TalentFilmographyManager } from '@/utils/talentFilmographyManager';
 import { stablePick } from '@/utils/stablePick';
+import { stableInt } from '@/utils/stableRandom';
 import { useUiStore } from '@/game/uiStore';
 import { AwardsSystem } from './AwardsSystem';
 import { EnhancedAwardsSystem } from './EnhancedAwardsSystem';
@@ -1052,8 +1053,12 @@ export const StudioMagnateGame: React.FC<StudioMagnateGameProps> = ({
           }),
       metrics: {
         ...project.metrics,
-        criticsScore: Math.floor(Math.random() * 40) + 50,
-        audienceScore: Math.floor(Math.random() * 40) + 50,
+        criticsScore:
+          project.metrics?.criticsScore ??
+          stableInt(`${project.id}|critics|${selectedYear}|${selectedWeek}`, 50, 90),
+        audienceScore:
+          project.metrics?.audienceScore ??
+          stableInt(`${project.id}|audience|${selectedYear}|${selectedWeek}`, 50, 90),
       }
     };
 

@@ -1,5 +1,6 @@
 import { Project } from '@/types/game';
 import { FinancialEngine } from './FinancialEngine';
+import { stableInt } from '@/utils/stableRandom';
 
 const diagnosticsEnabled = import.meta.env.DEV;
 const debugLog = (...args: any[]) => {
@@ -23,8 +24,20 @@ export class BoxOfficeSystem {
     debugLog(`   Current project status: ${project.status}`);
     debugLog(`   Current project metrics:`, project.metrics);
 
+    const criticsScore = project.metrics?.criticsScore ?? stableInt(`${project.id}|critics|${releaseYear}|${releaseWeek}`, 50, 90);
+    const audienceScore = project.metrics?.audienceScore ?? stableInt(`${project.id}|audience|${releaseYear}|${releaseWeek}`, 50, 90);
+
+    const projectWithScores: Project = {
+      ...project,
+      metrics: {
+        ...project.metrics,
+        criticsScore,
+        audienceScore,
+      },
+    };
+
     // Calculate opening week revenue immediately during release
-    const openingWeekRevenue = this.calculateWeeklyRevenue(project, 0);
+    const openingWeekRevenue = this.calculateWeeklyRevenue(projectWithScores, 0);
     debugLog(`   OPENING WEEK REVENUE: ${openingWeekRevenue.toLocaleString()}`);
 
     // Record opening week revenue in the unified ledger (idempotent by week/year)
@@ -39,18 +52,18 @@ export class BoxOfficeSystem {
     }
 
     const result = {
-      ...project,
+      ...projectWithScores,
       status: 'released' as any,
       releaseWeek,
       releaseYear,
       metrics: {
-        ...project.metrics,
+        ...projectWithScores.metrics,
         inTheaters: true, // Enter theaters immediately upon release
         boxOfficeTotal: openingWeekRevenue, // START with opening week revenue
-        theaterCount: this.getInitialTheaterCount(project),
+        theaterCount: this.getInitialTheaterCount(projectWithScores),
         weeksSinceRelease: 0,
-        criticsScore: Math.floor(Math.random() * 40) + 50, // 50-90
-        audienceScore: Math.floor(Math.random() * 40) + 50, // 50-90
+        criticsScore,
+        audienceScore,
         boxOfficeStatus: 'Opening',
         theatricalRunLocked: false, // Track if run has permanently ended
         lastWeeklyRevenue: openingWeekRevenue

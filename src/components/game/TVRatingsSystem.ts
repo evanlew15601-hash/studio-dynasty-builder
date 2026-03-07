@@ -1,34 +1,56 @@
-import { Project, GameState } from '@/types/game';
+import { Project } from '@/types/game';
+import { stableInt } from '@/utils/stableRandom';
 
 export class TVRatingsSystem {
   // Initialize airing for a TV series: compute first-week views and set metrics
   static initializeAiring(project: Project, releaseWeek: number, releaseYear: number): Project {
+    const criticsScore = project.metrics?.criticsScore ?? stableInt(`${project.id}|tv|critics|${releaseYear}|${releaseWeek}`, 50, 90);
+    const audienceScore = project.metrics?.audienceScore ?? stableInt(`${project.id}|tv|audience|${releaseYear}|${releaseWeek}`, 50, 90);
+
     // If streaming metrics already exist for this released project, avoid resetting them
     // when additional episodes are dropped.
     if (project.metrics?.streaming && project.status === 'released') {
-      return project;
+      if (project.metrics?.criticsScore && project.metrics?.audienceScore) return project;
+
+      return {
+        ...project,
+        metrics: {
+          ...project.metrics,
+          criticsScore,
+          audienceScore,
+        },
+      };
     }
 
-    const viewsFirstWeek = this.calculateWeeklyViews(project, 0);
+    const baseProject: Project = {
+      ...project,
+      metrics: {
+        ...project.metrics,
+        criticsScore,
+        audienceScore,
+      },
+    };
+
+    const viewsFirstWeek = this.calculateWeeklyViews(baseProject, 0);
 
     return {
-      ...project,
+      ...baseProject,
       status: 'released' as const,
       releaseWeek,
       releaseYear,
       metrics: {
-        ...project.metrics,
+        ...baseProject.metrics,
         streaming: {
           viewsFirstWeek,
           totalViews: viewsFirstWeek,
-          completionRate: this.getInitialCompletionRate(project),
-          audienceShare: this.getInitialAudienceShare(project),
-          watchTimeHours: Math.max(1000, Math.floor(viewsFirstWeek * (project.script?.estimatedRuntime || 45) / 60)),
-          subscriberGrowth: this.getInitialSubscriberGrowth(project)
+          completionRate: this.getInitialCompletionRate(baseProject),
+          audienceShare: this.getInitialAudienceShare(baseProject),
+          watchTimeHours: Math.max(1000, Math.floor(viewsFirstWeek * (baseProject.script?.estimatedRuntime || 45) / 60)),
+          subscriberGrowth: this.getInitialSubscriberGrowth(baseProject)
         },
         weeksSinceRelease: 0,
-        criticsScore: project.metrics?.criticsScore ?? Math.floor(Math.random() * 40) + 50,
-        audienceScore: project.metrics?.audienceScore ?? Math.floor(Math.random() * 40) + 50
+        criticsScore,
+        audienceScore
       }
     };
   }

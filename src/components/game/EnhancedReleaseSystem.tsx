@@ -82,6 +82,11 @@ export const EnhancedReleaseSystem: React.FC<EnhancedReleaseSystemProps> = ({
     };
   };
 
+  const weekToMonth = (week: number): string => {
+    const month = Math.min(12, Math.max(1, Math.ceil((week / 52) * 12)));
+    return String(month).padStart(2, '0');
+  };
+
   const scheduleRelease = (project: Project, releaseWeek: number, releaseYear: number) => {
     const validation = validateForRelease(project);
     
@@ -120,7 +125,7 @@ export const EnhancedReleaseSystem: React.FC<EnhancedReleaseSystemProps> = ({
     const updatedProject = {
       ...project,
       status: 'scheduled-for-release' as const,
-      releaseDate: `${releaseYear}-${String(Math.ceil(releaseWeek / 4)).padStart(2, '0')}-01`,
+      releaseDate: `${releaseYear}-${weekToMonth(releaseWeek)}-01`,
       scheduledReleaseWeek: releaseWeek,
       scheduledReleaseYear: releaseYear
     };
@@ -148,7 +153,7 @@ export const EnhancedReleaseSystem: React.FC<EnhancedReleaseSystemProps> = ({
           const updatedProject = {
             ...project,
             status: 'released' as const,
-            releaseDate: `${project.scheduledReleaseYear}-${String(Math.ceil(project.scheduledReleaseWeek / 4)).padStart(2, '0')}-01`,
+            releaseDate: `${project.scheduledReleaseYear}-${weekToMonth(project.scheduledReleaseWeek)}-01`,
             releaseWeek: project.scheduledReleaseWeek,
             releaseYear: project.scheduledReleaseYear
           };
@@ -204,7 +209,19 @@ export const EnhancedReleaseSystem: React.FC<EnhancedReleaseSystemProps> = ({
     }
 
     // Check if film has been released for at least 8 weeks
-    const releaseTime = (project.scheduledReleaseYear! * 52) + project.scheduledReleaseWeek!;
+    const releaseWeek = project.releaseWeek ?? project.scheduledReleaseWeek;
+    const releaseYear = project.releaseYear ?? project.scheduledReleaseYear;
+
+    if (!releaseWeek || !releaseYear) {
+      toast({
+        title: "Missing Release Date",
+        description: "This project is missing a release week/year.",
+        variant: "destructive"
+      });
+      return;
+    }
+
+    const releaseTime = (releaseYear * 52) + releaseWeek;
     const currentTime = (gameState.currentYear * 52) + gameState.currentWeek;
     const weeksReleased = currentTime - releaseTime;
     

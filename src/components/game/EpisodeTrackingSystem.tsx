@@ -13,6 +13,7 @@ import { Project } from '@/types/game';
 import { useGameStore } from '@/game/store';
 import { Play, Users, Calendar, BarChart3, Star, Edit, Settings } from 'lucide-react';
 import { TVRatingsSystem } from './TVRatingsSystem';
+import { stableInt } from '@/utils/stableRandom';
 
 export const EpisodeTrackingSystem: React.FC = () => {
   const gameState = useGameStore((s) => s.game);
@@ -205,8 +206,16 @@ export const EpisodeTrackingSystem: React.FC = () => {
         };
         episode.weeklyViews = [episode.viewers];
         episode.viewerRetention = i === 0 ? 100 : Math.max(70, 100 - (i * 3));
-        episode.criticsScore = Math.floor(Math.random() * 30) + 60;
-        episode.audienceScore = Math.floor(Math.random() * 30) + 65;
+        episode.criticsScore = stableInt(
+          `${sourceProject.id}|s${selectedSeason}|e${episode.episodeNumber}|critics|${gameState.currentYear}|${gameState.currentWeek}`,
+          60,
+          89
+        );
+        episode.audienceScore = stableInt(
+          `${sourceProject.id}|s${selectedSeason}|e${episode.episodeNumber}|audience|${gameState.currentYear}|${gameState.currentWeek}`,
+          65,
+          94
+        );
         episode.socialMentions = Math.floor(episode.viewers / 10000);
       }
     }
