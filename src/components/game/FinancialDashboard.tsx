@@ -57,6 +57,31 @@ export const FinancialDashboard: React.FC = () => {
 
   const weeklyData = getWeeklyData();
 
+  const parseWeekLabel = (label: string): { year: number; week: number } | null => {
+    const m = /^Y(\d+)W(\d+)$/.exec(label);
+    if (!m) return null;
+    return { year: Number(m[1]), week: Number(m[2]) };
+  };
+
+  const xTickStep = selectedTimeframe === '4weeks' ? 1 : selectedTimeframe === '12weeks' ? 2 : 4;
+
+  const xTicks = weeklyData
+    .map((d) => d.week)
+    .filter((label, idx, arr) => {
+      if (idx === 0 || idx === arr.length - 1) return true;
+      const parsed = parseWeekLabel(label);
+      if (!parsed) return false;
+      if (parsed.week === 1) return true; // Year marker
+      return xTickStep === 1 ? true : idx % xTickStep === 0;
+    });
+
+  const formatWeekTick = (label: string) => {
+    const parsed = parseWeekLabel(label);
+    if (!parsed) return label;
+    if (parsed.week === 1) return String(parsed.year);
+    return `W${parsed.week}`;
+  };
+
   // Touring analytics (category-level)
   const getTouringWeeklyData = () => {
     const weeks = selectedTimeframe === '4weeks' ? 4 : selectedTimeframe === '12weeks' ? 12 : 52;
@@ -247,14 +272,15 @@ export const FinancialDashboard: React.FC = () => {
               <ResponsiveContainer width="100%" height={300}>
                 <LineChart data={weeklyData}>
                   <CartesianGrid strokeDasharray="3 3" />
-                  <XAxis dataKey="week" tickFormatter={(v: string) => v.replace(/^Y\\d+/, '')} />
+                  <XAxis dataKey="week" ticks={xTicks} tickFormatter={formatWeekTick} />
                   <YAxis tickFormatter={(value: number) => formatMoneyCompact(value)} />
                   <Tooltip formatter={(value: number) => [formatMoneyCompact(value), '']} />
                   <Line type="monotone" dataKey="revenue" stroke="#10b981" strokeWidth={2} name="Revenue" />
                   <Line type="monotone" dataKey="expenses" stroke="#ef4444" strokeWidth={2} name="Expenses" />
                   <Line type="monotone" dataKey="profit" stroke="#3b82f6" strokeWidth={2} name="Weekly Profit" />
                 </LineChart>
-              </ResponsiveCo                     </CardContent>
+              </ResponsiveContainer>
+            </CardContent>
           </Card>
 
           {/* Cumulative Profit Chart */}
@@ -269,7 +295,7 @@ export const FinancialDashboard: React.FC = () => {
               <ResponsiveContainer width="100%" height={200}>
                 <LineChart data={weeklyData}>
                   <CartesianGrid strokeDasharray="3 3" />
-                  <XAxis dataKey="week" />
+                  <XAxis dataKey="week" ticks={xTicks} tickFormatter={formatWeekTick} />
                   <YAxis tickFormatter={(value: number) => formatMoneyCompact(value)} />
                   <Tooltip formatter={(value: number) => [formatMoneyCompact(value), 'Cumulative Profit']} />
                   <Line 
@@ -280,7 +306,8 @@ export const FinancialDashboard: React.FC = () => {
                     name="Cumulative Profit" 
                   />
                 </LineChart>
-              </ResponsiveCo                     </CardContent>
+              </ResponsiveContainer>
+            </CardContent>
           </Card>
 
           {/* Touring Analytics */}
@@ -305,13 +332,14 @@ export const FinancialDashboard: React.FC = () => {
                   <div className="text-xs text-muted-foreground">Net Touring</div>
                   <div className={`text-lg font-semibold ${touringSummary.net >= 0 ? 'text-green-700' : 'text-red-700'}`}>
                     {formatMoneyCompact(touringSummary.net)}
-                                         </div>
+                  </div>
+                </div>
               </div>
 
               <ResponsiveContainer width="100%" height={220}>
                 <BarChart data={touringWeeklyData}>
                   <CartesianGrid strokeDasharray="3 3" />
-                  <XAxis dataKey="week" />
+                  <XAxis dataKey="week" ticks={xTicks} tickFormatter={formatWeekTick} />
                   <YAxis tickFormatter={(value: number) => formatMoneyCompact(value)} />
                   <Tooltip formatter={(value: number, name: string) => [formatMoneyCompact(value), name === 'touringRevenue' ? 'Revenue' : name === 'touringExpenses' ? 'Expenses' : 'Net']} />
                   <Bar dataKey="touringRevenue" name="Revenue" fill="#10b981" />
