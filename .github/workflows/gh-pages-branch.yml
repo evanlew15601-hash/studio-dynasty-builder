@@ -21,6 +21,8 @@ jobs:
     steps:
       - name: Checkout
         uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
 
       - name: Setup Node
         uses: actions/setup-node@v4
@@ -55,9 +57,17 @@ jobs:
       - name: Disable Jekyll
         run: touch dist/.nojekyll
 
-      - name: Publish to gh-pages branch
-        uses: peaceiris/actions-gh-pages@v4
-        with:
-          github_token: ${{ secrets.GITHUB_TOKEN }}
-          publish_dir: ./dist
-          publish_branch: gh-pages
+      - name: Publish (force-push gh-pages)
+        shell: bash
+        run: |
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+
+          git switch --orphan gh-pages
+          git rm -rf . || true
+
+          cp -a dist/. .
+
+          git add -A
+          git commit -m "Deploy to GitHub Pages" || true
+          git push --force origin gh-pages
