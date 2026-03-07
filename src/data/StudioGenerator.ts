@@ -16,113 +16,113 @@ interface StudioProfile {
 const STUDIO_PROFILES: StudioProfile[] = [
   {
     name: 'Crimson Peak Entertainment',
-    personality: 'Edgy and provocative storytelling',
+    personality: 'Edgy and provocative storytelling (with a marketing department that owns seventeen smoke machines)',
     budget: 45000000,
     reputation: 72,
     specialties: ['horror', 'thriller', 'mystery'],
-    businessTendency: 'Mid-budget horror specialist with cult following',
+    businessTendency: 'Mid-budget horror specialist with a cult following and a suspiciously large fake-blood line item',
     riskTolerance: 'aggressive',
     releaseFrequency: 8,
-    brandIdentity: 'Dark atmospherics and psychological tension'
+    brandIdentity: 'Dark atmospherics, psychological tension, and posters that are 90% fog'
   },
   {
     name: 'Golden Horizon Studios',
-    personality: 'Nostalgic and heartwarming content',
+    personality: 'Nostalgic and heartwarming content (engineered to make your aunt cry on a plane)',
     budget: 75000000,
     reputation: 81,
     specialties: ['family', 'drama', 'biography'],
-    businessTendency: 'Prestige pictures with awards potential',
+    businessTendency: 'Prestige pictures with awards potential and the safest possible third-act redemption',
     riskTolerance: 'conservative',
     releaseFrequency: 5,
-    brandIdentity: 'Timeless stories with universal appeal'
+    brandIdentity: 'Timeless stories, tasteful fonts, and a score that gently tells you what to feel'
   },
   {
     name: 'Velocity Pictures',
-    personality: 'High-octane thrill rides',
+    personality: 'High-octane thrill rides (plot optional, momentum mandatory)',
     budget: 120000000,
     reputation: 68,
     specialties: ['action', 'adventure', 'sci-fi'],
-    businessTendency: 'Spectacle-driven blockbusters',
+    businessTendency: 'Spectacle-driven blockbusters, calibrated product placement, and trailers mixed at aircraft volume',
     riskTolerance: 'moderate',
     releaseFrequency: 6,
-    brandIdentity: 'Cutting-edge visuals and intense sequences'
+    brandIdentity: 'Cutting-edge visuals, intense sequences, and at least one shot of a vehicle doing something illegal'
   },
   {
     name: 'Moonbeam Independent',
-    personality: 'Artistic and character-driven',
+    personality: 'Artistic and character-driven (two minutes of silence counts as a scene)',
     budget: 15000000,
     reputation: 85,
     specialties: ['drama', 'romance', 'documentary'],
-    businessTendency: 'Festival circuit and limited releases',
+    businessTendency: 'Festival circuit darlings, limited releases, and Q&As that become confessions',
     riskTolerance: 'moderate',
     releaseFrequency: 12,
-    brandIdentity: 'Intimate storytelling and emerging talent'
+    brandIdentity: 'Intimate storytelling, emerging talent, and posters that look like poetry homework'
   },
   {
     name: 'Apex Entertainment Group',
-    personality: 'Commercial powerhouse',
+    personality: 'Commercial powerhouse (the cinematic universe has its own org chart)',
     budget: 200000000,
     reputation: 76,
     specialties: ['superhero', 'fantasy', 'action'],
-    businessTendency: 'Franchise builder and tent-pole events',
+    businessTendency: 'Franchise builder, tent-pole events, and release dates announced before scripts exist',
     riskTolerance: 'conservative',
     releaseFrequency: 4,
-    brandIdentity: 'Spectacular entertainment for global audiences'
+    brandIdentity: 'Spectacle for global audiences, synchronized trailers, and a logo reveal you can hear'
   },
   {
     name: 'Laughing Matter Productions',
-    personality: 'Comedy-focused entertainment',
+    personality: 'Comedy-focused entertainment (tested until it is safely hilarious to everyone)',
     budget: 35000000,
     reputation: 64,
     specialties: ['comedy', 'family', 'romance'],
-    businessTendency: 'Crowd-pleasing comedies and rom-coms',
+    businessTendency: 'Crowd-pleasing comedies and rom-coms with a third-act airport sprint clause',
     riskTolerance: 'moderate',
     releaseFrequency: 10,
-    brandIdentity: 'Feel-good entertainment and star vehicles'
+    brandIdentity: 'Feel-good star vehicles, charming chaos, and taglines that promise “the comedy event”'
   },
   {
     name: 'Heritage Films',
-    personality: 'Period pieces and literary adaptations',
+    personality: 'Period pieces and literary adaptations (corsets, candles, and one devastating monologue)',
     budget: 60000000,
     reputation: 89,
     specialties: ['historical', 'biography', 'war'],
-    businessTendency: 'Prestigious historical epics',
+    businessTendency: 'Prestigious historical epics with authenticity consultants and a wardrobe department that could unionize',
     riskTolerance: 'conservative',
     releaseFrequency: 3,
-    brandIdentity: 'Lavish productions with historical accuracy'
+    brandIdentity: 'Lavish productions, tasteful suffering, and prestige that smells faintly of parchment'
   },
   {
     name: 'Neon Circuit Studios',
-    personality: 'Tech-savvy and futuristic',
+    personality: 'Tech-savvy and futuristic (believes every narrative problem can be solved with more holograms)',
     budget: 80000000,
     reputation: 71,
     specialties: ['sci-fi', 'animation', 'thriller'],
-    businessTendency: 'Innovation in storytelling technology',
+    businessTendency: 'Innovation in storytelling technology, experimental formats, and “beta” marketing campaigns',
     riskTolerance: 'aggressive',
     releaseFrequency: 7,
-    brandIdentity: 'Future-forward narratives and digital innovation'
+    brandIdentity: 'Future-forward narratives, digital swagger, and a color grade that looks like midnight energy drinks'
   },
   {
     name: 'Wildwood Pictures',
-    personality: 'Outdoor adventures and sports',
+    personality: 'Outdoor adventures and sports (a drone shot for every emotion)',
     budget: 40000000,
     reputation: 66,
     specialties: ['adventure', 'sports', 'western'],
-    businessTendency: 'Action-adventure with natural settings',
+    businessTendency: 'Action-adventure in natural settings, inspirational training montages, and “based on a true hike” vibes',
     riskTolerance: 'moderate',
     releaseFrequency: 6,
-    brandIdentity: 'Authentic outdoor experiences and athletic stories'
+    brandIdentity: 'Authentic outdoor spectacle, wide vistas, and motivational quotes over slow-motion snow'
   },
   {
     name: 'Midnight Society Films',
-    personality: 'Cult and genre filmmaking',
+    personality: 'Cult and genre filmmaking (will absolutely release the four-hour director’s cut, unasked)',
     budget: 25000000,
     reputation: 78,
     specialties: ['horror', 'crime', 'mystery'],
-    businessTendency: 'Distinctive genre pieces with strong following',
+    businessTendency: 'Distinctive genre pieces with strong following, aggressive midnight screenings, and “ending explained” discourse',
     riskTolerance: 'aggressive',
     releaseFrequency: 9,
-    brandIdentity: 'Unique voice in genre filmmaking'
+    brandIdentity: 'A unique voice in genre filmmaking, plus a poster tagline that dares you to watch alone'
   },
   {
     name: 'Reboot Quarry Pictures',
