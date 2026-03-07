@@ -70,7 +70,7 @@ export interface StudioDbRecord {
 }
 
 export interface IndustryDatabase {
-  version: 1;
+  version: 2;
   updatedAt: string;
   films: FilmDbRecord[];
   tvShows: TvShowDbRecord[];

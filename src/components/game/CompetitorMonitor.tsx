@@ -130,6 +130,11 @@ export const CompetitorMonitor: React.FC = () => {
                             <div className="text-sm text-muted-foreground">
                               Reputation: {Math.round(studio.reputation)}/100
                             </div>
+                            {studio.personality && (
+                              <div className="text-xs text-muted-foreground mt-1">
+                                {studio.personality}
+                              </div>
+                            )}
                           </div>
                           <Badge variant="outline">
                             {activeFilms.length} Active

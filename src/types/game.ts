@@ -70,6 +70,12 @@ export interface Studio {
   awards?: StudioAward[];
   awardsThisYear?: number;
   prestige?: number; // 0-100, separate from reputation
+  // Worldbuilding / lore (player-facing)
+  personality?: string;
+  businessTendency?: string;
+  brandIdentity?: string;
+  releaseFrequency?: number;
+  riskTolerance?: 'conservative' | 'moderate' | 'aggressive';
 }
 
 export type Gender = 'Male' | 'Female';
@@ -126,11 +132,20 @@ export interface TalentPerson {
   careerStage?: 'unknown' | 'rising' | 'established' | 'veteran' | 'legend';
   personality?: PersonalityTrait[];
   relationships?: { [personId: string]: RelationshipType };
+  /** Optional: player-facing notes to enrich relationships beyond a single enum. */
+  relationshipNotes?: { [personId: string]: string };
   availabilityCalendar?: DateRange[];
   availability: DateRange;
   agent?: TalentAgent;
   currentContractWeeks?: number;
   weeklyOverhead?: number;
+  // Worldbuilding / lore (player-facing)
+  archetype?: string;
+  narratives?: string[];
+  movementTags?: string[];
+  careerStartYear?: number;
+  quirks?: string[];
+  isNotable?: boolean;
   // Enhanced talent properties
   biography?: string;
   lastWorkWeek?: number;
@@ -974,6 +989,8 @@ export interface PostTheatricalRelease {
 export interface StudioAward {
   id: string;
   projectId: string;
+  /** Optional: allows seeding historical awards without creating full Project objects. */
+  projectTitle?: string;
   category: string;
   ceremony: string;
   year: number;
@@ -986,6 +1003,8 @@ export interface TalentAward {
   id: string;
   talentId: string;
   projectId: string;
+  /** Optional: allows seeding historical awards without creating full Project objects. */
+  projectTitle?: string;
   category: string;
   ceremony: string;
   year: number;

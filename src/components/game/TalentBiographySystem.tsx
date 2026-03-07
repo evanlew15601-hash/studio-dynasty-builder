@@ -364,7 +364,7 @@ export const TalentBiographySystem: React.FC<TalentBiographyProps> = ({ gameStat
                 </div>
                 {talentBiographies.has(actor.id) && (
                   <p className="text-sm text-muted-foreground">
-                    Known for: {talentBiographies.get(actor.id)?.signature}
+                    Known for: {(actor.archetype || talentBiographies.get(actor.id)?.signature)}
                   </p>
                 )}
               </div>
@@ -395,7 +395,7 @@ export const TalentBiographySystem: React.FC<TalentBiographyProps> = ({ gameStat
                     <p className="font-medium">{director.name}</p>
                     {talentBiographies.has(director.id) && (
                       <p className="text-sm text-muted-foreground">
-                        {talentBiographies.get(director.id)?.signature}
+                        {(director.archetype || talentBiographies.get(director.id)?.signature)}
                       </p>
                     )}
                   </div>
@@ -418,6 +418,118 @@ export const TalentBiographySystem: React.FC<TalentBiographyProps> = ({ gameStat
           </CardHeader>
           <CardContent>
             <div className="space-y-4">
+              {/* Player-facing industry profile (uses seeded lore when available) */}
+              <div>
+                <h4 className="font-semibold mb-2">Industry Profile</h4>
+                <div className="space-y-2">
+                  {selectedTalent.archetype && (
+                    <p className="text-muted-foreground">{selectedTalent.archetype}</p>
+                  )}
+
+                  {(selectedTalent.narratives || []).length > 0 && (
+                    <div className="flex flex-wrap gap-2">
+                      {(selectedTalent.narratives || []).slice(0, 6).map((n, i) => (
+                        <Badge key={i} variant="outline">{n}</Badge>
+                      ))}
+                    </div>
+                  )}
+
+                  {(selectedTalent.movementTags || []).length > 0 && (
+                    <div className="flex flex-wrap gap-2">
+                      {(selectedTalent.movementTags || []).slice(0, 6).map((t, i) => (
+                        <Badge key={i} variant="secondary">{t}</Badge>
+                      ))}
+                    </div>
+                  )}
+
+                  {selectedTalent.biography && (
+                    <p className="text-sm text-muted-foreground">{selectedTalent.biography}</p>
+                  )}
+
+                  <div className="text-sm text-muted-foreground">
+                    Career start: {selectedTalent.careerStartYear || (gameState.currentYear - (selectedTalent.experience || 0))} •
+                    Stage: {selectedTalent.careerStage || 'established'} •
+                    Reputation: {Math.round(selectedTalent.reputation || 0)}/100
+                    {selectedTalent.type === 'actor' && typeof selectedTalent.fame === 'number' ? ` • Fame: ${Math.round(selectedTalent.fame)}/100` : ''}
+                  </div>
+                </div>
+              </div>
+
+              {(selectedTalent.awards || []).length > 0 && (
+                <>
+                  <Separator />
+                  <div>
+                    <h4 className="font-semibold mb-2">Awards</h4>
+                    <div className="space-y-2">
+                      {(selectedTalent.awards || [])
+                        .slice()
+                        .sort((a, b) => (b.year || 0) - (a.year || 0))
+                        .slice(0, 6)
+                        .map((a) => (
+                          <div key={a.id} className="p-2 border rounded">
+                            <p className="font-medium">
+                              {a.year} {a.ceremony} — {a.category}
+                            </p>
+                            <p className="text-sm text-muted-foreground">{a.projectTitle || a.projectId}</p>
+                          </div>
+                        ))}
+                    </div>
+                  </div>
+                </>
+              )}
+
+              {(selectedTalent.filmography || []).length > 0 && (
+                <>
+                  <Separator />
+                  <div>
+                    <h4 className="font-semibold mb-2">Career Highlights</h4>
+                    <div className="space-y-2">
+                      {(selectedTalent.filmography || [])
+                        .slice()
+                        .sort((a, b) => (b.year || 0) - (a.year || 0))
+                        .slice(0, 6)
+                        .map((f) => (
+                          <div key={f.projectId} className="p-2 border rounded">
+                            <p className="font-medium">
+                              {f.year ? `${f.year} — ` : ''}{f.title}
+                            </p>
+                            <p className="text-sm text-muted-foreground">
+                              {f.role}
+                              {typeof f.boxOffice === 'number' ? ` • ${Math.round(f.boxOffice / 1_000_000)}M` : ''}
+                            </p>
+                          </div>
+                        ))}
+                    </div>
+                  </div>
+                </>
+              )}
+
+              {selectedTalent.relationships && Object.keys(selectedTalent.relationships).length > 0 && (
+                <>
+                  <Separator />
+                  <div>
+                    <h4 className="font-semibold mb-2">Relationships</h4>
+                    <div className="space-y-2">
+                      {Object.entries(selectedTalent.relationships)
+                        .slice(0, 8)
+                        .map(([otherId, type]) => {
+                          const other = gameState.talent.find(t => t.id === otherId);
+                          const note = selectedTalent.relationshipNotes?.[otherId];
+                          return (
+                            <div key={otherId} className="p-2 border rounded">
+                              <p className="font-medium">{other?.name || otherId} — {type}</p>
+                              {note && <p className="text-sm text-muted-foreground">{note}</p>}
+                            </div>
+                          );
+                        })}
+                    </div>
+                  </div>
+                </>
+              )}
+
+              <Separator />
+
+              {/* Flavor biography (procedural fallback) */}
               <div>
                 <h4 className="font-semibold mb-2 flex items-center gap-2">
                   <Calendar className="h-4 w-4" />
@@ -425,14 +537,12 @@ export const TalentBiographySystem: React.FC<TalentBiographyProps> = ({ gameStat
                 </h4>
                 <p className="text-muted-foreground">{talentBiographies.get(selectedTalent.id)?.earlyLife}</p>
               </div>
-              
-              <Separator />
-              
+
               <div>
                 <h4 className="font-semibold mb-2">Career Beginnings</h4>
                 <p className="text-muted-foreground">{talentBiographies.get(selectedTalent.id)?.careerBeginnings}</p>
               </div>
-              
+
               <div>
                 <h4 className="font-semibold mb-2">Breakthrough</h4>
                 <p className="text-muted-foreground">{talentBiographies.get(selectedTalent.id)?.breakthrough}</p>

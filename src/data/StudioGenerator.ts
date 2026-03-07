@@ -738,7 +738,13 @@ export class StudioGenerator {
       specialties: profile.specialties,
       debt: 0,
       lastProjectWeek: 0,
-      weeksSinceLastProject: 0
+      weeksSinceLastProject: 0,
+      // Lore fields
+      personality: profile.personality,
+      businessTendency: profile.businessTendency,
+      brandIdentity: profile.brandIdentity,
+      riskTolerance: profile.riskTolerance,
+      releaseFrequency: profile.releaseFrequency,
     }));
   }
 
