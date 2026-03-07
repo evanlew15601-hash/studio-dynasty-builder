@@ -6,6 +6,27 @@ const CEREMONY_NAME_MAP: Record<string, string> = {
   'Golden Globe': 'Crystal Ring',
   'Critics Choice': 'Critics Circle',
   Emmy: 'Beacon TV',
+
+  // Common real-world guild/show aliases -> Cornellverse counterparts
+  SAG: 'Performers Guild',
+  'SAG Awards': 'Performers Guild',
+  'Screen Actors Guild': 'Performers Guild',
+  'Screen Actors Guild Awards': 'Performers Guild',
+
+  DGA: 'Directors Circle',
+  'DGA Awards': 'Directors Circle',
+  'Directors Guild': 'Directors Circle',
+  'Directors Guild Awards': 'Directors Circle',
+
+  WGA: 'Writers Circle',
+  'WGA Awards': 'Writers Circle',
+  'Writers Guild': 'Writers Circle',
+  'Writers Guild Awards': 'Writers Circle',
+
+  BAFTA: 'Britannia Screen',
+  'BAFTA Awards': 'Britannia Screen',
+  'British Academy': 'Britannia Screen',
+  'British Academy Awards': 'Britannia Screen',
 };
 
 export function normalizeAwardCeremonyName(ceremony: string): string {
@@ -27,7 +48,23 @@ export function normalizeAwardNameText(text: string): string {
     .split('Golden Globe').join('Crystal Ring')
     .split('Critics Choice').join('Critics Circle')
     .split('Oscar').join('Crown')
-    .split('Emmy').join('Beacon TV');
+    .split('Emmy').join('Beacon TV')
+    .split('Screen Actors Guild Awards').join('Performers Guild')
+    .split('Screen Actors Guild').join('Performers Guild')
+    .split('SAG Awards').join('Performers Guild')
+    .split('SAG').join('Performers Guild')
+    .split('Directors Guild Awards').join('Directors Circle')
+    .split('Directors Guild').join('Directors Circle')
+    .split('DGA Awards').join('Directors Circle')
+    .split('DGA').join('Directors Circle')
+    .split('Writers Guild Awards').join('Writers Circle')
+    .split('Writers Guild').join('Writers Circle')
+    .split('WGA Awards').join('Writers Circle')
+    .split('WGA').join('Writers Circle')
+    .split('British Academy Awards').join('Britannia Screen')
+    .split('British Academy').join('Britannia Screen')
+    .split('BAFTA Awards').join('Britannia Screen')
+    .split('BAFTA').join('Britannia Screen');
 }
 
 export function ensureGameStateFictionalAwardNames(gameState: GameState): GameState {
