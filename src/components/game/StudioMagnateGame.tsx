@@ -2031,7 +2031,7 @@ export const StudioMagnateGame: React.FC<StudioMagnateGameProps> = ({
         const commitment = AIStudioManager.getTalentCommitment(t.id, newTimeState.currentWeek, newTimeState.currentYear);
         if (!commitment) return t;
 
-        const endAbsWeek = (newTimeState.currentYear * 52) + commitment.endWeek;
+        const endAbsWeek = commitment.endAbsWeek;
         const existingBusyUntil = typeof t.busyUntilWeek === 'number' ? t.busyUntilWeek : 0;
 
         return {

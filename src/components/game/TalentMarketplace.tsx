@@ -67,7 +67,8 @@ export const TalentMarketplace: React.FC<TalentMarketplaceProps> = ({
       };
     }
 
-    const weeksRemaining = commitment.endWeek - currentWeek;
+    const currentAbsWeek = (currentYear * 52) + currentWeek;
+    const weeksRemaining = Math.max(0, commitment.endAbsWeek - currentAbsWeek);
     return {
       status: 'busy',
       message: `Filming "${commitment.studio}" (${weeksRemaining} weeks remaining)`,
