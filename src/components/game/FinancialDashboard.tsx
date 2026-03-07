@@ -11,6 +11,7 @@ import { LineChart, Line, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContai
 import { TrendingUp, TrendingDown, AlertTriangle, DollarSign, Activity, PieChart as PieChartIcon, Ticket } from 'lucide-react';
 
 import { useGameStore } from '@/game/store';
+import { formatMoneyCompact } from '@/utils/money';
 
 export const FinancialDashboard: React.FC = () => {
   const [selectedTimeframe, setSelectedTimeframe] = useState<'4weeks' | '12weeks' | '1year'>('12weeks');
@@ -22,7 +23,7 @@ export const FinancialDashboard: React.FC = () => {
 
   const { currentWeek, currentYear, projects } = game;
   
-  const summary = FinancialEngine.getFinancialSummary(currentWeek, currentYear);
+  const summary = FinancialEngine.getFinancialSummary(currentWeek, currentYear, game.studio.budget);
   const recentTransactions = FinancialEngine.getRecentTransactions(20);
   
   // Generate weekly financial data for charts
@@ -55,6 +56,31 @@ export const FinancialDashboard: React.FC = () => {
   };
 
   const weeklyData = getWeeklyData();
+
+  const parseWeekLabel = (label: string): { year: number; week: number } | null => {
+    const m = /^Y(\d+)W(\d+)$/.exec(label);
+    if (!m) return null;
+    return { year: Number(m[1]), week: Number(m[2]) };
+  };
+
+  const xTickStep = selectedTimeframe === '4weeks' ? 1 : selectedTimeframe === '12weeks' ? 2 : 4;
+
+  const xTicks = weeklyData
+    .map((d) => d.week)
+    .filter((label, idx, arr) => {
+      if (idx === 0 || idx === arr.length - 1) return true;
+      const parsed = parseWeekLabel(label);
+      if (!parsed) return false;
+      if (parsed.week === 1) return true; // Year marker
+      return xTickStep === 1 ? true : idx % xTickStep === 0;
+    });
+
+  const formatWeekTick = (label: string) => {
+    const parsed = parseWeekLabel(label);
+    if (!parsed) return label;
+    if (parsed.week === 1) return String(parsed.year);
+    return `W${parsed.week}`;
+  };
 
   // Touring analytics (category-level)
   const getTouringWeeklyData = () => {
@@ -139,7 +165,7 @@ export const FinancialDashboard: React.FC = () => {
               <div>
                 <p className="text-sm text-muted-foreground">Cash on Hand</p>
                 <p className="text-2xl font-bold text-primary">
-                  ${(summary.cashOnHand / 1000).toFixed(0)}k
+                  {formatMoneyCompact(summary.cashOnHand)}
                 </p>
               </div>
               <DollarSign className="h-8 w-8 text-primary/60" />
@@ -158,7 +184,7 @@ export const FinancialDashboard: React.FC = () => {
               <div>
                 <p className="text-sm text-muted-foreground">Net Profit</p>
                 <p className={`text-2xl font-bold ${summary.netProfit >= 0 ? 'text-green-600' : 'text-red-600'}`}>
-                  ${(summary.netProfit / 1000).toFixed(0)}k
+                  {formatMoneyCompact(summary.netProfit)}
                 </p>
               </div>
               {summary.netProfit >= 0 ? 
@@ -180,14 +206,14 @@ export const FinancialDashboard: React.FC = () => {
               <div>
                 <p className="text-sm text-muted-foreground">Weekly Burn</p>
                 <p className="text-2xl font-bold text-accent">
-                  ${(summary.weeklyBurn / 1000).toFixed(0)}k
+                  {formatMoneyCompact(summary.weeklyBurn)}
                 </p>
               </div>
               <Activity className="h-8 w-8 text-accent/60" />
             </div>
             <div className="mt-2">
               <p className="text-xs text-muted-foreground">
-                {Math.floor(summary.cashOnHand / summary.weeklyBurn)} weeks runway
+                {summary.weeklyBurn > 0 ? Math.floor(summary.cashOnHand / summary.weeklyBurn) : 0} weeks runway
               </p>
             </div>
           </CardContent>
@@ -246,9 +272,9 @@ export const FinancialDashboard: React.FC = () => {
               <ResponsiveContainer width="100%" height={300}>
                 <LineChart data={weeklyData}>
                   <CartesianGrid strokeDasharray="3 3" />
-                  <XAxis dataKey="week" />
-                  <YAxis />
-                  <Tooltip formatter={(value: number) => [`$${(value/1000).toFixed(0)}k`, '']} />
+                  <XAxis dataKey="week" ticks={xTicks} tickFormatter={formatWeekTick} />
+                  <YAxis tickFormatter={(value: number) => formatMoneyCompact(value)} />
+                  <Tooltip formatter={(value: number) => [formatMoneyCompact(value), '']} />
                   <Line type="monotone" dataKey="revenue" stroke="#10b981" strokeWidth={2} name="Revenue" />
                   <Line type="monotone" dataKey="expenses" stroke="#ef4444" strokeWidth={2} name="Expenses" />
                   <Line type="monotone" dataKey="profit" stroke="#3b82f6" strokeWidth={2} name="Weekly Profit" />
@@ -269,9 +295,9 @@ export const FinancialDashboard: React.FC = () => {
               <ResponsiveContainer width="100%" height={200}>
                 <LineChart data={weeklyData}>
                   <CartesianGrid strokeDasharray="3 3" />
-                  <XAxis dataKey="week" />
-                  <YAxis />
-                  <Tooltip formatter={(value: number) => [`${(value/1000).toFixed(0)}k`, 'Cumulative Profit']} />
+                  <XAxis dataKey="week" ticks={xTicks} tickFormatter={formatWeekTick} />
+                  <YAxis tickFormatter={(value: number) => formatMoneyCompact(value)} />
+                  <Tooltip formatter={(value: number) => [formatMoneyCompact(value), 'Cumulative Profit']} />
                   <Line 
                     type="monotone" 
                     dataKey="cumulativeProfit" 
@@ -296,16 +322,16 @@ export const FinancialDashboard: React.FC = () => {
               <div className="grid grid-cols-1 md:grid-cols-3 gap-4 mb-4">
                 <div className="p-3 rounded border border-border/50">
                   <div className="text-xs text-muted-foreground">Touring Revenue</div>
-                  <div className="text-lg font-semibold text-green-600">${(touringSummary.revenue / 1000).toFixed(0)}k</div>
+                  <div className="text-lg font-semibold text-green-600">{formatMoneyCompact(touringSummary.revenue)}</div>
                 </div>
                 <div className="p-3 rounded border border-border/50">
                   <div className="text-xs text-muted-foreground">Touring Expenses</div>
-                  <div className="text-lg font-semibold text-red-600">${(touringSummary.expenses / 1000).toFixed(0)}k</div>
+                  <div className="text-lg font-semibold text-red-600">{formatMoneyCompact(touringSummary.expenses)}</div>
                 </div>
                 <div className="p-3 rounded border border-border/50">
                   <div className="text-xs text-muted-foreground">Net Touring</div>
                   <div className={`text-lg font-semibold ${touringSummary.net >= 0 ? 'text-green-700' : 'text-red-700'}`}>
-                    ${(touringSummary.net / 1000).toFixed(0)}k
+                    {formatMoneyCompact(touringSummary.net)}
                   </div>
                 </div>
               </div>
@@ -313,9 +339,9 @@ export const FinancialDashboard: React.FC = () => {
               <ResponsiveContainer width="100%" height={220}>
                 <BarChart data={touringWeeklyData}>
                   <CartesianGrid strokeDasharray="3 3" />
-                  <XAxis dataKey="week" />
-                  <YAxis />
-                  <Tooltip formatter={(value: number, name: string) => [`${(value/1000).toFixed(0)}k`, name === 'touringRevenue' ? 'Revenue' : name === 'touringExpenses' ? 'Expenses' : 'Net']} />
+                  <XAxis dataKey="week" ticks={xTicks} tickFormatter={formatWeekTick} />
+                  <YAxis tickFormatter={(value: number) => formatMoneyCompact(value)} />
+                  <Tooltip formatter={(value: number, name: string) => [formatMoneyCompact(value), name === 'touringRevenue' ? 'Revenue' : name === 'touringExpenses' ? 'Expenses' : 'Net']} />
                   <Bar dataKey="touringRevenue" name="Revenue" fill="#10b981" />
                   <Bar dataKey="touringExpenses" name="Expenses" fill="#ef4444" />
                 </BarChart>
@@ -350,7 +376,7 @@ export const FinancialDashboard: React.FC = () => {
                     <Cell key={`cell-${index}`} fill={COLORS[index % COLORS.length]} />
                   ))}
                 </Pie>
-                <Tooltip formatter={(value: number) => [`$${(value/1000).toFixed(0)}k`, '']} />
+                <Tooltip formatter={(value: number) => [formatMoneyCompact(value), '']} />
               </PieChart>
             </ResponsiveContainer>
           </CardContent>
@@ -379,7 +405,7 @@ export const FinancialDashboard: React.FC = () => {
                   <div className={`text-sm font-semibold ${
                     transaction.type === 'revenue' ? 'text-green-600' : 'text-red-600'
                   }`}>
-                    {transaction.type === 'revenue' ? '+' : '-'}${(transaction.amount / 1000).toFixed(0)}k
+                    {transaction.type === 'revenue' ? '+' : '-'}{formatMoneyCompact(transaction.amount)}
                   </div>
                 </div>
               ))}

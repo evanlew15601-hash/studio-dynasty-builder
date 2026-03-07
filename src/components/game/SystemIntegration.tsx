@@ -5,6 +5,7 @@ import { CalendarManager } from './CalendarManager';
 import { FinancialEngine } from './FinancialEngine';
 import { ReleaseSystem } from './ReleaseSystem';
 import { ReputationSystem } from './ReputationSystem';
+import { formatMoneyCompact } from '@/utils/money';
 
 export interface SystemHealthCheck {
   system: string;
@@ -137,7 +138,7 @@ export class SystemIntegration {
         name: 'Financial Tracking',
         description: 'Verify financial transactions are being recorded',
         test: (gameState) => {
-          const summary = FinancialEngine.getFinancialSummary(gameState.currentWeek, gameState.currentYear);
+          const summary = FinancialEngine.getFinancialSummary(gameState.currentWeek, gameState.currentYear, gameState.studio.budget);
           const recentTransactions = FinancialEngine.getRecentTransactions(5);
           
           // Check if financial system is tracking properly
@@ -153,7 +154,7 @@ export class SystemIntegration {
           
           return {
             passed: hasReasonableFinancials,
-            message: `${message} (${recentTransactions.length} recent transactions, $${summary.totalRevenue.toFixed(0)}k revenue)`
+            message: `${message} (${recentTransactions.length} recent transactions, ${formatMoneyCompact(summary.totalRevenue)} revenue)`
           };
         }
       },

@@ -23,6 +23,7 @@ import {
 } from 'lucide-react';
 
 import { useGameStore } from '@/game/store';
+import { formatMoneyCompact } from '@/utils/money';
 
 interface IntegrationMonitorProps {
   onRunLoop?: (projectId: string) => void;
@@ -336,7 +337,7 @@ export const IntegrationMonitor: React.FC<IntegrationMonitorProps> = ({ onRunLoo
               <CardContent>
                 <div className="text-xs space-y-1">
                   <div>Transactions: {FinancialEngine.getRecentTransactions(100).length}</div>
-                  <div>Week Revenue: ${(FinancialEngine.getWeeklyFinancials(gameState.currentWeek, gameState.currentYear).totalRevenue / 1000).toFixed(0)}k</div>
+                  <div>Week Revenue: {formatMoneyCompact(FinancialEngine.getWeeklyFinancials(gameState.currentWeek, gameState.currentYear).totalRevenue)}</div>
                 </div>
               </CardContent>
             </Card>

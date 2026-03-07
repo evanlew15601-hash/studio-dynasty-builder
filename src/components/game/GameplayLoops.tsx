@@ -499,7 +499,7 @@ export class GameplayLoops {
     }
     
     // Financial health check
-    const studioFinancials = FinancialEngine.getFinancialSummary(currentTime.week, currentTime.year);
+    const studioFinancials = FinancialEngine.getFinancialSummary(currentTime.week, currentTime.year, studio.budget);
     metrics.financials = studioFinancials;
     
     // Cash flow warning

@@ -1,5 +1,6 @@
 // Unified Financial Engine - Single source of truth for all financial transactions
 import { Studio, Project } from '@/types/game';
+import { formatMoneyCompact } from '@/utils/money';
 export interface Transaction {
   id: string;
   filmId?: string;
@@ -161,12 +162,14 @@ export class FinancialEngine {
   ): string {
     this.ensureLoaded();
 
+    const roundedAmount = Math.round(Math.abs(Number.isFinite(amount) ? amount : 0));
+
     const transaction: Transaction = {
       id: `txn-${this.nextTransactionId++}`,
       filmId,
       type,
       category,
-      amount: Math.abs(amount), // Always store as positive, type determines direction
+      amount: roundedAmount, // Always store as positive integer dollars, type determines direction
       week,
       year,
       description
@@ -175,13 +178,7 @@ export class FinancialEngine {
     this.transactions.push(transaction);
     this.persist();
 
-    const displayAmount = Math.abs(amount);
-    const formattedAmount =
-      displayAmount >= 1_000_000
-        ? "$" + (displayAmount / 1_000_000).toFixed(2) + "M"
-        : "$" + displayAmount.toLocaleString();
-
-    console.log(`FINANCE: ${type} ${formattedAmount} for ${description} (Y${year}W${week})`);
+    console.log(`FINANCE: ${type} ${formatMoneyCompact(roundedAmount)} for ${description} (Y${year}W${week})`);
     
     return transaction.id;
   }
@@ -230,7 +227,7 @@ export class FinancialEngine {
     };
   }
   
-  static getFinancialSummary(currentWeek: number, currentYear: number): FinancialSummary {
+  static getFinancialSummary(currentWeek: number, currentYear: number, cashOnHandOverride?: number): FinancialSummary {
     this.ensureLoaded();
 
     const allRevenue = this.transactions
@@ -275,11 +272,13 @@ export class FinancialEngine {
     const profitableFilms = Array.from(filmFinancials.values())
       .filter(film => film.revenue > film.expenses).length;
     
+    const netProfit = allRevenue - allExpenses;
+
     return {
       totalRevenue: allRevenue,
       totalExpenses: allExpenses,
-      netProfit: allRevenue - allExpenses,
-      cashOnHand: allRevenue - allExpenses, // For now, assume all profit is retained
+      netProfit,
+      cashOnHand: cashOnHandOverride ?? netProfit,
       weeklyBurn,
       profitableFilms,
       totalFilms: filmFinancials.size
@@ -378,7 +377,7 @@ export class FinancialEngine {
     films.forEach(film => {
       if (film.weeksSinceRelease >= 0) {
         // Enhanced box office simulation based on budget and genre
-        let baseEarnings = Math.max(film.budget * 0.1, 1000); // Base on budget, minimum 1M
+        let baseEarnings = Math.max(film.budget * 0.1, 1_000_000); // Base on budget, minimum $1M
         
         // Genre multipliers
         const genreMultipliers: Record<string, number> = {
@@ -400,7 +399,7 @@ export class FinancialEngine {
         const declineRate = Math.pow(0.65, film.weeksSinceRelease); // Faster decline
         const weeklyEarnings = baseEarnings * declineRate;
         
-        if (weeklyEarnings > 50) { // Stop tracking when earnings drop below 50k
+        if (weeklyEarnings > 50_000) { // Stop tracking when earnings drop below $50k
           this.recordFilmRevenue(
             film.id,
             weeklyEarnings,
@@ -432,7 +431,7 @@ export class FinancialEngine {
 
     // Process studio overhead costs
     studios.forEach(studio => {
-      const weeklyOverhead = Math.max(studio.budget * 0.001, 50); // 0.1% of budget or 50k minimum
+      const weeklyOverhead = Math.max(studio.budget * 0.001, 50_000); // 0.1% of budget or $50k minimum
       this.recordStudioOverhead(
         weeklyOverhead,
         currentWeek,

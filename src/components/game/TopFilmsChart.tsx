@@ -6,6 +6,7 @@ import { Progress } from '@/components/ui/progress';
 import { Project } from '@/types/game';
 import { TrendingIcon, StudioIcon, StarIcon } from '@/components/ui/icons';
 import { useGameStore } from '@/game/store';
+import { formatMoneyCompact } from '@/utils/money';
 
 interface TopFilmEntry {
   project: Project;
@@ -29,10 +30,10 @@ export const TopFilmsChart: React.FC = () => {
   if (!gameState) {
     return <div className="p-6 text-sm text-muted-foreground">Loading box office charts...</div>;
   }
-  
+
   const calculateWeeklyGross = (project: Project): number => {
     if (!project.metrics?.inTheaters) return 0;
-    
+
     const weeklyRevenue = project.metrics.lastWeeklyRevenue || 0;
     return weeklyRevenue;
   };
@@ -40,7 +41,7 @@ export const TopFilmsChart: React.FC = () => {
   const generateReceptionTags = (project: Project): string[] => {
     const tags: string[] = [];
     const metrics = project.metrics;
-    
+
     if (metrics?.weeksSinceRelease === 0) tags.push('New Release');
     if (metrics?.criticsScore && metrics.criticsScore > 80) tags.push('Critical Darling');
     if (metrics?.audienceScore && metrics.audienceScore > 85) tags.push('Crowd Pleaser');
@@ -51,7 +52,7 @@ export const TopFilmsChart: React.FC = () => {
     if (metrics?.weeksSinceRelease && metrics.weeksSinceRelease > 8) tags.push('Long Runner');
     if (project.script?.genre === 'horror' && metrics?.boxOfficeTotal && metrics.boxOfficeTotal > 100000000) tags.push('Horror Phenomenon');
     if (project.script?.genre === 'comedy' && metrics?.audienceScore && metrics.audienceScore > 90) tags.push('Comedy Gold');
-    
+
     return tags.slice(0, 2); // Limit to 2 tags for readability
   };
 
@@ -59,22 +60,22 @@ export const TopFilmsChart: React.FC = () => {
     // Check if it's an AI studio project
     if (project.id.startsWith('ai-project-')) {
       // Find the studio from competitor studios
-      const studio = gameState.competitorStudios.find(s => 
-        project.title.includes(s.name.split(' ')[0]) || 
+      const studio = gameState.competitorStudios.find(s =>
+        project.title.includes(s.name.split(' ')[0]) ||
         s.specialties.includes(project.script.genre)
       );
       return studio?.name || 'Independent Studios';
     }
-    
+
     // Player's project
     return gameState.studio.name;
   };
 
   const createTopFilmEntries = (): TopFilmEntry[] => {
-    const currentReleases = allReleases.filter(project => 
-      project.metrics?.inTheaters && 
+    const currentReleases = allReleases.filter(project =>
+      project.metrics?.inTheaters &&
       project.status === 'released' &&
-      project.metrics?.boxOfficeTotal && 
+      project.metrics?.boxOfficeTotal &&
       project.metrics.boxOfficeTotal > 0 &&
       (project.metrics?.weeksSinceRelease || 0) < 12 // Only films in their first 12 weeks
     );
@@ -84,11 +85,11 @@ export const TopFilmsChart: React.FC = () => {
       const totalGross = project.metrics?.boxOfficeTotal || 0;
       const studioName = determineStudioName(project);
       const receptionTags = generateReceptionTags(project);
-      
+
       // Determine trend based on weeks in release and performance
       let trend: 'rising' | 'falling' | 'stable' | 'new' = 'stable';
       const weeksInRelease = project.metrics?.weeksSinceRelease || 0;
-      
+
       if (weeksInRelease === 0) {
         trend = 'new';
       } else if (weeksInRelease <= 2) {
@@ -118,19 +119,16 @@ export const TopFilmsChart: React.FC = () => {
     return entries.slice(0, 10); // Top 10
   };
 
-  const formatCurrency = (amount: number): string => {
-    if (amount >= 1000000000) return `$${(amount / 1000000000).toFixed(1)}B`;
-    if (amount >= 1000000) return `$${(amount / 1000000).toFixed(1)}M`;
-    if (amount >= 1000) return `$${(amount / 1000).toFixed(0)}K`;
-    return `$${amount.toFixed(0)}`;
-  };
-
   const getTrendIcon = (trend: string) => {
     switch (trend) {
-      case 'rising': return <TrendingIcon className="text-green-500" size={16} />;
-      case 'falling': return <TrendingIcon className="text-red-500 rotate-180" size={16} />;
-      case 'new': return <StarIcon className="text-yellow-500" size={16} />;
-      default: return <div className="w-4 h-4 bg-gray-400 rounded-full" />;
+      case 'rising':
+        return <TrendingIcon className="text-green-500" size={16} />;
+      case 'falling':
+        return <TrendingIcon className="text-red-500 rotate-180" size={16} />;
+      case 'new':
+        return <StarIcon className="text-yellow-500" size={16} />;
+      default:
+        return <div className="w-4 h-4 bg-gray-400 rounded-full" />;
     }
   };
 
@@ -147,7 +145,7 @@ export const TopFilmsChart: React.FC = () => {
           </Badge>
         </CardTitle>
       </CardHeader>
-      
+
       <CardContent className="space-y-4">
         {topFilms.length === 0 ? (
           <div className="text-center py-8 text-muted-foreground">
@@ -156,12 +154,12 @@ export const TopFilmsChart: React.FC = () => {
           </div>
         ) : (
           <div className="space-y-3">
-            {topFilms.map((entry, index) => (
-              <div 
+            {topFilms.map((entry) => (
+              <div
                 key={entry.project.id}
                 className={`p-4 rounded-lg border transition-all duration-200 hover:shadow-md ${
-                  entry.studioName === gameState.studio.name 
-                    ? 'bg-primary/5 border-primary/20' 
+                  entry.studioName === gameState.studio.name
+                    ? 'bg-primary/5 border-primary/20'
                     : 'bg-card hover:bg-accent/5'
                 }`}
               >
@@ -179,26 +177,26 @@ export const TopFilmsChart: React.FC = () => {
                         </p>
                       </div>
                     </div>
-                    
+
                     <div className="grid grid-cols-2 gap-4 mb-3">
                       <div>
                         <p className="text-sm text-muted-foreground">This Week</p>
-                        <p className="font-semibold text-lg">{formatCurrency(entry.weeklyGross)}</p>
+                        <p className="font-semibold text-lg">{formatMoneyCompact(entry.weeklyGross)}</p>
                       </div>
                       <div>
                         <p className="text-sm text-muted-foreground">Total Gross</p>
-                        <p className="font-semibold text-lg">{formatCurrency(entry.totalGross)}</p>
+                        <p className="font-semibold text-lg">{formatMoneyCompact(entry.totalGross)}</p>
                       </div>
                     </div>
 
                     {/* Performance Bar */}
                     <div className="mb-3">
                       <div className="flex justify-between text-xs text-muted-foreground mb-1">
-                        <span>vs Budget ({formatCurrency(entry.project.budget?.total || 0)})</span>
+                        <span>vs Budget ({formatMoneyCompact(entry.project.budget?.total || 0)})</span>
                         <span>{((entry.totalGross / (entry.project.budget?.total || 1)) * 100).toFixed(0)}%</span>
                       </div>
-                      <Progress 
-                        value={Math.min(100, (entry.totalGross / (entry.project.budget?.total || 1)) * 100)} 
+                      <Progress
+                        value={Math.min(100, (entry.totalGross / (entry.project.budget?.total || 1)) * 100)}
                         className="h-2"
                       />
                     </div>
@@ -207,9 +205,9 @@ export const TopFilmsChart: React.FC = () => {
                     {entry.receptionTags.length > 0 && (
                       <div className="flex flex-wrap gap-1">
                         {entry.receptionTags.map((tag, tagIndex) => (
-                          <Badge 
-                            key={tagIndex} 
-                            variant="secondary" 
+                          <Badge
+                            key={tagIndex}
+                            variant="secondary"
                             className="text-xs"
                           >
                             {tag}
@@ -224,7 +222,7 @@ export const TopFilmsChart: React.FC = () => {
                       Week {(entry.project.metrics?.weeksSinceRelease || 0) + 1}
                     </div>
                     <div className="text-sm text-muted-foreground">
-                      {entry.project.metrics?.theaterCount || 0} theaters
+                      {(entry.project.metrics?.theaterCount || 0).toLocaleString()} theaters
                     </div>
                   </div>
                 </div>
@@ -240,7 +238,7 @@ export const TopFilmsChart: React.FC = () => {
             <div>
               <p className="text-muted-foreground">Total Box Office</p>
               <p className="font-semibold">
-                {formatCurrency(topFilms.reduce((sum, film) => sum + film.weeklyGross, 0))}
+                {formatMoneyCompact(topFilms.reduce((sum, film) => sum + film.weeklyGross, 0))}
               </p>
             </div>
             <div>
