@@ -316,6 +316,13 @@ export interface Project {
   seasons?: SeasonData[];
   currentSeason?: number;
   totalOrderedSeasons?: number;
+  /**
+   * Episode count for the current season.
+   *
+   * This is used as the primary source of truth by TV episode + deal systems.
+   * If absent, systems fall back to seasons[] metadata or legacy heuristics.
+   */
+  episodeCount?: number;
   releaseFormat?: 'weekly' | 'binge' | 'batch';
   /**
    * Optional streaming contract information for TV/streaming projects.

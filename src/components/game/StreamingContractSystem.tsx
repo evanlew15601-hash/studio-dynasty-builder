@@ -133,8 +133,9 @@ export const StreamingContractSystem: React.FC<StreamingContractSystemProps> = (
 
     if (isTVProject(project)) {
       const episodeCount =
+        project.episodeCount ||
         project.seasons?.[0]?.totalEpisodes ||
-        (project.script?.estimatedRuntime ? Math.ceil(project.script.estimatedRuntime / 45) : 10);
+        (project.type === 'limited-series' ? 8 : 13);
 
       const rateMultiplier = dealKind === 'cable' ? 0.65 : 1.0;
       const episodeRate = Math.floor(
