@@ -1,0 +1,59 @@
+name: frontend
+
+on:
+  push:
+    branches: ["main"]
+    paths:
+      - "src/**"
+      - "public/**"
+      - "scripts/**"
+      - "tests/**"
+      - "e2e/**"
+      - "package.json"
+      - "package-lock.json"
+      - "vite.config.ts"
+      - "vitest.config.ts"
+      - "tailwind.config.ts"
+      - "eslint.config.js"
+      - ".github/workflows/frontend.yml"
+
+  pull_request:
+    branches: ["main"]
+    paths:
+      - "src/**"
+      - "public/**"
+      - "scripts/**"
+      - "tests/**"
+      - "e2e/**"
+      - "package.json"
+      - "package-lock.json"
+      - "vite.config.ts"
+      - "vitest.config.ts"
+      - "tailwind.config.ts"
+      - "eslint.config.js"
+      - ".github/workflows/frontend.yml"
+
+jobs:
+  check:
+    runs-on: ubuntu-latest
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Setup Node
+        uses: actions/setup-node@v4
+        with:
+          node-version: lts/*
+          cache: npm
+
+      - name: Install dependencies
+        run: npm ci
+
+      - name: Lint
+        run: npm run lint
+
+      - name: Unit tests
+        run: npm test
+
+      - name: License allowlist check
+        run: npm run licenses:check

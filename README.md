@@ -60,6 +60,17 @@ This project is built with:
 - shadcn-ui
 - Tailwind CSS
 
+## Open source & licensing
+
+- Check dependency licenses against the allowlist:
+  ```sh
+  npm run licenses:check
+  ```
+- Generate an expanded third-party notices file:
+  ```sh
+  npm run licenses:generate
+  ```
+
 ## How can I deploy this project?
 
 Simply open [Lovable](https://lovable.dev/projects/7e87531d-d46f-4b62-9b65-548132b79b80) and click on Share -> Publish.

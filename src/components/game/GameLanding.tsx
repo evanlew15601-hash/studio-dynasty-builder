@@ -1,4 +1,5 @@
 import React, { useState } from 'react';
+import { Link } from 'react-router-dom';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Input } from '@/components/ui/input';
@@ -6,7 +7,7 @@ import { Label } from '@/components/ui/label';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { Badge } from '@/components/ui/badge';
 import { Separator } from '@/components/ui/separator';
-import { Play, Settings, Film, Star, Trophy, Sparkles } from 'lucide-react';
+import { Play, Settings, Film, Star, Trophy, Sparkles, HelpCircle } from 'lucide-react';
 import { Genre } from '@/types/game';
 import { StudioIconCustomizer, StudioIconRenderer, DEFAULT_ICON, type StudioIconConfig } from './StudioIconCustomizer';
 
@@ -179,13 +180,24 @@ export const GameLanding: React.FC<GameLandingProps> = ({ onStartGame, onLoadGam
               </Button>
             </div>
 
-            <div className="flex justify-center">
+            <div className="flex flex-col items-center gap-2">
               <Button 
                 variant="ghost" 
                 className="text-muted-foreground hover:text-foreground hover:bg-accent/10 transition-all duration-300 px-6 py-3"
                 onClick={onLoadGame}
               >
                 Load Saved Game
+              </Button>
+
+              <Button
+                variant="ghost"
+                className="text-muted-foreground hover:text-foreground hover:bg-accent/10 transition-all duration-300 px-6 py-3"
+                asChild
+              >
+                <Link to="/help">
+                  <HelpCircle />
+                  Help & Open Source
+                </Link>
               </Button>
             </div>
 
