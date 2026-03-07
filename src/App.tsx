@@ -16,7 +16,7 @@ const App = () => (
     <TooltipProvider>
       <Toaster />
       <Sonner />
-      <BrowserRouter>
+    <BrowserRouter basename={import.meta.env.studio-dynasty-builder}>
         <Suspense fallback={<div className="p-6 text-sm text-muted-foreground">Loading…</div>}>
           <Routes>
             <Route path="/" element={<Index />} />
