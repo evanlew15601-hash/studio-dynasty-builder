@@ -138,7 +138,7 @@ export const PerformanceMetrics: React.FC = () => {
               <DollarSign size={16} className="text-green-600" />
             </div>
             <div className="text-lg font-bold">
-              ${(metrics.totalRevenue / 1000000).toFixed(1)}M
+              {formatMoneyCompact(metrics.totalRevenue)}
             </div>
             <div className="text-xs text-muted-foreground">Total Revenue</div>
           </div>
@@ -211,6 +211,11 @@ export const PerformanceMetrics: React.FC = () => {
           <div className="text-muted-foreground">
             Q{gameState.currentQuarter}
           </div>
+        </div>
+      </CardContent>
+    </Card>
+  );
+};>
         </div>
       </CardContent>
     </Card>
