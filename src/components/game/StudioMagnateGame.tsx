@@ -1302,7 +1302,7 @@ export const StudioMagnateGame: React.FC<StudioMagnateGameProps> = ({
             }
 
             const weeksActive = 1;
-            const revenue = (release.revenue || 0) + (release.weeklyRevenue || 0);
+            const revenue = (release.revenue || 0) + Math.round(release.weeklyRevenue || 0);
 
             return {
               ...release,
@@ -1315,7 +1315,7 @@ export const StudioMagnateGame: React.FC<StudioMagnateGameProps> = ({
           if (release.status === 'active' || release.status === 'declining') {
             // Continue generating revenue
             const newWeeksActive = (release.weeksActive || 0) + 1;
-            const newRevenue = (release.revenue || 0) + (release.weeklyRevenue || 0);
+            const newRevenue = (release.revenue || 0) + Math.round(release.weeklyRevenue || 0);
 
             const ended = newWeeksActive >= durationWeeks;
             const nextStatus = ended
@@ -1323,7 +1323,7 @@ export const StudioMagnateGame: React.FC<StudioMagnateGameProps> = ({
               : (newWeeksActive >= durationWeeks * 0.8 ? 'declining' : 'active');
 
             if (diagnosticsEnabled) {
-              console.log(`      ${release.platform}: Week ${newWeeksActive}/${durationWeeks}, +${(release.weeklyRevenue || 0).toLocaleString()}, Total: ${newRevenue.toLocaleString()} (${nextStatus})`);
+              console.log(`      ${release.platform}: Week ${newWeeksActive}/${durationWeeks}, +${Math.round(release.weeklyRevenue || 0).toLocaleString()}, Total: ${newRevenue.toLocaleString()} (${nextStatus})`);
             }
 
             return {
@@ -1342,12 +1342,14 @@ export const StudioMagnateGame: React.FC<StudioMagnateGameProps> = ({
           .filter(r => r.status === 'planned' || r.status === 'active' || r.status === 'declining')
           .reduce((sum, r) => sum + (r.weeklyRevenue || 0), 0);
 
-        if (weeklyPostTheatricalRevenue > 0) {
+        const weeklyPostTheatricalRevenueRounded = Math.round(weeklyPostTheatricalRevenue);
+
+        if (weeklyPostTheatricalRevenueRounded > 0) {
           if (diagnosticsEnabled) {
-            console.log(`      TOTAL WEEKLY POST-THEATRICAL: +${weeklyPostTheatricalRevenue.toLocaleString()}`);
+            console.log(`      TOTAL WEEKLY POST-THEATRICAL: +${weeklyPostTheatricalRevenueRounded.toLocaleString()}`);
           }
 
-          studioRevenueDelta += weeklyPostTheatricalRevenue;
+          studioRevenueDelta += weeklyPostTheatricalRevenueRounded;
         }
 
         updatedProject = {

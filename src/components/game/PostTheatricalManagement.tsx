@@ -71,6 +71,8 @@ export const PostTheatricalManagement: React.FC<PostTheatricalManagementProps> =
   const updateBudget = useGameStore((s) => s.updateBudget);
   const { toast } = useToast();
 
+  const diagnosticsEnabled = import.meta.env.DEV;
+
   if (!gameState) {
     return <div className="p-6 text-sm text-muted-foreground">Loading post-theatrical distribution...</div>;
   }
@@ -100,12 +102,14 @@ export const PostTheatricalManagement: React.FC<PostTheatricalManagementProps> =
     const theatricalRunWeeks = project.metrics.weeksSinceRelease || 0;
     const weeksSinceTheatricalEnd = Math.max(0, weeksSinceRelease - theatricalRunWeeks);
     
-    console.log(`POST-THEATRICAL CHECK: ${project.title}`);
-    console.log(`   Release: Y${project.releaseYear}W${project.releaseWeek} (${releaseGameWeek})`);
-    console.log(`   Current: Y${gameState.currentYear}W${gameState.currentWeek} (${currentGameWeek})`);
-    console.log(`   Weeks since release: ${weeksSinceRelease}`);
-    console.log(`   Theatrical run weeks: ${theatricalRunWeeks}`);
-    console.log(`   Weeks since theatrical end: ${weeksSinceTheatricalEnd}`);
+    if (diagnosticsEnabled) {
+      console.log(`POST-THEATRICAL CHECK: ${project.title}`);
+      console.log(`   Release: Y${project.releaseYear}W${project.releaseWeek} (${releaseGameWeek})`);
+      console.log(`   Current: Y${gameState.currentYear}W${gameState.currentWeek} (${currentGameWeek})`);
+      console.log(`   Weeks since release: ${weeksSinceRelease}`);
+      console.log(`   Theatrical run weeks: ${theatricalRunWeeks}`);
+      console.log(`   Weeks since theatrical end: ${weeksSinceTheatricalEnd}`);
+    }
     
     return weeksSinceTheatricalEnd;
   };
@@ -214,7 +218,7 @@ export const PostTheatricalManagement: React.FC<PostTheatricalManagementProps> =
       platform: option.platform,
       releaseDate: new Date(),
       revenue: 0,
-      weeklyRevenue: estimatedRevenue / option.duration,
+      weeklyRevenue: Math.round(estimatedRevenue / option.duration),
       weeksActive: 0,
       status: 'planned',
       cost: option.baseCost,
