@@ -40,7 +40,7 @@ import { DeepReputationPanel } from './DeepReputationPanel';
 import { MediaAnalyticsPanel } from './MediaAnalyticsPanel';
 import { BackgroundSimulation as BackgroundSimulationComponent } from './BackgroundSimulation';
 import { SequelManagement as SequelManagementComponent } from './SequelManagement';
-import { TalentGenerator } from '../../data/TalentGenerator';
+import { generateInitialTalentPool } from '@/data/WorldGenerator';
 import { 
   DropdownMenu,
   DropdownMenuContent,
@@ -430,9 +430,8 @@ export const StudioMagnateGame: React.FC<StudioMagnateGameProps> = ({
     // Initialize comprehensive talent pool
     const mods = getModBundle();
 
-    const talentGenerator = new TalentGenerator();
     const generatedTalent = applyPatchesByKey(
-      talentGenerator.generateTalentPool(300, 50),
+      generateInitialTalentPool({ currentYear: new Date().getFullYear(), actorCount: 80, directorCount: 20 }),
       getPatchesForEntity(mods, 'talent'),
       (t) => t.id
     );

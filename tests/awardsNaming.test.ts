@@ -8,6 +8,12 @@ describe('awardsNaming', () => {
     expect(normalizeAwardCeremonyName('Golden Globe')).toBe('Crystal Ring');
     expect(normalizeAwardCeremonyName('Critics Choice')).toBe('Critics Circle');
     expect(normalizeAwardCeremonyName('Emmy')).toBe('Beacon TV');
+
+    expect(normalizeAwardCeremonyName('SAG')).toBe('Performers Guild');
+    expect(normalizeAwardCeremonyName('DGA')).toBe('Directors Circle');
+    expect(normalizeAwardCeremonyName('WGA')).toBe('Writers Circle');
+    expect(normalizeAwardCeremonyName('BAFTA')).toBe('Britannia Screen');
+
     expect(normalizeAwardCeremonyName('Other')).toBe('Other');
   });
 
@@ -15,6 +21,9 @@ describe('awardsNaming', () => {
     expect(normalizeAwardNameText('Oscar - Best Picture')).toBe('Crown - Best Picture');
     expect(normalizeAwardNameText('Golden Globe - Best Film')).toBe('Crystal Ring - Best Film');
     expect(normalizeAwardNameText('Academy Award for Best Picture')).toBe('Crown Award for Best Picture');
+
+    expect(normalizeAwardNameText('BAFTA - Best Film')).toBe('Britannia Screen - Best Film');
+    expect(normalizeAwardNameText('SAG Awards - Outstanding Ensemble')).toBe('Performers Guild - Outstanding Ensemble');
   });
 
   it('patches a loaded game state to remove real-world award names', () => {

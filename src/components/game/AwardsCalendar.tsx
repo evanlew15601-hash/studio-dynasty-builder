@@ -20,23 +20,43 @@ interface AwardEventRow {
 const SHOW_META: Record<string, { prestige: number; nominations: string; ceremony: string }> = {
   'Crystal Ring': {
     prestige: 6,
-    nominations: 'Film press organizations announce Crystal Ring nominees',
-    ceremony: 'The Crystal Ring Awards gala kicks off the season',
+    nominations: 'Film press organizations announce Crystal Ring nominees (and immediately argue about category fraud)',
+    ceremony: 'The Crystal Ring Awards gala kicks off the season — champagne, chaos, and one inexplicable musical number',
   },
   'Critics Circle': {
     prestige: 5,
-    nominations: 'The Critics Circle reveals this year’s contenders',
-    ceremony: 'Critics Circle Awards ceremony',
+    nominations: 'The Critics Circle reveals this year’s contenders (everyone pretends the list wasn’t decided in November)',
+    ceremony: 'Critics Circle Awards ceremony — applause calibrated to irony levels',
   },
   Crown: {
     prestige: 10,
-    nominations: 'Crown Awards nominations announced',
-    ceremony: "The Crown Awards — the industry's biggest night",
+    nominations: 'Crown Awards nominations announced (PR teams enter “humble surprise” mode)',
+    ceremony: "The Crown Awards — the industry's biggest night (and the longest walk to a microphone)",
+  },
+  'Performers Guild': {
+    prestige: 6,
+    nominations: 'The Performers Guild posts nominees (and insists nobody campaigned)',
+    ceremony: 'Performers Guild Awards — the loudest applause of the season',
+  },
+  'Directors Circle': {
+    prestige: 7,
+    nominations: 'Directors Circle nominations drop with the calm certainty of a call sheet',
+    ceremony: 'Directors Circle Awards ceremony',
+  },
+  'Writers Circle': {
+    prestige: 7,
+    nominations: 'Writers Circle nominees announced (subtext optional)',
+    ceremony: 'Writers Circle Awards — speeches threaten to become essays',
+  },
+  'Britannia Screen': {
+    prestige: 8,
+    nominations: 'Britannia Screen shortlists arrive with immaculate tailoring',
+    ceremony: 'Britannia Screen Awards ceremony',
   },
   'Beacon TV': {
     prestige: 8,
-    nominations: 'The Beacon TV Academy reveals nominees',
-    ceremony: "The Beacon TV Awards — television's biggest night",
+    nominations: 'The Beacon TV Academy reveals nominees (half the categories start with “Outstanding”)',
+    ceremony: "The Beacon TV Awards — television's biggest night (and the one with the most ad breaks)",
   },
 };
 

@@ -26,7 +26,13 @@ export function useAwardsEngine(
 
   // Film awards are clustered early in the year (legacy behavior). We still keep the
   // seasonal genre bias there, but nominations/ceremonies can occur later.
-  const isFilmAwardsSeasonWindow = gameState.currentWeek >= 1 && gameState.currentWeek <= 12;
+  const filmAwardsEndWeek = (() => {
+    const weeks = getAwardShowsForYear(gameState.currentYear)
+      .filter(s => s.medium === 'film')
+      .map(s => s.ceremonyWeek);
+    return weeks.length > 0 ? Math.max(...weeks) : 12;
+  })();
+  const isFilmAwardsSeasonWindow = gameState.currentWeek >= 1 && gameState.currentWeek <= filmAwardsEndWeek;
 
   const getEligibleProjects = (medium: 'film' | 'tv'): Project[] => {
     const matchesMedium = (p: Project) => (medium === 'tv' ? isTvProject(p) : isFilmProject(p));
@@ -164,6 +170,66 @@ export function useAwardsEngine(
             nominationWeek: 4,
             ceremonyWeek: 10,
             momentumBonus: 12,
+          } as const;
+        case 'Performers Guild':
+          return {
+            medium: 'film' as const,
+            prestige: 6,
+            categories: [
+              'Outstanding Ensemble',
+              'Best Actor',
+              'Best Actress',
+              'Best Supporting Actor',
+              'Best Supporting Actress',
+              'Outstanding Stunt Ensemble'
+            ],
+            nominationWeek: 5,
+            ceremonyWeek: 12,
+            momentumBonus: 6,
+          } as const;
+        case 'Directors Circle':
+          return {
+            medium: 'film' as const,
+            prestige: 7,
+            categories: [
+              'Directing Achievement',
+              'First-Time Feature Director',
+              'Best Director - Genre',
+              'Best Director - Drama'
+            ],
+            nominationWeek: 6,
+            ceremonyWeek: 13,
+            momentumBonus: 7,
+          } as const;
+        case 'Writers Circle':
+          return {
+            medium: 'film' as const,
+            prestige: 7,
+            categories: [
+              'Best Original Screenplay',
+              'Best Adapted Screenplay',
+              'Breakthrough Screenplay'
+            ],
+            nominationWeek: 7,
+            ceremonyWeek: 14,
+            momentumBonus: 7,
+          } as const;
+        case 'Britannia Screen':
+          return {
+            medium: 'film' as const,
+            prestige: 8,
+            categories: [
+              'Best Film',
+              'Best Director',
+              'Best Actor',
+              'Best Actress',
+              'Best Screenplay',
+              'Best Cinematography',
+              'Best Debut'
+            ],
+            nominationWeek: 8,
+            ceremonyWeek: 15,
+            momentumBonus: 8,
           } as const;
         default:
           return {

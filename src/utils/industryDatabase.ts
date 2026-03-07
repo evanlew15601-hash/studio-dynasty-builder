@@ -14,7 +14,7 @@ export interface StorageLike {
   removeItem?(key: string): void;
 }
 
-const DB_VERSION = 1 as const;
+const DB_VERSION = 2 as const;
 
 const keyForSlot = (slotId: string) => `studio-magnate-industry-db-${DB_VERSION}-${slotId}`;
 
@@ -179,7 +179,12 @@ function buildAwardRecords(gameState: GameState): AwardDbRecord[] {
 
   allProjects.forEach((p) => byProject.set(p.id, p));
 
-  const studioAwards: AwardDbRecord[] = (gameState.studio.awards || []).map((a) => {
+  const allStudioAwards = [
+    ...(gameState.studio.awards || []),
+    ...gameState.competitorStudios.flatMap((s) => s.awards || []),
+  ];
+
+  const studioAwards: AwardDbRecord[] = allStudioAwards.map((a) => {
     const project = byProject.get(a.projectId);
     const studioName = project ? getProjectStudioName(gameState, project) : 'Unknown Studio';
 
@@ -192,7 +197,7 @@ function buildAwardRecords(gameState: GameState): AwardDbRecord[] {
       prestige: a.prestige,
       studioName,
       projectId: a.projectId,
-      projectTitle: project?.title,
+      projectTitle: project?.title || a.projectTitle,
     };
   });
 
@@ -211,7 +216,7 @@ function buildAwardRecords(gameState: GameState): AwardDbRecord[] {
         prestige: award.prestige,
         studioName,
         projectId: award.projectId,
-        projectTitle: project?.title,
+        projectTitle: project?.title || award.projectTitle,
         talentId: talent.id,
         talentName: talent.name,
       };

@@ -463,14 +463,14 @@ const aiProjects = gameState.allReleases.filter((release): release is Project =>
             </div>
           </div>
           
-          {gameState.currentWeek >= 1 && gameState.currentWeek <= 12 && (
+          {filmCampaignWindowOpen && (
             <div className="mt-4 p-4 rounded-lg border border-primary/20 bg-primary/5">
               <div className="flex items-center space-x-2 mb-2">
                 <StarIcon className="text-primary" size={16} />
                 <span className="font-medium text-primary">Film Awards Genre Boost Active</span>
               </div>
               <div className="text-sm text-muted-foreground">
-                Drama gets +15%, biography +10%, historical +8% (film awards window)
+                Drama gets +15%, biography +10%, historical +8% (film awards season ≤ Week {filmAwardsEndWeek || 0})
               </div>
             </div>
           )}

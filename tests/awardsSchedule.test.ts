@@ -10,6 +10,21 @@ describe('AwardsSchedule', () => {
     expect(beaconTv?.medium).toBe('tv');
   });
 
+  it('includes additional guild-style film ceremonies', () => {
+    const shows = getAwardShowsForYear(2024);
+    const names = shows.map(s => s.name);
+
+    expect(names).toContain('Performers Guild');
+    expect(names).toContain('Directors Circle');
+    expect(names).toContain('Writers Circle');
+    expect(names).toContain('Britannia Screen');
+
+    expect(shows.find(s => s.name === 'Performers Guild')?.medium).toBe('film');
+    expect(shows.find(s => s.name === 'Directors Circle')?.medium).toBe('film');
+    expect(shows.find(s => s.name === 'Writers Circle')?.medium).toBe('film');
+    expect(shows.find(s => s.name === 'Britannia Screen')?.medium).toBe('film');
+  });
+
   it('defaults eligibility checks to film awards only', () => {
     // Week 20 should not qualify for any of the early-year film award shows.
     const filmEligible = getEarliestEligibleShowForRelease(20, 2024);
