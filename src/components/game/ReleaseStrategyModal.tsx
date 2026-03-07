@@ -221,7 +221,7 @@ export const ReleaseStrategyModal: React.FC<ReleaseStrategyModalProps> = ({
                 <div>
                   <p className="text-sm text-muted-foreground">Marketing Buzz</p>
                   <p className="font-semibold">
-                    {project.marketingData?.currentBuzz || 0}/150
+                    {project.marketingData?.currentBuzz || 0}/{isTV ? 250 : 150}
                   </p>
                 </div>
                 <div>
@@ -310,7 +310,7 @@ export const ReleaseStrategyModal: React.FC<ReleaseStrategyModalProps> = ({
                     <p className="text-sm text-muted-foreground">Current Buzz</p>
                     <p className="font-semibold flex items-center gap-1">
                       <TrendingUp className="h-4 w-4" />
-                      {project.marketingData.currentBuzz}/150
+                      {project.marketingData.currentBuzz}/{isTV ? 250 : 150}
                     </p>
                   </div>
                 </div>

@@ -1236,7 +1236,8 @@ export const StudioMagnateGame: React.FC<StudioMagnateGameProps> = ({
     const campaignBudget = updatedProject.marketingCampaign.budgetAllocated || 0;
     const weeklySpend = campaignBudget / updatedProject.marketingCampaign.duration;
     const weeklyBuzzGrowth = Math.max(2, Math.floor(weeklySpend / 500000)); // ~2-10 buzz per week
-    const newBuzz = Math.min(100, (updatedProject.marketingCampaign.buzz || 0) + weeklyBuzzGrowth);
+    const buzzCap = (updatedProject.type === 'series' || updatedProject.type === 'limited-series') ? 250 : 150;
+    const newBuzz = Math.min(buzzCap, (updatedProject.marketingCampaign.buzz || 0) + weeklyBuzzGrowth);
     const newBudgetSpent = (updatedProject.marketingCampaign.budgetSpent || 0) + weeklySpend;
 
     updatedProject = {
@@ -2185,7 +2186,9 @@ export const StudioMagnateGame: React.FC<StudioMagnateGameProps> = ({
         projects: updatedProjects,
         studio: enhancedStudio,
         allReleases: prunedReleases,
-        aiStudioProjects: prunedReleases.filter((r): r is Project => 'script' in r),
+        aiStudioProjects: prunedReleases.filter(
+          (r): r is Project => 'script' in r && !!(r as any).studioName && (r as any).studioName !== enhancedStudio.name
+        ),
         talent: updatedTalent,
         boxOfficeHistory: prunedBoxOfficeHistory,
         topFilmsHistory: prunedTopFilmsHistory,
