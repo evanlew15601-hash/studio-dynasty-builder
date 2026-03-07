@@ -43,19 +43,23 @@ function ensureDirector(chars: ScriptCharacter[]) {
 
 function mergeWithOverrides(existing: ScriptCharacter | undefined, incoming: ScriptCharacter): ScriptCharacter {
   if (!existing) return incoming;
+
   const overrides = existing.localOverrides || {};
+  const preferExisting = !existing.locked;
+  const locked = incoming.locked ?? existing.locked;
+
   return {
     ...incoming,
     id: existing.id || incoming.id,
-    name: overrides.name || incoming.name,
-    description: overrides.description || incoming.description,
-    traits: overrides.traits || incoming.traits,
-    ageRange: overrides.ageRange || incoming.ageRange,
-    requiredGender: overrides.requiredGender || incoming.requiredGender,
-    requiredRace: overrides.requiredRace || incoming.requiredRace,
-    requiredNationality: overrides.requiredNationality || incoming.requiredNationality,
+    name: overrides.name || (preferExisting ? existing.name : undefined) || incoming.name,
+    description: overrides.description || (preferExisting ? existing.description : undefined) || incoming.description,
+    traits: overrides.traits || (preferExisting ? existing.traits : undefined) || incoming.traits,
+    ageRange: overrides.ageRange || (preferExisting ? existing.ageRange : undefined) || incoming.ageRange,
+    requiredGender: overrides.requiredGender || (preferExisting ? existing.requiredGender : undefined) || incoming.requiredGender,
+    requiredRace: overrides.requiredRace || (preferExisting ? existing.requiredRace : undefined) || incoming.requiredRace,
+    requiredNationality: overrides.requiredNationality || (preferExisting ? existing.requiredNationality : undefined) || incoming.requiredNationality,
     assignedTalentId: existing.assignedTalentId,
-    locked: true,
+    locked,
     franchiseId: incoming.franchiseId,
     franchiseCharacterId: incoming.franchiseCharacterId,
     roleTemplateId: incoming.roleTemplateId,
@@ -133,8 +137,10 @@ export function importRolesForScript(script: Script, gameState: GameState): Scri
     if (!keyed.has(key)) keyed.set(key, c);
   }
 
-  // Merge with existing manual roles (unlocked)
-  const manual = existing.filter(c => !c.locked);
+  // Merge with existing manual roles (unlocked custom roles only).
+  // Imported roles may be unlocked (e.g. public-domain suggestions), but they still
+  // carry franchiseCharacterId / roleTemplateId and must not be duplicated.
+  const manual = existing.filter(c => !c.locked && !c.franchiseCharacterId && !c.roleTemplateId);
   const finalList = [...Array.from(keyed.values()), ...manual];
 
   // Guarantee at least one minor cameo for depth

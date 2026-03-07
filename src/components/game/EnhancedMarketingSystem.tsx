@@ -256,9 +256,12 @@ export const EnhancedMarketingSystem: React.FC<EnhancedMarketingSystemProps> = (
       };
     });
 
+    const hasScheduledRelease = !!project.scheduledReleaseWeek && !!project.scheduledReleaseYear;
+    const nextStatus = (hasScheduledRelease ? 'scheduled-for-release' : 'marketing') as any;
+
     updateProject(project.id, {
       currentPhase: 'marketing' as any,
-      status: 'marketing' as any,
+      status: nextStatus,
       phaseDuration: -1, // Manual control — campaign duration drives this
       marketingCampaign: {
         id: `campaign-${Date.now()}`,
@@ -268,7 +271,8 @@ export const EnhancedMarketingSystem: React.FC<EnhancedMarketingSystemProps> = (
         duration: duration,
         weeksRemaining: duration,
         activities: campaignActivities,
-        buzz: 0, // Will grow each week
+        // Preserve accumulated buzz if the player schedules additional marketing after planning a release.
+        buzz: project.marketingData?.currentBuzz || project.marketingCampaign?.buzz || 0,
         effectiveness: 50,
         targetAudience: ['general']
       },

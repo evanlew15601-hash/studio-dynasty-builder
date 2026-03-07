@@ -161,4 +161,48 @@ describe('importRolesForScript', () => {
     expect(hero?.assignedTalentId).toBe('talent-1');
     expect(hero?.locked).toBe(true);
   });
+
+  it('imports public-domain suggested roles idempotently (no duplicates on re-import)', () => {
+    vi.spyOn(Date, 'now').mockReturnValue(789);
+
+    const gameState = makeBaseGameState();
+    gameState.publicDomainIPs = [
+      {
+        id: 'pd-1',
+        name: 'Sherlock Holmes',
+        domainType: 'literature',
+        dateEnteredDomain: '1920-01-01',
+        coreElements: ['Detective', 'London'],
+        genreFlexibility: ['mystery'],
+        notableAdaptations: [],
+        reputationScore: 90,
+        cost: 0,
+        suggestedCharacters: [
+          {
+            id: 'detective',
+            name: 'Detective',
+            importance: 'lead',
+            description: 'Brilliant detective protagonist',
+            requiredType: 'actor',
+            ageRange: [25, 55],
+          },
+        ],
+      } as any,
+    ];
+
+    const script = makeBaseScript({
+      sourceType: 'public-domain',
+      publicDomainId: 'pd-1',
+      characters: [],
+    });
+
+    const imported = importRolesForScript(script, gameState);
+
+    expect(imported.some(c => c.franchiseCharacterId === 'detective' && c.importance === 'lead')).toBe(true);
+    expect(imported.filter(c => c.requiredType === 'director')).toHaveLength(1);
+    expect(imported.some(c => c.importance === 'minor')).toBe(true);
+
+    const importedAgain = importRolesForScript({ ...script, characters: imported }, gameState);
+    expect(importedAgain).toHaveLength(imported.length);
+  });
 });
