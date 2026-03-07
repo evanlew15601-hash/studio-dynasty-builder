@@ -72,8 +72,11 @@ export const MarketCompetition: React.FC = () => {
   const competitorReleases = useMemo<CompetitorRelease[]>(() => {
     if (!gameState) return [];
 
+    const playerProjectIds = new Set(gameState.projects.map(p => p.id));
+
     const releasesThisWeek = gameState.allReleases
       .filter((r): r is Project => 'script' in r)
+      .filter((r) => !playerProjectIds.has(r.id))
       .filter((r) =>
         r.status === 'released' &&
         r.releaseWeek === gameState.currentWeek &&

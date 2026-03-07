@@ -19,6 +19,7 @@ export const CompetitorMonitor: React.FC = () => {
   const competitorStudios = game?.competitorStudios ?? [];
   const currentWeek = game?.currentWeek ?? 0;
   const currentYear = game?.currentYear ?? 0;
+  const currentAbsWeek = (currentYear * 52) + currentWeek;
 
   useEffect(() => {
     // Refresh AI data
@@ -26,8 +27,9 @@ export const CompetitorMonitor: React.FC = () => {
     setCommitments(AIStudioManager.getAllCommitments());
   }, [currentWeek, currentYear]);
 
-  // Auto-run tests once on mount to surface issues early
+  // Auto-run tests once on mount to surface issues early (dev only)
   useEffect(() => {
+    if (!import.meta.env.DEV) return;
     const results = AIStudioIntegrationTests.runAllTests();
     setTestResults(results);
   }, []);
@@ -37,10 +39,9 @@ export const CompetitorMonitor: React.FC = () => {
   };
 
   const getActiveCommitments = () => {
-    return commitments.filter(c => 
-      c.year === currentYear && 
-      currentWeek >= c.startWeek && 
-      currentWeek <= c.endWeek
+    return commitments.filter(c =>
+      currentAbsWeek >= c.startAbsWeek &&
+      currentAbsWeek <= c.endAbsWeek
     );
   };
 
@@ -276,14 +277,14 @@ export const CompetitorMonitor: React.FC = () => {
                 <div className="space-y-3">
                   {getActiveCommitments().map(commitment => {
                     const film = aiFilms.find(f => f.id === commitment.filmId);
-                    const weeksRemaining = commitment.endWeek - currentWeek;
+                    const weeksRemaining = Math.max(0, commitment.endAbsWeek - currentAbsWeek);
                     
                     return (
                       <Card key={commitment.talentId + commitment.filmId} className="bg-card/50">
                         <CardContent className="p-3">
                           <div className="flex justify-between items-start mb-2">
                             <div>
-                              <h4 className="font-medium">{commitment.talentId}</h4>
+                              <h4 className="font-medium">{commitment.talentName}</h4>
                               <div className="text-sm text-muted-foreground">
                                 {commitment.role} in "{film?.title || 'Unknown Film'}"
                               </div>

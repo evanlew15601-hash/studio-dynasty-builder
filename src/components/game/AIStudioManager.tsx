@@ -42,20 +42,47 @@ export interface AIFilmProject {
 
 export interface TalentCommitment {
   talentId: string;
+  talentName: string;
   filmId: string;
   role: string;
   studio: string;
-  commitmentWeeks: number[];
+  commitmentWeeks: number[]; // Absolute week indices (year*52 + weekOfYear)
   weeklyPay: number;
-  startWeek: number;
-  endWeek: number;
-  year: number;
+  startWeek: number; // week-of-year (1-52)
+  endWeek: number; // week-of-year (1-52)
+  startYear: number;
+  endYear: number;
+  startAbsWeek: number;
+  endAbsWeek: number;
 }
 
 export class AIStudioManager {
   private static aiFilms: AIFilmProject[] = [];
   private static talentCommitments: TalentCommitment[] = [];
   private static nextFilmId = 1;
+
+  private static toAbsWeek(year: number, week: number): number {
+    return (year * 52) + week;
+  }
+
+  private static fromAbsWeek(absWeek: number): { year: number; week: number } {
+    const year = Math.floor((absWeek - 1) / 52);
+    const week = ((absWeek - 1) % 52) + 1;
+    return { year, week };
+  }
+
+  private static weeksOverlapAbs(start1: number, end1: number, start2: number, end2: number): boolean {
+    return Math.max(start1, start2) <= Math.min(end1, end2);
+  }
+
+  private static isTalentAvailableAbs(talentId: string, startAbsWeek: number, endAbsWeek: number): boolean {
+    const conflicts = this.talentCommitments.filter(commitment =>
+      commitment.talentId === talentId &&
+      this.weeksOverlapAbs(commitment.startAbsWeek, commitment.endAbsWeek, startAbsWeek, endAbsWeek)
+    );
+
+    return conflicts.length === 0;
+  }
 
   // **CHECKPOINT 1 TEST**: Verify basic film creation
   static createAIFilm(
@@ -103,48 +130,52 @@ export class AIStudioManager {
     film.timeline.expectedReleaseWeek = (currentWeek + totalProductionTime) % 52 || 52;
     film.timeline.expectedReleaseYear = currentYear + Math.floor((currentWeek + totalProductionTime) / 52);
 
+    // Persist early so casting can resolve the film by ID
+    this.aiFilms.push(film);
+
     // Cast multiple talent members with variety - directors, leads, and supporting
     const directorCandidates = availableTalent.filter(t => t.type === 'director');
     const actorCandidates = availableTalent.filter(t => t.type === 'actor');
-    
+
     const usedTalent = new Set<string>();
     const castingStartWeek = currentWeek + 1; // Start casting next week
     const totalCommitmentWeeks = film.timeline.productionWeeks + 4; // Production + buffer
-    
+
+    const tryCast = (talent: TalentPerson | undefined, role: string) => {
+      if (!talent) return;
+      const ok = this.castTalentInAIFilm(film.id, talent, role, castingStartWeek, totalCommitmentWeeks, currentYear);
+      if (ok) usedTalent.add(talent.id);
+    };
+
     // Cast director (mandatory)
     if (directorCandidates.length > 0) {
       const director = directorCandidates[Math.floor(Math.random() * directorCandidates.length)];
-      this.castTalentInAIFilm(film.id, director, 'Director', castingStartWeek, totalCommitmentWeeks, currentYear);
-      usedTalent.add(director.id);
+      tryCast(director, 'Director');
     }
-    
+
     // Cast lead actor (mandatory)
     const availableActors = actorCandidates.filter(a => !usedTalent.has(a.id));
     if (availableActors.length > 0) {
       const leadActor = availableActors[Math.floor(Math.random() * availableActors.length)];
-      this.castTalentInAIFilm(film.id, leadActor, 'Lead Actor', castingStartWeek, totalCommitmentWeeks, currentYear);
-      usedTalent.add(leadActor.id);
+      tryCast(leadActor, 'Lead Actor');
     }
 
     // Cast 2-4 additional supporting actors for variety
     const supportingCount = Math.min(4, Math.floor(Math.random() * 3) + 2); // 2-4 supporting actors
     const remainingActors = actorCandidates.filter(a => !usedTalent.has(a.id));
-    
+
     for (let i = 0; i < supportingCount && i < remainingActors.length; i++) {
       const supportingActor = remainingActors[Math.floor(Math.random() * remainingActors.length)];
       const supportingRoles = ['Supporting Actor', 'Supporting Actress', 'Character Actor', 'Ensemble Cast'];
       const role = supportingRoles[Math.floor(Math.random() * supportingRoles.length)];
-      
-      this.castTalentInAIFilm(film.id, supportingActor, role, castingStartWeek, totalCommitmentWeeks, currentYear);
-      usedTalent.add(supportingActor.id);
-      
+
+      tryCast(supportingActor, role);
+
       // Remove from available pool to ensure variety
       const actorIndex = remainingActors.indexOf(supportingActor);
       if (actorIndex > -1) remainingActors.splice(actorIndex, 1);
     }
 
-    this.aiFilms.push(film);
-    
     console.log(`AI STUDIO: ${studio.name} started "${film.title}" (${genre}, \u0024${(budget/1000000).toFixed(1)}M) with ${usedTalent.size} cast members`);
     
     return film;
@@ -181,28 +212,19 @@ export class AIStudioManager {
     endWeek: number, 
     year: number
   ): boolean {
-    const conflicts = this.talentCommitments.filter(commitment => 
-      commitment.talentId === talentId &&
-      commitment.year === year &&
-      this.weeksOverlap(commitment.startWeek, commitment.endWeek, startWeek, endWeek)
-    );
-    
-    return conflicts.length === 0;
+    const startAbsWeek = this.toAbsWeek(year, startWeek);
+    const endAbsWeek = this.toAbsWeek(year, endWeek);
+    return this.isTalentAvailableAbs(talentId, startAbsWeek, endAbsWeek);
   }
 
   // **CHECKPOINT 2**: Get talent's current commitment info
   static getTalentCommitment(talentId: string, currentWeek: number, currentYear: number): TalentCommitment | null {
+    const currentAbsWeek = this.toAbsWeek(currentYear, currentWeek);
     return this.talentCommitments.find(commitment =>
       commitment.talentId === talentId &&
-      commitment.year === currentYear &&
-      currentWeek >= commitment.startWeek &&
-      currentWeek <= commitment.endWeek
+      currentAbsWeek >= commitment.startAbsWeek &&
+      currentAbsWeek <= commitment.endAbsWeek
     ) || null;
-  }
-
-  // **CHECKPOINT 2**: Helper function for week overlap detection
-  private static weeksOverlap(start1: number, end1: number, start2: number, end2: number): boolean {
-    return Math.max(start1, start2) <= Math.min(end1, end2);
   }
 
   // **CHECKPOINT 2**: Cast talent in AI film
@@ -214,11 +236,15 @@ export class AIStudioManager {
     commitmentWeeks: number,
     year: number
   ): boolean {
-    const endWeek = startWeek + commitmentWeeks - 1;
-    
+    const startAbsWeek = this.toAbsWeek(year, startWeek);
+    const endAbsWeek = startAbsWeek + commitmentWeeks - 1;
+
+    const start = this.fromAbsWeek(startAbsWeek);
+    const end = this.fromAbsWeek(endAbsWeek);
+
     // Check availability
-    if (!this.isTalentAvailable(talent.id, startWeek, endWeek, year)) {
-      console.log(`CASTING: ${talent.name} not available for ${role} (weeks ${startWeek}-${endWeek})`);
+    if (!this.isTalentAvailableAbs(talent.id, startAbsWeek, endAbsWeek)) {
+      console.log(`CASTING: ${talent.name} not available for ${role} (Y${start.year}W${start.week}-Y${end.year}W${end.week})`);
       return false;
     }
 
@@ -233,37 +259,45 @@ export class AIStudioManager {
     const budgetMultiplier = film.budget.production / 20000000; // Scale with budget
     const weeklyPay = Math.floor(basePay * budgetMultiplier);
 
+    const commitmentAbsWeeks = Array.from({length: commitmentWeeks}, (_, i) => startAbsWeek + i);
+
     // Add to film cast
     film.cast.push({
       role,
       talentId: talent.id,
       talentName: talent.name,
       weeklyPay,
-      commitmentWeeks: Array.from({length: commitmentWeeks}, (_, i) => startWeek + i)
+      commitmentWeeks: commitmentAbsWeeks
     });
 
     // Add to talent commitments
     const commitment: TalentCommitment = {
       talentId: talent.id,
+      talentName: talent.name,
       filmId: filmId,
       role,
       studio: film.studioName,
-      commitmentWeeks: Array.from({length: commitmentWeeks}, (_, i) => startWeek + i),
+      commitmentWeeks: commitmentAbsWeeks,
       weeklyPay,
-      startWeek,
-      endWeek,
-      year
+      startWeek: start.week,
+      endWeek: end.week,
+      startYear: start.year,
+      endYear: end.year,
+      startAbsWeek,
+      endAbsWeek,
     };
 
     this.talentCommitments.push(commitment);
 
     console.log(`CASTING: ${talent.name} cast as ${role} in "${film.title}" (${commitmentWeeks} weeks, \u0024${weeklyPay}k/week)`);
-    
+
     return true;
   }
 
   // **CHECKPOINT 3**: Process AI films weekly - Increased frequency
   static processWeeklyAIFilms(currentWeek: number, currentYear: number): void {
+    const currentAbsWeek = this.toAbsWeek(currentYear, currentWeek);
+
     this.aiFilms.forEach(film => {
       const weeksInProduction = this.calculateWeeksInProduction(film, currentWeek, currentYear);
       
@@ -280,10 +314,11 @@ export class AIStudioManager {
       } else if (film.status === 'post-production' && weeksInProduction >= (2 + Math.floor(film.timeline.productionWeeks * 0.7) + 3)) {
         film.status = 'marketing';
         console.log(`AI FILM: "${film.title}" moved to marketing`);
-      } else if (film.status === 'marketing' && 
-                 currentWeek >= film.timeline.expectedReleaseWeek && 
-                 currentYear >= film.timeline.expectedReleaseYear) {
-        this.releaseAIFilm(film, currentWeek, currentYear);
+      } else if (film.status === 'marketing') {
+        const expectedAbsWeek = this.toAbsWeek(film.timeline.expectedReleaseYear, film.timeline.expectedReleaseWeek);
+        if (currentAbsWeek >= expectedAbsWeek) {
+          this.releaseAIFilm(film, currentWeek, currentYear);
+        }
       }
 
       // Record weekly expenses during production
@@ -301,7 +336,7 @@ export class AIStudioManager {
 
         // Pay talent weekly
         film.cast.forEach(castMember => {
-          if (castMember.commitmentWeeks.includes(currentWeek)) {
+          if (castMember.commitmentWeeks.includes(currentAbsWeek)) {
             FinancialEngine.recordTransaction(
               'expense',
               'talent',
@@ -317,10 +352,16 @@ export class AIStudioManager {
     });
 
     // Clean up expired commitments
-    this.talentCommitments = this.talentCommitments.filter(commitment =>
-      !(commitment.year < currentYear || 
-        (commitment.year === currentYear && commitment.endWeek < currentWeek))
-    );
+    this.talentCommitments = this.talentCommitments.filter(commitment => commitment.endAbsWeek >= currentAbsWeek);
+
+    // Prevent unbounded growth during long-running games (e.g., 40-year caps)
+    const MAX_FILM_AGE_WEEKS = 520; // keep ~10 years of AI history
+    const cutoffAbsWeek = currentAbsWeek - MAX_FILM_AGE_WEEKS;
+    this.aiFilms = this.aiFilms.filter(film => {
+      if (film.status !== 'released') return true;
+      const expectedAbsWeek = this.toAbsWeek(film.timeline.expectedReleaseYear, film.timeline.expectedReleaseWeek);
+      return expectedAbsWeek >= cutoffAbsWeek;
+    });
   }
 
   // **CHECKPOINT 3**: Release AI film and calculate performance
@@ -396,9 +437,9 @@ export class AIStudioManager {
   }
 
   private static calculateWeeksInProduction(film: AIFilmProject, currentWeek: number, currentYear: number): number {
-    if (currentYear < film.timeline.startYear) return 0;
-    if (currentYear > film.timeline.startYear) return 52 - film.timeline.startWeek + currentWeek;
-    return currentWeek - film.timeline.startWeek;
+    const startAbsWeek = this.toAbsWeek(film.timeline.startYear, film.timeline.startWeek);
+    const currentAbsWeek = this.toAbsWeek(currentYear, currentWeek);
+    return Math.max(0, currentAbsWeek - startAbsWeek);
   }
 
   // **TESTING METHODS**
