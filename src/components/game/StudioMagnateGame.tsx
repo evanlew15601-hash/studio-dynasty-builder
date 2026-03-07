@@ -2,7 +2,7 @@ import React, { useEffect, useRef, useState, Suspense } from 'react';
 import type { GameState, Studio, Project, Script, TalentPerson, Genre, MarketingStrategy, ReleaseStrategy, ProductionPhase, ScriptCharacter } from '@/types/game';
 import { useLoadingContext } from '@/contexts/LoadingContext';
 import { LoadingOverlay } from '@/components/ui/loading-overlay';
-import { LOADING_OPERATIONS, delay, simulateProgress } from '@/utils/loadingUtils';
+import { LOADING_OPERATIONS } from '@/utils/loadingUtils';
 import { FranchiseGenerator } from '@/data/FranchiseGenerator';
 import { PublicDomainGenerator } from '@/data/PublicDomainGenerator';
 import { ScriptDevelopment } from './ScriptDevelopment';
@@ -1747,14 +1747,11 @@ export const StudioMagnateGame: React.FC<StudioMagnateGameProps> = ({
     if (loadingEnabled) {
       // Start weekly processing with loading
       startOperation(LOADING_OPERATIONS.WEEKLY_PROCESSING.id, LOADING_OPERATIONS.WEEKLY_PROCESSING.name, LOADING_OPERATIONS.WEEKLY_PROCESSING.estimatedTime);
-
-      updateOperation(LOADING_OPERATIONS.WEEKLY_PROCESSING.id, 10, 'Advancing time...');
-      // Remove await since we'll handle this synchronously
-
-      updateOperation(LOADING_OPERATIONS.WEEKLY_PROCESSING.id, 50, 'Processing AI studios...');
+      updateOperation(LOADING_OPERATIONS.WEEKLY_PROCESSING.id, 5, 'Advancing time...');
     }
 
-    setGameState((prev) => {
+    const runTick = () => {
+      setGameState((prev) => {
       const tickStart = performance.now();
       const startedAtIso = new Date().toISOString();
 
@@ -2192,6 +2189,15 @@ export const StudioMagnateGame: React.FC<StudioMagnateGameProps> = ({
 
       return newState;
     });
+    };
+
+    // Defer the heavy tick work by one frame when showing the loading UI.
+    // This allows the popup to render before the main-thread work begins.
+    if (loadingEnabled) {
+      requestAnimationFrame(runTick);
+    } else {
+      runTick();
+    }
   };
 
   const handleAdvanceWeeks = (weeks: number) => {
@@ -2251,7 +2257,7 @@ export const StudioMagnateGame: React.FC<StudioMagnateGameProps> = ({
       }
     };
 
-    step();
+    requestAnimationFrame(step);
   };
 
   const handleAdvanceToDate = (targetWeek: number, targetYear: number) => {
@@ -2395,6 +2401,7 @@ export const StudioMagnateGame: React.FC<StudioMagnateGameProps> = ({
               <Button 
                 size="sm" 
                 onClick={() => handleAdvanceWeek()}
+                disabled={loading.isLoading}
                 className="btn-studio shadow-golden hover:animate-glow transition-all duration-300"
               >
                 <BudgetIcon className="mr-2" size={16} />

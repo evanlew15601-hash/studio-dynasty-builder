@@ -3,6 +3,7 @@ import { Progress } from '@/components/ui/progress';
 import { Card, CardContent } from '@/components/ui/card';
 import { Loader2, Clock, Cpu } from 'lucide-react';
 import { LoadingState } from '@/hooks/useLoading';
+import { LOADING_OPERATIONS } from '@/utils/loadingUtils';
 
 interface LoadingOverlayProps {
   loading: LoadingState;
@@ -18,43 +19,67 @@ export const LoadingOverlay: React.FC<LoadingOverlayProps> = ({ loading, classNa
     return `~${Math.round(seconds / 60)}m`;
   };
 
-  return (
-    <div className={`fixed inset-0 bg-black/50 backdrop-blur-sm z-50 flex items-center justify-center ${className}`}>
-      <Card className="w-96 mx-4">
-        <CardContent className="p-6">
-          <div className="flex items-center space-x-3 mb-4">
-            <Loader2 className="h-6 w-6 animate-spin text-primary" />
-            <div className="flex-1">
-              <h3 className="font-semibold text-lg">{loading.currentOperation}</h3>
-              {loading.operationDetails && (
-                <p className="text-sm text-muted-foreground">{loading.operationDetails}</p>
-              )}
-            </div>
-            {loading.estimatedTime && (
-              <div className="flex items-center text-sm text-muted-foreground">
-                <Clock className="h-4 w-4 mr-1" />
-                {formatEstimatedTime(loading.estimatedTime)}
-              </div>
+  const isWeeklyTick = loading.operationId === LOADING_OPERATIONS.WEEKLY_PROCESSING.id;
+
+  const wrapperClass = isWeeklyTick
+    ? `fixed bottom-4 right-4 z-50 pointer-events-none ${className}`
+    : `fixed inset-0 bg-black/50 backdrop-blur-sm z-50 flex items-center justify-center ${className}`;
+
+  const cardClass = isWeeklyTick ? 'w-[22rem] max-w-[calc(100vw-2rem)] shadow-xl' : 'w-96 mx-4';
+
+  const footerCopy = (() => {
+    if (loading.operationId === LOADING_OPERATIONS.GAME_INIT.id) {
+      return 'Building the initial game world: studios, talent, franchises, public-domain IPs, and seeding AI releases.';
+    }
+
+    if (isWeeklyTick) {
+      return 'Advancing the simulation: projects, AI studios, finances, media, and reputation.';
+    }
+
+    return null;
+  })();
+
+  const content = (
+    <Card className={`${cardClass} ${isWeeklyTick ? 'pointer-events-auto' : ''}`}>
+      <CardContent className="p-6">
+        <div className="flex items-center space-x-3 mb-4">
+          <Loader2 className="h-6 w-6 animate-spin text-primary" />
+          <div className="flex-1">
+            <h3 className="font-semibold text-lg">{loading.currentOperation}</h3>
+            {loading.operationDetails && (
+              <p className="text-sm text-muted-foreground">{loading.operationDetails}</p>
             )}
           </div>
-          
-          <div className="space-y-2">
-            <Progress value={loading.progress} className="h-2" />
-            <div className="flex justify-between text-xs text-muted-foreground">
-              <span>{Math.round(loading.progress)}% complete</span>
-              <span className="flex items-center">
-                <Cpu className="h-3 w-3 mr-1" />
-                Processing...
-              </span>
+          {loading.estimatedTime && (
+            <div className="flex items-center text-sm text-muted-foreground">
+              <Clock className="h-4 w-4 mr-1" />
+              {formatEstimatedTime(loading.estimatedTime)}
             </div>
-            <p className="text-xs text-muted-foreground mt-2">
-              Building the initial game world: studios, talent, franchises, public-domain IPs, and seeding AI releases. This prepares a living industry before you begin.
-            </p>
+          )}
+        </div>
+
+        <div className="space-y-2">
+          <Progress value={loading.progress} className="h-2" />
+          <div className="flex justify-between text-xs text-muted-foreground">
+            <span>{Math.round(loading.progress)}% complete</span>
+            <span className="flex items-center">
+              <Cpu className="h-3 w-3 mr-1" />
+              Processing...
+            </span>
           </div>
-        </CardContent>
-      </Card>
-    </div>
+          {footerCopy && (
+            <p className="text-xs text-muted-foreground mt-2">{footerCopy}</p>
+          )}
+        </div>
+      </CardContent>
+    </Card>
   );
+
+  if (isWeeklyTick) {
+    return <div className={wrapperClass}>{content}</div>;
+  }
+
+  return <div className={wrapperClass}>{content}</div>;
 };
 
 export const LoadingSpinner: React.FC<{ size?: number; className?: string }> = ({ 
