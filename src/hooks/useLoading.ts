@@ -4,6 +4,7 @@ export interface LoadingState {
   isLoading: boolean;
   progress: number; // 0-100
   currentOperation: string;
+  operationId?: string;
   operationDetails?: string;
   estimatedTime?: number; // in seconds
 }
@@ -21,6 +22,7 @@ export const useLoading = () => {
     isLoading: false,
     progress: 0,
     currentOperation: '',
+    operationId: undefined,
   });
   
   const operationsRef = useRef<Map<string, LoadingOperation>>(new Map());
@@ -39,6 +41,7 @@ export const useLoading = () => {
       isLoading: true,
       progress: prev.progress,
       currentOperation: name,
+      operationId: id,
       operationDetails: undefined,
       estimatedTime,
     }));
@@ -73,6 +76,7 @@ export const useLoading = () => {
         isLoading: false,
         progress: 100,
         currentOperation: '',
+        operationId: undefined,
       });
     } else {
       const totalProgress = remainingOperations.reduce((sum, op) => sum + op.progress, 0);
@@ -83,6 +87,7 @@ export const useLoading = () => {
         ...prev,
         progress: avgProgress,
         currentOperation: currentOp.name,
+        operationId: currentOp.id,
         operationDetails: currentOp.details,
       }));
     }
@@ -98,6 +103,7 @@ export const useLoading = () => {
       isLoading: false,
       progress: 0,
       currentOperation: '',
+      operationId: undefined,
     });
   }, []);
 
