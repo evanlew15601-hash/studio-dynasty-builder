@@ -41,8 +41,11 @@ export const EpisodeTrackingSystem: React.FC = () => {
 
   // Initialize season data for a project
   const initializeSeasonData = (project: Project, episodeCount?: number): SeasonData => {
-    const numEpisodes = episodeCount || (project.script?.estimatedRuntime ? 
-      Math.ceil(project.script.estimatedRuntime / 45) : 10);
+    const numEpisodes =
+      episodeCount ||
+      project.episodeCount ||
+      project.seasons?.[0]?.totalEpisodes ||
+      (project.type === 'limited-series' ? 8 : 13);
     
     const episodes: EpisodeData[] = Array.from({ length: numEpisodes }, (_, i) => ({
       episodeNumber: i + 1,

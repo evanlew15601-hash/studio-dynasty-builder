@@ -239,6 +239,7 @@ export const TelevisionStreamingSystem: React.FC<TelevisionStreamingProps> = ({
     const tvProject: Partial<Project> = {
       title: concept.title,
       type: concept.format === 'series' ? 'series' : 'limited-series',
+      episodeCount: concept.episodes,
       script: {
         id: `script-${concept.id}`,
         title: concept.title,

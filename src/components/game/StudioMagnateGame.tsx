@@ -2857,6 +2857,7 @@ export const StudioMagnateGame: React.FC<StudioMagnateGameProps> = ({
 
               handleProjectCreate(script, {
                 type: 'series',
+                episodeCount: episodes,
                 budget: {
                   total: seasonTotalBudget,
                   allocated: {

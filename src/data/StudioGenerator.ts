@@ -493,6 +493,18 @@ export class StudioGenerator {
     // Reset counter
     this.studioReleaseSchedules.set(studioProfile.name, 0);
 
+    // Some studios will release TV shows (stored in allReleases for market/world simulation).
+    const tvChance =
+      studioProfile.riskTolerance === 'aggressive'
+        ? 0.22
+        : studioProfile.riskTolerance === 'moderate'
+          ? 0.16
+          : 0.10;
+
+    if (Math.random() < tvChance) {
+      return this.generateStudioTvRelease(studioProfile, currentWeek, currentYear);
+    }
+
     // Select genre based on studio specialties
     const genre = studioProfile.specialties[Math.floor(Math.random() * studioProfile.specialties.length)];
     const script = this.generateScript(genre, studioProfile);
@@ -587,6 +599,129 @@ export class StudioGenerator {
     };
 
     return project;
+  }
+
+  private generateStudioTvRelease(studioProfile: StudioProfile, currentWeek: number, currentYear: number): Project {
+    const genre = studioProfile.specialties[Math.floor(Math.random() * studioProfile.specialties.length)];
+
+    const episodeCount = 8 + Math.floor(Math.random() * 6); // 8-13
+
+    const perEpisodeBudgetBase = studioProfile.budget * (0.05 + Math.random() * 0.05);
+    const perEpisodeBudget = Math.floor(perEpisodeBudgetBase);
+    const seasonBudget = perEpisodeBudget * episodeCount;
+
+    const title = `${this.generateFilmTitle(genre, studioProfile.name)}: The Series`;
+
+    const script: Script = {
+      id: `script-${Date.now()}-${Math.random().toString(36).substr(2, 9)}`,
+      title,
+      genre,
+      logline: this.generateLogline(genre, title),
+      writer: this.generateWriterName(),
+      pages: 55 + Math.floor(Math.random() * 20),
+      quality: 35 + Math.floor(Math.random() * 65),
+      // For TV, script budget represents per-episode budget.
+      budget: perEpisodeBudget,
+      developmentStage: 'final',
+      themes: this.generateThemes(genre),
+      targetAudience: this.selectTargetAudience(genre),
+      estimatedRuntime: 45,
+      characteristics: {
+        ...this.generateCharacteristics(genre, studioProfile),
+        pacing: 'episodic'
+      }
+    };
+
+    const criticsScore = this.generateCriticsScore(genre, studioProfile.reputation);
+    const audienceScore = this.generateAudienceScore(genre, studioProfile.reputation);
+
+    const viewsFirstWeek = Math.max(100_000, Math.floor(seasonBudget / 20));
+    const tailMultiplier = 6 + Math.random() * 10;
+    const totalViews = Math.floor(viewsFirstWeek * tailMultiplier);
+
+    return {
+      id: `ai-tv-${Date.now()}-${Math.random().toString(36).substr(2, 9)}`,
+      title,
+      script,
+      type: Math.random() < 0.75 ? 'series' : 'limited-series',
+      currentPhase: 'distribution',
+      status: 'released',
+      phaseDuration: 0,
+      studioName: studioProfile.name,
+      contractedTalent: [],
+      developmentProgress: {
+        scriptCompletion: 100,
+        budgetApproval: 100,
+        talentAttached: 100,
+        locationSecured: 100,
+        completionThreshold: 100,
+        issues: []
+      },
+      episodeCount,
+      budget: {
+        total: seasonBudget,
+        allocated: {
+          aboveTheLine: seasonBudget * 0.3,
+          belowTheLine: seasonBudget * 0.4,
+          postProduction: seasonBudget * 0.15,
+          marketing: seasonBudget * 0.1,
+          distribution: seasonBudget * 0.03,
+          contingency: seasonBudget * 0.02
+        },
+        spent: {
+          aboveTheLine: seasonBudget * 0.3,
+          belowTheLine: seasonBudget * 0.4,
+          postProduction: seasonBudget * 0.15,
+          marketing: seasonBudget * 0.1,
+          distribution: seasonBudget * 0.03,
+          contingency: seasonBudget * 0.02
+        },
+        overages: {
+          aboveTheLine: 0,
+          belowTheLine: 0,
+          postProduction: 0,
+          marketing: 0,
+          distribution: 0,
+          contingency: 0
+        }
+      },
+      cast: [],
+      crew: [],
+      timeline: {
+        preProduction: { start: new Date(), end: new Date() },
+        principalPhotography: { start: new Date(), end: new Date() },
+        postProduction: { start: new Date(), end: new Date() },
+        release: new Date(),
+        milestones: []
+      },
+      locations: [],
+      distributionStrategy: {
+        primary: {
+          platform: 'Streaming',
+          type: 'streaming',
+          revenue: { type: 'subscription-share', studioShare: 60 }
+        },
+        international: [],
+        windows: [],
+        marketingBudget: seasonBudget * 0.1
+      },
+      metrics: {
+        weeksSinceRelease: 0,
+        criticsScore,
+        audienceScore,
+        streaming: {
+          viewsFirstWeek,
+          totalViews,
+          completionRate: Math.min(95, Math.max(35, Math.floor(55 + (criticsScore + audienceScore) * 0.2))),
+          audienceShare: Math.min(40, Math.max(3, Math.floor(4 + (audienceScore - 50) * 0.2))),
+          watchTimeHours: Math.max(1000, Math.floor((totalViews * 45) / 60)),
+          subscriberGrowth: Math.floor(viewsFirstWeek * 0.02)
+        }
+      },
+      releaseWeek: currentWeek,
+      releaseYear: currentYear,
+      releaseFormat: Math.random() < 0.6 ? 'weekly' : 'binge'
+    };
   }
 
   getAllStudios(): Studio[] {

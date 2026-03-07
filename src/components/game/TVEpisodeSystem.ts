@@ -15,16 +15,17 @@ function pseudoRandom01(seed: string): number {
 }
 
 function inferEpisodeCount(project: Project): number {
-  const maybeCount = (project as any).episodeCount;
-  if (typeof maybeCount === 'number' && Number.isFinite(maybeCount) && maybeCount > 0) {
-    return Math.floor(maybeCount);
+  const explicit = project.episodeCount;
+  if (typeof explicit === 'number' && Number.isFinite(explicit) && explicit > 0) {
+    return Math.floor(explicit);
   }
 
-  if (project.script?.estimatedRuntime) {
-    return Math.max(3, Math.ceil(project.script.estimatedRuntime / 45));
+  const seasonCount = project.seasons?.[0]?.totalEpisodes;
+  if (typeof seasonCount === 'number' && Number.isFinite(seasonCount) && seasonCount > 0) {
+    return Math.floor(seasonCount);
   }
 
-  return 10;
+  return project.type === 'limited-series' ? 8 : 13;
 }
 
 function createSeasonData(project: Project, seasonNumber: number): SeasonData {

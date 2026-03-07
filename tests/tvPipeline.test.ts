@@ -150,4 +150,14 @@ describe('TV pipeline guardrails', () => {
     expect(ep.weeklyViews[1]).toBe(850); // 1000 * (1 - 0.15)
     expect(ep.cumulativeViews).toBe(1850);
   });
+
+  it('TVEpisodeSystem.ensureSeason uses project episodeCount when provided', () => {
+    const project = makeBaseTvProject({
+      seasons: [],
+      episodeCount: 13,
+    });
+
+    const updated = TVEpisodeSystem.ensureSeason(project);
+    expect(updated.seasons?.[0]?.totalEpisodes).toBe(13);
+  });
 });
