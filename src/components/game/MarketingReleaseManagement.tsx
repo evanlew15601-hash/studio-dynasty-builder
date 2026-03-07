@@ -53,9 +53,9 @@ export const MarketingReleaseManagement: React.FC<MarketingReleaseManagementProp
       p.status !== 'released' &&
       matchesTypeFilter(p) &&
       (
-        p.currentPhase === 'marketing' ||
+        (p.currentPhase as string) === 'marketing' ||
         p.status === 'ready-for-marketing' ||
-        (p.status === 'scheduled-for-release' && p.currentPhase === 'marketing')
+        (p.status === 'scheduled-for-release' && (p.currentPhase as string) === 'marketing')
       )
     );
   };
