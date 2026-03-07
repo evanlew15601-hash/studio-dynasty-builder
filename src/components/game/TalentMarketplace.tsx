@@ -236,11 +236,10 @@ export const TalentMarketplace: React.FC<TalentMarketplaceProps> = ({
               <div>
                 <div className="font-semibold">Active Commitments</div>
                 <div className="text-muted-foreground">
-                  {commitments.filter(c => 
-                    c.year === currentYear && 
-                    currentWeek >= c.startWeek && 
-                    currentWeek <= c.endWeek
-                  ).length}
+                  {commitments.filter(c => {
+                    const absWeek = currentYear * 52 + currentWeek;
+                    return absWeek >= c.startAbsWeek && absWeek <= c.endAbsWeek;
+                  }).length}
                 </div>
               </div>
               <div>
