@@ -60,17 +60,6 @@ This project is built with:
 - shadcn-ui
 - Tailwind CSS
 
-## Open source & licensing
-
-- Check dependency licenses against the allowlist:
-  ```sh
-  npm run licenses:check
-  ```
-- Generate an expanded third-party notices file:
-  ```sh
-  npm run licenses:generate
-  ```
-
 ## How can I deploy this project?
 
 Simply open [Lovable](https://lovable.dev/projects/7e87531d-d46f-4b62-9b65-548132b79b80) and click on Share -> Publish.
@@ -85,7 +74,7 @@ Read more here: [Setting up a custom domain](https://docs.lovable.dev/tips-trick
 
 ## Open source & compliance
 
-This project only uses dependencies that are free to use in commercial/monetized products.
+This project is licensed under Apache-2.0 (see `LICENSE`) and only uses dependencies that are free to use in commercial/monetized products.
 
 ### License allowlist check
 
