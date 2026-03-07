@@ -33,6 +33,26 @@ const SHOW_META: Record<string, { prestige: number; nominations: string; ceremon
     nominations: 'Crown Awards nominations announced',
     ceremony: "The Crown Awards — the industry's biggest night",
   },
+  'Performers Guild': {
+    prestige: 6,
+    nominations: 'The Performers Guild posts nominees (and insists nobody campaigned)',
+    ceremony: 'Performers Guild Awards — the loudest applause of the season',
+  },
+  'Directors Circle': {
+    prestige: 7,
+    nominations: 'Directors Circle nominations drop with the calm certainty of a call sheet',
+    ceremony: 'Directors Circle Awards ceremony',
+  },
+  'Writers Circle': {
+    prestige: 7,
+    nominations: 'Writers Circle nominees announced (subtext optional)',
+    ceremony: 'Writers Circle Awards — speeches threaten to become essays',
+  },
+  'Britannia Screen': {
+    prestige: 8,
+    nominations: 'Britannia Screen shortlists arrive with immaculate tailoring',
+    ceremony: 'Britannia Screen Awards ceremony',
+  },
   'Beacon TV': {
     prestige: 8,
     nominations: 'The Beacon TV Academy reveals nominees',

@@ -123,6 +123,28 @@ const STUDIO_PROFILES: StudioProfile[] = [
     riskTolerance: 'aggressive',
     releaseFrequency: 9,
     brandIdentity: 'Unique voice in genre filmmaking'
+  },
+  {
+    name: 'Reboot Quarry Pictures',
+    personality: 'Cheerfully shameless IP revivalists',
+    budget: 130000000,
+    reputation: 62,
+    specialties: ['superhero', 'action', 'fantasy'],
+    businessTendency: 'Reboots, requels, and “fresh takes” on familiar brands',
+    riskTolerance: 'moderate',
+    releaseFrequency: 3,
+    brandIdentity: 'New logo, same movie, louder trailer'
+  },
+  {
+    name: 'Saffron Kettle Cinema',
+    personality: 'Serious posters, unserious sense of humor',
+    budget: 25000000,
+    reputation: 79,
+    specialties: ['drama', 'comedy', 'romance'],
+    businessTendency: 'Festival plays and sharp scripts with occasional accidental meme hits',
+    riskTolerance: 'moderate',
+    releaseFrequency: 4,
+    brandIdentity: 'Human-scale stories with one perfect needle-drop'
   }
 ];
 
