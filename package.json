@@ -15,6 +15,7 @@
     "test:e2e:ui": "playwright test --ui",
     "licenses:check": "node scripts/check-licenses.mjs",
     "licenses:generate": "node scripts/generate-third-party-notices.mjs",
+    "sbom:generate": "node scripts/generate-sbom.mjs",
     "tauri": "tauri",
     "tauri:dev": "tauri dev",
     "tauri:build": "tauri build"

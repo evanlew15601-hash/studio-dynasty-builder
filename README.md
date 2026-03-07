@@ -82,3 +82,27 @@ Yes, you can!
 To connect a domain, navigate to Project > Settings > Domains and click Connect Domain.
 
 Read more here: [Setting up a custom domain](https://docs.lovable.dev/tips-tricks/custom-domain#step-by-step-guide)
+
+## Open source & compliance
+
+This project only uses dependencies that are free to use in commercial/monetized products.
+
+### License allowlist check
+
+```sh
+npm run licenses:check
+```
+
+### Regenerate third-party notices (in-app Open Source tab)
+
+```sh
+npm run licenses:generate
+```
+
+### Generate an SBOM (CycloneDX)
+
+This produces `sbom/sbom.cdx.json` (not committed; uploaded as a CI artifact).
+
+```sh
+npm run sbom:generate
+```
