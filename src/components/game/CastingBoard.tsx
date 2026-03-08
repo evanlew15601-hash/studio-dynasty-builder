@@ -319,6 +319,7 @@ export const CastingBoard: React.FC<CastingBoardProps> = ({
                       {talent.type}
                     </Badge>
                   </div>
+                </div>
                 <div className="text-right">
                   <div className="flex items-center space-x-1 text-sm text-muted-foreground">
                     <ReputationIcon size={14} />
