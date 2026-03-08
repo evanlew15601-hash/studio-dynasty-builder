@@ -90,7 +90,7 @@ const StudioEncyclopedia: React.FC<{ studios: Studio[] }> = ({ studios }) => {
                   <div>
                     <div className="font-medium">{s.name}</div>
                     <div className="text-xs text-muted-foreground">
-                      Rep: {Math.round(s.reputation || 0)}/100 • Budget: {formatMoney(s.budget || 0)}
+                      Rep: {Math.round(s.reputation || 0)}/100 • Est. {s.founded || '—'} • Budget: {formatMoney(s.budget || 0)}
                     </div>
                   </div>
                   {s.riskTolerance && (

@@ -1,9 +1,9 @@
 // AI Studio System - Generates competing studios and their autonomous film releases
 import { Studio, Genre, Project, Script } from '@/types/game';
-import { stableInt } from '@/utils/stableRandom';
 
 interface StudioProfile {
   name: string;
+  founded: number;
   personality: string;
   budget: number;
   reputation: number;
@@ -17,6 +17,7 @@ interface StudioProfile {
 const STUDIO_PROFILES: StudioProfile[] = [
   {
     name: 'Crimson Peak Entertainment',
+    founded: 1987,
     personality: 'Edgy and provocative storytelling (with a marketing department that owns seventeen smoke machines)',
     budget: 45000000,
     reputation: 72,
@@ -28,6 +29,7 @@ const STUDIO_PROFILES: StudioProfile[] = [
   },
   {
     name: 'Golden Horizon Studios',
+    founded: 1959,
     personality: 'Nostalgic and heartwarming content (engineered to make your aunt cry on a plane)',
     budget: 75000000,
     reputation: 81,
@@ -39,6 +41,7 @@ const STUDIO_PROFILES: StudioProfile[] = [
   },
   {
     name: 'Velocity Pictures',
+    founded: 1978,
     personality: 'High-octane thrill rides (plot optional, momentum mandatory)',
     budget: 120000000,
     reputation: 68,
@@ -50,6 +53,7 @@ const STUDIO_PROFILES: StudioProfile[] = [
   },
   {
     name: 'Moonbeam Independent',
+    founded: 1993,
     personality: 'Artistic and character-driven (two minutes of silence counts as a scene)',
     budget: 15000000,
     reputation: 85,
@@ -61,6 +65,7 @@ const STUDIO_PROFILES: StudioProfile[] = [
   },
   {
     name: 'Apex Entertainment Group',
+    founded: 1968,
     personality: 'Commercial powerhouse (the cinematic universe has its own org chart)',
     budget: 200000000,
     reputation: 76,
@@ -72,6 +77,7 @@ const STUDIO_PROFILES: StudioProfile[] = [
   },
   {
     name: 'Laughing Matter Productions',
+    founded: 1981,
     personality: 'Comedy-focused entertainment (tested until it is safely hilarious to everyone)',
     budget: 35000000,
     reputation: 64,
@@ -83,6 +89,7 @@ const STUDIO_PROFILES: StudioProfile[] = [
   },
   {
     name: 'Heritage Films',
+    founded: 1932,
     personality: 'Period pieces and literary adaptations (corsets, candles, and one devastating monologue)',
     budget: 60000000,
     reputation: 89,
@@ -94,6 +101,7 @@ const STUDIO_PROFILES: StudioProfile[] = [
   },
   {
     name: 'Neon Circuit Studios',
+    founded: 1989,
     personality: 'Tech-savvy and futuristic (believes every narrative problem can be solved with more holograms)',
     budget: 80000000,
     reputation: 71,
@@ -105,6 +113,7 @@ const STUDIO_PROFILES: StudioProfile[] = [
   },
   {
     name: 'Wildwood Pictures',
+    founded: 1971,
     personality: 'Outdoor adventures and sports (a drone shot for every emotion)',
     budget: 40000000,
     reputation: 66,
@@ -116,6 +125,7 @@ const STUDIO_PROFILES: StudioProfile[] = [
   },
   {
     name: 'Midnight Society Films',
+    founded: 1990,
     personality: 'Cult and genre filmmaking (will absolutely release the four-hour director’s cut, unasked)',
     budget: 25000000,
     reputation: 78,
@@ -127,6 +137,7 @@ const STUDIO_PROFILES: StudioProfile[] = [
   },
   {
     name: 'Reboot Quarry Pictures',
+    founded: 1984,
     personality: 'Cheerfully shameless IP revivalists',
     budget: 130000000,
     reputation: 62,
@@ -138,6 +149,7 @@ const STUDIO_PROFILES: StudioProfile[] = [
   },
   {
     name: 'Saffron Kettle Cinema',
+    founded: 1995,
     personality: 'Serious posters, unserious sense of humor',
     budget: 25000000,
     reputation: 79,
@@ -757,7 +769,7 @@ export class StudioGenerator {
       name: profile.name,
       reputation: profile.reputation,
       budget: profile.budget,
-      founded: stableInt(`studio-founded|${profile.name}`, 1920, 2005),
+      founded: profile.founded,
       specialties: profile.specialties,
       debt: 0,
       lastProjectWeek: 0,

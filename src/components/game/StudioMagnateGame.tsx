@@ -100,6 +100,7 @@ import { useGameStore } from '@/game/store';
 import { saveGameAsync } from '@/utils/saveLoad';
 import { syncAndPersistIndustryDatabase } from '@/utils/industryDatabase';
 import { applyPatchesByKey, getPatchesForEntity } from '@/utils/modding';
+import { ensureCompetitorStudiosLore } from '@/utils/competitorStudiosPatches';
 import { getModBundle } from '@/utils/moddingStore';
 import { DebugControlPanel } from './DebugControlPanel';
 import { IndustryDatabasePanel } from './IndustryDatabasePanel';
@@ -605,6 +606,15 @@ export const StudioMagnateGame: React.FC<StudioMagnateGameProps> = ({
   }, [storeGameState, initialGameState, loadGameToStore, initGame, bootstrapGameState]);
 
   const gameState = storeGameState ?? bootstrapGameState;
+
+  // Patch competitor studio lore (including founded year) into the live store so Encyclopedia reflects it.
+  useEffect(() => {
+    if (!storeGameState) return;
+    const patched = ensureCompetitorStudiosLore(storeGameState);
+    if (patched !== storeGameState) {
+      setGameState(patched);
+    }
+  }, [setGameState, storeGameState]);
 
   // Market dynamics hooks  
   const talentMarket = useTalentMarket(gameState.talent, gameState.currentWeek);

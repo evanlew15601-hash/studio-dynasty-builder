@@ -55,7 +55,11 @@ const ALL_GENRES: Genre[] = [
   'mystery',
   'superhero',
   'family',
-  'sports',</old_code><new_code>export const IndustryDatabasePanel: React.FC<IndustryDatabasePanelProps> = ({ slotId }) => {
+  'sports',
+  'historical',
+];
+
+export const IndustryDatabasePanel: React.FC<IndustryDatabasePanelProps> = ({ slotId }) => {
   const gameState = useGameStore((s) => s.game);
   const openTalentProfile = useUiStore((s) => s.openTalentProfile);
   const { toast } = useToast();
@@ -371,7 +375,6 @@ const ALL_GENRES: Genre[] = [
         <TableRow>
           <TableHead>Rank</TableHead>
           <TableHead>Name</TableHead>
-          <TableHead>Profile</TableHead>
           <TableHead className="text-right">{rankLabel}</TableHead>
           <TableHead className="text-right">Market Value</TableHead>
           <TableHead className="text-right">Awards</TableHead>
@@ -386,23 +389,24 @@ const ALL_GENRES: Genre[] = [
               <Badge variant="secondary">#{idx + 1}</Badge>
             </TableCell>
             <TableCell className="font-medium">
-              <button
-                type="button"
-                className="text-left hover:underline"
-                onClick={() => openTalentProfile(t.id)}
-              >
-                {t.name}
-              </button>
-            </TableCell>
-            <TableCell>
-              <Button
-                type="button"
-                size="sm"
-                variant="secondary"
-                onClick={() => openTalentProfile(t.id)}
-              >
-                View
-              </Button>
+              <div className="flex items-center justify-between gap-2">
+                <button
+                  type="button"
+                  className="text-left hover:underline"
+                  onClick={() => openTalentProfile(t.id)}
+                >
+                  {t.name}
+                </button>
+                <Button
+                  type="button"
+                  variant="link"
+                  size="sm"
+                  className="h-auto p-0"
+                  onClick={() => openTalentProfile(t.id)}
+                >
+                  Profile
+                </Button>
+              </div>
             </TableCell>
             <TableCell className="text-right">{rankLabel === 'Fame' ? (t.fame ?? '—') : (t.reputation ?? '—')}</TableCell>
             <TableCell className="text-right">{t.marketValue ? formatCurrency(t.marketValue) : '—'}</TableCell>
