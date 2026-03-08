@@ -152,14 +152,13 @@ export class CalendarManager {
     const cooldown = isWithinAwardCooldown(targetWeek, targetYear, medium);
     if (cooldown.within) {
       const recommendedAbs = (targetYear * 52) + (cooldown.show!.ceremonyWeek + cooldown.show!.cooldownWeeks);
-      const recommendedYear = Math.floor(recommendedAbs / 52);
-      const recommendedWeek = recommendedAbs % 52 || 52;
+      const recommended = absToWeekYear(recommendedAbs);
 
       return {
         canRelease: false,
         reason: `Release falls within ${cooldown.show!.name} cooldown period (weeks ${cooldown.show!.ceremonyWeek}-${cooldown.show!.ceremonyWeek + cooldown.show!.cooldownWeeks - 1})`,
-        recommendedWeek,
-        recommendedYear,
+        recommendedWeek: recommended.week,
+        recommendedYear: recommended.year,
       };
     }
 

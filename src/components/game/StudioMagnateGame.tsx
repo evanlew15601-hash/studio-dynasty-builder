@@ -1106,7 +1106,7 @@ export const StudioMagnateGame: React.FC<StudioMagnateGameProps> = ({
         const currentAbsoluteWeek = (timeState.currentYear * 52) + timeState.currentWeek;
         const releaseAbsoluteWeek = (effectiveReleaseYear * 52) + effectiveReleaseWeek;
         
-          if (currentAbsoluteWeek === releaseAbsoluteWeek) {
+          if (currentAbsoluteWeek >= releaseAbsoluteWeek) {
             if (diagnosticsEnabled) {
               console.log(`RELEASE DATE ARRIVED: ${project.title}`);
               console.log(`    PRE-RELEASE: boxOfficeTotal = ${project.metrics?.boxOfficeTotal || 0}`);
