@@ -1,6 +1,7 @@
 // Role-Based Casting System - Assign specific actors to specific roles
 import React, { useState } from 'react';
 import { Project, TalentPerson, ScriptCharacter } from '@/types/game';
+import { useUiStore } from '@/game/uiStore';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
@@ -37,6 +38,7 @@ export const CastingRoleManager: React.FC<CastingRoleManagerProps> = ({
   studioBudget
 }) => {
   const { toast } = useToast();
+  const openTalentProfile = useUiStore((s) => s.openTalentProfile);
   const [castingDialogOpen, setCastingDialogOpen] = useState(false);
   const [selectedRole, setSelectedRole] = useState<RoleCast | null>(null);
   const [talentFilter, setTalentFilter] = useState('');
@@ -405,13 +407,26 @@ export const CastingRoleManager: React.FC<CastingRoleManagerProps> = ({
                         </div>
                       </div>
                     </div>
-                    <Button
-                      onClick={() => handleCastTalent(talent)}
-                      disabled={!canAfford}
-                      variant={canAfford ? "default" : "outline"}
-                    >
-                      {canAfford ? "Cast" : "Can't Afford"}
-                    </Button>
+                    <div className="flex items-center gap-2">
+                      <Button
+                        variant="link"
+                        size="sm"
+                        className="h-auto p-0"
+                        onClick={() => {
+                          setCastingDialogOpen(false);
+                          openTalentProfile(talent.id);
+                        }}
+                      >
+                        Profile
+                      </Button>
+                      <Button
+                        onClick={() => handleCastTalent(talent)}
+                        disabled={!canAfford}
+                        variant={canAfford ? "default" : "outline"}
+                      >
+                        {canAfford ? "Cast" : "Can't Afford"}
+                      </Button>
+                    </div>
                   </div>
                 );
               })

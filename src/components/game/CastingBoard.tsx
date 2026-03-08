@@ -1,6 +1,7 @@
 import React, { useState } from 'react';
 import { Project, TalentPerson, ProductionRole, ScriptCharacter } from '@/types/game';
 import { useGameStore } from '@/game/store';
+import { useUiStore } from '@/game/uiStore';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
@@ -26,6 +27,7 @@ export const CastingBoard: React.FC<CastingBoardProps> = ({
   const gameState = useGameStore((s) => s.game);
   const replaceProject = useGameStore((s) => s.replaceProject);
   const updateTalent = useGameStore((s) => s.updateTalent);
+  const openTalentProfile = useUiStore((s) => s.openTalentProfile);
   const { toast } = useToast();
   const [filters, setFilters] = useState<CastingFilters>({
     talentType: 'all',
@@ -259,7 +261,13 @@ export const CastingBoard: React.FC<CastingBoardProps> = ({
                             <AvatarFallback>{talent.name.split(' ').map(n => n[0]).join('')}</AvatarFallback>
                           </Avatar>
                           <div className="flex-1">
-                            <p className="font-medium">{talent.name}</p>
+                            <button
+                              type="button"
+                              className="text-left font-medium hover:underline"
+                              onClick={() => openTalentProfile(talent.id)}
+                            >
+                              {talent.name}
+                            </button>
                             <p className="text-sm text-muted-foreground">{role.role}</p>
                           </div>
                           <div className="text-right">
@@ -289,12 +297,28 @@ export const CastingBoard: React.FC<CastingBoardProps> = ({
                     </AvatarFallback>
                   </Avatar>
                   <div>
-                    <h3 className="font-bold text-lg">{talent.name}</h3>
+                    <div className="flex items-center gap-2">
+                      <button
+                        type="button"
+                        className="font-bold text-lg hover:underline"
+                        onClick={() => openTalentProfile(talent.id)}
+                      >
+                        {talent.name}
+                      </button>
+                      <Button
+                        type="button"
+                        variant="link"
+                        size="sm"
+                        className="h-auto p-0"
+                        onClick={() => openTalentProfile(talent.id)}
+                      >
+                        Profile
+                      </Button>
+                    </div>
                     <Badge variant="outline" className="capitalize">
                       {talent.type}
                     </Badge>
                   </div>
-                </div>
                 <div className="text-right">
                   <div className="flex items-center space-x-1 text-sm text-muted-foreground">
                     <ReputationIcon size={14} />

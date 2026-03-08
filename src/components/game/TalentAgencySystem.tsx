@@ -1,4 +1,5 @@
 import React, { useState } from 'react';
+import { useUiStore } from '@/game/uiStore';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
@@ -24,6 +25,7 @@ export const TalentAgencySystem: React.FC<TalentAgencySystemProps> = ({
   onNegotiateDeal,
   onCreateHold
 }) => {
+  const openTalentProfile = useUiStore((s) => s.openTalentProfile);
   const [selectedAgent, setSelectedAgent] = useState<TalentAgent | null>(null);
   const [selectedTalent, setSelectedTalent] = useState<TalentPerson | null>(null);
   const [dealType, setDealType] = useState<'standard' | 'priority' | 'exclusive'>('standard');
@@ -150,11 +152,25 @@ export const TalentAgencySystem: React.FC<TalentAgencySystemProps> = ({
                     <CardContent className="p-3">
                       <div className="flex justify-between items-start">
                         <div>
-                          <h4 className="font-medium">{person.name}</h4>
+                          <div className="flex items-center gap-2">
+                            <h4 className="font-medium">{person.name}</h4>
+                            <Button
+                              type="button"
+                              variant="link"
+                              size="sm"
+                              className="h-auto p-0"
+                              onClick={(e) => {
+                                e.stopPropagation();
+                                openTalentProfile(person.id);
+                              }}
+                            >
+                              Profile
+                            </Button>
+                          </div>
                           <p className="text-sm text-muted-foreground capitalize">{person.type}</p>
-                            <Badge variant="outline" className="text-xs mt-1">
-                              Rep: {Math.round(person.reputation)}/100
-                            </Badge>
+                          <Badge variant="outline" className="text-xs mt-1">
+                            Rep: {Math.round(person.reputation)}/100
+                          </Badge>
                         </div>
                         <div className="text-right text-sm">
                           <p className="font-medium">
@@ -174,7 +190,7 @@ export const TalentAgencySystem: React.FC<TalentAgencySystemProps> = ({
           {selectedAgent && selectedTalent && (
             <div className="mt-6 p-4 border rounded-lg bg-muted/50">
               <h3 className="text-lg font-semibold mb-3">Negotiate Deal</h3>
-              <div className="flex gap-4 mb-4">
+              <div className="flex flex-wrap gap-4 mb-4">
                 <Button
                   variant={dealType === 'standard' ? 'default' : 'outline'}
                   onClick={() => setDealType('standard')}
@@ -192,6 +208,14 @@ export const TalentAgencySystem: React.FC<TalentAgencySystemProps> = ({
                   onClick={() => setDealType('exclusive')}
                 >
                   Exclusive Contract
+                </Button>
+                <Button
+                  type="button"
+                  variant="link"
+                  className="h-auto px-0"
+                  onClick={() => openTalentProfile(selectedTalent.id)}
+                >
+                  View Profile
                 </Button>
               </div>
 

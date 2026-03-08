@@ -6,6 +6,10 @@ export interface UiStoreState {
 
   selectedProjectId: string | null;
   setSelectedProjectId: (projectId: string | null) => void;
+
+  talentProfileId: string | null;
+  openTalentProfile: (talentId: string) => void;
+  closeTalentProfile: () => void;
 }
 
 export const useUiStore = create<UiStoreState>((set) => ({
@@ -14,4 +18,8 @@ export const useUiStore = create<UiStoreState>((set) => ({
 
   selectedProjectId: null,
   setSelectedProjectId: (projectId) => set({ selectedProjectId: projectId }),
+
+  talentProfileId: null,
+  openTalentProfile: (talentId) => set({ talentProfileId: talentId }),
+  closeTalentProfile: () => set({ talentProfileId: null }),
 }));
