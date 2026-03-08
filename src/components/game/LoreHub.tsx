@@ -86,25 +86,22 @@ const FranchiseLore: React.FC = () => {
           {franchises.map((f) => (
             <Card key={f.id}>
               <CardHeader className="pb-2">
-                <CardTitle className="text-base">{f.name}</CardTitle>
+                <CardTitle className="text-base">{f.title}</CardTitle>
               </CardHeader>
               <CardContent className="space-y-2">
                 {f.description && <p className="text-sm text-muted-foreground">{f.description}</p>}
                 <div className="flex flex-wrap gap-2">
-                  {f.genre && <Badge variant="outline" className="capitalize">{f.genre}</Badge>}
-                  {f.popularity != null && <Badge variant="secondary">Popularity: {Math.round(f.popularity)}</Badge>}
+                  {f.genre && f.genre.map((g) => (
+                    <Badge key={g} variant="outline" className="capitalize">{g}</Badge>
+                  ))}
+                  {f.culturalWeight != null && <Badge variant="secondary">Cultural Weight: {Math.round(f.culturalWeight)}</Badge>}
+                  {f.status && <Badge variant="outline" className="capitalize">{f.status}</Badge>}
                 </div>
-                {f.characters && f.characters.length > 0 && (
-                  <div>
-                    <h4 className="text-sm font-semibold mb-1">Characters</h4>
-                    <div className="flex flex-wrap gap-1">
-                      {f.characters.slice(0, 8).map((c) => (
-                        <Badge key={c.id || c.name} variant="outline" className="text-xs">{c.name}</Badge>
-                      ))}
-                      {f.characters.length > 8 && (
-                        <Badge variant="outline" className="text-xs">+{f.characters.length - 8} more</Badge>
-                      )}
-                    </div>
+                {f.franchiseTags && f.franchiseTags.length > 0 && (
+                  <div className="flex flex-wrap gap-1">
+                    {f.franchiseTags.slice(0, 8).map((tag) => (
+                      <Badge key={tag} variant="outline" className="text-xs">{tag}</Badge>
+                    ))}
                   </div>
                 )}
               </CardContent>
@@ -122,15 +119,17 @@ const FranchiseLore: React.FC = () => {
           {publicDomain.map((ip) => (
             <Card key={ip.id}>
               <CardHeader className="pb-2">
-                <CardTitle className="text-base">{ip.name || ip.title}</CardTitle>
+                <CardTitle className="text-base">{ip.name}</CardTitle>
               </CardHeader>
               <CardContent className="space-y-2">
-                {(ip.description || ip.synopsis) && (
-                  <p className="text-sm text-muted-foreground">{ip.description || ip.synopsis}</p>
+                {ip.description && (
+                  <p className="text-sm text-muted-foreground">{ip.description}</p>
                 )}
                 <div className="flex flex-wrap gap-2">
-                  {ip.genre && <Badge variant="outline" className="capitalize">{ip.genre}</Badge>}
-                  {ip.era && <Badge variant="secondary">{ip.era}</Badge>}
+                  {ip.genreFlexibility && ip.genreFlexibility.map((g) => (
+                    <Badge key={g} variant="outline" className="capitalize">{g}</Badge>
+                  ))}
+                  <Badge variant="secondary" className="capitalize">{ip.domainType}</Badge>
                 </div>
               </CardContent>
             </Card>
