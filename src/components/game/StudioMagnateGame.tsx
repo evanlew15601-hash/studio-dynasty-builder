@@ -3148,10 +3148,11 @@ export const StudioMagnateGame: React.FC<StudioMagnateGameProps> = ({
           </div>
         )}
         
-{currentPhase === 'loans' && (
-  <EnhancedLoanSystem />
-)}
+{currentPhase === 'lore' && (
+          <LoreHub />
+        )}
       </div>
+      
       
       {/* First Week Box Office Modal */}
       {firstWeekModalProject && (
