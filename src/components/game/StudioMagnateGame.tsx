@@ -103,6 +103,7 @@ import { applyPatchesByKey, getPatchesForEntity } from '@/utils/modding';
 import { getModBundle } from '@/utils/moddingStore';
 import { DebugControlPanel } from './DebugControlPanel';
 import { IndustryDatabasePanel } from './IndustryDatabasePanel';
+import { LoreHub } from './LoreHub';
 import { StudioIconRenderer as StudioIconRendererLazy } from './StudioIconCustomizer';
 
 // Ensure AI films have credited talent so awards/filmographies have real people to reference
@@ -2568,7 +2569,7 @@ export const StudioMagnateGame: React.FC<StudioMagnateGameProps> = ({
                 <Button
                   variant="ghost"
                   className={`rounded-none border-b-2 px-3 py-3 text-sm font-medium transition-all duration-300 border-transparent hover:border-primary/40 hover:bg-primary/5 btn-ghost-premium ${
-                     ['franchise', 'media', 'talent', 'database', 'awards', 'reputation'].includes(currentPhase)
+                     ['franchise', 'media', 'talent', 'database', 'awards', 'reputation', 'lore'].includes(currentPhase)
                        ? 'border-primary bg-gradient-to-t from-primary/20 to-primary/10 text-primary shadow-lg' 
                        : ''
                    }`}
@@ -2610,11 +2611,15 @@ export const StudioMagnateGame: React.FC<StudioMagnateGameProps> = ({
                   Awards & Recognition
                 </DropdownMenuItem>
                 <DropdownMenuItem onClick={() => handlePhaseChange('reputation')}>
-                  <ReputationIcon className="mr-2" size={16} />
-                  Reputation Management
-                </DropdownMenuItem>
-              </DropdownMenuContent>
-            </DropdownMenu>
+                   <ReputationIcon className="mr-2" size={16} />
+                   Reputation Management
+                 </DropdownMenuItem>
+                 <DropdownMenuItem onClick={() => handlePhaseChange('lore')}>
+                   <ClapperboardIcon className="mr-2" size={16} />
+                   Lore & Encyclopedia
+                 </DropdownMenuItem>
+               </DropdownMenuContent>
+             </DropdownMenu>
           </div>
         </div>
       </div>
@@ -3146,7 +3151,12 @@ export const StudioMagnateGame: React.FC<StudioMagnateGameProps> = ({
 {currentPhase === 'loans' && (
   <EnhancedLoanSystem />
 )}
+
+{currentPhase === 'lore' && (
+          <LoreHub />
+        )}
       </div>
+      
       
       {/* First Week Box Office Modal */}
       {firstWeekModalProject && (
