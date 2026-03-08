@@ -10,10 +10,18 @@ export class TVRatingsSystem {
     // If streaming metrics already exist for this released project, avoid resetting them
     // when additional episodes are dropped.
     if (project.metrics?.streaming && project.status === 'released') {
-      if (project.metrics?.criticsScore && project.metrics?.audienceScore) return project;
+      if (project.metrics?.criticsScore && project.metrics?.audienceScore) {
+        return {
+          ...project,
+          currentPhase: 'distribution' as any,
+          phaseDuration: -1,
+        };
+      }
 
       return {
         ...project,
+        currentPhase: 'distribution' as any,
+        phaseDuration: -1,
         metrics: {
           ...project.metrics,
           criticsScore,
@@ -36,6 +44,8 @@ export class TVRatingsSystem {
     return {
       ...baseProject,
       status: 'released' as const,
+      currentPhase: 'distribution' as any,
+      phaseDuration: -1,
       releaseWeek,
       releaseYear,
       metrics: {

@@ -126,6 +126,17 @@ export class SystemIntegration {
               message = `Scheduled project "${project.title}" missing scheduled release date`;
             }
           });
+
+          // Guardrail: if a project has a planned release date, it must be marked as scheduled.
+          // Otherwise it can get stuck and also fail to reserve its slot in the calendar.
+          gameState.projects.forEach(project => {
+            const hasPlannedDate = !!project.scheduledReleaseWeek && !!project.scheduledReleaseYear;
+            const isReleasedOrArchived = project.status === 'released' || project.status === 'archived';
+            if (hasPlannedDate && !isReleasedOrArchived && project.status !== 'scheduled-for-release') {
+              pipelineHealthy = false;
+              message = `Project "${project.title}" has a planned release date but status is "${project.status}"`;
+            }
+          });
           
           return {
             passed: pipelineHealthy,

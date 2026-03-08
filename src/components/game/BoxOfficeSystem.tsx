@@ -54,6 +54,8 @@ export class BoxOfficeSystem {
     const result = {
       ...projectWithScores,
       status: 'released' as any,
+      currentPhase: 'distribution' as any,
+      phaseDuration: -1,
       releaseWeek,
       releaseYear,
       metrics: {

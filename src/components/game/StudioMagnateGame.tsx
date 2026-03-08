@@ -9,6 +9,7 @@ import { ScriptDevelopment } from './ScriptDevelopment';
 import { CastingBoard } from './CastingBoard';
 import { ProductionManagement } from './ProductionManagement';
 import { PostTheatricalManagement } from './PostTheatricalManagement';
+import { PostTheatricalSystem } from './PostTheatricalSystem';
 import { StudioDashboard } from './StudioDashboard';
 import { FinancialDashboard } from './FinancialDashboard';
 import { IntegrationMonitor } from './IntegrationMonitor';
@@ -1102,7 +1103,9 @@ export const StudioMagnateGame: React.FC<StudioMagnateGameProps> = ({
       // scheduledReleaseWeek/Year is the canonical planned release date
       const effectiveReleaseWeek = project.scheduledReleaseWeek || project.releaseWeek;
       const effectiveReleaseYear = project.scheduledReleaseYear || project.releaseYear;
-      if (project.status === 'scheduled-for-release' && effectiveReleaseWeek && effectiveReleaseYear) {
+      const hasPlannedReleaseDate = !!project.scheduledReleaseWeek && !!project.scheduledReleaseYear;
+      const isScheduledLike = project.status === 'scheduled-for-release' || (project.currentPhase === 'release' && hasPlannedReleaseDate);
+      if (isScheduledLike && effectiveReleaseWeek && effectiveReleaseYear) {
         const currentAbsoluteWeek = (timeState.currentYear * 52) + timeState.currentWeek;
         const releaseAbsoluteWeek = (effectiveReleaseYear * 52) + effectiveReleaseWeek;
         
@@ -1131,7 +1134,9 @@ export const StudioMagnateGame: React.FC<StudioMagnateGameProps> = ({
               // TV: do not initialize ratings until the first episode actually airs.
               updatedProject = {
                 ...updatedProject,
-                status: 'released' as const
+                status: 'released' as const,
+                currentPhase: 'distribution' as const,
+                phaseDuration: -1,
               };
 
               // Ensure season exists and perform the premiere drop if due (weekly/batch/binge).
@@ -1139,7 +1144,11 @@ export const StudioMagnateGame: React.FC<StudioMagnateGameProps> = ({
               updatedProject = TVEpisodeSystem.autoReleaseEpisodesIfDue(updatedProject, timeState.currentWeek, timeState.currentYear);
               updatedProject = TVEpisodeSystem.processWeeklyEpisodeDecay(updatedProject, timeState.currentWeek, timeState.currentYear);
             } else {
-              updatedProject = BoxOfficeSystem.initializeRelease(updatedProject, resolvedReleaseWeek, resolvedReleaseYear);
+              updatedProject = {
+                ...BoxOfficeSystem.initializeRelease(updatedProject, resolvedReleaseWeek, resolvedReleaseYear),
+                currentPhase: 'distribution' as const,
+                phaseDuration: -1,
+              };
 
               openingWeekRevenue = updatedProject.metrics?.boxOfficeTotal || 0;
               if (openingWeekRevenue > 0) {
@@ -1286,80 +1295,22 @@ export const StudioMagnateGame: React.FC<StudioMagnateGameProps> = ({
         if (diagnosticsEnabled) {
           console.log(`    PROCESSING POST-THEATRICAL: ${updatedProject.title}`);
         }
-        
-        const POST_THEATRICAL_DURATIONS: Record<string, number> = {
-          streaming: 26,
-          digital: 104,
-          physical: 52,
-          'tv-licensing': 156,
-        };
 
-        const updatedReleases = updatedProject.postTheatricalReleases.map(release => {
-          if (release.status === 'ended') return release;
+        const postTheatrical = PostTheatricalSystem.processWeeklyRevenue(
+          updatedProject,
+          timeState.currentWeek,
+          timeState.currentYear,
+          diagnosticsEnabled
+        );
 
-          const durationWeeks = release.durationWeeks || POST_THEATRICAL_DURATIONS[release.platform] || 52;
+        updatedProject = postTheatrical.project;
 
-          if (release.status === 'planned') {
-            // Start the release
-            if (diagnosticsEnabled) {
-              console.log(`      STARTING: ${release.platform} release`);
-            }
-
-            const weeksActive = 1;
-            const revenue = (release.revenue || 0) + Math.round(release.weeklyRevenue || 0);
-
-            return {
-              ...release,
-              status: (weeksActive >= durationWeeks * 0.8 ? 'declining' : 'active') as any,
-              weeksActive,
-              revenue
-            };
-          }
-
-          if (release.status === 'active' || release.status === 'declining') {
-            // Continue generating revenue
-            const newWeeksActive = (release.weeksActive || 0) + 1;
-            const newRevenue = (release.revenue || 0) + Math.round(release.weeklyRevenue || 0);
-
-            const ended = newWeeksActive >= durationWeeks;
-            const nextStatus = ended
-              ? 'ended'
-              : (newWeeksActive >= durationWeeks * 0.8 ? 'declining' : 'active');
-
-            if (diagnosticsEnabled) {
-              console.log(`      ${release.platform}: Week ${newWeeksActive}/${durationWeeks}, +${Math.round(release.weeklyRevenue || 0).toLocaleString()}, Total: ${newRevenue.toLocaleString()} (${nextStatus})`);
-            }
-
-            return {
-              ...release,
-              weeksActive: ended ? durationWeeks : newWeeksActive,
-              revenue: newRevenue,
-              status: nextStatus as any
-            };
-          }
-
-          return release;
-        });
-
-        // Calculate total weekly revenue earned this tick (including releases that end this week).
-        const weeklyPostTheatricalRevenue = updatedProject.postTheatricalReleases
-          .filter(r => r.status === 'planned' || r.status === 'active' || r.status === 'declining')
-          .reduce((sum, r) => sum + (r.weeklyRevenue || 0), 0);
-
-        const weeklyPostTheatricalRevenueRounded = Math.round(weeklyPostTheatricalRevenue);
-
-        if (weeklyPostTheatricalRevenueRounded > 0) {
+        if (postTheatrical.revenueDelta > 0) {
           if (diagnosticsEnabled) {
-            console.log(`      TOTAL WEEKLY POST-THEATRICAL: +${weeklyPostTheatricalRevenueRounded.toLocaleString()}`);
+            console.log(`      TOTAL WEEKLY POST-THEATRICAL: +${postTheatrical.revenueDelta.toLocaleString()}`);
           }
-
-          studioRevenueDelta += weeklyPostTheatricalRevenueRounded;
+          studioRevenueDelta += postTheatrical.revenueDelta;
         }
-
-        updatedProject = {
-          ...updatedProject,
-          postTheatricalReleases: updatedReleases
-        };
       }
 
       // CRITICAL: Only process phase timers for specific phases (skip if phaseDuration is -1, which means manual control)

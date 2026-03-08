@@ -35,7 +35,12 @@ export class CalendarManager {
         // Only consider dates "reserved" if the project is explicitly scheduled.
         // This avoids stale scheduledReleaseWeek/Year values blocking other releases
         // while a project is still in marketing or otherwise unscheduled.
-        const isScheduled = project.status === 'scheduled-for-release';
+        //
+        // Also treat projects that are in the release phase with an explicit planned date
+        // as reserved to prevent accidental double-booking (old saves / edge cases).
+        const isScheduled =
+          project.status === 'scheduled-for-release' ||
+          (project.currentPhase === 'release' && !!project.scheduledReleaseWeek && !!project.scheduledReleaseYear);
         const week = isScheduled ? project.scheduledReleaseWeek : undefined;
         const year = isScheduled ? project.scheduledReleaseYear : undefined;
 
