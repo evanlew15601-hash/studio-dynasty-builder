@@ -13,6 +13,7 @@ import { Button } from '@/components/ui/button';
 import { useToast } from '@/hooks/use-toast';
 import { ModsPanel } from './ModsPanel';
 import { useGameStore } from '@/game/store';
+import { useUiStore } from '@/game/uiStore';
 
 interface IndustryDatabasePanelProps {
   slotId?: string;
@@ -54,12 +55,9 @@ const ALL_GENRES: Genre[] = [
   'mystery',
   'superhero',
   'family',
-  'sports',
-  'historical',
-];
-
-export const IndustryDatabasePanel: React.FC<IndustryDatabasePanelProps> = ({ slotId }) => {
+  'sports',</old_code><new_code>export const IndustryDatabasePanel: React.FC<IndustryDatabasePanelProps> = ({ slotId }) => {
   const gameState = useGameStore((s) => s.game);
+  const openTalentProfile = useUiStore((s) => s.openTalentProfile);
   const { toast } = useToast();
   const slot = slotId || 'slot1';
 
@@ -373,6 +371,7 @@ export const IndustryDatabasePanel: React.FC<IndustryDatabasePanelProps> = ({ sl
         <TableRow>
           <TableHead>Rank</TableHead>
           <TableHead>Name</TableHead>
+          <TableHead>Profile</TableHead>
           <TableHead className="text-right">{rankLabel}</TableHead>
           <TableHead className="text-right">Market Value</TableHead>
           <TableHead className="text-right">Awards</TableHead>
@@ -386,7 +385,25 @@ export const IndustryDatabasePanel: React.FC<IndustryDatabasePanelProps> = ({ sl
             <TableCell>
               <Badge variant="secondary">#{idx + 1}</Badge>
             </TableCell>
-            <TableCell className="font-medium">{t.name}</TableCell>
+            <TableCell className="font-medium">
+              <button
+                type="button"
+                className="text-left hover:underline"
+                onClick={() => openTalentProfile(t.id)}
+              >
+                {t.name}
+              </button>
+            </TableCell>
+            <TableCell>
+              <Button
+                type="button"
+                size="sm"
+                variant="secondary"
+                onClick={() => openTalentProfile(t.id)}
+              >
+                View
+              </Button>
+            </TableCell>
             <TableCell className="text-right">{rankLabel === 'Fame' ? (t.fame ?? '—') : (t.reputation ?? '—')}</TableCell>
             <TableCell className="text-right">{t.marketValue ? formatCurrency(t.marketValue) : '—'}</TableCell>
             <TableCell className="text-right">{t.awardsCount ?? 0}</TableCell>

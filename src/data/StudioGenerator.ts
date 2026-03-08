@@ -1,5 +1,6 @@
 // AI Studio System - Generates competing studios and their autonomous film releases
 import { Studio, Genre, Project, Script } from '@/types/game';
+import { stableInt } from '@/utils/stableRandom';
 
 interface StudioProfile {
   name: string;
@@ -756,7 +757,7 @@ export class StudioGenerator {
       name: profile.name,
       reputation: profile.reputation,
       budget: profile.budget,
-      founded: 2010 + Math.floor(Math.random() * 10),
+      founded: stableInt(`studio-founded|${profile.name}`, 1920, 2005),
       specialties: profile.specialties,
       debt: 0,
       lastProjectWeek: 0,
