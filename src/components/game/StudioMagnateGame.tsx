@@ -3148,6 +3148,10 @@ export const StudioMagnateGame: React.FC<StudioMagnateGameProps> = ({
           </div>
         )}
         
+{currentPhase === 'loans' && (
+  <EnhancedLoanSystem />
+)}
+
 {currentPhase === 'lore' && (
           <LoreHub />
         )}
