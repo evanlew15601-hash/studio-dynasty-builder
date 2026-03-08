@@ -103,6 +103,7 @@ import { applyPatchesByKey, getPatchesForEntity } from '@/utils/modding';
 import { getModBundle } from '@/utils/moddingStore';
 import { DebugControlPanel } from './DebugControlPanel';
 import { IndustryDatabasePanel } from './IndustryDatabasePanel';
+import { LoreHub } from './LoreHub';
 import { StudioIconRenderer as StudioIconRendererLazy } from './StudioIconCustomizer';
 
 // Ensure AI films have credited talent so awards/filmographies have real people to reference
