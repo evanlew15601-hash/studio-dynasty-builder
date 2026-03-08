@@ -2569,7 +2569,7 @@ export const StudioMagnateGame: React.FC<StudioMagnateGameProps> = ({
                 <Button
                   variant="ghost"
                   className={`rounded-none border-b-2 px-3 py-3 text-sm font-medium transition-all duration-300 border-transparent hover:border-primary/40 hover:bg-primary/5 btn-ghost-premium ${
-                     ['franchise', 'media', 'talent', 'database', 'awards', 'reputation'].includes(currentPhase)
+                     ['franchise', 'media', 'talent', 'database', 'awards', 'reputation', 'lore'].includes(currentPhase)
                        ? 'border-primary bg-gradient-to-t from-primary/20 to-primary/10 text-primary shadow-lg' 
                        : ''
                    }`}
