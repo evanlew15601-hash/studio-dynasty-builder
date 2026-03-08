@@ -2611,11 +2611,15 @@ export const StudioMagnateGame: React.FC<StudioMagnateGameProps> = ({
                   Awards & Recognition
                 </DropdownMenuItem>
                 <DropdownMenuItem onClick={() => handlePhaseChange('reputation')}>
-                  <ReputationIcon className="mr-2" size={16} />
-                  Reputation Management
-                </DropdownMenuItem>
-              </DropdownMenuContent>
-            </DropdownMenu>
+                   <ReputationIcon className="mr-2" size={16} />
+                   Reputation Management
+                 </DropdownMenuItem>
+                 <DropdownMenuItem onClick={() => handlePhaseChange('lore')}>
+                   <ClapperboardIcon className="mr-2" size={16} />
+                   Lore & Encyclopedia
+                 </DropdownMenuItem>
+               </DropdownMenuContent>
+             </DropdownMenu>
           </div>
         </div>
       </div>
