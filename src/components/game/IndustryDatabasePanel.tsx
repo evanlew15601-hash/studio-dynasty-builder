@@ -111,7 +111,7 @@ export const IndustryDatabasePanel: React.FC<IndustryDatabasePanelProps> = ({ sl
 
     try {
       const parsed = JSON.parse(raw) as IndustryDatabase;
-      if (!parsed || parsed.version !== 1) {
+      if (!parsed || (parsed as any).version !== 1) {
         toast({ title: 'Invalid database', description: 'JSON did not look like an IndustryDatabase v1.', variant: 'destructive' });
         return;
       }
