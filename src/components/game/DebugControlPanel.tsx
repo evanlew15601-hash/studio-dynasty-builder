@@ -9,6 +9,7 @@ import { Project } from '@/types/game';
 import type { SeasonData, EpisodeData } from '@/types/streamingTypes';
 import { BoxOfficeSystem } from './BoxOfficeSystem';
 import { TVRatingsSystem } from './TVRatingsSystem';
+import { stableInt } from '@/utils/stableRandom';
 import { Clock, FastForward, DollarSign, Star, Settings2, Film, Tv, MonitorPlay } from 'lucide-react';
 import { useGameStore } from '@/game/store';
 
@@ -178,8 +179,16 @@ export const DebugControlPanel: React.FC<DebugControlPanelProps> = ({
         episode.weeklyViews = [viewers];
         episode.viewerRetention =
           i === 0 ? 100 : Math.max(70, 100 - i * 3);
-        episode.criticsScore = Math.floor(Math.random() * 30) + 60;
-        episode.audienceScore = Math.floor(Math.random() * 30) + 65;
+        episode.criticsScore = stableInt(
+          `${baseProject.id}|debug|s1|e${episode.episodeNumber}|critics|${releaseYear}|${releaseWeek}`,
+          60,
+          89
+        );
+        episode.audienceScore = stableInt(
+          `${baseProject.id}|debug|s1|e${episode.episodeNumber}|audience|${releaseYear}|${releaseWeek}`,
+          65,
+          94
+        );
         episode.socialMentions = Math.floor(viewers / 10_000);
 
         totalViewers += viewers;

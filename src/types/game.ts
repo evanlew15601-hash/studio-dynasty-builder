@@ -983,6 +983,8 @@ export interface PostTheatricalRelease {
   status: 'planned' | 'active' | 'declining' | 'ended';
   cost: number;
   durationWeeks?: number;
+  lastProcessedWeek?: number;
+  lastProcessedYear?: number;
 }
 
 // Awards & Recognition System Interfaces

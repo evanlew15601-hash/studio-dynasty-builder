@@ -98,14 +98,26 @@ export const isWithinAwardCooldown = (
   year: number,
   medium: AwardShowMedium = 'film'
 ): { within: boolean; show?: AwardShowDefinition } => {
-  const shows = getAwardShowsForYear(year).filter(s => s.medium === medium);
-  for (const show of shows) {
-    const start = show.ceremonyWeek; // cooldown starts at ceremony week
-    const end = Math.min(52, show.ceremonyWeek + show.cooldownWeeks - 1);
-    if (week >= start && week <= end) {
-      return { within: true, show };
+  const absWeek = (year * 52) + week;
+
+  const checkYear = (y: number): AwardShowDefinition | undefined => {
+    const shows = getAwardShowsForYear(y).filter(s => s.medium === medium);
+    for (const show of shows) {
+      const startAbs = (y * 52) + show.ceremonyWeek;
+      const endAbs = startAbs + Math.max(0, show.cooldownWeeks - 1);
+      if (absWeek >= startAbs && absWeek <= endAbs) {
+        return show;
+      }
     }
+    return undefined;
+  };
+
+  // Check cooldowns in the current year, plus previous-year cooldowns that spill into this year.
+  const show = checkYear(year) || checkYear(year - 1);
+  if (show) {
+    return { within: true, show };
   }
+
   return { within: false };
 };
 
