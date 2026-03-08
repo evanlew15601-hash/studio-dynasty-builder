@@ -104,6 +104,7 @@ import { getModBundle } from '@/utils/moddingStore';
 import { DebugControlPanel } from './DebugControlPanel';
 import { IndustryDatabasePanel } from './IndustryDatabasePanel';
 import { LoreHub } from './LoreHub';
+import { TalentProfileDialog } from './TalentProfileDialog';
 import { StudioIconRenderer as StudioIconRendererLazy } from './StudioIconCustomizer';
 
 // Ensure AI films have credited talent so awards/filmographies have real people to reference
@@ -2616,7 +2617,7 @@ export const StudioMagnateGame: React.FC<StudioMagnateGameProps> = ({
                  </DropdownMenuItem>
                  <DropdownMenuItem onClick={() => handlePhaseChange('lore')}>
                    <ClapperboardIcon className="mr-2" size={16} />
-                   Lore & Encyclopedia
+                   Encyclopedia
                  </DropdownMenuItem>
                </DropdownMenuContent>
              </DropdownMenu>
@@ -3185,6 +3186,8 @@ export const StudioMagnateGame: React.FC<StudioMagnateGameProps> = ({
           ceremony={currentAwardShow}
         />
       )}
+
+      <TalentProfileDialog />
     </div>
     </>
   );
