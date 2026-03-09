@@ -1,4 +1,7 @@
 import { ScriptCharacter, PublicDomainIP } from '@/types/game';
+import type { ModBundle } from '@/types/modding';
+import { applyPatchesByKey, getPatchesForEntity } from '@/utils/modding';
+import { getModBundle } from '@/utils/moddingStore';
 
 const getRandomElement = <T>(array: T[]): T => {
   return array[Math.floor(Math.random() * array.length)];
@@ -263,7 +266,7 @@ export const getRandomPublicDomainSource = (): PublicDomainSource => {
 
 // Compatibility generator to match existing imports in the game
 export class PublicDomainGenerator {
-  static generateInitialPublicDomainIPs(count: number = 20): PublicDomainIP[] {
+  static getBasePublicDomainIPs(count: number = 20): PublicDomainIP[] {
     const sources = generatePublicDomainSources();
 
     // Map PublicDomainSource -> PublicDomainIP (structural match for gameplay systems)
@@ -287,5 +290,11 @@ export class PublicDomainGenerator {
 
     // No duplicates - return only unique sources
     return mapped.slice(0, Math.min(count, mapped.length));
+  }
+
+  static generateInitialPublicDomainIPs(count: number = 20, mods?: ModBundle): PublicDomainIP[] {
+    const base = PublicDomainGenerator.getBasePublicDomainIPs(count);
+    const bundle = mods ?? getModBundle();
+    return applyPatchesByKey(base, getPatchesForEntity(bundle, 'publicDomainIP'), (p) => p.id);
   }
 }

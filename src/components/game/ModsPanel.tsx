@@ -206,7 +206,7 @@ export const ModsPanel: React.FC = () => {
   const [editorModId, setEditorModId] = useState('my-mod');
   const [newModId, setNewModId] = useState('');
 
-  const basePublicDomainIPs = useMemo(() => PublicDomainGenerator.generateInitialPublicDomainIPs(20), []);
+  const basePublicDomainIPs = useMemo(() => PublicDomainGenerator.getBasePublicDomainIPs(20), []);
   const baseFranchises = useMemo(() => FranchiseGenerator.generateInitialFranchises(30), []);
   const baseCoreTalent = useMemo(() => {
     const all = generateInitialTalentPool({ currentYear: 2024, actorCount: 0, directorCount: 0 });
@@ -222,6 +222,7 @@ export const ModsPanel: React.FC = () => {
   const baseMediaById = useMemo(() => new Map(baseMediaSources.map((s) => [s.id, s] as const)), [baseMediaSources]);
 
   const [providerEdits, setProviderEdits] = useState<Record<string, ProviderDealProfile>>({});
+  const [publicDomainSearch, setPublicDomainSearch] = useState('');
   const [publicDomainEdits, setPublicDomainEdits] = useState<Record<string, PublicDomainIP>>({});
   const [publicDomainCharactersKey, setPublicDomainCharactersKey] = useState<string>('pd-1');
   const [roleSetKey, setRoleSetKey] = useState<string>(() => Object.keys(FRANCHISE_ROLE_SETS)[0] ?? 'Star Wars');
@@ -242,6 +243,10 @@ export const ModsPanel: React.FC = () => {
 
   const [awardShowKey, setAwardShowKey] = useState<string>(() => AWARD_SHOWS[0]?.id ?? '');
   const [awardShowEdits, setAwardShowEdits] = useState<Record<string, AwardShowDefinition>>({});
+
+  const [restorePublicDomainId, setRestorePublicDomainId] = useState('');
+  const [restoreMediaSourceId, setRestoreMediaSourceId] = useState('');
+  const [restoreAwardShowId, setRestoreAwardShowId] = useState('');
 
   // Quick patch builder
   const [quickModId, setQuickModId] = useState('my-mod');
@@ -679,6 +684,12 @@ export const ModsPanel: React.FC = () => {
     if (first !== awardShowKey) setAwardShowKey(first);
   }, [awardShowEdits, awardShowKey]);
 
+  useEffect(() => {
+    if (publicDomainCharactersKey && publicDomainEdits[publicDomainCharactersKey]) return;
+    const first = Object.keys(publicDomainEdits)[0] ?? '';
+    if (first !== publicDomainCharactersKey) setPublicDomainCharactersKey(first);
+  }, [publicDomainEdits, publicDomainCharactersKey]);
+
   const updateProvider = (id: ProviderId, updates: Partial<ProviderDealProfile>) => {
     setProviderEdits((prev) => {
       const base = prev[id] ?? (baseProvidersById.get(id) as ProviderDealProfile);
@@ -932,6 +943,71 @@ export const ModsPanel: React.FC = () => {
     });
   };
 
+  const handleRestoreMediaSource = (id: string) => {
+    const base = baseMediaById.get(id);
+    if (!base) return;
+    setMediaSourceEdits((prev) => ({ ...prev, [id]: stripUndefined(base) }));
+  };
+
+  const handleResetPublicDomainView = () => {
+    const patched = applyPatchesByKey(basePublicDomainIPs, getPatchesForEntity(editorBundle, 'publicDomainIP'), (p) => p.id);
+    const next: Record<string, PublicDomainIP> = {};
+    for (const p of patched) next[p.id] = stripUndefined(p);
+    setPublicDomainEdits(next);
+  };
+
+  const handleAddPublicDomainIP = () => {
+    const existing = new Set([...basePublicDomainIPs.map((p) => p.id), ...Object.keys(publicDomainEdits)]);
+    let suffix = 1;
+    let id = `pd-custom-${suffix}`;
+    while (existing.has(id)) {
+      suffix++;
+      id = `pd-custom-${suffix}`;
+    }
+
+    const ip: PublicDomainIP = {
+      id,
+      name: 'New Public Domain IP',
+      domainType: 'literature',
+      dateEnteredDomain: '1900-01-01',
+      coreElements: [],
+      genreFlexibility: [],
+      notableAdaptations: [],
+      reputationScore: 50,
+      adaptationFatigue: 0,
+      culturalRelevance: 50,
+      requiredElements: [],
+      suggestedCharacters: [],
+      cost: 0,
+    };
+
+    setPublicDomainEdits((prev) => ({ ...prev, [id]: stripUndefined(ip) }));
+    setPublicDomainCharactersKey(id);
+  };
+
+  const handleDeletePublicDomainIP = (id: string) => {
+    setPublicDomainEdits((prev) => {
+      const next = { ...prev };
+      delete next[id];
+      return next;
+    });
+  };
+
+  const handleRestorePublicDomainIP = (id: string) => {
+    const base = basePublicDomainById.get(id);
+    if (!base) return;
+    setPublicDomainEdits((prev) => ({ ...prev, [id]: stripUndefined(base) }));
+  };
+
+  const handleResetPublicDomainCharactersView = () => {
+    const id = publicDomainCharactersKey;
+    if (!id) return;
+
+    const patched = applyPatchesByKey(basePublicDomainIPs, getPatchesForEntity(editorBundle, 'publicDomainIP'), (p) => p.id);
+    const rec = patched.find((p) => p.id === id) ?? basePublicDomainById.get(id);
+    setPublicDomainCharacters(id, ((rec?.suggestedCharacters as ScriptCharacter[] | undefined) || []).map((c) => stripUndefined(c)));
+  };
+
   const handleResetAwardShowsView = () => {
     const patched = applyPatchesByKey(AWARD_SHOWS, getPatchesForEntity(editorBundle, 'awardShow'), (s) => s.id);
     const next: Record<string, AwardShowDefinition> = {};
@@ -971,6 +1047,12 @@ export const ModsPanel: React.FC = () => {
       delete next[id];
       return next;
     });
+  };
+
+  const handleRestoreAwardShow = (id: string) => {
+    const base = AWARD_SHOWS.find((s) => s.id === id);
+    if (!base) return;
+    setAwardShowEdits((prev) => ({ ...prev, [id]: stripUndefined(base) }));
   };
 
   const updateParodyByCharacterIdRow = (idx: number, updates: Partial<NameMappingRow>) => {
@@ -1105,9 +1187,24 @@ export const ModsPanel: React.FC = () => {
 
     let next = ensureMod(bundle, modId);
 
+    const baseIds = new Set(basePublicDomainIPs.map((p) => p.id));
+    const desiredIds = new Set(Object.keys(publicDomainEdits));
+
     for (const base of basePublicDomainIPs) {
-      const edited = publicDomainEdits[base.id] ?? base;
       const patchId = `publicDomainIP:${modId}:${base.id}`;
+      const edited = publicDomainEdits[base.id];
+
+      if (!edited) {
+        next = upsertPatch(next, {
+          id: patchId,
+          modId,
+          entityType: 'publicDomainIP',
+          op: 'delete',
+          target: base.id,
+        });
+        continue;
+      }
+
       if (deepEqual(stripUndefined(base), stripUndefined(edited))) {
         next = removePatch(next, patchId);
         continue;
@@ -1121,6 +1218,27 @@ export const ModsPanel: React.FC = () => {
         target: base.id,
         payload: stripUndefined(edited),
       });
+    }
+
+    for (const [id, edited] of Object.entries(publicDomainEdits)) {
+      if (baseIds.has(id)) continue;
+      const patchId = `publicDomainIP:${modId}:${id}`;
+      next = upsertPatch(next, {
+        id: patchId,
+        modId,
+        entityType: 'publicDomainIP',
+        op: 'insert',
+        target: id,
+        payload: stripUndefined(edited),
+      });
+    }
+
+    for (const p of (next.patches || []).filter((p) => p.modId === modId && p.entityType === 'publicDomainIP')) {
+      const id = String(p.target || p.id.split(':').slice(-1)[0] || '');
+      if (!id) continue;
+      if (!baseIds.has(id) && !desiredIds.has(id)) {
+        next = removePatch(next, p.id);
+      }
     }
 
     syncFromBundle(next);
@@ -1427,10 +1545,23 @@ export const ModsPanel: React.FC = () => {
 
   const changedPublicDomainCount = useMemo(() => {
     let changed = 0;
+
+    const baseIds = new Set(basePublicDomainIPs.map((p) => p.id));
+
     for (const base of basePublicDomainIPs) {
-      const edited = publicDomainEdits[base.id] ?? base;
+      const edited = publicDomainEdits[base.id];
+      if (!edited) {
+        changed++;
+        continue;
+      }
+
       if (!deepEqual(stripUndefined(base), stripUndefined(edited))) changed++;
     }
+
+    for (const id of Object.keys(publicDomainEdits)) {
+      if (!baseIds.has(id)) changed++;
+    }
+
     return changed;
   }, [basePublicDomainIPs, publicDomainEdits]);
 
@@ -1519,6 +1650,43 @@ export const ModsPanel: React.FC = () => {
       .sort((a, b) => a.ceremonyWeek - b.ceremonyWeek || a.id.localeCompare(b.id));
   }, [awardShowEdits]);
 
+  const publicDomainIPsForEditor = useMemo(() => {
+    return Object.values(publicDomainEdits)
+      .slice()
+      .sort((a, b) => a.id.localeCompare(b.id));
+  }, [publicDomainEdits]);
+
+  const filteredPublicDomainIPs = useMemo(() => {
+    const q = publicDomainSearch.trim().toLowerCase();
+    const list = publicDomainIPsForEditor.length ? publicDomainIPsForEditor : basePublicDomainIPs;
+    if (!q) return list;
+    return list.filter((p) => `${p.id} ${p.name}`.toLowerCase().includes(q));
+  }, [basePublicDomainIPs, publicDomainSearch, publicDomainIPsForEditor]);
+
+  const deletedBasePublicDomainIds = useMemo(() => {
+    const out: string[] = [];
+    for (const p of basePublicDomainIPs) {
+      if (!publicDomainEdits[p.id]) out.push(p.id);
+    }
+    return out.sort();
+  }, [basePublicDomainIPs, publicDomainEdits]);
+
+  const deletedBaseMediaSourceIds = useMemo(() => {
+    const out: string[] = [];
+    for (const s of baseMediaSources) {
+      if (!mediaSourceEdits[s.id]) out.push(s.id);
+    }
+    return out.sort();
+  }, [baseMediaSources, mediaSourceEdits]);
+
+  const deletedBaseAwardShowIds = useMemo(() => {
+    const out: string[] = [];
+    for (const s of AWARD_SHOWS) {
+      if (!awardShowEdits[s.id]) out.push(s.id);
+    }
+    return out.sort();
+  }, [awardShowEdits]);
+
   const filteredTalent = useMemo(() => {
     const q = talentSearch.trim().toLowerCase();
     if (!q) return baseCoreTalent;
@@ -1558,8 +1726,12 @@ export const ModsPanel: React.FC = () => {
 
   const handleResetPublicDomainRow = (id: string) => {
     const base = basePublicDomainById.get(id);
-    if (!base) return;
-    setPublicDomainEdits((prev) => ({ ...prev, [id]: stripUndefined(base) }));
+    setPublicDomainEdits((prev) => {
+      if (base) return { ...prev, [id]: stripUndefined(base) };
+      const next = { ...prev };
+      delete next[id];
+      return next;
+    });
   };
 
   const handleResetTalentRow = (id: string) => {
@@ -1867,11 +2039,46 @@ export const ModsPanel: React.FC = () => {
               <TabsContent value="publicDomain" className="space-y-3">
                 <div className="flex flex-wrap items-center justify-between gap-2">
                   <div className="text-sm text-muted-foreground">
-                    Public Domain IP: <span className="font-medium text-foreground">{changedPublicDomainCount}</span> changed
+                    Public Domain IPs: <span className="font-medium text-foreground">{changedPublicDomainCount}</span> changed
                   </div>
-                  <Button size="sm" onClick={applyPublicDomainEdits}>
-                    Apply changes
-                  </Button>
+                  <div className="flex flex-wrap gap-2">
+                    {deletedBasePublicDomainIds.length ? (
+                      <Select
+                        value={restorePublicDomainId}
+                        onValueChange={(v) => {
+                          setRestorePublicDomainId('');
+                          handleRestorePublicDomainIP(v);
+                        }}
+                      >
+                        <SelectTrigger className="h-8 w-[220px]">
+                          <SelectValue placeholder={`Restore deleted (${deletedBasePublicDomainIds.length})`} />
+                        </SelectTrigger>
+                        <SelectContent>
+                          {deletedBasePublicDomainIds.map((id) => (
+                            <SelectItem key={id} value={id}>
+                              {id}
+                            </SelectItem>
+                          ))}
+                        </SelectContent>
+                      </Select>
+                    ) : null}
+                    <Button size="sm" variant="secondary" onClick={handleResetPublicDomainView}>
+                      Reset view
+                    </Button>
+                    <Button size="sm" variant="secondary" onClick={handleAddPublicDomainIP}>
+                      Add IP
+                    </Button>
+                    <Button size="sm" onClick={applyPublicDomainEdits}>
+                      Apply changes
+                    </Button>
+                  </div>
+                </div>
+
+                <div className="grid grid-cols-1 lg:grid-cols-2 gap-3">
+                  <div className="space-y-1">
+                    <Label className="text-xs text-muted-foreground">Search</Label>
+                    <Input value={publicDomainSearch} onChange={(e) => setPublicDomainSearch(e.target.value)} placeholder="Filter by id or name" />
+                  </div>
                 </div>
 
                 <Table>
@@ -1884,36 +2091,54 @@ export const ModsPanel: React.FC = () => {
                       <TableHead className="p-2">Fatigue</TableHead>
                       <TableHead className="p-2">Relevance</TableHead>
                       <TableHead className="p-2">Entered</TableHead>
+                      <TableHead className="p-2">Last adapt</TableHead>
+                      <TableHead className="p-2">Cost</TableHead>
                       <TableHead className="p-2">Genres</TableHead>
                       <TableHead className="p-2">Core</TableHead>
                       <TableHead className="p-2">Required</TableHead>
+                      <TableHead className="p-2">Notable</TableHead>
+                      <TableHead className="p-2">Description</TableHead>
                       <TableHead className="p-2"></TableHead>
                     </TableRow>
                   </TableHeader>
                   <TableBody>
-                    {basePublicDomainIPs.map((base) => {
-                      const edited = publicDomainEdits[base.id] ?? base;
-                      const isChanged = !deepEqual(stripUndefined(base), stripUndefined(edited));
+                    {filteredPublicDomainIPs.map((row) => {
+                      const edited = publicDomainEdits[row.id] ?? row;
+                      const base = basePublicDomainById.get(row.id);
+                      const isInserted = !base;
+                      const isChanged = isInserted ? true : !deepEqual(stripUndefined(base), stripUndefined(edited));
 
                       return (
-                        <TableRow key={base.id} className={isChanged ? 'bg-muted/30' : undefined}>
-                          <TableCell className="p-2 font-mono text-xs">{base.id}</TableCell>
-                          <TableCell className="p-2">
-                            <Input className="h-8 min-w-[220px]" value={edited.name} onChange={(e) => updatePublicDomain(base.id, { name: e.target.value })} />
+                        <TableRow key={row.id} className={isChanged ? 'bg-muted/30' : undefined}>
+                          <TableCell className="p-2 font-mono text-xs">
+                            <div className="flex items-center gap-2">
+                              <span>{row.id}</span>
+                              {isInserted ? <Badge variant="secondary">new</Badge> : null}
+                            </div>
                           </TableCell>
                           <TableCell className="p-2">
-                            <Input
-                              className="h-8 w-[140px]"
-                              value={edited.domainType}
-                              onChange={(e) => updatePublicDomain(base.id, { domainType: e.target.value as any })}
-                            />
+                            <Input className="h-8 min-w-[220px]" value={edited.name} onChange={(e) => updatePublicDomain(row.id, { name: e.target.value })} />
+                          </TableCell>
+                          <TableCell className="p-2">
+                            <Select value={edited.domainType} onValueChange={(v) => updatePublicDomain(row.id, { domainType: v as any })}>
+                              <SelectTrigger className="h-8 w-[160px]">
+                                <SelectValue />
+                              </SelectTrigger>
+                              <SelectContent>
+                                <SelectItem value="literature">literature</SelectItem>
+                                <SelectItem value="mythology">mythology</SelectItem>
+                                <SelectItem value="folklore">folklore</SelectItem>
+                                <SelectItem value="historical">historical</SelectItem>
+                                <SelectItem value="religious">religious</SelectItem>
+                              </SelectContent>
+                            </Select>
                           </TableCell>
                           <TableCell className="p-2">
                             <Input
                               className="h-8 w-[110px]"
                               type="number"
                               value={String(edited.reputationScore)}
-                              onChange={(e) => updatePublicDomain(base.id, { reputationScore: Number(e.target.value) || 0 })}
+                              onChange={(e) => updatePublicDomain(row.id, { reputationScore: Number(e.target.value) || 0 })}
                             />
                           </TableCell>
                           <TableCell className="p-2">
@@ -1921,7 +2146,7 @@ export const ModsPanel: React.FC = () => {
                               className="h-8 w-[90px]"
                               type="number"
                               value={String(edited.adaptationFatigue ?? 0)}
-                              onChange={(e) => updatePublicDomain(base.id, { adaptationFatigue: Number(e.target.value) || 0 })}
+                              onChange={(e) => updatePublicDomain(row.id, { adaptationFatigue: Number(e.target.value) || 0 })}
                             />
                           </TableCell>
                           <TableCell className="p-2">
@@ -1929,41 +2154,74 @@ export const ModsPanel: React.FC = () => {
                               className="h-8 w-[100px]"
                               type="number"
                               value={String(edited.culturalRelevance ?? 0)}
-                              onChange={(e) => updatePublicDomain(base.id, { culturalRelevance: Number(e.target.value) || 0 })}
+                              onChange={(e) => updatePublicDomain(row.id, { culturalRelevance: Number(e.target.value) || 0 })}
                             />
+                          </TableCell>
+                          <TableCell className="p-2">
+                            <Input className="h-8 w-[140px]" value={edited.dateEnteredDomain} onChange={(e) => updatePublicDomain(row.id, { dateEnteredDomain: e.target.value })} />
                           </TableCell>
                           <TableCell className="p-2">
                             <Input
                               className="h-8 w-[140px]"
-                              value={edited.dateEnteredDomain}
-                              onChange={(e) => updatePublicDomain(base.id, { dateEnteredDomain: e.target.value })}
+                              value={edited.lastAdaptationDate ?? ''}
+                              onChange={(e) => updatePublicDomain(row.id, { lastAdaptationDate: e.target.value || undefined })}
+                              placeholder="(optional)"
+                            />
+                          </TableCell>
+                          <TableCell className="p-2">
+                            <Input
+                              className="h-8 w-[100px]"
+                              type="number"
+                              value={String(edited.cost ?? 0)}
+                              onChange={(e) => updatePublicDomain(row.id, { cost: Number(e.target.value) || 0 })}
                             />
                           </TableCell>
                           <TableCell className="p-2">
                             <Input
                               className="h-8 min-w-[220px]"
                               value={(edited.genreFlexibility || []).join(', ')}
-                              onChange={(e) => updatePublicDomainList(base.id, 'genreFlexibility', e.target.value)}
+                              onChange={(e) => updatePublicDomainList(row.id, 'genreFlexibility', e.target.value)}
                             />
                           </TableCell>
                           <TableCell className="p-2">
                             <Input
                               className="h-8 min-w-[220px]"
                               value={(edited.coreElements || []).join(', ')}
-                              onChange={(e) => updatePublicDomainList(base.id, 'coreElements', e.target.value)}
+                              onChange={(e) => updatePublicDomainList(row.id, 'coreElements', e.target.value)}
                             />
                           </TableCell>
                           <TableCell className="p-2">
                             <Input
                               className="h-8 min-w-[220px]"
                               value={(edited.requiredElements || []).join(', ')}
-                              onChange={(e) => updatePublicDomainList(base.id, 'requiredElements', e.target.value)}
+                              onChange={(e) => updatePublicDomainList(row.id, 'requiredElements', e.target.value)}
                             />
                           </TableCell>
                           <TableCell className="p-2">
-                            <Button size="sm" variant="ghost" onClick={() => handleResetPublicDomainRow(base.id)}>
-                              Reset
-                            </Button>
+                            <Input
+                              className="h-8 min-w-[220px]"
+                              value={(edited.notableAdaptations || []).join(', ')}
+                              onChange={(e) => updatePublicDomainList(row.id, 'notableAdaptations', e.target.value)}
+                              placeholder="(optional)"
+                            />
+                          </TableCell>
+                          <TableCell className="p-2">
+                            <Input
+                              className="h-8 min-w-[260px]"
+                              value={edited.description ?? ''}
+                              onChange={(e) => updatePublicDomain(row.id, { description: e.target.value || undefined })}
+                              placeholder="(optional)"
+                            />
+                          </TableCell>
+                          <TableCell className="p-2">
+                            <div className="flex justify-end gap-2">
+                              <Button size="sm" variant="ghost" onClick={() => handleResetPublicDomainRow(row.id)}>
+                                Reset
+                              </Button>
+                              <Button size="sm" variant="ghost" onClick={() => handleDeletePublicDomainIP(row.id)}>
+                                Delete
+                              </Button>
+                            </div>
                           </TableCell>
                         </TableRow>
                       );
@@ -1978,6 +2236,9 @@ export const ModsPanel: React.FC = () => {
                     Suggested Characters for <span className="font-medium text-foreground">{publicDomainCharactersKey || '(none)'}</span>
                   </div>
                   <div className="flex flex-wrap gap-2">
+                    <Button size="sm" variant="secondary" onClick={handleResetPublicDomainCharactersView}>
+                      Reset view
+                    </Button>
                     <Button size="sm" variant="secondary" onClick={handleAddPublicDomainCharacterRow}>
                       Add character
                     </Button>
@@ -1995,7 +2256,7 @@ export const ModsPanel: React.FC = () => {
                         <SelectValue placeholder="Select IP" />
                       </SelectTrigger>
                       <SelectContent>
-                        {basePublicDomainIPs.map((p) => (
+                        {publicDomainIPsForEditor.map((p) => (
                           <SelectItem key={p.id} value={p.id}>
                             {p.id}
                           </SelectItem>
@@ -2527,6 +2788,26 @@ export const ModsPanel: React.FC = () => {
                   </div>
 
                   <div className="flex items-end justify-end gap-2">
+                    {deletedBaseAwardShowIds.length ? (
+                      <Select
+                        value={restoreAwardShowId}
+                        onValueChange={(v) => {
+                          setRestoreAwardShowId('');
+                          handleRestoreAwardShow(v);
+                        }}
+                      >
+                        <SelectTrigger className="h-8 w-[220px]">
+                          <SelectValue placeholder={`Restore deleted (${deletedBaseAwardShowIds.length})`} />
+                        </SelectTrigger>
+                        <SelectContent>
+                          {deletedBaseAwardShowIds.map((id) => (
+                            <SelectItem key={id} value={id}>
+                              {id}
+                            </SelectItem>
+                          ))}
+                        </SelectContent>
+                      </Select>
+                    ) : null}
                     <Button size="sm" variant="secondary" onClick={handleResetAwardShowsView}>
                       Reset schedule
                     </Button>
@@ -2713,6 +2994,26 @@ export const ModsPanel: React.FC = () => {
                     Media Sources: <span className="font-medium text-foreground">{changedMediaSourceCount}</span> changed
                   </div>
                   <div className="flex flex-wrap gap-2">
+                    {deletedBaseMediaSourceIds.length ? (
+                      <Select
+                        value={restoreMediaSourceId}
+                        onValueChange={(v) => {
+                          setRestoreMediaSourceId('');
+                          handleRestoreMediaSource(v);
+                        }}
+                      >
+                        <SelectTrigger className="h-8 w-[220px]">
+                          <SelectValue placeholder={`Restore deleted (${deletedBaseMediaSourceIds.length})`} />
+                        </SelectTrigger>
+                        <SelectContent>
+                          {deletedBaseMediaSourceIds.map((id) => (
+                            <SelectItem key={id} value={id}>
+                              {id}
+                            </SelectItem>
+                          ))}
+                        </SelectContent>
+                      </Select>
+                    ) : null}
                     <Button size="sm" variant="secondary" onClick={handleResetMediaSourcesView}>
                       Reset view
                     </Button>
@@ -2760,7 +3061,19 @@ export const ModsPanel: React.FC = () => {
                             <Input className="h-8 min-w-[200px]" value={edited.name} onChange={(e) => updateMediaSource(row.id, { name: e.target.value })} />
                           </TableCell>
                           <TableCell className="p-2">
-                            <Input className="h-8 w-[160px]" value={edited.type} onChange={(e) => updateMediaSource(row.id, { type: e.target.value as any })} />
+                            <Select value={edited.type} onValueChange={(v) => updateMediaSource(row.id, { type: v as any })}>
+                              <SelectTrigger className="h-8 w-[180px]">
+                                <SelectValue />
+                              </SelectTrigger>
+                              <SelectContent>
+                                <SelectItem value="newspaper">newspaper</SelectItem>
+                                <SelectItem value="magazine">magazine</SelectItem>
+                                <SelectItem value="blog">blog</SelectItem>
+                                <SelectItem value="social_media">social_media</SelectItem>
+                                <SelectItem value="trade_publication">trade_publication</SelectItem>
+                                <SelectItem value="tv_network">tv_network</SelectItem>
+                              </SelectContent>
+                            </Select>
                           </TableCell>
                           <TableCell className="p-2">
                             <Input
