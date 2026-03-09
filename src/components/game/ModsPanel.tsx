@@ -241,6 +241,7 @@ export const ModsPanel: React.FC = () => {
   // Editor
   const [editorModId, setEditorModId] = useState('my-mod');
   const [newModId, setNewModId] = useState('');
+  const [isEditorDataReady, setIsEditorDataReady] = useState(false);
 
   const basePublicDomainIPs = useMemo(() => PublicDomainGenerator.getBasePublicDomainIPs(20), []);
   const baseFranchises = useMemo(() => FranchiseGenerator.generateInitialFranchises(30), []);
@@ -620,6 +621,8 @@ export const ModsPanel: React.FC = () => {
     const modId = editorModId.trim();
     if (!modId) return;
 
+    setIsEditorDataReady(false);
+
     // Provider deals
     {
       const patched = applyPatchesByKey(PROVIDER_DEALS, getPatchesForEntity(editorBundle, 'providerDeal'), (p) => p.id);
@@ -732,6 +735,8 @@ export const ModsPanel: React.FC = () => {
       for (const s of patched) next[s.id] = stripUndefined(s);
       setAwardShowEdits(next);
     }
+
+    setIsEditorDataReady(true);
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [
     editorModId,
@@ -2083,10 +2088,10 @@ export const ModsPanel: React.FC = () => {
 
   const filteredPublicDomainIPs = useMemo(() => {
     const q = publicDomainSearch.trim().toLowerCase();
-    const list = publicDomainIPsForEditor.length ? publicDomainIPsForEditor : basePublicDomainIPs;
+    const list = isEditorDataReady ? publicDomainIPsForEditor : basePublicDomainIPs;
     if (!q) return list;
     return list.filter((p) => `${p.id} ${p.name}`.toLowerCase().includes(q));
-  }, [basePublicDomainIPs, publicDomainSearch, publicDomainIPsForEditor]);
+  }, [basePublicDomainIPs, isEditorDataReady, publicDomainSearch, publicDomainIPsForEditor]);
 
   const deletedBasePublicDomainIds = useMemo(() => {
     const out: string[] = [];
@@ -2140,10 +2145,10 @@ export const ModsPanel: React.FC = () => {
 
   const filteredStudios = useMemo(() => {
     const q = studioSearch.trim().toLowerCase();
-    const list = studiosForEditor.length ? studiosForEditor : STUDIO_PROFILES;
+    const list = isEditorDataReady ? studiosForEditor : STUDIO_PROFILES;
     if (!q) return list;
     return list.filter((s) => s.name.toLowerCase().includes(q));
-  }, [studioSearch, studiosForEditor]);
+  }, [isEditorDataReady, studioSearch, studiosForEditor]);
 
   const mediaTemplateKeys = useMemo(() => {
     return Array.from(
@@ -2164,10 +2169,10 @@ export const ModsPanel: React.FC = () => {
 
   const filteredMediaSources = useMemo(() => {
     const q = mediaSourceSearch.trim().toLowerCase();
-    const list = mediaSourcesForEditor.length ? mediaSourcesForEditor : baseMediaSources;
+    const list = isEditorDataReady ? mediaSourcesForEditor : baseMediaSources;
     if (!q) return list;
     return list.filter((s) => `${s.id} ${s.name}`.toLowerCase().includes(q));
-  }, [baseMediaSources, mediaSourceSearch, mediaSourcesForEditor]);
+  }, [baseMediaSources, isEditorDataReady, mediaSourceSearch, mediaSourcesForEditor]);
 
   const handleExportMediaSourcesCsv = () => {
     const headers = ['id', 'name', 'type', 'credibility', 'bias', 'reach', 'established', 'specialties'];
