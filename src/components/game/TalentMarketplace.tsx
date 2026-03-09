@@ -140,11 +140,17 @@ export const TalentMarketplace: React.FC<TalentMarketplaceProps> = ({
               <CardContent className="p-4">
                 <div className="flex justify-between items-start mb-3">
                   <div>
-                    <h3 className="font-semibold">{person.name}</h3>
-                      <div className="flex items-center gap-2 text-sm text-muted-foreground">
-                        <Star size={14} />
-                        <span>{Math.round(person.reputation)}/100</span>
-                      </div>
+                    <button
+                      type="button"
+                      className="font-semibold hover:underline text-left"
+                      onClick={() => openTalentProfile(person.id)}
+                    >
+                      {person.name}
+                    </button>
+                    <div className="flex items-center gap-2 text-sm text-muted-foreground">
+                      <Star size={14} />
+                      <span>{Math.round(person.reputation)}/100</span>
+                    </div>
                   </div>
                   
                   <Badge 
@@ -197,16 +203,27 @@ export const TalentMarketplace: React.FC<TalentMarketplaceProps> = ({
                   </div>
                 </div>
 
-                {/* Action button */}
-                <Button 
-                  size="sm" 
-                  variant={status.status === 'available' ? 'default' : 'outline'}
-                  disabled={status.status === 'busy'}
-                  onClick={() => onCastTalent?.(person.id, 'Lead Actor')}
-                  className="w-full"
-                >
-                  {status.status === 'available' ? 'Cast in Project' : 'Unavailable'}
-                </Button>
+                {/* Action buttons */}
+                <div className="flex gap-2">
+                  <Button
+                    size="sm"
+                    variant="outline"
+                    onClick={() => openTalentProfile(person.id)}
+                    className="flex-1"
+                  >
+                    <User size={14} className="mr-1" />
+                    Profile
+                  </Button>
+                  <Button 
+                    size="sm" 
+                    variant={status.status === 'available' ? 'default' : 'outline'}
+                    disabled={status.status === 'busy'}
+                    onClick={() => onCastTalent?.(person.id, 'Lead Actor')}
+                    className="flex-1"
+                  >
+                    {status.status === 'available' ? 'Cast' : 'Unavailable'}
+                  </Button>
+                </div>
               </CardContent>
             </Card>
           );

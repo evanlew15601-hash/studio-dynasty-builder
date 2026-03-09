@@ -441,6 +441,8 @@ const CastingSlotCard: React.FC<CastingSlotCardProps> = ({
   onCast,
   onRemove,
 }) => {
+  const { useUiStore } = require('@/game/uiStore');
+  const openTalentProfile = useUiStore((s: any) => s.openTalentProfile);
   const isDirector = slot.character.requiredType === 'director';
   const candidates = getEligibleTalent(slot.character);
 
@@ -490,7 +492,13 @@ const CastingSlotCard: React.FC<CastingSlotCardProps> = ({
                 </AvatarFallback>
               </Avatar>
               <div>
-                <p className="font-semibold">{slot.talent.name}</p>
+                <button
+                  type="button"
+                  className="font-semibold hover:underline text-left"
+                  onClick={() => openTalentProfile(slot.talent!.id)}
+                >
+                  {slot.talent.name}
+                </button>
                 <p className="text-sm text-muted-foreground">
                   ${(slot.talent.marketValue / 1000000).toFixed(1)}M • Rep: {Math.round(slot.talent.reputation)}
                   {slot.talent.gender && ` • ${slot.talent.gender}`}
