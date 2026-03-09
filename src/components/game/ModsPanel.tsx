@@ -24,6 +24,7 @@ import type { Franchise, Genre, MediaSource, PublicDomainIP, ScriptCharacter, Ta
 import type { ModBundle, ModInfo, ModOp, ModPatch } from '@/types/modding';
 import { useToast } from '@/hooks/use-toast';
 import { applyPatchesByKey, applyPatchesToRecord, getPatchesForEntity, normalizeModBundle } from '@/utils/modding';
+import { parseCsv, toCsv } from '@/utils/csv';
 import {
   clearModBundle,
   deleteModSlot,
@@ -45,6 +46,8 @@ const ENTITY_TYPES = [
   'awardShow',
   'studioProfile',
   'mediaSource',
+  'mediaHeadlineTemplates',
+  'mediaContentTemplates',
 ] as const;
 
 const DEFAULT_MOD_VERSION = '1.0.0';
@@ -151,6 +154,36 @@ function splitCsv(value: string): string[] {
     .filter(Boolean);
 }
 
+function splitListCell(value: string): string[] {
+  const v = value.trim();
+  if (!v) return [];
+  if (v.includes('|')) {
+    return v
+      .split('|')
+      .map((s) => s.trim())
+      .filter(Boolean);
+  }
+  return splitCsv(v);
+}
+
+function joinListCell(value: string[] | undefined): string {
+  return (value || []).join('|');
+}
+
+function downloadTextFile(filename: string, text: string, mime: string): void {
+  if (typeof window === 'undefined') return;
+
+  const blob = new Blob([text], { type: mime });
+  const url = URL.createObjectURL(blob);
+  const a = document.createElement('a');
+  a.href = url;
+  a.download = filename;
+  document.body.appendChild(a);
+  a.click();
+  a.remove();
+  URL.revokeObjectURL(url);
+}
+
 function nameRowsFromRecord(rec?: Record<string, string>): NameMappingRow[] {
   return Object.entries(rec || {})
     .map(([key, value]) => ({ key, value }))
@@ -190,6 +223,8 @@ function patchKeyFor(bundle: ModBundle, modId: string, entityType: string): stri
 export const ModsPanel: React.FC = () => {
   const { toast } = useToast();
   const importRef = useRef<HTMLInputElement | null>(null);
+  const importPublicDomainCsvRef = useRef<HTMLInputElement | null>(null);
+  const importMediaSourceCsvRef = useRef<HTMLInputElement | null>(null);
 
   const [bundle, setBundle] = useState<ModBundle>(() => getModBundle());
   const [raw, setRaw] = useState<string>(() => JSON.stringify(getModBundle(), null, 2));
@@ -1437,6 +1472,18 @@ export const ModsPanel: React.FC = () => {
       });
     }
 
+    // Prune stale insert patches for custom IDs that were deleted from the editor view.
+    const toRemove: string[] = [];
+    for (const p of next.patches || []) {
+      if (p.modId !== modId) continue;
+      if (p.entityType !== 'mediaSource') continue;
+      const t = String(p.target || '');
+      if (baseIds.has(t)) continue;
+      if (mediaSourceEdits[t]) continue;
+      toRemove.push(p.id);
+    }
+    for (const id of toRemove) next = removePatch(next, id);
+
     syncFromBundle(next);
     toast({ title: 'Applied', description: 'Applied media source edits as patches. Click Save to persist.' });
   };
@@ -1529,6 +1576,18 @@ export const ModsPanel: React.FC = () => {
         payload: stripUndefined(edited),
       });
     }
+
+    // Prune stale insert patches for custom IDs that were deleted from the editor view.
+    const toRemove: string[] = [];
+    for (const p of next.patches || []) {
+      if (p.modId !== modId) continue;
+      if (p.entityType !== 'awardShow') continue;
+      const t = String(p.target || '');
+      if (baseIds.has(t)) continue;
+      if (awardShowEdits[t]) continue;
+      toRemove.push(p.id);
+    }
+    for (const id of toRemove) next = removePatch(next, id);
 
     syncFromBundle(next);
     toast({ title: 'Applied', description: 'Applied award show edits as patches. Click Save to persist.' });
@@ -1717,6 +1776,189 @@ export const ModsPanel: React.FC = () => {
     if (!q) return list;
     return list.filter((s) => `${s.id} ${s.name}`.toLowerCase().includes(q));
   }, [baseMediaSources, mediaSourceSearch, mediaSourcesForEditor]);
+
+  const handleExportMediaSourcesCsv = () => {
+    const headers = ['id', 'name', 'type', 'credibility', 'bias', 'reach', 'established', 'specialties'];
+    const rows = filteredMediaSources.map((s) => ({
+      id: s.id,
+      name: s.name,
+      type: s.type,
+      credibility: String(s.credibility),
+      bias: String(s.bias),
+      reach: String(s.reach),
+      established: String(s.established),
+      specialties: joinListCell((s.specialties || []) as any),
+    }));
+
+    const csv = toCsv(headers, rows);
+    try {
+      downloadTextFile(`media-sources-${activeSlot}.csv`, csv, 'text/csv');
+    } catch {
+      toast({ title: 'Export failed', description: 'Could not export CSV.', variant: 'destructive' });
+    }
+  };
+
+  const handleImportMediaSourcesCsvClick = () => {
+    importMediaSourceCsvRef.current?.click();
+  };
+
+  const handleImportMediaSourcesCsv: React.ChangeEventHandler<HTMLInputElement> = (e) => {
+    const file = e.target.files?.[0];
+    e.target.value = '';
+    if (!file) return;
+
+    file
+      .text()
+      .then((text) => {
+        const parsed = parseCsv(text);
+        const rows = parsed.rows.map((r) => {
+          const next: Record<string, string> = {};
+          for (const [k, v] of Object.entries(r)) next[k.toLowerCase()] = v;
+          return next;
+        });
+
+        const allowedTypes = new Set<MediaSource['type']>(['newspaper', 'magazine', 'blog', 'social_media', 'trade_publication', 'tv_network']);
+
+        setMediaSourceEdits((prev) => {
+          let next = { ...prev };
+
+          for (const row of rows) {
+            const id = (row.id || '').trim();
+            if (!id) continue;
+
+            const base = next[id] ?? baseMediaById.get(id);
+            const incomingType = (row.type || '').trim();
+            const type = (allowedTypes.has(incomingType as any) ? (incomingType as any) : undefined) ?? (base?.type ?? 'blog');
+
+            const merged: MediaSource = {
+              id,
+              name: (row.name || base?.name || '').trim() || 'Media Source',
+              type,
+              credibility: Number(row.credibility || base?.credibility || 0) || 0,
+              bias: Number(row.bias || base?.bias || 0) || 0,
+              reach: Number(row.reach || base?.reach || 0) || 0,
+              established: Number(row.established || base?.established || 0) || 0,
+              specialties: splitListCell(row.specialties || joinListCell((base?.specialties || []) as any)) as any,
+            };
+
+            next[id] = stripUndefined(merged);
+          }
+
+          return next;
+        });
+
+        toast({ title: 'Imported', description: 'Imported media sources from CSV (merged). Click Apply to generate patches.' });
+      })
+      .catch(() => {
+        toast({ title: 'Import failed', description: 'Could not read CSV file.', variant: 'destructive' });
+      });
+  };
+
+  const handleExportPublicDomainCsv = () => {
+    const headers = [
+      'id',
+      'name',
+      'domainType',
+      'reputationScore',
+      'adaptationFatigue',
+      'culturalRelevance',
+      'dateEnteredDomain',
+      'lastAdaptationDate',
+      'cost',
+      'genreFlexibility',
+      'coreElements',
+      'requiredElements',
+      'notableAdaptations',
+      'description',
+    ];
+
+    const rows = filteredPublicDomainIPs.map((p) => ({
+      id: p.id,
+      name: p.name,
+      domainType: p.domainType,
+      reputationScore: String(p.reputationScore),
+      adaptationFatigue: String(p.adaptationFatigue ?? 0),
+      culturalRelevance: String(p.culturalRelevance ?? 0),
+      dateEnteredDomain: p.dateEnteredDomain,
+      lastAdaptationDate: p.lastAdaptationDate ?? '',
+      cost: String(p.cost ?? 0),
+      genreFlexibility: joinListCell((p.genreFlexibility || []) as any),
+      coreElements: joinListCell(p.coreElements || []),
+      requiredElements: joinListCell(p.requiredElements || []),
+      notableAdaptations: joinListCell(p.notableAdaptations || []),
+      description: p.description ?? '',
+    }));
+
+    const csv = toCsv(headers, rows);
+    try {
+      downloadTextFile(`public-domain-${activeSlot}.csv`, csv, 'text/csv');
+    } catch {
+      toast({ title: 'Export failed', description: 'Could not export CSV.', variant: 'destructive' });
+    }
+  };
+
+  const handleImportPublicDomainCsvClick = () => {
+    importPublicDomainCsvRef.current?.click();
+  };
+
+  const handleImportPublicDomainCsv: React.ChangeEventHandler<HTMLInputElement> = (e) => {
+    const file = e.target.files?.[0];
+    e.target.value = '';
+    if (!file) return;
+
+    file
+      .text()
+      .then((text) => {
+        const parsed = parseCsv(text);
+        const rows = parsed.rows.map((r) => {
+          const next: Record<string, string> = {};
+          for (const [k, v] of Object.entries(r)) next[k.toLowerCase()] = v;
+          return next;
+        });
+
+        const allowedTypes = new Set(['literature', 'mythology', 'folklore', 'historical', 'religious']);
+
+        setPublicDomainEdits((prev) => {
+          let next = { ...prev };
+
+          for (const row of rows) {
+            const id = (row.id || '').trim();
+            if (!id) continue;
+
+            const base = next[id] ?? basePublicDomainById.get(id);
+            const incomingType = (row.domaintype || '').trim();
+            const domainType = (allowedTypes.has(incomingType) ? incomingType : undefined) ?? (base?.domainType ?? 'literature');
+
+            const merged: PublicDomainIP = {
+              id,
+              name: (row.name || base?.name || '').trim() || 'Public Domain IP',
+              domainType: domainType as any,
+              reputationScore: Number(row.reputationscore || base?.reputationScore || 0) || 0,
+              adaptationFatigue: Number(row.adaptationfatigue || base?.adaptationFatigue || 0) || 0,
+              culturalRelevance: Number(row.culturalrelevance || base?.culturalRelevance || 0) || 0,
+              dateEnteredDomain: (row.dateentereddomain || base?.dateEnteredDomain || '').trim() || '1900-01-01',
+              lastAdaptationDate: (row.lastadaptationdate || base?.lastAdaptationDate || '').trim() || undefined,
+              cost: Number(row.cost || base?.cost || 0) || 0,
+              genreFlexibility: splitListCell(row.genreflexibility || joinListCell((base?.genreFlexibility || []) as any)) as any,
+              coreElements: splitListCell(row.coreelements || joinListCell(base?.coreElements || [])),
+              requiredElements: splitListCell(row.requiredelements || joinListCell(base?.requiredElements || [])),
+              notableAdaptations: splitListCell(row.notableadaptations || joinListCell(base?.notableAdaptations || [])),
+              suggestedCharacters: base?.suggestedCharacters || [],
+              description: (row.description || base?.description || '').trim() || undefined,
+            };
+
+            next[id] = stripUndefined(merged);
+          }
+
+          return next;
+        });
+
+        toast({ title: 'Imported', description: 'Imported public domain IPs from CSV (merged). Click Apply to generate patches.' });
+      })
+      .catch(() => {
+        toast({ title: 'Import failed', description: 'Could not read CSV file.', variant: 'destructive' });
+      });
+  };
 
   const handleResetProviderRow = (id: ProviderId) => {
     const base = baseProvidersById.get(id);
@@ -2068,6 +2310,12 @@ export const ModsPanel: React.FC = () => {
                     <Button size="sm" variant="secondary" onClick={handleAddPublicDomainIP}>
                       Add IP
                     </Button>
+                    <Button size="sm" variant="secondary" onClick={handleImportPublicDomainCsvClick}>
+                      Import CSV
+                    </Button>
+                    <Button size="sm" variant="secondary" onClick={handleExportPublicDomainCsv}>
+                      Export CSV
+                    </Button>
                     <Button size="sm" onClick={applyPublicDomainEdits}>
                       Apply changes
                     </Button>
@@ -2228,6 +2476,8 @@ export const ModsPanel: React.FC = () => {
                     })}
                   </TableBody>
                 </Table>
+
+                <p className="text-xs text-muted-foreground">CSV import/export uses <code>|</code> inside a cell for list fields (e.g. <code>genreFlexibility</code>, <code>coreElements</code>).</p>
               </TabsContent>
 
               <TabsContent value="pdCharacters" className="space-y-3">
@@ -3020,6 +3270,12 @@ export const ModsPanel: React.FC = () => {
                     <Button size="sm" variant="secondary" onClick={handleAddMediaSource}>
                       Add source
                     </Button>
+                    <Button size="sm" variant="secondary" onClick={handleImportMediaSourcesCsvClick}>
+                      Import CSV
+                    </Button>
+                    <Button size="sm" variant="secondary" onClick={handleExportMediaSourcesCsv}>
+                      Export CSV
+                    </Button>
                     <Button size="sm" onClick={applyMediaSourceEdits}>
                       Apply changes
                     </Button>
@@ -3119,6 +3375,8 @@ export const ModsPanel: React.FC = () => {
                     })}
                   </TableBody>
                 </Table>
+
+                <p className="text-xs text-muted-foreground">CSV import/export uses <code>|</code> inside a cell for list fields (e.g. <code>specialties</code>).</p>
               </TabsContent>
 
               <TabsContent value="parodyNames" className="space-y-3">
@@ -3290,8 +3548,6 @@ export const ModsPanel: React.FC = () => {
                 <Button size="sm" onClick={handleAddQuickPatch}>
                   Add patch
                 </Button>
-
-                <input ref={importRef} type="file" accept="application/json,.json" className="hidden" onChange={handleImportFile} />
               </div>
 
               <div className="space-y-1">
