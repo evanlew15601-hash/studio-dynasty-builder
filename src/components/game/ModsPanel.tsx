@@ -126,6 +126,7 @@ export const ModsPanel: React.FC = () => {
   const [newModId, setNewModId] = useState('');
   const [providerEdits, setProviderEdits] = useState<Record<ProviderId, ProviderDealProfile>>({} as Record<ProviderId, ProviderDealProfile>);
   const [publicDomainEdits, setPublicDomainEdits] = useState<Record<string, PublicDomainIP>>({});
+  const [publicDomainCharactersKey, setPublicDomainCharactersKey] = useState<string>('pd-1');
   const [roleSetKey, setRoleSetKey] = useState<string>(() => Object.keys(FRANCHISE_ROLE_SETS)[0] ?? 'Star Wars');
   const [roleSetRows, setRoleSetRows] = useState<ScriptCharacter[]>([]);
   const [characterDbKey, setCharacterDbKey] = useState<string>(() => Object.keys(FRANCHISE_CHARACTER_DB)[0] ?? 'Star Wars');
@@ -807,7 +808,7 @@ export const ModsPanel: React.FC = () => {
       const base = basePublicDomainById.get(ipId);
       if (!base) continue;
 
-      if (deepEqual(base, edited)) continue;
+      if (deepEqual(stripUndefined(base), stripUndefined(edited))) continue;
 
       const patchId = `publicDomainIP:${modId}:${ipId}`;
       next = upsertPatch(next, {
@@ -816,7 +817,7 @@ export const ModsPanel: React.FC = () => {
         entityType: 'publicDomainIP',
         op: 'update',
         target: ipId,
-        payload: edited,
+        payload: stripUndefined(edited),
       });
     }
 
@@ -1367,7 +1368,7 @@ export const ModsPanel: React.FC = () => {
                           <TableBody>
                             {basePublicDomainIPs.map((base) => {
                               const edited = publicDomainEdits[base.id] ?? base;
-                              const isChanged = !deepEqual(base, edited);
+                              const isChanged = !deepEqual(stripUndefined(base), stripUndefined(edited));
 
                               return (
                                 <TableRow key={base.id} className={isChanged ? 'bg-muted/30' : undefined}>
@@ -1473,7 +1474,226 @@ export const ModsPanel: React.FC = () => {
                         </Table>
 
                         <p className="text-xs text-muted-foreground">
-                          Tip: the <code>Genres</code> and <code>Core elements</code> fields accept a comma-separated list.
+                          Tip: the <code>Genres</code>, <code>Core elements</code>, and <code>Required elements</code> fields accept a comma-separated list.
+                        </p>
+                      </TabsContent>
+
+                      <TabsContent value="publicDomainCharacters" className="space-y-3">
+                        <div className="flex flex-wrap items-center justify-between gap-2">
+                          <div className="text-sm text-muted-foreground">
+                            Suggested Characters: <span className="font-medium text-foreground">{publicDomainCharactersKey || '(none)'}</span>
+                          </div>
+                          <div className="flex flex-wrap gap-2">
+                            <Button
+                              size="sm"
+                              variant="secondary"
+                              onClick={() => {
+                                const id = publicDomainCharactersKey;
+                                if (!id) return;
+
+                                const modId = editorModId.trim();
+                                if (!modId) return;
+
+                                const modInfo = bundle.mods.find((m) => m.id === modId) ?? makeDefaultMod(modId);
+                                const editorBundle: ModBundle = {
+                                  version: 1,
+                                  mods: [{ ...modInfo, enabled: true }],
+                                  patches: (bundle.patches || []).filter((p) => p.modId === modId && p.entityType === 'publicDomainIP'),
+                                };
+
+                                const patched = applyPatchesByKey(
+                                  basePublicDomainIPs,
+                                  getPatchesForEntity(editorBundle, 'publicDomainIP'),
+                                  (p) => p.id
+                                );
+                                const next = patched.find((p) => p.id === id) ?? basePublicDomainById.get(id);
+                                setPublicDomainCharacters(id, (next?.suggestedCharacters as ScriptCharacter[] | undefined) || []);
+                              }}
+                            >
+                              Reset view
+                            </Button>
+                            <Button size="sm" variant="secondary" onClick={handleAddPublicDomainCharacterRow}>
+                              Add character
+                            </Button>
+                            <Button size="sm" onClick={handleApplyPublicDomainEdits}>
+                              Apply changes
+                            </Button>
+                          </div>
+                        </div>
+
+                        <div className="grid grid-cols-1 lg:grid-cols-2 gap-3">
+                          <div className="space-y-1">
+                            <Label className="text-xs text-muted-foreground">Public domain IP</Label>
+                            <Select value={publicDomainCharactersKey} onValueChange={setPublicDomainCharactersKey}>
+                              <SelectTrigger>
+                                <SelectValue placeholder="Select IP" />
+                              </SelectTrigger>
+                              <SelectContent>
+                                {Array.from(new Set([...basePublicDomainIPs.map((p) => p.id), publicDomainCharactersKey]))
+                                  .filter((k) => !!k)
+                                  .map((k) => (
+                                    <SelectItem key={k} value={k}>
+                                      {k}
+                                    </SelectItem>
+                                  ))}
+                              </SelectContent>
+                            </Select>
+                          </div>
+                        </div>
+
+                        <Table>
+                          <TableHeader>
+                            <TableRow>
+                              <TableHead className="p-2">id</TableHead>
+                              <TableHead className="p-2">Name</TableHead>
+                              <TableHead className="p-2">Importance</TableHead>
+                              <TableHead className="p-2">Type</TableHead>
+                              <TableHead className="p-2">Gender</TableHead>
+                              <TableHead className="p-2">Race</TableHead>
+                              <TableHead className="p-2">Nationality</TableHead>
+                              <TableHead className="p-2">Min age</TableHead>
+                              <TableHead className="p-2">Max age</TableHead>
+                              <TableHead className="p-2">Traits</TableHead>
+                              <TableHead className="p-2">Description</TableHead>
+                              <TableHead className="p-2"></TableHead>
+                            </TableRow>
+                          </TableHeader>
+                          <TableBody>
+                            {getPublicDomainCharacters(publicDomainCharactersKey).map((c, idx) => {
+                              const minAge = c.ageRange?.[0] ?? 0;
+                              const maxAge = c.ageRange?.[1] ?? 0;
+
+                              return (
+                                <TableRow key={`${c.id}-${idx}`}>
+                                  <TableCell className="p-2">
+                                    <Input
+                                      className="h-8 w-[160px] font-mono text-xs"
+                                      value={c.id}
+                                      onChange={(e) => updatePublicDomainCharacterRow(idx, { id: e.target.value })}
+                                    />
+                                  </TableCell>
+                                  <TableCell className="p-2">
+                                    <Input
+                                      className="h-8 min-w-[180px]"
+                                      value={c.name}
+                                      onChange={(e) => updatePublicDomainCharacterRow(idx, { name: e.target.value })}
+                                    />
+                                  </TableCell>
+                                  <TableCell className="p-2">
+                                    <Select value={c.importance} onValueChange={(v) => updatePublicDomainCharacterRow(idx, { importance: v as any })}>
+                                      <SelectTrigger className="h-8 w-[140px]">
+                                        <SelectValue />
+                                      </SelectTrigger>
+                                      <SelectContent>
+                                        <SelectItem value="lead">lead</SelectItem>
+                                        <SelectItem value="supporting">supporting</SelectItem>
+                                        <SelectItem value="minor">minor</SelectItem>
+                                        <SelectItem value="crew">crew</SelectItem>
+                                      </SelectContent>
+                                    </Select>
+                                  </TableCell>
+                                  <TableCell className="p-2">
+                                    <Select value={c.requiredType ?? 'actor'} onValueChange={(v) => updatePublicDomainCharacterRow(idx, { requiredType: v as any })}>
+                                      <SelectTrigger className="h-8 w-[120px]">
+                                        <SelectValue />
+                                      </SelectTrigger>
+                                      <SelectContent>
+                                        <SelectItem value="actor">actor</SelectItem>
+                                        <SelectItem value="director">director</SelectItem>
+                                      </SelectContent>
+                                    </Select>
+                                  </TableCell>
+                                  <TableCell className="p-2">
+                                    <Select
+                                      value={c.requiredGender ?? 'any'}
+                                      onValueChange={(v) => updatePublicDomainCharacterRow(idx, { requiredGender: v === 'any' ? undefined : (v as any) })}
+                                    >
+                                      <SelectTrigger className="h-8 w-[110px]">
+                                        <SelectValue />
+                                      </SelectTrigger>
+                                      <SelectContent>
+                                        <SelectItem value="any">any</SelectItem>
+                                        <SelectItem value="Male">Male</SelectItem>
+                                        <SelectItem value="Female">Female</SelectItem>
+                                      </SelectContent>
+                                    </Select>
+                                  </TableCell>
+                                  <TableCell className="p-2">
+                                    <Select
+                                      value={c.requiredRace ?? 'any'}
+                                      onValueChange={(v) => updatePublicDomainCharacterRow(idx, { requiredRace: v === 'any' ? undefined : (v as any) })}
+                                    >
+                                      <SelectTrigger className="h-8 w-[160px]">
+                                        <SelectValue />
+                                      </SelectTrigger>
+                                      <SelectContent>
+                                        <SelectItem value="any">any</SelectItem>
+                                        <SelectItem value="White">White</SelectItem>
+                                        <SelectItem value="Black">Black</SelectItem>
+                                        <SelectItem value="Asian">Asian</SelectItem>
+                                        <SelectItem value="Latino">Latino</SelectItem>
+                                        <SelectItem value="Middle Eastern">Middle Eastern</SelectItem>
+                                        <SelectItem value="Indigenous">Indigenous</SelectItem>
+                                        <SelectItem value="Mixed">Mixed</SelectItem>
+                                        <SelectItem value="Other">Other</SelectItem>
+                                      </SelectContent>
+                                    </Select>
+                                  </TableCell>
+                                  <TableCell className="p-2">
+                                    <Input
+                                      className="h-8 min-w-[160px]"
+                                      value={c.requiredNationality ?? ''}
+                                      onChange={(e) => updatePublicDomainCharacterRow(idx, { requiredNationality: e.target.value || undefined })}
+                                      placeholder="(optional)"
+                                    />
+                                  </TableCell>
+                                  <TableCell className="p-2">
+                                    <Input
+                                      className="h-8 w-[90px]"
+                                      type="number"
+                                      value={String(minAge)}
+                                      onChange={(e) => updatePublicDomainCharacterRow(idx, { ageRange: [Number(e.target.value) || 0, maxAge] })}
+                                    />
+                                  </TableCell>
+                                  <TableCell className="p-2">
+                                    <Input
+                                      className="h-8 w-[90px]"
+                                      type="number"
+                                      value={String(maxAge)}
+                                      onChange={(e) => updatePublicDomainCharacterRow(idx, { ageRange: [minAge, Number(e.target.value) || 0] })}
+                                    />
+                                  </TableCell>
+                                  <TableCell className="p-2">
+                                    <Input
+                                      className="h-8 min-w-[200px]"
+                                      value={(c.traits || []).join(', ')}
+                                      onChange={(e) => updatePublicDomainCharacterTraits(idx, e.target.value)}
+                                      placeholder="brave, stoic"
+                                    />
+                                  </TableCell>
+                                  <TableCell className="p-2">
+                                    <Input
+                                      className="h-8 min-w-[220px]"
+                                      value={c.description ?? ''}
+                                      onChange={(e) => updatePublicDomainCharacterRow(idx, { description: e.target.value || undefined })}
+                                      placeholder="(optional)"
+                                    />
+                                  </TableCell>
+                                  <TableCell className="p-2">
+                                    <div className="flex justify-end gap-2">
+                                      <Button size="sm" variant="ghost" onClick={() => handleDeletePublicDomainCharacterRow(idx)}>
+                                        Delete
+                                      </Button>
+                                    </div>
+                                  </TableCell>
+                                </TableRow>
+                              );
+                            })}
+                          </TableBody>
+                        </Table>
+
+                        <p className="text-xs text-muted-foreground">
+                          Tip: edit the grid, then click <strong>Apply changes</strong> to generate <code>publicDomainIP</code> patches.
                         </p>
                       </TabsContent>
 
@@ -2105,6 +2325,42 @@ export const ModsPanel: React.FC = () => {
                                         className="h-8 w-[120px]"
                                         type="number"
                                         value={String(edited.cost)}
+                                        onChange={(e) => updateFranchise(f.id, { cost: Number(e.target.value) || 0 })}
+                                      />
+                                    </TableCell>
+                                    <TableCell className="p-2">
+                                      <Input
+                                        className="h-8 min-w-[220px]"
+                                        value={(edited.franchiseTags || []).join(', ')}
+                                        onChange={(e) => updateFranchiseTags(f.id, e.target.value)}
+                                        placeholder="space, rebellion"
+                                      />
+                                    </TableCell>
+                                    <TableCell className="p-2">
+                                      <Input
+                                        className="h-8 min-w-[260px]"
+                                        value={edited.description ?? ''}
+                                        onChange={(e) => updateFranchise(f.id, { description: e.target.value || undefined })}
+                                        placeholder="(optional)"
+                                      />
+                                    </TableCell>
+                                  </TableRow>
+                                );
+                              })}
+                          </TableBody>
+                        </Table>
+
+                        <p className="text-xs text-muted-foreground">
+                          Tip: Franchise defaults are randomly generated. Applying changes writes full-record <code>franchise</code> update patches keyed by franchise id.
+                        </p>
+                      </TabsContent>
+                    </Tabs>
+        </CardContent>
+      </Card>
+    </div>
+  );
+};
+ing(edited.cost)}
                                         onChange={(e) => updateFranchise(f.id, { cost: Number(e.target.value) || 0 })}
                                       />
                                     </TableCell>
