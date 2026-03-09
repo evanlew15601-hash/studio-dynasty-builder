@@ -40,9 +40,11 @@ const ENTITY_TYPES = [
   'publicDomainIP',
   'providerDeal',
   'franchiseRoleSet',
+  'parodyCharacterNames',
   'franchiseCharacterDb',
   'awardShow',
   'studioProfile',
+  'mediaSource',
 ] as const;
 
 const DEFAULT_MOD_VERSION = '1.0.0';
@@ -174,6 +176,7 @@ export const ModsPanel: React.FC = () => {
   const importRef = useRef<HTMLInputElement | null>(null);
 
   const [raw, setRaw] = useState('');
+  const [savedRaw, setSavedRaw] = useState('');
   const [bundle, setBundle] = useState<ModBundle>(() => getModBundle());
   const [activeSlot, setActiveSlot] = useState<string>(() => getActiveModSlot());
   const [newSlotName, setNewSlotName] = useState('');
@@ -214,8 +217,10 @@ export const ModsPanel: React.FC = () => {
     const slot = getActiveModSlot();
     setActiveSlot(slot);
     const b = getModBundle();
+    const nextRaw = JSON.stringify(b, null, 2);
     setBundle(b);
-    setRaw(JSON.stringify(b, null, 2));
+    setRaw(nextRaw);
+    setSavedRaw(nextRaw);
 
     if (b.mods?.length) {
       setEditorModId(b.mods[0].id);
@@ -728,52 +733,81 @@ export const ModsPanel: React.FC = () => {
 
   const handleReload = () => {
     const b = getModBundle();
+    const nextRaw = JSON.stringify(b, null, 2);
     syncFromBundle(b);
+    setSavedRaw(nextRaw);
   };
 
   const handleSave = () => {
     const normalized = parseFromRawOrToast();
     if (!normalized) return;
 
+    // TEW-style: keep the default slot as a safe baseline.
+    // If we're on "default", treat Save as "Save As".
+    if (activeSlot === 'default') {
+      const proposed = newSlotName.trim();
+      const picked =
+        proposed ||
+        (typeof window !== 'undefined'
+          ? (window.prompt('Save As (new slot name):', 'my-mod-db') || '').trim()
+          : '');
+
+      if (!picked) {
+        toast({ title: 'Not saved', description: 'Default slot is read-only. Create a slot to save changes.' });
+        return;
+      }
+
+      if (picked === 'default') {
+        toast({ title: 'Invalid slot name', description: '"default" is reserved. Pick a different name.' });
+        return;
+      }
+
+      setActiveModSlot(picked);
+      const nextSlot = getActiveModSlot();
+      setActiveSlot(nextSlot);
+      setNewSlotName('');
+
+      saveModBundle(normalized);
+      syncFromBundle(normalized);
+
+      toast({
+        title: 'Mods saved',
+        description: `Saved to new slot "${nextSlot}" (d        description: `Saved to       });
+      return;
+    }
+
     saveModBundle(normalized);
     syncFromBundle(normalized);
     toast({
       title: 'Mods saved',
-      description: `Saved to slot "${getActiveModSlot()}". Reload the page if a system doesn't pick up changes immediately.`,
-    });
+      description: `Saved to slot "${getActiveModSlot()}      description: `Saved to slot "${getActiveModSlot()}". Reload the     });
   };
 
   const handleCopyJson = async () => {
     try {
       await navigator.clipboard.writeText(raw);
-      toast({ title: 'Copied', description: 'Mod bundle JSON copied to clipboard.' });
-    } catch {
-      toast({ title: 'Copy failed', description: 'Could not copy to clipboard in this browser.', variant: 'destructive' });
-    }
+      toast({ title: 'Copied', description: 'Mod bundle       toast({ title: 'Copied',     } catch {
+      toast({ title: 'Copy failed', description: 'Could       toast({ title: 'Copy failed', description: 'Could not copy to     }
   };
 
   const handleDownloadJson = () => {
     try {
-      const blob = new Blob([raw], { type: 'application/json' });
-      const url = URL.createObjectURL(blob);
+      const blob = new Blob([raw], { type: 'application/      cons      const url = URL.createObjectURL(blob);
       const a = document.createElement('a');
       a.href = url;
-      a.download = `studio-magnate-mod-${activeSlot}.json`;
-      document.body.appendChild(a);
+      a.download = `studio-magnate-mod-${activeSlot}.jso          document.body.appendChild(a);
       a.click();
       a.remove();
       URL.revokeObjectURL(url);
     } catch {
-      toast({ title: 'Download failed', description: 'Could not generate a download in this browser.', variant: 'destructive' });
-    }
+      toast({ title: 'Download failed', description: 'Co      toast({ title: 'Download failed', description: 'Could not generate a    }
   };
 
   const handleImportClick = () => {
     importRef.current?.click();
   };
 
-  const handleImportFile: React.ChangeEventHandler<HTMLInputElement> = (e) => {
-    const file = e.target.files?.[0];
+  const handleImportFile: React.ChangeEventHandler<HTMLI  const handleImportFile    const file = e.target.files?.[0];
     if (!file) return;
 
     const reader = new FileReader();
@@ -783,13 +817,11 @@ export const ModsPanel: React.FC = () => {
         const parsed = JSON.parse(text);
         const normalized = normalizeModBundle(parsed);
         syncFromBundle(normalized);
-        toast({ title: 'Imported', description: 'Imported mod bundle into the editor. Click Save to persist.' });
-      } catch {
+        toast({ title: 'Imported', description: 'Importe        toast({ title: 'Imported', description: 'Imported       } catch {
         setRaw(text);
         toast({
           title: 'Imported (unformatted)',
-          description: 'Could not parse JSON. The file contents were loaded into the editor as plain text.',
-          variant: 'destructive',
+          description: 'Could not parse JSON. The file c          description: 'Could not parse JSON. The fil          variant: 'destructive',
         });
       }
 
@@ -809,23 +841,24 @@ export const ModsPanel: React.FC = () => {
     const next = newSlotName.trim();
     if (!next) return;
 
+    if (next === 'default') {
+      toast({ title: 'Invalid slot name', description: '      toast({ title: 'Invalid slot name', descripti      return;
+    }
+
     setActiveModSlot(next);
     setActiveSlot(getActiveModSlot());
     setNewSlotName('');
 
-    // Start the new slot from the current JSON (if valid), otherwise start empty.
-    const normalized = parseFromRawOrToast();
+    // Start the new slot from the current JSON (if vali    // Start the new slot f    const normalized = parseFromRawOrToast();
     if (normalized) {
       saveModBundle(normalized);
       syncFromBundle(normalized);
     } else {
-      const empty: ModBundle = { version: 1, mods: [], patches: [] };
-      saveModBundle(empty);
+      const empty: ModBundle = { version: 1, mods: [], p      const em      saveModBundle(empty);
       syncFromBundle(empty);
     }
 
-    toast({ title: 'Slot created', description: `Active mod slot set to "${next}".` });
-  };
+    toast({ title: 'Slot created', description: `Active     toast({ title: 'Slot created  };
 
   const handleDeleteSlot = () => {
     if (activeSlot === 'default') return;
@@ -833,13 +866,17 @@ export const ModsPanel: React.FC = () => {
     const nextSlot = getActiveModSlot();
     setActiveSlot(nextSlot);
     handleReload();
-    toast({ title: 'Slot deleted', description: `Deleted slot "${activeSlot}".` });
-  };
+    toast({ title: 'Slot deleted', description: `Deleted    toast({ title: 'Slot del  };
 
   const handleClear = () => {
+    if (activeSlot === 'default') {
+      toast({ title: 'Read-only', description: 'Default       toast({ title: 'Read-only', description: 'Default slot cannot be cleared      return;
+    }
+
     clearModBundle();
     const b = getModBundle();
     syncFromBundle(b);
+    setSavedRaw(JSON.stringify(b, null, 2));
     toast({
       title: 'Mods cleared',
       description: `Cleared slot "${getActiveModSlot()}". Reload to fully revert.`,
@@ -854,179 +891,143 @@ export const ModsPanel: React.FC = () => {
     syncFromBundle(next);
     setEditorModId(nextId);
     setNewModId('');
-    toast({ title: 'Mod created', description: `Created mod "${nextId}" in this slot.` });
-  };
-
+    toast({    toast({ title: 'Mod created', description: `Created mod "${nextId}" in this slot.
+  const ha
   const handleUpdateMod = (updates: Partial<ModInfo>) => {
     const modId = editorModId.trim();
-    if (!modId) return;
-
+    if (!modId    let ne
     let next = ensureMod(bundle, modId);
     next = {
       ...next,
-      mods: next.mods.map((m) => (m.id === modId ? ({ ...m, ...updates } as any) : m)),
-    };
-
-    syncFromBundle(next);
-  };
-
+      mods: next.mods.map((m) => (m.id === modId ? ({ ...m, ...updates } as any) : m
+    syncFr
+    syncFromBundle(n
+  const up
   const updateProvider = (id: ProviderId, updates: Partial<ProviderDealProfile>) => {
     setProviderEdits((prev) => {
       const current = prev[id] ?? (baseProvidersById.get(id) as ProviderDealProfile);
-      return { ...prev, [id]: stripUndefined({ ...current, ...updates }) };
-    });
-  };
-
+      return { ...prev, [id]: stripUndefined({ ...current, ...updates })   }  
+  const up
   const updateStudio = (name: string, updates: Partial<StudioProfile>) => {
     setStudioEdits((prev) => {
       const current = prev[name] ?? (baseStudioProfilesByName.get(name) as StudioProfile);
-      return { ...prev, [name]: stripUndefined({ ...current, ...updates }) };
-    });
-  };
-
+      return { ...prev, [name]: stripUndefined({ ...current, ...updates })   }  
+  const up
   const updateStudioSpecialties = (name: string, value: string) => {
     const list = value
       .split(',')
       .map((s) => s.trim())
-      .filter(Boolean) as Genre[];
-
-    updateStudio(name, { specialties: list.length ? list : [] });
-  };
-
+      .filter(Boolean) as    update
+    updateStudio(name, { specialties: list.length ? list : [
+  const up
   const updatePublicDomain = (id: string, updates: Partial<PublicDomainIP>) => {
     setPublicDomainEdits((prev) => {
       const current = prev[id] ?? (basePublicDomainById.get(id) as PublicDomainIP);
-      return { ...prev, [id]: stripUndefined({ ...current, ...updates }) };
-    });
-  };
-
+      return { ...prev, [id]: stripUndefined({ ...current, ...updates })   }  
+  const up
   const updatePublicDomainStringList = (id: string, field: 'coreElements' | 'requiredElements' | 'notableAdaptations', value: string) => {
     const list = value
       .split(',')
       .map((s) => s.trim())
       .filter(Boolean);
-    updatePublicDomain(id, { [field]: list.length ? list : undefined } as any);
-  };
-
+    updatePublicDomain(id, { [field]: list.length ? list : undefined } as 
+  const up
   const updatePublicDomainGenreList = (id: string, value: string) => {
     const list = value
       .split(',')
       .map((s) => s.trim())
       .filter(Boolean);
-    updatePublicDomain(id, { genreFlexibility: list as any } as any);
-  };
-
+    updatePublicDomain(id, { genreFlexibility: list as any } as 
+  const ge
   const getPublicDomainCharacters = (ipId: string): ScriptCharacter[] => {
     if (!ipId) return [];
     const edited = publicDomainEdits[ipId] ?? basePublicDomainById.get(ipId);
-    return ((edited?.suggestedCharacters as ScriptCharacter[] | undefined) || []).map((c) => stripUndefined(c));
-  };
-
+    return ((edited?.suggestedCharacters as ScriptCharacter[] | undefined) || []).map((c) => stripUndefined
+  const se
   const setPublicDomainCharacters = (ipId: string, characters: ScriptCharacter[]) => {
     if (!ipId) return;
-    updatePublicDomain(ipId, { suggestedCharacters: stripUndefined(characters) as any });
-  };
-
+    updatePublicDomain(ipId, { suggestedCharacters: stripUndefined(characters) as an
+  const up
   const updatePublicDomainCharacterRow = (idx: number, updates: Partial<ScriptCharacter>) => {
     const ipId = publicDomainCharactersKey;
     if (!ipId) return;
     const current = getPublicDomainCharacters(ipId);
     const next = current.slice();
     next[idx] = stripUndefined({ ...next[idx], ...updates });
-    setPublicDomainCharacters(ipId, next);
-  };
-
+    setPublicDomainCharacters(ipId, n
+  const up
   const updatePublicDomainCharacterTraits = (idx: number, value: string) => {
     const list = value
       .split(',')
       .map((s) => s.trim())
       .filter(Boolean);
-    updatePublicDomainCharacterRow(idx, { traits: list.length ? list : undefined });
-  };
-
+    updatePublicDomainCharacterRow(idx, { traits: list.length ? list : undefine
+  const ha
   const handleAddPublicDomainCharacterRow = () => {
     const ipId = publicDomainCharactersKey;
-    if (!ipId) return;
-
+    if (!ipId    const 
     const current = getPublicDomainCharacters(ipId);
     const existingIds = new Set(current.map((c) => c.id));
     let suffix = current.length + 1;
     let id = `pd_char_${suffix}`;
     while (existingIds.has(id)) {
       suffix++;
-      id = `pd_char_${suffix}`;
-    }
-
+      id = `pd_char_${suffi
+    setPub
     setPublicDomainCharacters(ipId, [
-      ...current,
-      {
+      ...curren         {
         id,
         name: 'New Character',
         importance: 'supporting',
-        requiredType: 'actor',
-      },
-    ]);
-  };
-
+        requiredType: 'actor'          }  
+  const ha
   const handleDeletePublicDomainCharacterRow = (idx: number) => {
     const ipId = publicDomainCharactersKey;
     if (!ipId) return;
     const current = getPublicDomainCharacters(ipId);
-    setPublicDomainCharacters(ipId, current.filter((_, i) => i !== idx));
-  };
-
+    setPublicDomainCharacters(ipId, current.filter((_, i) => i !== i
+  const up
   const updateParodyByCharacterIdRow = (idx: number, updates: Partial<NameMappingRow>) => {
     setParodyByCharacterIdRows((prev) => {
       const next = prev.slice();
       const existing = next[idx];
       if (!existing) return prev;
       next[idx] = stripUndefined({ ...existing, ...updates });
-      return next;
-    });
-  };
-
+      return nex  }  
+  const up
   const updateParodyByTemplateIdRow = (idx: number, updates: Partial<NameMappingRow>) => {
     setParodyByTemplateIdRows((prev) => {
       const next = prev.slice();
       const existing = next[idx];
       if (!existing) return prev;
       next[idx] = stripUndefined({ ...existing, ...updates });
-      return next;
-    });
-  };
-
+      return nex  }  
+  const ha
   const handleAddParodyByCharacterIdRow = () => {
-    setParodyByCharacterIdRows((prev) => [...prev, { key: '', value: '' }]);
-  };
-
+    setParodyByCharacterIdRows((prev) => [...prev, { key: '', value: ''
+  const ha
   const handleAddParodyByTemplateIdRow = () => {
-    setParodyByTemplateIdRows((prev) => [...prev, { key: '', value: '' }]);
-  };
-
+    setParodyByTemplateIdRows((prev) => [...prev, { key: '', value: ''
+  const ha
   const handleDeleteParodyByCharacterIdRow = (idx: number) => {
-    setParodyByCharacterIdRows((prev) => prev.filter((_, i) => i !== idx));
-  };
-
+    setParodyByCharacterIdRows((prev) => prev.filter((_, i) => i !== i
+  const ha
   const handleDeleteParodyByTemplateIdRow = (idx: number) => {
-    setParodyByTemplateIdRows((prev) => prev.filter((_, i) => i !== idx));
-  };
-
+    setParodyByTemplateIdRows((prev) => prev.filter((_, i) => i !== i
+  const up
   const updateRoleRow = (idx: number, updates: Partial<ScriptCharacter>) => {
     setRoleSetRows((prev) => {
       const next = prev.slice();
       next[idx] = stripUndefined({ ...next[idx], ...updates });
-      return next;
-    });
-  };
-
+      return nex  }  
+  const up
   const updateRoleTraits = (idx: number, value: string) => {
     const list = value
       .split(',')
       .map((s) => s.trim())
       .filter(Boolean);
-    updateRoleRow(idx, { traits: list.length ? list : undefined });
-  };
-
+    updateRoleRow(idx, { traits: list.length ? list : undefine
+  const ha
   const handleAddRoleRow = () => {
     setRoleSetRows((prev) => {
       const existingIds = new Set(prev.map((r) => r.id));
@@ -1034,92 +1035,74 @@ export const ModsPanel: React.FC = () => {
       let id = `role-${suffix}`;
       while (existingIds.has(id)) {
         suffix++;
-        id = `role-${suffix}`;
-      }
-
+        id = `role-${suffix}
+      retu
       return [
-        ...prev,
-        {
+        ...prev,         {
           id,
           name: 'New Role',
           importance: 'minor',
           requiredType: 'actor',
           ageRange: [20, 60],
-        },
-      ];
-    });
-  };
-
+        }          }  
+  const ha
   const handleDeleteRoleRow = (idx: number) => {
-    setRoleSetRows((prev) => prev.filter((_, i) => i !== idx));
-  };
-
+    setRoleSetRows((prev) => prev.filter((_, i) => i !== i
+  const up
   const updateCharacterRow = (idx: number, updates: Partial<FranchiseCharacterDef>) => {
     setCharacterDbRows((prev) => {
       const next = prev.slice();
       next[idx] = { ...next[idx], ...updates };
-      return next;
-    });
-  };
-
+      return nex  }  
+  const up
   const updateCharacterTraits = (idx: number, value: string) => {
     const list = value
       .split(',')
       .map((s) => s.trim())
       .filter(Boolean);
-    updateCharacterRow(idx, { traits: list.length ? list : undefined });
-  };
-
+    updateCharacterRow(idx, { traits: list.length ? list : undefine
+  const up
   const updateTalent = (id: string, updates: Partial<TalentEdit>) => {
     setTalentEdits((prev) => {
       const base = baseCoreTalentById.get(id);
       const current = prev[id] ?? (base ? pickTalentEdit(base) : null);
       if (!current) return prev;
-      return { ...prev, [id]: stripUndefined({ ...current, ...updates }) };
-    });
-  };
-
+      return { ...prev, [id]: stripUndefined({ ...current, ...updates })   }  
+  const up
   const updateTalentGenres = (id: string, value: string) => {
     const list = value
       .split(',')
       .map((s) => s.trim())
       .filter(Boolean);
-    updateTalent(id, { genres: list as any });
-  };
-
+    updateTalent(id, { genres: list as an
+  const up
   const updateTalentTraits = (id: string, value: string) => {
     const list = value
       .split(',')
       .map((s) => s.trim())
       .filter(Boolean);
-    updateTalent(id, { traits: list.length ? list : undefined });
-  };
-
+    updateTalent(id, { traits: list.length ? list : undefine
+  const up
   const updateTalentSpecialties = (id: string, value: string) => {
     const list = value
       .split(',')
       .map((s) => s.trim())
       .filter(Boolean) as Genre[];
-    updateTalent(id, { specialties: list.length ? list : undefined });
-  };
-
+    updateTalent(id, { specialties: list.length ? list : undefine
+  const up
   const updateFranchise = (id: string, updates: Partial<Franchise>) => {
     setFranchiseEdits((prev) => {
       const base = baseFranchisesById.get(id);
       const current = prev[id] ?? base;
       if (!current) return prev;
-      return { ...prev, [id]: stripUndefined({ ...current, ...updates }) };
-    });
-  };
-
+      return { ...prev, [id]: stripUndefined({ ...current, ...updates })   }  
+  const up
   const updateFranchiseTags = (id: string, value: string) => {
     const list = value
       .split(',')
       .map((s) => s.trim())
       .filter(Boolean);
-    updateFranchise(id, { franchiseTags: list });
-  };
-
+    updateFranchise(id, { franchiseTags: lis
   const updateFranchiseGenres = (id: string, value: string) => {
     const list = value
       .split(',')
@@ -1476,287 +1459,93 @@ export const ModsPanel: React.FC = () => {
         entityType: 'publicDomainIP',
         op: 'update',
         target: ipId,
-        payload: stripUndefined(edited),
-      });
+        pay        payload: stripUndefine      });
     }
 
-    syncFromBundle(next);
-    toast({ title: 'Applied', description: `Applied public domain changes as patches in mod "${modId}". Click Save to persist.` });
-  };
+    syncFro    syncFromBun    toast({    toast({ title: 'Applied', description: `Applied public domain changes as patches in mod "${modId}". Click Save to per  };
 
-  const handleApplyParodyCharacterNamesEdits = () => {
-    const modId = editorModId.trim();
-    if (!modId) return;
+  const han  const handleApplyParodyCharacterNamesEdits    const m    const modId = editorMod    if (!mo    if (!modI
+    const k    const key = parod    if (!ke    if (!ke
+    const k    const keptPatches = bundle.patch      (p) =      (p) => !(p.modId === modId && p.entityType === 'parodyCharacterNames' && p.op === 'update' && p.targe    );
 
-    const key = parodyNamesKey;
-    if (!key) return;
+    let nex    let next: ModBundle = ensureMod({ ...bundle, patches: keptPatches 
+    const b    const base = PARODY_CHARACTER_NAME_MAP[key] ?? ({} as ParodyCharacterName    const n    const nextByCharacterId = nameRecordFromRows(parodyByCharact    const n    const nextByTemplateId = nameRecordFromRows(parodyByTempla
+    const e    const edited: ParodyCharacterNameMa      byCha      byCharacterId: Object.keys(nextByCharacterId).length ? nextByCharacterId :       byTem      byTemplateId: Object.keys(nextByTemplateId).length ? nextByTemplateId :     };
 
-    const keptPatches = bundle.patches.filter(
-      (p) => !(p.modId === modId && p.entityType === 'parodyCharacterNames' && p.op === 'update' && p.target === key)
-    );
-
-    let next: ModBundle = ensureMod({ ...bundle, patches: keptPatches }, modId);
-
-    const base = PARODY_CHARACTER_NAME_MAP[key] ?? ({} as ParodyCharacterNameMapEntry);
-    const nextByCharacterId = nameRecordFromRows(parodyByCharacterIdRows);
-    const nextByTemplateId = nameRecordFromRows(parodyByTemplateIdRows);
-
-    const edited: ParodyCharacterNameMapEntry = {
-      byCharacterId: Object.keys(nextByCharacterId).length ? nextByCharacterId : undefined,
-      byTemplateId: Object.keys(nextByTemplateId).length ? nextByTemplateId : undefined,
-    };
-
-    if (!deepEqual(stripUndefined(base), stripUndefined(edited))) {
-      const patchId = `parodyCharacterNames:${modId}:${key}`;
-
-      const patchByCharacterId = namePatchRecordFromRows(base.byCharacterId, parodyByCharacterIdRows);
-      const patchByTemplateId = namePatchRecordFromRows(base.byTemplateId, parodyByTemplateIdRows);
-
-      next = upsertPatch(next, {
-        id: patchId,
-        modId,
-        entityType: 'parodyCharacterNames',
-        op: 'update',
-        target: key,
-        payload: stripUndefined({
-          byCharacterId: patchByCharacterId,
-          byTemplateId: patchByTemplateId,
-        }),
-      });
+    if (!de    if (!deepEqual(stripUndefined(base), stripUndefined(e      const      const patchId = `parodyCharacterNames:${modId
+      const      const patchByCharacterId = namePatchRecordFromRows(base.byCharacterId, parodyByCharact      const      const patchByTemplateId = namePatchRecordFromRows(base.byTemplateId, parodyByTempla
+      next       next = upsertPat        id:        id        mod            ent        entityType: 'parodyCharac        op:        op:        tar        ta        pay        payload: stripU          b          byCharacterId: patchByCh          b          byTemplateId: patchByT        }),       });
     }
 
-    syncFromBundle(next);
-    toast({ title: 'Applied', description: `Applied parody name mapping changes as patches in mod "${modId}". Click Save to persist.` });
-  };
+    syncFro    syncFromBun    toast({    toast({ title: 'Applied', description: `Applied parody name mapping changes as patches in mod "${modId}". Click Save to per  };
 
-  const handleApplyRoleSetEdits = () => {
-    const modId = editorModId.trim();
-    if (!modId) return;
+  const han  const handleApplyRoleSetEdits    const m    const modId = editorMod    if (!mo    if (!modI
+    const k    const key = r    if (!ke    if (!ke
+    const k    const keptPatches = bundle.patch      (p) =      (p) => !(p.modId === modId && p.entityType === 'franchiseRoleSet' && p.op === 'update' && p.targe    );
 
-    const key = roleSetKey;
-    if (!key) return;
-
-    const keptPatches = bundle.patches.filter(
-      (p) => !(p.modId === modId && p.entityType === 'franchiseRoleSet' && p.op === 'update' && p.target === key)
-    );
-
-    let next: ModBundle = ensureMod({ ...bundle, patches: keptPatches }, modId);
-
-    const base = baseFranchiseRoleSets[key] ?? [];
-
-    if (!deepEqual(stripUndefined(base), stripUndefined(roleSetRows))) {
-      const patchId = `franchiseRoleSet:${modId}:${key}`;
-      next = upsertPatch(next, {
-        id: patchId,
-        modId,
-        entityType: 'franchiseRoleSet',
-        op: 'update',
-        target: key,
-        payload: stripUndefined(roleSetRows),
-      });
+    let nex    let next: ModBundle = ensureMod({ ...bundle, patches: keptPatches 
+    const b    const base = baseFranchiseRoleSets[k
+    if (!de    if (!deepEqual(stripUndefined(base), stripUndefined(roleSe      const      const patchId = `franchiseRoleSet:${modId      next       next = upsertPat        id:        id        mod            ent        entityType: 'franchis        op:        op:        tar        ta        pay        payload: stripUndefined(rol      });
     }
 
-    syncFromBundle(next);
-    toast({ title: 'Applied', description: `Applied role set changes as patches in mod "${modId}". Click Save to persist.` });
-  };
+    syncFro    syncFromBun    toast({    toast({ title: 'Applied', description: `Applied role set changes as patches in mod "${modId}". Click Save to per  };
 
-  const handleApplyCharacterDbEdits = () => {
-    const modId = editorModId.trim();
-    if (!modId) return;
+  const han  const handleApplyCharacterDbEdits    const m    const modId = editorMod    if (!mo    if (!modI
+    const k    const key = chara    if (!ke    if (!ke
+    const k    const keptPatches = bundle.patch      (p) =      (p) => !(p.modId === modId && p.entityType === 'franchiseCharacterDb' && p.op === 'update' && p.targe    );
 
-    const key = characterDbKey;
-    if (!key) return;
-
-    const keptPatches = bundle.patches.filter(
-      (p) => !(p.modId === modId && p.entityType === 'franchiseCharacterDb' && p.op === 'update' && p.target === key)
-    );
-
-    let next: ModBundle = ensureMod({ ...bundle, patches: keptPatches }, modId);
-
-    const base = baseFranchiseCharacterDb[key] ?? [];
-
-    if (!deepEqual(stripUndefined(base), stripUndefined(characterDbRows))) {
-      const patchId = `franchiseCharacterDb:${modId}:${key}`;
-      next = upsertPatch(next, {
-        id: patchId,
-        modId,
-        entityType: 'franchiseCharacterDb',
-        op: 'update',
-        target: key,
-        payload: stripUndefined(characterDbRows),
-      });
+    let nex    let next: ModBundle = ensureMod({ ...bundle, patches: keptPatches 
+    const b    const base = baseFranchiseCharacterDb[k
+    if (!de    if (!deepEqual(stripUndefined(base), stripUndefined(characterD      const      const patchId = `franchiseCharacterDb:${modId      next       next = upsertPat        id:        id        mod            ent        entityType: 'franchiseCha        op:        op:        tar        ta        pay        payload: stripUndefined(charact      });
     }
 
-    syncFromBundle(next);
-    toast({ title: 'Applied', description: `Applied franchise character changes as patches in mod "${modId}". Click Save to persist.` });
-  };
+    syncFro    syncFromBun    toast({    toast({ title: 'Applied', description: `Applied franchise character changes as patches in mod "${modId}". Click Save to per  };
 
-  const handleApplyTalentEdits = () => {
-    const modId = editorModId.trim();
-    if (!modId) return;
+  const han  const handleApplyTalentEdits    const m    const modId = editorMod    if (!mo    if (!modI
+    const b    const baseIds = new Set(baseCoreTalent.map((t) 
+    const k    const keptPatches = bundle.patch      (p) =      (p) => !(p.modId === modId && p.entityType === 'talent' && p.op === 'update' && p.target && baseIds.has(String(p    );
 
-    const baseIds = new Set(baseCoreTalent.map((t) => t.id));
-
-    const keptPatches = bundle.patches.filter(
-      (p) => !(p.modId === modId && p.entityType === 'talent' && p.op === 'update' && p.target && baseIds.has(String(p.target)))
-    );
-
-    let next: ModBundle = ensureMod({ ...bundle, patches: keptPatches }, modId);
-
-    for (const t of baseCoreTalent) {
-      const baseEdit = pickTalentEdit(t);
-      const edited = talentEdits[t.id] ?? baseEdit;
-
-      if (deepEqual(stripUndefined(baseEdit), stripUndefined(edited))) continue;
-
-      const { id: _id, ...payload } = edited;
-
-      const patchId = `talent:${modId}:${t.id}`;
-      next = upsertPatch(next, {
-        id: patchId,
-        modId,
-        entityType: 'talent',
-        op: 'update',
-        target: t.id,
-        payload: stripUndefined(payload),
-      });
+    let nex    let next: ModBundle = ensureMod({ ...bundle, patches: keptPatches 
+    for (co    for (const t of baseCor      const      const baseEdit = pickTale      const      const edited = talentEdits[t.id] ??
+      if (d      if (deepEqual(stripUndefined(baseEdit), stripUndefined(edited)))
+      const      const { id: _id, ...payload }
+      const      const patchId = `talent:${modId}      next       next = upsertPat        id:        id        mod            ent        entityType:        op:        op:        tar        tar        pay        payload: stripUndefined      });
     }
 
-    syncFromBundle(next);
-    toast({ title: 'Applied', description: `Applied talent changes as patches in mod "${modId}". Click Save to persist.` });
-  };
+    syncFro    syncFromBun    toast({    toast({ title: 'Applied', description: `Applied talent changes as patches in mod "${modId}". Click Save to per  };
 
-  const handleApplyFranchiseEdits = () => {
-    const modId = editorModId.trim();
-    if (!modId) return;
+  const han  const handleApplyFranchiseEdits    const m    const modId = editorMod    if (!mo    if (!modI
+    const b    const baseIds = new Set(baseFranchises.map((f) 
+    const k    const keptPatches = bundle.patch      (p) =      (p) => !(p.modId === modId && p.entityType === 'franchise' && p.op === 'update' && p.target && baseIds.has(String(p    );
 
-    const baseIds = new Set(baseFranchises.map((f) => f.id));
-
-    const keptPatches = bundle.patches.filter(
-      (p) => !(p.modId === modId && p.entityType === 'franchise' && p.op === 'update' && p.target && baseIds.has(String(p.target)))
-    );
-
-    let next: ModBundle = ensureMod({ ...bundle, patches: keptPatches }, modId);
-
-    for (const f of baseFranchises) {
-      const edited = franchiseEdits[f.id] ?? f;
-      if (deepEqual(stripUndefined(f), stripUndefined(edited))) continue;
-
-      const patchId = `franchise:${modId}:${f.id}`;
-      next = upsertPatch(next, {
-        id: patchId,
-        modId,
-        entityType: 'franchise',
-        op: 'update',
-        target: f.id,
-        payload: stripUndefined(edited),
-      });
+    let nex    let next: ModBundle = ensureMod({ ...bundle, patches: keptPatches 
+    for (co    for (const f of baseFra      const      const edited = franchiseEdits[f      if (d      if (deepEqual(stripUndefined(f), stripUndefined(edited)))
+      const      const patchId = `franchise:${modId}      next       next = upsertPat        id:        id        mod            ent        entityType: 'f        op:        op:        tar        tar        pay        payload: stripUndefine      });
     }
 
-    syncFromBundle(next);
-    toast({ title: 'Applied', description: `Applied franchise changes as patches in mod "${modId}". Click Save to persist.` });
-  };
+    syncFro    syncFromBun    toast({    toast({ title: 'Applied', description: `Applied franchise changes as patches in mod "${modId}". Click Save to per  };
 
-  const handleAddPatchToEditor = () => {
-    const normalized = parseFromRawOrToast();
-    if (!normalized) return;
+  const han  const handleAddPatchToEditor    const n    const normalized = parseFromRaw    if (!no    if (!normalize
+    const m    const modId = editorMod    if (!mo    if       toast      toast({ title: 'Missing mod id', description: 'Enter a mod id (e.g. "my-mod").', variant: 'destru      retur       }
 
-    const modId = editorModId.trim();
-    if (!modId) {
-      toast({ title: 'Missing mod id', description: 'Enter a mod id (e.g. "my-mod").', variant: 'destructive' });
-      return;
+    const n    const next: Mod      ...no      ...n      mods:      mods: normalized.mods.some((m) => m.id === modId) ? normalized.mods : [...normalized.mods, makeDefaultMo      patch      patches: normalized.patche    };
+
+    let pay    let payload: unknown =     if (qui    if (quickOp === 'insert' || quickOp === '      try {         pay        payload = JSON.parse(quic      } cat             toa        toast({ title: 'Invalid payload JSON', description: 'Payload must be valid JSON.', variant: 'destru        ret           }
     }
 
-    const next: ModBundle = {
-      ...normalized,
-      mods: normalized.mods.some((m) => m.id === modId) ? normalized.mods : [...normalized.mods, makeDefaultMod(modId)],
-      patches: normalized.patches.slice(),
-    };
+    const i    const id = typeof crypto !== 'undefined' && 'randomUUID' in crypto ? `p-${crypto.randomUUID()}` : `p-${Dat
+    next.pa    next.patc      id,
+      modId        entit      entityType: quickE      op: q      op      targe      target: quickTarget.trim() ||       paylo        });
 
-    let payload: unknown = undefined;
-    if (quickOp === 'insert' || quickOp === 'update') {
-      try {
-        payload = JSON.parse(quickPayload);
-      } catch {
-        toast({ title: 'Invalid payload JSON', description: 'Payload must be valid JSON.', variant: 'destructive' });
-        return;
-      }
-    }
-
-    const id = typeof crypto !== 'undefined' && 'randomUUID' in crypto ? `p-${crypto.randomUUID()}` : `p-${Date.now()}`;
-
-    next.patches.push({
-      id,
-      modId,
-      entityType: quickEntityType,
-      op: quickOp,
-      target: quickTarget.trim() || undefined,
-      payload,
-    });
-
-    syncFromBundle(next);
-    toast({ title: 'Patch added', description: 'Patch added to the JSON editor. Click Save to persist.' });
-  };
+    syncFro    syncFromBun    toast({    toast({ title: 'Patch added', description: 'Patch added to the JSON editor. Click Save to per  };
 
   return (
-    <div className="space-y-4">
-      <input ref={importRef} type="file" accept="application/json,.json" className="hidden" onChange={handleImportFile} />
-
-      <Card className="card-premium">
-        <CardHeader>
-          <CardTitle className="flex items-center justify-between">
-            <span>Mod Database</span>
-            <div className="flex items-center gap-2">
-              <Badge variant="outline">{enabledCount}/{bundle.mods.length} enabled</Badge>
-              <Badge variant="secondary">{bundle.patches.length} patches</Badge>
-            </div>
-          </CardTitle>
-        </CardHeader>
-        <CardContent className="space-y-4">
-          <p className="text-sm text-muted-foreground">
-            Mods are applied as patches on top of the built-in data; they do not replace the default databases. Higher
-            priority mods win conflicts.
-          </p>
-
-          <div className="grid grid-cols-1 lg:grid-cols-3 gap-3">
-            <div className="space-y-2">
-              <div className="text-xs text-muted-foreground">Active slot</div>
-              <Select value={activeSlot} onValueChange={handleSwitchSlot}>
-                <SelectTrigger>
-                  <SelectValue placeholder="Select slot" />
-                </SelectTrigger>
-                <SelectContent>
-                  {slots.map((s) => (
-                    <SelectItem key={s} value={s}>
-                      {s}
-                    </SelectItem>
-                  ))}
-                </SelectContent>
-              </Select>
-            </div>
-
-            <div className="space-y-2">
-              <div className="text-xs text-muted-foreground">Create slot (Save As)</div>
-              <div className="flex gap-2">
-                <Input
-                  value={newSlotName}
-                  onChange={(e) => setNewSlotName(e.target.value)}
-                  placeholder="e.g. real-world-mod"
-                />
-                <Button size="sm" variant="secondary" onClick={handleCreateSlot}>
-                  Create
-                </Button>
-              </div>
-            </div>
-
-            <div className="space-y-2">
-              <div className="text-xs text-muted-foreground">Slot actions</div>
-              <div className="flex flex-wrap gap-2">
-                <Button size="sm" variant="secondary" onClick={handleReload}>
-                  Reload
-                </Button>
-                <Button size="sm" onClick={handleSave}>
-                  Save
+    <div cl    <div className="s      <inpu      <input ref={importRef} type="file" accept="application/json,.json" className="hidden" onChange={handleImpo
+      <Card      <Card className="card        <Ca        <C          <          <CardTitle className="flex items-center justify                       <span>Mod Datab                       <div className="flex items-cent                         <Badge variant="outline">{enabledCount}/{bundle.mods.length} enabl                         <Badge variant="secondary">{bundle.patches.length} patch                             <          </        </C        </C        <Ca        <CardContent className="s          <          <p className="text-sm text-muted-fo                       Mods are applied as patches on top of the built-in data; they do not replace the default databas                       priority mods win           <    
+          <          <div className="grid grid-cols-1 lg:grid-cols                       <div className="s                         <div className="text-xs text-muted-foreground">Active                          <Select value={activeSlot} onValueChange={handleSw                           <Sele                             <SelectValue placeholder="Selec                           </Sele                           <Sele                             {slots.ma                               <SelectItem key={s}                                                          </S                                                 </Sele                                           
+                       <div className="s                         <div className="text-xs text-muted-foreground">Create slot (Save                         <div className="fl                                                    value={ne                             onChange={(e) => setNewSlotName(e.targ                             placeholder="e.g. real-                                              <Button size="sm" variant="secondary" onClick={handleCr                                                                                           
+                       <div className="s                         <div className="text-xs text-muted-foreground">Slot act                         <div className="flex flex-wr                           <Button size="sm" variant="secondary" onClick={hand                                                                   <Button size="sm" onClick={handleSave}>
+                  {activeSlot === 'default' ? 'Save As…' : 'Save'}
                 </Button>
                 <Button size="sm" variant="secondary" onClick={handleCopyJson}>
                   Copy JSON
@@ -1792,23 +1581,12 @@ export const ModsPanel: React.FC = () => {
               <div className="space-y-4">
                 <Card>
                   <CardHeader>
-                    <CardTitle className="text-base">Database editor (TEW-style)</CardTitle>
-                  </CardHeader>
-                  <CardContent className="space-y-4">
-                    <p className="text-xs text-muted-foreground">
-                      Edit values in a grid, then apply changes to generate patches. This currently supports{' '}
-                      <code>providerDeal</code>, <code>studioProfile</code>, <code>mediaSource</code>, <code>publicDomainIP</code> (including suggested characters), <code>franchiseRoleSet</code>, <code>parodyCharacterNames</code>, <code>franchiseCharacterDb</code>, <code>talent</code>, <code>franchise</code>, and <code>awardShow</code>.
-                    </p>
-
-                    <div className="grid grid-cols-1 lg:grid-cols-3 gap-3">
-                      <div className="space-y-1">
-                        <Label className="text-xs text-muted-foreground">Editing mod</Label>
-                        <Select value={editorModId} onValueChange={setEditorModId}>
-                          <SelectTrigger>
-                            <SelectValue placeholder="Select mod" />
-                          </SelectTrigger>
-                          <SelectContent>
-                            {Array.from(new Set([...(bundle.mods || []).map((m) => m.id), editorModId]))
+                    <CardTitle className="flex items-center justify-between">
+                      <span>Mod Database</span>
+                      <div className="flex items-center gap-2">
+                        {activeSlot === 'default' ? <Badge variant="outline">default (read-only)</Badge> : null}
+                                   <Badge variant="outline">{enabledCount}/{bundle.mods.length} enabl                                   <Badge variant="secondary">{bundle.patches.length} patch                                                            </                             </C                             <CardContent className="s                               <p className="text-xs text-muted-fo                                 Edit values in a grid, then apply changes to generate patches. This currently sup                                 <code>providerDeal</code>, <code>studioProfile</code>, <code>mediaSource</code>, <code>publicDomainIP</code> (including suggested characters), <code>franchiseRoleSet</code>, <code>parodyCharacterNames</code>, <code>franchiseCharacterDb</code>, <code>talent</code>, <code>franchise</code>, and <code>awardSh                         
+                               <div className="grid grid-cols-1 lg:grid-cols                                 <div className="s                                   <Label className="text-xs text-muted-foreground">Editing m                                   <Select value={editorModId} onValueChange={setEdi                                     <Sele                                       <SelectValue placeholder="Sele                                     </Sele                                     <Sele                            {Array.from(new Set([...(bundle.mods || []).map((m) => m.id), editorModId]))
                               .filter((id) => !!id)
                               .map((id) => (
                                 <SelectItem key={id} value={id}>
@@ -1994,82 +1772,9 @@ export const ModsPanel: React.FC = () => {
                                   </TableCell>
                                   <TableCell className="p-2">
                                     <Input
-                                      className="h-8 w-[120px]"
-                                      type="number"
-                                      value={String(edited.requirements?.minQuality ?? 0)}
-                                      onChange={(e) => updateProviderRequirements(base.id, { minQuality: Number(e.target.value) || 0 })}
-                                    />
-                                  </TableCell>
-                                  <TableCell className="p-2">
-                                    <Input
-                                      className="h-8 w-[120px]"
-                                      type="number"
-                                      value={String(edited.requirements?.minBudget ?? 0)}
-                                      onChange={(e) => updateProviderRequirements(base.id, { minBudget: Number(e.target.value) || 0 })}
-                                    />
-                                  </TableCell>
-                                  <TableCell className="p-2">
-                                    <Input
-                                      className="h-8 min-w-[220px]"
-                                      value={(edited.requirements?.preferredGenres || []).join(', ')}
-                                      onChange={(e) => updateProviderPreferredGenres(base.id, e.target.value)}
-                                      placeholder="drama, thriller"
-                                    />
-                                  </TableCell>
-                                  <TableCell className="p-2">
-                                    <Input
-                                      className="h-8 w-[160px]"
-                                      type="number"
-                                      value={String(edited.expectations?.viewersPerShare ?? 0)}
-                                      onChange={(e) => updateProviderExpectations(base.id, { viewersPerShare: Number(e.target.value) || 0 })}
-                                    />
-                                  </TableCell>
-                                  <TableCell className="p-2">
-                                    <Input
-                                      className="h-8 w-[130px]"
-                                      type="number"
-                                      value={String(edited.expectations?.completionRate ?? 0)}
-                                      onChange={(e) => updateProviderExpectations(base.id, { completionRate: Number(e.target.value) || 0 })}
-                                    />
-                                  </TableCell>
-                                  <TableCell className="p-2">
-                                    <Input
-                                      className="h-8 w-[120px]"
-                                      type="number"
-                                      step="0.001"
-                                      value={String(edited.expectations?.subscriberGrowthRate ?? 0)}
-                                      onChange={(e) =>
-                                        updateProviderExpectations(base.id, { subscriberGrowthRate: Number(e.target.value) || 0 })
-                                      }
-                                    />
-                                  </TableCell>
-                                  <TableCell className="p-2">
-                                    <div className="flex justify-end gap-2">
-                                      <Button size="sm" variant="ghost" onClick={() => handleResetProviderRow(base.id)}>
-                                        Reset
-                                      </Button>
-                                    </div>
-                                  </TableCell>
-                                </TableRow>
-                              );
-                            })}
-                          </TableBody>
-                        </Table>
-
-                        <p className="text-xs text-muted-foreground">
-                          Tip: after clicking <strong>Apply changes</strong>, use the top-level <strong>Save</strong> button to persist
-                          this slot.
-                        </p>
-                      </TabsContent>
-
-                      <TabsContent value="studios" className="space-y-3">
-                        <div className="flex flex-wrap items-center justify-between gap-2">
-                          <div className="text-sm text-muted-foreground">
-                            Studios: <span className="font-medium text-foreground">{changedStudioCount}</span> changed
-                          </div>
-                          <div className="flex flex-wrap gap-2">
-                            <Button
-                              size="sm"
+                                                 className="h-8                                                  typ                                                 value={String(edited.requirements?.minQual                                                 onChange={(e) => updateProviderRequirements(base.id, { minQuality: Number(e.target.value                                                                                    </                                             <TableCell classN                                                                                            className="h-8                                                  typ                                                 value={String(edited.requirements?.minBud                                                 onChange={(e) => updateProviderRequirements(base.id, { minBudget: Number(e.target.value                                                                                    </                                             <TableCell classN                                                                                            className="h-8 min-                                                 value={(edited.requirements?.preferredGenres || []).j                                                 onChange={(e) => updateProviderPreferredGenres(base.id, e.targ                                                 placeholder="drama,                                                                                    </                                             <TableCell classN                                                                                            className="h-8                                                  typ                                                 value={String(edited.expectations?.viewersPerSh                                                 onChange={(e) => updateProviderExpectations(base.id, { viewersPerShare: Number(e.target.value                                                                                    </                                             <TableCell classN                                                                                            className="h-8                                                  typ                                                 value={String(edited.expectations?.completionR                                                 onChange={(e) => updateProviderExpectations(base.id, { completionRate: Number(e.target.value                                                                                    </                                             <TableCell classN                                                                                            className="h-8                                                  typ                                                 st                                                 value={String(edited.expectations?.subscriberGrowthR                                                 onChan                                                   updateProviderExpectations(base.id, { subscriberGrowthRate: Number(e.target.valu                                                                                                                            </                                             <TableCell classN                                               <div className="flex justify-e                                                 <Button size="sm" variant="ghost" onClick={() => handleResetProviderRow(                                                                                                                                                                                      </                                           <                                                                                                      </                                 
+                                   <p className="text-xs text-muted-fo                                     Tip: after clicking <strong>Apply changes</strong>, use the top-level <strong>Save</strong> button                                                                                                    </Ta
+                                 <TabsContent value="studios" className="s                                   <div className="flex flex-wrap items-center justify-betwe                                     <div className="text-sm text-muted-fo                                       Studios: <span className="font-medium text-foreground">{changedStudioCount}</spa                                                                      <div className="flex flex-wr                                                                  size="sm"
                               variant="secondary"
                               onClick={() => {
                                 const modId = editorModId.trim();
@@ -2167,7 +1872,7 @@ export const ModsPanel: React.FC = () => {
                                       />
                                     </TableCell>
                                     <TableCell className="p-2">
-                                      <Input
+                                                 <Input
                                         className="h-8 w-[100px]"
                                         type="number"
                                         value={edited.foundedYear ? String(edited.foundedYear) : ''}
