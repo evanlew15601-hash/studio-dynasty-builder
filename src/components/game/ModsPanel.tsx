@@ -11,9 +11,12 @@ import { Switch } from '@/components/ui/switch';
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { PROVIDER_DEALS, getEffectiveProviderDeals, type ProviderDealProfile, type ProviderId } from '@/data/ProviderDealsDatabase';
+import { PublicDomainGenerator } from '@/data/PublicDomainGenerator';
+import { FRANCHISE_ROLE_SETS } from '@/data/RoleDatabase';
+import type { PublicDomainIP, ScriptCharacter } from '@/types/game';
 import { useToast } from '@/hooks/use-toast';
 import type { ModBundle, ModInfo, ModOp, ModPatch } from '@/types/modding';
-import { normalizeModBundle } from '@/utils/modding';
+import { applyPatchesByKey, applyPatchesToRecord, getPatchesForEntity, normalizeModBundle } from '@/utils/modding';
 import {
   clearModBundle,
   deleteModSlot,
@@ -89,7 +92,10 @@ export const ModsPanel: React.FC = () => {
   // Editor
   const [editorModId, setEditorModId] = useState('my-mod');
   const [newModId, setNewModId] = useState('');
-  const [providerEdits, setProviderEdits] = useState<Record<ProviderId, ProviderDealProfile>>({} as any);
+  const [providerEdits, setProviderEdits] = useState<Record<ProviderId, ProviderDealProfile>>({} as Record<ProviderId, ProviderDealProfile>);
+  const [publicDomainEdits, setPublicDomainEdits] = useState<Record<string, PublicDomainIP>>({});
+  const [roleSetKey, setRoleSetKey] = useState<string>(() => Object.keys(FRANCHISE_ROLE_SETS)[0] ?? 'Star Wars');
+  const [roleSetRows, setRoleSetRows] = useState<ScriptCharacter[]>([]);
 
   // Quick patch builder (raw JSON tab)
   const [quickEntityType, setQuickEntityType] = useState<(typeof ENTITY_TYPES)[number]>('providerDeal');
@@ -120,6 +126,19 @@ export const ModsPanel: React.FC = () => {
     return map;
   }, []);
 
+  const basePublicDomainIPs = useMemo(() => PublicDomainGenerator.generateInitialPublicDomainIPs(50), []);
+
+  const baseFranchiseRoleSets = useMemo(() => FRANCHISE_ROLE_SETS, []);
+  const baseFranchiseRoleSetKeys = useMemo(() => Object.keys(baseFranchiseRoleSets).sort(), [baseFranchiseRoleSets]);
+
+  const basePublicDomainById = useMemo(() => {
+    const map = new Map<string, PublicDomainIP>();
+    for (const ip of basePublicDomainIPs) {
+      map.set(ip.id, ip);
+    }
+    return map;
+  }, [basePublicDomainIPs]);
+
   const selectedMod = useMemo(() => bundle.mods.find((m) => m.id === editorModId) ?? null, [bundle.mods, editorModId]);
 
   const rebuildProviderEdits = (b: ModBundle, modId: string) => {
@@ -138,6 +157,34 @@ export const ModsPanel: React.FC = () => {
     setProviderEdits(next);
   };
 
+  const rebuildPublicDomainEdits = (b: ModBundle, modId: string) => {
+    const modInfo = b.mods.find((m) => m.id === modId) ?? makeDefaultMod(modId);
+    const editorBundle: ModBundle = {
+      version: 1,
+      mods: [{ ...modInfo, enabled: true }],
+      patches: (b.patches || []).filter((p) => p.modId === modId && p.entityType === 'publicDomainIP'),
+    };
+
+    const patched = applyPatchesByKey(basePublicDomainIPs, getPatchesForEntity(editorBundle, 'publicDomainIP'), (p) => p.id);
+    const next: Record<string, PublicDomainIP> = {};
+    for (const ip of patched) {
+      next[ip.id] = ip;
+    }
+    setPublicDomainEdits(next);
+  };
+
+  const rebuildRoleSetRows = (b: ModBundle, modId: string, key: string) => {
+    const modInfo = b.mods.find((m) => m.id === modId) ?? makeDefaultMod(modId);
+    const editorBundle: ModBundle = {
+      version: 1,
+      mods: [{ ...modInfo, enabled: true }],
+      patches: (b.patches || []).filter((p) => p.modId === modId && p.entityType === 'franchiseRoleSet'),
+    };
+
+    const patched = applyPatchesToRecord(baseFranchiseRoleSets, getPatchesForEntity(editorBundle, 'franchiseRoleSet'));
+    setRoleSetRows((patched[key] ?? baseFranchiseRoleSets[key] ?? []).map((r) => ({ ...r })));
+  };
+
   const providerDealPatchKey = useMemo(() => {
     const modId = editorModId.trim();
     if (!modId) return '';
@@ -148,12 +195,34 @@ export const ModsPanel: React.FC = () => {
       .join('|');
   }, [bundle.patches, editorModId]);
 
+  const publicDomainPatchKey = useMemo(() => {
+    const modId = editorModId.trim();
+    if (!modId) return '';
+
+    return (bundle.patches || [])
+      .filter((p) => p.modId === modId && p.entityType === 'publicDomainIP')
+      .map((p) => `${p.id}:${p.op}:${p.target}:${JSON.stringify(p.payload)}`)
+      .join('|');
+  }, [bundle.patches, editorModId]);
+
+  const franchiseRoleSetPatchKey = useMemo(() => {
+    const modId = editorModId.trim();
+    if (!modId) return '';
+
+    return (bundle.patches || [])
+      .filter((p) => p.modId === modId && p.entityType === 'franchiseRoleSet')
+      .map((p) => `${p.id}:${p.op}:${p.target}:${JSON.stringify(p.payload)}`)
+      .join('|');
+  }, [bundle.patches, editorModId]);
+
   useEffect(() => {
     const modId = editorModId.trim();
     if (!modId) return;
     rebuildProviderEdits(bundle, modId);
+    rebuildPublicDomainEdits(bundle, modId);
+    rebuildRoleSetRows(bundle, modId, roleSetKey);
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [editorModId, providerDealPatchKey]);
+  }, [editorModId, roleSetKey, providerDealPatchKey, publicDomainPatchKey, franchiseRoleSetPatchKey]);
 
   const changedProviderCount = useMemo(() => {
     let changed = 0;
@@ -164,6 +233,21 @@ export const ModsPanel: React.FC = () => {
     }
     return changed;
   }, [providerEdits, baseProvidersById]);
+
+  const changedPublicDomainCount = useMemo(() => {
+    let changed = 0;
+    for (const [id, edited] of Object.entries(publicDomainEdits)) {
+      const base = basePublicDomainById.get(id);
+      if (!base) continue;
+      if (!deepEqual(base, edited)) changed++;
+    }
+    return changed;
+  }, [publicDomainEdits, basePublicDomainById]);
+
+  const roleSetIsChanged = useMemo(() => {
+    const base = baseFranchiseRoleSets[roleSetKey] ?? [];
+    return !deepEqual(base, roleSetRows);
+  }, [baseFranchiseRoleSets, roleSetKey, roleSetRows]);
 
   const syncFromBundle = (next: ModBundle) => {
     setBundle(next);
@@ -335,6 +419,64 @@ export const ModsPanel: React.FC = () => {
     });
   };
 
+  const updatePublicDomain = (id: string, updates: Partial<PublicDomainIP>) => {
+    setPublicDomainEdits((prev) => {
+      const current = prev[id] ?? (basePublicDomainById.get(id) as PublicDomainIP);
+      return { ...prev, [id]: { ...current, ...updates } };
+    });
+  };
+
+  const updatePublicDomainStringList = (id: string, field: 'coreElements' | 'requiredElements', value: string) => {
+    const list = value
+      .split(',')
+      .map((s) => s.trim())
+      .filter(Boolean);
+    updatePublicDomain(id, { [field]: list } as any);
+  };
+
+  const updatePublicDomainGenreList = (id: string, value: string) => {
+    const list = value
+      .split(',')
+      .map((s) => s.trim())
+      .filter(Boolean);
+    updatePublicDomain(id, { genreFlexibility: list as any } as any);
+  };
+
+  const updateRoleRow = (idx: number, updates: Partial<ScriptCharacter>) => {
+    setRoleSetRows((prev) => {
+      const next = prev.slice();
+      next[idx] = { ...next[idx], ...updates };
+      return next;
+    });
+  };
+
+  const handleAddRoleRow = () => {
+    setRoleSetRows((prev) => {
+      const existingIds = new Set(prev.map((r) => r.id));
+      let suffix = prev.length + 1;
+      let id = `role-${suffix}`;
+      while (existingIds.has(id)) {
+        suffix++;
+        id = `role-${suffix}`;
+      }
+
+      return [
+        ...prev,
+        {
+          id,
+          name: 'New Role',
+          importance: 'minor',
+          requiredType: 'actor',
+          ageRange: [20, 60],
+        },
+      ];
+    });
+  };
+
+  const handleDeleteRoleRow = (idx: number) => {
+    setRoleSetRows((prev) => prev.filter((_, i) => i !== idx));
+  };
+
   const updateProviderRequirements = (id: ProviderId, updates: Partial<ProviderDealProfile['requirements']>) => {
     setProviderEdits((prev) => {
       const current = prev[id] ?? (baseProvidersById.get(id) as ProviderDealProfile);
@@ -353,6 +495,12 @@ export const ModsPanel: React.FC = () => {
     const base = baseProvidersById.get(id);
     if (!base) return;
     setProviderEdits((prev) => ({ ...prev, [id]: base }));
+  };
+
+  const handleResetPublicDomainRow = (id: string) => {
+    const base = basePublicDomainById.get(id);
+    if (!base) return;
+    setPublicDomainEdits((prev) => ({ ...prev, [id]: base }));
   };
 
   const handleApplyProviderEdits = () => {
@@ -390,6 +538,71 @@ export const ModsPanel: React.FC = () => {
     toast({ title: 'Applied', description: `Applied provider changes as patches in mod "${modId}". Click Save to persist.` });
   };
 
+  const handleApplyPublicDomainEdits = () => {
+    const modId = editorModId.trim();
+    if (!modId) return;
+
+    const baseIds = new Set(basePublicDomainIPs.map((p) => p.id));
+
+    const keptPatches = bundle.patches.filter(
+      (p) => !(p.modId === modId && p.entityType === 'publicDomainIP' && p.op === 'update' && p.target && baseIds.has(String(p.target)))
+    );
+
+    let next: ModBundle = ensureMod({ ...bundle, patches: keptPatches }, modId);
+
+    for (const ipId of baseIds) {
+      const edited = publicDomainEdits[ipId] ?? (basePublicDomainById.get(ipId) as PublicDomainIP);
+      const base = basePublicDomainById.get(ipId);
+      if (!base) continue;
+
+      if (deepEqual(base, edited)) continue;
+
+      const patchId = `publicDomainIP:${modId}:${ipId}`;
+      next = upsertPatch(next, {
+        id: patchId,
+        modId,
+        entityType: 'publicDomainIP',
+        op: 'update',
+        target: ipId,
+        payload: edited,
+      });
+    }
+
+    syncFromBundle(next);
+    toast({ title: 'Applied', description: `Applied public domain changes as patches in mod "${modId}". Click Save to persist.` });
+  };
+
+  const handleApplyRoleSetEdits = () => {
+    const modId = editorModId.trim();
+    if (!modId) return;
+
+    const key = roleSetKey;
+    if (!key) return;
+
+    const keptPatches = bundle.patches.filter(
+      (p) => !(p.modId === modId && p.entityType === 'franchiseRoleSet' && p.op === 'update' && p.target === key)
+    );
+
+    let next: ModBundle = ensureMod({ ...bundle, patches: keptPatches }, modId);
+
+    const base = baseFranchiseRoleSets[key] ?? [];
+
+    if (!deepEqual(base, roleSetRows)) {
+      const patchId = `franchiseRoleSet:${modId}:${key}`;
+      next = upsertPatch(next, {
+        id: patchId,
+        modId,
+        entityType: 'franchiseRoleSet',
+        op: 'update',
+        target: key,
+        payload: roleSetRows,
+      });
+    }
+
+    syncFromBundle(next);
+    toast({ title: 'Applied', description: `Applied role set changes as patches in mod "${modId}". Click Save to persist.` });
+  };
+
   const handleAddPatchToEditor = () => {
     const normalized = parseFromRawOrToast();
     if (!normalized) return;
@@ -402,9 +615,7 @@ export const ModsPanel: React.FC = () => {
 
     const next: ModBundle = {
       ...normalized,
-      mods: normalized.mods.some((m) => m.id === modId)
-        ? normalized.mods
-        : [...normalized.mods, { id: modId, name: modId, version: '1.0.0', enabled: true, priority: 0 }],
+      mods: normalized.mods.some((m) => m.id === modId) ? normalized.mods : [...normalized.mods, makeDefaultMod(modId)],
       patches: normalized.patches.slice(),
     };
 
@@ -532,7 +743,7 @@ export const ModsPanel: React.FC = () => {
                   <CardContent className="space-y-4">
                     <p className="text-xs text-muted-foreground">
                       Edit values in a grid, then apply changes to generate patches. This currently supports{' '}
-                      <code>providerDeal</code>.
+                      <code>providerDeal</code>, <code>publicDomainIP</code>, and <code>franchiseRoleSet</code>.
                     </p>
 
                     <div className="grid grid-cols-1 lg:grid-cols-3 gap-3">
@@ -607,150 +818,439 @@ export const ModsPanel: React.FC = () => {
 
                     <Separator />
 
-                    <div className="flex flex-wrap items-center justify-between gap-2">
-                      <div className="text-sm text-muted-foreground">
-                        Provider Deals: <span className="font-medium text-foreground">{changedProviderCount}</span> changed
-                      </div>
-                      <div className="flex flex-wrap gap-2">
-                        <Button
-                          size="sm"
-                          variant="secondary"
-                          onClick={() => {
-                            const modId = editorModId.trim();
-                            if (!modId) return;
-                            rebuildProviderEdits(bundle, modId);
-                          }}
-                        >
-                          Reset view
-                        </Button>
-                        <Button size="sm" onClick={handleApplyProviderEdits}>
-                          Apply changes
-                        </Button>
-                      </div>
-                    </div>
+                    <Tabs defaultValue="providerDeals" className="w-full">
+                      <TabsList>
+                        <TabsTrigger value="providerDeals">Provider Deals</TabsTrigger>
+                        <TabsTrigger value="publicDomain">Public Domain IP</TabsTrigger>
+                        <TabsTrigger value="franchiseRoles">Franchise Roles</TabsTrigger>
+                      </TabsList>
 
-                    <Table>
-                      <TableHeader>
-                        <TableRow>
-                          <TableHead className="p-2">ID</TableHead>
-                          <TableHead className="p-2">Name</TableHead>
-                          <TableHead className="p-2">Kind</TableHead>
-                          <TableHead className="p-2">Market share</TableHead>
-                          <TableHead className="p-2">Avg rate</TableHead>
-                          <TableHead className="p-2">Bonus</TableHead>
-                          <TableHead className="p-2">Min quality</TableHead>
-                          <TableHead className="p-2">Viewers/share</TableHead>
-                          <TableHead className="p-2">Completion %</TableHead>
-                          <TableHead className="p-2">Sub growth</TableHead>
-                          <TableHead className="p-2"></TableHead>
-                        </TableRow>
-                      </TableHeader>
-                      <TableBody>
-                        {PROVIDER_DEALS.map((base) => {
-                          const edited = providerEdits[base.id] ?? base;
-                          const isChanged = !deepEqual(base, edited);
+                      <TabsContent value="providerDeals" className="space-y-3">
+                        <div className="flex flex-wrap items-center justify-between gap-2">
+                          <div className="text-sm text-muted-foreground">
+                            Provider Deals: <span className="font-medium text-foreground">{changedProviderCount}</span> changed
+                          </div>
+                          <div className="flex flex-wrap gap-2">
+                            <Button
+                              size="sm"
+                              variant="secondary"
+                              onClick={() => {
+                                const modId = editorModId.trim();
+                                if (!modId) return;
+                                rebuildProviderEdits(bundle, modId);
+                              }}
+                            >
+                              Reset view
+                            </Button>
+                            <Button size="sm" onClick={handleApplyProviderEdits}>
+                              Apply changes
+                            </Button>
+                          </div>
+                        </div>
 
-                          return (
-                            <TableRow key={base.id} className={isChanged ? 'bg-muted/30' : undefined}>
-                              <TableCell className="p-2 font-mono text-xs">{base.id}</TableCell>
-                              <TableCell className="p-2">
-                                <Input
-                                  className="h-8 min-w-[180px]"
-                                  value={edited.name}
-                                  onChange={(e) => updateProvider(base.id, { name: e.target.value })}
-                                />
-                              </TableCell>
-                              <TableCell className="p-2">
-                                <Select
-                                  value={edited.dealKind}
-                                  onValueChange={(v) => updateProvider(base.id, { dealKind: v as any })}
-                                >
-                                  <SelectTrigger className="h-8 w-[120px]">
-                                    <SelectValue />
-                                  </SelectTrigger>
-                                  <SelectContent>
-                                    <SelectItem value="streaming">streaming</SelectItem>
-                                    <SelectItem value="cable">cable</SelectItem>
-                                  </SelectContent>
-                                </Select>
-                              </TableCell>
-                              <TableCell className="p-2">
-                                <Input
-                                  className="h-8 w-[120px]"
-                                  type="number"
-                                  value={String(edited.marketShare)}
-                                  onChange={(e) => updateProvider(base.id, { marketShare: Number(e.target.value) || 0 })}
-                                />
-                              </TableCell>
-                              <TableCell className="p-2">
-                                <Input
-                                  className="h-8 w-[140px]"
-                                  type="number"
-                                  value={String(edited.averageRate)}
-                                  onChange={(e) => updateProvider(base.id, { averageRate: Number(e.target.value) || 0 })}
-                                />
-                              </TableCell>
-                              <TableCell className="p-2">
-                                <Input
-                                  className="h-8 w-[110px]"
-                                  type="number"
-                                  step="0.01"
-                                  value={String(edited.bonusMultiplier)}
-                                  onChange={(e) => updateProvider(base.id, { bonusMultiplier: Number(e.target.value) || 0 })}
-                                />
-                              </TableCell>
-                              <TableCell className="p-2">
-                                <Input
-                                  className="h-8 w-[120px]"
-                                  type="number"
-                                  value={String(edited.requirements?.minQuality ?? 0)}
-                                  onChange={(e) => updateProviderRequirements(base.id, { minQuality: Number(e.target.value) || 0 })}
-                                />
-                              </TableCell>
-                              <TableCell className="p-2">
-                                <Input
-                                  className="h-8 w-[160px]"
-                                  type="number"
-                                  value={String(edited.expectations?.viewersPerShare ?? 0)}
-                                  onChange={(e) => updateProviderExpectations(base.id, { viewersPerShare: Number(e.target.value) || 0 })}
-                                />
-                              </TableCell>
-                              <TableCell className="p-2">
-                                <Input
-                                  className="h-8 w-[130px]"
-                                  type="number"
-                                  value={String(edited.expectations?.completionRate ?? 0)}
-                                  onChange={(e) => updateProviderExpectations(base.id, { completionRate: Number(e.target.value) || 0 })}
-                                />
-                              </TableCell>
-                              <TableCell className="p-2">
-                                <Input
-                                  className="h-8 w-[120px]"
-                                  type="number"
-                                  step="0.001"
-                                  value={String(edited.expectations?.subscriberGrowthRate ?? 0)}
-                                  onChange={(e) =>
-                                    updateProviderExpectations(base.id, { subscriberGrowthRate: Number(e.target.value) || 0 })
-                                  }
-                                />
-                              </TableCell>
-                              <TableCell className="p-2">
-                                <div className="flex justify-end gap-2">
-                                  <Button size="sm" variant="ghost" onClick={() => handleResetProviderRow(base.id)}>
-                                    Reset
-                                  </Button>
-                                </div>
-                              </TableCell>
+                        <Table>
+                          <TableHeader>
+                            <TableRow>
+                              <TableHead className="p-2">ID</TableHead>
+                              <TableHead className="p-2">Name</TableHead>
+                              <TableHead className="p-2">Kind</TableHead>
+                              <TableHead className="p-2">Market share</TableHead>
+                              <TableHead className="p-2">Avg rate</TableHead>
+                              <TableHead className="p-2">Bonus</TableHead>
+                              <TableHead className="p-2">Min quality</TableHead>
+                              <TableHead className="p-2">Viewers/share</TableHead>
+                              <TableHead className="p-2">Completion %</TableHead>
+                              <TableHead className="p-2">Sub growth</TableHead>
+                              <TableHead className="p-2"></TableHead>
                             </TableRow>
-                          );
-                        })}
-                      </TableBody>
-                    </Table>
+                          </TableHeader>
+                          <TableBody>
+                            {PROVIDER_DEALS.map((base) => {
+                              const edited = providerEdits[base.id] ?? base;
+                              const isChanged = !deepEqual(base, edited);
 
-                    <p className="text-xs text-muted-foreground">
-                      Tip: after clicking <strong>Apply changes</strong>, use the top-level <strong>Save</strong> button to persist
-                      this slot.
-                    </p>
+                              return (
+                                <TableRow key={base.id} className={isChanged ? 'bg-muted/30' : undefined}>
+                                  <TableCell className="p-2 font-mono text-xs">{base.id}</TableCell>
+                                  <TableCell className="p-2">
+                                    <Input
+                                      className="h-8 min-w-[180px]"
+                                      value={edited.name}
+                                      onChange={(e) => updateProvider(base.id, { name: e.target.value })}
+                                    />
+                                  </TableCell>
+                                  <TableCell className="p-2">
+                                    <Select
+                                      value={edited.dealKind}
+                                      onValueChange={(v) => updateProvider(base.id, { dealKind: v as any })}
+                                    >
+                                      <SelectTrigger className="h-8 w-[120px]">
+                                        <SelectValue />
+                                      </SelectTrigger>
+                                      <SelectContent>
+                                        <SelectItem value="streaming">streaming</SelectItem>
+                                        <SelectItem value="cable">cable</SelectItem>
+                                      </SelectContent>
+                                    </Select>
+                                  </TableCell>
+                                  <TableCell className="p-2">
+                                    <Input
+                                      className="h-8 w-[120px]"
+                                      type="number"
+                                      value={String(edited.marketShare)}
+                                      onChange={(e) => updateProvider(base.id, { marketShare: Number(e.target.value) || 0 })}
+                                    />
+                                  </TableCell>
+                                  <TableCell className="p-2">
+                                    <Input
+                                      className="h-8 w-[140px]"
+                                      type="number"
+                                      value={String(edited.averageRate)}
+                                      onChange={(e) => updateProvider(base.id, { averageRate: Number(e.target.value) || 0 })}
+                                    />
+                                  </TableCell>
+                                  <TableCell className="p-2">
+                                    <Input
+                                      className="h-8 w-[110px]"
+                                      type="number"
+                                      step="0.01"
+                                      value={String(edited.bonusMultiplier)}
+                                      onChange={(e) => updateProvider(base.id, { bonusMultiplier: Number(e.target.value) || 0 })}
+                                    />
+                                  </TableCell>
+                                  <TableCell className="p-2">
+                                    <Input
+                                      className="h-8 w-[120px]"
+                                      type="number"
+                                      value={String(edited.requirements?.minQuality ?? 0)}
+                                      onChange={(e) => updateProviderRequirements(base.id, { minQuality: Number(e.target.value) || 0 })}
+                                    />
+                                  </TableCell>
+                                  <TableCell className="p-2">
+                                    <Input
+                                      className="h-8 w-[160px]"
+                                      type="number"
+                                      value={String(edited.expectations?.viewersPerShare ?? 0)}
+                                      onChange={(e) => updateProviderExpectations(base.id, { viewersPerShare: Number(e.target.value) || 0 })}
+                                    />
+                                  </TableCell>
+                                  <TableCell className="p-2">
+                                    <Input
+                                      className="h-8 w-[130px]"
+                                      type="number"
+                                      value={String(edited.expectations?.completionRate ?? 0)}
+                                      onChange={(e) => updateProviderExpectations(base.id, { completionRate: Number(e.target.value) || 0 })}
+                                    />
+                                  </TableCell>
+                                  <TableCell className="p-2">
+                                    <Input
+                                      className="h-8 w-[120px]"
+                                      type="number"
+                                      step="0.001"
+                                      value={String(edited.expectations?.subscriberGrowthRate ?? 0)}
+                                      onChange={(e) =>
+                                        updateProviderExpectations(base.id, { subscriberGrowthRate: Number(e.target.value) || 0 })
+                                      }
+                                    />
+                                  </TableCell>
+                                  <TableCell className="p-2">
+                                    <div className="flex justify-end gap-2">
+                                      <Button size="sm" variant="ghost" onClick={() => handleResetProviderRow(base.id)}>
+                                        Reset
+                                      </Button>
+                                    </div>
+                                  </TableCell>
+                                </TableRow>
+                              );
+                            })}
+                          </TableBody>
+                        </Table>
+
+                        <p className="text-xs text-muted-foreground">
+                          Tip: after clicking <strong>Apply changes</strong>, use the top-level <strong>Save</strong> button to persist
+                          this slot.
+                        </p>
+                      </TabsContent>
+
+                      <TabsContent value="publicDomain" className="space-y-3">
+                        <div className="flex flex-wrap items-center justify-between gap-2">
+                          <div className="text-sm text-muted-foreground">
+                            Public Domain IP: <span className="font-medium text-foreground">{changedPublicDomainCount}</span> changed
+                          </div>
+                          <div className="flex flex-wrap gap-2">
+                            <Button
+                              size="sm"
+                              variant="secondary"
+                              onClick={() => {
+                                const modId = editorModId.trim();
+                                if (!modId) return;
+                                rebuildPublicDomainEdits(bundle, modId);
+                              }}
+                            >
+                              Reset view
+                            </Button>
+                            <Button size="sm" onClick={handleApplyPublicDomainEdits}>
+                              Apply changes
+                            </Button>
+                          </div>
+                        </div>
+
+                        <Table>
+                          <TableHeader>
+                            <TableRow>
+                              <TableHead className="p-2">ID</TableHead>
+                              <TableHead className="p-2">Name</TableHead>
+                              <TableHead className="p-2">Type</TableHead>
+                              <TableHead className="p-2">Reputation</TableHead>
+                              <TableHead className="p-2">Fatigue</TableHead>
+                              <TableHead className="p-2">Relevance</TableHead>
+                              <TableHead className="p-2">Genres</TableHead>
+                              <TableHead className="p-2">Core elements</TableHead>
+                              <TableHead className="p-2"></TableHead>
+                            </TableRow>
+                          </TableHeader>
+                          <TableBody>
+                            {basePublicDomainIPs.map((base) => {
+                              const edited = publicDomainEdits[base.id] ?? base;
+                              const isChanged = !deepEqual(base, edited);
+
+                              return (
+                                <TableRow key={base.id} className={isChanged ? 'bg-muted/30' : undefined}>
+                                  <TableCell className="p-2 font-mono text-xs">{base.id}</TableCell>
+                                  <TableCell className="p-2">
+                                    <Input
+                                      className="h-8 min-w-[200px]"
+                                      value={edited.name}
+                                      onChange={(e) => updatePublicDomain(base.id, { name: e.target.value })}
+                                    />
+                                  </TableCell>
+                                  <TableCell className="p-2">
+                                    <Select
+                                      value={edited.domainType}
+                                      onValueChange={(v) => updatePublicDomain(base.id, { domainType: v as any })}
+                                    >
+                                      <SelectTrigger className="h-8 w-[140px]">
+                                        <SelectValue />
+                                      </SelectTrigger>
+                                      <SelectContent>
+                                        <SelectItem value="literature">literature</SelectItem>
+                                        <SelectItem value="mythology">mythology</SelectItem>
+                                        <SelectItem value="folklore">folklore</SelectItem>
+                                        <SelectItem value="historical">historical</SelectItem>
+                                        <SelectItem value="religious">religious</SelectItem>
+                                      </SelectContent>
+                                    </Select>
+                                  </TableCell>
+                                  <TableCell className="p-2">
+                                    <Input
+                                      className="h-8 w-[110px]"
+                                      type="number"
+                                      value={String(edited.reputationScore)}
+                                      onChange={(e) => updatePublicDomain(base.id, { reputationScore: Number(e.target.value) || 0 })}
+                                    />
+                                  </TableCell>
+                                  <TableCell className="p-2">
+                                    <Input
+                                      className="h-8 w-[110px]"
+                                      type="number"
+                                      value={String(edited.adaptationFatigue ?? 0)}
+                                      onChange={(e) => updatePublicDomain(base.id, { adaptationFatigue: Number(e.target.value) || 0 })}
+                                    />
+                                  </TableCell>
+                                  <TableCell className="p-2">
+                                    <Input
+                                      className="h-8 w-[110px]"
+                                      type="number"
+                                      value={String(edited.culturalRelevance ?? 0)}
+                                      onChange={(e) => updatePublicDomain(base.id, { culturalRelevance: Number(e.target.value) || 0 })}
+                                    />
+                                  </TableCell>
+                                  <TableCell className="p-2">
+                                    <Input
+                                      className="h-8 min-w-[220px]"
+                                      value={(edited.genreFlexibility || []).join(', ')}
+                                      onChange={(e) => updatePublicDomainGenreList(base.id, e.target.value)}
+                                      placeholder="drama, thriller"
+                                    />
+                                  </TableCell>
+                                  <TableCell className="p-2">
+                                    <Input
+                                      className="h-8 min-w-[260px]"
+                                      value={(edited.coreElements || []).join(', ')}
+                                      onChange={(e) => updatePublicDomainStringList(base.id, 'coreElements', e.target.value)}
+                                      placeholder="themes, settings, characters"
+                                    />
+                                  </TableCell>
+                                  <TableCell className="p-2">
+                                    <div className="flex justify-end gap-2">
+                                      <Button size="sm" variant="ghost" onClick={() => handleResetPublicDomainRow(base.id)}>
+                                        Reset
+                                      </Button>
+                                    </div>
+                                  </TableCell>
+                                </TableRow>
+                              );
+                            })}
+                          </TableBody>
+                        </Table>
+
+                        <p className="text-xs text-muted-foreground">
+                          Tip: the <code>Genres</code> and <code>Core elements</code> fields accept a comma-separated list.
+                        </p>
+                      </TabsContent>
+
+                      <TabsContent value="franchiseRoles" className="space-y-3">
+                        <div className="flex flex-wrap items-center justify-between gap-2">
+                          <div className="text-sm text-muted-foreground">
+                            Franchise Role Set: <span className="font-medium text-foreground">{roleSetIsChanged ? 'changed' : 'no changes'}</span>
+                          </div>
+                          <div className="flex flex-wrap gap-2">
+                            <Button
+                              size="sm"
+                              variant="secondary"
+                              onClick={() => {
+                                const modId = editorModId.trim();
+                                if (!modId) return;
+                                rebuildRoleSetRows(bundle, modId, roleSetKey);
+                              }}
+                            >
+                              Reset view
+                            </Button>
+                            <Button size="sm" variant="secondary" onClick={handleAddRoleRow}>
+                              Add role
+                            </Button>
+                            <Button size="sm" onClick={handleApplyRoleSetEdits} disabled={!roleSetIsChanged}>
+                              Apply changes
+                            </Button>
+                          </div>
+                        </div>
+
+                        <div className="grid grid-cols-1 lg:grid-cols-2 gap-3">
+                          <div className="space-y-1">
+                            <Label className="text-xs text-muted-foreground">Parody source key</Label>
+                            <Select value={roleSetKey} onValueChange={setRoleSetKey}>
+                              <SelectTrigger>
+                                <SelectValue placeholder="Select franchise parody source" />
+                              </SelectTrigger>
+                              <SelectContent>
+                                {Array.from(new Set([...baseFranchiseRoleSetKeys, roleSetKey]))
+                                  .filter((k) => !!k)
+                                  .map((k) => (
+                                    <SelectItem key={k} value={k}>
+                                      {k}
+                                    </SelectItem>
+                                  ))}
+                              </SelectContent>
+                            </Select>
+                          </div>
+                        </div>
+
+                        <Table>
+                          <TableHeader>
+                            <TableRow>
+                              <TableHead className="p-2">Role id</TableHead>
+                              <TableHead className="p-2">Name</TableHead>
+                              <TableHead className="p-2">Importance</TableHead>
+                              <TableHead className="p-2">Required type</TableHead>
+                              <TableHead className="p-2">Min age</TableHead>
+                              <TableHead className="p-2">Max age</TableHead>
+                              <TableHead className="p-2">Description</TableHead>
+                              <TableHead className="p-2"></TableHead>
+                            </TableRow>
+                          </TableHeader>
+                          <TableBody>
+                            {roleSetRows.map((r, idx) => {
+                              const minAge = r.ageRange?.[0] ?? 0;
+                              const maxAge = r.ageRange?.[1] ?? 0;
+
+                              return (
+                                <TableRow key={`${r.id}-${idx}`}>
+                                  <TableCell className="p-2">
+                                    <Input
+                                      className="h-8 w-[160px] font-mono text-xs"
+                                      value={r.id}
+                                      onChange={(e) => updateRoleRow(idx, { id: e.target.value })}
+                                    />
+                                  </TableCell>
+                                  <TableCell className="p-2">
+                                    <Input
+                                      className="h-8 min-w-[180px]"
+                                      value={r.name}
+                                      onChange={(e) => updateRoleRow(idx, { name: e.target.value })}
+                                    />
+                                  </TableCell>
+                                  <TableCell className="p-2">
+                                    <Select
+                                      value={r.importance}
+                                      onValueChange={(v) => updateRoleRow(idx, { importance: v as any })}
+                                    >
+                                      <SelectTrigger className="h-8 w-[140px]">
+                                        <SelectValue />
+                                      </SelectTrigger>
+                                      <SelectContent>
+                                        <SelectItem value="lead">lead</SelectItem>
+                                        <SelectItem value="supporting">supporting</SelectItem>
+                                        <SelectItem value="minor">minor</SelectItem>
+                                        <SelectItem value="crew">crew</SelectItem>
+                                      </SelectContent>
+                                    </Select>
+                                  </TableCell>
+                                  <TableCell className="p-2">
+                                    <Select
+                                      value={r.requiredType ?? 'actor'}
+                                      onValueChange={(v) => updateRoleRow(idx, { requiredType: v as any })}
+                                    >
+                                      <SelectTrigger className="h-8 w-[120px]">
+                                        <SelectValue />
+                                      </SelectTrigger>
+                                      <SelectContent>
+                                        <SelectItem value="actor">actor</SelectItem>
+                                        <SelectItem value="director">director</SelectItem>
+                                      </SelectContent>
+                                    </Select>
+                                  </TableCell>
+                                  <TableCell className="p-2">
+                                    <Input
+                                      className="h-8 w-[90px]"
+                                      type="number"
+                                      value={String(minAge)}
+                                      onChange={(e) => updateRoleRow(idx, { ageRange: [Number(e.target.value) || 0, maxAge] })}
+                                    />
+                                  </TableCell>
+                                  <TableCell className="p-2">
+                                    <Input
+                                      className="h-8 w-[90px]"
+                                      type="number"
+                                      value={String(maxAge)}
+                                      onChange={(e) => updateRoleRow(idx, { ageRange: [minAge, Number(e.target.value) || 0] })}
+                                    />
+                                  </TableCell>
+                                  <TableCell className="p-2">
+                                    <Input
+                                      className="h-8 min-w-[220px]"
+                                      value={r.description ?? ''}
+                                      onChange={(e) => updateRoleRow(idx, { description: e.target.value || undefined })}
+                                      placeholder="(optional)"
+                                    />
+                                  </TableCell>
+                                  <TableCell className="p-2">
+                                    <div className="flex justify-end gap-2">
+                                      <Button size="sm" variant="ghost" onClick={() => handleDeleteRoleRow(idx)}>
+                                        Delete
+                                      </Button>
+                                    </div>
+                                  </TableCell>
+                                </TableRow>
+                              );
+                            })}
+                          </TableBody>
+                        </Table>
+
+                        <p className="text-xs text-muted-foreground">
+                          Tip: this generates a single <code>franchiseRoleSet</code> update patch for the selected parody source key.
+                        </p>
+                      </TabsContent>
+                    </Tabs>
                   </CardContent>
                 </Card>
               </div>

@@ -4,7 +4,7 @@ import { applyPatchesToRecord, getPatchesForEntity } from '@/utils/modding';
 import { getModBundle } from '@/utils/moddingStore';
 
 // Curated role sets keyed by franchise parody source (acts as stable property identity)
-const FRANCHISE_ROLE_SETS: Record<string, ScriptCharacter[]> = {
+export const FRANCHISE_ROLE_SETS: Record<string, ScriptCharacter[]> = {
   'Star Wars': [
     { id: 'hero', name: 'Hero Pilot', importance: 'lead', description: 'Skilled pilot and reluctant hero', requiredType: 'actor', ageRange: [20, 45] },
     { id: 'mentor', name: 'Wise Mentor', importance: 'supporting', description: 'Seasoned guide with deep knowledge', requiredType: 'actor', ageRange: [45, 80] },
