@@ -28,4 +28,30 @@ describe('Parody character names modding', () => {
     expect(map['Star Wars']?.byCharacterId?.char_hero_pilot).toBe('Luke Patchwalker');
     expect(map['Star Wars']?.byTemplateId?.lead_hero).toBe('Luke Starwalker');
   });
+
+  it('supports deleting keys via null markers in patch payloads', () => {
+    const mods: ModBundle = {
+      version: 1,
+      mods: [{ id: 'm1', name: 'Names', version: '1.0.0', enabled: true, priority: 0 }],
+      patches: [
+        {
+          id: 'p1',
+          modId: 'm1',
+          entityType: 'parodyCharacterNames',
+          op: 'update',
+          target: 'Star Wars',
+          payload: {
+            byTemplateId: {
+              lead_hero: null,
+            },
+          } as any,
+        },
+      ],
+    };
+
+    const map = getEffectiveParodyCharacterNameMap(mods);
+
+    expect(map['Star Wars']?.byTemplateId?.lead_hero).toBeUndefined();
+    expect(map['Star Wars']?.byTemplateId?.mentor_mystic).toBe('Obi-Juan Kenobi');
+  });
 });

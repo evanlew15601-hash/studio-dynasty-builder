@@ -134,6 +134,12 @@ export function deepMerge<T>(base: T, patch: unknown): T {
 
   const result: Record<string, unknown> = { ...(base as any) };
   for (const [k, v] of Object.entries(patch)) {
+    // Treat null as an explicit deletion marker in patch payloads.
+    if (v === null) {
+      if (k in result) delete (result as any)[k];
+      continue;
+    }
+
     const prev = (result as any)[k];
     if (Array.isArray(v)) {
       (result as any)[k] = v;
