@@ -1414,6 +1414,7 @@ export const ModsPanel: React.FC = () => {
   const applyProviderEdits = () => {
     const modId = editorModId.trim();
     if (!modId) return;
+    if (!isEditorDataReady) return;
 
     let next = ensureMod(bundle, modId);
 
@@ -1442,6 +1443,7 @@ export const ModsPanel: React.FC = () => {
   const applyPublicDomainEdits = () => {
     const modId = editorModId.trim();
     if (!modId) return;
+    if (!isEditorDataReady) return;
 
     let next = ensureMod(bundle, modId);
 
@@ -1506,6 +1508,7 @@ export const ModsPanel: React.FC = () => {
   const applyRoleSetEdits = () => {
     const modId = editorModId.trim();
     if (!modId) return;
+    if (!isEditorDataReady) return;
 
     const base = (FRANCHISE_ROLE_SETS as any)[roleSetKey] ?? [];
     const edited = roleSetRows;
@@ -1532,6 +1535,7 @@ export const ModsPanel: React.FC = () => {
   const applyCharacterDbEdits = () => {
     const modId = editorModId.trim();
     if (!modId) return;
+    if (!isEditorDataReady) return;
 
     const base = (FRANCHISE_CHARACTER_DB as any)[characterDbKey] ?? [];
     const edited = characterDbRows;
@@ -1558,6 +1562,7 @@ export const ModsPanel: React.FC = () => {
   const applyTalentEdits = () => {
     const modId = editorModId.trim();
     if (!modId) return;
+    if (!isEditorDataReady) return;
 
     let next = ensureMod(bundle, modId);
 
@@ -1589,6 +1594,7 @@ export const ModsPanel: React.FC = () => {
   const applyFranchiseEdits = () => {
     const modId = editorModId.trim();
     if (!modId) return;
+    if (!isEditorDataReady) return;
 
     let next = ensureMod(bundle, modId);
 
@@ -1618,6 +1624,7 @@ export const ModsPanel: React.FC = () => {
   const applyStudioEdits = () => {
     const modId = editorModId.trim();
     if (!modId) return;
+    if (!isEditorDataReady) return;
 
     let next = ensureMod(bundle, modId);
 
@@ -1685,6 +1692,7 @@ export const ModsPanel: React.FC = () => {
   const applyMediaSourceEdits = () => {
     const modId = editorModId.trim();
     if (!modId) return;
+    if (!isEditorDataReady) return;
 
     let next = ensureMod(bundle, modId);
 
@@ -1752,6 +1760,7 @@ export const ModsPanel: React.FC = () => {
   const applyMediaTemplateEdits = () => {
     const modId = editorModId.trim();
     if (!modId) return;
+    if (!isEditorDataReady) return;
 
     let next = ensureMod(bundle, modId);
 
@@ -1823,6 +1832,7 @@ export const ModsPanel: React.FC = () => {
   const applyParodyNamesEdits = () => {
     const modId = editorModId.trim();
     if (!modId) return;
+    if (!isEditorDataReady) return;
 
     const base = (PARODY_CHARACTER_NAME_MAP as any)[parodyNamesKey] ?? ({} as ParodyCharacterNameMapEntry);
     const nextByCharacterId = nameRecordFromRows(parodyByCharacterIdRows);
@@ -1861,6 +1871,7 @@ export const ModsPanel: React.FC = () => {
   const applyAwardShowEdits = () => {
     const modId = editorModId.trim();
     if (!modId) return;
+    if (!isEditorDataReady) return;
 
     let next = ensureMod(bundle, modId);
 
@@ -2073,6 +2084,11 @@ export const ModsPanel: React.FC = () => {
 
     return !deepEqual(stripUndefined(base), stripUndefined(edited));
   }, [awardShowEdits, awardShowKey]);
+
+  const awardShowRow = useMemo(() => {
+    if (!awardShowKey) return undefined;
+    return isEditorDataReady ? awardShowEdits[awardShowKey] : AWARD_SHOWS.find((s) => s.id === awardShowKey);
+  }, [awardShowEdits, awardShowKey, isEditorDataReady]);
 
   const awardShowsForEditor = useMemo(() => {
     return Object.values(awardShowEdits)
@@ -2564,6 +2580,8 @@ export const ModsPanel: React.FC = () => {
               </div>
             </div>
 
+            {!isEditorDataReady ? <p className="text-sm text-muted-foreground">Loading mod data…</p> : null}
+
             <Separator />
 
             <Tabs defaultValue="providerDeals" className="w-full">
@@ -2587,7 +2605,7 @@ export const ModsPanel: React.FC = () => {
                   <div className="text-sm text-muted-foreground">
                     Provider Deals: <span className="font-medium text-foreground">{changedProviderCount}</span> changed
                   </div>
-                  <Button size="sm" onClick={applyProviderEdits}>
+                  <Button size="sm" onClick={applyProviderEdits} disabled={!isEditorDataReady}>
                     Apply changes
                   </Button>
                 </div>
@@ -2687,10 +2705,10 @@ export const ModsPanel: React.FC = () => {
               <TabsContent value="publicDomain" className="space-y-3">
                 <div className="flex flex-wrap items-center justify-between gap-2">
                   <div className="text-sm text-muted-foreground">
-                    Public Domain IPs: <span className="font-medium text-foreground">{changedPublicDomainCount}</span> changed
+                    Public Domain IPs: <span className="font-medium text-foreground">{isEditorDataReady ? changedPublicDomainCount : 0}</span> changed
                   </div>
                   <div className="flex flex-wrap gap-2">
-                    {deletedBasePublicDomainIds.length ? (
+                    {isEditorDataReady && deletedBasePublicDomainIds.length ? (
                       <Select
                         value={restorePublicDomainId}
                         onValueChange={(v) => {
@@ -2722,7 +2740,7 @@ export const ModsPanel: React.FC = () => {
                     <Button size="sm" variant="secondary" onClick={handleExportPublicDomainCsv}>
                       Export CSV
                     </Button>
-                    <Button size="sm" onClick={applyPublicDomainEdits}>
+                    <Button size="sm" onClick={applyPublicDomainEdits} disabled={!isEditorDataReady}>
                       Apply changes
                     </Button>
                   </div>
@@ -2898,7 +2916,7 @@ export const ModsPanel: React.FC = () => {
                     <Button size="sm" variant="secondary" onClick={handleAddPublicDomainCharacterRow}>
                       Add character
                     </Button>
-                    <Button size="sm" onClick={applyPublicDomainEdits}>
+                    <Button size="sm" onClick={applyPublicDomainEdits} disabled={!isEditorDataReady}>
                       Apply changes
                     </Button>
                   </div>
@@ -2912,7 +2930,7 @@ export const ModsPanel: React.FC = () => {
                         <SelectValue placeholder="Select IP" />
                       </SelectTrigger>
                       <SelectContent>
-                        {publicDomainIPsForEditor.map((p) => (
+                        {(isEditorDataReady ? publicDomainIPsForEditor : basePublicDomainIPs).map((p) => (
                           <SelectItem key={p.id} value={p.id}>
                             {p.id}
                           </SelectItem>
@@ -3019,13 +3037,13 @@ export const ModsPanel: React.FC = () => {
               <TabsContent value="franchiseRoles" className="space-y-3">
                 <div className="flex flex-wrap items-center justify-between gap-2">
                   <div className="text-sm text-muted-foreground">
-                    Franchise Role Set: <span className="font-medium text-foreground">{roleSetIsChanged ? 'changed' : 'no changes'}</span>
+                    Franchise Role Set: <span className="font-medium text-foreground">{isEditorDataReady ? (roleSetIsChanged ? 'changed' : 'no changes') : 'loading'}</span>
                   </div>
                   <div className="flex flex-wrap gap-2">
                     <Button size="sm" variant="secondary" onClick={handleAddRoleRow}>
                       Add role
                     </Button>
-                    <Button size="sm" onClick={applyRoleSetEdits}>
+                    <Button size="sm" onClick={applyRoleSetEdits} disabled={!isEditorDataReady}>
                       Apply changes
                     </Button>
                   </div>
@@ -3136,13 +3154,13 @@ export const ModsPanel: React.FC = () => {
               <TabsContent value="franchiseCharacters" className="space-y-3">
                 <div className="flex flex-wrap items-center justify-between gap-2">
                   <div className="text-sm text-muted-foreground">
-                    Franchise Character DB: <span className="font-medium text-foreground">{characterDbIsChanged ? 'changed' : 'no changes'}</span>
+                    Franchise Character DB: <span className="font-medium text-foreground">{isEditorDataReady ? (characterDbIsChanged ? 'changed' : 'no changes') : 'loading'}</span>
                   </div>
                   <div className="flex flex-wrap gap-2">
                     <Button size="sm" variant="secondary" onClick={handleAddCharacterRow}>
                       Add character
                     </Button>
-                    <Button size="sm" onClick={applyCharacterDbEdits}>
+                    <Button size="sm" onClick={applyCharacterDbEdits} disabled={!isEditorDataReady}>
                       Apply changes
                     </Button>
                   </div>
@@ -3243,7 +3261,7 @@ export const ModsPanel: React.FC = () => {
                   <div className="text-sm text-muted-foreground">
                     Talent: <span className="font-medium text-foreground">{changedTalentCount}</span> changed
                   </div>
-                  <Button size="sm" onClick={applyTalentEdits}>
+                  <Button size="sm" onClick={applyTalentEdits} disabled={!isEditorDataReady}>
                     Apply changes
                   </Button>
                 </div>
@@ -3341,7 +3359,7 @@ export const ModsPanel: React.FC = () => {
                   <div className="text-sm text-muted-foreground">
                     Franchises: <span className="font-medium text-foreground">{changedFranchiseCount}</span> changed
                   </div>
-                  <Button size="sm" onClick={applyFranchiseEdits}>
+                  <Button size="sm" onClick={applyFranchiseEdits} disabled={!isEditorDataReady}>
                     Apply changes
                   </Button>
                 </div>
@@ -3421,7 +3439,7 @@ export const ModsPanel: React.FC = () => {
                   <div className="text-sm text-muted-foreground">
                     Award Shows: <span className="font-medium text-foreground">{awardShowIsChanged ? 'changed' : 'no changes'}</span>
                   </div>
-                  <Button size="sm" onClick={applyAwardShowEdits}>
+                  <Button size="sm" onClick={applyAwardShowEdits} disabled={!isEditorDataReady}>
                     Apply changes
                   </Button>
                 </div>
@@ -3434,7 +3452,7 @@ export const ModsPanel: React.FC = () => {
                         <SelectValue placeholder="Select" />
                       </SelectTrigger>
                       <SelectContent>
-                        {awardShowsForEditor.map((s) => (
+                        {(isEditorDataReady ? awardShowsForEditor : AWARD_SHOWS).map((s) => (
                           <SelectItem key={s.id} value={s.id}>
                             {s.id}
                           </SelectItem>
@@ -3444,7 +3462,7 @@ export const ModsPanel: React.FC = () => {
                   </div>
 
                   <div className="flex items-end justify-end gap-2">
-                    {deletedBaseAwardShowIds.length ? (
+                    {isEditorDataReady && deletedBaseAwardShowIds.length ? (
                       <Select
                         value={restoreAwardShowId}
                         onValueChange={(v) => {
@@ -3492,16 +3510,13 @@ export const ModsPanel: React.FC = () => {
                     <div className="grid grid-cols-1 lg:grid-cols-3 gap-3">
                       <div className="space-y-1">
                         <Label className="text-xs text-muted-foreground">Name</Label>
-                        <Input
-                          value={(awardShowEdits[awardShowKey]?.name ?? '')}
-                          onChange={(e) => updateAwardShow(awardShowKey, { name: e.target.value })}
-                        />
+                        <Input value={awardShowRow?.name ?? ''} onChange={(e) => updateAwardShow(awardShowKey, { name: e.target.value })} />
                       </div>
                       <div className="space-y-1">
                         <Label className="text-xs text-muted-foreground">Ceremony week</Label>
                         <Input
                           type="number"
-                          value={String(awardShowEdits[awardShowKey]?.ceremonyWeek ?? 0)}
+                          value={String(awardShowRow?.ceremonyWeek ?? 0)}
                           onChange={(e) => updateAwardShow(awardShowKey, { ceremonyWeek: Number(e.target.value) || 0 } as any)}
                         />
                       </div>
@@ -3509,7 +3524,7 @@ export const ModsPanel: React.FC = () => {
                         <Label className="text-xs text-muted-foreground">Prestige</Label>
                         <Input
                           type="number"
-                          value={String((awardShowEdits[awardShowKey] as any)?.prestige ?? 0)}
+                          value={String((awardShowRow as any)?.prestige ?? 0)}
                           onChange={(e) => updateAwardShow(awardShowKey, { prestige: Number(e.target.value) || 0 } as any)}
                         />
                       </div>
@@ -3525,7 +3540,7 @@ export const ModsPanel: React.FC = () => {
                         </TableRow>
                       </TableHeader>
                       <TableBody>
-                        {(awardShowEdits[awardShowKey]?.categories || []).map((c, idx) => (
+                        {(awardShowRow?.categories || []).map((c, idx) => (
                           <TableRow key={`${c.id}-${idx}`}>
                             <TableCell className="p-2">
                               <Input
@@ -3571,10 +3586,10 @@ export const ModsPanel: React.FC = () => {
               <TabsContent value="studios" className="space-y-3">
                 <div className="flex flex-wrap items-center justify-between gap-2">
                   <div className="text-sm text-muted-foreground">
-                    Studio Profiles: <span className="font-medium text-foreground">{changedStudioCount}</span> changed
+                    Studio Profiles: <span className="font-medium text-foreground">{isEditorDataReady ? changedStudioCount : 0}</span> changed
                   </div>
                   <div className="flex flex-wrap gap-2">
-                    {deletedBaseStudioNames.length ? (
+                    {isEditorDataReady && deletedBaseStudioNames.length ? (
                       <Select
                         value={restoreStudioName}
                         onValueChange={(v) => {
@@ -3600,7 +3615,7 @@ export const ModsPanel: React.FC = () => {
                     <Button size="sm" variant="secondary" onClick={handleAddStudioProfile}>
                       Add studio
                     </Button>
-                    <Button size="sm" onClick={applyStudioEdits}>
+                    <Button size="sm" onClick={applyStudioEdits} disabled={!isEditorDataReady}>
                       Apply changes
                     </Button>
                   </div>
@@ -3694,10 +3709,10 @@ export const ModsPanel: React.FC = () => {
               <TabsContent value="mediaSources" className="space-y-3">
                 <div className="flex flex-wrap items-center justify-between gap-2">
                   <div className="text-sm text-muted-foreground">
-                    Media Sources: <span className="font-medium text-foreground">{changedMediaSourceCount}</span> changed
+                    Media Sources: <span className="font-medium text-foreground">{isEditorDataReady ? changedMediaSourceCount : 0}</span> changed
                   </div>
                   <div className="flex flex-wrap gap-2">
-                    {deletedBaseMediaSourceIds.length ? (
+                    {isEditorDataReady && deletedBaseMediaSourceIds.length ? (
                       <Select
                         value={restoreMediaSourceId}
                         onValueChange={(v) => {
@@ -3729,7 +3744,7 @@ export const ModsPanel: React.FC = () => {
                     <Button size="sm" variant="secondary" onClick={handleExportMediaSourcesCsv}>
                       Export CSV
                     </Button>
-                    <Button size="sm" onClick={applyMediaSourceEdits}>
+                    <Button size="sm" onClick={applyMediaSourceEdits} disabled={!isEditorDataReady}>
                       Apply changes
                     </Button>
                   </div>
@@ -3835,13 +3850,13 @@ export const ModsPanel: React.FC = () => {
               <TabsContent value="mediaTemplates" className="space-y-3">
                 <div className="flex flex-wrap items-center justify-between gap-2">
                   <div className="text-sm text-muted-foreground">
-                    Media Templates: <span className="font-medium text-foreground">{changedMediaTemplateCount}</span> changed
+                    Media Templates: <span className="font-medium text-foreground">{isEditorDataReady ? changedMediaTemplateCount : 0}</span> changed
                   </div>
                   <div className="flex flex-wrap gap-2">
                     <Button size="sm" variant="secondary" onClick={handleResetMediaTemplatesView}>
                       Reset view
                     </Button>
-                    <Button size="sm" onClick={applyMediaTemplateEdits}>
+                    <Button size="sm" onClick={applyMediaTemplateEdits} disabled={!isEditorDataReady}>
                       Apply changes
                     </Button>
                   </div>
@@ -4000,13 +4015,13 @@ export const ModsPanel: React.FC = () => {
               <TabsContent value="parodyNames" className="space-y-3">
                 <div className="flex flex-wrap items-center justify-between gap-2">
                   <div className="text-sm text-muted-foreground">
-                    Parody Names: <span className="font-medium text-foreground">{parodyNamesIsChanged ? 'changed' : 'no changes'}</span>
+                    Parody Names: <span className="font-medium text-foreground">{isEditorDataReady ? (parodyNamesIsChanged ? 'changed' : 'no changes') : 'loading'}</span>
                   </div>
                   <div className="flex flex-wrap gap-2">
                     <Button size="sm" variant="secondary" onClick={handleResetParodyNames}>
                       Reset view
                     </Button>
-                    <Button size="sm" onClick={applyParodyNamesEdits}>
+                    <Button size="sm" onClick={applyParodyNamesEdits} disabled={!isEditorDataReady}>
                       Apply changes
                     </Button>
                   </div>
