@@ -15,7 +15,7 @@ import { PublicDomainGenerator } from '@/data/PublicDomainGenerator';
 import { FRANCHISE_CHARACTER_DB, type FranchiseCharacterDef } from '@/data/FranchiseCharacterDB';
 import { FRANCHISE_ROLE_SETS } from '@/data/RoleDatabase';
 import { generateInitialTalentPool } from '@/data/WorldGenerator';
-import type { PublicDomainIP, ScriptCharacter, TalentPerson } from '@/types/game';
+import type { Franchise, Genre, PublicDomainIP, ScriptCharacter, TalentPerson } from '@/types/game';
 import { useToast } from '@/hooks/use-toast';
 import type { ModBundle, ModInfo, ModOp, ModPatch } from '@/types/modding';
 import { applyPatchesByKey, applyPatchesToRecord, getPatchesForEntity, normalizeModBundle } from '@/utils/modding';
@@ -90,12 +90,22 @@ type TalentEdit = {
   id: string;
   name: string;
   type: TalentPerson['type'];
+  age: number;
   gender?: TalentPerson['gender'];
   race?: TalentPerson['race'];
   nationality?: TalentPerson['nationality'];
+  experience: number;
   reputation: number;
   marketValue: number;
+  contractStatus: TalentPerson['contractStatus'];
+  fame?: number;
+  publicImage?: number;
+  careerStage?: TalentPerson['careerStage'];
+  archetype?: string;
+  traits?: string[];
+  specialties?: Genre[];
   genres: TalentPerson['genres'];
+  biography?: string;
 };
 
 function pickTalentEdit(t: TalentPerson): TalentEdit {
@@ -103,12 +113,22 @@ function pickTalentEdit(t: TalentPerson): TalentEdit {
     id: t.id,
     name: t.name,
     type: t.type,
+    age: t.age,
     gender: t.gender,
     race: t.race,
     nationality: t.nationality,
+    experience: t.experience,
     reputation: t.reputation,
     marketValue: t.marketValue,
+    contractStatus: t.contractStatus,
+    fame: t.fame,
+    publicImage: t.publicImage,
+    careerStage: t.careerStage,
+    archetype: t.archetype,
+    traits: t.traits,
+    specialties: t.specialties,
     genres: t.genres,
+    biography: t.biography,
   };
 }
 
@@ -371,7 +391,7 @@ export const ModsPanel: React.FC = () => {
     for (const [id, edited] of Object.entries(providerEdits)) {
       const base = baseProvidersById.get(id as ProviderId);
       if (!base) continue;
-      if (!deepEqual(base, edited)) changed++;
+      if (!deepEqual(stripUndefined(base), stripUndefined(edited))) changed++;
     }
     return changed;
   }, [providerEdits, baseProvidersById]);
@@ -381,7 +401,7 @@ export const ModsPanel: React.FC = () => {
     for (const [id, edited] of Object.entries(publicDomainEdits)) {
       const base = basePublicDomainById.get(id);
       if (!base) continue;
-      if (!deepEqual(base, edited)) changed++;
+      if (!deepEqual(stripUndefined(base), stripUndefined(edited))) changed++;
     }
     return changed;
   }, [publicDomainEdits, basePublicDomainById]);
@@ -581,18 +601,18 @@ export const ModsPanel: React.FC = () => {
   const updateProvider = (id: ProviderId, updates: Partial<ProviderDealProfile>) => {
     setProviderEdits((prev) => {
       const current = prev[id] ?? (baseProvidersById.get(id) as ProviderDealProfile);
-      return { ...prev, [id]: { ...current, ...updates } };
+      return { ...prev, [id]: stripUndefined({ ...current, ...updates }) };
     });
   };
 
   const updatePublicDomain = (id: string, updates: Partial<PublicDomainIP>) => {
     setPublicDomainEdits((prev) => {
       const current = prev[id] ?? (basePublicDomainById.get(id) as PublicDomainIP);
-      return { ...prev, [id]: { ...current, ...updates } };
+      return { ...prev, [id]: stripUndefined({ ...current, ...updates }) };
     });
   };
 
-  const updatePublicDomainStringList = (id: string, field: 'coreElements' | 'requiredElements', value: string) => {
+  const updatePublicDomainStringList = (id: string, field: 'coreElements' | 'requiredElements' | 'notableAdaptations', value: string) => {
     const list = value
       .split(',')
       .map((s) => s.trim())
@@ -608,12 +628,79 @@ export const ModsPanel: React.FC = () => {
     updatePublicDomain(id, { genreFlexibility: list as any } as any);
   };
 
+  const getPublicDomainCharacters = (ipId: string): ScriptCharacter[] => {
+    if (!ipId) return [];
+    const edited = publicDomainEdits[ipId] ?? basePublicDomainById.get(ipId);
+    return ((edited?.suggestedCharacters as ScriptCharacter[] | undefined) || []).map((c) => stripUndefined(c));
+  };
+
+  const setPublicDomainCharacters = (ipId: string, characters: ScriptCharacter[]) => {
+    if (!ipId) return;
+    updatePublicDomain(ipId, { suggestedCharacters: stripUndefined(characters) as any });
+  };
+
+  const updatePublicDomainCharacterRow = (idx: number, updates: Partial<ScriptCharacter>) => {
+    const ipId = publicDomainCharactersKey;
+    if (!ipId) return;
+    const current = getPublicDomainCharacters(ipId);
+    const next = current.slice();
+    next[idx] = stripUndefined({ ...next[idx], ...updates });
+    setPublicDomainCharacters(ipId, next);
+  };
+
+  const updatePublicDomainCharacterTraits = (idx: number, value: string) => {
+    const list = value
+      .split(',')
+      .map((s) => s.trim())
+      .filter(Boolean);
+    updatePublicDomainCharacterRow(idx, { traits: list.length ? list : undefined });
+  };
+
+  const handleAddPublicDomainCharacterRow = () => {
+    const ipId = publicDomainCharactersKey;
+    if (!ipId) return;
+
+    const current = getPublicDomainCharacters(ipId);
+    const existingIds = new Set(current.map((c) => c.id));
+    let suffix = current.length + 1;
+    let id = `pd_char_${suffix}`;
+    while (existingIds.has(id)) {
+      suffix++;
+      id = `pd_char_${suffix}`;
+    }
+
+    setPublicDomainCharacters(ipId, [
+      ...current,
+      {
+        id,
+        name: 'New Character',
+        importance: 'supporting',
+        requiredType: 'actor',
+      },
+    ]);
+  };
+
+  const handleDeletePublicDomainCharacterRow = (idx: number) => {
+    const ipId = publicDomainCharactersKey;
+    if (!ipId) return;
+    const current = getPublicDomainCharacters(ipId);
+    setPublicDomainCharacters(ipId, current.filter((_, i) => i !== idx));
+  };
+
   const updateRoleRow = (idx: number, updates: Partial<ScriptCharacter>) => {
     setRoleSetRows((prev) => {
       const next = prev.slice();
-      next[idx] = { ...next[idx], ...updates };
+      next[idx] = stripUndefined({ ...next[idx], ...updates });
       return next;
     });
+  };
+
+  const updateRoleTraits = (idx: number, value: string) => {
+    const list = value
+      .split(',')
+      .map((s) => s.trim())
+      .filter(Boolean);
+    updateRoleRow(idx, { traits: list.length ? list : undefined });
   };
 
   const handleAddRoleRow = () => {
@@ -664,7 +751,7 @@ export const ModsPanel: React.FC = () => {
       const base = baseCoreTalentById.get(id);
       const current = prev[id] ?? (base ? pickTalentEdit(base) : null);
       if (!current) return prev;
-      return { ...prev, [id]: { ...current, ...updates } };
+      return { ...prev, [id]: stripUndefined({ ...current, ...updates }) };
     });
   };
 
@@ -676,12 +763,28 @@ export const ModsPanel: React.FC = () => {
     updateTalent(id, { genres: list as any });
   };
 
+  const updateTalentTraits = (id: string, value: string) => {
+    const list = value
+      .split(',')
+      .map((s) => s.trim())
+      .filter(Boolean);
+    updateTalent(id, { traits: list.length ? list : undefined });
+  };
+
+  const updateTalentSpecialties = (id: string, value: string) => {
+    const list = value
+      .split(',')
+      .map((s) => s.trim())
+      .filter(Boolean) as Genre[];
+    updateTalent(id, { specialties: list.length ? list : undefined });
+  };
+
   const updateFranchise = (id: string, updates: Partial<Franchise>) => {
     setFranchiseEdits((prev) => {
       const base = baseFranchisesById.get(id);
       const current = prev[id] ?? base;
       if (!current) return prev;
-      return { ...prev, [id]: { ...current, ...updates } };
+      return { ...prev, [id]: stripUndefined({ ...current, ...updates }) };
     });
   };
 
@@ -699,6 +802,14 @@ export const ModsPanel: React.FC = () => {
       .map((s) => s.trim())
       .filter(Boolean) as Genre[];
     updateFranchise(id, { genre: list });
+  };
+
+  const updateFranchiseEntries = (id: string, value: string) => {
+    const list = value
+      .split(',')
+      .map((s) => s.trim())
+      .filter(Boolean);
+    updateFranchise(id, { entries: list });
   };
 
   const handleAddCharacterRow = () => {
@@ -733,8 +844,16 @@ export const ModsPanel: React.FC = () => {
   const updateProviderRequirements = (id: ProviderId, updates: Partial<ProviderDealProfile['requirements']>) => {
     setProviderEdits((prev) => {
       const current = prev[id] ?? (baseProvidersById.get(id) as ProviderDealProfile);
-      return { ...prev, [id]: { ...current, requirements: { ...current.requirements, ...updates } } };
+      return { ...prev, [id]: stripUndefined({ ...current, requirements: { ...current.requirements, ...updates } }) };
     });
+  };
+
+  const updateProviderPreferredGenres = (id: ProviderId, value: string) => {
+    const list = value
+      .split(',')
+      .map((s) => s.trim())
+      .filter(Boolean) as Genre[];
+    updateProviderRequirements(id, { preferredGenres: list.length ? list : undefined });
   };
 
   const updateProviderExpectations = (id: ProviderId, updates: Partial<ProviderDealProfile['expectations']>) => {
@@ -774,7 +893,7 @@ export const ModsPanel: React.FC = () => {
       const base = baseProvidersById.get(providerId);
       if (!base) continue;
 
-      if (deepEqual(base, edited)) continue;
+      if (deepEqual(stripUndefined(base), stripUndefined(edited))) continue;
 
       const patchId = `providerDeal:${modId}:${providerId}`;
       next = upsertPatch(next, {
@@ -783,7 +902,7 @@ export const ModsPanel: React.FC = () => {
         entityType: 'providerDeal',
         op: 'update',
         target: providerId,
-        payload: edited,
+        payload: stripUndefined(edited),
       });
     }
 
@@ -1207,10 +1326,13 @@ export const ModsPanel: React.FC = () => {
                               <TableHead className="p-2">ID</TableHead>
                               <TableHead className="p-2">Name</TableHead>
                               <TableHead className="p-2">Kind</TableHead>
+                              <TableHead className="p-2">Color</TableHead>
                               <TableHead className="p-2">Market share</TableHead>
                               <TableHead className="p-2">Avg rate</TableHead>
                               <TableHead className="p-2">Bonus</TableHead>
                               <TableHead className="p-2">Min quality</TableHead>
+                              <TableHead className="p-2">Min budget</TableHead>
+                              <TableHead className="p-2">Preferred genres</TableHead>
                               <TableHead className="p-2">Viewers/share</TableHead>
                               <TableHead className="p-2">Completion %</TableHead>
                               <TableHead className="p-2">Sub growth</TableHead>
@@ -1220,7 +1342,7 @@ export const ModsPanel: React.FC = () => {
                           <TableBody>
                             {PROVIDER_DEALS.map((base) => {
                               const edited = providerEdits[base.id] ?? base;
-                              const isChanged = !deepEqual(base, edited);
+                              const isChanged = !deepEqual(stripUndefined(base), stripUndefined(edited));
 
                               return (
                                 <TableRow key={base.id} className={isChanged ? 'bg-muted/30' : undefined}>
@@ -1245,6 +1367,14 @@ export const ModsPanel: React.FC = () => {
                                         <SelectItem value="cable">cable</SelectItem>
                                       </SelectContent>
                                     </Select>
+                                  </TableCell>
+                                  <TableCell className="p-2">
+                                    <Input
+                                      className="h-8 w-[150px] font-mono text-xs"
+                                      value={edited.color}
+                                      onChange={(e) => updateProvider(base.id, { color: e.target.value })}
+                                      placeholder="bg-red-600"
+                                    />
                                   </TableCell>
                                   <TableCell className="p-2">
                                     <Input
@@ -1277,6 +1407,22 @@ export const ModsPanel: React.FC = () => {
                                       type="number"
                                       value={String(edited.requirements?.minQuality ?? 0)}
                                       onChange={(e) => updateProviderRequirements(base.id, { minQuality: Number(e.target.value) || 0 })}
+                                    />
+                                  </TableCell>
+                                  <TableCell className="p-2">
+                                    <Input
+                                      className="h-8 w-[120px]"
+                                      type="number"
+                                      value={String(edited.requirements?.minBudget ?? 0)}
+                                      onChange={(e) => updateProviderRequirements(base.id, { minBudget: Number(e.target.value) || 0 })}
+                                    />
+                                  </TableCell>
+                                  <TableCell className="p-2">
+                                    <Input
+                                      className="h-8 min-w-[220px]"
+                                      value={(edited.requirements?.preferredGenres || []).join(', ')}
+                                      onChange={(e) => updateProviderPreferredGenres(base.id, e.target.value)}
+                                      placeholder="drama, thriller"
                                     />
                                   </TableCell>
                                   <TableCell className="p-2">
@@ -1358,9 +1504,12 @@ export const ModsPanel: React.FC = () => {
                               <TableHead className="p-2">Fatigue</TableHead>
                               <TableHead className="p-2">Relevance</TableHead>
                               <TableHead className="p-2">Date</TableHead>
+                              <TableHead className="p-2">Last adapt</TableHead>
+                              <TableHead className="p-2">Cost</TableHead>
                               <TableHead className="p-2">Genres</TableHead>
                               <TableHead className="p-2">Core elements</TableHead>
                               <TableHead className="p-2">Required elements</TableHead>
+                              <TableHead className="p-2">Notable adaptations</TableHead>
                               <TableHead className="p-2">Description</TableHead>
                               <TableHead className="p-2"></TableHead>
                             </TableRow>
@@ -1430,6 +1579,22 @@ export const ModsPanel: React.FC = () => {
                                   </TableCell>
                                   <TableCell className="p-2">
                                     <Input
+                                      className="h-8 w-[140px]"
+                                      value={edited.lastAdaptationDate ?? ''}
+                                      onChange={(e) => updatePublicDomain(base.id, { lastAdaptationDate: e.target.value || undefined })}
+                                      placeholder="(optional)"
+                                    />
+                                  </TableCell>
+                                  <TableCell className="p-2">
+                                    <Input
+                                      className="h-8 w-[110px]"
+                                      type="number"
+                                      value={String(edited.cost ?? 0)}
+                                      onChange={(e) => updatePublicDomain(base.id, { cost: Number(e.target.value) || 0 })}
+                                    />
+                                  </TableCell>
+                                  <TableCell className="p-2">
+                                    <Input
                                       className="h-8 min-w-[220px]"
                                       value={(edited.genreFlexibility || []).join(', ')}
                                       onChange={(e) => updatePublicDomainGenreList(base.id, e.target.value)}
@@ -1450,6 +1615,14 @@ export const ModsPanel: React.FC = () => {
                                       value={(edited.requiredElements || []).join(', ')}
                                       onChange={(e) => updatePublicDomainStringList(base.id, 'requiredElements', e.target.value)}
                                       placeholder="must include"
+                                    />
+                                  </TableCell>
+                                  <TableCell className="p-2">
+                                    <Input
+                                      className="h-8 min-w-[240px]"
+                                      value={(edited.notableAdaptations || []).join(', ')}
+                                      onChange={(e) => updatePublicDomainStringList(base.id, 'notableAdaptations', e.target.value)}
+                                      placeholder="film ids"
                                     />
                                   </TableCell>
                                   <TableCell className="p-2">
@@ -1748,10 +1921,16 @@ export const ModsPanel: React.FC = () => {
                             <TableRow>
                               <TableHead className="p-2">Role id</TableHead>
                               <TableHead className="p-2">Name</TableHead>
+                              <TableHead className="p-2">franchiseCharacterId</TableHead>
+                              <TableHead className="p-2">roleTemplateId</TableHead>
                               <TableHead className="p-2">Importance</TableHead>
                               <TableHead className="p-2">Required type</TableHead>
+                              <TableHead className="p-2">Gender</TableHead>
+                              <TableHead className="p-2">Race</TableHead>
+                              <TableHead className="p-2">Nationality</TableHead>
                               <TableHead className="p-2">Min age</TableHead>
                               <TableHead className="p-2">Max age</TableHead>
+                              <TableHead className="p-2">Traits</TableHead>
                               <TableHead className="p-2">Description</TableHead>
                               <TableHead className="p-2"></TableHead>
                             </TableRow>
@@ -1775,6 +1954,22 @@ export const ModsPanel: React.FC = () => {
                                       className="h-8 min-w-[180px]"
                                       value={r.name}
                                       onChange={(e) => updateRoleRow(idx, { name: e.target.value })}
+                                    />
+                                  </TableCell>
+                                  <TableCell className="p-2">
+                                    <Input
+                                      className="h-8 w-[180px] font-mono text-xs"
+                                      value={r.franchiseCharacterId ?? ''}
+                                      onChange={(e) => updateRoleRow(idx, { franchiseCharacterId: e.target.value || undefined })}
+                                      placeholder="(optional)"
+                                    />
+                                  </TableCell>
+                                  <TableCell className="p-2">
+                                    <Input
+                                      className="h-8 w-[180px] font-mono text-xs"
+                                      value={r.roleTemplateId ?? ''}
+                                      onChange={(e) => updateRoleRow(idx, { roleTemplateId: e.target.value || undefined })}
+                                      placeholder="(optional)"
                                     />
                                   </TableCell>
                                   <TableCell className="p-2">
@@ -1808,6 +2003,50 @@ export const ModsPanel: React.FC = () => {
                                     </Select>
                                   </TableCell>
                                   <TableCell className="p-2">
+                                    <Select
+                                      value={r.requiredGender ?? 'any'}
+                                      onValueChange={(v) => updateRoleRow(idx, { requiredGender: v === 'any' ? undefined : (v as any) })}
+                                    >
+                                      <SelectTrigger className="h-8 w-[110px]">
+                                        <SelectValue />
+                                      </SelectTrigger>
+                                      <SelectContent>
+                                        <SelectItem value="any">any</SelectItem>
+                                        <SelectItem value="Male">Male</SelectItem>
+                                        <SelectItem value="Female">Female</SelectItem>
+                                      </SelectContent>
+                                    </Select>
+                                  </TableCell>
+                                  <TableCell className="p-2">
+                                    <Select
+                                      value={r.requiredRace ?? 'any'}
+                                      onValueChange={(v) => updateRoleRow(idx, { requiredRace: v === 'any' ? undefined : (v as any) })}
+                                    >
+                                      <SelectTrigger className="h-8 w-[160px]">
+                                        <SelectValue />
+                                      </SelectTrigger>
+                                      <SelectContent>
+                                        <SelectItem value="any">any</SelectItem>
+                                        <SelectItem value="White">White</SelectItem>
+                                        <SelectItem value="Black">Black</SelectItem>
+                                        <SelectItem value="Asian">Asian</SelectItem>
+                                        <SelectItem value="Latino">Latino</SelectItem>
+                                        <SelectItem value="Middle Eastern">Middle Eastern</SelectItem>
+                                        <SelectItem value="Indigenous">Indigenous</SelectItem>
+                                        <SelectItem value="Mixed">Mixed</SelectItem>
+                                        <SelectItem value="Other">Other</SelectItem>
+                                      </SelectContent>
+                                    </Select>
+                                  </TableCell>
+                                  <TableCell className="p-2">
+                                    <Input
+                                      className="h-8 min-w-[160px]"
+                                      value={r.requiredNationality ?? ''}
+                                      onChange={(e) => updateRoleRow(idx, { requiredNationality: e.target.value || undefined })}
+                                      placeholder="(optional)"
+                                    />
+                                  </TableCell>
+                                  <TableCell className="p-2">
                                     <Input
                                       className="h-8 w-[90px]"
                                       type="number"
@@ -1821,6 +2060,14 @@ export const ModsPanel: React.FC = () => {
                                       type="number"
                                       value={String(maxAge)}
                                       onChange={(e) => updateRoleRow(idx, { ageRange: [minAge, Number(e.target.value) || 0] })}
+                                    />
+                                  </TableCell>
+                                  <TableCell className="p-2">
+                                    <Input
+                                      className="h-8 min-w-[200px]"
+                                      value={(r.traits || []).join(', ')}
+                                      onChange={(e) => updateRoleTraits(idx, e.target.value)}
+                                      placeholder="brave, stoic"
                                     />
                                   </TableCell>
                                   <TableCell className="p-2">
@@ -2060,12 +2307,22 @@ export const ModsPanel: React.FC = () => {
                               <TableHead className="p-2">ID</TableHead>
                               <TableHead className="p-2">Name</TableHead>
                               <TableHead className="p-2">Type</TableHead>
+                              <TableHead className="p-2">Age</TableHead>
                               <TableHead className="p-2">Gender</TableHead>
                               <TableHead className="p-2">Race</TableHead>
                               <TableHead className="p-2">Nationality</TableHead>
+                              <TableHead className="p-2">Exp</TableHead>
+                              <TableHead className="p-2">Contract</TableHead>
                               <TableHead className="p-2">Reputation</TableHead>
                               <TableHead className="p-2">Market value</TableHead>
+                              <TableHead className="p-2">Fame</TableHead>
+                              <TableHead className="p-2">Public image</TableHead>
+                              <TableHead className="p-2">Career</TableHead>
+                              <TableHead className="p-2">Specialties</TableHead>
                               <TableHead className="p-2">Genres</TableHead>
+                              <TableHead className="p-2">Traits</TableHead>
+                              <TableHead className="p-2">Archetype</TableHead>
+                              <TableHead className="p-2">Biography</TableHead>
                             </TableRow>
                           </TableHeader>
                           <TableBody>
@@ -2099,6 +2356,14 @@ export const ModsPanel: React.FC = () => {
                                           <SelectItem value="composer">composer</SelectItem>
                                         </SelectContent>
                                       </Select>
+                                    </TableCell>
+                                    <TableCell className="p-2">
+                                      <Input
+                                        className="h-8 w-[80px]"
+                                        type="number"
+                                        value={String(edited.age)}
+                                        onChange={(e) => updateTalent(t.id, { age: Number(e.target.value) || 0 })}
+                                      />
                                     </TableCell>
                                     <TableCell className="p-2">
                                       <Select value={edited.gender ?? 'Male'} onValueChange={(v) => updateTalent(t.id, { gender: v as any })}>
@@ -2139,6 +2404,28 @@ export const ModsPanel: React.FC = () => {
                                     </TableCell>
                                     <TableCell className="p-2">
                                       <Input
+                                        className="h-8 w-[90px]"
+                                        type="number"
+                                        value={String(edited.experience)}
+                                        onChange={(e) => updateTalent(t.id, { experience: Number(e.target.value) || 0 })}
+                                      />
+                                    </TableCell>
+                                    <TableCell className="p-2">
+                                      <Select value={edited.contractStatus} onValueChange={(v) => updateTalent(t.id, { contractStatus: v as any })}>
+                                        <SelectTrigger className="h-8 w-[140px]">
+                                          <SelectValue />
+                                        </SelectTrigger>
+                                        <SelectContent>
+                                          <SelectItem value="available">available</SelectItem>
+                                          <SelectItem value="contracted">contracted</SelectItem>
+                                          <SelectItem value="exclusive">exclusive</SelectItem>
+                                          <SelectItem value="busy">busy</SelectItem>
+                                          <SelectItem value="retired">retired</SelectItem>
+                                        </SelectContent>
+                                      </Select>
+                                    </TableCell>
+                                    <TableCell className="p-2">
+                                      <Input
                                         className="h-8 w-[120px]"
                                         type="number"
                                         value={String(edited.reputation)}
@@ -2155,10 +2442,72 @@ export const ModsPanel: React.FC = () => {
                                     </TableCell>
                                     <TableCell className="p-2">
                                       <Input
+                                        className="h-8 w-[90px]"
+                                        type="number"
+                                        value={String(edited.fame ?? 0)}
+                                        onChange={(e) => updateTalent(t.id, { fame: Number(e.target.value) || 0 })}
+                                      />
+                                    </TableCell>
+                                    <TableCell className="p-2">
+                                      <Input
+                                        className="h-8 w-[100px]"
+                                        type="number"
+                                        value={String(edited.publicImage ?? 0)}
+                                        onChange={(e) => updateTalent(t.id, { publicImage: Number(e.target.value) || 0 })}
+                                      />
+                                    </TableCell>
+                                    <TableCell className="p-2">
+                                      <Select value={edited.careerStage ?? 'unknown'} onValueChange={(v) => updateTalent(t.id, { careerStage: v as any })}>
+                                        <SelectTrigger className="h-8 w-[140px]">
+                                          <SelectValue />
+                                        </SelectTrigger>
+                                        <SelectContent>
+                                          <SelectItem value="unknown">unknown</SelectItem>
+                                          <SelectItem value="rising">rising</SelectItem>
+                                          <SelectItem value="established">established</SelectItem>
+                                          <SelectItem value="veteran">veteran</SelectItem>
+                                          <SelectItem value="legend">legend</SelectItem>
+                                        </SelectContent>
+                                      </Select>
+                                    </TableCell>
+                                    <TableCell className="p-2">
+                                      <Input
+                                        className="h-8 min-w-[220px]"
+                                        value={(edited.specialties || []).join(', ')}
+                                        onChange={(e) => updateTalentSpecialties(t.id, e.target.value)}
+                                        placeholder="drama, thriller"
+                                      />
+                                    </TableCell>
+                                    <TableCell className="p-2">
+                                      <Input
                                         className="h-8 min-w-[220px]"
                                         value={(edited.genres || []).join(', ')}
                                         onChange={(e) => updateTalentGenres(t.id, e.target.value)}
                                         placeholder="drama, thriller"
+                                      />
+                                    </TableCell>
+                                    <TableCell className="p-2">
+                                      <Input
+                                        className="h-8 min-w-[220px]"
+                                        value={(edited.traits || []).join(', ')}
+                                        onChange={(e) => updateTalentTraits(t.id, e.target.value)}
+                                        placeholder="reliable, intense"
+                                      />
+                                    </TableCell>
+                                    <TableCell className="p-2">
+                                      <Input
+                                        className="h-8 min-w-[220px]"
+                                        value={edited.archetype ?? ''}
+                                        onChange={(e) => updateTalent(t.id, { archetype: e.target.value || undefined })}
+                                        placeholder="(optional)"
+                                      />
+                                    </TableCell>
+                                    <TableCell className="p-2">
+                                      <Input
+                                        className="h-8 min-w-[260px]"
+                                        value={edited.biography ?? ''}
+                                        onChange={(e) => updateTalent(t.id, { biography: e.target.value || undefined })}
+                                        placeholder="(optional)"
                                       />
                                     </TableCell>
                                   </TableRow>
@@ -2207,14 +2556,20 @@ export const ModsPanel: React.FC = () => {
                             <TableRow>
                               <TableHead className="p-2">ID</TableHead>
                               <TableHead className="p-2">Title</TableHead>
+                              <TableHead className="p-2">Creator</TableHead>
                               <TableHead className="p-2">Status</TableHead>
                               <TableHead className="p-2">Tone</TableHead>
                               <TableHead className="p-2">Genres</TableHead>
                               <TableHead className="p-2">Parody source</TableHead>
                               <TableHead className="p-2">Origin date</TableHead>
+                              <TableHead className="p-2">Entries</TableHead>
+                              <TableHead className="p-2">Last entry</TableHead>
+                              <TableHead className="p-2">Total BO</TableHead>
+                              <TableHead className="p-2">Avg rating</TableHead>
                               <TableHead className="p-2">Cultural</TableHead>
                               <TableHead className="p-2">Merch</TableHead>
                               <TableHead className="p-2">Fanbase</TableHead>
+                              <TableHead className="p-2">Fatigue</TableHead>
                               <TableHead className="p-2">Cost</TableHead>
                               <TableHead className="p-2">Tags</TableHead>
                               <TableHead className="p-2">Description</TableHead>
@@ -2243,6 +2598,13 @@ export const ModsPanel: React.FC = () => {
                                         className="h-8 min-w-[200px]"
                                         value={edited.title}
                                         onChange={(e) => updateFranchise(f.id, { title: e.target.value })}
+                                      />
+                                    </TableCell>
+                                    <TableCell className="p-2">
+                                      <Input
+                                        className="h-8 w-[140px] font-mono text-xs"
+                                        value={edited.creatorStudioId}
+                                        onChange={(e) => updateFranchise(f.id, { creatorStudioId: e.target.value })}
                                       />
                                     </TableCell>
                                     <TableCell className="p-2">
@@ -2298,6 +2660,38 @@ export const ModsPanel: React.FC = () => {
                                     </TableCell>
                                     <TableCell className="p-2">
                                       <Input
+                                        className="h-8 min-w-[220px]"
+                                        value={(edited.entries || []).join(', ')}
+                                        onChange={(e) => updateFranchiseEntries(f.id, e.target.value)}
+                                        placeholder="film ids"
+                                      />
+                                    </TableCell>
+                                    <TableCell className="p-2">
+                                      <Input
+                                        className="h-8 w-[140px]"
+                                        value={edited.lastEntryDate ?? ''}
+                                        onChange={(e) => updateFranchise(f.id, { lastEntryDate: e.target.value || undefined })}
+                                        placeholder="(optional)"
+                                      />
+                                    </TableCell>
+                                    <TableCell className="p-2">
+                                      <Input
+                                        className="h-8 w-[140px]"
+                                        type="number"
+                                        value={String(edited.totalBoxOffice ?? 0)}
+                                        onChange={(e) => updateFranchise(f.id, { totalBoxOffice: Number(e.target.value) || 0 })}
+                                      />
+                                    </TableCell>
+                                    <TableCell className="p-2">
+                                      <Input
+                                        className="h-8 w-[110px]"
+                                        type="number"
+                                        value={String(edited.averageRating ?? 0)}
+                                        onChange={(e) => updateFranchise(f.id, { averageRating: Number(e.target.value) || 0 })}
+                                      />
+                                    </TableCell>
+                                    <TableCell className="p-2">
+                                      <Input
                                         className="h-8 w-[90px]"
                                         type="number"
                                         value={String(edited.culturalWeight)}
@@ -2322,45 +2716,17 @@ export const ModsPanel: React.FC = () => {
                                     </TableCell>
                                     <TableCell className="p-2">
                                       <Input
+                                        className="h-8 w-[110px]"
+                                        type="number"
+                                        value={String(edited.criticalFatigue ?? 0)}
+                                        onChange={(e) => updateFranchise(f.id, { criticalFatigue: Number(e.target.value) || 0 })}
+                                      />
+                                    </TableCell>
+                                    <TableCell className="p-2">
+                                      <Input
                                         className="h-8 w-[120px]"
                                         type="number"
                                         value={String(edited.cost)}
-                                        onChange={(e) => updateFranchise(f.id, { cost: Number(e.target.value) || 0 })}
-                                      />
-                                    </TableCell>
-                                    <TableCell className="p-2">
-                                      <Input
-                                        className="h-8 min-w-[220px]"
-                                        value={(edited.franchiseTags || []).join(', ')}
-                                        onChange={(e) => updateFranchiseTags(f.id, e.target.value)}
-                                        placeholder="space, rebellion"
-                                      />
-                                    </TableCell>
-                                    <TableCell className="p-2">
-                                      <Input
-                                        className="h-8 min-w-[260px]"
-                                        value={edited.description ?? ''}
-                                        onChange={(e) => updateFranchise(f.id, { description: e.target.value || undefined })}
-                                        placeholder="(optional)"
-                                      />
-                                    </TableCell>
-                                  </TableRow>
-                                );
-                              })}
-                          </TableBody>
-                        </Table>
-
-                        <p className="text-xs text-muted-foreground">
-                          Tip: Franchise defaults are randomly generated. Applying changes writes full-record <code>franchise</code> update patches keyed by franchise id.
-                        </p>
-                      </TabsContent>
-                    </Tabs>
-        </CardContent>
-      </Card>
-    </div>
-  );
-};
-ing(edited.cost)}
                                         onChange={(e) => updateFranchise(f.id, { cost: Number(e.target.value) || 0 })}
                                       />
                                     </TableCell>
