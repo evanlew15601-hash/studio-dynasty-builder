@@ -277,7 +277,9 @@ export const TalentChemistrySystem: React.FC<TalentChemistrySystemProps> = ({
                     <div key={`${pair.talent1.id}-${pair.talent2.id}`} className="flex items-center justify-between p-3 border rounded-lg">
                       <div>
                         <h4 className="font-medium">
-                          {pair.talent1.name} & {pair.talent2.name}
+                          <button type="button" className="hover:underline" onClick={() => openTalentProfile(pair.talent1.id)}>{pair.talent1.name}</button>
+                          {' & '}
+                          <button type="button" className="hover:underline" onClick={() => openTalentProfile(pair.talent2.id)}>{pair.talent2.name}</button>
                         </h4>
                         <p className="text-sm text-muted-foreground">{chemistry.effect}</p>
                       </div>
