@@ -132,6 +132,8 @@ export const ModsPanel: React.FC = () => {
   const [characterDbRows, setCharacterDbRows] = useState<FranchiseCharacterDef[]>([]);
   const [talentSearch, setTalentSearch] = useState('');
   const [talentEdits, setTalentEdits] = useState<Record<string, TalentEdit>>({});
+  const [franchiseSearch, setFranchiseSearch] = useState('');
+  const [franchiseEdits, setFranchiseEdits] = useState<Record<string, Franchise>>({});
 
   // Quick patch builder (raw JSON tab)
   const [quickEntityType, setQuickEntityType] = useState<(typeof ENTITY_TYPES)[number]>('providerDeal');
@@ -169,6 +171,8 @@ export const ModsPanel: React.FC = () => {
     []
   );
 
+  const baseFranchises = useMemo(() => FranchiseGenerator.generateInitialFranchises(30), []);
+
   const baseFranchiseRoleSets = useMemo(() => FRANCHISE_ROLE_SETS, []);
   const baseFranchiseRoleSetKeys = useMemo(() => Object.keys(baseFranchiseRoleSets).sort(), [baseFranchiseRoleSets]);
 
@@ -190,6 +194,14 @@ export const ModsPanel: React.FC = () => {
     }
     return map;
   }, [baseCoreTalent]);
+
+  const baseFranchisesById = useMemo(() => {
+    const map = new Map<string, Franchise>();
+    for (const f of baseFranchises) {
+      map.set(f.id, f);
+    }
+    return map;
+  }, [baseFranchises]);
 
   const selectedMod = useMemo(() => bundle.mods.find((m) => m.id === editorModId) ?? null, [bundle.mods, editorModId]);
 
@@ -265,6 +277,22 @@ export const ModsPanel: React.FC = () => {
     setTalentEdits(next);
   };
 
+  const rebuildFranchiseEdits = (b: ModBundle, modId: string) => {
+    const modInfo = b.mods.find((m) => m.id === modId) ?? makeDefaultMod(modId);
+    const editorBundle: ModBundle = {
+      version: 1,
+      mods: [{ ...modInfo, enabled: true }],
+      patches: (b.patches || []).filter((p) => p.modId === modId && p.entityType === 'franchise'),
+    };
+
+    const patched = applyPatchesByKey(baseFranchises, getPatchesForEntity(editorBundle, 'franchise'), (f) => f.id);
+    const next: Record<string, Franchise> = {};
+    for (const f of patched) {
+      next[f.id] = { ...f, genre: [...f.genre], franchiseTags: [...(f.franchiseTags || [])], entries: [...(f.entries || [])] };
+    }
+    setFranchiseEdits(next);
+  };
+
   const providerDealPatchKey = useMemo(() => {
     const modId = editorModId.trim();
     if (!modId) return '';
@@ -315,6 +343,16 @@ export const ModsPanel: React.FC = () => {
       .join('|');
   }, [bundle.patches, editorModId]);
 
+  const franchisePatchKey = useMemo(() => {
+    const modId = editorModId.trim();
+    if (!modId) return '';
+
+    return (bundle.patches || [])
+      .filter((p) => p.modId === modId && p.entityType === 'franchise')
+      .map((p) => `${p.id}:${p.op}:${p.target}:${JSON.stringify(p.payload)}`)
+      .join('|');
+  }, [bundle.patches, editorModId]);
+
   useEffect(() => {
     const modId = editorModId.trim();
     if (!modId) return;
@@ -323,8 +361,9 @@ export const ModsPanel: React.FC = () => {
     rebuildRoleSetRows(bundle, modId, roleSetKey);
     rebuildCharacterDbRows(bundle, modId, characterDbKey);
     rebuildTalentEdits(bundle, modId);
+    rebuildFranchiseEdits(bundle, modId);
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [editorModId, roleSetKey, characterDbKey, providerDealPatchKey, publicDomainPatchKey, franchiseRoleSetPatchKey, franchiseCharacterDbPatchKey, talentPatchKey]);
+  }, [editorModId, roleSetKey, characterDbKey, providerDealPatchKey, publicDomainPatchKey, franchiseRoleSetPatchKey, franchiseCharacterDbPatchKey, talentPatchKey, franchisePatchKey]);
 
   const changedProviderCount = useMemo(() => {
     let changed = 0;
@@ -365,6 +404,15 @@ export const ModsPanel: React.FC = () => {
     }
     return changed;
   }, [baseCoreTalent, talentEdits]);
+
+  const changedFranchiseCount = useMemo(() => {
+    let changed = 0;
+    for (const f of baseFranchises) {
+      const edited = franchiseEdits[f.id] ?? f;
+      if (!deepEqual(stripUndefined(f), stripUndefined(edited))) changed++;
+    }
+    return changed;
+  }, [baseFranchises, franchiseEdits]);
 
   const syncFromBundle = (next: ModBundle) => {
     setBundle(next);
@@ -548,7 +596,7 @@ export const ModsPanel: React.FC = () => {
       .split(',')
       .map((s) => s.trim())
       .filter(Boolean);
-    updatePublicDomain(id, { [field]: list } as any);
+    updatePublicDomain(id, { [field]: list.length ? list : undefined } as any);
   };
 
   const updatePublicDomainGenreList = (id: string, value: string) => {
@@ -625,6 +673,31 @@ export const ModsPanel: React.FC = () => {
       .map((s) => s.trim())
       .filter(Boolean);
     updateTalent(id, { genres: list as any });
+  };
+
+  const updateFranchise = (id: string, updates: Partial<Franchise>) => {
+    setFranchiseEdits((prev) => {
+      const base = baseFranchisesById.get(id);
+      const current = prev[id] ?? base;
+      if (!current) return prev;
+      return { ...prev, [id]: { ...current, ...updates } };
+    });
+  };
+
+  const updateFranchiseTags = (id: string, value: string) => {
+    const list = value
+      .split(',')
+      .map((s) => s.trim())
+      .filter(Boolean);
+    updateFranchise(id, { franchiseTags: list });
+  };
+
+  const updateFranchiseGenres = (id: string, value: string) => {
+    const list = value
+      .split(',')
+      .map((s) => s.trim())
+      .filter(Boolean) as Genre[];
+    updateFranchise(id, { genre: list });
   };
 
   const handleAddCharacterRow = () => {
@@ -848,6 +921,37 @@ export const ModsPanel: React.FC = () => {
     toast({ title: 'Applied', description: `Applied talent changes as patches in mod "${modId}". Click Save to persist.` });
   };
 
+  const handleApplyFranchiseEdits = () => {
+    const modId = editorModId.trim();
+    if (!modId) return;
+
+    const baseIds = new Set(baseFranchises.map((f) => f.id));
+
+    const keptPatches = bundle.patches.filter(
+      (p) => !(p.modId === modId && p.entityType === 'franchise' && p.op === 'update' && p.target && baseIds.has(String(p.target)))
+    );
+
+    let next: ModBundle = ensureMod({ ...bundle, patches: keptPatches }, modId);
+
+    for (const f of baseFranchises) {
+      const edited = franchiseEdits[f.id] ?? f;
+      if (deepEqual(stripUndefined(f), stripUndefined(edited))) continue;
+
+      const patchId = `franchise:${modId}:${f.id}`;
+      next = upsertPatch(next, {
+        id: patchId,
+        modId,
+        entityType: 'franchise',
+        op: 'update',
+        target: f.id,
+        payload: stripUndefined(edited),
+      });
+    }
+
+    syncFromBundle(next);
+    toast({ title: 'Applied', description: `Applied franchise changes as patches in mod "${modId}". Click Save to persist.` });
+  };
+
   const handleAddPatchToEditor = () => {
     const normalized = parseFromRawOrToast();
     if (!normalized) return;
@@ -988,7 +1092,7 @@ export const ModsPanel: React.FC = () => {
                   <CardContent className="space-y-4">
                     <p className="text-xs text-muted-foreground">
                       Edit values in a grid, then apply changes to generate patches. This currently supports{' '}
-                      <code>providerDeal</code>, <code>publicDomainIP</code>, <code>franchiseRoleSet</code>, <code>franchiseCharacterDb</code>, and <code>talent</code>.
+                      <code>providerDeal</code>, <code>publicDomainIP</code>, <code>franchiseRoleSet</code>, <code>franchiseCharacterDb</code>, <code>talent</code>, and <code>franchise</code>.
                     </p>
 
                     <div className="grid grid-cols-1 lg:grid-cols-3 gap-3">
@@ -1070,6 +1174,7 @@ export const ModsPanel: React.FC = () => {
                         <TabsTrigger value="franchiseRoles">Franchise Roles</TabsTrigger>
                         <TabsTrigger value="franchiseCharacters">Franchise Characters</TabsTrigger>
                         <TabsTrigger value="talent">Talent (Core)</TabsTrigger>
+                        <TabsTrigger value="franchises">Franchises</TabsTrigger>
                       </TabsList>
 
                       <TabsContent value="providerDeals" className="space-y-3">
@@ -1251,8 +1356,11 @@ export const ModsPanel: React.FC = () => {
                               <TableHead className="p-2">Reputation</TableHead>
                               <TableHead className="p-2">Fatigue</TableHead>
                               <TableHead className="p-2">Relevance</TableHead>
+                              <TableHead className="p-2">Date</TableHead>
                               <TableHead className="p-2">Genres</TableHead>
                               <TableHead className="p-2">Core elements</TableHead>
+                              <TableHead className="p-2">Required elements</TableHead>
+                              <TableHead className="p-2">Description</TableHead>
                               <TableHead className="p-2"></TableHead>
                             </TableRow>
                           </TableHeader>
@@ -1314,6 +1422,13 @@ export const ModsPanel: React.FC = () => {
                                   </TableCell>
                                   <TableCell className="p-2">
                                     <Input
+                                      className="h-8 w-[140px]"
+                                      value={edited.dateEnteredDomain}
+                                      onChange={(e) => updatePublicDomain(base.id, { dateEnteredDomain: e.target.value })}
+                                    />
+                                  </TableCell>
+                                  <TableCell className="p-2">
+                                    <Input
                                       className="h-8 min-w-[220px]"
                                       value={(edited.genreFlexibility || []).join(', ')}
                                       onChange={(e) => updatePublicDomainGenreList(base.id, e.target.value)}
@@ -1326,6 +1441,22 @@ export const ModsPanel: React.FC = () => {
                                       value={(edited.coreElements || []).join(', ')}
                                       onChange={(e) => updatePublicDomainStringList(base.id, 'coreElements', e.target.value)}
                                       placeholder="themes, settings, characters"
+                                    />
+                                  </TableCell>
+                                  <TableCell className="p-2">
+                                    <Input
+                                      className="h-8 min-w-[240px]"
+                                      value={(edited.requiredElements || []).join(', ')}
+                                      onChange={(e) => updatePublicDomainStringList(base.id, 'requiredElements', e.target.value)}
+                                      placeholder="must include"
+                                    />
+                                  </TableCell>
+                                  <TableCell className="p-2">
+                                    <Input
+                                      className="h-8 min-w-[260px]"
+                                      value={edited.description ?? ''}
+                                      onChange={(e) => updatePublicDomain(base.id, { description: e.target.value || undefined })}
+                                      placeholder="(optional)"
                                     />
                                   </TableCell>
                                   <TableCell className="p-2">
@@ -1710,6 +1841,7 @@ export const ModsPanel: React.FC = () => {
                               <TableHead className="p-2">Name</TableHead>
                               <TableHead className="p-2">Type</TableHead>
                               <TableHead className="p-2">Gender</TableHead>
+                              <TableHead className="p-2">Race</TableHead>
                               <TableHead className="p-2">Nationality</TableHead>
                               <TableHead className="p-2">Reputation</TableHead>
                               <TableHead className="p-2">Market value</TableHead>
@@ -1734,12 +1866,17 @@ export const ModsPanel: React.FC = () => {
                                     </TableCell>
                                     <TableCell className="p-2">
                                       <Select value={edited.type} onValueChange={(v) => updateTalent(t.id, { type: v as any })}>
-                                        <SelectTrigger className="h-8 w-[140px]">
+                                        <SelectTrigger className="h-8 w-[160px]">
                                           <SelectValue />
                                         </SelectTrigger>
                                         <SelectContent>
                                           <SelectItem value="actor">actor</SelectItem>
                                           <SelectItem value="director">director</SelectItem>
+                                          <SelectItem value="writer">writer</SelectItem>
+                                          <SelectItem value="producer">producer</SelectItem>
+                                          <SelectItem value="cinematographer">cinematographer</SelectItem>
+                                          <SelectItem value="editor">editor</SelectItem>
+                                          <SelectItem value="composer">composer</SelectItem>
                                         </SelectContent>
                                       </Select>
                                     </TableCell>
@@ -1751,6 +1888,24 @@ export const ModsPanel: React.FC = () => {
                                         <SelectContent>
                                           <SelectItem value="Male">Male</SelectItem>
                                           <SelectItem value="Female">Female</SelectItem>
+                                        </SelectContent>
+                                      </Select>
+                                    </TableCell>
+                                    <TableCell className="p-2">
+                                      <Select value={edited.race ?? 'any'} onValueChange={(v) => updateTalent(t.id, { race: v === 'any' ? undefined : (v as any) })}>
+                                        <SelectTrigger className="h-8 w-[160px]">
+                                          <SelectValue />
+                                        </SelectTrigger>
+                                        <SelectContent>
+                                          <SelectItem value="any">any</SelectItem>
+                                          <SelectItem value="White">White</SelectItem>
+                                          <SelectItem value="Black">Black</SelectItem>
+                                          <SelectItem value="Asian">Asian</SelectItem>
+                                          <SelectItem value="Latino">Latino</SelectItem>
+                                          <SelectItem value="Middle Eastern">Middle Eastern</SelectItem>
+                                          <SelectItem value="Indigenous">Indigenous</SelectItem>
+                                          <SelectItem value="Mixed">Mixed</SelectItem>
+                                          <SelectItem value="Other">Other</SelectItem>
                                         </SelectContent>
                                       </Select>
                                     </TableCell>
@@ -1796,105 +1951,190 @@ export const ModsPanel: React.FC = () => {
                           Tip: this edits the stable <code>core:*</code> talent set (not the randomly-generated filler talent).
                         </p>
                       </TabsContent>
+
+                      <TabsContent value="franchises" className="space-y-3">
+                        <div className="flex flex-wrap items-center justify-between gap-2">
+                          <div className="text-sm text-muted-foreground">
+                            Franchises: <span className="font-medium text-foreground">{changedFranchiseCount}</span> changed
+                          </div>
+                          <div className="flex flex-wrap gap-2">
+                            <Button
+                              size="sm"
+                              variant="secondary"
+                              onClick={() => {
+                                const modId = editorModId.trim();
+                                if (!modId) return;
+                                rebuildFranchiseEdits(bundle, modId);
+                              }}
+                            >
+                              Reset view
+                            </Button>
+                            <Button size="sm" onClick={handleApplyFranchiseEdits} disabled={changedFranchiseCount === 0}>
+                              Apply changes
+                            </Button>
+                          </div>
+                        </div>
+
+                        <div className="grid grid-cols-1 lg:grid-cols-2 gap-3">
+                          <div className="space-y-1">
+                            <Label className="text-xs text-muted-foreground">Search</Label>
+                            <Input value={franchiseSearch} onChange={(e) => setFranchiseSearch(e.target.value)} placeholder="title, parody source, or id" />
+                          </div>
+                        </div>
+
+                        <Table>
+                          <TableHeader>
+                            <TableRow>
+                              <TableHead className="p-2">ID</TableHead>
+                              <TableHead className="p-2">Title</TableHead>
+                              <TableHead className="p-2">Status</TableHead>
+                              <TableHead className="p-2">Tone</TableHead>
+                              <TableHead className="p-2">Genres</TableHead>
+                              <TableHead className="p-2">Parody source</TableHead>
+                              <TableHead className="p-2">Origin date</TableHead>
+                              <TableHead className="p-2">Cultural</TableHead>
+                              <TableHead className="p-2">Merch</TableHead>
+                              <TableHead className="p-2">Fanbase</TableHead>
+                              <TableHead className="p-2">Cost</TableHead>
+                              <TableHead className="p-2">Tags</TableHead>
+                              <TableHead className="p-2">Description</TableHead>
+                            </TableRow>
+                          </TableHeader>
+                          <TableBody>
+                            {baseFranchises
+                              .filter((f) => {
+                                const q = franchiseSearch.trim().toLowerCase();
+                                if (!q) return true;
+                                return (
+                                  f.id.toLowerCase().includes(q) ||
+                                  f.title.toLowerCase().includes(q) ||
+                                  (f.parodySource || '').toLowerCase().includes(q)
+                                );
+                              })
+                              .map((f) => {
+                                const edited = franchiseEdits[f.id] ?? f;
+                                const isChanged = !deepEqual(stripUndefined(f), stripUndefined(edited));
+
+                                return (
+                                  <TableRow key={f.id} className={isChanged ? 'bg-muted/30' : undefined}>
+                                    <TableCell className="p-2 font-mono text-xs">{f.id}</TableCell>
+                                    <TableCell className="p-2">
+                                      <Input
+                                        className="h-8 min-w-[200px]"
+                                        value={edited.title}
+                                        onChange={(e) => updateFranchise(f.id, { title: e.target.value })}
+                                      />
+                                    </TableCell>
+                                    <TableCell className="p-2">
+                                      <Select value={edited.status} onValueChange={(v) => updateFranchise(f.id, { status: v as any })}>
+                                        <SelectTrigger className="h-8 w-[140px]">
+                                          <SelectValue />
+                                        </SelectTrigger>
+                                        <SelectContent>
+                                          <SelectItem value="active">active</SelectItem>
+                                          <SelectItem value="dormant">dormant</SelectItem>
+                                          <SelectItem value="rebooted">rebooted</SelectItem>
+                                          <SelectItem value="retired">retired</SelectItem>
+                                        </SelectContent>
+                                      </Select>
+                                    </TableCell>
+                                    <TableCell className="p-2">
+                                      <Select value={edited.tone} onValueChange={(v) => updateFranchise(f.id, { tone: v as any })}>
+                                        <SelectTrigger className="h-8 w-[130px]">
+                                          <SelectValue />
+                                        </SelectTrigger>
+                                        <SelectContent>
+                                          <SelectItem value="dark">dark</SelectItem>
+                                          <SelectItem value="light">light</SelectItem>
+                                          <SelectItem value="pulpy">pulpy</SelectItem>
+                                          <SelectItem value="serious">serious</SelectItem>
+                                          <SelectItem value="comedic">comedic</SelectItem>
+                                          <SelectItem value="epic">epic</SelectItem>
+                                        </SelectContent>
+                                      </Select>
+                                    </TableCell>
+                                    <TableCell className="p-2">
+                                      <Input
+                                        className="h-8 min-w-[180px]"
+                                        value={(edited.genre || []).join(', ')}
+                                        onChange={(e) => updateFranchiseGenres(f.id, e.target.value)}
+                                        placeholder="action, sci-fi"
+                                      />
+                                    </TableCell>
+                                    <TableCell className="p-2">
+                                      <Input
+                                        className="h-8 min-w-[200px]"
+                                        value={edited.parodySource ?? ''}
+                                        onChange={(e) => updateFranchise(f.id, { parodySource: e.target.value || undefined })}
+                                        placeholder="(optional)"
+                                      />
+                                    </TableCell>
+                                    <TableCell className="p-2">
+                                      <Input
+                                        className="h-8 w-[140px]"
+                                        value={edited.originDate}
+                                        onChange={(e) => updateFranchise(f.id, { originDate: e.target.value })}
+                                      />
+                                    </TableCell>
+                                    <TableCell className="p-2">
+                                      <Input
+                                        className="h-8 w-[90px]"
+                                        type="number"
+                                        value={String(edited.culturalWeight)}
+                                        onChange={(e) => updateFranchise(f.id, { culturalWeight: Number(e.target.value) || 0 })}
+                                      />
+                                    </TableCell>
+                                    <TableCell className="p-2">
+                                      <Input
+                                        className="h-8 w-[90px]"
+                                        type="number"
+                                        value={String(edited.merchandisingPotential ?? 0)}
+                                        onChange={(e) => updateFranchise(f.id, { merchandisingPotential: Number(e.target.value) || 0 })}
+                                      />
+                                    </TableCell>
+                                    <TableCell className="p-2">
+                                      <Input
+                                        className="h-8 w-[120px]"
+                                        type="number"
+                                        value={String(edited.fanbaseSize ?? 0)}
+                                        onChange={(e) => updateFranchise(f.id, { fanbaseSize: Number(e.target.value) || 0 })}
+                                      />
+                                    </TableCell>
+                                    <TableCell className="p-2">
+                                      <Input
+                                        className="h-8 w-[120px]"
+                                        type="number"
+                                        value={String(edited.cost)}
+                                        onChange={(e) => updateFranchise(f.id, { cost: Number(e.target.value) || 0 })}
+                                      />
+                                    </TableCell>
+                                    <TableCell className="p-2">
+                                      <Input
+                                        className="h-8 min-w-[220px]"
+                                        value={(edited.franchiseTags || []).join(', ')}
+                                        onChange={(e) => updateFranchiseTags(f.id, e.target.value)}
+                                        placeholder="space, rebellion"
+                                      />
+                                    </TableCell>
+                                    <TableCell className="p-2">
+                                      <Input
+                                        className="h-8 min-w-[260px]"
+                                        value={edited.description ?? ''}
+                                        onChange={(e) => updateFranchise(f.id, { description: e.target.value || undefined })}
+                                        placeholder="(optional)"
+                                      />
+                                    </TableCell>
+                                  </TableRow>
+                                );
+                              })}
+                          </TableBody>
+                        </Table>
+
+                        <p className="text-xs text-muted-foreground">
+                          Tip: Franchise defaults are randomly generated. Applying changes writes full-record <code>franchise</code> update patches keyed by franchise id.
+                        </p>
+                      </TabsContent>
                     </Tabs>
-                  </CardContent>
-                </Card>
-              </div>
-            </TabsContent>
-
-            <TabsContent value="json">
-              <div className="space-y-4">
-                <Card>
-                  <CardHeader>
-                    <CardTitle className="text-base">Quick patch builder</CardTitle>
-                  </CardHeader>
-                  <CardContent className="space-y-3">
-                    <p className="text-xs text-muted-foreground">
-                      Low-level tool: create a patch quickly, then click Save.
-                    </p>
-
-                    <div className="grid grid-cols-1 lg:grid-cols-5 gap-3">
-                      <div className="space-y-1">
-                        <Label className="text-xs text-muted-foreground">Mod id</Label>
-                        <Input value={editorModId} onChange={(e) => setEditorModId(e.target.value)} placeholder="my-mod" />
-                      </div>
-
-                      <div className="space-y-1">
-                        <Label className="text-xs text-muted-foreground">Entity type</Label>
-                        <Select
-                          value={quickEntityType}
-                          onValueChange={(v) => setQuickEntityType(v as (typeof ENTITY_TYPES)[number])}
-                        >
-                          <SelectTrigger>
-                            <SelectValue placeholder="Entity type" />
-                          </SelectTrigger>
-                          <SelectContent>
-                            {ENTITY_TYPES.map((t) => (
-                              <SelectItem key={t} value={t}>
-                                {t}
-                              </SelectItem>
-                            ))}
-                          </SelectContent>
-                        </Select>
-                      </div>
-
-                      <div className="space-y-1">
-                        <Label className="text-xs text-muted-foreground">Operation</Label>
-                        <Select value={quickOp} onValueChange={(v) => setQuickOp(v as ModOp)}>
-                          <SelectTrigger>
-                            <SelectValue placeholder="Operation" />
-                          </SelectTrigger>
-                          <SelectContent>
-                            <SelectItem value="update">update</SelectItem>
-                            <SelectItem value="insert">insert</SelectItem>
-                            <SelectItem value="delete">delete</SelectItem>
-                          </SelectContent>
-                        </Select>
-                      </div>
-
-                      <div className="space-y-1 lg:col-span-2">
-                        <Label className="text-xs text-muted-foreground">Target (id/key)</Label>
-                        <Input
-                          value={quickTarget}
-                          onChange={(e) => setQuickTarget(e.target.value)}
-                          placeholder="e.g. netflix"
-                        />
-                      </div>
-                    </div>
-
-                    <div className="space-y-1">
-                      <Label className="text-xs text-muted-foreground">Payload (JSON)</Label>
-                      <Textarea
-                        value={quickPayload}
-                        onChange={(e) => setQuickPayload(e.target.value)}
-                        className="font-mono text-xs min-h-[120px]"
-                        spellCheck={false}
-                        disabled={quickOp === 'delete'}
-                      />
-                    </div>
-
-                    <div className="flex flex-wrap gap-2">
-                      <Button size="sm" onClick={handleAddPatchToEditor}>
-                        Add patch to editor
-                      </Button>
-                    </div>
-                  </CardContent>
-                </Card>
-
-                <Textarea
-                  value={raw}
-                  onChange={(e) => setRaw(e.target.value)}
-                  className="font-mono text-xs min-h-[320px]"
-                  spellCheck={false}
-                />
-
-                <p className="text-xs text-muted-foreground">
-                  Entity types supported right now: <code>talent</code>, <code>franchise</code>, <code>publicDomainIP</code>,
-                  <code>providerDeal</code>, <code>franchiseRoleSet</code>, <code>franchiseCharacterDb</code>.
-                </p>
-              </div>
-            </TabsContent>
-          </Tabs>
         </CardContent>
       </Card>
     </div>
