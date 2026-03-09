@@ -4,6 +4,7 @@ import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
 import { TalentPerson, ChemistryEvent } from '@/types/game';
 import { Heart, Zap, Users, TrendingUp, TrendingDown, Minus } from 'lucide-react';
+import { useUiStore } from '@/game/uiStore';
 
 interface TalentChemistrySystemProps {
   talent: TalentPerson[];
@@ -20,6 +21,7 @@ export const TalentChemistrySystem: React.FC<TalentChemistrySystemProps> = ({
   currentYear,
   onCreateChemistryEvent
 }) => {
+  const openTalentProfile = useUiStore((s) => s.openTalentProfile);
   const [selectedTalent1, setSelectedTalent1] = useState<TalentPerson | null>(null);
   const [selectedTalent2, setSelectedTalent2] = useState<TalentPerson | null>(null);
   const [viewMode, setViewMode] = useState<'matrix' | 'relationships' | 'events'>('matrix');
