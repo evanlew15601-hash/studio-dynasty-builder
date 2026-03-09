@@ -7,7 +7,8 @@ import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { Switch } from '@/components/ui/switch';
 import { AIStudioManager, TalentCommitment } from './AIStudioManager';
 import { TalentPerson } from '@/types/game';
-import { Calendar, Clock, Star, Film, DollarSign } from 'lucide-react';
+import { Calendar, Clock, Star, Film, DollarSign, User } from 'lucide-react';
+import { useUiStore } from '@/game/uiStore';
 
 interface TalentMarketplaceProps {
   talent: TalentPerson[];
@@ -22,6 +23,7 @@ export const TalentMarketplace: React.FC<TalentMarketplaceProps> = ({
   currentYear,
   onCastTalent
 }) => {
+  const openTalentProfile = useUiStore((s) => s.openTalentProfile);
   const [showAvailableOnly, setShowAvailableOnly] = useState(false);
   const [selectedRole, setSelectedRole] = useState<string>('all');
   const [commitments, setCommitments] = useState<TalentCommitment[]>([]);
