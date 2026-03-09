@@ -13,6 +13,7 @@ import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { PROVIDER_DEALS, getEffectiveProviderDeals, type ProviderDealProfile, type ProviderId } from '@/data/ProviderDealsDatabase';
 import { PublicDomainGenerator } from '@/data/PublicDomainGenerator';
 import { FranchiseGenerator } from '@/data/FranchiseGenerator';
+import { STUDIO_PROFILES, type StudioProfile } from '@/data/StudioGenerator';
 import { AWARD_SHOWS, type AwardShowDefinition, type AwardCategoryDefinition } from '@/data/AwardsSchedule';
 import { FRANCHISE_CHARACTER_DB, type FranchiseCharacterDef } from '@/data/FranchiseCharacterDB';
 import { FRANCHISE_ROLE_SETS } from '@/data/RoleDatabase';
@@ -39,6 +40,7 @@ const ENTITY_TYPES = [
   'franchiseRoleSet',
   'franchiseCharacterDb',
   'awardShow',
+  'studioProfile',
 ] as const;
 
 const DEFAULT_MOD_VERSION = '1.0.0';
@@ -148,6 +150,8 @@ export const ModsPanel: React.FC = () => {
   const [editorModId, setEditorModId] = useState('my-mod');
   const [newModId, setNewModId] = useState('');
   const [providerEdits, setProviderEdits] = useState<Record<ProviderId, ProviderDealProfile>>({} as Record<ProviderId, ProviderDealProfile>);
+  const [studioSearch, setStudioSearch] = useState('');
+  const [studioEdits, setStudioEdits] = useState<Record<string, StudioProfile>>({});
   const [publicDomainEdits, setPublicDomainEdits] = useState<Record<string, PublicDomainIP>>({});
   const [publicDomainCharactersKey, setPublicDomainCharactersKey] = useState<string>('pd-1');
   const [roleSetKey, setRoleSetKey] = useState<string>(() => Object.keys(FRANCHISE_ROLE_SETS)[0] ?? 'Star Wars');
@@ -190,6 +194,16 @@ export const ModsPanel: React.FC = () => {
     }
     return map;
   }, []);
+
+  const baseStudioProfiles = useMemo(() => STUDIO_PROFILES, []);
+
+  const baseStudioProfilesByName = useMemo(() => {
+    const map = new Map<string, StudioProfile>();
+    for (const s of baseStudioProfiles) {
+      map.set(s.name, s);
+    }
+    return map;
+  }, [baseStudioProfiles]);
 
   const basePublicDomainIPs = useMemo(() => PublicDomainGenerator.generateInitialPublicDomainIPs(50), []);
 
@@ -256,6 +270,23 @@ export const ModsPanel: React.FC = () => {
       next[p.id] = p;
     }
     setProviderEdits(next);
+  };
+
+  const rebuildStudioEdits = (b: ModBundle, modId: string) => {
+    const modInfo = b.mods.find((m) => m.id === modId) ?? makeDefaultMod(modId);
+    const editorBundle: ModBundle = {
+      version: 1,
+      mods: [{ ...modInfo, enabled: true }],
+      patches: (b.patches || []).filter((p) => p.modId === modId && p.entityType === 'studioProfile'),
+    };
+
+    const patched = applyPatchesByKey(baseStudioProfiles, getPatchesForEntity(editorBundle, 'studioProfile'), (s) => s.name);
+    const next: Record<string, StudioProfile> = {};
+    for (const s of patched) {
+      next[s.name] = { ...s, specialties: [...(s.specialties || [])] };
+    }
+
+    setStudioEdits(next);
   };
 
   const rebuildPublicDomainEdits = (b: ModBundle, modId: string) => {
@@ -365,6 +396,16 @@ export const ModsPanel: React.FC = () => {
       .join('|');
   }, [bundle.patches, editorModId]);
 
+  const studioProfilePatchKey = useMemo(() => {
+    const modId = editorModId.trim();
+    if (!modId) return '';
+
+    return (bundle.patches || [])
+      .filter((p) => p.modId === modId && p.entityType === 'studioProfile')
+      .map((p) => `${p.id}:${p.op}:${p.target}:${JSON.stringify(p.payload)}`)
+      .join('|');
+  }, [bundle.patches, editorModId]);
+
   const publicDomainPatchKey = useMemo(() => {
     const modId = editorModId.trim();
     if (!modId) return '';
@@ -429,6 +470,7 @@ export const ModsPanel: React.FC = () => {
     const modId = editorModId.trim();
     if (!modId) return;
     rebuildProviderEdits(bundle, modId);
+    rebuildStudioEdits(bundle, modId);
     rebuildPublicDomainEdits(bundle, modId);
     rebuildRoleSetRows(bundle, modId, roleSetKey);
     rebuildCharacterDbRows(bundle, modId, characterDbKey);
@@ -436,7 +478,7 @@ export const ModsPanel: React.FC = () => {
     rebuildFranchiseEdits(bundle, modId);
     rebuildAwardShowEdits(bundle, modId);
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [editorModId, roleSetKey, characterDbKey, providerDealPatchKey, publicDomainPatchKey, franchiseRoleSetPatchKey, franchiseCharacterDbPatchKey, talentPatchKey, franchisePatchKey, awardShowPatchKey]);
+  }, [editorModId, roleSetKey, characterDbKey, providerDealPatchKey, studioProfilePatchKey, publicDomainPatchKey, franchiseRoleSetPatchKey, franchiseCharacterDbPatchKey, talentPatchKey, franchisePatchKey, awardShowPatchKey]);
 
   const changedProviderCount = useMemo(() => {
     let changed = 0;
@@ -447,6 +489,15 @@ export const ModsPanel: React.FC = () => {
     }
     return changed;
   }, [providerEdits, baseProvidersById]);
+
+  const changedStudioCount = useMemo(() => {
+    let changed = 0;
+    for (const base of baseStudioProfiles) {
+      const edited = studioEdits[base.name] ?? base;
+      if (!deepEqual(stripUndefined(base), stripUndefined(edited))) changed++;
+    }
+    return changed;
+  }, [baseStudioProfiles, studioEdits]);
 
   const changedPublicDomainCount = useMemo(() => {
     let changed = 0;
@@ -664,6 +715,22 @@ export const ModsPanel: React.FC = () => {
       const current = prev[id] ?? (baseProvidersById.get(id) as ProviderDealProfile);
       return { ...prev, [id]: stripUndefined({ ...current, ...updates }) };
     });
+  };
+
+  const updateStudio = (name: string, updates: Partial<StudioProfile>) => {
+    setStudioEdits((prev) => {
+      const current = prev[name] ?? (baseStudioProfilesByName.get(name) as StudioProfile);
+      return { ...prev, [name]: stripUndefined({ ...current, ...updates }) };
+    });
+  };
+
+  const updateStudioSpecialties = (name: string, value: string) => {
+    const list = value
+      .split(',')
+      .map((s) => s.trim())
+      .filter(Boolean) as Genre[];
+
+    updateStudio(name, { specialties: list.length ? list : [] });
   };
 
   const updatePublicDomain = (id: string, updates: Partial<PublicDomainIP>) => {
@@ -1066,6 +1133,12 @@ export const ModsPanel: React.FC = () => {
     setProviderEdits((prev) => ({ ...prev, [id]: base }));
   };
 
+  const handleResetStudioRow = (name: string) => {
+    const base = baseStudioProfilesByName.get(name);
+    if (!base) return;
+    setStudioEdits((prev) => ({ ...prev, [name]: base }));
+  };
+
   const handleResetPublicDomainRow = (id: string) => {
     const base = basePublicDomainById.get(id);
     if (!base) return;
@@ -1105,6 +1178,40 @@ export const ModsPanel: React.FC = () => {
 
     syncFromBundle(next);
     toast({ title: 'Applied', description: `Applied provider changes as patches in mod "${modId}". Click Save to persist.` });
+  };
+
+  const handleApplyStudioEdits = () => {
+    const modId = editorModId.trim();
+    if (!modId) return;
+
+    const baseNames = new Set(baseStudioProfiles.map((s) => s.name));
+
+    const keptPatches = bundle.patches.filter(
+      (p) => !(p.modId === modId && p.entityType === 'studioProfile' && p.op === 'update' && p.target && baseNames.has(String(p.target)))
+    );
+
+    let next: ModBundle = ensureMod({ ...bundle, patches: keptPatches }, modId);
+
+    for (const name of baseNames) {
+      const edited = studioEdits[name] ?? (baseStudioProfilesByName.get(name) as StudioProfile);
+      const base = baseStudioProfilesByName.get(name);
+      if (!base) continue;
+
+      if (deepEqual(stripUndefined(base), stripUndefined(edited))) continue;
+
+      const patchId = `studioProfile:${modId}:${name}`;
+      next = upsertPatch(next, {
+        id: patchId,
+        modId,
+        entityType: 'studioProfile',
+        op: 'update',
+        target: name,
+        payload: stripUndefined(edited),
+      });
+    }
+
+    syncFromBundle(next);
+    toast({ title: 'Applied', description: `Applied studio profile changes as patches in mod "${modId}". Click Save to persist.` });
   };
 
   const handleApplyPublicDomainEdits = () => {
@@ -1409,7 +1516,7 @@ export const ModsPanel: React.FC = () => {
                   <CardContent className="space-y-4">
                     <p className="text-xs text-muted-foreground">
                       Edit values in a grid, then apply changes to generate patches. This currently supports{' '}
-                      <code>providerDeal</code>, <code>publicDomainIP</code>, <code>franchiseRoleSet</code>, <code>franchiseCharacterDb</code>, <code>talent</code>, and <code>franchise</code>.
+                      <code>providerDeal</code>, <code>studioProfile</code>, <code>publicDomainIP</code> (including suggested characters), <code>franchiseRoleSet</code>, <code>franchiseCharacterDb</code>, <code>talent</code>, <code>franchise</code>, and <code>awardShow</code>.
                     </p>
 
                     <div className="grid grid-cols-1 lg:grid-cols-3 gap-3">
@@ -1487,7 +1594,9 @@ export const ModsPanel: React.FC = () => {
                     <Tabs defaultValue="providerDeals" className="w-full">
                       <TabsList>
                         <TabsTrigger value="providerDeals">Provider Deals</TabsTrigger>
+                        <TabsTrigger value="studios">Studios</TabsTrigger>
                         <TabsTrigger value="publicDomain">Public Domain IP</TabsTrigger>
+                        <TabsTrigger value="publicDomainCharacters">PD Characters</TabsTrigger>
                         <TabsTrigger value="franchiseRoles">Franchise Roles</TabsTrigger>
                         <TabsTrigger value="franchiseCharacters">Franchise Characters</TabsTrigger>
                         <TabsTrigger value="talent">Talent (Core)</TabsTrigger>
@@ -1667,6 +1776,161 @@ export const ModsPanel: React.FC = () => {
                         <p className="text-xs text-muted-foreground">
                           Tip: after clicking <strong>Apply changes</strong>, use the top-level <strong>Save</strong> button to persist
                           this slot.
+                        </p>
+                      </TabsContent>
+
+                      <TabsContent value="studios" className="space-y-3">
+                        <div className="flex flex-wrap items-center justify-between gap-2">
+                          <div className="text-sm text-muted-foreground">
+                            Studios: <span className="font-medium text-foreground">{changedStudioCount}</span> changed
+                          </div>
+                          <div className="flex flex-wrap gap-2">
+                            <Button
+                              size="sm"
+                              variant="secondary"
+                              onClick={() => {
+                                const modId = editorModId.trim();
+                                if (!modId) return;
+                                rebuildStudioEdits(bundle, modId);
+                              }}
+                            >
+                              Reset view
+                            </Button>
+                            <Button size="sm" onClick={handleApplyStudioEdits} disabled={changedStudioCount === 0}>
+                              Apply changes
+                            </Button>
+                          </div>
+                        </div>
+
+                        <div className="grid grid-cols-1 lg:grid-cols-2 gap-3">
+                          <div className="space-y-1">
+                            <Label className="text-xs text-muted-foreground">Search</Label>
+                            <Input value={studioSearch} onChange={(e) => setStudioSearch(e.target.value)} placeholder="name" />
+                          </div>
+                        </div>
+
+                        <Table>
+                          <TableHeader>
+                            <TableRow>
+                              <TableHead className="p-2">Name</TableHead>
+                              <TableHead className="p-2">Budget</TableHead>
+                              <TableHead className="p-2">Reputation</TableHead>
+                              <TableHead className="p-2">Specialties</TableHead>
+                              <TableHead className="p-2">Risk</TableHead>
+                              <TableHead className="p-2">Releases/yr</TableHead>
+                              <TableHead className="p-2">Founded</TableHead>
+                              <TableHead className="p-2">Brand</TableHead>
+                              <TableHead className="p-2">Business tendency</TableHead>
+                              <TableHead className="p-2">Personality</TableHead>
+                              <TableHead className="p-2"></TableHead>
+                            </TableRow>
+                          </TableHeader>
+                          <TableBody>
+                            {baseStudioProfiles
+                              .filter((s) => {
+                                const q = studioSearch.trim().toLowerCase();
+                                if (!q) return true;
+                                return s.name.toLowerCase().includes(q);
+                              })
+                              .map((s) => {
+                                const edited = studioEdits[s.name] ?? s;
+                                const isChanged = !deepEqual(stripUndefined(s), stripUndefined(edited));
+
+                                return (
+                                  <TableRow key={s.name} className={isChanged ? 'bg-muted/30' : undefined}>
+                                    <TableCell className="p-2 min-w-[220px]">{s.name}</TableCell>
+                                    <TableCell className="p-2">
+                                      <Input
+                                        className="h-8 w-[140px]"
+                                        type="number"
+                                        value={String(edited.budget)}
+                                        onChange={(e) => updateStudio(s.name, { budget: Number(e.target.value) || 0 })}
+                                      />
+                                    </TableCell>
+                                    <TableCell className="p-2">
+                                      <Input
+                                        className="h-8 w-[110px]"
+                                        type="number"
+                                        value={String(edited.reputation)}
+                                        onChange={(e) => updateStudio(s.name, { reputation: Number(e.target.value) || 0 })}
+                                      />
+                                    </TableCell>
+                                    <TableCell className="p-2">
+                                      <Input
+                                        className="h-8 min-w-[220px]"
+                                        value={(edited.specialties || []).join(', ')}
+                                        onChange={(e) => updateStudioSpecialties(s.name, e.target.value)}
+                                        placeholder="drama, comedy"
+                                      />
+                                    </TableCell>
+                                    <TableCell className="p-2">
+                                      <Select
+                                        value={edited.riskTolerance}
+                                        onValueChange={(v) => updateStudio(s.name, { riskTolerance: v as any })}
+                                      >
+                                        <SelectTrigger className="h-8 w-[140px]">
+                                          <SelectValue />
+                                        </SelectTrigger>
+                                        <SelectContent>
+                                          <SelectItem value="conservative">conservative</SelectItem>
+                                          <SelectItem value="moderate">moderate</SelectItem>
+                                          <SelectItem value="aggressive">aggressive</SelectItem>
+                                        </SelectContent>
+                                      </Select>
+                                    </TableCell>
+                                    <TableCell className="p-2">
+                                      <Input
+                                        className="h-8 w-[120px]"
+                                        type="number"
+                                        value={String(edited.releaseFrequency)}
+                                        onChange={(e) => updateStudio(s.name, { releaseFrequency: Number(e.target.value) || 0 })}
+                                      />
+                                    </TableCell>
+                                    <TableCell className="p-2">
+                                      <Input
+                                        className="h-8 w-[100px]"
+                                        type="number"
+                                        value={edited.foundedYear ? String(edited.foundedYear) : ''}
+                                        onChange={(e) => updateStudio(s.name, { foundedYear: e.target.value ? Number(e.target.value) || undefined : undefined })}
+                                        placeholder="(auto)"
+                                      />
+                                    </TableCell>
+                                    <TableCell className="p-2">
+                                      <Input
+                                        className="h-8 min-w-[220px]"
+                                        value={edited.brandIdentity}
+                                        onChange={(e) => updateStudio(s.name, { brandIdentity: e.target.value })}
+                                      />
+                                    </TableCell>
+                                    <TableCell className="p-2">
+                                      <Input
+                                        className="h-8 min-w-[240px]"
+                                        value={edited.businessTendency}
+                                        onChange={(e) => updateStudio(s.name, { businessTendency: e.target.value })}
+                                      />
+                                    </TableCell>
+                                    <TableCell className="p-2">
+                                      <Input
+                                        className="h-8 min-w-[260px]"
+                                        value={edited.personality}
+                                        onChange={(e) => updateStudio(s.name, { personality: e.target.value })}
+                                      />
+                                    </TableCell>
+                                    <TableCell className="p-2">
+                                      <div className="flex justify-end gap-2">
+                                        <Button size="sm" variant="ghost" onClick={() => handleResetStudioRow(s.name)}>
+                                          Reset
+                                        </Button>
+                                      </div>
+                                    </TableCell>
+                                  </TableRow>
+                                );
+                              })}
+                          </TableBody>
+                        </Table>
+
+                        <p className="text-xs text-muted-foreground">
+                          Tip: this edits AI competitor studio profiles. Applying changes writes full-record <code>studioProfile</code> update patches keyed by studio name.
                         </p>
                       </TabsContent>
 
