@@ -18,8 +18,9 @@ import { MediaSourceGenerator } from '@/data/MediaSourceGenerator';
 import { AWARD_SHOWS, type AwardShowDefinition, type AwardCategoryDefinition } from '@/data/AwardsSchedule';
 import { FRANCHISE_CHARACTER_DB, type FranchiseCharacterDef } from '@/data/FranchiseCharacterDB';
 import { FRANCHISE_ROLE_SETS } from '@/data/RoleDatabase';
+import { PARODY_CHARACTER_NAME_MAP, type ParodyCharacterNameMapEntry } from '@/data/ParodyCharacterNames';
 import { generateInitialTalentPool } from '@/data/WorldGenerator';
-import type { Franchise, Genre, PublicDomainIP, ScriptCharacter, TalentPerson } from '@/types/game';
+import type { Franchise, Genre, MediaSource, PublicDomainIP, ScriptCharacter, TalentPerson } from '@/types/game';
 import { useToast } from '@/hooks/use-toast';
 import type { ModBundle, ModInfo, ModOp, ModPatch } from '@/types/modding';
 import { applyPatchesByKey, applyPatchesToRecord, getPatchesForEntity, normalizeModBundle } from '@/utils/modding';
@@ -77,6 +78,36 @@ function deepEqual(a: unknown, b: unknown): boolean {
 
 function stripUndefined<T>(value: T): T {
   return JSON.parse(JSON.stringify(value));
+}
+
+function nameRowsFromRecord(rec?: Record<string, string>): NameMappingRow[] {
+  return Object.entries(rec || {})
+    .map(([key, value]) => ({ key, value }))
+    .sort((a, b) => a.key.localeCompare(b.key));
+}
+
+function nameRecordFromRows(rows: NameMappingRow[]): Record<string, string> {
+  const out: Record<string, string> = {};
+  for (const row of rows) {
+    const k = row.key.trim();
+    if (!k) continue;
+    const v = row.value.trim();
+    if (!v) continue;
+    out[k] = v;
+  }
+  return out;
+}
+
+function namePatchRecordFromRows(base: Record<string, string> | undefined, rows: NameMappingRow[]): Record<string, string | null> | undefined {
+  const baseRec = base || {};
+  const next = nameRecordFromRows(rows);
+  const out: Record<string, string | null> = { ...next };
+
+  for (const key of Object.keys(baseRec)) {
+    if (!(key in next)) out[key] = null;
+  }
+
+  return Object.keys(out).length ? out : undefined;
 }
 
 function ensureMod(bundle: ModBundle, modId: string): ModBundle {
@@ -168,6 +199,10 @@ export const ModsPanel: React.FC = () => {
   const [awardShowEdits, setAwardShowEdits] = useState<Record<string, AwardShowDefinition>>({});
   const [mediaSourceSearch, setMediaSourceSearch] = useState('');
   const [mediaSourceEdits, setMediaSourceEdits] = useState<Record<string, MediaSource>>({});
+
+  const [parodyNamesKey, setParodyNamesKey] = useState<string>(() => Object.keys(PARODY_CHARACTER_NAME_MAP)[0] ?? 'Star Wars');
+  const [parodyByCharacterIdRows, setParodyByCharacterIdRows] = useState<NameMappingRow[]>([]);
+  const [parodyByTemplateIdRows, setParodyByTemplateIdRows] = useState<NameMappingRow[]>([]);
 
   // Quick patch builder (raw JSON tab)
   const [quickEntityType, setQuickEntityType] = useState<(typeof ENTITY_TYPES)[number]>('providerDeal');
@@ -419,6 +454,39 @@ export const ModsPanel: React.FC = () => {
     setMediaSourceEdits(next);
   };
 
+  const nameRowsFromRecord = (rec?: Record<string, string>): NameMappingRow[] => {
+    return Object.entries(rec || {})
+      .map(([key, value]) => ({ key, value }))
+      .sort((a, b) => a.key.localeCompare(b.key));
+  };
+
+  const nameRecordFromRows = (rows: NameMappingRow[]): Record<string, string> => {
+    const out: Record<string, string> = {};
+    for (const row of rows) {
+      const k = row.key.trim();
+      if (!k) continue;
+      const v = row.value.trim();
+      if (!v) continue;
+      out[k] = v;
+    }
+    return out;
+  };
+
+  const rebuildParodyCharacterNamesRows = (b: ModBundle, modId: string, key: string) => {
+    const modInfo = b.mods.find((m) => m.id === modId) ?? makeDefaultMod(modId);
+    const editorBundle: ModBundle = {
+      version: 1,
+      mods: [{ ...modInfo, enabled: true }],
+      patches: (b.patches || []).filter((p) => p.modId === modId && p.entityType === 'parodyCharacterNames'),
+    };
+
+    const patched = applyPatchesToRecord(PARODY_CHARACTER_NAME_MAP, getPatchesForEntity(editorBundle, 'parodyCharacterNames'));
+    const entry = patched[key] ?? PARODY_CHARACTER_NAME_MAP[key] ?? ({} as ParodyCharacterNameMapEntry);
+
+    setParodyByCharacterIdRows(nameRowsFromRecord(entry.byCharacterId));
+    setParodyByTemplateIdRows(nameRowsFromRecord(entry.byTemplateId));
+  };
+
   const providerDealPatchKey = useMemo(() => {
     const modId = editorModId.trim();
     if (!modId) return '';
@@ -509,6 +577,16 @@ export const ModsPanel: React.FC = () => {
       .join('|');
   }, [bundle.patches, editorModId]);
 
+  const parodyCharacterNamesPatchKey = useMemo(() => {
+    const modId = editorModId.trim();
+    if (!modId) return '';
+
+    return (bundle.patches || [])
+      .filter((p) => p.modId === modId && p.entityType === 'parodyCharacterNames')
+      .map((p) => `${p.id}:${p.op}:${p.target}:${JSON.stringify(p.payload)}`)
+      .join('|');
+  }, [bundle.patches, editorModId]);
+
   useEffect(() => {
     const modId = editorModId.trim();
     if (!modId) return;
@@ -520,8 +598,25 @@ export const ModsPanel: React.FC = () => {
     rebuildTalentEdits(bundle, modId);
     rebuildFranchiseEdits(bundle, modId);
     rebuildAwardShowEdits(bundle, modId);
+    rebuildMediaSourceEdits(bundle, modId);
+    rebuildParodyCharacterNamesRows(bundle, modId, parodyNamesKey);
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [editorModId, roleSetKey, characterDbKey, providerDealPatchKey, studioProfilePatchKey, publicDomainPatchKey, franchiseRoleSetPatchKey, franchiseCharacterDbPatchKey, talentPatchKey, franchisePatchKey, awardShowPatchKey]);
+  }, [
+    editorModId,
+    roleSetKey,
+    characterDbKey,
+    parodyNamesKey,
+    providerDealPatchKey,
+    studioProfilePatchKey,
+    publicDomainPatchKey,
+    franchiseRoleSetPatchKey,
+    franchiseCharacterDbPatchKey,
+    talentPatchKey,
+    franchisePatchKey,
+    awardShowPatchKey,
+    mediaSourcePatchKey,
+    parodyCharacterNamesPatchKey,
+  ]);
 
   const changedProviderCount = useMemo(() => {
     let changed = 0;
@@ -598,6 +693,19 @@ export const ModsPanel: React.FC = () => {
     }
     return changed;
   }, [baseMediaSources, mediaSourceEdits]);
+
+  const parodyNamesIsChanged = useMemo(() => {
+    const base = PARODY_CHARACTER_NAME_MAP[parodyNamesKey] ?? ({} as ParodyCharacterNameMapEntry);
+    const nextByCharacterId = nameRecordFromRows(parodyByCharacterIdRows);
+    const nextByTemplateId = nameRecordFromRows(parodyByTemplateIdRows);
+
+    const edited: ParodyCharacterNameMapEntry = {
+      byCharacterId: Object.keys(nextByCharacterId).length ? nextByCharacterId : undefined,
+      byTemplateId: Object.keys(nextByTemplateId).length ? nextByTemplateId : undefined,
+    };
+
+    return !deepEqual(stripUndefined(base), stripUndefined(edited));
+  }, [parodyByCharacterIdRows, parodyByTemplateIdRows, parodyNamesKey]);
 
   const syncFromBundle = (next: ModBundle) => {
     setBundle(next);
@@ -865,6 +973,42 @@ export const ModsPanel: React.FC = () => {
     if (!ipId) return;
     const current = getPublicDomainCharacters(ipId);
     setPublicDomainCharacters(ipId, current.filter((_, i) => i !== idx));
+  };
+
+  const updateParodyByCharacterIdRow = (idx: number, updates: Partial<NameMappingRow>) => {
+    setParodyByCharacterIdRows((prev) => {
+      const next = prev.slice();
+      const existing = next[idx];
+      if (!existing) return prev;
+      next[idx] = stripUndefined({ ...existing, ...updates });
+      return next;
+    });
+  };
+
+  const updateParodyByTemplateIdRow = (idx: number, updates: Partial<NameMappingRow>) => {
+    setParodyByTemplateIdRows((prev) => {
+      const next = prev.slice();
+      const existing = next[idx];
+      if (!existing) return prev;
+      next[idx] = stripUndefined({ ...existing, ...updates });
+      return next;
+    });
+  };
+
+  const handleAddParodyByCharacterIdRow = () => {
+    setParodyByCharacterIdRows((prev) => [...prev, { key: '', value: '' }]);
+  };
+
+  const handleAddParodyByTemplateIdRow = () => {
+    setParodyByTemplateIdRows((prev) => [...prev, { key: '', value: '' }]);
+  };
+
+  const handleDeleteParodyByCharacterIdRow = (idx: number) => {
+    setParodyByCharacterIdRows((prev) => prev.filter((_, i) => i !== idx));
+  };
+
+  const handleDeleteParodyByTemplateIdRow = (idx: number) => {
+    setParodyByTemplateIdRows((prev) => prev.filter((_, i) => i !== idx));
   };
 
   const updateRoleRow = (idx: number, updates: Partial<ScriptCharacter>) => {
@@ -1340,6 +1484,51 @@ export const ModsPanel: React.FC = () => {
     toast({ title: 'Applied', description: `Applied public domain changes as patches in mod "${modId}". Click Save to persist.` });
   };
 
+  const handleApplyParodyCharacterNamesEdits = () => {
+    const modId = editorModId.trim();
+    if (!modId) return;
+
+    const key = parodyNamesKey;
+    if (!key) return;
+
+    const keptPatches = bundle.patches.filter(
+      (p) => !(p.modId === modId && p.entityType === 'parodyCharacterNames' && p.op === 'update' && p.target === key)
+    );
+
+    let next: ModBundle = ensureMod({ ...bundle, patches: keptPatches }, modId);
+
+    const base = PARODY_CHARACTER_NAME_MAP[key] ?? ({} as ParodyCharacterNameMapEntry);
+    const nextByCharacterId = nameRecordFromRows(parodyByCharacterIdRows);
+    const nextByTemplateId = nameRecordFromRows(parodyByTemplateIdRows);
+
+    const edited: ParodyCharacterNameMapEntry = {
+      byCharacterId: Object.keys(nextByCharacterId).length ? nextByCharacterId : undefined,
+      byTemplateId: Object.keys(nextByTemplateId).length ? nextByTemplateId : undefined,
+    };
+
+    if (!deepEqual(stripUndefined(base), stripUndefined(edited))) {
+      const patchId = `parodyCharacterNames:${modId}:${key}`;
+
+      const patchByCharacterId = namePatchRecordFromRows(base.byCharacterId, parodyByCharacterIdRows);
+      const patchByTemplateId = namePatchRecordFromRows(base.byTemplateId, parodyByTemplateIdRows);
+
+      next = upsertPatch(next, {
+        id: patchId,
+        modId,
+        entityType: 'parodyCharacterNames',
+        op: 'update',
+        target: key,
+        payload: stripUndefined({
+          byCharacterId: patchByCharacterId,
+          byTemplateId: patchByTemplateId,
+        }),
+      });
+    }
+
+    syncFromBundle(next);
+    toast({ title: 'Applied', description: `Applied parody name mapping changes as patches in mod "${modId}". Click Save to persist.` });
+  };
+
   const handleApplyRoleSetEdits = () => {
     const modId = editorModId.trim();
     if (!modId) return;
@@ -1608,7 +1797,7 @@ export const ModsPanel: React.FC = () => {
                   <CardContent className="space-y-4">
                     <p className="text-xs text-muted-foreground">
                       Edit values in a grid, then apply changes to generate patches. This currently supports{' '}
-                      <code>providerDeal</code>, <code>studioProfile</code>, <code>mediaSource</code>, <code>publicDomainIP</code> (including suggested characters), <code>franchiseRoleSet</code>, <code>franchiseCharacterDb</code>, <code>talent</code>, <code>franchise</code>, and <code>awardShow</code>.
+                      <code>providerDeal</code>, <code>studioProfile</code>, <code>mediaSource</code>, <code>publicDomainIP</code> (including suggested characters), <code>franchiseRoleSet</code>, <code>parodyCharacterNames</code>, <code>franchiseCharacterDb</code>, <code>talent</code>, <code>franchise</code>, and <code>awardShow</code>.
                     </p>
 
                     <div className="grid grid-cols-1 lg:grid-cols-3 gap-3">
@@ -1691,6 +1880,7 @@ export const ModsPanel: React.FC = () => {
                         <TabsTrigger value="publicDomain">Public Domain IP</TabsTrigger>
                         <TabsTrigger value="publicDomainCharacters">PD Characters</TabsTrigger>
                         <TabsTrigger value="franchiseRoles">Franchise Roles</TabsTrigger>
+                        <TabsTrigger value="parodyNames">Parody Names</TabsTrigger>
                         <TabsTrigger value="franchiseCharacters">Franchise Characters</TabsTrigger>
                         <TabsTrigger value="talent">Talent (Core)</TabsTrigger>
                         <TabsTrigger value="franchises">Franchises</TabsTrigger>
@@ -2780,6 +2970,148 @@ export const ModsPanel: React.FC = () => {
                         </p>
                       </TabsContent>
 
+                      <TabsContent value="parodyNames" className="space-y-3">
+                        <div className="flex flex-wrap items-center justify-between gap-2">
+                          <div className="text-sm text-muted-foreground">
+                            Parody Names: <span className="font-medium text-foreground">{parodyNamesIsChanged ? 'changed' : 'no changes'}</span>
+                          </div>
+                          <div className="flex flex-wrap gap-2">
+                            <Button
+                              size="sm"
+                              variant="secondary"
+                              onClick={() => {
+                                const modId = editorModId.trim();
+                                if (!modId) return;
+                                rebuildParodyCharacterNamesRows(bundle, modId, parodyNamesKey);
+                              }}
+                            >
+                              Reset view
+                            </Button>
+                            <Button size="sm" onClick={handleApplyParodyCharacterNamesEdits} disabled={!parodyNamesIsChanged}>
+                              Apply changes
+                            </Button>
+                          </div>
+                        </div>
+
+                        <div className="grid grid-cols-1 lg:grid-cols-2 gap-3">
+                          <div className="space-y-1">
+                            <Label className="text-xs text-muted-foreground">Parody source key</Label>
+                            <Select value={parodyNamesKey} onValueChange={setParodyNamesKey}>
+                              <SelectTrigger>
+                                <SelectValue placeholder="Select key" />
+                              </SelectTrigger>
+                              <SelectContent>
+                                {Array.from(new Set([...Object.keys(PARODY_CHARACTER_NAME_MAP), parodyNamesKey]))
+                                  .filter((k) => !!k)
+                                  .map((k) => (
+                                    <SelectItem key={k} value={k}>
+                                      {k}
+                                    </SelectItem>
+                                  ))}
+                              </SelectContent>
+                            </Select>
+                          </div>
+                        </div>
+
+                        <div className="space-y-2">
+                          <div className="flex items-center justify-between gap-2">
+                            <div className="text-sm text-muted-foreground">By Character ID</div>
+                            <Button size="sm" variant="secondary" onClick={handleAddParodyByCharacterIdRow}>
+                              Add mapping
+                            </Button>
+                          </div>
+                          <Table>
+                            <TableHeader>
+                              <TableRow>
+                                <TableHead className="p-2">character_id</TableHead>
+                                <TableHead className="p-2">Name</TableHead>
+                                <TableHead className="p-2"></TableHead>
+                              </TableRow>
+                            </TableHeader>
+                            <TableBody>
+                              {parodyByCharacterIdRows.map((row, idx) => (
+                                <TableRow key={`${row.key}-${idx}`}>
+                                  <TableCell className="p-2">
+                                    <Input
+                                      className="h-8 w-[220px] font-mono text-xs"
+                                      value={row.key}
+                                      onChange={(e) => updateParodyByCharacterIdRow(idx, { key: e.target.value })}
+                                      placeholder="char_hero_pilot"
+                                    />
+                                  </TableCell>
+                                  <TableCell className="p-2">
+                                    <Input
+                                      className="h-8 min-w-[260px]"
+                                      value={row.value}
+                                      onChange={(e) => updateParodyByCharacterIdRow(idx, { value: e.target.value })}
+                                      placeholder="Luke Starwalker"
+                                    />
+                                  </TableCell>
+                                  <TableCell className="p-2">
+                                    <div className="flex justify-end gap-2">
+                                      <Button size="sm" variant="ghost" onClick={() => handleDeleteParodyByCharacterIdRow(idx)}>
+                                        Delete
+                                      </Button>
+                                    </div>
+                                  </TableCell>
+                                </TableRow>
+                              ))}
+                            </TableBody>
+                          </Table>
+                        </div>
+
+                        <div className="space-y-2">
+                          <div className="flex items-center justify-between gap-2">
+                            <div className="text-sm text-muted-foreground">By Template ID</div>
+                            <Button size="sm" variant="secondary" onClick={handleAddParodyByTemplateIdRow}>
+                              Add mapping
+                            </Button>
+                          </div>
+                          <Table>
+                            <TableHeader>
+                              <TableRow>
+                                <TableHead className="p-2">role_template_id</TableHead>
+                                <TableHead className="p-2">Name</TableHead>
+                                <TableHead className="p-2"></TableHead>
+                              </TableRow>
+                            </TableHeader>
+                            <TableBody>
+                              {parodyByTemplateIdRows.map((row, idx) => (
+                                <TableRow key={`${row.key}-${idx}`}>
+                                  <TableCell className="p-2">
+                                    <Input
+                                      className="h-8 w-[220px] font-mono text-xs"
+                                      value={row.key}
+                                      onChange={(e) => updateParodyByTemplateIdRow(idx, { key: e.target.value })}
+                                      placeholder="lead_hero"
+                                    />
+                                  </TableCell>
+                                  <TableCell className="p-2">
+                                    <Input
+                                      className="h-8 min-w-[260px]"
+                                      value={row.value}
+                                      onChange={(e) => updateParodyByTemplateIdRow(idx, { value: e.target.value })}
+                                      placeholder="Luke Starwalker"
+                                    />
+                                  </TableCell>
+                                  <TableCell className="p-2">
+                                    <div className="flex justify-end gap-2">
+                                      <Button size="sm" variant="ghost" onClick={() => handleDeleteParodyByTemplateIdRow(idx)}>
+                                        Delete
+                                      </Button>
+                                    </div>
+                                  </TableCell>
+                                </TableRow>
+                              ))}
+                            </TableBody>
+                          </Table>
+                        </div>
+
+                        <p className="text-xs text-muted-foreground">
+                          Tip: this affects role import name resolution for franchises with a matching <code>parodySource</code>.
+                        </p>
+                      </TabsContent>
+
                       <TabsContent value="franchiseCharacters" className="space-y-3">
                         <div className="flex flex-wrap items-center justify-between gap-2">
                           <div className="text-sm text-muted-foreground">
@@ -3735,6 +4067,16 @@ export const ModsPanel: React.FC = () => {
 s are stored on the award show record; apply changes writes a full <code>awardShow</code> patch.
                               </p>
                             </>
+                          );
+                        })()}
+                      </TabsContent>
+                    </Tabs>
+        </CardContent>
+      </Card>
+    </div>
+  );
+};
+                   </>
                           );
                         })()}
                       </TabsContent>

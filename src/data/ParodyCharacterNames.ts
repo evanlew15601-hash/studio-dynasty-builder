@@ -1,10 +1,16 @@
 // Mapping from parody source to canonical character names for imports
 // This enhances franchise role imports to use recognizable character names
 
-export const PARODY_CHARACTER_NAME_MAP: Record<string, {
+import type { ModBundle } from '@/types/modding';
+import { applyPatchesToRecord, getPatchesForEntity } from '@/utils/modding';
+import { getModBundle } from '@/utils/moddingStore';
+
+export type ParodyCharacterNameMapEntry = {
   byCharacterId?: Record<string, string>;
   byTemplateId?: Record<string, string>;
-}> = {
+};
+
+export const PARODY_CHARACTER_NAME_MAP: Record<string, ParodyCharacterNameMapEntry> = {
   'Star Wars': {
     byCharacterId: {
       'char_hero_pilot': 'Luke Starwalker',
@@ -101,3 +107,9 @@ export const PARODY_CHARACTER_NAME_MAP: Record<string, {
     }
   }
 };
+
+export function getEffectiveParodyCharacterNameMap(mods?: ModBundle): Record<string, ParodyCharacterNameMapEntry> {
+  const bundle = mods ?? getModBundle();
+  const patches = getPatchesForEntity(bundle, 'parodyCharacterNames');
+  return applyPatchesToRecord(PARODY_CHARACTER_NAME_MAP, patches);
+}

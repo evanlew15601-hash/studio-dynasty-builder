@@ -1,14 +1,14 @@
 import { GameState, Script, ScriptCharacter, Gender } from '@/types/game';
 import { FranchiseCharacterDef, getEffectiveFranchiseCharacterDB } from '@/data/FranchiseCharacterDB';
 import { RoleDatabase } from '@/data/RoleDatabase';
-import { PARODY_CHARACTER_NAME_MAP } from '@/data/ParodyCharacterNames';
+import { getEffectiveParodyCharacterNameMap } from '@/data/ParodyCharacterNames';
 import { stablePick } from '@/utils/stablePick';
 
 function toScriptCharacter(def: FranchiseCharacterDef, franchiseId?: string, parodySource?: string): ScriptCharacter {
   // Prefer recognizable names from parody source mapping when available
   let resolvedName = def.name;
   if (parodySource) {
-    const map = PARODY_CHARACTER_NAME_MAP[parodySource];
+    const map = getEffectiveParodyCharacterNameMap()[parodySource];
     if (map) {
       resolvedName = map.byCharacterId?.[def.character_id] || map.byTemplateId?.[def.role_template_id] || def.name;
     }

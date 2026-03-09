@@ -216,7 +216,12 @@ export function applyPatchesToRecord<T>(base: Record<string, T>, patches: ModPat
     if (patch.op === 'insert' || patch.op === 'update') {
       const value = patch.payload as T | undefined;
       if (value === undefined) continue;
-      next = { ...next, [key]: value };
+
+      if (key in next) {
+        next = { ...next, [key]: deepMerge(next[key], value) };
+      } else {
+        next = { ...next, [key]: value };
+      }
       continue;
     }
   }
