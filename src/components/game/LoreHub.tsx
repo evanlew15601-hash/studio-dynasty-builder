@@ -1,14 +1,16 @@
-import React, { useMemo, useState, Suspense } from 'react';
-import type { Franchise, PublicDomainIP, Studio } from '@/types/game';
+import React, { useMemo, useState } from 'react';
+import type { Franchise, PublicDomainIP, Studio, TalentPerson } from '@/types/game';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
+import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { ScrollArea } from '@/components/ui/scroll-area';
 import { Separator } from '@/components/ui/separator';
 import { useGameStore } from '@/game/store';
+import { useUiStore } from '@/game/uiStore';
 import { cn } from '@/lib/utils';
-import { Book, Building, Film, Search, User } from 'lucide-react';
+import { Book, Building, Film, Search, User, ExternalLink } from 'lucide-react';
 
 const formatMoney = (amount: number) => "$" + (amount / 1_000_000).toFixed(0) + "M";
 
@@ -40,6 +42,202 @@ const TwoPaneLayout: React.FC<{
     {detail}
   </div>
 );
+
+// ─── Talent ─────────────────────────────────────────────────────────────────────
+
+const TalentEncyclopedia: React.FC<{ talent: TalentPerson[] }> = ({ talent }) => {
+  const [search, setSearch] = useState('');
+  const [typeFilter, setTypeFilter] = useState<'all' | 'actor' | 'director'>('all');
+  const [selectedId, setSelectedId] = useState<string | null>(talent[0]?.id ?? null);
+  const openTalentProfile = useUiStore((s) => s.openTalentProfile);
+
+  const filtered = useMemo(() => {
+    const q = search.trim().toLowerCase();
+    return talent
+      .filter(t => typeFilter === 'all' || t.type === typeFilter)
+      .filter(t => !q || t.name.toLowerCase().includes(q))
+      .sort((a, b) => (b.reputation || 0) - (a.reputation || 0));
+  }, [talent, search, typeFilter]);
+
+  const selected = useMemo(
+    () => talent.find(t => t.id === selectedId) || filtered[0] || null,
+    [filtered, selectedId, talent]
+  );
+
+  return (
+    <div className="space-y-3">
+      <div className="flex gap-2">
+        {(['all', 'actor', 'director'] as const).map(f => (
+          <Button
+            key={f}
+            size="sm"
+            variant={typeFilter === f ? 'default' : 'outline'}
+            className="capitalize"
+            onClick={() => setTypeFilter(f)}
+          >
+            {f}
+          </Button>
+        ))}
+      </div>
+      <TwoPaneLayout
+        title={<span className="flex items-center gap-2"><User className="h-4 w-4 text-primary" />Talent ({filtered.length})</span>}
+        search={search}
+        setSearch={setSearch}
+        list={
+          <ScrollArea className="h-[56vh] pr-3">
+            <div className="space-y-2">
+              {filtered.map((t) => (
+                <button
+                  key={t.id}
+                  type="button"
+                  className={cn(
+                    'w-full rounded-md border p-3 text-left transition-colors hover:bg-accent',
+                    selected?.id === t.id && 'border-primary bg-primary/5'
+                  )}
+                  onClick={() => setSelectedId(t.id)}
+                >
+                  <div className="flex items-start justify-between gap-3">
+                    <div>
+                      <div className="font-medium">{t.name}</div>
+                      <div className="text-xs text-muted-foreground capitalize">
+                        {t.type} • Age {t.age} • {t.experience}y exp
+                      </div>
+                    </div>
+                    <Badge variant="secondary">{Math.round(t.reputation || 0)}</Badge>
+                  </div>
+                  {t.archetype && (
+                    <div className="mt-1 text-xs text-muted-foreground truncate">{t.archetype}</div>
+                  )}
+                </button>
+              ))}
+              {filtered.length === 0 && (
+                <div className="text-sm text-muted-foreground">No talent match your search.</div>
+              )}
+            </div>
+          </ScrollArea>
+        }
+        detail={
+          <Card>
+            <CardHeader className="flex flex-row items-start justify-between gap-4 pb-3">
+              <CardTitle className="text-lg">{selected?.name ?? 'Select Talent'}</CardTitle>
+              {selected && (
+                <Button size="sm" variant="outline" onClick={() => openTalentProfile(selected.id)}>
+                  <ExternalLink className="mr-1.5 h-3.5 w-3.5" />
+                  Full Profile
+                </Button>
+              )}
+            </CardHeader>
+            <CardContent className="space-y-4">
+              {!selected ? (
+                <div className="text-sm text-muted-foreground">Select a talent to view their profile.</div>
+              ) : (
+                <>
+                  <div className="flex flex-wrap gap-2">
+                    <Badge variant="outline" className="capitalize">{selected.type}</Badge>
+                    <Badge variant="secondary">Rep: {Math.round(selected.reputation || 0)}/100</Badge>
+                    {typeof selected.fame === 'number' && (
+                      <Badge variant="secondary">Fame: {Math.round(selected.fame)}/100</Badge>
+                    )}
+                    <Badge variant="outline">Age: {selected.age}</Badge>
+                    <Badge variant="outline">Exp: {selected.experience}y</Badge>
+                    <Badge variant="outline" className="capitalize">{selected.contractStatus}</Badge>
+                    <Badge variant="secondary">Value: {formatMoney(selected.marketValue || 0)}</Badge>
+                  </div>
+
+                  {(selected.archetype || selected.biography) && (
+                    <div className="space-y-1">
+                      {selected.archetype && <p className="text-sm font-medium">{selected.archetype}</p>}
+                      {selected.biography && <p className="text-sm text-muted-foreground">{selected.biography}</p>}
+                    </div>
+                  )}
+
+                  {(selected.traits || []).length > 0 && (
+                    <div className="space-y-2">
+                      <div className="text-sm font-medium">Traits</div>
+                      <div className="flex flex-wrap gap-2">
+                        {(selected.traits || []).slice(0, 10).map((t) => (
+                          <Badge key={t} variant="outline">{t}</Badge>
+                        ))}
+                      </div>
+                    </div>
+                  )}
+
+                  {(selected.genres || []).length > 0 && (
+                    <div className="space-y-2">
+                      <div className="text-sm font-medium">Genres</div>
+                      <div className="flex flex-wrap gap-2">
+                        {(selected.genres || []).slice(0, 10).map((g) => (
+                          <Badge key={g} variant="secondary" className="capitalize">{g}</Badge>
+                        ))}
+                      </div>
+                    </div>
+                  )}
+
+                  {(selected.awards || []).length > 0 && (
+                    <>
+                      <Separator />
+                      <div className="space-y-2">
+                        <div className="text-sm font-medium">Awards ({(selected.awards || []).length})</div>
+                        <div className="space-y-1">
+                          {(selected.awards || [])
+                            .slice()
+                            .sort((a: any, b: any) => (b.year || 0) - (a.year || 0))
+                            .slice(0, 5)
+                            .map((a: any, i: number) => (
+                              <div key={a.id || i} className="rounded border p-2 text-sm">
+                                <div className="font-medium">
+                                  {(a.year ? `${a.year} ` : '') + (a.ceremony || 'Award')} — {a.category || 'Award'}
+                                </div>
+                                {(a.projectTitle || a.projectId) && (
+                                  <div className="text-muted-foreground text-xs">{a.projectTitle || a.projectId}</div>
+                                )}
+                              </div>
+                            ))}
+                        </div>
+                      </div>
+                    </>
+                  )}
+
+                  {(selected.filmography || []).length > 0 && (
+                    <>
+                      <Separator />
+                      <div className="space-y-2">
+                        <div className="text-sm font-medium">Recent Filmography</div>
+                        <div className="space-y-1">
+                          {(selected.filmography || [])
+                            .slice()
+                            .sort((a, b) => (b.year || 0) - (a.year || 0))
+                            .slice(0, 5)
+                            .map((f) => (
+                              <div key={f.projectId} className="rounded border p-2 text-sm">
+                                <div className="font-medium">{f.year ? `${f.year} — ` : ''}{f.title}</div>
+                                <div className="text-muted-foreground text-xs">
+                                  {f.role}{typeof f.boxOffice === 'number' ? ` • ${Math.round(f.boxOffice / 1_000_000)}M` : ''}
+                                </div>
+                              </div>
+                            ))}
+                        </div>
+                      </div>
+                    </>
+                  )}
+
+                  <Button
+                    className="w-full mt-2"
+                    variant="outline"
+                    onClick={() => openTalentProfile(selected.id)}
+                  >
+                    <ExternalLink className="mr-2 h-4 w-4" />
+                    View Full Profile
+                  </Button>
+                </>
+              )}
+            </CardContent>
+          </Card>
+        }
+      />
+    </div>
+  );
+};
 
 // ─── Studios ───────────────────────────────────────────────────────────────────
 
@@ -382,12 +580,6 @@ const PublicDomainEncyclopedia: React.FC<{ ips: PublicDomainIP[] }> = ({ ips }) 
   );
 };
 
-// ─── Lazy Talent Biography ──────────────────────────────────────────────────────
-
-const LazyTalentBiography = React.lazy(() =>
-  import('./TalentBiographySystem').then(m => ({ default: m.TalentBiographySystem }))
-);
-
 // ─── Root ───────────────────────────────────────────────────────────────────────
 
 export const LoreHub: React.FC = () => {
@@ -404,6 +596,7 @@ export const LoreHub: React.FC = () => {
     return <div className="p-6 text-sm text-muted-foreground">Loading encyclopedia...</div>;
   }
 
+  const allTalent = gameState.talent || [];
   const franchises = gameState.franchises || [];
   const publicDomain = gameState.publicDomainIPs || [];
 
@@ -429,9 +622,7 @@ export const LoreHub: React.FC = () => {
       </TabsList>
 
       <TabsContent value="talent">
-        <Suspense fallback={<div className="p-6 text-sm text-muted-foreground">Loading talent biographies...</div>}>
-          <LazyTalentBiography gameState={gameState} />
-        </Suspense>
+        <TalentEncyclopedia talent={allTalent} />
       </TabsContent>
 
       <TabsContent value="studios">
