@@ -6,11 +6,11 @@ type MarkdownLiteProps = {
 };
 
 type Block =
-  | { type: 'h1'; text: string }
-  | { type: 'h2'; text: string }
-  | { type: 'p'; text: string }
-  | { type: 'ul'; items: string[] }
-  | { type: 'code'; code: string };
+{type: 'h1';text: string;} |
+{type: 'h2';text: string;} |
+{type: 'p';text: string;} |
+{type: 'ul';items: string[];} |
+{type: 'code';code: string;};
 
 const parseMarkdownLite = (input: string): Block[] => {
   const lines = input.replace(/\r\n/g, '\n').split('\n');
@@ -62,13 +62,13 @@ const parseMarkdownLite = (input: string): Block[] => {
 
     const paragraphLines: string[] = [];
     while (
-      i < lines.length &&
-      lines[i].trim() !== '' &&
-      !lines[i].startsWith('# ') &&
-      !lines[i].startsWith('## ') &&
-      !lines[i].startsWith('- ') &&
-      !lines[i].startsWith('```')
-    ) {
+    i < lines.length &&
+    lines[i].trim() !== '' &&
+    !lines[i].startsWith('# ') &&
+    !lines[i].startsWith('## ') &&
+    !lines[i].startsWith('- ') &&
+    !lines[i].startsWith('```'))
+    {
       paragraphLines.push(lines[i].trim());
       i += 1;
     }
@@ -81,7 +81,7 @@ const parseMarkdownLite = (input: string): Block[] => {
 const linkify = (text: string) => {
   const urlRegex = /https?:\/\/[^\s)]+/g;
 
-  const parts: Array<string | { href: string }> = [];
+  const parts: Array<string | {href: string;}> = [];
   let lastIndex = 0;
 
   for (const match of text.matchAll(urlRegex)) {
@@ -106,8 +106,8 @@ const linkify = (text: string) => {
     return (
       <a key={idx} href={part.href} target="_blank" rel="noreferrer">
         {part.href}
-      </a>
-    );
+      </a>);
+
   });
 };
 
@@ -117,25 +117,25 @@ export const MarkdownLite = ({ content, className }: MarkdownLiteProps) => {
   return (
     <div className={className}>
       {blocks.map((block, idx) => {
-        if (block.type === 'h1') return <h1 key={idx}>{block.text}</h1>;
-        if (block.type === 'h2') return <h2 key={idx}>{block.text}</h2>;
-        if (block.type === 'p') return <p key={idx}>{linkify(block.text)}</p>;
+        if (block.type === 'h1') return <h1 key={idx} className="text-secondary-foreground">{block.text}</h1>;
+        if (block.type === 'h2') return <h2 key={idx} className="text-secondary-foreground">{block.text}</h2>;
+        if (block.type === 'p') return <p key={idx} className="text-secondary-foreground">{linkify(block.text)}</p>;
         if (block.type === 'code') {
           return (
             <pre key={idx}>
               <code>{block.code}</code>
-            </pre>
-          );
+            </pre>);
+
         }
 
         return (
           <ul key={idx}>
-            {block.items.map((item, itemIdx) => (
-              <li key={itemIdx}>{linkify(item)}</li>
-            ))}
-          </ul>
-        );
+            {block.items.map((item, itemIdx) =>
+            <li key={itemIdx} className="text-secondary-foreground">{linkify(item)}</li>
+            )}
+          </ul>);
+
       })}
-    </div>
-  );
+    </div>);
+
 };
