@@ -74,6 +74,7 @@ export interface Studio {
   personality?: string;
   businessTendency?: string;
   brandIdentity?: string;
+  biography?: string;
   releaseFrequency?: number;
   riskTolerance?: 'conservative' | 'moderate' | 'aggressive';
 }

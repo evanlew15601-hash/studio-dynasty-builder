@@ -15,6 +15,7 @@ export interface StudioProfile {
   riskTolerance: 'conservative' | 'moderate' | 'aggressive';
   releaseFrequency: number; // films per year
   brandIdentity: string;
+  biography?: string;
   foundedYear?: number;
 }
 
@@ -28,7 +29,9 @@ export const STUDIO_PROFILES: StudioProfile[] = [
     businessTendency: 'Mid-budget horror specialist with a cult following and a suspiciously large fake-blood line item',
     riskTolerance: 'aggressive',
     releaseFrequency: 8,
-    brandIdentity: 'Dark atmospherics, psychological tension, and posters that are 90% fog'
+    brandIdentity: 'Dark atmospherics, psychological tension, and posters that are 90% fog',
+    foundedYear: 1991,
+    biography: 'Crimson Peak started in the early-90s as a scrappy practical-effects outfit and never quite stopped thinking like one—every scare is engineered, every reveal timed, every trailer cut to make the audience flinch. The studio’s cult reputation comes from taking mid-budget horror seriously, hiring directors with taste and problems, and spending just enough to make the monsters feel real. When they swing and miss, it’s still memorable; when they connect, the midnight screenings turn into pilgrimages.'
   },
   {
     name: 'Golden Horizon Studios',
@@ -39,7 +42,9 @@ export const STUDIO_PROFILES: StudioProfile[] = [
     businessTendency: 'Prestige pictures with awards potential and the safest possible third-act redemption',
     riskTolerance: 'conservative',
     releaseFrequency: 5,
-    brandIdentity: 'Timeless stories, tasteful fonts, and a score that gently tells you what to feel'
+    brandIdentity: 'Timeless stories, tasteful fonts, and a score that gently tells you what to feel',
+    foundedYear: 1979,
+    biography: 'Golden Horizon was built in the late-70s on the simplest pitch in town: make crowd-pleasers that don’t embarrass anyone at Thanksgiving. They specialize in high-gloss sincerity—family stories, tasteful biopics, and dramas that land like a warm blanket. Critics may roll their eyes at the formulas, but awards voters keep finding reasons to circle their releases.'
   },
   {
     name: 'Velocity Pictures',
@@ -50,7 +55,9 @@ export const STUDIO_PROFILES: StudioProfile[] = [
     businessTendency: 'Spectacle-driven blockbusters, calibrated product placement, and trailers mixed at aircraft volume',
     riskTolerance: 'moderate',
     releaseFrequency: 6,
-    brandIdentity: 'Cutting-edge visuals, intense sequences, and at least one shot of a vehicle doing something illegal'
+    brandIdentity: 'Cutting-edge visuals, intense sequences, and at least one shot of a vehicle doing something illegal',
+    foundedYear: 1994,
+    biography: 'Velocity came out of the 90s adrenaline boom with a philosophy that still defines them: if the audience can catch their breath, you’re wasting time. They pour money into clean, readable spectacle—stunts, tech, and action grammar that travels overseas without subtitles. The scripts are often interchangeable, but their set pieces are not, and the marketing department treats volume as a creative choice.'
   },
   {
     name: 'Moonbeam Independent',
@@ -61,7 +68,9 @@ export const STUDIO_PROFILES: StudioProfile[] = [
     businessTendency: 'Festival circuit darlings, limited releases, and Q&As that become confessions',
     riskTolerance: 'moderate',
     releaseFrequency: 12,
-    brandIdentity: 'Intimate storytelling, emerging talent, and posters that look like poetry homework'
+    brandIdentity: 'Intimate storytelling, emerging talent, and posters that look like poetry homework',
+    foundedYear: 1996,
+    biography: 'Moonbeam was founded in the mid-90s by a rotating cast of producers who cared more about festival slots than opening weekends, and it shows in the best way. They make small, precise films—romances with sharp edges, documentaries with opinions, dramas that trust the audience to keep up. Their releases rarely dominate the multiplex, but they build careers, launch directors, and keep ending up on year-end lists like it’s an annoying habit.'
   },
   {
     name: 'Apex Entertainment Group',
@@ -72,7 +81,9 @@ export const STUDIO_PROFILES: StudioProfile[] = [
     businessTendency: 'Franchise builder, tent-pole events, and release dates announced before scripts exist',
     riskTolerance: 'conservative',
     releaseFrequency: 4,
-    brandIdentity: 'Spectacle for global audiences, synchronized trailers, and a logo reveal you can hear'
+    brandIdentity: 'Spectacle for global audiences, synchronized trailers, and a logo reveal you can hear',
+    foundedYear: 1972,
+    biography: 'Apex is what happens when a studio grows into a machine and then hires consultants to optimize the machine. Since the 70s, they’ve treated intellectual property like infrastructure: build it once, extend it forever, and never miss a release date. Creatives complain about the guardrails, but nobody laughs when Apex drops a trailer—those events move markets.'
   },
   {
     name: 'Laughing Matter Productions',
@@ -83,7 +94,9 @@ export const STUDIO_PROFILES: StudioProfile[] = [
     businessTendency: 'Crowd-pleasing comedies and rom-coms with a third-act airport sprint clause',
     riskTolerance: 'moderate',
     releaseFrequency: 10,
-    brandIdentity: 'Feel-good star vehicles, charming chaos, and taglines that promise “the comedy event”'
+    brandIdentity: 'Feel-good star vehicles, charming chaos, and taglines that promise “the comedy event”',
+    foundedYear: 1986,
+    biography: 'Laughing Matter has been polishing broad comedy since the 80s, which means they know exactly how far a joke can go before a focus group reaches for the emergency brake. They build vehicles around charismatic stars, keep the pacing friendly, and treat the rom-com formula like a well-maintained engine. Industry people love to sneer—until they need a hit that audiences will actually recommend to their friends.'
   },
   {
     name: 'Heritage Films',
@@ -95,7 +108,8 @@ export const STUDIO_PROFILES: StudioProfile[] = [
     riskTolerance: 'conservative',
     releaseFrequency: 3,
     brandIdentity: 'Lavish productions, tasteful suffering, and prestige that smells faintly of parchment',
-    foundedYear: 1965
+    foundedYear: 1965,
+    biography: 'Heritage has been selling tasteful suffering since 1965, back when “prestige” meant real locations, real candlelight, and real arguments with insurers. They obsess over craft—costumes, dialects, historical advisors with strong opinions—and they’re willing to wait for the right script instead of feeding a content machine. When Heritage puts its name on a poster, the industry expects awards contention before the first trailer drops.'
   },
   {
     name: 'Neon Circuit Studios',
@@ -106,7 +120,9 @@ export const STUDIO_PROFILES: StudioProfile[] = [
     businessTendency: 'Innovation in storytelling technology, experimental formats, and “beta” marketing campaigns',
     riskTolerance: 'aggressive',
     releaseFrequency: 7,
-    brandIdentity: 'Future-forward narratives, digital swagger, and a color grade that looks like midnight energy drinks'
+    brandIdentity: 'Future-forward narratives, digital swagger, and a color grade that looks like midnight energy drinks',
+    foundedYear: 2002,
+    biography: 'Neon Circuit emerged in the early-2000s with the stubborn belief that movies should feel like the future, not just depict it. They chase new formats, hybrid genres, and anything that lets them brag about “firsts,” which makes their slate risky and their fanbase fiercely loyal. When their experiments work, they look visionary; when they don’t, they at least look expensive.'
   },
   {
     name: 'Wildwood Pictures',
@@ -117,7 +133,9 @@ export const STUDIO_PROFILES: StudioProfile[] = [
     businessTendency: 'Action-adventure in natural settings, inspirational training montages, and “based on a true hike” vibes',
     riskTolerance: 'moderate',
     releaseFrequency: 6,
-    brandIdentity: 'Authentic outdoor spectacle, wide vistas, and motivational quotes over slow-motion snow'
+    brandIdentity: 'Authentic outdoor spectacle, wide vistas, and motivational quotes over slow-motion snow',
+    foundedYear: 1977,
+    biography: 'Wildwood has been filming heroics in real weather since the late 70s, long before every emotion required a drone. Their brand is clean, physical adventure—sports stories, frontier myths, big-sky spectacles that make audiences want to buy hiking boots they’ll never use. The films are earnest by design, and when the landscape shows up, it’s hard to argue with the results.'
   },
   {
     name: 'Midnight Society Films',
@@ -128,7 +146,9 @@ export const STUDIO_PROFILES: StudioProfile[] = [
     businessTendency: 'Distinctive genre pieces with strong following, aggressive midnight screenings, and “ending explained” discourse',
     riskTolerance: 'aggressive',
     releaseFrequency: 9,
-    brandIdentity: 'A unique voice in genre filmmaking, plus a poster tagline that dares you to watch alone'
+    brandIdentity: 'A unique voice in genre filmmaking, plus a poster tagline that dares you to watch alone',
+    foundedYear: 1998,
+    biography: 'Midnight Society was born in the late-90s on the margins—tiny theatrical runs, loud word-of-mouth, and an audience that treated showtimes like secret meetings. They bet on genre filmmakers with a point of view and give them enough rope to make something singular (and occasionally to hang the release schedule). The studio doesn’t chase broad appeal; it chases obsession, and it keeps finding it.'
   },
   {
     name: 'Reboot Quarry Pictures',
@@ -139,7 +159,9 @@ export const STUDIO_PROFILES: StudioProfile[] = [
     businessTendency: 'Reboots, requels, and “fresh takes” on familiar brands',
     riskTolerance: 'moderate',
     releaseFrequency: 3,
-    brandIdentity: 'New logo, same movie, louder trailer'
+    brandIdentity: 'New logo, same movie, louder trailer',
+    foundedYear: 1999,
+    biography: 'Reboot Quarry began as a rights-acquisition shop in the late-90s and gradually realized there was more money in mining nostalgia than in prospecting for new ore. They’re specialists in high-budget familiarity: recognizable names, refreshed aesthetics, and marketing campaigns that promise reinvention while quietly delivering comfort. Sometimes the “fresh take” lands; more often, it’s the trailer that does the heavy lifting—and they’re fine with that.'
   },
   {
     name: 'Saffron Kettle Cinema',
@@ -150,7 +172,9 @@ export const STUDIO_PROFILES: StudioProfile[] = [
     businessTendency: 'Festival plays and sharp scripts with occasional accidental meme hits',
     riskTolerance: 'moderate',
     releaseFrequency: 4,
-    brandIdentity: 'Human-scale stories with one perfect needle-drop'
+    brandIdentity: 'Human-scale stories with one perfect needle-drop',
+    foundedYear: 1989,
+    biography: 'Saffron Kettle has been quietly cornering the “smart crowd-pleaser” lane since the late 80s—films that look serious on the poster but know exactly when to let the air out of a scene. They’re loyal to writers, allergic to bloat, and weirdly gifted at finding the one needle-drop that turns a good moment into a remembered one. Every few years something of theirs becomes a meme by accident, which they pretend to hate and privately love.'
   }
 ];
 
@@ -768,7 +792,7 @@ export class StudioGenerator {
       name: profile.name,
       reputation: profile.reputation,
       budget: profile.budget,
-      founded: profile.foundedYear ?? (2010 + stableInt(`${profile.name}|founded`, 0, 9)),
+      founded: profile.foundedYear ?? (1955 + stableInt(`${profile.name}|founded`, 0, 55)),
       specialties: profile.specialties,
       debt: 0,
       lastProjectWeek: 0,
@@ -777,6 +801,7 @@ export class StudioGenerator {
       personality: profile.personality,
       businessTendency: profile.businessTendency,
       brandIdentity: profile.brandIdentity,
+      biography: profile.biography,
       riskTolerance: profile.riskTolerance,
       releaseFrequency: profile.releaseFrequency,
     }));

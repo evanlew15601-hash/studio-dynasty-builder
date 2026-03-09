@@ -47,6 +47,7 @@ describe('Studio profiles modding', () => {
             riskTolerance: 'moderate',
             releaseFrequency: 6,
             brandIdentity: 'Custom studio identity',
+            biography: 'Custom studio biography',
           },
         },
       ],

@@ -295,6 +295,13 @@ export const IndustryDatabasePanel: React.FC<IndustryDatabasePanelProps> = ({ sl
     return { totalBoxOffice, totalViews };
   }, [studioFilms, studioTv]);
 
+  const selectedStudioLore = useMemo(() => {
+    if (!gameState) return null;
+
+    const allStudios = [gameState.studio, ...(gameState.competitorStudios || [])].filter(Boolean);
+    return allStudios.find((s) => s.name === selectedStudio) || null;
+  }, [gameState, selectedStudio]);
+
   const renderFilmsTable = (rows: FilmDbRecord[]) => (
     <Table>
       <TableHeader>
@@ -811,6 +818,12 @@ export const IndustryDatabasePanel: React.FC<IndustryDatabasePanelProps> = ({ sl
                   <div className="text-lg font-semibold">{formatNumber(studioTotals.totalViews)}</div>
                 </div>
               </div>
+
+              {selectedStudioLore?.biography && (
+                <div className="rounded border bg-muted/10 p-3 text-sm text-muted-foreground">
+                  {selectedStudioLore.biography}
+                </div>
+              )}
 
               <Tabs defaultValue="films" className="space-y-3">
                 <TabsList>
