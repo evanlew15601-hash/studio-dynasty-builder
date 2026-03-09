@@ -316,7 +316,9 @@ export const TalentChemistrySystem: React.FC<TalentChemistrySystemProps> = ({
                   <div key={event.id} className="flex items-center justify-between p-3 border rounded-lg">
                     <div>
                       <h4 className="font-medium">
-                        {talent1.name} & {talent2.name}
+                        <button type="button" className="hover:underline" onClick={() => openTalentProfile(talent1.id)}>{talent1.name}</button>
+                        {' & '}
+                        <button type="button" className="hover:underline" onClick={() => openTalentProfile(talent2.id)}>{talent2.name}</button>
                       </h4>
                       <p className="text-sm text-muted-foreground">{event.description}</p>
                       <p className="text-xs text-muted-foreground">
