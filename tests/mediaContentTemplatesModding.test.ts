@@ -57,4 +57,45 @@ describe('media content templates modding', () => {
     expect(item.content).toContain('Player Studio');
     expect(item.content).toContain('Player Premiere');
   });
+
+  it('falls back safely when a patch provides an empty template list', () => {
+    vi.spyOn(Math, 'random').mockReturnValue(0);
+
+    const mods: ModBundle = {
+      version: 1,
+      mods: [{ id: 'my-mod', name: 'my-mod', version: '1.0.0', enabled: true, priority: 0 }],
+      patches: [
+        {
+          id: 'p-headlines-empty',
+          modId: 'my-mod',
+          entityType: 'mediaHeadlineTemplates',
+          op: 'update',
+          target: 'release',
+          payload: [],
+        },
+        {
+          id: 'p-content-empty',
+          modId: 'my-mod',
+          entityType: 'mediaContentTemplates',
+          op: 'update',
+          target: 'release',
+          payload: [],
+        },
+      ],
+    };
+
+    const event: any = {
+      id: 'event-1',
+      type: 'release',
+      triggerType: 'automatic',
+      priority: 'low',
+      entities: {},
+      eventData: {},
+      week: 1,
+      year: 2025,
+      processed: false,
+    };
+
+    expect(() => MediaContentGenerator.generateMediaItem(event, {}, mods)).not.toThrow();
+  });
 });

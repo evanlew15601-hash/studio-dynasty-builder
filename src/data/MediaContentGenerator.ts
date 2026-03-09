@@ -167,6 +167,14 @@ export class MediaContentGenerator {
     return applyPatchesToRecord(this.contentTemplates as any, patches) as any;
   }
 
+  static getBaseHeadlineTemplates(): Record<string, string[]> {
+    return this.headlines as any;
+  }
+
+  static getBaseContentTemplates(): Record<string, string[]> {
+    return this.contentTemplates as any;
+  }
+
   static generateMediaItem(
     event: MediaEvent,
     entities: {
@@ -281,7 +289,9 @@ export class MediaContentGenerator {
     mods?: ModBundle
   ): string {
     const headlines = this.getPatchedHeadlines(mods);
-    const templates = headlines[event.type] || headlines.casting_announcement || this.headlines.casting_announcement;
+    const byType = headlines[event.type];
+    const fallback = headlines.casting_announcement || this.headlines.casting_announcement;
+    const templates = Array.isArray(byType) && byType.length ? byType : fallback;
     const template = templates[Math.floor(Math.random() * templates.length)];
     
     return this.replaceVariables(template, event, entities);
@@ -295,7 +305,9 @@ export class MediaContentGenerator {
     mods?: ModBundle
   ): string {
     const templatesByType = this.getPatchedContentTemplates(mods);
-    const templates = templatesByType[event.type] || templatesByType.casting_announcement || this.contentTemplates.casting_announcement;
+    const byType = templatesByType[event.type];
+    const fallback = templatesByType.casting_announcement || this.contentTemplates.casting_announcement;
+    const templates = Array.isArray(byType) && byType.length ? byType : fallback;
     const template = templates[Math.floor(Math.random() * templates.length)];
     
     let content = this.replaceVariables(template, event, entities);

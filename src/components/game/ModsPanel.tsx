@@ -15,6 +15,7 @@ import { PublicDomainGenerator } from '@/data/PublicDomainGenerator';
 import { FranchiseGenerator } from '@/data/FranchiseGenerator';
 import { STUDIO_PROFILES, type StudioProfile } from '@/data/StudioGenerator';
 import { MediaSourceGenerator } from '@/data/MediaSourceGenerator';
+import { MediaContentGenerator } from '@/data/MediaContentGenerator';
 import { AWARD_SHOWS, type AwardCategoryDefinition, type AwardShowDefinition } from '@/data/AwardsSchedule';
 import { FRANCHISE_CHARACTER_DB, type FranchiseCharacterDef } from '@/data/FranchiseCharacterDB';
 import { FRANCHISE_ROLE_SETS } from '@/data/RoleDatabase';
@@ -248,6 +249,8 @@ export const ModsPanel: React.FC = () => {
     return all.filter((t) => t.id.startsWith('core:'));
   }, []);
   const baseMediaSources = useMemo(() => MediaSourceGenerator.getBaseMediaSources(), []);
+  const baseMediaHeadlineTemplates = useMemo(() => MediaContentGenerator.getBaseHeadlineTemplates(), []);
+  const baseMediaContentTemplates = useMemo(() => MediaContentGenerator.getBaseContentTemplates(), []);
 
   const baseProvidersById = useMemo(() => new Map(PROVIDER_DEALS.map((p) => [p.id, p] as const)), []);
   const basePublicDomainById = useMemo(() => new Map(basePublicDomainIPs.map((p) => [p.id, p] as const)), [basePublicDomainIPs]);
@@ -272,6 +275,10 @@ export const ModsPanel: React.FC = () => {
   const [studioEdits, setStudioEdits] = useState<Record<string, StudioProfile>>({});
   const [mediaSourceSearch, setMediaSourceSearch] = useState('');
   const [mediaSourceEdits, setMediaSourceEdits] = useState<Record<string, MediaSource>>({});
+  const [mediaTemplateKey, setMediaTemplateKey] = useState<string>(() => Object.keys(baseMediaHeadlineTemplates)[0] ?? 'casting_announcement');
+  const [newMediaTemplateKey, setNewMediaTemplateKey] = useState('');
+  const [mediaHeadlineTemplateEdits, setMediaHeadlineTemplateEdits] = useState<Record<string, string[]>>({});
+  const [mediaContentTemplateEdits, setMediaContentTemplateEdits] = useState<Record<string, string[]>>({});
   const [parodyNamesKey, setParodyNamesKey] = useState<string>(() => Object.keys(PARODY_CHARACTER_NAME_MAP)[0] ?? 'Star Wars');
   const [parodyByCharacterIdRows, setParodyByCharacterIdRows] = useState<NameMappingRow[]>([]);
   const [parodyByTemplateIdRows, setParodyByTemplateIdRows] = useState<NameMappingRow[]>([]);
@@ -601,6 +608,8 @@ export const ModsPanel: React.FC = () => {
   const characterDbPatchKey = useMemo(() => patchKeyFor(bundle, editorModId, 'franchiseCharacterDb'), [bundle, editorModId]);
   const studioProfilePatchKey = useMemo(() => patchKeyFor(bundle, editorModId, 'studioProfile'), [bundle, editorModId]);
   const mediaSourcePatchKey = useMemo(() => patchKeyFor(bundle, editorModId, 'mediaSource'), [bundle, editorModId]);
+  const mediaHeadlineTemplatesPatchKey = useMemo(() => patchKeyFor(bundle, editorModId, 'mediaHeadlineTemplates'), [bundle, editorModId]);
+  const mediaContentTemplatesPatchKey = useMemo(() => patchKeyFor(bundle, editorModId, 'mediaContentTemplates'), [bundle, editorModId]);
   const parodyNamesPatchKey = useMemo(() => patchKeyFor(bundle, editorModId, 'parodyCharacterNames'), [bundle, editorModId]);
   const awardShowPatchKey = useMemo(() => patchKeyFor(bundle, editorModId, 'awardShow'), [bundle, editorModId]);
 
@@ -677,6 +686,31 @@ export const ModsPanel: React.FC = () => {
       setMediaSourceEdits(next);
     }
 
+    // Media templates
+    {
+      const patchedHeadlines = applyPatchesToRecord(
+        baseMediaHeadlineTemplates as any,
+        getPatchesForEntity(editorBundle, 'mediaHeadlineTemplates')
+      ) as Record<string, string[]>;
+      const patchedContent = applyPatchesToRecord(
+        baseMediaContentTemplates as any,
+        getPatchesForEntity(editorBundle, 'mediaContentTemplates')
+      ) as Record<string, string[]>;
+
+      const nextHeadlines: Record<string, string[]> = {};
+      for (const [k, v] of Object.entries(patchedHeadlines)) {
+        nextHeadlines[k] = Array.isArray(v) ? v.slice() : [];
+      }
+
+      const nextContent: Record<string, string[]> = {};
+      for (const [k, v] of Object.entries(patchedContent)) {
+        nextContent[k] = Array.isArray(v) ? v.slice() : [];
+      }
+
+      setMediaHeadlineTemplateEdits(nextHeadlines);
+      setMediaContentTemplateEdits(nextContent);
+    }
+
     // Parody names
     {
       const patched = applyPatchesToRecord(PARODY_CHARACTER_NAME_MAP as any, getPatchesForEntity(editorBundle, 'parodyCharacterNames')) as Record<
@@ -709,6 +743,8 @@ export const ModsPanel: React.FC = () => {
     characterDbPatchKey,
     studioProfilePatchKey,
     mediaSourcePatchKey,
+    mediaHeadlineTemplatesPatchKey,
+    mediaContentTemplatesPatchKey,
     parodyNamesPatchKey,
     awardShowPatchKey,
   ]);
@@ -724,6 +760,19 @@ export const ModsPanel: React.FC = () => {
     const first = Object.keys(publicDomainEdits)[0] ?? '';
     if (first !== publicDomainCharactersKey) setPublicDomainCharactersKey(first);
   }, [publicDomainEdits, publicDomainCharactersKey]);
+
+  useEffect(() => {
+    const hasSelected =
+      !!mediaTemplateKey &&
+      (mediaHeadlineTemplateEdits[mediaTemplateKey] !== undefined || mediaContentTemplateEdits[mediaTemplateKey] !== undefined);
+    if (hasSelected) return;
+
+    const keys = Array.from(
+      new Set([...Object.keys(mediaHeadlineTemplateEdits), ...Object.keys(mediaContentTemplateEdits), ...Object.keys(baseMediaHeadlineTemplates)])
+    );
+    const first = keys[0] ?? '';
+    if (first && first !== mediaTemplateKey) setMediaTemplateKey(first);
+  }, [baseMediaHeadlineTemplates, mediaContentTemplateEdits, mediaHeadlineTemplateEdits, mediaTemplateKey]);
 
   const updateProvider = (id: ProviderId, updates: Partial<ProviderDealProfile>) => {
     setProviderEdits((prev) => {
@@ -945,6 +994,117 @@ export const ModsPanel: React.FC = () => {
     const next: Record<string, MediaSource> = {};
     for (const s of patched) next[s.id] = stripUndefined(s);
     setMediaSourceEdits(next);
+  };
+
+  const handleResetMediaTemplatesView = () => {
+    const patchedHeadlines = applyPatchesToRecord(
+      baseMediaHeadlineTemplates as any,
+      getPatchesForEntity(editorBundle, 'mediaHeadlineTemplates')
+    ) as Record<string, string[]>;
+    const patchedContent = applyPatchesToRecord(
+      baseMediaContentTemplates as any,
+      getPatchesForEntity(editorBundle, 'mediaContentTemplates')
+    ) as Record<string, string[]>;
+
+    const nextHeadlines: Record<string, string[]> = {};
+    for (const [k, v] of Object.entries(patchedHeadlines)) nextHeadlines[k] = Array.isArray(v) ? v.slice() : [];
+
+    const nextContent: Record<string, string[]> = {};
+    for (const [k, v] of Object.entries(patchedContent)) nextContent[k] = Array.isArray(v) ? v.slice() : [];
+
+    setMediaHeadlineTemplateEdits(nextHeadlines);
+    setMediaContentTemplateEdits(nextContent);
+  };
+
+  const handleResetMediaTemplateType = (key: string) => {
+    const patchedHeadlines = applyPatchesToRecord(
+      baseMediaHeadlineTemplates as any,
+      getPatchesForEntity(editorBundle, 'mediaHeadlineTemplates')
+    ) as Record<string, string[]>;
+    const patchedContent = applyPatchesToRecord(
+      baseMediaContentTemplates as any,
+      getPatchesForEntity(editorBundle, 'mediaContentTemplates')
+    ) as Record<string, string[]>;
+
+    setMediaHeadlineTemplateEdits((prev) => ({
+      ...prev,
+      [key]: Array.isArray(patchedHeadlines[key]) ? patchedHeadlines[key].slice() : [],
+    }));
+    setMediaContentTemplateEdits((prev) => ({
+      ...prev,
+      [key]: Array.isArray(patchedContent[key]) ? patchedContent[key].slice() : [],
+    }));
+  };
+
+  const handleAddMediaTemplateType = () => {
+    const key = newMediaTemplateKey.trim();
+    if (!key) return;
+
+    setMediaHeadlineTemplateEdits((prev) => (prev[key] ? prev : { ...prev, [key]: ['New headline template'] }));
+    setMediaContentTemplateEdits((prev) => (prev[key] ? prev : { ...prev, [key]: ['New content template'] }));
+    setMediaTemplateKey(key);
+    setNewMediaTemplateKey('');
+  };
+
+  const handleDeleteMediaTemplateType = (key: string) => {
+    const isBaseKey = (baseMediaHeadlineTemplates as any)[key] !== undefined || (baseMediaContentTemplates as any)[key] !== undefined;
+    if (isBaseKey) {
+      handleResetMediaTemplateType(key);
+      return;
+    }
+
+    setMediaHeadlineTemplateEdits((prev) => {
+      const next = { ...prev };
+      delete next[key];
+      return next;
+    });
+    setMediaContentTemplateEdits((prev) => {
+      const next = { ...prev };
+      delete next[key];
+      return next;
+    });
+  };
+
+  const updateMediaTemplateRow = (kind: 'headline' | 'content', key: string, idx: number, value: string) => {
+    if (kind === 'headline') {
+      setMediaHeadlineTemplateEdits((prev) => {
+        const list = (prev[key] || []).slice();
+        list[idx] = value;
+        return { ...prev, [key]: list };
+      });
+      return;
+    }
+
+    setMediaContentTemplateEdits((prev) => {
+      const list = (prev[key] || []).slice();
+      list[idx] = value;
+      return { ...prev, [key]: list };
+    });
+  };
+
+  const handleAddMediaTemplateRow = (kind: 'headline' | 'content', key: string) => {
+    if (kind === 'headline') {
+      setMediaHeadlineTemplateEdits((prev) => ({ ...prev, [key]: [...(prev[key] || []), ''] }));
+      return;
+    }
+    setMediaContentTemplateEdits((prev) => ({ ...prev, [key]: [...(prev[key] || []), ''] }));
+  };
+
+  const handleDeleteMediaTemplateRow = (kind: 'headline' | 'content', key: string, idx: number) => {
+    if (kind === 'headline') {
+      setMediaHeadlineTemplateEdits((prev) => {
+        const list = (prev[key] || []).slice();
+        list.splice(idx, 1);
+        return { ...prev, [key]: list };
+      });
+      return;
+    }
+
+    setMediaContentTemplateEdits((prev) => {
+      const list = (prev[key] || []).slice();
+      list.splice(idx, 1);
+      return { ...prev, [key]: list };
+    });
   };
 
   const handleAddMediaSource = () => {
@@ -1488,6 +1648,77 @@ export const ModsPanel: React.FC = () => {
     toast({ title: 'Applied', description: 'Applied media source edits as patches. Click Save to persist.' });
   };
 
+  const applyMediaTemplateEdits = () => {
+    const modId = editorModId.trim();
+    if (!modId) return;
+
+    let next = ensureMod(bundle, modId);
+
+    const headlineKeys = new Set<string>([...Object.keys(baseMediaHeadlineTemplates), ...Object.keys(mediaHeadlineTemplateEdits)]);
+    const contentKeys = new Set<string>([...Object.keys(baseMediaContentTemplates), ...Object.keys(mediaContentTemplateEdits)]);
+
+    for (const p of next.patches || []) {
+      if (p.modId !== modId) continue;
+      if (p.entityType === 'mediaHeadlineTemplates' && p.target) headlineKeys.add(String(p.target));
+      if (p.entityType === 'mediaContentTemplates' && p.target) contentKeys.add(String(p.target));
+    }
+
+    for (const key of Array.from(headlineKeys)) {
+      const baseList = (baseMediaHeadlineTemplates as any)[key] as string[] | undefined;
+      const edited = mediaHeadlineTemplateEdits[key];
+      const patchId = `mediaHeadlineTemplates:${modId}:${key}`;
+
+      if (edited === undefined) {
+        next = removePatch(next, patchId);
+        continue;
+      }
+
+      const op: ModOp = baseList !== undefined ? 'update' : 'insert';
+      if (deepEqual(stripUndefined(baseList || []), stripUndefined(edited))) {
+        next = removePatch(next, patchId);
+        continue;
+      }
+
+      next = upsertPatch(next, {
+        id: patchId,
+        modId,
+        entityType: 'mediaHeadlineTemplates',
+        op,
+        target: key,
+        payload: edited,
+      });
+    }
+
+    for (const key of Array.from(contentKeys)) {
+      const baseList = (baseMediaContentTemplates as any)[key] as string[] | undefined;
+      const edited = mediaContentTemplateEdits[key];
+      const patchId = `mediaContentTemplates:${modId}:${key}`;
+
+      if (edited === undefined) {
+        next = removePatch(next, patchId);
+        continue;
+      }
+
+      const op: ModOp = baseList !== undefined ? 'update' : 'insert';
+      if (deepEqual(stripUndefined(baseList || []), stripUndefined(edited))) {
+        next = removePatch(next, patchId);
+        continue;
+      }
+
+      next = upsertPatch(next, {
+        id: patchId,
+        modId,
+        entityType: 'mediaContentTemplates',
+        op,
+        target: key,
+        payload: edited,
+      });
+    }
+
+    syncFromBundle(next);
+    toast({ title: 'Applied', description: 'Applied media template edits as patches. Click Save to persist.' });
+  };
+
   const applyParodyNamesEdits = () => {
     const modId = editorModId.trim();
     if (!modId) return;
@@ -1684,6 +1915,32 @@ export const ModsPanel: React.FC = () => {
     return changed;
   }, [baseMediaSources, mediaSourceEdits]);
 
+  const changedMediaTemplateCount = useMemo(() => {
+    let changed = 0;
+
+    const keys = new Set<string>([
+      ...Object.keys(baseMediaHeadlineTemplates),
+      ...Object.keys(baseMediaContentTemplates),
+      ...Object.keys(mediaHeadlineTemplateEdits),
+      ...Object.keys(mediaContentTemplateEdits),
+    ]);
+
+    for (const key of keys) {
+      const baseH = (baseMediaHeadlineTemplates as any)[key] as string[] | undefined;
+      const baseC = (baseMediaContentTemplates as any)[key] as string[] | undefined;
+      const editedH = mediaHeadlineTemplateEdits[key];
+      const editedC = mediaContentTemplateEdits[key];
+
+      const headlineChanged =
+        editedH === undefined ? !!baseH : !deepEqual(stripUndefined(baseH || []), stripUndefined(editedH));
+      const contentChanged = editedC === undefined ? !!baseC : !deepEqual(stripUndefined(baseC || []), stripUndefined(editedC));
+
+      if (headlineChanged || contentChanged) changed++;
+    }
+
+    return changed;
+  }, [baseMediaContentTemplates, baseMediaHeadlineTemplates, mediaContentTemplateEdits, mediaHeadlineTemplateEdits]);
+
   const parodyNamesIsChanged = useMemo(() => {
     const base = (PARODY_CHARACTER_NAME_MAP as any)[parodyNamesKey] ?? ({} as ParodyCharacterNameMapEntry);
     const edited: ParodyCharacterNameMapEntry = {
@@ -1763,6 +2020,17 @@ export const ModsPanel: React.FC = () => {
     if (!q) return STUDIO_PROFILES;
     return STUDIO_PROFILES.filter((s) => s.name.toLowerCase().includes(q));
   }, [studioSearch]);
+
+  const mediaTemplateKeys = useMemo(() => {
+    return Array.from(
+      new Set([
+        ...Object.keys(baseMediaHeadlineTemplates),
+        ...Object.keys(baseMediaContentTemplates),
+        ...Object.keys(mediaHeadlineTemplateEdits),
+        ...Object.keys(mediaContentTemplateEdits),
+      ])
+    ).sort((a, b) => a.localeCompare(b));
+  }, [baseMediaContentTemplates, baseMediaHeadlineTemplates, mediaContentTemplateEdits, mediaHeadlineTemplateEdits]);
 
   const mediaSourcesForEditor = useMemo(() => {
     return Object.values(mediaSourceEdits)
@@ -2173,6 +2441,7 @@ export const ModsPanel: React.FC = () => {
                 <TabsTrigger value="awardShows">Award Shows</TabsTrigger>
                 <TabsTrigger value="studios">Studios</TabsTrigger>
                 <TabsTrigger value="mediaSources">Media Sources</TabsTrigger>
+                <TabsTrigger value="mediaTemplates">Media Templates</TabsTrigger>
                 <TabsTrigger value="parodyNames">Parody Names</TabsTrigger>
               </TabsList>
 
@@ -3377,6 +3646,171 @@ export const ModsPanel: React.FC = () => {
                 </Table>
 
                 <p className="text-xs text-muted-foreground">CSV import/export uses <code>|</code> inside a cell for list fields (e.g. <code>specialties</code>).</p>
+              </TabsContent>
+
+              <TabsContent value="mediaTemplates" className="space-y-3">
+                <div className="flex flex-wrap items-center justify-between gap-2">
+                  <div className="text-sm text-muted-foreground">
+                    Media Templates: <span className="font-medium text-foreground">{changedMediaTemplateCount}</span> changed
+                  </div>
+                  <div className="flex flex-wrap gap-2">
+                    <Button size="sm" variant="secondary" onClick={handleResetMediaTemplatesView}>
+                      Reset view
+                    </Button>
+                    <Button size="sm" onClick={applyMediaTemplateEdits}>
+                      Apply changes
+                    </Button>
+                  </div>
+                </div>
+
+                <div className="grid grid-cols-1 lg:grid-cols-3 gap-3">
+                  <div className="space-y-1">
+                    <Label className="text-xs text-muted-foreground">Event type</Label>
+                    <Select value={mediaTemplateKey} onValueChange={setMediaTemplateKey}>
+                      <SelectTrigger>
+                        <SelectValue placeholder="Select" />
+                      </SelectTrigger>
+                      <SelectContent>
+                        {mediaTemplateKeys.map((k) => (
+                          <SelectItem key={k} value={k}>
+                            {k}
+                          </SelectItem>
+                        ))}
+                      </SelectContent>
+                    </Select>
+                  </div>
+
+                  <div className="space-y-1 lg:col-span-2">
+                    <Label className="text-xs text-muted-foreground">Add new event type</Label>
+                    <div className="flex flex-wrap gap-2">
+                      <Input
+                        value={newMediaTemplateKey}
+                        onChange={(e) => setNewMediaTemplateKey(e.target.value)}
+                        placeholder="e.g. premiere"
+                      />
+                      <Button size="sm" variant="secondary" onClick={handleAddMediaTemplateType}>
+                        Add type
+                      </Button>
+                      <Button
+                        size="sm"
+                        variant="secondary"
+                        disabled={!mediaTemplateKey}
+                        onClick={() => handleResetMediaTemplateType(mediaTemplateKey)}
+                      >
+                        Reset type
+                      </Button>
+                      <Button
+                        size="sm"
+                        variant="secondary"
+                        disabled={
+                          !mediaTemplateKey ||
+                          (baseMediaHeadlineTemplates as any)[mediaTemplateKey] !== undefined ||
+                          (baseMediaContentTemplates as any)[mediaTemplateKey] !== undefined
+                        }
+                        onClick={() => handleDeleteMediaTemplateType(mediaTemplateKey)}
+                      >
+                        Delete type
+                      </Button>
+                    </div>
+                  </div>
+                </div>
+
+                {mediaTemplateKey ? (
+                  <Tabs defaultValue="headlines" className="w-full">
+                    <TabsList>
+                      <TabsTrigger value="headlines">Headlines</TabsTrigger>
+                      <TabsTrigger value="content">Content</TabsTrigger>
+                    </TabsList>
+
+                    <TabsContent value="headlines" className="space-y-3">
+                      <div className="flex items-center justify-end">
+                        <Button
+                          size="sm"
+                          variant="secondary"
+                          onClick={() => handleAddMediaTemplateRow('headline', mediaTemplateKey)}
+                        >
+                          Add headline
+                        </Button>
+                      </div>
+
+                      <Table>
+                        <TableHeader>
+                          <TableRow>
+                            <TableHead className="p-2 w-[60px]">#</TableHead>
+                            <TableHead className="p-2">Template</TableHead>
+                            <TableHead className="p-2"></TableHead>
+                          </TableRow>
+                        </TableHeader>
+                        <TableBody>
+                          {(mediaHeadlineTemplateEdits[mediaTemplateKey] || []).map((t, idx) => (
+                            <TableRow key={`h-${idx}`}>
+                              <TableCell className="p-2 font-mono text-xs">{idx + 1}</TableCell>
+                              <TableCell className="p-2">
+                                <Textarea
+                                  className="min-h-[64px] font-mono text-xs"
+                                  value={t}
+                                  onChange={(e) => updateMediaTemplateRow('headline', mediaTemplateKey, idx, e.target.value)}
+                                />
+                              </TableCell>
+                              <TableCell className="p-2">
+                                <Button
+                                  size="sm"
+                                  variant="ghost"
+                                  onClick={() => handleDeleteMediaTemplateRow('headline', mediaTemplateKey, idx)}
+                                >
+                                  Delete
+                                </Button>
+                              </TableCell>
+                            </TableRow>
+                          ))}
+                        </TableBody>
+                      </Table>
+                    </TabsContent>
+
+                    <TabsContent value="content" className="space-y-3">
+                      <div className="flex items-center justify-end">
+                        <Button size="sm" variant="secondary" onClick={() => handleAddMediaTemplateRow('content', mediaTemplateKey)}>
+                          Add content
+                        </Button>
+                      </div>
+
+                      <Table>
+                        <TableHeader>
+                          <TableRow>
+                            <TableHead className="p-2 w-[60px]">#</TableHead>
+                            <TableHead className="p-2">Template</TableHead>
+                            <TableHead className="p-2"></TableHead>
+                          </TableRow>
+                        </TableHeader>
+                        <TableBody>
+                          {(mediaContentTemplateEdits[mediaTemplateKey] || []).map((t, idx) => (
+                            <TableRow key={`c-${idx}`}>
+                              <TableCell className="p-2 font-mono text-xs">{idx + 1}</TableCell>
+                              <TableCell className="p-2">
+                                <Textarea
+                                  className="min-h-[96px] font-mono text-xs"
+                                  value={t}
+                                  onChange={(e) => updateMediaTemplateRow('content', mediaTemplateKey, idx, e.target.value)}
+                                />
+                              </TableCell>
+                              <TableCell className="p-2">
+                                <Button size="sm" variant="ghost" onClick={() => handleDeleteMediaTemplateRow('content', mediaTemplateKey, idx)}>
+                                  Delete
+                                </Button>
+                              </TableCell>
+                            </TableRow>
+                          ))}
+                        </TableBody>
+                      </Table>
+                    </TabsContent>
+                  </Tabs>
+                ) : (
+                  <p className="text-sm text-muted-foreground">Select an event type to edit templates.</p>
+                )}
+
+                <p className="text-xs text-muted-foreground">
+                  Tip: templates can include placeholders like <code>{'{FilmTitle}'}</code>, <code>{'{StudioName}'}</code>, and <code>{'{ActorName}'}</code>.
+                </p>
               </TabsContent>
 
               <TabsContent value="parodyNames" className="space-y-3">
