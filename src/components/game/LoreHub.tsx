@@ -1,4 +1,4 @@
-import React, { useMemo, useState } from 'react';
+import React, { useMemo, useState, Suspense } from 'react';
 import type { Franchise, PublicDomainIP, Studio } from '@/types/game';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
@@ -8,7 +8,7 @@ import { ScrollArea } from '@/components/ui/scroll-area';
 import { Separator } from '@/components/ui/separator';
 import { useGameStore } from '@/game/store';
 import { cn } from '@/lib/utils';
-import { Book, Building, Film, Search } from 'lucide-react';
+import { Book, Building, Film, Search, User } from 'lucide-react';
 
 const formatMoney = (amount: number) => "$" + (amount / 1_000_000).toFixed(0) + "M";
 
@@ -18,31 +18,30 @@ const TwoPaneLayout: React.FC<{
   setSearch: (v: string) => void;
   list: React.ReactNode;
   detail: React.ReactNode;
-}> = ({ title, search, setSearch, list, detail }) => {
-  return (
-    <div className="grid grid-cols-1 lg:grid-cols-[340px_1fr] gap-4">
-      <Card>
-        <CardHeader className="pb-3">
-          <CardTitle className="text-base">{title}</CardTitle>
-        </CardHeader>
-        <CardContent className="space-y-3">
-          <div className="relative">
-            <Search className="absolute left-3 top-3 h-4 w-4 text-muted-foreground" />
-            <Input
-              value={search}
-              onChange={(e) => setSearch(e.target.value)}
-              placeholder="Search..."
-              className="pl-9"
-            />
-          </div>
-          {list}
-        </CardContent>
-      </Card>
+}> = ({ title, search, setSearch, list, detail }) => (
+  <div className="grid grid-cols-1 lg:grid-cols-[340px_1fr] gap-4">
+    <Card>
+      <CardHeader className="pb-3">
+        <CardTitle className="text-base">{title}</CardTitle>
+      </CardHeader>
+      <CardContent className="space-y-3">
+        <div className="relative">
+          <Search className="absolute left-3 top-3 h-4 w-4 text-muted-foreground" />
+          <Input
+            value={search}
+            onChange={(e) => setSearch(e.target.value)}
+            placeholder="Search..."
+            className="pl-9"
+          />
+        </div>
+        {list}
+      </CardContent>
+    </Card>
+    {detail}
+  </div>
+);
 
-      {detail}
-    </div>
-  );
-};
+// ─── Studios ───────────────────────────────────────────────────────────────────
 
 const StudioEncyclopedia: React.FC<{ studios: Studio[] }> = ({ studios }) => {
   const [search, setSearch] = useState('');
@@ -50,27 +49,17 @@ const StudioEncyclopedia: React.FC<{ studios: Studio[] }> = ({ studios }) => {
 
   const filtered = useMemo(() => {
     const q = search.trim().toLowerCase();
-    if (!q) return studios;
-    return studios.filter(s => s.name.toLowerCase().includes(q));
+    return q ? studios.filter(s => s.name.toLowerCase().includes(q)) : studios;
   }, [studios, search]);
 
-  const selected = useMemo(() => {
-    return (
-      studios.find(s => s.id === selectedId) ||
-      filtered[0] ||
-      studios[0] ||
-      null
-    );
-  }, [filtered, selectedId, studios]);
+  const selected = useMemo(
+    () => studios.find(s => s.id === selectedId) || filtered[0] || studios[0] || null,
+    [filtered, selectedId, studios]
+  );
 
   return (
     <TwoPaneLayout
-      title={
-        <span className="flex items-center gap-2">
-          <Building className="h-4 w-4 text-primary" />
-          Studios
-        </span>
-      }
+      title={<span className="flex items-center gap-2"><Building className="h-4 w-4 text-primary" />Studios</span>}
       search={search}
       setSearch={setSearch}
       list={
@@ -104,7 +93,6 @@ const StudioEncyclopedia: React.FC<{ studios: Studio[] }> = ({ studios }) => {
                 </div>
               </button>
             ))}
-
             {filtered.length === 0 && (
               <div className="text-sm text-muted-foreground">No studios match your search.</div>
             )}
@@ -148,24 +136,21 @@ const StudioEncyclopedia: React.FC<{ studios: Studio[] }> = ({ studios }) => {
                       <div className="text-sm text-muted-foreground">{selected.brandIdentity}</div>
                     </div>
                   )}
-
                   {selected.personality && (
                     <div>
                       <div className="text-sm font-medium">Personality</div>
                       <div className="text-sm text-muted-foreground">{selected.personality}</div>
                     </div>
                   )}
-
                   {selected.businessTendency && (
                     <div>
                       <div className="text-sm font-medium">Business Approach</div>
                       <div className="text-sm text-muted-foreground">{selected.businessTendency}</div>
                     </div>
                   )}
-
                   {!selected.brandIdentity && !selected.personality && !selected.businessTendency && (
                     <div className="text-sm text-muted-foreground">
-                      This studio doesn't have any additional lore fields yet.
+                      No additional lore available for this studio yet.
                     </div>
                   )}
                 </div>
@@ -178,28 +163,25 @@ const StudioEncyclopedia: React.FC<{ studios: Studio[] }> = ({ studios }) => {
   );
 };
 
+// ─── Franchises ────────────────────────────────────────────────────────────────
+
 const FranchiseEncyclopedia: React.FC<{ franchises: Franchise[] }> = ({ franchises }) => {
   const [search, setSearch] = useState('');
   const [selectedId, setSelectedId] = useState<string | null>(franchises[0]?.id ?? null);
 
   const filtered = useMemo(() => {
     const q = search.trim().toLowerCase();
-    if (!q) return franchises;
-    return franchises.filter(f => f.title.toLowerCase().includes(q));
+    return q ? franchises.filter(f => f.title.toLowerCase().includes(q)) : franchises;
   }, [franchises, search]);
 
-  const selected = useMemo(() => {
-    return franchises.find(f => f.id === selectedId) || filtered[0] || franchises[0] || null;
-  }, [filtered, franchises, selectedId]);
+  const selected = useMemo(
+    () => franchises.find(f => f.id === selectedId) || filtered[0] || franchises[0] || null,
+    [filtered, franchises, selectedId]
+  );
 
   return (
     <TwoPaneLayout
-      title={
-        <span className="flex items-center gap-2">
-          <Film className="h-4 w-4 text-primary" />
-          Franchises
-        </span>
-      }
+      title={<span className="flex items-center gap-2"><Film className="h-4 w-4 text-primary" />Franchises</span>}
       search={search}
       setSearch={setSearch}
       list={
@@ -229,7 +211,6 @@ const FranchiseEncyclopedia: React.FC<{ franchises: Franchise[] }> = ({ franchis
                 </div>
               </button>
             ))}
-
             {filtered.length === 0 && (
               <div className="text-sm text-muted-foreground">No franchises match your search.</div>
             )}
@@ -288,28 +269,25 @@ const FranchiseEncyclopedia: React.FC<{ franchises: Franchise[] }> = ({ franchis
   );
 };
 
+// ─── Public Domain ─────────────────────────────────────────────────────────────
+
 const PublicDomainEncyclopedia: React.FC<{ ips: PublicDomainIP[] }> = ({ ips }) => {
   const [search, setSearch] = useState('');
   const [selectedId, setSelectedId] = useState<string | null>(ips[0]?.id ?? null);
 
   const filtered = useMemo(() => {
     const q = search.trim().toLowerCase();
-    if (!q) return ips;
-    return ips.filter(ip => ip.name.toLowerCase().includes(q));
+    return q ? ips.filter(ip => ip.name.toLowerCase().includes(q)) : ips;
   }, [ips, search]);
 
-  const selected = useMemo(() => {
-    return ips.find(ip => ip.id === selectedId) || filtered[0] || ips[0] || null;
-  }, [filtered, ips, selectedId]);
+  const selected = useMemo(
+    () => ips.find(ip => ip.id === selectedId) || filtered[0] || ips[0] || null,
+    [filtered, ips, selectedId]
+  );
 
   return (
     <TwoPaneLayout
-      title={
-        <span className="flex items-center gap-2">
-          <Book className="h-4 w-4 text-primary" />
-          Public Domain
-        </span>
-      }
+      title={<span className="flex items-center gap-2"><Book className="h-4 w-4 text-primary" />Public Domain</span>}
       search={search}
       setSearch={setSearch}
       list={
@@ -334,7 +312,6 @@ const PublicDomainEncyclopedia: React.FC<{ ips: PublicDomainIP[] }> = ({ ips }) 
                 </div>
               </button>
             ))}
-
             {filtered.length === 0 && (
               <div className="text-sm text-muted-foreground">No public domain IPs match your search.</div>
             )}
@@ -405,13 +382,22 @@ const PublicDomainEncyclopedia: React.FC<{ ips: PublicDomainIP[] }> = ({ ips }) 
   );
 };
 
+// ─── Lazy Talent Biography ──────────────────────────────────────────────────────
+
+const LazyTalentBiography = React.lazy(() =>
+  import('./TalentBiographySystem').then(m => ({ default: m.TalentBiographySystem }))
+);
+
+// ─── Root ───────────────────────────────────────────────────────────────────────
+
 export const LoreHub: React.FC = () => {
   const gameState = useGameStore((s) => s.game);
 
   const studios = useMemo(() => {
     if (!gameState) return [] as Studio[];
-    const all = [gameState.studio, ...(gameState.competitorStudios || [])].filter(Boolean);
-    return all.sort((a, b) => (b.reputation || 0) - (a.reputation || 0));
+    return [gameState.studio, ...(gameState.competitorStudios || [])]
+      .filter(Boolean)
+      .sort((a, b) => (b.reputation || 0) - (a.reputation || 0));
   }, [gameState]);
 
   if (!gameState) {
@@ -422,8 +408,12 @@ export const LoreHub: React.FC = () => {
   const publicDomain = gameState.publicDomainIPs || [];
 
   return (
-    <Tabs defaultValue="studios" className="space-y-4">
+    <Tabs defaultValue="talent" className="space-y-4">
       <TabsList>
+        <TabsTrigger value="talent">
+          <User className="mr-1.5 h-4 w-4" />
+          Talent
+        </TabsTrigger>
         <TabsTrigger value="studios">
           <Building className="mr-1.5 h-4 w-4" />
           Studios
@@ -437,6 +427,12 @@ export const LoreHub: React.FC = () => {
           Public Domain
         </TabsTrigger>
       </TabsList>
+
+      <TabsContent value="talent">
+        <Suspense fallback={<div className="p-6 text-sm text-muted-foreground">Loading talent biographies...</div>}>
+          <LazyTalentBiography gameState={gameState} />
+        </Suspense>
+      </TabsContent>
 
       <TabsContent value="studios">
         <StudioEncyclopedia studios={studios} />
