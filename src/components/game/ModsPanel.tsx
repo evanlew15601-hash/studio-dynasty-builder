@@ -12,8 +12,10 @@ import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { PROVIDER_DEALS, getEffectiveProviderDeals, type ProviderDealProfile, type ProviderId } from '@/data/ProviderDealsDatabase';
 import { PublicDomainGenerator } from '@/data/PublicDomainGenerator';
+import { FRANCHISE_CHARACTER_DB, type FranchiseCharacterDef } from '@/data/FranchiseCharacterDB';
 import { FRANCHISE_ROLE_SETS } from '@/data/RoleDatabase';
-import type { PublicDomainIP, ScriptCharacter } from '@/types/game';
+import { generateInitialTalentPool } from '@/data/WorldGenerator';
+import type { PublicDomainIP, ScriptCharacter, TalentPerson } from '@/types/game';
 import { useToast } from '@/hooks/use-toast';
 import type { ModBundle, ModInfo, ModOp, ModPatch } from '@/types/modding';
 import { applyPatchesByKey, applyPatchesToRecord, getPatchesForEntity, normalizeModBundle } from '@/utils/modding';
@@ -67,6 +69,10 @@ function deepEqual(a: unknown, b: unknown): boolean {
   return true;
 }
 
+function stripUndefined<T>(value: T): T {
+  return JSON.parse(JSON.stringify(value));
+}
+
 function ensureMod(bundle: ModBundle, modId: string): ModBundle {
   if (bundle.mods.some((m) => m.id === modId)) return bundle;
   return { ...bundle, mods: [...bundle.mods, makeDefaultMod(modId)] };
@@ -78,6 +84,32 @@ function upsertPatch(bundle: ModBundle, patch: ModPatch): ModBundle {
   const next = bundle.patches.slice();
   next[idx] = patch;
   return { ...bundle, patches: next };
+}
+
+type TalentEdit = {
+  id: string;
+  name: string;
+  type: TalentPerson['type'];
+  gender?: TalentPerson['gender'];
+  race?: TalentPerson['race'];
+  nationality?: TalentPerson['nationality'];
+  reputation: number;
+  marketValue: number;
+  genres: TalentPerson['genres'];
+};
+
+function pickTalentEdit(t: TalentPerson): TalentEdit {
+  return {
+    id: t.id,
+    name: t.name,
+    type: t.type,
+    gender: t.gender,
+    race: t.race,
+    nationality: t.nationality,
+    reputation: t.reputation,
+    marketValue: t.marketValue,
+    genres: t.genres,
+  };
 }
 
 export const ModsPanel: React.FC = () => {
@@ -96,6 +128,10 @@ export const ModsPanel: React.FC = () => {
   const [publicDomainEdits, setPublicDomainEdits] = useState<Record<string, PublicDomainIP>>({});
   const [roleSetKey, setRoleSetKey] = useState<string>(() => Object.keys(FRANCHISE_ROLE_SETS)[0] ?? 'Star Wars');
   const [roleSetRows, setRoleSetRows] = useState<ScriptCharacter[]>([]);
+  const [characterDbKey, setCharacterDbKey] = useState<string>(() => Object.keys(FRANCHISE_CHARACTER_DB)[0] ?? 'Star Wars');
+  const [characterDbRows, setCharacterDbRows] = useState<FranchiseCharacterDef[]>([]);
+  const [talentSearch, setTalentSearch] = useState('');
+  const [talentEdits, setTalentEdits] = useState<Record<string, TalentEdit>>({});
 
   // Quick patch builder (raw JSON tab)
   const [quickEntityType, setQuickEntityType] = useState<(typeof ENTITY_TYPES)[number]>('providerDeal');
@@ -128,8 +164,16 @@ export const ModsPanel: React.FC = () => {
 
   const basePublicDomainIPs = useMemo(() => PublicDomainGenerator.generateInitialPublicDomainIPs(50), []);
 
+  const baseCoreTalent = useMemo(
+    () => generateInitialTalentPool({ currentYear: new Date().getFullYear(), actorCount: 0, directorCount: 0 }),
+    []
+  );
+
   const baseFranchiseRoleSets = useMemo(() => FRANCHISE_ROLE_SETS, []);
   const baseFranchiseRoleSetKeys = useMemo(() => Object.keys(baseFranchiseRoleSets).sort(), [baseFranchiseRoleSets]);
+
+  const baseFranchiseCharacterDb = useMemo(() => FRANCHISE_CHARACTER_DB, []);
+  const baseFranchiseCharacterDbKeys = useMemo(() => Object.keys(baseFranchiseCharacterDb).sort(), [baseFranchiseCharacterDb]);
 
   const basePublicDomainById = useMemo(() => {
     const map = new Map<string, PublicDomainIP>();
@@ -138,6 +182,14 @@ export const ModsPanel: React.FC = () => {
     }
     return map;
   }, [basePublicDomainIPs]);
+
+  const baseCoreTalentById = useMemo(() => {
+    const map = new Map<string, TalentPerson>();
+    for (const t of baseCoreTalent) {
+      map.set(t.id, t);
+    }
+    return map;
+  }, [baseCoreTalent]);
 
   const selectedMod = useMemo(() => bundle.mods.find((m) => m.id === editorModId) ?? null, [bundle.mods, editorModId]);
 
@@ -185,6 +237,34 @@ export const ModsPanel: React.FC = () => {
     setRoleSetRows((patched[key] ?? baseFranchiseRoleSets[key] ?? []).map((r) => ({ ...r })));
   };
 
+  const rebuildCharacterDbRows = (b: ModBundle, modId: string, key: string) => {
+    const modInfo = b.mods.find((m) => m.id === modId) ?? makeDefaultMod(modId);
+    const editorBundle: ModBundle = {
+      version: 1,
+      mods: [{ ...modInfo, enabled: true }],
+      patches: (b.patches || []).filter((p) => p.modId === modId && p.entityType === 'franchiseCharacterDb'),
+    };
+
+    const patched = applyPatchesToRecord(baseFranchiseCharacterDb, getPatchesForEntity(editorBundle, 'franchiseCharacterDb'));
+    setCharacterDbRows((patched[key] ?? baseFranchiseCharacterDb[key] ?? []).map((c) => ({ ...c })));
+  };
+
+  const rebuildTalentEdits = (b: ModBundle, modId: string) => {
+    const modInfo = b.mods.find((m) => m.id === modId) ?? makeDefaultMod(modId);
+    const editorBundle: ModBundle = {
+      version: 1,
+      mods: [{ ...modInfo, enabled: true }],
+      patches: (b.patches || []).filter((p) => p.modId === modId && p.entityType === 'talent'),
+    };
+
+    const patched = applyPatchesByKey(baseCoreTalent, getPatchesForEntity(editorBundle, 'talent'), (t) => t.id);
+    const next: Record<string, TalentEdit> = {};
+    for (const t of patched) {
+      next[t.id] = pickTalentEdit(t);
+    }
+    setTalentEdits(next);
+  };
+
   const providerDealPatchKey = useMemo(() => {
     const modId = editorModId.trim();
     if (!modId) return '';
@@ -215,14 +295,36 @@ export const ModsPanel: React.FC = () => {
       .join('|');
   }, [bundle.patches, editorModId]);
 
+  const franchiseCharacterDbPatchKey = useMemo(() => {
+    const modId = editorModId.trim();
+    if (!modId) return '';
+
+    return (bundle.patches || [])
+      .filter((p) => p.modId === modId && p.entityType === 'franchiseCharacterDb')
+      .map((p) => `${p.id}:${p.op}:${p.target}:${JSON.stringify(p.payload)}`)
+      .join('|');
+  }, [bundle.patches, editorModId]);
+
+  const talentPatchKey = useMemo(() => {
+    const modId = editorModId.trim();
+    if (!modId) return '';
+
+    return (bundle.patches || [])
+      .filter((p) => p.modId === modId && p.entityType === 'talent')
+      .map((p) => `${p.id}:${p.op}:${p.target}:${JSON.stringify(p.payload)}`)
+      .join('|');
+  }, [bundle.patches, editorModId]);
+
   useEffect(() => {
     const modId = editorModId.trim();
     if (!modId) return;
     rebuildProviderEdits(bundle, modId);
     rebuildPublicDomainEdits(bundle, modId);
     rebuildRoleSetRows(bundle, modId, roleSetKey);
+    rebuildCharacterDbRows(bundle, modId, characterDbKey);
+    rebuildTalentEdits(bundle, modId);
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [editorModId, roleSetKey, providerDealPatchKey, publicDomainPatchKey, franchiseRoleSetPatchKey]);
+  }, [editorModId, roleSetKey, characterDbKey, providerDealPatchKey, publicDomainPatchKey, franchiseRoleSetPatchKey, franchiseCharacterDbPatchKey, talentPatchKey]);
 
   const changedProviderCount = useMemo(() => {
     let changed = 0;
@@ -246,8 +348,23 @@ export const ModsPanel: React.FC = () => {
 
   const roleSetIsChanged = useMemo(() => {
     const base = baseFranchiseRoleSets[roleSetKey] ?? [];
-    return !deepEqual(base, roleSetRows);
+    return !deepEqual(stripUndefined(base), stripUndefined(roleSetRows));
   }, [baseFranchiseRoleSets, roleSetKey, roleSetRows]);
+
+  const characterDbIsChanged = useMemo(() => {
+    const base = baseFranchiseCharacterDb[characterDbKey] ?? [];
+    return !deepEqual(stripUndefined(base), stripUndefined(characterDbRows));
+  }, [baseFranchiseCharacterDb, characterDbKey, characterDbRows]);
+
+  const changedTalentCount = useMemo(() => {
+    let changed = 0;
+    for (const t of baseCoreTalent) {
+      const baseEdit = pickTalentEdit(t);
+      const edited = talentEdits[t.id] ?? baseEdit;
+      if (!deepEqual(stripUndefined(baseEdit), stripUndefined(edited))) changed++;
+    }
+    return changed;
+  }, [baseCoreTalent, talentEdits]);
 
   const syncFromBundle = (next: ModBundle) => {
     setBundle(next);
@@ -477,6 +594,68 @@ export const ModsPanel: React.FC = () => {
     setRoleSetRows((prev) => prev.filter((_, i) => i !== idx));
   };
 
+  const updateCharacterRow = (idx: number, updates: Partial<FranchiseCharacterDef>) => {
+    setCharacterDbRows((prev) => {
+      const next = prev.slice();
+      next[idx] = { ...next[idx], ...updates };
+      return next;
+    });
+  };
+
+  const updateCharacterTraits = (idx: number, value: string) => {
+    const list = value
+      .split(',')
+      .map((s) => s.trim())
+      .filter(Boolean);
+    updateCharacterRow(idx, { traits: list.length ? list : undefined });
+  };
+
+  const updateTalent = (id: string, updates: Partial<TalentEdit>) => {
+    setTalentEdits((prev) => {
+      const base = baseCoreTalentById.get(id);
+      const current = prev[id] ?? (base ? pickTalentEdit(base) : null);
+      if (!current) return prev;
+      return { ...prev, [id]: { ...current, ...updates } };
+    });
+  };
+
+  const updateTalentGenres = (id: string, value: string) => {
+    const list = value
+      .split(',')
+      .map((s) => s.trim())
+      .filter(Boolean);
+    updateTalent(id, { genres: list as any });
+  };
+
+  const handleAddCharacterRow = () => {
+    setCharacterDbRows((prev) => {
+      const existing = new Set(prev.map((c) => c.character_id));
+      let suffix = prev.length + 1;
+      let id = `char_${suffix}`;
+      while (existing.has(id)) {
+        suffix++;
+        id = `char_${suffix}`;
+      }
+
+      return [
+        ...prev,
+        {
+          character_id: id,
+          name: 'New Character',
+          role_template_id: 'supporting',
+          importance: 'supporting',
+          requiredType: 'actor',
+          is_mandatory: false,
+          ageRange: [20, 60],
+        },
+      ];
+    });
+  };
+
+  const handleDeleteCharacterRow = (idx: number) => {
+    setCharacterDbRows((prev) => prev.filter((_, i) => i !== idx));
+  };
+
   const updateProviderRequirements = (id: ProviderId, updates: Partial<ProviderDealProfile['requirements']>) => {
     setProviderEdits((prev) => {
       const current = prev[id] ?? (baseProvidersById.get(id) as ProviderDealProfile);
@@ -587,7 +766,7 @@ export const ModsPanel: React.FC = () => {
 
     const base = baseFranchiseRoleSets[key] ?? [];
 
-    if (!deepEqual(base, roleSetRows)) {
+    if (!deepEqual(stripUndefined(base), stripUndefined(roleSetRows))) {
       const patchId = `franchiseRoleSet:${modId}:${key}`;
       next = upsertPatch(next, {
         id: patchId,
@@ -595,12 +774,78 @@ export const ModsPanel: React.FC = () => {
         entityType: 'franchiseRoleSet',
         op: 'update',
         target: key,
-        payload: roleSetRows,
+        payload: stripUndefined(roleSetRows),
       });
     }
 
     syncFromBundle(next);
     toast({ title: 'Applied', description: `Applied role set changes as patches in mod "${modId}". Click Save to persist.` });
+  };
+
+  const handleApplyCharacterDbEdits = () => {
+    const modId = editorModId.trim();
+    if (!modId) return;
+
+    const key = characterDbKey;
+    if (!key) return;
+
+    const keptPatches = bundle.patches.filter(
+      (p) => !(p.modId === modId && p.entityType === 'franchiseCharacterDb' && p.op === 'update' && p.target === key)
+    );
+
+    let next: ModBundle = ensureMod({ ...bundle, patches: keptPatches }, modId);
+
+    const base = baseFranchiseCharacterDb[key] ?? [];
+
+    if (!deepEqual(stripUndefined(base), stripUndefined(characterDbRows))) {
+      const patchId = `franchiseCharacterDb:${modId}:${key}`;
+      next = upsertPatch(next, {
+        id: patchId,
+        modId,
+        entityType: 'franchiseCharacterDb',
+        op: 'update',
+        target: key,
+        payload: stripUndefined(characterDbRows),
+      });
+    }
+
+    syncFromBundle(next);
+    toast({ title: 'Applied', description: `Applied franchise character changes as patches in mod "${modId}". Click Save to persist.` });
+  };
+
+  const handleApplyTalentEdits = () => {
+    const modId = editorModId.trim();
+    if (!modId) return;
+
+    const baseIds = new Set(baseCoreTalent.map((t) => t.id));
+
+    const keptPatches = bundle.patches.filter(
+      (p) => !(p.modId === modId && p.entityType === 'talent' && p.op === 'update' && p.target && baseIds.has(String(p.target)))
+    );
+
+    let next: ModBundle = ensureMod({ ...bundle, patches: keptPatches }, modId);
+
+    for (const t of baseCoreTalent) {
+      const baseEdit = pickTalentEdit(t);
+      const edited = talentEdits[t.id] ?? baseEdit;
+
+      if (deepEqual(stripUndefined(baseEdit), stripUndefined(edited))) continue;
+
+      const { id: _id, ...payload } = edited;
+
+      const patchId = `talent:${modId}:${t.id}`;
+      next = upsertPatch(next, {
+        id: patchId,
+        modId,
+        entityType: 'talent',
+        op: 'update',
+        target: t.id,
+        payload: stripUndefined(payload),
+      });
+    }
+
+    syncFromBundle(next);
+    toast({ title: 'Applied', description: `Applied talent changes as patches in mod "${modId}". Click Save to persist.` });
   };
 
   const handleAddPatchToEditor = () => {
@@ -743,7 +988,7 @@ export const ModsPanel: React.FC = () => {
                   <CardContent className="space-y-4">
                     <p className="text-xs text-muted-foreground">
                       Edit values in a grid, then apply changes to generate patches. This currently supports{' '}
-                      <code>providerDeal</code>, <code>publicDomainIP</code>, and <code>franchiseRoleSet</code>.
+                      <code>providerDeal</code>, <code>publicDomainIP</code>, <code>franchiseRoleSet</code>, <code>franchiseCharacterDb</code>, and <code>talent</code>.
                     </p>
 
                     <div className="grid grid-cols-1 lg:grid-cols-3 gap-3">
@@ -823,6 +1068,8 @@ export const ModsPanel: React.FC = () => {
                         <TabsTrigger value="providerDeals">Provider Deals</TabsTrigger>
                         <TabsTrigger value="publicDomain">Public Domain IP</TabsTrigger>
                         <TabsTrigger value="franchiseRoles">Franchise Roles</TabsTrigger>
+                        <TabsTrigger value="franchiseCharacters">Franchise Characters</TabsTrigger>
+                        <TabsTrigger value="talent">Talent (Core)</TabsTrigger>
                       </TabsList>
 
                       <TabsContent value="providerDeals" className="space-y-3">
@@ -1248,6 +1495,305 @@ export const ModsPanel: React.FC = () => {
 
                         <p className="text-xs text-muted-foreground">
                           Tip: this generates a single <code>franchiseRoleSet</code> update patch for the selected parody source key.
+                        </p>
+                      </TabsContent>
+
+                      <TabsContent value="franchiseCharacters" className="space-y-3">
+                        <div className="flex flex-wrap items-center justify-between gap-2">
+                          <div className="text-sm text-muted-foreground">
+                            Franchise Character DB: <span className="font-medium text-foreground">{characterDbIsChanged ? 'changed' : 'no changes'}</span>
+                          </div>
+                          <div className="flex flex-wrap gap-2">
+                            <Button
+                              size="sm"
+                              variant="secondary"
+                              onClick={() => {
+                                const modId = editorModId.trim();
+                                if (!modId) return;
+                                rebuildCharacterDbRows(bundle, modId, characterDbKey);
+                              }}
+                            >
+                              Reset view
+                            </Button>
+                            <Button size="sm" variant="secondary" onClick={handleAddCharacterRow}>
+                              Add character
+                            </Button>
+                            <Button size="sm" onClick={handleApplyCharacterDbEdits} disabled={!characterDbIsChanged}>
+                              Apply changes
+                            </Button>
+                          </div>
+                        </div>
+
+                        <div className="grid grid-cols-1 lg:grid-cols-2 gap-3">
+                          <div className="space-y-1">
+                            <Label className="text-xs text-muted-foreground">Parody source / franchise key</Label>
+                            <Select value={characterDbKey} onValueChange={setCharacterDbKey}>
+                              <SelectTrigger>
+                                <SelectValue placeholder="Select key" />
+                              </SelectTrigger>
+                              <SelectContent>
+                                {Array.from(new Set([...baseFranchiseCharacterDbKeys, characterDbKey]))
+                                  .filter((k) => !!k)
+                                  .map((k) => (
+                                    <SelectItem key={k} value={k}>
+                                      {k}
+                                    </SelectItem>
+                                  ))}
+                              </SelectContent>
+                            </Select>
+                          </div>
+                        </div>
+
+                        <Table>
+                          <TableHeader>
+                            <TableRow>
+                              <TableHead className="p-2">character_id</TableHead>
+                              <TableHead className="p-2">Name</TableHead>
+                              <TableHead className="p-2">role_template_id</TableHead>
+                              <TableHead className="p-2">Importance</TableHead>
+                              <TableHead className="p-2">Type</TableHead>
+                              <TableHead className="p-2">Mandatory</TableHead>
+                              <TableHead className="p-2">Min age</TableHead>
+                              <TableHead className="p-2">Max age</TableHead>
+                              <TableHead className="p-2">Traits</TableHead>
+                              <TableHead className="p-2">Description</TableHead>
+                              <TableHead className="p-2"></TableHead>
+                            </TableRow>
+                          </TableHeader>
+                          <TableBody>
+                            {characterDbRows.map((c, idx) => {
+                              const minAge = c.ageRange?.[0] ?? 0;
+                              const maxAge = c.ageRange?.[1] ?? 0;
+
+                              return (
+                                <TableRow key={`${c.character_id}-${idx}`}>
+                                  <TableCell className="p-2">
+                                    <Input
+                                      className="h-8 w-[180px] font-mono text-xs"
+                                      value={c.character_id}
+                                      onChange={(e) => updateCharacterRow(idx, { character_id: e.target.value })}
+                                    />
+                                  </TableCell>
+                                  <TableCell className="p-2">
+                                    <Input
+                                      className="h-8 min-w-[180px]"
+                                      value={c.name}
+                                      onChange={(e) => updateCharacterRow(idx, { name: e.target.value })}
+                                    />
+                                  </TableCell>
+                                  <TableCell className="p-2">
+                                    <Input
+                                      className="h-8 w-[170px] font-mono text-xs"
+                                      value={c.role_template_id}
+                                      onChange={(e) => updateCharacterRow(idx, { role_template_id: e.target.value })}
+                                    />
+                                  </TableCell>
+                                  <TableCell className="p-2">
+                                    <Select value={c.importance} onValueChange={(v) => updateCharacterRow(idx, { importance: v as any })}>
+                                      <SelectTrigger className="h-8 w-[140px]">
+                                        <SelectValue />
+                                      </SelectTrigger>
+                                      <SelectContent>
+                                        <SelectItem value="lead">lead</SelectItem>
+                                        <SelectItem value="supporting">supporting</SelectItem>
+                                        <SelectItem value="minor">minor</SelectItem>
+                                        <SelectItem value="crew">crew</SelectItem>
+                                      </SelectContent>
+                                    </Select>
+                                  </TableCell>
+                                  <TableCell className="p-2">
+                                    <Select
+                                      value={c.requiredType ?? 'actor'}
+                                      onValueChange={(v) => updateCharacterRow(idx, { requiredType: v as any })}
+                                    >
+                                      <SelectTrigger className="h-8 w-[120px]">
+                                        <SelectValue />
+                                      </SelectTrigger>
+                                      <SelectContent>
+                                        <SelectItem value="actor">actor</SelectItem>
+                                        <SelectItem value="director">director</SelectItem>
+                                      </SelectContent>
+                                    </Select>
+                                  </TableCell>
+                                  <TableCell className="p-2">
+                                    <div className="h-8 flex items-center">
+                                      <Switch
+                                        checked={!!c.is_mandatory}
+                                        onCheckedChange={(checked) => updateCharacterRow(idx, { is_mandatory: checked })}
+                                      />
+                                    </div>
+                                  </TableCell>
+                                  <TableCell className="p-2">
+                                    <Input
+                                      className="h-8 w-[90px]"
+                                      type="number"
+                                      value={String(minAge)}
+                                      onChange={(e) => updateCharacterRow(idx, { ageRange: [Number(e.target.value) || 0, maxAge] })}
+                                    />
+                                  </TableCell>
+                                  <TableCell className="p-2">
+                                    <Input
+                                      className="h-8 w-[90px]"
+                                      type="number"
+                                      value={String(maxAge)}
+                                      onChange={(e) => updateCharacterRow(idx, { ageRange: [minAge, Number(e.target.value) || 0] })}
+                                    />
+                                  </TableCell>
+                                  <TableCell className="p-2">
+                                    <Input
+                                      className="h-8 min-w-[200px]"
+                                      value={(c.traits || []).join(', ')}
+                                      onChange={(e) => updateCharacterTraits(idx, e.target.value)}
+                                      placeholder="brave, stoic"
+                                    />
+                                  </TableCell>
+                                  <TableCell className="p-2">
+                                    <Input
+                                      className="h-8 min-w-[220px]"
+                                      value={c.description ?? ''}
+                                      onChange={(e) => updateCharacterRow(idx, { description: e.target.value || undefined })}
+                                      placeholder="(optional)"
+                                    />
+                                  </TableCell>
+                                  <TableCell className="p-2">
+                                    <div className="flex justify-end gap-2">
+                                      <Button size="sm" variant="ghost" onClick={() => handleDeleteCharacterRow(idx)}>
+                                        Delete
+                                      </Button>
+                                    </div>
+                                  </TableCell>
+                                </TableRow>
+                              );
+                            })}
+                          </TableBody>
+                        </Table>
+
+                        <p className="text-xs text-muted-foreground">
+                          Tip: this generates a single <code>franchiseCharacterDb</code> update patch for the selected key.
+                        </p>
+                      </TabsContent>
+
+                      <TabsContent value="talent" className="space-y-3">
+                        <div className="flex flex-wrap items-center justify-between gap-2">
+                          <div className="text-sm text-muted-foreground">
+                            Core Talent: <span className="font-medium text-foreground">{changedTalentCount}</span> changed
+                          </div>
+                          <div className="flex flex-wrap gap-2">
+                            <Button
+                              size="sm"
+                              variant="secondary"
+                              onClick={() => {
+                                const modId = editorModId.trim();
+                                if (!modId) return;
+                                rebuildTalentEdits(bundle, modId);
+                              }}
+                            >
+                              Reset view
+                            </Button>
+                            <Button size="sm" onClick={handleApplyTalentEdits} disabled={changedTalentCount === 0}>
+                              Apply changes
+                            </Button>
+                          </div>
+                        </div>
+
+                        <div className="grid grid-cols-1 lg:grid-cols-2 gap-3">
+                          <div className="space-y-1">
+                            <Label className="text-xs text-muted-foreground">Search</Label>
+                            <Input value={talentSearch} onChange={(e) => setTalentSearch(e.target.value)} placeholder="name or id" />
+                          </div>
+                        </div>
+
+                        <Table>
+                          <TableHeader>
+                            <TableRow>
+                              <TableHead className="p-2">ID</TableHead>
+                              <TableHead className="p-2">Name</TableHead>
+                              <TableHead className="p-2">Type</TableHead>
+                              <TableHead className="p-2">Gender</TableHead>
+                              <TableHead className="p-2">Nationality</TableHead>
+                              <TableHead className="p-2">Reputation</TableHead>
+                              <TableHead className="p-2">Market value</TableHead>
+                              <TableHead className="p-2">Genres</TableHead>
+                            </TableRow>
+                          </TableHeader>
+                          <TableBody>
+                            {baseCoreTalent
+                              .filter((t) => {
+                                const q = talentSearch.trim().toLowerCase();
+                                if (!q) return true;
+                                return t.name.toLowerCase().includes(q) || t.id.toLowerCase().includes(q);
+                              })
+                              .map((t) => {
+                                const edited = talentEdits[t.id] ?? pickTalentEdit(t);
+
+                                return (
+                                  <TableRow key={t.id} className={!deepEqual(stripUndefined(pickTalentEdit(t)), stripUndefined(edited)) ? 'bg-muted/30' : undefined}>
+                                    <TableCell className="p-2 font-mono text-xs">{t.id}</TableCell>
+                                    <TableCell className="p-2">
+                                      <Input className="h-8 min-w-[200px]" value={edited.name} onChange={(e) => updateTalent(t.id, { name: e.target.value })} />
+                                    </TableCell>
+                                    <TableCell className="p-2">
+                                      <Select value={edited.type} onValueChange={(v) => updateTalent(t.id, { type: v as any })}>
+                                        <SelectTrigger className="h-8 w-[140px]">
+                                          <SelectValue />
+                                        </SelectTrigger>
+                                        <SelectContent>
+                                          <SelectItem value="actor">actor</SelectItem>
+                                          <SelectItem value="director">director</SelectItem>
+                                        </SelectContent>
+                                      </Select>
+                                    </TableCell>
+                                    <TableCell className="p-2">
+                                      <Select value={edited.gender ?? 'Male'} onValueChange={(v) => updateTalent(t.id, { gender: v as any })}>
+                                        <SelectTrigger className="h-8 w-[120px]">
+                                          <SelectValue />
+                                        </SelectTrigger>
+                                        <SelectContent>
+                                          <SelectItem value="Male">Male</SelectItem>
+                                          <SelectItem value="Female">Female</SelectItem>
+                                        </SelectContent>
+                                      </Select>
+                                    </TableCell>
+                                    <TableCell className="p-2">
+                                      <Input
+                                        className="h-8 min-w-[160px]"
+                                        value={edited.nationality ?? ''}
+                                        onChange={(e) => updateTalent(t.id, { nationality: e.target.value || undefined })}
+                                        placeholder="(optional)"
+                                      />
+                                    </TableCell>
+                                    <TableCell className="p-2">
+                                      <Input
+                                        className="h-8 w-[120px]"
+                                        type="number"
+                                        value={String(edited.reputation)}
+                                        onChange={(e) => updateTalent(t.id, { reputation: Number(e.target.value) || 0 })}
+                                      />
+                                    </TableCell>
+                                    <TableCell className="p-2">
+                                      <Input
+                                        className="h-8 w-[140px]"
+                                        type="number"
+                                        value={String(edited.marketValue)}
+                                        onChange={(e) => updateTalent(t.id, { marketValue: Number(e.target.value) || 0 })}
+                                      />
+                                    </TableCell>
+                                    <TableCell className="p-2">
+                                      <Input
+                                        className="h-8 min-w-[220px]"
+                                        value={(edited.genres || []).join(', ')}
+                                        onChange={(e) => updateTalentGenres(t.id, e.target.value)}
+                                        placeholder="drama, thriller"
+                                      />
+                                    </TableCell>
+                                  </TableRow>
+                                );
+                              })}
+                          </TableBody>
+                        </Table>
+
+                        <p className="text-xs text-muted-foreground">
+                          Tip: this edits the stable <code>core:*</code> talent set (not the randomly-generated filler talent).
                         </p>
                       </TabsContent>
                     </Tabs>
