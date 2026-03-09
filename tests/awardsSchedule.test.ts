@@ -58,4 +58,41 @@ describe('AwardsSchedule', () => {
     const patched = getAwardShowsForYear(2024, bundle);
     expect(patched.find(s => s.id === 'crown')?.name).toBe('Oscar');
   });
+
+  it('supports insert and delete patches for awardShow', () => {
+    const bundle = createEmptyModBundle();
+    bundle.mods = [{ id: 'test', name: 'test', version: '1.0.0', enabled: true, priority: 0 }];
+    bundle.patches = [
+      {
+        id: 'awardShow:test:crown',
+        modId: 'test',
+        entityType: 'awardShow',
+        op: 'delete',
+        target: 'crown',
+      },
+      {
+        id: 'awardShow:test:custom-show-1',
+        modId: 'test',
+        entityType: 'awardShow',
+        op: 'insert',
+        target: 'custom-show-1',
+        payload: {
+          id: 'custom-show-1',
+          name: 'Custom Awards',
+          medium: 'film',
+          nominationWeek: 1,
+          ceremonyWeek: 10,
+          cooldownWeeks: 1,
+          eligibilityCutoffWeek: 9,
+          prestige: 1,
+          momentumBonus: 1,
+          categories: [],
+        },
+      },
+    ];
+
+    const patched = getAwardShowsForYear(2024, bundle);
+    expect(patched.find(s => s.id === 'crown')).toBeUndefined();
+    expect(patched.find(s => s.id === 'custom-show-1')?.name).toBe('Custom Awards');
+  });
 });

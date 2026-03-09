@@ -654,9 +654,6 @@ export const ModsPanel: React.FC = () => {
       const next: Record<string, AwardShowDefinition> = {};
       for (const s of patched) next[s.id] = stripUndefined(s);
       setAwardShowEdits(next);
-      if (awardShowKey && !next[awardShowKey]) {
-        setAwardShowKey(patched[0]?.id ?? '');
-      }
     }
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [
@@ -664,7 +661,6 @@ export const ModsPanel: React.FC = () => {
     roleSetKey,
     characterDbKey,
     parodyNamesKey,
-    awardShowKey,
     providerPatchKey,
     publicDomainPatchKey,
     franchisePatchKey,
@@ -676,6 +672,12 @@ export const ModsPanel: React.FC = () => {
     parodyNamesPatchKey,
     awardShowPatchKey,
   ]);
+
+  useEffect(() => {
+    if (awardShowKey && awardShowEdits[awardShowKey]) return;
+    const first = Object.keys(awardShowEdits)[0] ?? '';
+    if (first !== awardShowKey) setAwardShowKey(first);
+  }, [awardShowEdits, awardShowKey]);
 
   const updateProvider = (id: ProviderId, updates: Partial<ProviderDealProfile>) => {
     setProviderEdits((prev) => {
@@ -890,6 +892,85 @@ export const ModsPanel: React.FC = () => {
   const updateMediaSourceSpecialties = (id: string, value: string) => {
     const list = splitCsv(value) as Genre[];
     updateMediaSource(id, { specialties: list.length ? list : ([] as any) } as any);
+  };
+
+  const handleResetMediaSourcesView = () => {
+    const patched = applyPatchesByKey(baseMediaSources, getPatchesForEntity(editorBundle, 'mediaSource'), (s) => s.id);
+    const next: Record<string, MediaSource> = {};
+    for (const s of patched) next[s.id] = stripUndefined(s);
+    setMediaSourceEdits(next);
+  };
+
+  const handleAddMediaSource = () => {
+    const existing = new Set([...baseMediaSources.map((s) => s.id), ...Object.keys(mediaSourceEdits)]);
+    let suffix = 1;
+    let id = `source_custom_${suffix}`;
+    while (existing.has(id)) {
+      suffix++;
+      id = `source_custom_${suffix}`;
+    }
+
+    const nextSource: MediaSource = {
+      id,
+      name: 'New Source',
+      type: 'blog',
+      credibility: 50,
+      bias: 0,
+      reach: 50,
+      specialties: [],
+      established: 2024,
+    };
+
+    setMediaSourceEdits((prev) => ({ ...prev, [id]: nextSource }));
+  };
+
+  const handleDeleteMediaSource = (id: string) => {
+    setMediaSourceEdits((prev) => {
+      const next = { ...prev };
+      delete next[id];
+      return next;
+    });
+  };
+
+  const handleResetAwardShowsView = () => {
+    const patched = applyPatchesByKey(AWARD_SHOWS, getPatchesForEntity(editorBundle, 'awardShow'), (s) => s.id);
+    const next: Record<string, AwardShowDefinition> = {};
+    for (const s of patched) next[s.id] = stripUndefined(s);
+    setAwardShowEdits(next);
+  };
+
+  const handleAddAwardShow = () => {
+    const existing = new Set([...AWARD_SHOWS.map((s) => s.id), ...Object.keys(awardShowEdits)]);
+    let suffix = 1;
+    let id = `custom-show-${suffix}`;
+    while (existing.has(id)) {
+      suffix++;
+      id = `custom-show-${suffix}`;
+    }
+
+    const show: AwardShowDefinition = {
+      id,
+      name: 'Custom Awards',
+      medium: 'film',
+      nominationWeek: 1,
+      ceremonyWeek: 1,
+      cooldownWeeks: 1,
+      eligibilityCutoffWeek: 1,
+      prestige: 5,
+      momentumBonus: 5,
+      categories: [],
+    };
+
+    setAwardShowEdits((prev) => ({ ...prev, [id]: stripUndefined(show) }));
+    setAwardShowKey(id);
+  };
+
+  const handleDeleteAwardShow = (id: string) => {
+    setAwardShowEdits((prev) => {
+      const next = { ...prev };
+      delete next[id];
+      return next;
+    });
   };
 
   const updateParodyByCharacterIdRow = (idx: number, updates: Partial<NameMappingRow>) => {
@@ -1193,9 +1274,22 @@ export const ModsPanel: React.FC = () => {
 
     let next = ensureMod(bundle, modId);
 
+    const baseIds = new Set(baseMediaSources.map((s) => s.id));
+
     for (const base of baseMediaSources) {
-      const edited = mediaSourceEdits[base.id] ?? base;
       const patchId = `mediaSource:${modId}:${base.id}`;
+      const edited = mediaSourceEdits[base.id];
+
+      if (!edited) {
+        next = upsertPatch(next, {
+          id: patchId,
+          modId,
+          entityType: 'mediaSource',
+          op: 'delete',
+          target: base.id,
+        });
+        continue;
+      }
 
       if (deepEqual(stripUndefined(base), stripUndefined(edited))) {
         next = removePatch(next, patchId);
@@ -1208,6 +1302,19 @@ export const ModsPanel: React.FC = () => {
         entityType: 'mediaSource',
         op: 'update',
         target: base.id,
+        payload: stripUndefined(edited),
+      });
+    }
+
+    for (const [id, edited] of Object.entries(mediaSourceEdits)) {
+      if (baseIds.has(id)) continue;
+      const patchId = `mediaSource:${modId}:${id}`;
+      next = upsertPatch(next, {
+        id: patchId,
+        modId,
+        entityType: 'mediaSource',
+        op: 'insert',
+        target: id,
         payload: stripUndefined(edited),
       });
     }
@@ -1260,9 +1367,22 @@ export const ModsPanel: React.FC = () => {
 
     let next = ensureMod(bundle, modId);
 
+    const baseIds = new Set(AWARD_SHOWS.map((s) => s.id));
+
     for (const base of AWARD_SHOWS) {
-      const edited = awardShowEdits[base.id] ?? base;
       const patchId = `awardShow:${modId}:${base.id}`;
+      const edited = awardShowEdits[base.id];
+
+      if (!edited) {
+        next = upsertPatch(next, {
+          id: patchId,
+          modId,
+          entityType: 'awardShow',
+          op: 'delete',
+          target: base.id,
+        });
+        continue;
+      }
 
       if (deepEqual(stripUndefined(base), stripUndefined(edited))) {
         next = removePatch(next, patchId);
@@ -1275,6 +1395,19 @@ export const ModsPanel: React.FC = () => {
         entityType: 'awardShow',
         op: 'update',
         target: base.id,
+        payload: stripUndefined(edited),
+      });
+    }
+
+    for (const [id, edited] of Object.entries(awardShowEdits)) {
+      if (baseIds.has(id)) continue;
+      const patchId = `awardShow:${modId}:${id}`;
+      next = upsertPatch(next, {
+        id: patchId,
+        modId,
+        entityType: 'awardShow',
+        op: 'insert',
+        target: id,
         payload: stripUndefined(edited),
       });
     }
@@ -1341,10 +1474,23 @@ export const ModsPanel: React.FC = () => {
 
   const changedMediaSourceCount = useMemo(() => {
     let changed = 0;
+
+    const baseIds = new Set(baseMediaSources.map((s) => s.id));
+
     for (const base of baseMediaSources) {
-      const edited = mediaSourceEdits[base.id] ?? base;
+      const edited = mediaSourceEdits[base.id];
+      if (!edited) {
+        changed++;
+        continue;
+      }
+
       if (!deepEqual(stripUndefined(base), stripUndefined(edited))) changed++;
     }
+
+    for (const id of Object.keys(mediaSourceEdits)) {
+      if (!baseIds.has(id)) changed++;
+    }
+
     return changed;
   }, [baseMediaSources, mediaSourceEdits]);
 
@@ -1358,11 +1504,20 @@ export const ModsPanel: React.FC = () => {
   }, [parodyNamesKey, parodyByCharacterIdRows, parodyByTemplateIdRows]);
 
   const awardShowIsChanged = useMemo(() => {
-    const base = AWARD_SHOWS.find((s) => s.id === awardShowKey);
     const edited = awardShowEdits[awardShowKey];
-    if (!base || !edited) return false;
+    if (!edited) return false;
+
+    const base = AWARD_SHOWS.find((s) => s.id === awardShowKey);
+    if (!base) return true;
+
     return !deepEqual(stripUndefined(base), stripUndefined(edited));
   }, [awardShowEdits, awardShowKey]);
+
+  const awardShowsForEditor = useMemo(() => {
+    return Object.values(awardShowEdits)
+      .slice()
+      .sort((a, b) => a.ceremonyWeek - b.ceremonyWeek || a.id.localeCompare(b.id));
+  }, [awardShowEdits]);
 
   const filteredTalent = useMemo(() => {
     const q = talentSearch.trim().toLowerCase();
@@ -1382,11 +1537,18 @@ export const ModsPanel: React.FC = () => {
     return STUDIO_PROFILES.filter((s) => s.name.toLowerCase().includes(q));
   }, [studioSearch]);
 
+  const mediaSourcesForEditor = useMemo(() => {
+    return Object.values(mediaSourceEdits)
+      .slice()
+      .sort((a, b) => a.id.localeCompare(b.id));
+  }, [mediaSourceEdits]);
+
   const filteredMediaSources = useMemo(() => {
     const q = mediaSourceSearch.trim().toLowerCase();
-    if (!q) return baseMediaSources;
-    return baseMediaSources.filter((s) => `${s.id} ${s.name}`.toLowerCase().includes(q));
-  }, [baseMediaSources, mediaSourceSearch]);
+    const list = mediaSourcesForEditor.length ? mediaSourcesForEditor : baseMediaSources;
+    if (!q) return list;
+    return list.filter((s) => `${s.id} ${s.name}`.toLowerCase().includes(q));
+  }, [baseMediaSources, mediaSourceSearch, mediaSourcesForEditor]);
 
   const handleResetProviderRow = (id: ProviderId) => {
     const base = baseProvidersById.get(id);
@@ -1420,8 +1582,12 @@ export const ModsPanel: React.FC = () => {
 
   const handleResetMediaSourceRow = (id: string) => {
     const base = baseMediaById.get(id);
-    if (!base) return;
-    setMediaSourceEdits((prev) => ({ ...prev, [id]: stripUndefined(base) }));
+    setMediaSourceEdits((prev) => {
+      if (base) return { ...prev, [id]: stripUndefined(base) };
+      const next = { ...prev };
+      delete next[id];
+      return next;
+    });
   };
 
   const handleResetParodyNames = () => {
@@ -1432,8 +1598,12 @@ export const ModsPanel: React.FC = () => {
 
   const handleResetAwardShow = () => {
     const base = AWARD_SHOWS.find((s) => s.id === awardShowKey);
-    if (!base) return;
-    setAwardShowEdits((prev) => ({ ...prev, [awardShowKey]: stripUndefined(base) }));
+    setAwardShowEdits((prev) => {
+      if (base) return { ...prev, [awardShowKey]: stripUndefined(base) };
+      const next = { ...prev };
+      delete next[awardShowKey];
+      return next;
+    });
   };
 
   return (
@@ -2347,7 +2517,7 @@ export const ModsPanel: React.FC = () => {
                         <SelectValue placeholder="Select" />
                       </SelectTrigger>
                       <SelectContent>
-                        {AWARD_SHOWS.map((s) => (
+                        {awardShowsForEditor.map((s) => (
                           <SelectItem key={s.id} value={s.id}>
                             {s.id}
                           </SelectItem>
@@ -2357,10 +2527,24 @@ export const ModsPanel: React.FC = () => {
                   </div>
 
                   <div className="flex items-end justify-end gap-2">
-                    <Button size="sm" variant="secondary" onClick={handleResetAwardShow}>
+                    <Button size="sm" variant="secondary" onClick={handleResetAwardShowsView}>
+                      Reset schedule
+                    </Button>
+                    <Button size="sm" variant="secondary" onClick={handleAddAwardShow}>
+                      Add show
+                    </Button>
+                    <Button
+                      size="sm"
+                      variant="secondary"
+                      disabled={!awardShowKey}
+                      onClick={() => handleDeleteAwardShow(awardShowKey)}
+                    >
+                      Delete show
+                    </Button>
+                    <Button size="sm" variant="secondary" disabled={!awardShowKey} onClick={handleResetAwardShow}>
                       Reset view
                     </Button>
-                    <Button size="sm" variant="secondary" onClick={() => handleAddAwardCategory(awardShowKey)}>
+                    <Button size="sm" variant="secondary" disabled={!awardShowKey} onClick={() => handleAddAwardCategory(awardShowKey)}>
                       Add category
                     </Button>
                   </div>
@@ -2528,9 +2712,17 @@ export const ModsPanel: React.FC = () => {
                   <div className="text-sm text-muted-foreground">
                     Media Sources: <span className="font-medium text-foreground">{changedMediaSourceCount}</span> changed
                   </div>
-                  <Button size="sm" onClick={applyMediaSourceEdits}>
-                    Apply changes
-                  </Button>
+                  <div className="flex flex-wrap gap-2">
+                    <Button size="sm" variant="secondary" onClick={handleResetMediaSourcesView}>
+                      Reset view
+                    </Button>
+                    <Button size="sm" variant="secondary" onClick={handleAddMediaSource}>
+                      Add source
+                    </Button>
+                    <Button size="sm" onClick={applyMediaSourceEdits}>
+                      Apply changes
+                    </Button>
+                  </div>
                 </div>
 
                 <Input value={mediaSourceSearch} onChange={(e) => setMediaSourceSearch(e.target.value)} placeholder="Search media sources..." />
@@ -2550,52 +2742,64 @@ export const ModsPanel: React.FC = () => {
                     </TableRow>
                   </TableHeader>
                   <TableBody>
-                    {filteredMediaSources.map((base) => {
-                      const edited = mediaSourceEdits[base.id] ?? base;
-                      const isChanged = !deepEqual(stripUndefined(base), stripUndefined(edited));
+                    {filteredMediaSources.map((row) => {
+                      const base = baseMediaById.get(row.id);
+                      const edited = mediaSourceEdits[row.id] ?? row;
+                      const isInserted = !base;
+                      const isChanged = isInserted ? true : !deepEqual(stripUndefined(base), stripUndefined(edited));
 
                       return (
-                        <TableRow key={base.id} className={isChanged ? 'bg-muted/30' : undefined}>
-                          <TableCell className="p-2 font-mono text-xs">{base.id}</TableCell>
-                          <TableCell className="p-2">
-                            <Input className="h-8 min-w-[200px]" value={edited.name} onChange={(e) => updateMediaSource(base.id, { name: e.target.value })} />
+                        <TableRow key={row.id} className={isChanged ? 'bg-muted/30' : undefined}>
+                          <TableCell className="p-2 font-mono text-xs">
+                            <div className="flex items-center gap-2">
+                              <span>{row.id}</span>
+                              {isInserted ? <Badge variant="secondary">new</Badge> : null}
+                            </div>
                           </TableCell>
                           <TableCell className="p-2">
-                            <Input className="h-8 w-[160px]" value={edited.type} onChange={(e) => updateMediaSource(base.id, { type: e.target.value as any })} />
+                            <Input className="h-8 min-w-[200px]" value={edited.name} onChange={(e) => updateMediaSource(row.id, { name: e.target.value })} />
+                          </TableCell>
+                          <TableCell className="p-2">
+                            <Input className="h-8 w-[160px]" value={edited.type} onChange={(e) => updateMediaSource(row.id, { type: e.target.value as any })} />
                           </TableCell>
                           <TableCell className="p-2">
                             <Input
                               className="h-8 w-[110px]"
                               type="number"
                               value={String(edited.credibility)}
-                              onChange={(e) => updateMediaSource(base.id, { credibility: Number(e.target.value) || 0 })}
+                              onChange={(e) => updateMediaSource(row.id, { credibility: Number(e.target.value) || 0 })}
                             />
                           </TableCell>
                           <TableCell className="p-2">
-                            <Input className="h-8 w-[90px]" type="number" value={String(edited.bias)} onChange={(e) => updateMediaSource(base.id, { bias: Number(e.target.value) || 0 })} />
+                            <Input className="h-8 w-[90px]" type="number" value={String(edited.bias)} onChange={(e) => updateMediaSource(row.id, { bias: Number(e.target.value) || 0 })} />
                           </TableCell>
                           <TableCell className="p-2">
-                            <Input className="h-8 w-[90px]" type="number" value={String(edited.reach)} onChange={(e) => updateMediaSource(base.id, { reach: Number(e.target.value) || 0 })} />
+                            <Input className="h-8 w-[90px]" type="number" value={String(edited.reach)} onChange={(e) => updateMediaSource(row.id, { reach: Number(e.target.value) || 0 })} />
                           </TableCell>
                           <TableCell className="p-2">
                             <Input
                               className="h-8 w-[110px]"
                               type="number"
                               value={String(edited.established)}
-                              onChange={(e) => updateMediaSource(base.id, { established: Number(e.target.value) || 0 })}
+                              onChange={(e) => updateMediaSource(row.id, { established: Number(e.target.value) || 0 })}
                             />
                           </TableCell>
                           <TableCell className="p-2">
                             <Input
                               className="h-8 min-w-[220px]"
                               value={(edited.specialties || []).join(', ')}
-                              onChange={(e) => updateMediaSourceSpecialties(base.id, e.target.value)}
+                              onChange={(e) => updateMediaSourceSpecialties(row.id, e.target.value)}
                             />
                           </TableCell>
                           <TableCell className="p-2">
-                            <Button size="sm" variant="ghost" onClick={() => handleResetMediaSourceRow(base.id)}>
-                              Reset
-                            </Button>
+                            <div className="flex justify-end gap-2">
+                              <Button size="sm" variant="ghost" onClick={() => handleResetMediaSourceRow(row.id)}>
+                                Reset
+                              </Button>
+                              <Button size="sm" variant="ghost" onClick={() => handleDeleteMediaSource(row.id)}>
+                                Delete
+                              </Button>
+                            </div>
                           </TableCell>
                         </TableRow>
                       );
