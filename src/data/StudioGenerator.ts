@@ -44,7 +44,7 @@ export const STUDIO_PROFILES: StudioProfile[] = [
     releaseFrequency: 5,
     brandIdentity: 'Timeless stories, tasteful fonts, and a score that gently tells you what to feel',
     foundedYear: 1979,
-    biography: 'Golden Horizon was built in the late-70s on the simplest pitch in town: make crowd-pleasers that don’t embarrass anyone at Thanksgiving. They specialize in high-gloss sincerity—family stories, tasteful biopics, and dramas that land like a warm blanket. Critics may roll their eyes at the formulas, but awards voters keep finding reasons to circle their releases.'
+    biography: 'Golden Horizon was built in the late-70s on the simplest pitch in town: make crowd-pleasers that don’t embarrass anyone at Thanksgiving. Their specialty is high-gloss sincerity engineered to make your aunt cry on a plane—family stories, tasteful biopics, and dramas that land like a warm blanket. Critics may roll their eyes at the formulas, but awards voters keep finding reasons to circle their releases.'
   },
   {
     name: 'Velocity Pictures',
@@ -83,7 +83,7 @@ export const STUDIO_PROFILES: StudioProfile[] = [
     releaseFrequency: 4,
     brandIdentity: 'Spectacle for global audiences, synchronized trailers, and a logo reveal you can hear',
     foundedYear: 1972,
-    biography: 'Apex is what happens when a studio grows into a machine and then hires consultants to optimize the machine. Since the 70s, they’ve treated intellectual property like infrastructure: build it once, extend it forever, and never miss a release date. Creatives complain about the guardrails, but nobody laughs when Apex drops a trailer—those events move markets.'
+    biography: 'Apex is what happens when a studio grows into a machine and then hires consultants to optimize the operation. Since the 70s, they’ve treated intellectual property like infrastructure: build it once, extend it forever, and never miss a release date. Creatives complain about the guardrails, but nobody laughs when Apex drops a trailer—those events move markets.'
   },
   {
     name: 'Laughing Matter Productions',
