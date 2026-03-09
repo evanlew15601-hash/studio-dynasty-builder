@@ -12,6 +12,8 @@ import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { PROVIDER_DEALS, getEffectiveProviderDeals, type ProviderDealProfile, type ProviderId } from '@/data/ProviderDealsDatabase';
 import { PublicDomainGenerator } from '@/data/PublicDomainGenerator';
+import { FranchiseGenerator } from '@/data/FranchiseGenerator';
+import { AWARD_SHOWS, type AwardShowDefinition, type AwardCategoryDefinition } from '@/data/AwardsSchedule';
 import { FRANCHISE_CHARACTER_DB, type FranchiseCharacterDef } from '@/data/FranchiseCharacterDB';
 import { FRANCHISE_ROLE_SETS } from '@/data/RoleDatabase';
 import { generateInitialTalentPool } from '@/data/WorldGenerator';
@@ -36,6 +38,7 @@ const ENTITY_TYPES = [
   'providerDeal',
   'franchiseRoleSet',
   'franchiseCharacterDb',
+  'awardShow',
 ] as const;
 
 const DEFAULT_MOD_VERSION = '1.0.0';
@@ -155,6 +158,9 @@ export const ModsPanel: React.FC = () => {
   const [talentEdits, setTalentEdits] = useState<Record<string, TalentEdit>>({});
   const [franchiseSearch, setFranchiseSearch] = useState('');
   const [franchiseEdits, setFranchiseEdits] = useState<Record<string, Franchise>>({});
+  const [awardShowSearch, setAwardShowSearch] = useState('');
+  const [awardShowKey, setAwardShowKey] = useState<string>(() => AWARD_SHOWS[0]?.id ?? 'crown');
+  const [awardShowEdits, setAwardShowEdits] = useState<Record<string, AwardShowDefinition>>({});
 
   // Quick patch builder (raw JSON tab)
   const [quickEntityType, setQuickEntityType] = useState<(typeof ENTITY_TYPES)[number]>('providerDeal');
@@ -199,6 +205,16 @@ export const ModsPanel: React.FC = () => {
 
   const baseFranchiseCharacterDb = useMemo(() => FRANCHISE_CHARACTER_DB, []);
   const baseFranchiseCharacterDbKeys = useMemo(() => Object.keys(baseFranchiseCharacterDb).sort(), [baseFranchiseCharacterDb]);
+
+  const baseAwardShows = useMemo(() => AWARD_SHOWS, []);
+
+  const baseAwardShowsById = useMemo(() => {
+    const map = new Map<string, AwardShowDefinition>();
+    for (const s of baseAwardShows) {
+      map.set(s.id, s);
+    }
+    return map;
+  }, [baseAwardShows]);
 
   const basePublicDomainById = useMemo(() => {
     const map = new Map<string, PublicDomainIP>();
@@ -314,6 +330,31 @@ export const ModsPanel: React.FC = () => {
     setFranchiseEdits(next);
   };
 
+  const rebuildAwardShowEdits = (b: ModBundle, modId: string) => {
+    const modInfo = b.mods.find((m) => m.id === modId) ?? makeDefaultMod(modId);
+    const editorBundle: ModBundle = {
+      version: 1,
+      mods: [{ ...modInfo, enabled: true }],
+      patches: (b.patches || []).filter((p) => p.modId === modId && p.entityType === 'awardShow'),
+    };
+
+    const patched = applyPatchesByKey(baseAwardShows, getPatchesForEntity(editorBundle, 'awardShow'), (s) => s.id);
+    const next: Record<string, AwardShowDefinition> = {};
+
+    for (const s of patched) {
+      next[s.id] = {
+        ...s,
+        categories: (s.categories || []).map((c) => ({ ...c, eligibility: c.eligibility ? { ...c.eligibility } : undefined, talent: c.talent ? { ...c.talent } : undefined })),
+      };
+    }
+
+    setAwardShowEdits(next);
+
+    if (!next[awardShowKey] && patched[0]?.id) {
+      setAwardShowKey(patched[0].id);
+    }
+  };
+
   const providerDealPatchKey = useMemo(() => {
     const modId = editorModId.trim();
     if (!modId) return '';
@@ -374,6 +415,16 @@ export const ModsPanel: React.FC = () => {
       .join('|');
   }, [bundle.patches, editorModId]);
 
+  const awardShowPatchKey = useMemo(() => {
+    const modId = editorModId.trim();
+    if (!modId) return '';
+
+    return (bundle.patches || [])
+      .filter((p) => p.modId === modId && p.entityType === 'awardShow')
+      .map((p) => `${p.id}:${p.op}:${p.target}:${JSON.stringify(p.payload)}`)
+      .join('|');
+  }, [bundle.patches, editorModId]);
+
   useEffect(() => {
     const modId = editorModId.trim();
     if (!modId) return;
@@ -383,8 +434,9 @@ export const ModsPanel: React.FC = () => {
     rebuildCharacterDbRows(bundle, modId, characterDbKey);
     rebuildTalentEdits(bundle, modId);
     rebuildFranchiseEdits(bundle, modId);
+    rebuildAwardShowEdits(bundle, modId);
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [editorModId, roleSetKey, characterDbKey, providerDealPatchKey, publicDomainPatchKey, franchiseRoleSetPatchKey, franchiseCharacterDbPatchKey, talentPatchKey, franchisePatchKey]);
+  }, [editorModId, roleSetKey, characterDbKey, providerDealPatchKey, publicDomainPatchKey, franchiseRoleSetPatchKey, franchiseCharacterDbPatchKey, talentPatchKey, franchisePatchKey, awardShowPatchKey]);
 
   const changedProviderCount = useMemo(() => {
     let changed = 0;
@@ -434,6 +486,15 @@ export const ModsPanel: React.FC = () => {
     }
     return changed;
   }, [baseFranchises, franchiseEdits]);
+
+  const changedAwardShowCount = useMemo(() => {
+    let changed = 0;
+    for (const s of baseAwardShows) {
+      const edited = awardShowEdits[s.id] ?? s;
+      if (!deepEqual(stripUndefined(s), stripUndefined(edited))) changed++;
+    }
+    return changed;
+  }, [baseAwardShows, awardShowEdits]);
 
   const syncFromBundle = (next: ModBundle) => {
     setBundle(next);
@@ -810,6 +871,142 @@ export const ModsPanel: React.FC = () => {
       .map((s) => s.trim())
       .filter(Boolean);
     updateFranchise(id, { entries: list });
+  };
+
+  const updateAwardShow = (id: string, updates: Partial<AwardShowDefinition>) => {
+    setAwardShowEdits((prev) => {
+      const base = baseAwardShowsById.get(id);
+      const current = prev[id] ?? base;
+      if (!current) return prev;
+      return { ...prev, [id]: stripUndefined({ ...current, ...updates }) };
+    });
+  };
+
+  const handleResetAwardShowRow = (id: string) => {
+    const base = baseAwardShowsById.get(id);
+    if (!base) return;
+    setAwardShowEdits((prev) => ({ ...prev, [id]: base }));
+  };
+
+  const updateAwardCategoryRow = (showId: string, idx: number, updates: Partial<AwardCategoryDefinition>) => {
+    setAwardShowEdits((prev) => {
+      const base = baseAwardShowsById.get(showId);
+      const current = prev[showId] ?? base;
+      if (!current) return prev;
+
+      const categories = (current.categories || []).slice();
+      const existing = categories[idx];
+      if (!existing) return prev;
+
+      const nextEligibility = updates.eligibility
+        ? stripUndefined({ ...(existing.eligibility || {}), ...updates.eligibility })
+        : existing.eligibility;
+
+      const nextTalent = updates.talent
+        ? stripUndefined({ ...(existing.talent || {}), ...updates.talent })
+        : existing.talent;
+
+      categories[idx] = stripUndefined({
+        ...existing,
+        ...updates,
+        eligibility: nextEligibility && Object.keys(nextEligibility).length ? nextEligibility : undefined,
+        talent: nextTalent && Object.keys(nextTalent).length ? nextTalent : undefined,
+      });
+
+      return { ...prev, [showId]: stripUndefined({ ...current, categories }) };
+    });
+  };
+
+  const handleAddAwardCategoryRow = (showId: string) => {
+    setAwardShowEdits((prev) => {
+      const base = baseAwardShowsById.get(showId);
+      const current = prev[showId] ?? base;
+      if (!current) return prev;
+
+      const categories = (current.categories || []).slice();
+      const existingIds = new Set(categories.map((c) => c.id));
+
+      let suffix = categories.length + 1;
+      let id = `cat_${suffix}`;
+      while (existingIds.has(id)) {
+        suffix++;
+        id = `cat_${suffix}`;
+      }
+
+      const nextCategories: AwardCategoryDefinition[] = [
+        ...categories,
+        {
+          id,
+          name: 'New Category',
+          awardKind: 'studio',
+        },
+      ];
+
+      return { ...prev, [showId]: stripUndefined({ ...current, categories: nextCategories }) };
+    });
+  };
+
+  const handleDeleteAwardCategoryRow = (showId: string, idx: number) => {
+    setAwardShowEdits((prev) => {
+      const base = baseAwardShowsById.get(showId);
+      const current = prev[showId] ?? base;
+      if (!current) return prev;
+
+      const categories = (current.categories || []).filter((_, i) => i !== idx);
+      return { ...prev, [showId]: stripUndefined({ ...current, categories }) };
+    });
+  };
+
+  const updateAwardCategoryGenres = (showId: string, idx: number, value: string) => {
+    const list = value
+      .split(',')
+      .map((s) => s.trim())
+      .filter(Boolean) as Genre[];
+
+    updateAwardCategoryRow(showId, idx, { eligibility: { genres: list.length ? list : undefined } });
+  };
+
+  const updateAwardCategoryProjectTypes = (showId: string, idx: number, value: string) => {
+    const list = value
+      .split(',')
+      .map((s) => s.trim())
+      .filter(Boolean) as any[];
+
+    updateAwardCategoryRow(showId, idx, { eligibility: { projectTypes: list.length ? (list as any) : undefined } });
+  };
+
+  const handleApplyAwardShowEdits = () => {
+    const modId = editorModId.trim();
+    if (!modId) return;
+
+    const baseIds = new Set(baseAwardShows.map((s) => s.id));
+
+    const keptPatches = bundle.patches.filter(
+      (p) => !(p.modId === modId && p.entityType === 'awardShow' && p.op === 'update' && p.target && baseIds.has(String(p.target)))
+    );
+
+    let next: ModBundle = ensureMod({ ...bundle, patches: keptPatches }, modId);
+
+    for (const showId of baseIds) {
+      const edited = awardShowEdits[showId] ?? baseAwardShowsById.get(showId);
+      const base = baseAwardShowsById.get(showId);
+      if (!edited || !base) continue;
+
+      if (deepEqual(stripUndefined(base), stripUndefined(edited))) continue;
+
+      const patchId = `awardShow:${modId}:${showId}`;
+      next = upsertPatch(next, {
+        id: patchId,
+        modId,
+        entityType: 'awardShow',
+        op: 'update',
+        target: showId,
+        payload: stripUndefined(edited),
+      });
+    }
+
+    syncFromBundle(next);
+    toast({ title: 'Applied', description: `Applied award show changes as patches in mod "${modId}". Click Save to persist.` });
   };
 
   const handleAddCharacterRow = () => {
@@ -1295,6 +1492,8 @@ export const ModsPanel: React.FC = () => {
                         <TabsTrigger value="franchiseCharacters">Franchise Characters</TabsTrigger>
                         <TabsTrigger value="talent">Talent (Core)</TabsTrigger>
                         <TabsTrigger value="franchises">Franchises</TabsTrigger>
+                        <TabsTrigger value="awardShows">Award Shows</TabsTrigger>
+                        <TabsTrigger value="awardCategories">Award Categories</TabsTrigger>
                       </TabsList>
 
                       <TabsContent value="providerDeals" className="space-y-3">
@@ -2755,6 +2954,292 @@ export const ModsPanel: React.FC = () => {
                         <p className="text-xs text-muted-foreground">
                           Tip: Franchise defaults are randomly generated. Applying changes writes full-record <code>franchise</code> update patches keyed by franchise id.
                         </p>
+                      </TabsContent>
+
+                      <TabsContent value="awardShows" className="space-y-3">
+                        <div className="flex flex-wrap items-center justify-between gap-2">
+                          <div className="text-sm text-muted-foreground">
+                            Award Shows: <span className="font-medium text-foreground">{changedAwardShowCount}</span> changed
+                          </div>
+                          <div className="flex flex-wrap gap-2">
+                            <Button
+                              size="sm"
+                              variant="secondary"
+                              onClick={() => {
+                                const modId = editorModId.trim();
+                                if (!modId) return;
+                                rebuildAwardShowEdits(bundle, modId);
+                              }}
+                            >
+                              Reset view
+                            </Button>
+                            <Button size="sm" onClick={handleApplyAwardShowEdits} disabled={changedAwardShowCount === 0}>
+                              Apply changes
+                            </Button>
+                          </div>
+                        </div>
+
+                        <div className="grid grid-cols-1 lg:grid-cols-2 gap-3">
+                          <div className="space-y-1">
+                            <Label className="text-xs text-muted-foreground">Search</Label>
+                            <Input value={awardShowSearch} onChange={(e) => setAwardShowSearch(e.target.value)} placeholder="name or id" />
+                          </div>
+                        </div>
+
+                        <Table>
+                          <TableHeader>
+                            <TableRow>
+                              <TableHead className="p-2">ID</TableHead>
+                              <TableHead className="p-2">Name</TableHead>
+                              <TableHead className="p-2">Medium</TableHead>
+                              <TableHead className="p-2">Nom week</TableHead>
+                              <TableHead className="p-2">Ceremony week</TableHead>
+                              <TableHead className="p-2">Cutoff week</TableHead>
+                              <TableHead className="p-2">Prestige</TableHead>
+                              <TableHead className="p-2">Momentum</TableHead>
+                              <TableHead className="p-2">Categories</TableHead>
+                              <TableHead className="p-2"></TableHead>
+                            </TableRow>
+                          </TableHeader>
+                          <TableBody>
+                            {baseAwardShows
+                              .filter((s) => {
+                                const q = awardShowSearch.trim().toLowerCase();
+                                if (!q) return true;
+                                return s.id.toLowerCase().includes(q) || s.name.toLowerCase().includes(q);
+                              })
+                              .map((s) => {
+                                const edited = awardShowEdits[s.id] ?? s;
+                                const isChanged = !deepEqual(stripUndefined(s), stripUndefined(edited));
+
+                                return (
+                                  <TableRow key={s.id} className={isChanged ? 'bg-muted/30' : undefined}>
+                                    <TableCell className="p-2 font-mono text-xs">{s.id}</TableCell>
+                                    <TableCell className="p-2">
+                                      <Input className="h-8 min-w-[200px]" value={edited.name} onChange={(e) => updateAwardShow(s.id, { name: e.target.value })} />
+                                    </TableCell>
+                                    <TableCell className="p-2">
+                                      <Select value={edited.medium} onValueChange={(v) => updateAwardShow(s.id, { medium: v as any })}>
+                                        <SelectTrigger className="h-8 w-[110px]">
+                                          <SelectValue />
+                                        </SelectTrigger>
+                                        <SelectContent>
+                                          <SelectItem value="film">film</SelectItem>
+                                          <SelectItem value="tv">tv</SelectItem>
+                                        </SelectContent>
+                                      </Select>
+                                    </TableCell>
+                                    <TableCell className="p-2">
+                                      <Input className="h-8 w-[90px]" type="number" value={String(edited.nominationWeek)} onChange={(e) => updateAwardShow(s.id, { nominationWeek: Number(e.target.value) || 0 })} />
+                                    </TableCell>
+                                    <TableCell className="p-2">
+                                      <Input className="h-8 w-[90px]" type="number" value={String(edited.ceremonyWeek)} onChange={(e) => updateAwardShow(s.id, { ceremonyWeek: Number(e.target.value) || 0 })} />
+                                    </TableCell>
+                                    <TableCell className="p-2">
+                                      <Input className="h-8 w-[90px]" type="number" value={String(edited.eligibilityCutoffWeek)} onChange={(e) => updateAwardShow(s.id, { eligibilityCutoffWeek: Number(e.target.value) || 0 })} />
+                                    </TableCell>
+                                    <TableCell className="p-2">
+                                      <Input className="h-8 w-[90px]" type="number" value={String(edited.prestige)} onChange={(e) => updateAwardShow(s.id, { prestige: Number(e.target.value) || 0 })} />
+                                    </TableCell>
+                                    <TableCell className="p-2">
+                                      <Input className="h-8 w-[90px]" type="number" value={String(edited.momentumBonus)} onChange={(e) => updateAwardShow(s.id, { momentumBonus: Number(e.target.value) || 0 })} />
+                                    </TableCell>
+                                    <TableCell className="p-2">
+                                      <Badge variant="outline">{(edited.categories || []).length}</Badge>
+                                    </TableCell>
+                                    <TableCell className="p-2">
+                                      <div className="flex justify-end gap-2">
+                                        <Button size="sm" variant="ghost" onClick={() => { setAwardShowKey(s.id); }}>
+                                          Edit categories
+                                        </Button>
+                                        <Button size="sm" variant="ghost" onClick={() => handleResetAwardShowRow(s.id)}>
+                                          Reset
+                                        </Button>
+                                      </div>
+                                    </TableCell>
+                                  </TableRow>
+                                );
+                              })}
+                          </TableBody>
+                        </Table>
+
+                        <p className="text-xs text-muted-foreground">
+                          Tip: Apply changes generates <code>awardShow</code> update patches keyed by show id.
+                        </p>
+                      </TabsContent>
+
+                      <TabsContent value="awardCategories" className="space-y-3">
+                        <div className="flex flex-wrap items-center justify-between gap-2">
+                          <div className="text-sm text-muted-foreground">
+                            Award Categories: <span className="font-medium text-foreground">{awardShowKey}</span>
+                          </div>
+                          <div className="flex flex-wrap gap-2">
+                            <Button
+                              size="sm"
+                              variant="secondary"
+                              onClick={() => {
+                                const modId = editorModId.trim();
+                                if (!modId) return;
+                                rebuildAwardShowEdits(bundle, modId);
+                              }}
+                            >
+                              Reset view
+                            </Button>
+                            <Button size="sm" variant="secondary" onClick={() => handleAddAwardCategoryRow(awardShowKey)}>
+                              Add category
+                            </Button>
+                            <Button size="sm" onClick={handleApplyAwardShowEdits} disabled={changedAwardShowCount === 0}>
+                              Apply changes
+                            </Button>
+                          </div>
+                        </div>
+
+                        <div className="grid grid-cols-1 lg:grid-cols-2 gap-3">
+                          <div className="space-y-1">
+                            <Label className="text-xs text-muted-foreground">Award show</Label>
+                            <Select value={awardShowKey} onValueChange={setAwardShowKey}>
+                              <SelectTrigger>
+                                <SelectValue placeholder="Select show" />
+                              </SelectTrigger>
+                              <SelectContent>
+                                {baseAwardShows.map((s) => (
+                                  <SelectItem key={s.id} value={s.id}>
+                                    {s.name}
+                                  </SelectItem>
+                                ))}
+                              </SelectContent>
+                            </Select>
+                          </div>
+                        </div>
+
+                        {(() => {
+                          const show = awardShowEdits[awardShowKey] ?? baseAwardShowsById.get(awardShowKey);
+                          const categories = show?.categories || [];
+
+                          if (!show) {
+                            return <div className="text-sm text-muted-foreground">Unknown award show.</div>;
+                          }
+
+                          return (
+                            <>
+                              <Table>
+                                <TableHeader>
+                                  <TableRow>
+                                    <TableHead className="p-2">ID</TableHead>
+                                    <TableHead className="p-2">Name</TableHead>
+                                    <TableHead className="p-2">Kind</TableHead>
+                                    <TableHead className="p-2">Talent type</TableHead>
+                                    <TableHead className="p-2">Gender</TableHead>
+                                    <TableHead className="p-2">Supporting</TableHead>
+                                    <TableHead className="p-2">Bias</TableHead>
+                                    <TableHead className="p-2">Genres</TableHead>
+                                    <TableHead className="p-2">Project types</TableHead>
+                                    <TableHead className="p-2">Animation</TableHead>
+                                    <TableHead className="p-2"></TableHead>
+                                  </TableRow>
+                                </TableHeader>
+                                <TableBody>
+                                  {categories.map((c, idx) => (
+                                    <TableRow key={`${c.id}-${idx}`}>
+                                      <TableCell className="p-2">
+                                        <Input className="h-8 w-[160px] font-mono text-xs" value={c.id} onChange={(e) => updateAwardCategoryRow(show.id, idx, { id: e.target.value })} />
+                                      </TableCell>
+                                      <TableCell className="p-2">
+                                        <Input className="h-8 min-w-[220px]" value={c.name} onChange={(e) => updateAwardCategoryRow(show.id, idx, { name: e.target.value })} />
+                                      </TableCell>
+                                      <TableCell className="p-2">
+                                        <Select value={c.awardKind} onValueChange={(v) => updateAwardCategoryRow(show.id, idx, { awardKind: v as any })}>
+                                          <SelectTrigger className="h-8 w-[120px]">
+                                            <SelectValue />
+                                          </SelectTrigger>
+                                          <SelectContent>
+                                            <SelectItem value="studio">studio</SelectItem>
+                                            <SelectItem value="talent">talent</SelectItem>
+                                          </SelectContent>
+                                        </Select>
+                                      </TableCell>
+                                      <TableCell className="p-2">
+                                        <Select
+                                          value={c.talent?.type ?? 'actor'}
+                                          onValueChange={(v) => updateAwardCategoryRow(show.id, idx, { talent: { ...(c.talent || {}), type: v as any } })}
+                                        >
+                                          <SelectTrigger className="h-8 w-[120px]">
+                                            <SelectValue />
+                                          </SelectTrigger>
+                                          <SelectContent>
+                                            <SelectItem value="actor">actor</SelectItem>
+                                            <SelectItem value="director">director</SelectItem>
+                                          </SelectContent>
+                                        </Select>
+                                      </TableCell>
+                                      <TableCell className="p-2">
+                                        <Select
+                                          value={c.talent?.gender ?? 'any'}
+                                          onValueChange={(v) => updateAwardCategoryRow(show.id, idx, { talent: { ...(c.talent || {}), gender: v === 'any' ? undefined : (v as any) } })}
+                                        >
+                                          <SelectTrigger className="h-8 w-[110px]">
+                                            <SelectValue />
+                                          </SelectTrigger>
+                                          <SelectContent>
+                                            <SelectItem value="any">any</SelectItem>
+                                            <SelectItem value="Male">Male</SelectItem>
+                                            <SelectItem value="Female">Female</SelectItem>
+                                          </SelectContent>
+                                        </Select>
+                                      </TableCell>
+                                      <TableCell className="p-2">
+                                        <div className="h-8 flex items-center">
+                                          <Switch
+                                            checked={!!c.talent?.supporting}
+                                            onCheckedChange={(checked) => updateAwardCategoryRow(show.id, idx, { talent: { ...(c.talent || {}), supporting: checked || undefined } })}
+                                          />
+                                        </div>
+                                      </TableCell>
+                                      <TableCell className="p-2">
+                                        <Input className="h-8 w-[90px]" type="number" value={String(c.bias ?? 0)} onChange={(e) => updateAwardCategoryRow(show.id, idx, { bias: Number(e.target.value) || 0 })} />
+                                      </TableCell>
+                                      <TableCell className="p-2">
+                                        <Input
+                                          className="h-8 min-w-[220px]"
+                                          value={(c.eligibility?.genres || []).join(', ')}
+                                          onChange={(e) => updateAwardCategoryGenres(show.id, idx, e.target.value)}
+                                          placeholder="drama, comedy"
+                                        />
+                                      </TableCell>
+                                      <TableCell className="p-2">
+                                        <Input
+                                          className="h-8 min-w-[220px]"
+                                          value={(c.eligibility?.projectTypes || []).join(', ')}
+                                          onChange={(e) => updateAwardCategoryProjectTypes(show.id, idx, e.target.value)}
+                                          placeholder="series, limited-series"
+                                        />
+                                      </TableCell>
+                                      <TableCell className="p-2">
+                                        <div className="h-8 flex items-center">
+                                          <Switch
+                                            checked={!!c.eligibility?.requireAnimation}
+                                            onCheckedChange={(checked) => updateAwardCategoryRow(show.id, idx, { eligibility: { ...(c.eligibility || {}), requireAnimation: checked || undefined } })}
+                                          />
+                                        </div>
+                                      </TableCell>
+                                      <TableCell className="p-2">
+                                        <div className="flex justify-end gap-2">
+                                          <Button size="sm" variant="ghost" onClick={() => handleDeleteAwardCategoryRow(show.id, idx)}>
+                                            Delete
+                                          </Button>
+                                        </div>
+                                      </TableCell>
+                                    </TableRow>
+                                  ))}
+                                </TableBody>
+                              </Table>
+
+                              <p className="text-xs text-muted-foreground">
+                                Tip: categories are stored on the award show record; apply changes writes a full <code>awardShow</code> patch.
+                              </p>
+                            </>
+                          );
+                        })()}
                       </TabsContent>
                     </Tabs>
         </CardContent>
