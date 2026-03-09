@@ -4,6 +4,7 @@ import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
 import { TalentPerson, ChemistryEvent } from '@/types/game';
 import { Heart, Zap, Users, TrendingUp, TrendingDown, Minus } from 'lucide-react';
+import { useUiStore } from '@/game/uiStore';
 
 interface TalentChemistrySystemProps {
   talent: TalentPerson[];
@@ -20,6 +21,7 @@ export const TalentChemistrySystem: React.FC<TalentChemistrySystemProps> = ({
   currentYear,
   onCreateChemistryEvent
 }) => {
+  const openTalentProfile = useUiStore((s) => s.openTalentProfile);
   const [selectedTalent1, setSelectedTalent1] = useState<TalentPerson | null>(null);
   const [selectedTalent2, setSelectedTalent2] = useState<TalentPerson | null>(null);
   const [viewMode, setViewMode] = useState<'matrix' | 'relationships' | 'events'>('matrix');
@@ -242,7 +244,9 @@ export const TalentChemistrySystem: React.FC<TalentChemistrySystemProps> = ({
                     <div key={`${pair.talent1.id}-${pair.talent2.id}`} className="flex items-center justify-between p-3 border rounded-lg">
                       <div>
                         <h4 className="font-medium">
-                          {pair.talent1.name} & {pair.talent2.name}
+                          <button type="button" className="hover:underline" onClick={() => openTalentProfile(pair.talent1.id)}>{pair.talent1.name}</button>
+                          {' & '}
+                          <button type="button" className="hover:underline" onClick={() => openTalentProfile(pair.talent2.id)}>{pair.talent2.name}</button>
                         </h4>
                         <p className="text-sm text-muted-foreground">{chemistry.effect}</p>
                       </div>
@@ -273,7 +277,9 @@ export const TalentChemistrySystem: React.FC<TalentChemistrySystemProps> = ({
                     <div key={`${pair.talent1.id}-${pair.talent2.id}`} className="flex items-center justify-between p-3 border rounded-lg">
                       <div>
                         <h4 className="font-medium">
-                          {pair.talent1.name} & {pair.talent2.name}
+                          <button type="button" className="hover:underline" onClick={() => openTalentProfile(pair.talent1.id)}>{pair.talent1.name}</button>
+                          {' & '}
+                          <button type="button" className="hover:underline" onClick={() => openTalentProfile(pair.talent2.id)}>{pair.talent2.name}</button>
                         </h4>
                         <p className="text-sm text-muted-foreground">{chemistry.effect}</p>
                       </div>
@@ -310,7 +316,9 @@ export const TalentChemistrySystem: React.FC<TalentChemistrySystemProps> = ({
                   <div key={event.id} className="flex items-center justify-between p-3 border rounded-lg">
                     <div>
                       <h4 className="font-medium">
-                        {talent1.name} & {talent2.name}
+                        <button type="button" className="hover:underline" onClick={() => openTalentProfile(talent1.id)}>{talent1.name}</button>
+                        {' & '}
+                        <button type="button" className="hover:underline" onClick={() => openTalentProfile(talent2.id)}>{talent2.name}</button>
                       </h4>
                       <p className="text-sm text-muted-foreground">{event.description}</p>
                       <p className="text-xs text-muted-foreground">

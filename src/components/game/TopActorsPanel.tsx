@@ -2,11 +2,13 @@ import React from 'react';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
 import { useGameStore } from '@/game/store';
+import { useUiStore } from '@/game/uiStore';
 
 interface TopActorsPanelProps {}
 
 export const TopActorsPanel: React.FC<TopActorsPanelProps> = () => {
   const gameState = useGameStore((s) => s.game);
+  const openTalentProfile = useUiStore((s) => s.openTalentProfile);
 
   if (!gameState) {
     return <div className="p-6 text-sm text-muted-foreground">Loading top actors...</div>;
@@ -18,12 +20,10 @@ export const TopActorsPanel: React.FC<TopActorsPanelProps> = () => {
 
   const getFilmographyCount = (actorId: string) => {
     let count = 0;
-    // Check player projects
     for (const p of gameState.projects) {
       const roles = p.script?.characters || [];
       if (roles.some(r => r.assignedTalentId === actorId)) count++;
     }
-    // Check talent's own filmography
     const talent = gameState.talent.find(t => t.id === actorId);
     if (talent?.filmography) {
       count += talent.filmography.length;
@@ -43,7 +43,12 @@ export const TopActorsPanel: React.FC<TopActorsPanelProps> = () => {
           ) : (
             <div className="space-y-2">
               {actors.map((a, idx) => (
-                <div key={a.id} className="flex items-center justify-between p-3 rounded border bg-card">
+                <button
+                  key={a.id}
+                  type="button"
+                  className="w-full flex items-center justify-between p-3 rounded border bg-card hover:bg-accent transition-colors text-left"
+                  onClick={() => openTalentProfile(a.id)}
+                >
                   <div className="flex items-center gap-3">
                     <Badge variant="secondary" className="w-10 justify-center">#{idx + 1}</Badge>
                     <div>
@@ -61,7 +66,7 @@ export const TopActorsPanel: React.FC<TopActorsPanelProps> = () => {
                       <Badge key={g} variant="outline" className="text-xs">{g}</Badge>
                     ))}
                   </div>
-                </div>
+                </button>
               ))}
             </div>
           )}

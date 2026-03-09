@@ -1,6 +1,7 @@
 import React, { useState } from 'react';
 import { Project, TalentPerson, ScriptCharacter } from '@/types/game';
 import { useGameStore } from '@/game/store';
+import { useUiStore } from '@/game/uiStore';
 import { talentMatchesRole } from '@/utils/castingEligibility';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
@@ -441,6 +442,7 @@ const CastingSlotCard: React.FC<CastingSlotCardProps> = ({
   onCast,
   onRemove,
 }) => {
+  const openTalentProfile = useUiStore((s) => s.openTalentProfile);
   const isDirector = slot.character.requiredType === 'director';
   const candidates = getEligibleTalent(slot.character);
 
@@ -490,7 +492,13 @@ const CastingSlotCard: React.FC<CastingSlotCardProps> = ({
                 </AvatarFallback>
               </Avatar>
               <div>
-                <p className="font-semibold">{slot.talent.name}</p>
+                <button
+                  type="button"
+                  className="font-semibold hover:underline text-left"
+                  onClick={() => openTalentProfile(slot.talent!.id)}
+                >
+                  {slot.talent.name}
+                </button>
                 <p className="text-sm text-muted-foreground">
                   ${(slot.talent.marketValue / 1000000).toFixed(1)}M • Rep: {Math.round(slot.talent.reputation)}
                   {slot.talent.gender && ` • ${slot.talent.gender}`}
@@ -590,6 +598,8 @@ const CastingCandidatesList: React.FC<CastingCandidatesListProps> = ({
   onCast,
   projectGenre
 }) => {
+  const openTalentProfile = useUiStore((s) => s.openTalentProfile);
+
   return (
     <div className="space-y-4">
       {candidates.length === 0 ? (
@@ -624,7 +634,13 @@ const CastingCandidatesList: React.FC<CastingCandidatesListProps> = ({
                   </Avatar>
                   <div>
                     <div className="flex items-center gap-2">
-                      <p className="font-medium text-foreground">{talent.name}</p>
+                      <button
+                        type="button"
+                        className="font-medium text-foreground hover:underline text-left"
+                        onClick={() => openTalentProfile(talent.id)}
+                      >
+                        {talent.name}
+                      </button>
                       {isGenreMatch && <Badge variant="outline" className="text-xs border-blue-300 text-blue-700 dark:border-blue-600 dark:text-blue-300">Genre Match</Badge>}
                       {isCurrent && <Badge variant="default" className="text-xs bg-green-600 text-white dark:bg-green-700">Current</Badge>}
                     </div>
@@ -647,7 +663,6 @@ const CastingCandidatesList: React.FC<CastingCandidatesListProps> = ({
                   size="sm"
                   onClick={() => {
                     onCast(character, talent);
-                    // Force close dialog by finding and clicking backdrop
                     setTimeout(() => {
                       const dialog = document.querySelector('[role="dialog"]');
                       if (dialog) {
