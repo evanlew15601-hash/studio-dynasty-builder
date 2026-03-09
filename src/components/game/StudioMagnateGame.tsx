@@ -422,7 +422,7 @@ export const StudioMagnateGame: React.FC<StudioMagnateGameProps> = ({
       name: gameConfig?.studioName || 'Untitled Pictures',
       reputation: 50,
       budget: gameConfig?.startingBudget || 10000000,
-      founded: new Date().getFullYear(),
+      founded: 1965,
       specialties: gameConfig?.specialties || ['drama'] as Genre[],
       debt: 0,
       lastProjectWeek: 0,
