@@ -1,5 +1,6 @@
 import { describe, expect, it } from 'vitest';
 import { getAwardShowsForYear, getEarliestEligibleShowForRelease } from '@/data/AwardsSchedule';
+import { createEmptyModBundle } from '@/utils/modding';
 
 describe('AwardsSchedule', () => {
   it('includes a TV awards show (Beacon TV) in the schedule', () => {
@@ -33,5 +34,65 @@ describe('AwardsSchedule', () => {
     // Week 20 should qualify for the Beacon TV awards when asking for TV eligibility.
     const tvEligible = getEarliestEligibleShowForRelease(20, 2024, 'tv');
     expect(tvEligible?.name).toBe('Beacon TV');
+  });
+
+  it('exposes award show categories and supports mod patches for awardShow', () => {
+    const base = getAwardShowsForYear(2024);
+    const crown = base.find(s => s.id === 'crown');
+
+    expect(crown?.categories?.length).toBeGreaterThan(0);
+
+    const bundle = createEmptyModBundle();
+    bundle.mods = [{ id: 'test', name: 'test', version: '1.0.0', enabled: true, priority: 0 }];
+    bundle.patches = [
+      {
+        id: 'awardShow:test:crown',
+        modId: 'test',
+        entityType: 'awardShow',
+        op: 'update',
+        target: 'crown',
+        payload: { name: 'Oscar' },
+      },
+    ];
+
+    const patched = getAwardShowsForYear(2024, bundle);
+    expect(patched.find(s => s.id === 'crown')?.name).toBe('Oscar');
+  });
+
+  it('supports insert and delete patches for awardShow', () => {
+    const bundle = createEmptyModBundle();
+    bundle.mods = [{ id: 'test', name: 'test', version: '1.0.0', enabled: true, priority: 0 }];
+    bundle.patches = [
+      {
+        id: 'awardShow:test:crown',
+        modId: 'test',
+        entityType: 'awardShow',
+        op: 'delete',
+        target: 'crown',
+      },
+      {
+        id: 'awardShow:test:custom-show-1',
+        modId: 'test',
+        entityType: 'awardShow',
+        op: 'insert',
+        target: 'custom-show-1',
+        payload: {
+          id: 'custom-show-1',
+          name: 'Custom Awards',
+          medium: 'film',
+          nominationWeek: 1,
+          ceremonyWeek: 10,
+          cooldownWeeks: 1,
+          eligibilityCutoffWeek: 9,
+          prestige: 1,
+          momentumBonus: 1,
+          categories: [],
+        },
+      },
+    ];
+
+    const patched = getAwardShowsForYear(2024, bundle);
+    expect(patched.find(s => s.id === 'crown')).toBeUndefined();
+    expect(patched.find(s => s.id === 'custom-show-1')?.name).toBe('Custom Awards');
   });
 });

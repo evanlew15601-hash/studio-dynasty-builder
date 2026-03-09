@@ -1,7 +1,11 @@
 // AI Studio System - Generates competing studios and their autonomous film releases
 import { Studio, Genre, Project, Script } from '@/types/game';
+import type { ModBundle } from '@/types/modding';
+import { applyPatchesByKey, getPatchesForEntity } from '@/utils/modding';
+import { getModBundle } from '@/utils/moddingStore';
+import { stableInt } from '@/utils/stableRandom';
 
-interface StudioProfile {
+export interface StudioProfile {
   name: string;
   personality: string;
   budget: number;
@@ -14,7 +18,7 @@ interface StudioProfile {
   foundedYear?: number;
 }
 
-const STUDIO_PROFILES: StudioProfile[] = [
+export const STUDIO_PROFILES: StudioProfile[] = [
   {
     name: 'Crimson Peak Entertainment',
     personality: 'Edgy and provocative storytelling (with a marketing department that owns seventeen smoke machines)',
@@ -149,6 +153,12 @@ const STUDIO_PROFILES: StudioProfile[] = [
     brandIdentity: 'Human-scale stories with one perfect needle-drop'
   }
 ];
+
+export function getEffectiveStudioProfiles(mods?: ModBundle): StudioProfile[] {
+  const bundle = mods ?? getModBundle();
+  const patches = getPatchesForEntity(bundle, 'studioProfile');
+  return applyPatchesByKey(STUDIO_PROFILES, patches, (s) => s.name);
+}
 
 // Dynamic title generation keywords
 const TITLE_KEYWORDS = {
@@ -748,17 +758,17 @@ export class StudioGenerator {
     };
   }
 
-  getAllStudios(): Studio[] {
-    return this.generateCompetitorStudios();
+  getAllStudios(mods?: ModBundle): Studio[] {
+    return this.generateCompetitorStudios(mods);
   }
 
-  generateCompetitorStudios(): Studio[] {
-    return STUDIO_PROFILES.map(profile => ({
+  generateCompetitorStudios(mods?: ModBundle): Studio[] {
+    return getEffectiveStudioProfiles(mods).map(profile => ({
       id: `studio-${profile.name.toLowerCase().replace(/\s+/g, '-')}`,
       name: profile.name,
       reputation: profile.reputation,
       budget: profile.budget,
-      founded: profile.foundedYear ?? (2010 + Math.floor(Math.random() * 10)),
+      founded: profile.foundedYear ?? (2010 + stableInt(`${profile.name}|founded`, 0, 9)),
       specialties: profile.specialties,
       debt: 0,
       lastProjectWeek: 0,
@@ -772,8 +782,8 @@ export class StudioGenerator {
     }));
   }
 
-  getStudioProfile(studioName: string): StudioProfile | undefined {
-    return STUDIO_PROFILES.find(profile => profile.name === studioName);
+  getStudioProfile(studioName: string, mods?: ModBundle): StudioProfile | undefined {
+    return getEffectiveStudioProfiles(mods).find(profile => profile.name === studioName);
   }
 
   private generateBoxOfficeTotal(budget: number, genre: Genre): number {

@@ -10,6 +10,10 @@ export function ensureCompetitorStudiosLore(gameState: GameState): GameState {
 
     return {
       ...s,
+      budget: profile.budget,
+      reputation: profile.reputation,
+      specialties: profile.specialties,
+      founded: profile.foundedYear ?? s.founded,
       personality: profile.personality,
       businessTendency: profile.businessTendency,
       brandIdentity: profile.brandIdentity,

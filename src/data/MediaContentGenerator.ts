@@ -1,4 +1,7 @@
 import { MediaItem, MediaEvent, MediaSource, TalentPerson, Project, Studio } from '@/types/game';
+import type { ModBundle } from '@/types/modding';
+import { applyPatchesToRecord, getPatchesForEntity } from '@/utils/modding';
+import { getModBundle } from '@/utils/moddingStore';
 import { MediaSourceGenerator } from '@/data/MediaSourceGenerator';
 
 export class MediaContentGenerator {
@@ -152,15 +155,36 @@ export class MediaContentGenerator {
     ]
   };
 
+  private static getPatchedHeadlines(mods?: ModBundle): Record<string, string[]> {
+    const bundle = mods ?? getModBundle();
+    const patches = getPatchesForEntity(bundle, 'mediaHeadlineTemplates');
+    return applyPatchesToRecord(this.headlines as any, patches) as any;
+  }
+
+  private static getPatchedContentTemplates(mods?: ModBundle): Record<string, string[]> {
+    const bundle = mods ?? getModBundle();
+    const patches = getPatchesForEntity(bundle, 'mediaContentTemplates');
+    return applyPatchesToRecord(this.contentTemplates as any, patches) as any;
+  }
+
+  static getBaseHeadlineTemplates(): Record<string, string[]> {
+    return this.headlines as any;
+  }
+
+  static getBaseContentTemplates(): Record<string, string[]> {
+    return this.contentTemplates as any;
+  }
+
   static generateMediaItem(
     event: MediaEvent,
     entities: {
       studios?: Studio[];
       talent?: TalentPerson[];
       projects?: Project[];
-    }
+    },
+    mods?: ModBundle
   ): MediaItem {
-    const source = MediaSourceGenerator.getSourceForEvent(event.type);
+    const source = MediaSourceGenerator.getSourceForEvent(event.type, false, mods);
     const sentiment = this.determineSentiment(event, source);
     const type = this.mapEventToMediaType(event.type);
 
@@ -168,8 +192,8 @@ export class MediaContentGenerator {
       id: `media_${Date.now()}_${Math.random().toString(36).substr(2, 9)}`,
       source,
       type,
-      headline: this.generateHeadline(event, entities, source),
-      content: this.generateContent(event, entities, source, sentiment),
+      headline: this.generateHeadline(event, entities, source, mods),
+      content: this.generateContent(event, entities, source, sentiment, mods),
       publishDate: {
         week: event.week,
         year: event.year
@@ -261,9 +285,13 @@ export class MediaContentGenerator {
   private static generateHeadline(
     event: MediaEvent,
     entities: any,
-    source: MediaSource
+    source: MediaSource,
+    mods?: ModBundle
   ): string {
-    const templates = this.headlines[event.type as keyof typeof this.headlines] || this.headlines.casting_announcement;
+    const headlines = this.getPatchedHeadlines(mods);
+    const byType = headlines[event.type];
+    const fallback = headlines.casting_announcement || this.headlines.casting_announcement;
+    const templates = Array.isArray(byType) && byType.length ? byType : fallback;
     const template = templates[Math.floor(Math.random() * templates.length)];
     
     return this.replaceVariables(template, event, entities);
@@ -273,9 +301,13 @@ export class MediaContentGenerator {
     event: MediaEvent,
     entities: any,
     source: MediaSource,
-    sentiment: 'positive' | 'neutral' | 'negative'
+    sentiment: 'positive' | 'neutral' | 'negative',
+    mods?: ModBundle
   ): string {
-    const templates = this.contentTemplates[event.type as keyof typeof this.contentTemplates] || this.contentTemplates.casting_announcement;
+    const templatesByType = this.getPatchedContentTemplates(mods);
+    const byType = templatesByType[event.type];
+    const fallback = templatesByType.casting_announcement || this.contentTemplates.casting_announcement;
+    const templates = Array.isArray(byType) && byType.length ? byType : fallback;
     const template = templates[Math.floor(Math.random() * templates.length)];
     
     let content = this.replaceVariables(template, event, entities);

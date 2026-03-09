@@ -563,11 +563,7 @@ export const StudioMagnateGame: React.FC<StudioMagnateGameProps> = ({
         getPatchesForEntity(mods, 'franchise'),
         (f) => f.id
       ),
-      publicDomainIPs: applyPatchesByKey(
-        PublicDomainGenerator.generateInitialPublicDomainIPs(50),
-        getPatchesForEntity(mods, 'publicDomainIP'),
-        (p) => p.id
-      ),
+      publicDomainIPs: PublicDomainGenerator.generateInitialPublicDomainIPs(50, mods),
       aiStudioProjects: [] as Project[],
     };
 

@@ -1,5 +1,7 @@
 // Franchise Generation System
 import { Franchise, Genre } from '@/types/game';
+import { stablePick } from '@/utils/stablePick';
+import { stableFloat01, stableInt } from '@/utils/stableRandom';
 
 interface FranchiseTemplate {
   titlePatterns: string[];
@@ -143,134 +145,131 @@ const FRANCHISE_TEMPLATES: FranchiseTemplate[] = [
 ];
 
 export class FranchiseGenerator {
-  static calculateFranchiseCost(culturalWeight: number): number {
-    // Cost calculation: Higher cultural weight = higher cost
-    // Range: $1M - $50M based on cultural weight (30-100)
-    const baseCost = 1000000; // $1M minimum
-    const weightMultiplier = Math.max(0, culturalWeight - 30) / 70; // 0-1 range
-    return Math.round(baseCost + (weightMultiplier * 49000000)); // Up to $50M
-  }
-
-  static generateInitialFranchises(count: number = 30): Franchise[] {
+  static generateInitialFranchises(count: number = 30, seed: string = 'franchise:v1'): Franchise[] {
     const franchises: Franchise[] = [];
     const usedTitles = new Set<string>();
     const usedSources = new Set<string>();
-    
-    // Generate from templates - only once per parody source
-    const templatesUsed = Math.min(count, FRANCHISE_TEMPLATES.length);
+
+    // Generate some parody franchises based on templates
+    const templatesUsed = Math.min(FRANCHISE_TEMPLATES.length, Math.floor(count * 0.6));
+
     for (let i = 0; i < templatesUsed; i++) {
       const template = FRANCHISE_TEMPLATES[i];
-      
-      // Skip if parody source already used
       if (usedSources.has(template.parodySource)) continue;
-      
-      const titleOptions = template.titlePatterns.filter(title => !usedTitles.has(title));
-      if (titleOptions.length === 0) continue;
-      
-      const title = titleOptions[Math.floor(Math.random() * titleOptions.length)];
+
+      const titleOptions = template.titlePatterns.filter((title) => !usedTitles.has(title));
+      const picked = stablePick(titleOptions, `${seed}|parodyTitle|${template.parodySource}`);
+      const title = picked || template.titlePatterns[0];
+
       usedTitles.add(title);
       usedSources.add(template.parodySource);
-      
-      const culturalWeight = template.culturalWeight + Math.floor(Math.random() * 10 - 5);
+
+      const id = `FR${String(i + 1).padStart(3, '0')}`;
+      const originDate = this.generateRandomDate(2000, 2020, `${seed}|origin|${id}`);
+
+      const culturalWeight = template.culturalWeight + stableInt(`${seed}|cw|${id}`, -5, 4); // ±5 variation
+
       const franchise: Franchise = {
-        id: `FR${String(i + 1).padStart(3, '0')}`,
+        id,
         title,
-        originDate: this.generateRandomDate(2000, 2020),
-        creatorStudioId: `COMP_${Math.floor(Math.random() * 10) + 1}`,
+        originDate,
+        creatorStudioId: `COMP_${stableInt(`${seed}|creator|${id}`, 1, 10)}`,
         genre: template.genre,
         tone: template.tone,
         parodySource: template.parodySource,
-        entries: [], // Will be populated as AI creates films
-        status: Math.random() > 0.3 ? 'active' : 'dormant',
+        entries: [],
+        status: stableFloat01(`${seed}|status|${id}`) > 0.3 ? 'active' : 'dormant',
         franchiseTags: template.tags,
-        culturalWeight,
-        totalBoxOffice: 0,
-        averageRating: 0,
-        merchandisingPotential: Math.floor(Math.random() * 100),
-        fanbaseSize: Math.floor(Math.random() * 1000000),
-        criticalFatigue: 0,
+        culturalWeight: Math.min(100, Math.max(0, culturalWeight)),
+        merchandisingPotential: stableInt(`${seed}|merch|${id}`, 0, 99),
+        fanbaseSize: stableInt(`${seed}|fanbase|${id}`, 0, 999_999),
+        criticalFatigue: stableInt(`${seed}|fatigue|${id}`, 0, 29),
         description: template.description,
-        cost: this.calculateFranchiseCost(culturalWeight)
+        cost: 0, // Will be calculated
       };
-      
+
+      franchise.cost = this.calculateFranchiseCost(franchise);
       franchises.push(franchise);
     }
-    
+
     // Generate additional original franchises
-    const remainingCount = count - franchises.length;
-    for (let i = 0; i < remainingCount; i++) {
-      const randomTemplate = FRANCHISE_TEMPLATES[Math.floor(Math.random() * FRANCHISE_TEMPLATES.length)];
-      const culturalWeight = Math.floor(Math.random() * 40) + 30;
+    while (franchises.length < count) {
+      const id = `FR${String(franchises.length + 1).padStart(3, '0')}`;
+      const randomTemplate = stablePick(FRANCHISE_TEMPLATES, `${seed}|template|${id}`) || FRANCHISE_TEMPLATES[0];
+      const title = this.generateRandomTitle(`${seed}|title|${id}`);
+
+      if (usedTitles.has(title)) continue;
+      usedTitles.add(title);
+
       const franchise: Franchise = {
-        id: `FR${String(franchises.length + i + 1).padStart(3, '0')}`,
-        title: this.generateRandomTitle(),
-        originDate: this.generateRandomDate(1990, 2022),
-        creatorStudioId: `COMP_${Math.floor(Math.random() * 15) + 1}`,
+        id,
+        title,
+        originDate: this.generateRandomDate(1990, 2022, `${seed}|origin|${id}`),
+        creatorStudioId: `COMP_${stableInt(`${seed}|creator|${id}`, 1, 15)}`,
         genre: randomTemplate.genre,
         tone: randomTemplate.tone,
         entries: [],
-        status: Math.random() > 0.4 ? 'active' : 'dormant',
-        franchiseTags: this.generateRandomTags(),
-        culturalWeight,
-        totalBoxOffice: 0,
-        averageRating: 0,
-        merchandisingPotential: Math.floor(Math.random() * 100),
-        fanbaseSize: Math.floor(Math.random() * 500000),
-        criticalFatigue: 0,
-        description: 'A unique franchise with its own distinct style and storytelling approach.',
-        cost: this.calculateFranchiseCost(culturalWeight)
+        status: stableFloat01(`${seed}|status|${id}`) > 0.4 ? 'active' : 'dormant',
+        franchiseTags: this.generateRandomTags(`${seed}|tags|${id}`),
+        culturalWeight: stableInt(`${seed}|cw|${id}`, 30, 69),
+        merchandisingPotential: stableInt(`${seed}|merch|${id}`, 0, 99),
+        fanbaseSize: stableInt(`${seed}|fanbase|${id}`, 0, 499_999),
+        criticalFatigue: stableInt(`${seed}|fatigue|${id}`, 0, 49),
+        description: `An original ${randomTemplate.genre[0]} franchise with ${randomTemplate.tone} tone.`,
+        cost: 0,
       };
-      
+
+      franchise.cost = this.calculateFranchiseCost(franchise);
       franchises.push(franchise);
     }
-    
+
     return franchises;
   }
-  
-  static generateRandomDate(startYear: number, endYear: number): string {
-    const year = Math.floor(Math.random() * (endYear - startYear + 1)) + startYear;
-    const month = Math.floor(Math.random() * 12) + 1;
-    const day = Math.floor(Math.random() * 28) + 1;
+
+  static generateRandomDate(startYear: number, endYear: number, seed: string): string {
+    const year = stableInt(`${seed}|year`, startYear, endYear);
+    const month = stableInt(`${seed}|month`, 1, 12);
+    const day = stableInt(`${seed}|day`, 1, 28);
     return `${year}-${String(month).padStart(2, '0')}-${String(day).padStart(2, '0')}`;
   }
-  
-  static generateRandomTitle(): string {
+
+  static generateRandomTitle(seed: string): string {
     const prefixes = ['The', 'Dark', 'Last', 'New', 'Ultimate', 'Secret', 'Hidden', 'Lost'];
     const subjects = ['Warriors', 'Legends', 'Chronicles', 'Saga', 'Dynasty', 'Empire', 'Alliance', 'Order'];
     const suffixes = ['Rising', 'Returns', 'Awakens', 'Reborn', 'United', 'Forever', 'Legacy', 'Destiny'];
-    
-    const usePrefix = Math.random() > 0.5;
-    const useSuffix = Math.random() > 0.6;
-    
+
+    const usePrefix = stableFloat01(`${seed}|usePrefix`) > 0.5;
+    const useSuffix = stableFloat01(`${seed}|useSuffix`) > 0.6;
+
+    const prefix = stablePick(prefixes, `${seed}|prefix`) || prefixes[0];
+    const subject = stablePick(subjects, `${seed}|subject`) || subjects[0];
+    const suffix = stablePick(suffixes, `${seed}|suffix`) || suffixes[0];
+
     let title = '';
-    if (usePrefix) {
-      title += prefixes[Math.floor(Math.random() * prefixes.length)] + ' ';
-    }
-    title += subjects[Math.floor(Math.random() * subjects.length)];
-    if (useSuffix) {
-      title += ': ' + suffixes[Math.floor(Math.random() * suffixes.length)];
-    }
-    
+    if (usePrefix) title += `${prefix} `;
+    title += subject;
+    if (useSuffix) title += `: ${suffix}`;
+
     return title;
   }
-  
-  static generateRandomTags(): string[] {
+
+  static generateRandomTags(seed: string): string[] {
     const allTags = [
       'action', 'adventure', 'mystery', 'romance', 'comedy', 'drama',
       'supernatural', 'technology', 'family', 'friendship', 'betrayal',
-      'revenge', 'redemption', 'power', 'corruption', 'justice'
+      'revenge', 'redemption', 'power', 'corruption', 'justice',
     ];
-    
-    const tagCount = Math.floor(Math.random() * 3) + 2;
+
+    const tagCount = stableInt(`${seed}|count`, 2, 4);
     const selectedTags: string[] = [];
-    
+
     for (let i = 0; i < tagCount; i++) {
-      const availableTags = allTags.filter(tag => !selectedTags.includes(tag));
-      if (availableTags.length > 0) {
-        selectedTags.push(availableTags[Math.floor(Math.random() * availableTags.length)]);
-      }
+      const availableTags = allTags.filter((tag) => !selectedTags.includes(tag));
+      if (availableTags.length === 0) break;
+      const picked = stablePick(availableTags, `${seed}|tag|${i}`) || availableTags[0];
+      selectedTags.push(picked);
     }
-    
+
     return selectedTags;
   }
   

@@ -18,12 +18,16 @@ export interface ModValidationResult {
 
 /**
  * Validate a mod manifest entry.
+ *
+ * Intentionally forgiving: missing name/version/enabled become warnings and are filled by normalization.
  */
-function validateModInfo(mod: unknown, index: number): { valid: boolean; errors: string[] } {
+function validateModInfo(mod: unknown, index: number): { valid: boolean; errors: string[]; warnings: string[] } {
   const errors: string[] = [];
+  const warnings: string[] = [];
+
   if (!mod || typeof mod !== 'object') {
     errors.push(`Mod at index ${index}: not a valid object`);
-    return { valid: false, errors };
+    return { valid: false, errors, warnings };
   }
 
   const m = mod as Partial<ModInfo>;
@@ -32,32 +36,36 @@ function validateModInfo(mod: unknown, index: number): { valid: boolean; errors:
     errors.push(`Mod at index ${index}: missing or invalid "id"`);
   }
   if (!m.name || typeof m.name !== 'string') {
-    errors.push(`Mod at index ${index}: missing or invalid "name"`);
+    warnings.push(`Mod "${m.id ?? `#${index}`}" is missing "name" — defaulted`);
   }
   if (!m.version || typeof m.version !== 'string') {
-    errors.push(`Mod at index ${index}: missing or invalid "version"`);
+    warnings.push(`Mod "${m.id ?? `#${index}`}" is missing "version" — defaulted`);
   }
   if (typeof m.enabled !== 'boolean') {
-    errors.push(`Mod at index ${index}: "enabled" must be boolean`);
+    warnings.push(`Mod "${m.id ?? `#${index}`}" is missing "enabled" — defaulted to true`);
   }
 
-  return { valid: errors.length === 0, errors };
+  return { valid: errors.length === 0, errors, warnings };
 }
 
 /**
  * Validate a mod patch entry.
+ *
+ * Also forgiving: missing "id" is a warning (normalization will generate one).
  */
-function validatePatch(patch: unknown, index: number): { valid: boolean; errors: string[] } {
+function validatePatch(patch: unknown, index: number): { valid: boolean; errors: string[]; warnings: string[] } {
   const errors: string[] = [];
+  const warnings: string[] = [];
+
   if (!patch || typeof patch !== 'object') {
     errors.push(`Patch at index ${index}: not a valid object`);
-    return { valid: false, errors };
+    return { valid: false, errors, warnings };
   }
 
   const p = patch as Partial<ModPatch>;
 
   if (!p.id || typeof p.id !== 'string') {
-    errors.push(`Patch at index ${index}: missing "id"`);
+    warnings.push(`Patch at index ${index}: missing "id" — will be generated`);
   }
   if (!p.modId || typeof p.modId !== 'string') {
     errors.push(`Patch at index ${index}: missing "modId"`);
@@ -72,7 +80,7 @@ function validatePatch(patch: unknown, index: number): { valid: boolean; errors:
     errors.push(`Patch at index ${index}: "${p.op}" requires a "target"`);
   }
 
-  return { valid: errors.length === 0, errors };
+  return { valid: errors.length === 0, errors, warnings };
 }
 
 /**
@@ -83,10 +91,27 @@ export function validateModBundle(raw: unknown): ModValidationResult {
   const errors: string[] = [];
   const warnings: string[] = [];
 
-  // First normalize to catch structural issues
+  // Normalize first to guarantee a safe bundle shape for consumers.
   const bundle = normalizeModBundle(raw);
 
-  // Validate individual mods
+  // Validate raw entries (so we can report useful errors even if normalization drops them).
+  const rawCandidate = raw && typeof raw === 'object' ? (raw as any) : {};
+  const rawMods: unknown[] = Array.isArray(rawCandidate.mods) ? rawCandidate.mods.filter(Boolean) : [];
+  const rawPatches: unknown[] = Array.isArray(rawCandidate.patches) ? rawCandidate.patches.filter(Boolean) : [];
+
+  for (let i = 0; i < rawMods.length; i++) {
+    const result = validateModInfo(rawMods[i], i);
+    errors.push(...result.errors);
+    warnings.push(...result.warnings);
+  }
+
+  for (let i = 0; i < rawPatches.length; i++) {
+    const result = validatePatch(rawPatches[i], i);
+    errors.push(...result.errors);
+    warnings.push(...result.warnings);
+  }
+
+  // Build a valid mod id set based on the normalized mods list.
   const validModIds = new Set<string>();
   for (let i = 0; i < bundle.mods.length; i++) {
     const result = validateModInfo(bundle.mods[i], i);
@@ -97,12 +122,12 @@ export function validateModBundle(raw: unknown): ModValidationResult {
     }
   }
 
-  // Filter out patches referencing invalid mods
+  // Filter out patches referencing unknown mods.
   const validPatches: ModPatch[] = [];
   for (let i = 0; i < bundle.patches.length; i++) {
     const result = validatePatch(bundle.patches[i], i);
     if (!result.valid) {
-      errors.push(...result.errors);
+      // Errors/warnings for this entry were already emitted from the raw validation pass.
       continue;
     }
     if (!validModIds.has(bundle.patches[i].modId)) {

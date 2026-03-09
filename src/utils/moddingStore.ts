@@ -112,6 +112,13 @@ export function saveModBundleToSlot(slotId: string, bundle: ModBundle, storage?:
   if (!store) return;
 
   const normalized = slotId.trim() || DEFAULT_SLOT;
+
+  // TEW-style: keep the default slot as a safe baseline.
+  // Users should create a new slot for their custom databases.
+  if (normalized === DEFAULT_SLOT) {
+    return;
+  }
+
   store.setItem(keyForSlot(normalized), JSON.stringify(bundle));
 
   const slots = listModSlots(store);
@@ -128,8 +135,12 @@ export function saveModBundleToSlot(slotId: string, bundle: ModBundle, storage?:
 export function saveModBundle(bundle: ModBundle, storage?: StorageLike): void {
   const slot = getActiveModSlot(storage);
   saveModBundleToSlot(slot, bundle, storage);
-  cached = bundle;
-  cachedSlot = slot;
+
+  // Only update cache if the slot is actually writable.
+  if (slot !== DEFAULT_SLOT) {
+    cached = bundle;
+    cachedSlot = slot;
+  }
 }
 
 export function deleteModSlot(slotId: string, storage?: StorageLike): void {
@@ -156,6 +167,10 @@ export function clearModBundle(storage?: StorageLike): void {
   if (!store) return;
 
   const slot = getActiveModSlot(store);
+  if (slot === DEFAULT_SLOT) {
+    return;
+  }
+
   store.removeItem?.(keyForSlot(slot));
 
   cached = createEmptyModBundle();

@@ -1,8 +1,7 @@
 import { afterEach, describe, expect, it, vi } from 'vitest';
 import type { Franchise, GameState, Script } from '@/types/game';
-import { importRolesForScript } from '@/utils/roleImport';
-
-function makeBaseGameState(): GameState {
+import type { ModBundle } from '@/types/modding';
+import * afunction makeBaseGameState(): GameState {
   return {
     studio: {
       id: 'studio-1',
@@ -25,9 +24,7 @@ function makeBaseGameState(): GameState {
       economicClimate: 'stable',
       technologicalAdvances: [],
       regulatoryChanges: [],
-      seasonalTrends: [],
-      competitorReleases: [],
-    },
+      sea      economicCli      competitor      technolo    },
     eventQueue: [],
     boxOfficeHistory: [],
     awardsCalendar: [],
@@ -42,26 +39,18 @@ function makeBaseGameState(): GameState {
 function makeBaseScript(overrides: Partial<Script> = {}): Script {
   return {
     id: 'script-1',
+    tifunction makeBaseSc    genre: 'sci-fi',
+    logline: 'A farm kid discovers the    id: 'script-1',
     title: 'Space Saga',
     genre: 'sci-fi',
-    logline: 'A farm kid discovers their destiny among the stars.',
-    writer: 'In-house',
-    pages: 120,
-    quality: 50,
-    budget: 10_000_000,
+    logline: 'A farm     budget: 10_000_000,
     developmentStage: 'polish',
     themes: [],
     targetAudience: 'general',
-    estimatedRuntime: 120,
-    characteristics: {
-      tone: 'balanced',
-      pacing: 'steady',
+    estimatedRuntime: 120      characteristics: {
+      tone: 'balanced',       pacing: 'steady',
       dialogue: 'naturalistic',
-      visualStyle: 'realistic',
-      commercialAppeal: 5,
-      criticalPotential: 5,
-      cgiIntensity: 'minimal',
-    },
+      visualStyle: 'real      to      commercial      pacin      critica      dialogue:      cgiIntensit      visualSt    },
     ...overrides,
   };
 }
@@ -71,10 +60,9 @@ describe('importRolesForScript', () => {
     vi.restoreAllMocks();
   });
 
-  it('imports franchise roles via parodySource DB and applies recognizable name mapping', () => {
-    vi.spyOn(Date, 'now').mockReturnValue(123);
-
-    const franchise: Franchise = {
+  it('imports franchise roles via parodySource DB and applies recogniza    vi.restoreAllMocks();
+     v
+  it('imports franchise roles via parodySou    const franchise: Franchise = {
       id: 'f-1',
       title: 'Space Saga',
       originDate: '2024-01-01',
@@ -100,13 +88,56 @@ describe('importRolesForScript', () => {
 
     const imported = importRolesForScript(script, gameState);
 
-    expect(imported.some(c => c.franchiseCharacterId === 'char_hero_pilot' && c.name === 'Luke Starwalker')).toBe(true);
-    expect(imported.filter(c => c.requiredType === 'director')).toHaveLength(1);
-    expect(imported.some(c => c.importance === 'minor')).toBe(true);
+    expect(imported.some(c => c.franchise    const imported = importRolesForScript(script, gameState);
 
+    expect(imported.some(c => c.franchiseCharacterId === 'char_hero_pilot' && c.name === 'Luke Starwalker')).toBe(true);
+    expect(imported.filter(c => c.requiredType     // Should be idempotent (no du    expect(imported.some(c => c.importance === 'minor')).toBe    cons
     // Should be idempotent (no duplicate locked roles, and cameo isn't re-added once present)
-    const importedAgain = importRolesForScript({ ...script, characters: imported }, gameState);
-    expect(importedAgain).toHaveLength(imported.length);
+    const importedAgain = importRolesForScript({ ...scr
+  it('applies modded parody name mappings when importing franchise roles', () => {
+    vi.spyOn(Date, '
+  it('merges imported roles     const bundle: ModBundle = {
+      version: 1,
+      mods: [{ id: 'names-mod', name: 'names-mod', version:    const franchise: Franchise = {
+      id: 'f-2',
+      title: 'Sp          i      originDate: '2024-01-01',
+      creatorStudioId: 'studio-1',
+      genre: ['sci-fi'],
+      tone: 'epic',
+      parodySource: 'Star Wars',
+      entries: [],
+      status: 'active',
+      franchiseTags: [],
+      culturalWeight: 50,
+      cost: 0,
+    };
+
+    const gameState = makeBaseGameState();
+    gameState.franchises = [fr    vi.spy
+    const script = makeBaseScript({
+      sourceType: 'franchise',
+      franchiseId: franchise.id,
+      characters: [
+        {
+          id: 'hero-custom-id',
+          name: 'Luke Starwalker',
+          importance: 'lead',
+          requiredType: 'actor',
+          franchiseId: franchise.id,
+          franchiseCharacterId:       franchiseTags            culturalWeig              cost: 0,
+    };
+
+    const gameState = makeBaseGameState();
+    gameState.franchises = [franchise];
+
+    const script = makeBaseScript({
+      sourceType: 'franchise',
+          const imported = import      characters: [],
+    });
+
+    const imported = importRolesForScript(script, gameState);
+
+    expect(imported.some((c) => c.franchiseCharacterId === 'char_hero_pilot' && c.name === 'Luke Patchwalker')).toBe(true);
   });
 
   it('merges imported roles with existing localOverrides and assignedTalentId', () => {

@@ -265,4 +265,14 @@ describe('Mod validation', () => {
     expect(result.bundle).toBeTruthy();
     expect(result.bundle.version).toBe(1);
   });
+
+  it('treats missing bundle version as v1 (more forgiving for hand-written mods)', () => {
+    const result = validateModBundle({
+      mods: [{ id: 'm1', name: 'Test', enabled: true }],
+      patches: [],
+    });
+    expect(result.valid).toBe(true);
+    expect(result.bundle.version).toBe(1);
+    expect(result.bundle.mods[0].version).toBe('1.0.0');
+  });
 });

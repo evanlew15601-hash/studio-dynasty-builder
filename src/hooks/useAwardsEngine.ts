@@ -1,6 +1,7 @@
 import { useEffect, useState } from 'react';
 import { GameState, Project, Studio, StudioAward, TalentAward, TalentPerson } from '@/types/game';
 import { getAwardShowsForYear } from '@/data/AwardsSchedule';
+import type { AwardCategoryDefinition } from '@/data/AwardsSchedule';
 import { useToast } from '@/hooks/use-toast';
 import { AwardShowCeremony } from '@/components/game/IndividualAwardShowModal';
 import { stablePick } from '@/utils/stablePick';
@@ -100,174 +101,50 @@ export function useAwardsEngine(
     return Math.min(100, Math.max(0, probability));
   };
 
-  const getShowConfig = (ceremonyName: string) => {
+  const getShowByKey = (key: string) => {
     const schedule = getAwardShowsForYear(gameState.currentYear);
-    const show = schedule.find((s) => s.name === ceremonyName);
-
-    const base = (() => {
-      switch (ceremonyName) {
-        case 'Crystal Ring':
-          return {
-            medium: 'film' as const,
-            prestige: 6,
-            categories: [
-              'Best Picture - Drama', 'Best Picture - Comedy/Musical', 'Best Director',
-              'Best Actor - Drama', 'Best Actress - Drama', 'Best Actor - Comedy/Musical',
-              'Best Actress - Comedy/Musical', 'Best Supporting Actor', 'Best Supporting Actress',
-              'Best Screenplay', 'Best Original Score'
-            ],
-            nominationWeek: 2,
-            ceremonyWeek: 6,
-            momentumBonus: 8,
-          } as const;
-        case 'Critics Circle':
-          return {
-            medium: 'film' as const,
-            prestige: 5,
-            categories: [
-              'Best Film', 'Best Director', 'Best Actor', 'Best Actress',
-              'Best Supporting Actor', 'Best Supporting Actress', 'Best Original Screenplay',
-              'Best Cinematography', 'Best Visual Effects',
-              'Best Editing', 'Best Production Design'
-            ],
-            nominationWeek: 3,
-            ceremonyWeek: 8,
-            momentumBonus: 6,
-          } as const;
-        case 'Beacon TV':
-          return {
-            medium: 'tv' as const,
-            prestige: 8,
-            categories: [
-              'Best Drama Series',
-              'Best Comedy Series',
-              'Best Limited Series',
-              'Best Actor - Drama Series',
-              'Best Actress - Drama Series',
-              'Best Actor - Comedy Series',
-              'Best Actress - Comedy Series',
-              'Best Supporting Actor',
-              'Best Supporting Actress',
-              'Best Writing',
-              'Best Directing'
-            ],
-            nominationWeek: 34,
-            ceremonyWeek: 38,
-            momentumBonus: 10,
-          } as const;
-        case 'Crown':
-          return {
-            medium: 'film' as const,
-            prestige: 10,
-            categories: [
-              'Best Picture', 'Best Director', 'Best Actor', 'Best Actress',
-              'Best Supporting Actor', 'Best Supporting Actress', 'Best Original Screenplay',
-              'Best Cinematography', 'Best Film Editing',
-              'Best Visual Effects', 'Best Production Design', 'Best Costume Design',
-              'Best Makeup and Hairstyling', 'Best Original Score', 'Best Original Song',
-              'Best Sound', 'Best Animated Feature'
-            ],
-            nominationWeek: 4,
-            ceremonyWeek: 10,
-            momentumBonus: 12,
-          } as const;
-        case 'Performers Guild':
-          return {
-            medium: 'film' as const,
-            prestige: 6,
-            categories: [
-              'Outstanding Ensemble',
-              'Best Actor',
-              'Best Actress',
-              'Best Supporting Actor',
-              'Best Supporting Actress',
-              'Outstanding Stunt Ensemble'
-            ],
-            nominationWeek: 5,
-            ceremonyWeek: 12,
-            momentumBonus: 6,
-          } as const;
-        case 'Directors Circle':
-          return {
-            medium: 'film' as const,
-            prestige: 7,
-            categories: [
-              'Directing Achievement',
-              'First-Time Feature Director',
-              'Best Director - Genre',
-              'Best Director - Drama'
-            ],
-            nominationWeek: 6,
-            ceremonyWeek: 13,
-            momentumBonus: 7,
-          } as const;
-        case 'Writers Circle':
-          return {
-            medium: 'film' as const,
-            prestige: 7,
-            categories: [
-              'Best Original Screenplay',
-              'Best Adapted Screenplay',
-              'Breakthrough Screenplay'
-            ],
-            nominationWeek: 7,
-            ceremonyWeek: 14,
-            momentumBonus: 7,
-          } as const;
-        case 'Britannia Screen':
-          return {
-            medium: 'film' as const,
-            prestige: 8,
-            categories: [
-              'Best Film',
-              'Best Director',
-              'Best Actor',
-              'Best Actress',
-              'Best Screenplay',
-              'Best Cinematography',
-              'Best Debut'
-            ],
-            nominationWeek: 8,
-            ceremonyWeek: 15,
-            momentumBonus: 8,
-          } as const;
-        default:
-          return {
-            medium: 'film' as const,
-            prestige: 6,
-            categories: ['Best Picture', 'Best Director', 'Best Actor', 'Best Actress'],
-            nominationWeek: 4,
-            ceremonyWeek: 10,
-            momentumBonus: 6,
-          } as const;
-      }
-    })();
-
-    return {
-      ...base,
-      medium: show?.medium ?? base.medium,
-      nominationWeek: show?.nominationWeek ?? base.nominationWeek,
-      ceremonyWeek: show?.ceremonyWeek ?? base.ceremonyWeek,
-    };
+    return schedule.find((s) => s.id === key) ?? schedule.find((s) => s.name === key);
   };
 
-  const announceNominations = (ceremonyName: string) => {
-    const key = `${ceremonyName}-${gameState.currentYear}`;
+  const isTalentCategory = (category: AwardCategoryDefinition): boolean => {
+    if (category.awardKind === 'talent') return true;
+    const cl = category.name.toLowerCase();
+    return cl.includes('actor') || cl.includes('actress') || cl.includes('director') || cl.includes('directing');
+  };
+
+  const announceNominations = (showKey: string) => {
+    const show = getShowByKey(showKey);
+    if (!show) return;
+
+    const key = `${show.id}-${gameState.currentYear}`;
     if (seasonNominations[key]) return; // idempotent
 
-    const { categories, medium } = getShowConfig(ceremonyName);
-    const eligible = getEligibleProjects(medium);
+    const categories = show.categories || [];
+    const eligible = getEligibleProjects(show.medium);
 
     const categoriesMap: Record<string, Array<{ project: Project; score: number }>> = {};
 
     categories.forEach((category) => {
-      const categoryLower = category.toLowerCase();
+      const categoryName = category.name;
+      const categoryLower = categoryName.toLowerCase();
 
       const ranked = eligible
         .map((project) => {
-          const base = calculateAwardsProbability(project, medium);
+          if (category.eligibility?.projectTypes && !category.eligibility.projectTypes.includes(project.type)) {
+            return { project, score: 0 };
+          }
+
+          if (category.eligibility?.genres && !category.eligibility.genres.includes(project.script.genre)) {
+            return { project, score: 0 };
+          }
+
+          if (category.eligibility?.requireAnimation && project.script.genre !== 'animation') {
+            return { project, score: 0 };
+          }
+
+          const base = calculateAwardsProbability(project, show.medium);
           const momentum = seasonMomentum[project.id] || 0;
-          
+
           // Enhanced category bias
           let categoryBias = 0;
           if (categoryLower.includes('director') || categoryLower.includes('directing')) categoryBias = 5;
@@ -275,23 +152,25 @@ export function useAwardsEngine(
           else if (categoryLower.includes('screenplay')) categoryBias = 4;
           else if (categoryLower.includes('cinematography') || categoryLower.includes('visual')) categoryBias = 6;
           else if (categoryLower.includes('editing') || categoryLower.includes('sound')) categoryBias = 2;
-          
-          // Medium-aware category gating / bias
-          if (medium === 'film') {
-            if (categoryLower.includes('animated') && project.script?.genre !== 'animation') return { project, score: 0 };
-            if (categoryLower.includes('comedy') && project.script?.genre !== 'comedy') categoryBias -= 3;
-            if (categoryLower.includes('drama') && ['drama', 'biography', 'historical'].includes(project.script?.genre || '')) categoryBias += 5;
+
+          if (typeof category.bias === 'number') categoryBias += category.bias;
+
+          // Medium-aware category gating / bias (fallback logic driven by the category name)
+          if (show.medium === 'film') {
+            if (categoryLower.includes('animated') && project.script.genre !== 'animation') return { project, score: 0 };
+            if (categoryLower.includes('comedy') && project.script.genre !== 'comedy') categoryBias -= 3;
+            if (categoryLower.includes('drama') && ['drama', 'biography', 'historical'].includes(project.script.genre || '')) categoryBias += 5;
           } else {
             // TV awards
             if (categoryLower.includes('limited series') && project.type !== 'limited-series') return { project, score: 0 };
 
             if (categoryLower.includes('drama series')) {
-              if (project.script?.genre !== 'drama') return { project, score: 0 };
+              if (project.script.genre !== 'drama') return { project, score: 0 };
               categoryBias += 4;
             }
 
             if (categoryLower.includes('comedy series')) {
-              if (project.script?.genre !== 'comedy') return { project, score: 0 };
+              if (project.script.genre !== 'comedy') return { project, score: 0 };
               categoryBias += 4;
             }
 
@@ -303,12 +182,8 @@ export function useAwardsEngine(
 
           // Critically acclaimed actor/director boost for individual categories
           let talentBonus = 0;
-          const isActingCategory = categoryLower.includes('actor') || categoryLower.includes('actress');
-          const isDirectorCategory = categoryLower.includes('director') || categoryLower.includes('directing');
-          const isTalentCategory = isActingCategory || isDirectorCategory;
-
-          if (isTalentCategory) {
-            const talent = findRelevantTalent(project, category);
+          if (isTalentCategory(category)) {
+            const talent = findRelevantTalent(project, categoryName, category);
             if (talent) {
               const baseRep = talent.reputation || 50;
               const awardsCount = talent.awards?.length || 0;
@@ -323,17 +198,14 @@ export function useAwardsEngine(
               talentBonus = repBonus + awardsBonus + fameBonus;
             }
           }
-          
-          const score = Math.min(
-            100,
-            base + momentum + categoryBias + talentBonus + (Math.random() * 8 - 4)
-          );
+
+          const score = Math.min(100, base + momentum + categoryBias + talentBonus + (Math.random() * 8 - 4));
           return { project, score };
         })
         .filter(({ score }) => score > 10) // Filter out clearly ineligible
         .sort((a, b) => b.score - a.score)
         .slice(0, 5);
-      categoriesMap[category] = ranked;
+      categoriesMap[categoryName] = ranked;
     });
 
     setSeasonNominations((prev) => ({
@@ -364,6 +236,8 @@ export function useAwardsEngine(
       }
     }
 
+    const categoryDefByName = new Map(categories.map((c) => [c.name, c] as const));
+
     let queuedNominationMedia = false;
     nominationHighlights.slice(0, 2).forEach(({ project, category }) => {
       const isPlayer = isPlayerProject(project);
@@ -372,8 +246,10 @@ export function useAwardsEngine(
         : undefined;
       const studioId = isPlayer ? gameState.studio.id : competitorStudio?.id;
 
-      const isTalentCategory = category.toLowerCase().includes('actor') || category.toLowerCase().includes('actress') || category.toLowerCase().includes('director') || category.toLowerCase().includes('directing');
-      const talent = isTalentCategory ? findRelevantTalent(project, category) : undefined;
+      const categoryDef = categoryDefByName.get(category);
+      const talent = categoryDef && isTalentCategory(categoryDef)
+        ? findRelevantTalent(project, category, categoryDef)
+        : undefined;
 
       MediaEngine.queueMediaEvent({
         type: 'award_nomination',
@@ -387,7 +263,7 @@ export function useAwardsEngine(
         eventData: {
           project,
           talent,
-          awardName: `${ceremonyName} - ${category}`
+          awardName: `${show.name} - ${category}`
         },
         week: gameState.currentWeek,
         year: gameState.currentYear
@@ -399,30 +275,39 @@ export function useAwardsEngine(
       MediaEngine.processMediaEvents(gameState);
     }
 
-    console.log(`[AwardsEngine] ${ceremonyName} nominations announced for Y${gameState.currentYear}`);
+    console.log(`[AwardsEngine] ${show.name} nominations announced for Y${gameState.currentYear}`);
     toast({
-      title: `${ceremonyName} Nominations Announced`,
+      title: `${show.name} Nominations Announced`,
       description: `Top contenders selected across ${categories.length} categories.`,
     });
   };
 
-  const triggerAwardsCeremony = (ceremonyName: string) => {
-    const { categories, ceremonyWeek, prestige, momentumBonus } = getShowConfig(ceremonyName);
-    const key = `${ceremonyName}-${gameState.currentYear}`;
+  const triggerAwardsCeremony = (showKey: string) => {
+    const show = getShowByKey(showKey);
+    if (!show) return;
+
+    const { ceremonyWeek, prestige, momentumBonus, categories } = show;
+    const ceremonyName = show.name;
+
+    const key = `${show.id}-${gameState.currentYear}`;
     if (gameState.currentWeek !== ceremonyWeek) return;
     if (processedCeremonies.has(key)) return;
 
     if (!seasonNominations[key]) {
-      announceNominations(ceremonyName);
+      announceNominations(show.id);
     }
     const nominationsRecord = seasonNominations[key];
     if (!nominationsRecord) return;
+
+    const categoryDefByName = new Map(categories.map((c) => [c.name, c] as const));
 
     const flatForModal: Array<{ project: Project; category: string; won: boolean; award?: StudioAward; talentAward?: TalentAward; talentName?: string }> = [];
     const winnersThisShow: string[] = [];
     let extraTalentStudioReputation = 0;
 
-    categories.forEach((category) => {
+    categories.forEach((categoryDef) => {
+      const category = categoryDef.name;
+
       const nominees = nominationsRecord.categories[category] || [];
       if (nominees.length === 0) return;
       const weighted = nominees.map((n, idx) => ({
@@ -442,18 +327,16 @@ export function useAwardsEngine(
 
       nominees.forEach((n) => {
         const won = n.project.id === winner.project.id;
-        const isActingCategory = category.toLowerCase().includes('actor') || category.toLowerCase().includes('actress');
-        const isDirectorCategory = category.toLowerCase().includes('director') || category.toLowerCase().includes('directing');
-        const isTalentCategory = isActingCategory || isDirectorCategory;
-        
+        const categoryIsTalent = isTalentCategory(categoryDef);
+
         let talentAward: TalentAward | undefined;
         let studioAward: StudioAward | undefined;
         let talentName: string | undefined;
 
         if (won) {
-          if (isTalentCategory) {
+          if (categoryIsTalent) {
             // Find relevant talent for this category
-            const relevantTalent = findRelevantTalent(n.project, category);
+            const relevantTalent = findRelevantTalent(n.project, category, categoryDef);
             if (relevantTalent) {
               talentAward = {
                 id: `talent-award-${Date.now()}-${Math.random()}`,
@@ -467,7 +350,7 @@ export function useAwardsEngine(
                 marketValueBoost: relevantTalent.marketValue * (prestige / 50),
               };
               talentName = relevantTalent.name;
-              
+
               // Update talent with award
               if (onTalentUpdate) {
                 const currentAwards = relevantTalent.awards || [];
@@ -499,7 +382,7 @@ export function useAwardsEngine(
             };
           }
         }
-        
+
         flatForModal.push({ project: n.project, category, won, award: studioAward, talentAward, talentName });
         if (won) winnersThisShow.push(n.project.id);
       });
@@ -509,8 +392,8 @@ export function useAwardsEngine(
     const playerWin = flatForModal.find(f => f.won && gameState.projects.some(p => p.id === f.project.id));
     if (playerWin) {
       const awardName = `${ceremonyName} - ${playerWin.category}`;
-      const isTalentCategory = playerWin.category.toLowerCase().includes('actor') || playerWin.category.toLowerCase().includes('actress') || playerWin.category.toLowerCase().includes('director') || playerWin.category.toLowerCase().includes('directing');
-      const talent = isTalentCategory ? findRelevantTalent(playerWin.project, playerWin.category) : undefined;
+      const def = categoryDefByName.get(playerWin.category);
+      const talent = def && isTalentCategory(def) ? findRelevantTalent(playerWin.project, playerWin.category, def) : undefined;
 
       MediaEngine.queueMediaEvent({
         type: 'award_win',
@@ -553,12 +436,12 @@ export function useAwardsEngine(
       // Convert nominations to proper format for modal (include talentName for talent categories)
       const isPlayerProject = (p: Project) => gameState.projects.some(pp => pp.id === p.id);
 
-      categories.forEach((category) => {
+      categories.forEach((categoryDef) => {
+        const category = categoryDef.name;
         const nominees = nominationsRecord.categories[category] || [];
+
         ceremonyData.nominations[category] = nominees.map(n => {
-          const t = (category.toLowerCase().includes('actor') || category.toLowerCase().includes('actress') || category.toLowerCase().includes('director') || category.toLowerCase().includes('directing'))
-            ? findRelevantTalent(n.project, category)
-            : undefined;
+          const t = isTalentCategory(categoryDef) ? findRelevantTalent(n.project, category, categoryDef) : undefined;
 
           const isPlayer = isPlayerProject(n.project);
           const studioName = isPlayer ? gameState.studio.name : (n.project.studioName || 'AI Studio');
@@ -573,7 +456,9 @@ export function useAwardsEngine(
       });
 
       // Add winners to ceremony data
-      categories.forEach((category) => {
+      categories.forEach((categoryDef) => {
+        const category = categoryDef.name;
+
         const nominees = nominationsRecord.categories[category] || [];
         const winner = nominees.find(n => flatForModal.some(f => f.project.id === n.project.id && f.category === category && f.won));
         if (winner) {
@@ -640,13 +525,13 @@ export function useAwardsEngine(
     const shows = getAwardShowsForYear(gameState.currentYear);
 
     shows.forEach((s) => {
-      if (gameState.currentWeek === s.nominationWeek) announceNominations(s.name);
+      if (gameState.currentWeek === s.nominationWeek) announceNominations(s.id);
     });
-    shows.forEach((s) => triggerAwardsCeremony(s.name));
+    shows.forEach((s) => triggerAwardsCeremony(s.id));
   }, [gameState.currentWeek, gameState.currentYear]);
 
   // Helper function to find relevant talent for awards categories
-  const findRelevantTalent = (project: Project, category: string): TalentPerson | undefined => {
+  const findRelevantTalent = (project: Project, category: string, categoryDef?: AwardCategoryDefinition): TalentPerson | undefined => {
     const categoryLower = category.toLowerCase();
 
     // Prefer explicit cast/crew lists first
@@ -657,8 +542,14 @@ export function useAwardsEngine(
     const getTalentById = (id?: string) => gameState.talent.find(t => t.id === id);
     const pick = <T,>(items: T[], suffix: string) => stablePick(items, `${project.id}|${categoryLower}|${suffix}`);
 
+    const desiredTalentType = categoryDef?.talent?.type;
+    const desiredGender = categoryDef?.talent?.gender;
+    const desiredSupporting = categoryDef?.talent?.supporting;
+
     // Director category
-    if (categoryLower.includes('director') || categoryLower.includes('directing')) {
+    const directorCategory = desiredTalentType === 'director' || categoryLower.includes('director') || categoryLower.includes('directing');
+
+    if (directorCategory) {
       // From cast/crew credits
       const directorEntries = [...castEntries, ...crewEntries].filter(c => (c.role || '').toLowerCase().includes('director'));
       const castDir = directorEntries.length > 1 ? pick(directorEntries, 'director') : directorEntries[0];
@@ -678,13 +569,14 @@ export function useAwardsEngine(
     }
 
     // Acting categories - deterministic selection (no Math.random), with gender handling
-    const isActress = categoryLower.includes('actress');
-    const isSupporting = categoryLower.includes('supporting');
+    const isSupporting = desiredSupporting ?? categoryLower.includes('supporting');
 
     const genderOkStrict = (talent: TalentPerson | undefined) => {
       if (!talent || talent.type !== 'actor') return false;
-      if (isActress) return talent.gender === 'Female';
-      return talent.gender !== 'Female';
+      if (desiredGender) return talent.gender === desiredGender;
+      if (categoryLower.includes('actress')) return talent.gender === 'Female';
+      if (categoryLower.includes('actor')) return talent.gender !== 'Female';
+      return true;
     };
 
     const genderOkLoose = (talent: TalentPerson | undefined) => {

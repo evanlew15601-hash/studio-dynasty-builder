@@ -58,8 +58,9 @@ export const IndividualAwardShowModal: React.FC<IndividualAwardShowModalProps> =
     .filter(winner => isPlayerProject(winner.project));
 
   const isTalentCategory = (category: string) => {
-    const cl = category.toLowerCase();
-    return cl.includes('actor') || cl.includes('actress') || cl.includes('director') || cl.includes('directing');
+    const noms = ceremony.nominations[category] || [];
+    const winner = ceremony.winners[category];
+    return noms.some(n => !!n.talentName) || !!winner?.talentName;
   };
 
   const nextCategory = () => {

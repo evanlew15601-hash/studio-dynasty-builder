@@ -46,6 +46,10 @@ describe('competitorStudiosPatches', () => {
     const patched = ensureCompetitorStudiosLore(gs as unknown as GameState);
     const st = patched.competitorStudios[0];
 
+    expect(st.budget).toBe(profile!.budget);
+    expect(st.reputation).toBe(profile!.reputation);
+    expect(st.specialties).toEqual(profile!.specialties);
+    expect(st.founded).toBe(profile!.foundedYear ?? 2012);
     expect(st.personality).toBe(profile!.personality);
     expect(st.businessTendency).toBe(profile!.businessTendency);
     expect(st.brandIdentity).toBe(profile!.brandIdentity);
