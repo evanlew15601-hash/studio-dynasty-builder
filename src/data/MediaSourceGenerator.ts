@@ -1,9 +1,12 @@
 import { MediaSource, MediaItem, MediaEvent, MediaMemory, MediaCampaign, Genre } from '@/types/game';
+import type { ModBundle } from '@/types/modding';
+import { applyPatchesByKey, getPatchesForEntity } from '@/utils/modding';
+import { getModBundle } from '@/utils/moddingStore';
 
 export class MediaSourceGenerator {
   private static sources: MediaSource[] = [];
 
-  static generateMediaSources(): MediaSource[] {
+  private static buildBaseSources(): MediaSource[] {
     if (this.sources.length > 0) return this.sources;
 
     const mediaOutlets = [
@@ -174,21 +177,32 @@ export class MediaSourceGenerator {
     return this.sources;
   }
 
-  static getSourcesByType(type: MediaSource['type']): MediaSource[] {
-    return this.generateMediaSources().filter(source => source.type === type);
+  static getBaseMediaSources(): MediaSource[] {
+    return this.buildBaseSources();
   }
 
-  static getSourcesByCredibility(minCredibility: number): MediaSource[] {
-    return this.generateMediaSources().filter(source => source.credibility >= minCredibility);
+  static generateMediaSources(mods?: ModBundle): MediaSource[] {
+    const base = this.buildBaseSources();
+    const bundle = mods ?? getModBundle();
+    const patches = getPatchesForEntity(bundle, 'mediaSource');
+    return applyPatchesByKey(base, patches, (s) => s.id);
   }
 
-  static getRandomSource(): MediaSource {
-    const sources = this.generateMediaSources();
+  static getSourcesByType(type: MediaSource['type'], mods?: ModBundle): MediaSource[] {
+    return this.generateMediaSources(mods).filter(source => source.type === type);
+  }
+
+  static getSourcesByCredibility(minCredibility: number, mods?: ModBundle): MediaSource[] {
+    return this.generateMediaSources(mods).filter(source => source.credibility >= minCredibility);
+  }
+
+  static getRandomSource(mods?: ModBundle): MediaSource {
+    const sources = this.generateMediaSources(mods);
     return sources[Math.floor(Math.random() * sources.length)];
   }
 
-  static getSourceForEvent(eventType: string, preferHighCredibility: boolean = false): MediaSource {
-    const sources = this.generateMediaSources();
+  static getSourceForEvent(eventType: string, preferHighCredibility: boolean = false, mods?: ModBundle): MediaSource {
+    const sources = this.generateMediaSources(mods);
     
     if (preferHighCredibility) {
       const credibleSources = sources.filter(s => s.credibility >= 80);

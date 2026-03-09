@@ -14,6 +14,7 @@ import { PROVIDER_DEALS, getEffectiveProviderDeals, type ProviderDealProfile, ty
 import { PublicDomainGenerator } from '@/data/PublicDomainGenerator';
 import { FranchiseGenerator } from '@/data/FranchiseGenerator';
 import { STUDIO_PROFILES, type StudioProfile } from '@/data/StudioGenerator';
+import { MediaSourceGenerator } from '@/data/MediaSourceGenerator';
 import { AWARD_SHOWS, type AwardShowDefinition, type AwardCategoryDefinition } from '@/data/AwardsSchedule';
 import { FRANCHISE_CHARACTER_DB, type FranchiseCharacterDef } from '@/data/FranchiseCharacterDB';
 import { FRANCHISE_ROLE_SETS } from '@/data/RoleDatabase';
@@ -165,6 +166,8 @@ export const ModsPanel: React.FC = () => {
   const [awardShowSearch, setAwardShowSearch] = useState('');
   const [awardShowKey, setAwardShowKey] = useState<string>(() => AWARD_SHOWS[0]?.id ?? 'crown');
   const [awardShowEdits, setAwardShowEdits] = useState<Record<string, AwardShowDefinition>>({});
+  const [mediaSourceSearch, setMediaSourceSearch] = useState('');
+  const [mediaSourceEdits, setMediaSourceEdits] = useState<Record<string, MediaSource>>({});
 
   // Quick patch builder (raw JSON tab)
   const [quickEntityType, setQuickEntityType] = useState<(typeof ENTITY_TYPES)[number]>('providerDeal');
@@ -213,6 +216,16 @@ export const ModsPanel: React.FC = () => {
   );
 
   const baseFranchises = useMemo(() => FranchiseGenerator.generateInitialFranchises(30), []);
+
+  const baseMediaSources = useMemo(() => MediaSourceGenerator.getBaseMediaSources(), []);
+
+  const baseMediaSourcesById = useMemo(() => {
+    const map = new Map<string, MediaSource>();
+    for (const s of baseMediaSources) {
+      map.set(s.id, s);
+    }
+    return map;
+  }, [baseMediaSources]);
 
   const baseFranchiseRoleSets = useMemo(() => FRANCHISE_ROLE_SETS, []);
   const baseFranchiseRoleSetKeys = useMemo(() => Object.keys(baseFranchiseRoleSets).sort(), [baseFranchiseRoleSets]);
@@ -375,7 +388,11 @@ export const ModsPanel: React.FC = () => {
     for (const s of patched) {
       next[s.id] = {
         ...s,
-        categories: (s.categories || []).map((c) => ({ ...c, eligibility: c.eligibility ? { ...c.eligibility } : undefined, talent: c.talent ? { ...c.talent } : undefined })),
+        categories: (s.categories || []).map((c) => ({
+          ...c,
+          eligibility: c.eligibility ? { ...c.eligibility } : undefined,
+          talent: c.talent ? { ...c.talent } : undefined,
+        })),
       };
     }
 
@@ -384,6 +401,22 @@ export const ModsPanel: React.FC = () => {
     if (!next[awardShowKey] && patched[0]?.id) {
       setAwardShowKey(patched[0].id);
     }
+  };
+
+  const rebuildMediaSourceEdits = (b: ModBundle, modId: string) => {
+    const modInfo = b.mods.find((m) => m.id === modId) ?? makeDefaultMod(modId);
+    const editorBundle: ModBundle = {
+      version: 1,
+      mods: [{ ...modInfo, enabled: true }],
+      patches: (b.patches || []).filter((p) => p.modId === modId && p.entityType === 'mediaSource'),
+    };
+
+    const patched = applyPatchesByKey(baseMediaSources, getPatchesForEntity(editorBundle, 'mediaSource'), (s) => s.id);
+    const next: Record<string, MediaSource> = {};
+    for (const s of patched) {
+      next[s.id] = { ...s, specialties: [...(s.specialties || [])] };
+    }
+    setMediaSourceEdits(next);
   };
 
   const providerDealPatchKey = useMemo(() => {
@@ -462,6 +495,16 @@ export const ModsPanel: React.FC = () => {
 
     return (bundle.patches || [])
       .filter((p) => p.modId === modId && p.entityType === 'awardShow')
+      .map((p) => `${p.id}:${p.op}:${p.target}:${JSON.stringify(p.payload)}`)
+      .join('|');
+  }, [bundle.patches, editorModId]);
+
+  const mediaSourcePatchKey = useMemo(() => {
+    const modId = editorModId.trim();
+    if (!modId) return '';
+
+    return (bundle.patches || [])
+      .filter((p) => p.modId === modId && p.entityType === 'mediaSource')
       .map((p) => `${p.id}:${p.op}:${p.target}:${JSON.stringify(p.payload)}`)
       .join('|');
   }, [bundle.patches, editorModId]);
@@ -546,6 +589,15 @@ export const ModsPanel: React.FC = () => {
     }
     return changed;
   }, [baseAwardShows, awardShowEdits]);
+
+  const changedMediaSourceCount = useMemo(() => {
+    let changed = 0;
+    for (const s of baseMediaSources) {
+      const edited = mediaSourceEdits[s.id] ?? s;
+      if (!deepEqual(stripUndefined(s), stripUndefined(edited))) changed++;
+    }
+    return changed;
+  }, [baseMediaSources, mediaSourceEdits]);
 
   const syncFromBundle = (next: ModBundle) => {
     setBundle(next);
@@ -1139,6 +1191,12 @@ export const ModsPanel: React.FC = () => {
     setStudioEdits((prev) => ({ ...prev, [name]: base }));
   };
 
+  const handleResetMediaSourceRow = (id: string) => {
+    const base = baseMediaSourcesById.get(id);
+    if (!base) return;
+    setMediaSourceEdits((prev) => ({ ...prev, [id]: base }));
+  };
+
   const handleResetPublicDomainRow = (id: string) => {
     const base = basePublicDomainById.get(id);
     if (!base) return;
@@ -1212,6 +1270,40 @@ export const ModsPanel: React.FC = () => {
 
     syncFromBundle(next);
     toast({ title: 'Applied', description: `Applied studio profile changes as patches in mod "${modId}". Click Save to persist.` });
+  };
+
+  const handleApplyMediaSourceEdits = () => {
+    const modId = editorModId.trim();
+    if (!modId) return;
+
+    const baseIds = new Set(baseMediaSources.map((s) => s.id));
+
+    const keptPatches = bundle.patches.filter(
+      (p) => !(p.modId === modId && p.entityType === 'mediaSource' && p.op === 'update' && p.target && baseIds.has(String(p.target)))
+    );
+
+    let next: ModBundle = ensureMod({ ...bundle, patches: keptPatches }, modId);
+
+    for (const id of baseIds) {
+      const edited = mediaSourceEdits[id] ?? (baseMediaSourcesById.get(id) as MediaSource);
+      const base = baseMediaSourcesById.get(id);
+      if (!base) continue;
+
+      if (deepEqual(stripUndefined(base), stripUndefined(edited))) continue;
+
+      const patchId = `mediaSource:${modId}:${id}`;
+      next = upsertPatch(next, {
+        id: patchId,
+        modId,
+        entityType: 'mediaSource',
+        op: 'update',
+        target: id,
+        payload: stripUndefined(edited),
+      });
+    }
+
+    syncFromBundle(next);
+    toast({ title: 'Applied', description: `Applied media source changes as patches in mod "${modId}". Click Save to persist.` });
   };
 
   const handleApplyPublicDomainEdits = () => {
@@ -1516,7 +1608,7 @@ export const ModsPanel: React.FC = () => {
                   <CardContent className="space-y-4">
                     <p className="text-xs text-muted-foreground">
                       Edit values in a grid, then apply changes to generate patches. This currently supports{' '}
-                      <code>providerDeal</code>, <code>studioProfile</code>, <code>publicDomainIP</code> (including suggested characters), <code>franchiseRoleSet</code>, <code>franchiseCharacterDb</code>, <code>talent</code>, <code>franchise</code>, and <code>awardShow</code>.
+                      <code>providerDeal</code>, <code>studioProfile</code>, <code>mediaSource</code>, <code>publicDomainIP</code> (including suggested characters), <code>franchiseRoleSet</code>, <code>franchiseCharacterDb</code>, <code>talent</code>, <code>franchise</code>, and <code>awardShow</code>.
                     </p>
 
                     <div className="grid grid-cols-1 lg:grid-cols-3 gap-3">
@@ -1595,6 +1687,7 @@ export const ModsPanel: React.FC = () => {
                       <TabsList>
                         <TabsTrigger value="providerDeals">Provider Deals</TabsTrigger>
                         <TabsTrigger value="studios">Studios</TabsTrigger>
+                        <TabsTrigger value="mediaSources">Media Sources</TabsTrigger>
                         <TabsTrigger value="publicDomain">Public Domain IP</TabsTrigger>
                         <TabsTrigger value="publicDomainCharacters">PD Characters</TabsTrigger>
                         <TabsTrigger value="franchiseRoles">Franchise Roles</TabsTrigger>
@@ -1802,17 +1895,14 @@ export const ModsPanel: React.FC = () => {
                           </div>
                         </div>
 
-                        <div className="grid grid-cols-1 lg:grid-cols-2 gap-3">
-                          <div className="space-y-1">
-                            <Label className="text-xs text-muted-foreground">Search</Label>
-                            <Input value={studioSearch} onChange={(e) => setStudioSearch(e.target.value)} placeholder="name" />
-                          </div>
+                        <div className="flex flex-wrap items-center justify-between gap-2">
+                          <Input value={studioSearch} onChange={(e) => setStudioSearch(e.target.value)} placeholder="studio name" />
                         </div>
 
                         <Table>
                           <TableHeader>
                             <TableRow>
-                              <TableHead className="p-2">Name</TableHead>
+                              <TableHead className="p-2">Studio</TableHead>
                               <TableHead className="p-2">Budget</TableHead>
                               <TableHead className="p-2">Reputation</TableHead>
                               <TableHead className="p-2">Specialties</TableHead>
@@ -1931,6 +2021,137 @@ export const ModsPanel: React.FC = () => {
 
                         <p className="text-xs text-muted-foreground">
                           Tip: this edits AI competitor studio profiles. Applying changes writes full-record <code>studioProfile</code> update patches keyed by studio name.
+                        </p>
+                      </TabsContent>
+
+                      <TabsContent value="mediaSources" className="space-y-3">
+                        <div className="flex flex-wrap items-center justify-between gap-2">
+                          <div className="text-sm text-muted-foreground">
+                            Media Sources: <span className="font-medium text-foreground">{changedMediaSourceCount}</span> changed
+                          </div>
+                          <div className="flex flex-wrap gap-2">
+                            <Button
+                              size="sm"
+                              variant="secondary"
+                              onClick={() => {
+                                const modId = editorModId.trim();
+                                if (!modId) return;
+                                rebuildMediaSourceEdits(bundle, modId);
+                              }}
+                            >
+                              Reset view
+                            </Button>
+                            <Button size="sm" onClick={handleApplyMediaSourceEdits} disabled={changedMediaSourceCount === 0}>
+                              Apply changes
+                            </Button>
+                          </div>
+                        </div>
+
+                        <div className="flex flex-wrap items-center justify-between gap-2">
+                          <Input value={mediaSourceSearch} onChange={(e) => setMediaSourceSearch(e.target.value)} placeholder="name or id" />
+                        </div>
+
+                        <Table>
+                          <TableHeader>
+                            <TableRow>
+                              <TableHead className="p-2">ID</TableHead>
+                              <TableHead className="p-2">Name</TableHead>
+                              <TableHead className="p-2">Type</TableHead>
+                              <TableHead className="p-2">Cred</TableHead>
+                              <TableHead className="p-2">Bias</TableHead>
+                              <TableHead className="p-2">Reach</TableHead>
+                              <TableHead className="p-2">Established</TableHead>
+                              <TableHead className="p-2">Specialties</TableHead>
+                              <TableHead className="p-2"></TableHead>
+                            </TableRow>
+                          </TableHeader>
+                          <TableBody>
+                            {baseMediaSources
+                              .filter((s) => {
+                                const q = mediaSourceSearch.trim().toLowerCase();
+                                if (!q) return true;
+                                return s.id.toLowerCase().includes(q) || s.name.toLowerCase().includes(q);
+                              })
+                              .map((s) => {
+                                const edited = mediaSourceEdits[s.id] ?? s;
+                                const isChanged = !deepEqual(stripUndefined(s), stripUndefined(edited));
+
+                                return (
+                                  <TableRow key={s.id} className={isChanged ? 'bg-muted/30' : undefined}>
+                                    <TableCell className="p-2 font-mono text-xs">{s.id}</TableCell>
+                                    <TableCell className="p-2">
+                                      <Input className="h-8 min-w-[200px]" value={edited.name} onChange={(e) => updateMediaSource(s.id, { name: e.target.value })} />
+                                    </TableCell>
+                                    <TableCell className="p-2">
+                                      <Select value={edited.type} onValueChange={(v) => updateMediaSource(s.id, { type: v as any })}>
+                                        <SelectTrigger className="h-8 w-[170px]">
+                                          <SelectValue />
+                                        </SelectTrigger>
+                                        <SelectContent>
+                                          <SelectItem value="newspaper">newspaper</SelectItem>
+                                          <SelectItem value="magazine">magazine</SelectItem>
+                                          <SelectItem value="blog">blog</SelectItem>
+                                          <SelectItem value="social_media">social_media</SelectItem>
+                                          <SelectItem value="trade_publication">trade_publication</SelectItem>
+                                          <SelectItem value="tv_network">tv_network</SelectItem>
+                                        </SelectContent>
+                                      </Select>
+                                    </TableCell>
+                                    <TableCell className="p-2">
+                                      <Input
+                                        className="h-8 w-[90px]"
+                                        type="number"
+                                        value={String(edited.credibility)}
+                                        onChange={(e) => updateMediaSource(s.id, { credibility: Number(e.target.value) || 0 })}
+                                      />
+                                    </TableCell>
+                                    <TableCell className="p-2">
+                                      <Input
+                                        className="h-8 w-[90px]"
+                                        type="number"
+                                        value={String(edited.bias)}
+                                        onChange={(e) => updateMediaSource(s.id, { bias: Number(e.target.value) || 0 })}
+                                      />
+                                    </TableCell>
+                                    <TableCell className="p-2">
+                                      <Input
+                                        className="h-8 w-[90px]"
+                                        type="number"
+                                        value={String(edited.reach)}
+                                        onChange={(e) => updateMediaSource(s.id, { reach: Number(e.target.value) || 0 })}
+                                      />
+                                    </TableCell>
+                                    <TableCell className="p-2">
+                                      <Input
+                                        className="h-8 w-[110px]"
+                                        type="number"
+                                        value={String(edited.established)}
+                                        onChange={(e) => updateMediaSource(s.id, { established: Number(e.target.value) || 0 })}
+                                      />
+                                    </TableCell>
+                                    <TableCell className="p-2">
+                                      <Input
+                                        className="h-8 min-w-[240px]"
+                                        value={(edited.specialties || []).join(', ')}
+                                        onChange={(e) => updateMediaSourceSpecialties(s.id, e.target.value)}
+                                        placeholder="drama, comedy"
+                                      />
+                                    </TableCell>
+                                    <TableCell className="p-2">
+                                      <div className="flex justify-end gap-2">
+                                        <Button size="sm" variant="ghost" onClick={() => handleResetMediaSourceRow(s.id)}>
+                                          Reset
+                                        </Button>
+                                      </div>
+                                    </TableCell>
+                                  </TableRow>
+                                );
+                              })}
+                          </TableBody>
+                        </Table>
+
+                        <p className="text-xs text-muted-foreground">
+                          Tip: this edits the media outlets used by the media engine. Applying changes writes full-record <code>mediaSource</code> update patches keyed by media source id.
                         </p>
                       </TabsContent>
 
@@ -3500,6 +3721,18 @@ export const ModsPanel: React.FC = () => {
 
                               <p className="text-xs text-muted-foreground">
                                 Tip: categories are stored on the award show record; apply changes writes a full <code>awardShow</code> patch.
+                              </p>
+                            </>
+                          );
+                        })()}
+                      </TabsContent>
+                    </Tabs>
+        </CardContent>
+      </Card>
+    </div>
+  );
+};
+s are stored on the award show record; apply changes writes a full <code>awardShow</code> patch.
                               </p>
                             </>
                           );
