@@ -132,6 +132,54 @@ const BIOGRAPHY_TEMPLATES: BiographyTemplate[] = [
     specialization: "natural rhythm and timing in performances",
     currentStatus: "successfully managing multiple entertainment careers",
     personality: "creative and versatile, approaches roles with artistic sensibility"
+  },
+  {
+    careerPath: "Worked behind the camera before stepping in front of it",
+    breakthrough: "won the industry over with",
+    struggles: "learned to navigate politics without losing their voice",
+    specialization: "brings a director’s eye to performance choices",
+    currentStatus: "seeking collaborators who will take risks",
+    personality: "quietly intense, with a reputation for thorough preparation"
+  },
+  {
+    careerPath: "Built a reputation on short films and micro-budgets",
+    breakthrough: "broke out after premiering",
+    struggles: "survived early setbacks and a few harsh reviews",
+    specialization: "turns small moments into audience favorites",
+    currentStatus: "riding momentum into bigger productions",
+    personality: "open-minded and relentlessly curious on set"
+  },
+  {
+    careerPath: "Second-generation industry kid who refused the easy path",
+    breakthrough: "proved they belonged with",
+    struggles: "worked to escape the shadow of famous connections",
+    specialization: "finds surprising humanity in flawed characters",
+    currentStatus: "leaning into more ambitious material",
+    personality: "known for disarming sincerity in interviews"
+  },
+  {
+    careerPath: "Came up through improv and sketch comedy circuits",
+    breakthrough: "unexpectedly turned heads with",
+    struggles: "had to convince casting directors they could play it straight",
+    specialization: "mixes precision timing with emotional honesty",
+    currentStatus: "expanding into more dramatic territory",
+    personality: "generous with scene partners and allergic to ego"
+  },
+  {
+    careerPath: "Started as a stunt performer before pursuing principal roles",
+    breakthrough: "earned wider recognition through",
+    struggles: "trained relentlessly to match physicality with nuance",
+    specialization: "brings lived-in realism to high-stakes scenes",
+    currentStatus: "looking for roles that challenge expectations",
+    personality: "disciplined, focused, and surprisingly funny between takes"
+  },
+  {
+    careerPath: "Moved from writing rooms into directing and development",
+    breakthrough: "made a name by shepherding",
+    struggles: "balanced creative ambition with studio realities",
+    specialization: "elevates dialogue and subtext over spectacle",
+    currentStatus: "assembling projects built around strong scripts",
+    personality: "thoughtful, sharp, and famously good at notes"
   }
 ];
 
@@ -179,37 +227,104 @@ export class TalentGenerator {
     const experience = talent.experience || 5;
     const reputation = talent.reputation || 50;
     const careerStage = this.determineCareerStage(age, experience, reputation);
-    
-    let bio = `${template.careerPath} and ${template.breakthrough} a critically acclaimed ${talent.genres?.[0] || 'drama'} project. `;
-    bio += `${template.struggles} while ${template.specialization}. `;
-    
-    // Add age-appropriate career context
-    if (age < 25) {
-      bio += `At ${age}, already shows remarkable maturity in performances. `;
-    } else if (age > 50) {
-      bio += `With ${experience} years of experience, brings gravitas to every project. `;
-    }
-    
-    // Add reputation-based content
-    if (reputation > 80) {
-      bio += `Industry colleagues consistently praise their professionalism. `;
-      if (Math.random() < 0.3) {
-        bio += `Recently ${CONTROVERSY_TEMPLATES[Math.floor(Math.random() * CONTROVERSY_TEMPLATES.length)]} personal matters, demonstrating resilience. `;
+
+    const name = talent.name || 'They';
+    const primaryGenre = talent.genres?.[0] || 'drama';
+    const roleLabel = talent.type === 'director' ? 'filmmaker' : 'performer';
+
+    const pronouns = (() => {
+      const g = (talent as any).gender;
+      if (g === 'Male') return { subject: 'he', object: 'him', possessive: 'his' };
+      if (g === 'Female') return { subject: 'she', object: 'her', possessive: 'her' };
+      return { subject: 'they', object: 'them', possessive: 'their' };
+    })();
+
+    const pick = <T,>(arr: T[]): T => arr[Math.floor(Math.random() * arr.length)];
+
+    const projectDescriptors = [
+      'critically acclaimed',
+      'festival-favorite',
+      'buzzed-about',
+      'surprisingly mainstream',
+      'risk-taking',
+      'quietly devastating',
+      'unexpectedly funny',
+      'audience-approved'
+    ];
+
+    const pivotPhrases = [
+      'Along the way,',
+      'In the process,',
+      'On the climb,',
+      'Off the red carpet,',
+      'Behind the scenes,'
+    ];
+
+    const stageLines = {
+      unknown: [`still more rumor than résumé, but ${pronouns.possessive} momentum is real.`],
+      rising: [`widely seen as a name-to-watch in ${primaryGenre}.`],
+      established: [`now a steady presence in ${primaryGenre} projects.`],
+      veteran: [`a veteran presence with instincts that younger crews lean on.`],
+      legend: [`spoken about like a living reference point in the industry.`]
+    } as const;
+
+    const closers = [
+      `These days, ${pronouns.subject} is ${template.currentStatus} and is ${template.personality}.`,
+      `${name} is ${template.currentStatus}, and is ${template.personality}.`,
+      `Now ${pronouns.subject} is ${template.currentStatus}—${template.personality}.`
+    ];
+
+    const buildBio = (): string => {
+      const formatRoll = Math.random();
+      const descriptor = pick(projectDescriptors);
+
+      let bio = '';
+
+      if (formatRoll < 0.34) {
+        bio += `${template.careerPath}, ${name} ${template.breakthrough} a ${descriptor} ${primaryGenre} project. `;
+      } else if (formatRoll < 0.67) {
+        bio += `Known for ${template.specialization}, ${name} ${template.breakthrough} a ${descriptor} ${primaryGenre} project. `;
+      } else {
+        const trait = pick(PERSONALITY_TRAITS).toLowerCase();
+        bio += `Industry chatter tags ${name} as a ${trait} ${roleLabel}. ${pronouns.subject[0].toUpperCase()}${pronouns.subject.slice(1)} ${template.breakthrough} a ${descriptor} ${primaryGenre} project. `;
       }
-    } else if (reputation < 40) {
-      bio += `Working to rebuild industry relationships after ${CONTROVERSY_TEMPLATES[Math.floor(Math.random() * CONTROVERSY_TEMPLATES.length)]} past controversies. `;
-    }
-    
-    bio += `Currently ${template.currentStatus} and is ${template.personality}.`;
-    
-    // Ensure uniqueness
-    let finalBio = bio;
+
+      bio += `${pivotPhrases[Math.floor(Math.random() * pivotPhrases.length)]} ${template.struggles}, and is ${template.specialization}. `;
+
+      if (age < 25) {
+        bio += `At ${age}, ${pronouns.subject} already shows unusual poise under pressure. `;
+      } else if (age > 50) {
+        bio += `With ${experience} years of experience, ${pronouns.subject} brings quiet authority to every set. `;
+      }
+
+      if (reputation > 80) {
+        bio += `Colleagues praise ${pronouns.possessive} professionalism and focus. `;
+        if (Math.random() < 0.25) {
+          bio += `In recent years ${pronouns.subject} ${CONTROVERSY_TEMPLATES[Math.floor(Math.random() * CONTROVERSY_TEMPLATES.length)]} personal matters, and handled it with rare restraint. `;
+        }
+      } else if (reputation < 40) {
+        bio += `${pronouns.subject[0].toUpperCase()}${pronouns.subject.slice(1)} is working to rebuild trust after ${CONTROVERSY_TEMPLATES[Math.floor(Math.random() * CONTROVERSY_TEMPLATES.length)]} past controversies. `;
+      }
+
+      const stage = (stageLines as any)[careerStage] || stageLines.established;
+      bio += `In industry terms, ${pronouns.subject} is ${pick(stage)} `;
+
+      bio += pick(closers);
+      return bio.trim();
+    };
+
+    let finalBio = buildBio();
     let attempts = 0;
-    while (this.usedBiographies.has(finalBio) && attempts < 10) {
-      finalBio = bio + ` Known for ${PERSONALITY_TRAITS[Math.floor(Math.random() * PERSONALITY_TRAITS.length)].toLowerCase()} approach to character development.`;
+
+    while (this.usedBiographies.has(finalBio) && attempts < 12) {
+      finalBio = buildBio();
       attempts++;
     }
-    
+
+    if (this.usedBiographies.has(finalBio)) {
+      finalBio += ` Colleagues often cite ${pronouns.possessive} ${pick(PERSONALITY_TRAITS).toLowerCase()} streak as a defining trait.`;
+    }
+
     this.usedBiographies.add(finalBio);
     return finalBio;
   }

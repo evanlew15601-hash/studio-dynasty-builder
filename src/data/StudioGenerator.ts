@@ -11,6 +11,7 @@ interface StudioProfile {
   riskTolerance: 'conservative' | 'moderate' | 'aggressive';
   releaseFrequency: number; // films per year
   brandIdentity: string;
+  foundedYear?: number;
 }
 
 const STUDIO_PROFILES: StudioProfile[] = [
@@ -89,7 +90,8 @@ const STUDIO_PROFILES: StudioProfile[] = [
     businessTendency: 'Prestigious historical epics with authenticity consultants and a wardrobe department that could unionize',
     riskTolerance: 'conservative',
     releaseFrequency: 3,
-    brandIdentity: 'Lavish productions, tasteful suffering, and prestige that smells faintly of parchment'
+    brandIdentity: 'Lavish productions, tasteful suffering, and prestige that smells faintly of parchment',
+    foundedYear: 1965
   },
   {
     name: 'Neon Circuit Studios',
@@ -756,7 +758,7 @@ export class StudioGenerator {
       name: profile.name,
       reputation: profile.reputation,
       budget: profile.budget,
-      founded: 2010 + Math.floor(Math.random() * 10),
+      founded: profile.foundedYear ?? (2010 + Math.floor(Math.random() * 10)),
       specialties: profile.specialties,
       debt: 0,
       lastProjectWeek: 0,
