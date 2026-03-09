@@ -16,6 +16,16 @@ describe('core talent biographies (handcrafted)', () => {
     }
   });
 
+  it('has explicit biography text for every notable core talent entry', () => {
+    const notable = CORE_TALENT_BIBLE.filter((t) => t.tier === 'notable');
+    expect(notable.length).toBeGreaterThan(0);
+
+    for (const t of notable) {
+      expect(typeof t.biography).toBe('string');
+      expect((t.biography || '').trim().length).toBeGreaterThan(0);
+    }
+  });
+
   it('uses handcrafted biography text when provided in the world bible', () => {
     const pool = generateInitialTalentPool({ currentYear: 2026, actorCount: 0, directorCount: 0 });
 
