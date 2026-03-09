@@ -1,6 +1,7 @@
 import React, { useState } from 'react';
 import { Project, TalentPerson, ScriptCharacter } from '@/types/game';
 import { useGameStore } from '@/game/store';
+import { useUiStore } from '@/game/uiStore';
 import { talentMatchesRole } from '@/utils/castingEligibility';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
