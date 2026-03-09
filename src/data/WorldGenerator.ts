@@ -1,6 +1,8 @@
 import type { GameState, Genre, TalentAward, TalentPerson } from '@/types/game';
 import { TalentGenerator } from '@/data/TalentGenerator';
 import { CORE_TALENT_BIBLE, WorldTalentBlueprint } from '@/data/WorldBible';
+import { stableInt } from '@/utils/stableRandom';
+import { stablePick } from '@/utils/stablePick';
 
 function determineCareerStage(age: number, experience: number, reputation: number): TalentPerson['careerStage'] {
   if (experience < 2 || reputation < 30) return 'unknown';
@@ -61,6 +63,71 @@ function ensureGenres(genres: Genre[]): Genre[] {
   // Defensive: make sure genres are unique and non-empty.
   const unique = Array.from(new Set(genres));
   return unique.length > 0 ? unique : (['drama'] as Genre[]);
+}
+
+function joinNatural(items: string[]): string {
+  const cleaned = items.map((s) => s.trim()).filter(Boolean);
+  if (cleaned.length === 0) return '';
+  if (cleaned.length === 1) return cleaned[0];
+  if (cleaned.length === 2) return `${cleaned[0]} and ${cleaned[1]}`;
+  return `${cleaned.slice(0, -1).join(', ')}, and ${cleaned[cleaned.length - 1]}`;
+}
+
+function stableSample<T>(items: T[], count: number, seed: string): T[] {
+  const pool = [...items];
+  const out: T[] = [];
+
+  const n = Math.max(0, Math.min(count, pool.length));
+  for (let i = 0; i < n; i++) {
+    const idx = stableInt(`${seed}|${i}`, 0, pool.length - 1);
+    out.push(pool.splice(idx, 1)[0]);
+  }
+
+  return out;
+}
+
+function buildCoreBiography(b: WorldTalentBlueprint): string {
+  const genres = ensureGenres(b.genres);
+  const primary = genres[0];
+  const secondary = genres[1];
+  const roleLabel = b.type === 'director' ? 'director' : 'actor';
+
+  const introTemplates = [
+    `${b.name} is a ${roleLabel} best known for ${b.archetype.toLowerCase()}.`,
+    `In the ${primary} lane, ${b.name} built a reputation as ${b.archetype.toLowerCase()}.`,
+    `${b.name} has been working steadily since ${b.careerStartYear}, carving out a niche as ${b.archetype.toLowerCase()}.`,
+    `${b.name} is one of the more recognizable names in modern ${primary}, with a reputation for being ${b.archetype.toLowerCase()}.`,
+  ];
+
+  const intro = stablePick(introTemplates, `${b.slug}|intro`) ?? introTemplates[0];
+
+  const narrativeCount = Math.max(1, Math.min(3, stableInt(`${b.slug}|narrCount`, 1, 3)));
+  const chosenNarratives = stableSample(b.narratives || [], narrativeCount, `${b.slug}|narr`);
+
+  const quirksCount = Math.min(2, Math.max(0, stableInt(`${b.slug}|quirkCount`, 0, 2)));
+  const chosenQuirks = stableSample(b.quirks || [], quirksCount, `${b.slug}|quirk`);
+
+  const movement = (b.movementTags || []).length > 0 ? (stablePick(b.movementTags || [], `${b.slug}|movement`) as string) : undefined;
+
+  const bits: string[] = [intro];
+
+  if (chosenNarratives.length > 0) {
+    bits.push(`Industry shorthand: ${joinNatural(chosenNarratives)}.`);
+  }
+
+  if (movement) {
+    bits.push(`Often associated with the ${movement}.`);
+  }
+
+  if (secondary) {
+    bits.push(`Most at home in ${primary} and ${secondary}, ${b.name.split(' ')[0]} tends to pick projects with a clear point of view.`);
+  }
+
+  if (chosenQuirks.length > 0) {
+    bits.push(`On set, ${joinNatural(chosenQuirks).toLowerCase()}.`);
+  }
+
+  return bits.join(' ');
 }
 
 function generateLightFilmography(t: WorldTalentBlueprint, currentYear: number): NonNullable<TalentPerson['filmography']> {
@@ -132,7 +199,7 @@ function buildCoreTalent(currentYear: number): TalentPerson[] {
 
     const awards = (b.awards || []).map((a) => awardToTalentAward(id, a));
 
-    const baseBio = `${b.archetype}. ${b.narratives.join(' · ')}.`;
+    const baseBio = b.biography || buildCoreBiography(b);
 
     return {
       id,
