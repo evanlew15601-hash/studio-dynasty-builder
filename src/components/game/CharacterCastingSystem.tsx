@@ -442,8 +442,7 @@ const CastingSlotCard: React.FC<CastingSlotCardProps> = ({
   onCast,
   onRemove,
 }) => {
-  const { useUiStore } = require('@/game/uiStore');
-  const openTalentProfile = useUiStore((s: any) => s.openTalentProfile);
+  const openTalentProfile = useUiStore((s) => s.openTalentProfile);
   const isDirector = slot.character.requiredType === 'director';
   const candidates = getEligibleTalent(slot.character);
 
