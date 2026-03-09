@@ -1,7 +1,21 @@
 import { describe, expect, it } from 'vitest';
 import { generateInitialTalentPool } from '@/data/WorldGenerator';
+import { CORE_TALENT_BIBLE } from '@/data/WorldBible';
 
 describe('core talent biographies (handcrafted)', () => {
+  it('has explicit (non-template) biography text for every marquee core talent entry', () => {
+    const marquee = CORE_TALENT_BIBLE.filter((t) => t.tier === 'marquee');
+    expect(marquee.length).toBeGreaterThan(0);
+
+    for (const t of marquee) {
+      expect(typeof t.biography).toBe('string');
+      expect((t.biography || '').trim().length).toBeGreaterThan(0);
+
+      // The procedural fallback uses this phrase; marquees should not be using that format.
+      expect(t.biography || '').not.toContain('Industry shorthand:');
+    }
+  });
+
   it('uses handcrafted biography text when provided in the world bible', () => {
     const pool = generateInitialTalentPool({ currentYear: 2026, actorCount: 0, directorCount: 0 });
 
