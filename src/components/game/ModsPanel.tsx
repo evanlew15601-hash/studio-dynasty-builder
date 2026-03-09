@@ -288,7 +288,10 @@ export const ModsPanel: React.FC = () => {
 
   const [restorePublicDomainId, setRestorePublicDomainId] = useState('');
   const [restoreMediaSourceId, setRestoreMediaSourceId] = useState('');
+  const [restoreStudioName, setRestoreStudioName] = useState('');
   const [restoreAwardShowId, setRestoreAwardShowId] = useState('');
+
+  const [newStudioProfileName, setNewStudioProfileName] = useState('');
 
   // Quick patch builder
   const [quickModId, setQuickModId] = useState('my-mod');
@@ -972,6 +975,61 @@ export const ModsPanel: React.FC = () => {
     });
   };
 
+  const handleResetStudiosView = () => {
+    const patched = applyPatchesByKey(STUDIO_PROFILES, getPatchesForEntity(editorBundle, 'studioProfile'), (s) => s.name);
+    const next: Record<string, StudioProfile> = {};
+    for (const s of patched) next[s.name] = stripUndefined(s);
+    setStudioEdits(next);
+  };
+
+  const handleAddStudioProfile = () => {
+    const existing = new Set([...STUDIO_PROFILES.map((s) => s.name), ...Object.keys(studioEdits)]);
+
+    let name = newStudioProfileName.trim();
+    if (!name) {
+      let suffix = 1;
+      name = `Custom Studio ${suffix}`;
+      while (existing.has(name)) {
+        suffix++;
+        name = `Custom Studio ${suffix}`;
+      }
+    }
+
+    if (existing.has(name)) {
+      toast({ title: 'Already exists', description: `Studio "${name}" already exists.`, variant: 'destructive' });
+      return;
+    }
+
+    const profile: StudioProfile = {
+      name,
+      personality: 'Custom studio profile',
+      budget: 50000000,
+      reputation: 50,
+      specialties: [],
+      businessTendency: 'Custom studio business tendency',
+      riskTolerance: 'moderate',
+      releaseFrequency: 6,
+      brandIdentity: 'Custom studio identity',
+    };
+
+    setStudioEdits((prev) => ({ ...prev, [name]: stripUndefined(profile) }));
+    setNewStudioProfileName('');
+  };
+
+  const handleDeleteStudioProfile = (name: string) => {
+    setStudioEdits((prev) => {
+      const next = { ...prev };
+      delete next[name];
+      return next;
+    });
+  };
+
+  const handleRestoreStudioProfile = (name: string) => {
+    const base = baseStudioByName.get(name);
+    if (!base) return;
+    setStudioEdits((prev) => ({ ...prev, [name]: stripUndefined(base) }));
+  };
+
   const updateStudioSpecialties = (name: string, value: string) => {
     const list = splitCsv(value) as Genre[];
     updateStudio(name, { specialties: list.length ? list : ([] as any) } as any);
@@ -1558,9 +1616,22 @@ export const ModsPanel: React.FC = () => {
 
     let next = ensureMod(bundle, modId);
 
+    const baseNames = new Set(STUDIO_PROFILES.map((s) => s.name));
+
     for (const base of STUDIO_PROFILES) {
-      const edited = studioEdits[base.name] ?? base;
       const patchId = `studioProfile:${modId}:${base.name}`;
+      const edited = studioEdits[base.name];
+
+      if (!edited) {
+        next = upsertPatch(next, {
+          id: patchId,
+          modId,
+          entityType: 'studioProfile',
+          op: 'delete',
+          target: base.name,
+        });
+        continue;
+      }
 
       if (deepEqual(stripUndefined(base), stripUndefined(edited))) {
         next = removePatch(next, patchId);
@@ -1576,6 +1647,31 @@ export const ModsPanel: React.FC = () => {
         payload: stripUndefined(edited),
       });
     }
+
+    for (const [name, edited] of Object.entries(studioEdits)) {
+      if (baseNames.has(name)) continue;
+      const patchId = `studioProfile:${modId}:${name}`;
+      next = upsertPatch(next, {
+        id: patchId,
+        modId,
+        entityType: 'studioProfile',
+        op: 'insert',
+        target: name,
+        payload: stripUndefined(edited),
+      });
+    }
+
+    // Prune stale insert patches for custom names that were deleted from the editor view.
+    const toRemove: string[] = [];
+    for (const p of next.patches || []) {
+      if (p.modId !== modId) continue;
+      if (p.entityType !== 'studioProfile') continue;
+      const t = String(p.target || '');
+      if (baseNames.has(t)) continue;
+      if (studioEdits[t]) continue;
+      toRemove.push(p.id);
+    }
+    for (const id of toRemove) next = removePatch(next, id);
 
     syncFromBundle(next);
     toast({ title: 'Applied', description: 'Applied studio profile edits as patches. Click Save to persist.' });
@@ -1886,10 +1982,23 @@ export const ModsPanel: React.FC = () => {
 
   const changedStudioCount = useMemo(() => {
     let changed = 0;
+
+    const baseNames = new Set(STUDIO_PROFILES.map((s) => s.name));
+
     for (const base of STUDIO_PROFILES) {
-      const edited = studioEdits[base.name] ?? base;
+      const edited = studioEdits[base.name];
+      if (!edited) {
+        changed++;
+        continue;
+      }
+
       if (!deepEqual(stripUndefined(base), stripUndefined(edited))) changed++;
     }
+
+    for (const name of Object.keys(studioEdits)) {
+      if (!baseNames.has(name)) changed++;
+    }
+
     return changed;
   }, [studioEdits]);
 
@@ -1995,6 +2104,14 @@ export const ModsPanel: React.FC = () => {
     return out.sort();
   }, [baseMediaSources, mediaSourceEdits]);
 
+  const deletedBaseStudioNames = useMemo(() => {
+    const out: string[] = [];
+    for (const s of STUDIO_PROFILES) {
+      if (!studioEdits[s.name]) out.push(s.name);
+    }
+    return out.sort();
+  }, [studioEdits]);
+
   const deletedBaseAwardShowIds = useMemo(() => {
     const out: string[] = [];
     for (const s of AWARD_SHOWS) {
@@ -2015,11 +2132,18 @@ export const ModsPanel: React.FC = () => {
     return baseFranchises.filter((f) => `${f.id} ${f.title}`.toLowerCase().includes(q));
   }, [baseFranchises, franchiseSearch]);
 
+  const studiosForEditor = useMemo(() => {
+    return Object.values(studioEdits)
+      .slice()
+      .sort((a, b) => a.name.localeCompare(b.name));
+  }, [studioEdits]);
+
   const filteredStudios = useMemo(() => {
     const q = studioSearch.trim().toLowerCase();
-    if (!q) return STUDIO_PROFILES;
-    return STUDIO_PROFILES.filter((s) => s.name.toLowerCase().includes(q));
-  }, [studioSearch]);
+    const list = studiosForEditor.length ? studiosForEditor : STUDIO_PROFILES;
+    if (!q) return list;
+    return list.filter((s) => s.name.toLowerCase().includes(q));
+  }, [studioSearch, studiosForEditor]);
 
   const mediaTemplateKeys = useMemo(() => {
     return Array.from(
@@ -2258,8 +2382,12 @@ export const ModsPanel: React.FC = () => {
 
   const handleResetStudioRow = (name: string) => {
     const base = baseStudioByName.get(name);
-    if (!base) return;
-    setStudioEdits((prev) => ({ ...prev, [name]: stripUndefined(base) }));
+    setStudioEdits((prev) => {
+      if (base) return { ...prev, [name]: stripUndefined(base) };
+      const next = { ...prev };
+      delete next[name];
+      return next;
+    });
   };
 
   const handleResetMediaSourceRow = (id: string) => {
@@ -2350,6 +2478,10 @@ export const ModsPanel: React.FC = () => {
       </CardHeader>
 
       <CardContent className="space-y-4">
+        <Input ref={importRef} type="file" accept="application/json,.json" className="hidden" onChange={handleImportFile} />
+        <Input ref={importMediaSourceCsvRef} type="file" accept="text/csv,.csv" className="hidden" onChange={handleImportMediaSourcesCsv} />
+        <Input ref={importPublicDomainCsvRef} type="file" accept="text/csv,.csv" className="hidden" onChange={handleImportPublicDomainCsv} />
+
         <Tabs defaultValue="database" className="w-full">
           <TabsList>
             <TabsTrigger value="database">Database editor</TabsTrigger>
@@ -3436,12 +3568,49 @@ export const ModsPanel: React.FC = () => {
                   <div className="text-sm text-muted-foreground">
                     Studio Profiles: <span className="font-medium text-foreground">{changedStudioCount}</span> changed
                   </div>
-                  <Button size="sm" onClick={applyStudioEdits}>
-                    Apply changes
-                  </Button>
+                  <div className="flex flex-wrap gap-2">
+                    {deletedBaseStudioNames.length ? (
+                      <Select
+                        value={restoreStudioName}
+                        onValueChange={(v) => {
+                          setRestoreStudioName('');
+                          handleRestoreStudioProfile(v);
+                        }}
+                      >
+                        <SelectTrigger className="h-8 w-[220px]">
+                          <SelectValue placeholder={`Restore deleted (${deletedBaseStudioNames.length})`} />
+                        </SelectTrigger>
+                        <SelectContent>
+                          {deletedBaseStudioNames.map((name) => (
+                            <SelectItem key={name} value={name}>
+                              {name}
+                            </SelectItem>
+                          ))}
+                        </SelectContent>
+                      </Select>
+                    ) : null}
+                    <Button size="sm" variant="secondary" onClick={handleResetStudiosView}>
+                      Reset view
+                    </Button>
+                    <Button size="sm" variant="secondary" onClick={handleAddStudioProfile}>
+                      Add studio
+                    </Button>
+                    <Button size="sm" onClick={applyStudioEdits}>
+                      Apply changes
+                    </Button>
+                  </div>
                 </div>
 
-                <Input value={studioSearch} onChange={(e) => setStudioSearch(e.target.value)} placeholder="Search studios..." />
+                <div className="grid grid-cols-1 lg:grid-cols-2 gap-3">
+                  <div className="space-y-1">
+                    <Label className="text-xs text-muted-foreground">Search</Label>
+                    <Input value={studioSearch} onChange={(e) => setStudioSearch(e.target.value)} placeholder="Filter by name" />
+                  </div>
+                  <div className="space-y-1">
+                    <Label className="text-xs text-muted-foreground">New studio name</Label>
+                    <Input value={newStudioProfileName} onChange={(e) => setNewStudioProfileName(e.target.value)} placeholder="Optional" />
+                  </div>
+                </div>
 
                 <Table>
                   <TableHeader>
@@ -3455,21 +3624,26 @@ export const ModsPanel: React.FC = () => {
                     </TableRow>
                   </TableHeader>
                   <TableBody>
-                    {filteredStudios.map((base) => {
-                      const edited = studioEdits[base.name] ?? base;
-                      const isChanged = !deepEqual(stripUndefined(base), stripUndefined(edited));
+                    {filteredStudios.map((row) => {
+                      const base = baseStudioByName.get(row.name);
+                      const edited = studioEdits[row.name] ?? row;
+                      const isInserted = !base;
+                      const isChanged = isInserted ? true : !deepEqual(stripUndefined(base), stripUndefined(edited));
 
                       return (
-                        <TableRow key={base.name} className={isChanged ? 'bg-muted/30' : undefined}>
-                          <TableCell className="p-2 min-w-[220px]">
-                            <Input className="h-8" value={base.name} disabled />
+                        <TableRow key={row.name} className={isChanged ? 'bg-muted/30' : undefined}>
+                          <TableCell className="p-2 min-w-[260px]">
+                            <div className="flex items-center gap-2">
+                              <Input className="h-8" value={row.name} disabled />
+                              {isInserted ? <Badge variant="secondary">new</Badge> : null}
+                            </div>
                           </TableCell>
                           <TableCell className="p-2">
                             <Input
                               className="h-8 w-[140px]"
                               type="number"
                               value={String(edited.budget)}
-                              onChange={(e) => updateStudio(base.name, { budget: Number(e.target.value) || 0 })}
+                              onChange={(e) => updateStudio(row.name, { budget: Number(e.target.value) || 0 })}
                             />
                           </TableCell>
                           <TableCell className="p-2">
@@ -3477,14 +3651,14 @@ export const ModsPanel: React.FC = () => {
                               className="h-8 w-[120px]"
                               type="number"
                               value={String(edited.reputation)}
-                              onChange={(e) => updateStudio(base.name, { reputation: Number(e.target.value) || 0 })}
+                              onChange={(e) => updateStudio(row.name, { reputation: Number(e.target.value) || 0 })}
                             />
                           </TableCell>
                           <TableCell className="p-2">
                             <Input
                               className="h-8 min-w-[220px]"
                               value={(edited.specialties || []).join(', ')}
-                              onChange={(e) => updateStudioSpecialties(base.name, e.target.value)}
+                              onChange={(e) => updateStudioSpecialties(row.name, e.target.value)}
                             />
                           </TableCell>
                           <TableCell className="p-2">
@@ -3492,13 +3666,18 @@ export const ModsPanel: React.FC = () => {
                               className="h-8 w-[120px]"
                               type="number"
                               value={String(edited.foundedYear ?? 0)}
-                              onChange={(e) => updateStudio(base.name, { foundedYear: Number(e.target.value) || 0 })}
+                              onChange={(e) => updateStudio(row.name, { foundedYear: Number(e.target.value) || 0 })}
                             />
                           </TableCell>
                           <TableCell className="p-2">
-                            <Button size="sm" variant="ghost" onClick={() => handleResetStudioRow(base.name)}>
-                              Reset
-                            </Button>
+                            <div className="flex justify-end gap-2">
+                              <Button size="sm" variant="ghost" onClick={() => handleResetStudioRow(row.name)}>
+                                Reset
+                              </Button>
+                              <Button size="sm" variant="ghost" onClick={() => handleDeleteStudioProfile(row.name)}>
+                                Delete
+                              </Button>
+                            </div>
                           </TableCell>
                         </TableRow>
                       );
