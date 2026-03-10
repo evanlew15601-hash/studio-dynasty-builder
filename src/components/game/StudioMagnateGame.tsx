@@ -24,6 +24,7 @@ import { updateProjectFinancials } from './FinancialCalculations';
 import { TalentFilmographyManager } from '@/utils/talentFilmographyManager';
 import { stablePick } from '@/utils/stablePick';
 import { stableInt } from '@/utils/stableRandom';
+import { generateGameSeed, seedFromString } from '@/game/core/rng';
 import { useUiStore } from '@/game/uiStore';
 import { AwardsSystem } from './AwardsSystem';
 import { EnhancedAwardsSystem } from './EnhancedAwardsSystem';
@@ -409,8 +410,20 @@ export const StudioMagnateGame: React.FC<StudioMagnateGameProps> = ({
   const [bootstrapGameState] = useState<GameState>(() => {
     // If we have a loaded game, use it directly and skip heavy init
     if (initialGameState) {
-      return initialGameState;
+      const derivedUniverseSeed =
+        typeof initialGameState.universeSeed === 'number'
+          ? initialGameState.universeSeed
+          : seedFromString(`${initialGameState.studio?.id ?? 'studio'}|${initialGameState.studio?.name ?? 'Studio'}`);
+
+      const derivedRngState =
+        typeof initialGameState.rngState === 'number'
+          ? initialGameState.rngState
+          : derivedUniverseSeed;
+
+      return { ...initialGameState, universeSeed: derivedUniverseSeed, rngState: derivedRngState };
     }
+
+    const universeSeed = generateGameSeed();
 
     // Start loading for game initialization
     startOperation(LOADING_OPERATIONS.GAME_INIT.id, LOADING_OPERATIONS.GAME_INIT.name, LOADING_OPERATIONS.GAME_INIT.estimatedTime);
@@ -449,6 +462,8 @@ export const StudioMagnateGame: React.FC<StudioMagnateGameProps> = ({
     updateOperation(LOADING_OPERATIONS.GAME_INIT.id, 80, 'Initializing systems...');
 
     let initialState: GameState = {
+      universeSeed,
+      rngState: universeSeed,
       studio,
       currentYear: new Date().getFullYear(),
       currentWeek: 1,
@@ -595,9 +610,9 @@ export const StudioMagnateGame: React.FC<StudioMagnateGameProps> = ({
     if (storeGameState) return;
 
     if (initialGameState) {
-      loadGameToStore(initialGameState);
+      loadGameToStore(initialGameState, initialGameState.rngState ?? initialGameState.universeSeed);
     } else {
-      initGame(bootstrapGameState);
+      initGame(bootstrapGameState, bootstrapGameState.universeSeed);
     }
   }, [storeGameState, initialGameState, loadGameToStore, initGame, bootstrapGameState]);
 
@@ -2020,7 +2035,7 @@ export const StudioMagnateGame: React.FC<StudioMagnateGameProps> = ({
           year: newTimeState.currentYear,
           actorCount: 8,
           directorCount: 2,
-          seed: `rookies:${newTimeState.currentYear}`,
+          seed: `rookies:${prev.universeSeed ?? 0}:${newTimeState.currentYear}`,
         });
 
         const incoming = [...handcraftedDebuts, ...rookieDebuts];

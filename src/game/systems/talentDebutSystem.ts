@@ -24,7 +24,7 @@ export const TalentDebutSystem: TickSystem = {
       year,
       actorCount: 8,
       directorCount: 2,
-      seed: `rookies:${year}`,
+      seed: `rookies:${state.universeSeed ?? 0}:${year}`,
     });
 
     const incoming = [...handcraftedDebuts, ...rookieDebuts];

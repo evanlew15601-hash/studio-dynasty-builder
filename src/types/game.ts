@@ -758,6 +758,10 @@ export interface MediaReaction {
 }
 
 export interface GameState {
+  /** Stable seed for worldbuilding (used to derive deterministic per-save procedural content). */
+  universeSeed?: number;
+  /** Current PRNG state for deterministic simulation (if using the engine tick pipeline). */
+  rngState?: number;
   studio: Studio;
   currentYear: number;
   currentWeek: number;

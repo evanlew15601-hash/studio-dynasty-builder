@@ -46,7 +46,7 @@ function makeBaseState(overrides?: Partial<GameState>): GameState {
 
 describe('TalentDebutSystem', () => {
   it('adds handcrafted + rookie debuts on year rollover (week 52 -> week 1)', () => {
-    const state = makeBaseState({ currentYear: 2026, currentWeek: 52, currentQuarter: 4 });
+    const state = makeBaseState({ universeSeed: 111, currentYear: 2026, currentWeek: 52, currentQuarter: 4 });
     const rng = createRng(123);
 
     const result = advanceWeek(state, rng, [TalentDebutSystem]);
@@ -62,5 +62,18 @@ describe('TalentDebutSystem', () => {
 
     // Emits a recap card.
     expect(result.recap.some((c) => c.type === 'talent')).toBe(true);
+  });
+
+  it('produces different rookie classes for different universe seeds', () => {
+    const a = advanceWeek(makeBaseState({ universeSeed: 111, currentYear: 2026, currentWeek: 52, currentQuarter: 4 }), createRng(1), [TalentDebutSystem]);
+    const b = advanceWeek(makeBaseState({ universeSeed: 222, currentYear: 2026, currentWeek: 52, currentQuarter: 4 }), createRng(1), [TalentDebutSystem]);
+
+    const aRookies = (a.nextState.talent || []).filter((t) => t.id.startsWith('rookie:2027:'));
+    const bRookies = (b.nextState.talent || []).filter((t) => t.id.startsWith('rookie:2027:'));
+
+    expect(aRookies.length).toBeGreaterThan(0);
+    expect(bRookies.length).toBeGreaterThan(0);
+
+    expect(aRookies.slice(0, 2).map((t) => t.name)).not.toEqual(bRookies.slice(0, 2).map((t) => t.name));
   });
 });
