@@ -138,6 +138,7 @@ export interface GameStoreState {
 
 const MAX_TICK_HISTORY = 20;
 
+// @ts-ignore TS4023 - WritableNonArrayDraft is used internally by immer but not exported
 export const useGameStore = create<GameStoreState>()(
   immer((set, get) => ({
     game: null,
