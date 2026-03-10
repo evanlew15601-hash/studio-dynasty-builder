@@ -493,12 +493,6 @@ export const StudioMagnateGame: React.FC<StudioMagnateGameProps> = ({
 
     const universeSeed = generateGameSeed();
 
-    // Start loading for game initialization
-    startOperation(LOADING_OPERATIONS.GAME_INIT.id, LOADING_OPERATIONS.GAME_INIT.name, LOADING_OPERATIONS.GAME_INIT.estimatedTime);
-    
-    // Initialize in steps with progress updates
-    updateOperation(LOADING_OPERATIONS.GAME_INIT.id, 10, 'Setting up studio...');
-    
     const studio = {
       id: 'player-studio',
       name: gameConfig?.studioName || 'Untitled Pictures',
@@ -511,8 +505,6 @@ export const StudioMagnateGame: React.FC<StudioMagnateGameProps> = ({
       weeksSinceLastProject: 0
     };
 
-    updateOperation(LOADING_OPERATIONS.GAME_INIT.id, 30, 'Generating talent pool...');
-    
     // Initialize comprehensive talent pool
     const mods = getModBundle();
 
@@ -522,12 +514,8 @@ export const StudioMagnateGame: React.FC<StudioMagnateGameProps> = ({
       (t) => t.id
     );
 
-    updateOperation(LOADING_OPERATIONS.GAME_INIT.id, 60, 'Creating competitor studios...');
-    
     const studioGenerator = new StudioGenerator();
     const competitorStudios = studioGenerator.generateCompetitorStudios();
-
-    updateOperation(LOADING_OPERATIONS.GAME_INIT.id, 80, 'Initializing systems...');
 
     let initialState: GameState = {
       universeSeed,
@@ -666,13 +654,6 @@ export const StudioMagnateGame: React.FC<StudioMagnateGameProps> = ({
     } catch (e) {
       console.warn('Failed to seed talent filmographies from AI releases', e);
     }
-
-    updateOperation(LOADING_OPERATIONS.GAME_INIT.id, 100, 'Game ready!');
-    
-    // Complete initialization after a brief delay
-    setTimeout(() => {
-      completeOperation(LOADING_OPERATIONS.GAME_INIT.id);
-    }, 500);
 
     return initialState;
   });

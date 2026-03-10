@@ -17,3 +17,14 @@ test('can navigate to Help and back', async ({ page }) => {
   await expect(page).toHaveURL(/\/$/);
   await expect(page.getByRole('button', { name: /^Quick Start$/ })).toBeVisible();
 });
+
+test('can quick start a new game', async ({ page }) => {
+  test.setTimeout(60_000);
+
+  await page.goto('/', { waitUntil: 'domcontentloaded' });
+  await page.getByRole('button', { name: /^Quick Start$/ }).click();
+
+  // Once the game shell mounts, the top header includes a "Save Game" button.
+  // This guards against runtime errors during boot (e.g. blank screen after starting).
+  await expect(page.getByRole('button', { name: /^Save Game$/ })).toBeVisible({ timeout: 55_000 });
+});
