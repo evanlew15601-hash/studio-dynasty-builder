@@ -167,7 +167,7 @@ export const useGameStore = create<GameStoreState>()(
       const derivedUniverseSeed =
         typeof state.universeSeed === 'number'
           ? state.universeSeed
-          : seedFromString(`${state.studio?.id ?? 'studio'}|${state.studio?.name ?? 'Studio'}`);
+          : seedFromString(`${state.studio?.id ?? 'studio'}`);
 
       const derivedRngState = typeof state.rngState === 'number' ? state.rngState : derivedUniverseSeed;
 

@@ -413,7 +413,7 @@ export const StudioMagnateGame: React.FC<StudioMagnateGameProps> = ({
       const derivedUniverseSeed =
         typeof initialGameState.universeSeed === 'number'
           ? initialGameState.universeSeed
-          : seedFromString(`${initialGameState.studio?.id ?? 'studio'}|${initialGameState.studio?.name ?? 'Studio'}`);
+          : seedFromString(`${initialGameState.studio?.id ?? 'studio'}`);
 
       const derivedRngState =
         typeof initialGameState.rngState === 'number'

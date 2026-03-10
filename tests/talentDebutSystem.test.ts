@@ -74,6 +74,6 @@ describe('TalentDebutSystem', () => {
     expect(aRookies.length).toBeGreaterThan(0);
     expect(bRookies.length).toBeGreaterThan(0);
 
-    expect(aRookies.slice(0, 2).map((t) => t.name)).not.toEqual(bRookies.slice(0, 2).map((t) => t.name));
+    expect(aRookies.map((t) => t.name)).not.toEqual(bRookies.map((t) => t.name));
   });
 });

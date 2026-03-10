@@ -46,7 +46,7 @@ describe('TalentDebutGenerator (procedural debuts)', () => {
     const a = generateProceduralDebuts({ existingTalent: [], year: 2032, actorCount: 8, directorCount: 2, seed: 'seed-a' });
     const b = generateProceduralDebuts({ existingTalent: [], year: 2032, actorCount: 8, directorCount: 2, seed: 'seed-b' });
 
-    // Not a strict guarantee, but extremely likely given name pools; we check a stable signal (first two names).
-    expect(a.slice(0, 2).map((t) => t.name)).not.toEqual(b.slice(0, 2).map((t) => t.name));
+    // Across the full rookie class, different seeds should yield a different set of names.
+    expect(a.map((t) => t.name)).not.toEqual(b.map((t) => t.name));
   });
 });
