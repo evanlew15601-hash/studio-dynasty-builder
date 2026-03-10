@@ -6,11 +6,20 @@ import { componentTagger } from "lovable-tagger";
 // https://vitejs.dev/config/
 export default defineConfig(({ mode }) => {
   const env = loadEnv(mode, process.cwd(), "");
+  const repoName = process.env.GITHUB_REPOSITORY?.split("/")?.[1];
+  const ghPagesBase = (repoName && repoName.length > 0)
+    ? repoName.endsWith(".github.io")
+      ? "/"
+      : `/${repoName}/`
+    : null;
+
   const base = (process.env.VITE_BASE && process.env.VITE_BASE.length > 0)
     ? process.env.VITE_BASE
     : (env.VITE_BASE && env.VITE_BASE.length > 0)
       ? env.VITE_BASE
-      : "/";
+      : (process.env.GITHUB_ACTIONS === "true" && mode === "production" && ghPagesBase)
+        ? ghPagesBase
+        : "/";
 
   return {
     base,
