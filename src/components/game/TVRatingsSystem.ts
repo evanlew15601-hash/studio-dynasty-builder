@@ -80,40 +80,37 @@ export class TVRatingsSystem {
     const releaseAbs = project.releaseYear * 52 + project.releaseWeek;
     const weeksSinceRelease = Math.max(0, currentAbs - releaseAbs);
 
-    const prevWeeksSinceRelease = project.metrics?.weeksSinceRelease ?? 0;
+    const lastProcessed = Math.max(0, project.metrics?.weeksSinceRelease || 0);
+    if (weeksSinceRelease <= lastProcessed) return project;
 
-    // Catch-up: if the simulation wasn't ticking for a while (or an AI show premiered in the past),
-    // accrue missing weeks in a single call.
-    const startWeekIndex = Math.max(1, prevWeeksSinceRelease + 1);
+    const startIdx = Math.max(1, lastProcessed + 1); // week 0 is already captured by initializeAiring()
 
-    let totalViews = project.metrics?.streaming?.totalViews || 0;
-    let thisWeekViews = 0;
+    let addViews = 0;
+    let latestWeekViews = 0;
 
-    if (weeksSinceRelease >= startWeekIndex) {
-      for (let idx = startWeekIndex; idx <= weeksSinceRelease; idx += 1) {
-        const v = this.calculateWeeklyViews(project, idx);
-        totalViews += v;
-        thisWeekViews = v;
-      }
-    } else {
-      // No new accrual this tick (should be rare).
-      thisWeekViews = 0;
+    for (let idx = startIdx; idx <= weeksSinceRelease; idx += 1) {
+      const v = this.calculateWeeklyViews(project, idx);
+      addViews += v;
+      latestWeekViews = v;
     }
+
+    const prevTotal = project.metrics?.streaming?.totalViews || 0;
+    const newTotal = prevTotal + addViews;
 
     const completionRate = this.updateCompletionRate(project, weeksSinceRelease);
     const audienceShare = this.updateAudienceShare(project, weeksSinceRelease);
-    const subscriberGrowth = this.updateSubscriberGrowth(project, thisWeekViews);
+    const subscriberGrowth = this.updateSubscriberGrowth(project, latestWeekViews);
 
     return {
       ...project,
       metrics: {
         ...project.metrics,
         streaming: {
-          viewsFirstWeek: project.metrics?.streaming?.viewsFirstWeek || this.calculateWeeklyViews(project, 0),
-          totalViews,
+          viewsFirstWeek: project.metrics?.streaming?.viewsFirstWeek || latestWeekViews,
+          totalViews: newTotal,
           completionRate,
           audienceShare,
-          watchTimeHours: Math.max(1000, Math.floor(totalViews * (project.script?.estimatedRuntime || 45) / 60)),
+          watchTimeHours: Math.max(1000, Math.floor(newTotal * (project.script?.estimatedRuntime || 45) / 60)),
           subscriberGrowth
         },
         weeksSinceRelease
