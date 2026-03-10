@@ -436,7 +436,175 @@ interface StudioMagnateGameProps {
   initialUnlockedAchievements?: string[];
 }
 
-export const StudioMagnateGame: React.FC<StudioMagnateGameProps> = ({
+function buildFreshGameState(gameConfig?: StudioMagnateGameProps['gameConfig']): GameState {
+  const universeSeed = generateGameSeed();
+
+  const studio = {
+    id: 'player-studio',
+    name: gameConfig?.studioName || 'Untitled Pictures',
+    reputation: 50,
+    budget: gameConfig?.startingBudget || 10000000,
+    founded: 1965,
+    specialties: gameConfig?.specialties || ['drama'] as Genre[],
+    debt: 0,
+    lastProjectWeek: 0,
+    weeksSinceLastProject: 0
+  };
+
+  // Initialize comprehensive talent pool
+  const mods = getModBundle();
+
+  const generatedTalent = applyPatchesByKey(
+    generateInitialTalentPool({ currentYear: new Date().getFullYear() }),
+    getPatchesForEntity(mods, 'talent'),
+    (t) => t.id
+  );
+
+  const studioGenerator = new StudioGenerator();
+  const competitorStudios = studioGenerator.generateCompetitorStudios();
+
+  let initialState: GameState = {
+    universeSeed,
+    rngState: universeSeed,
+    studio,
+    currentYear: new Date().getFullYear(),
+    currentWeek: 1,
+    currentQuarter: 1,
+    projects: [],
+    talent: generatedTalent,
+    scripts: [],
+    competitorStudios,
+    marketConditions: {
+      trendingGenres: ['action', 'drama', 'comedy'] as Genre[],
+      audiencePreferences: [],
+      economicClimate: 'stable' as const,
+      technologicalAdvances: [],
+      regulatoryChanges: [],
+      seasonalTrends: [],
+      competitorReleases: [],
+      awardsSeasonActive: false
+    },
+    eventQueue: [],
+    boxOfficeHistory: [],
+    awardsCalendar: [],
+    industryTrends: [],
+    allReleases: (() => {
+      const sg = new StudioGenerator();
+      const releases: Project[] = [];
+      const currentYear = new Date().getFullYear();
+      const yearsToSeed = [currentYear - 1, currentYear];
+      for (const year of yearsToSeed) {
+        for (let w = 1; w <= 52; w++) {
+          let releasesThisWeek = 0;
+          for (const st of competitorStudios) {
+            const profile = sg.getStudioProfile(st.name);
+            const rel = profile ? sg.generateStudioRelease(profile, w, year) : null;
+            if (rel) {
+              releases.push(rel);
+              releases[releases.length - 1] = attachBasicCastForAI(releases[releases.length - 1] as Project, generatedTalent);
+              releasesThisWeek += 1;
+            }
+          }
+          if (releasesThisWeek === 0 && competitorStudios[0]) {
+            const fallback = sg.getStudioProfile(competitorStudios[0].name);
+            if (fallback) {
+              const rel = sg.generateStudioRelease(fallback, w, year);
+              if (rel) {
+                releases.push(rel);
+                releases[releases.length - 1] = attachBasicCastForAI(releases[releases.length - 1] as Project, generatedTalent);
+              } else {
+                // Guarantee at least one release per week: synthesize a small indie release
+                const genre = fallback.specialties[0] as Genre;
+                const script = {
+                  id: `script-${year}-${w}-${Math.random().toString(36).slice(2, 8)}`,
+                  title: sg.generateFilmTitle(genre, fallback.name),
+                  genre,
+                  logline: 'An indie story released to keep the slate full.',
+                  writer: 'Staff Writer',
+                  pages: 100,
+                  quality: 60,
+                  budget: 12000000,
+                  developmentStage: 'final',
+                  themes: ['indie','festival'],
+                  targetAudience: 'general',
+                  estimatedRuntime: 110,
+                  characteristics: { tone: 'balanced', pacing: 'steady', dialogue: 'naturalistic', visualStyle: 'realistic', commercialAppeal: 5, criticalPotential: 6, cgiIntensity: 'minimal' }
+                } as Script;
+                releases.push({
+                  id: `ai-project-${year}-${w}-${Math.random().toString(36).slice(2, 6)}`,
+                  title: script.title,
+                  script,
+                  type: 'feature',
+                  currentPhase: 'release',
+                  status: 'released',
+                  phaseDuration: 0,
+                  contractedTalent: [],
+                  developmentProgress: { scriptCompletion: 100, budgetApproval: 100, talentAttached: 100, locationSecured: 100, completionThreshold: 100, issues: [] },
+                  budget: {
+                    total: script.budget,
+                    allocated: { aboveTheLine: script.budget * 0.2, belowTheLine: script.budget * 0.3, postProduction: script.budget * 0.15, marketing: script.budget * 0.25, distribution: script.budget * 0.1, contingency: 0 },
+                    spent: { aboveTheLine: script.budget * 0.2, belowTheLine: script.budget * 0.3, postProduction: script.budget * 0.15, marketing: script.budget * 0.25, distribution: script.budget * 0.1, contingency: 0 },
+                    overages: { aboveTheLine: 0, belowTheLine: 0, postProduction: 0, marketing: 0, distribution: 0, contingency: 0 }
+                  },
+                  cast: [],
+                  crew: [],
+                  timeline: { preProduction: { start: new Date(), end: new Date() }, principalPhotography: { start: new Date(), end: new Date() }, postProduction: { start: new Date(), end: new Date() }, release: new Date(), milestones: [] },
+                  locations: [],
+                  distributionStrategy: { primary: { platform: 'Theatrical', type: 'theatrical', revenue: { type: 'box-office', studioShare: 50 } }, international: [], windows: [], marketingBudget: script.budget * 0.25 },
+                  metrics: {
+                    inTheaters: true,
+                    boxOfficeTotal: Math.floor(script.budget * 2.2),
+                    theaterCount: 1200,
+                    weeksSinceRelease: 0,
+                    criticsScore: 70,
+                    audienceScore: 72,
+                    boxOfficeStatus: 'Current',
+                    theatricalRunLocked: false,
+                    boxOffice: { openingWeekend: 0, domesticTotal: 0, internationalTotal: 0, production: script.budget, marketing: script.budget * 0.25, profit: 0, theaters: 1200, weeks: 0 }
+                  },
+                  releaseWeek: w,
+                  releaseYear: year,
+                  studioName: fallback.name
+                } as Project);
+                releases[releases.length - 1] = attachBasicCastForAI(releases[releases.length - 1] as Project, generatedTalent);
+              }
+            }
+          }
+        }
+      }
+      return releases;
+    })(), // Pre-generated AI releases for current and previous year
+    topFilmsHistory: [],
+    // Initialize Franchise & Public Domain Systems
+    franchises: applyPatchesByKey(
+      FranchiseGenerator.generateInitialFranchises(30),
+      getPatchesForEntity(mods, 'franchise'),
+      (f) => f.id
+    ),
+    publicDomainIPs: PublicDomainGenerator.generateInitialPublicDomainIPs(50, mods),
+    aiStudioProjects: [] as Project[],
+  };
+
+  // Prime competitor TV shows so they have seasons/episodes/rating state at game start.
+  initialState = primeCompetitorTelevision(initialState);
+
+  // Seed talent careers from AI releases so the world starts with real filmographies/fame.
+  try {
+    let filmographyState = initialState;
+    for (const release of initialState.allReleases) {
+      if ('script' in release) {
+        filmographyState = TalentFilmographyManager.updateFilmographyOnRelease(filmographyState, release as Project);
+      }
+    }
+    initialState = filmographyState;
+  } catch (e) {
+    console.warn('Failed to seed talent filmographies from AI releases', e);
+  }
+
+  return initialState;
+}
+
+const StudioMagnateGameImpl: React.FC<StudioMagnateGameProps> = ({
   onPhaseChange,
   gameConfig,
   initialGameState,
@@ -476,6 +644,8 @@ export const StudioMagnateGame: React.FC<StudioMagnateGameProps> = ({
   const gameRegistry = useGameStore((s) => s.registry);
 
   const [bootstrapGameState] = useState<GameState>(() => {
+    if (storeGameState) return storeGameState;
+
     // If we have a loaded game, use it directly and skip heavy init
     if (initialGameState) {
       const derivedUniverseSeed =
@@ -491,171 +661,7 @@ export const StudioMagnateGame: React.FC<StudioMagnateGameProps> = ({
       return primeCompetitorTelevision({ ...initialGameState, universeSeed: derivedUniverseSeed, rngState: derivedRngState });
     }
 
-    const universeSeed = generateGameSeed();
-
-    const studio = {
-      id: 'player-studio',
-      name: gameConfig?.studioName || 'Untitled Pictures',
-      reputation: 50,
-      budget: gameConfig?.startingBudget || 10000000,
-      founded: 1965,
-      specialties: gameConfig?.specialties || ['drama'] as Genre[],
-      debt: 0,
-      lastProjectWeek: 0,
-      weeksSinceLastProject: 0
-    };
-
-    // Initialize comprehensive talent pool
-    const mods = getModBundle();
-
-    const generatedTalent = applyPatchesByKey(
-      generateInitialTalentPool({ currentYear: new Date().getFullYear() }),
-      getPatchesForEntity(mods, 'talent'),
-      (t) => t.id
-    );
-
-    const studioGenerator = new StudioGenerator();
-    const competitorStudios = studioGenerator.generateCompetitorStudios();
-
-    let initialState: GameState = {
-      universeSeed,
-      rngState: universeSeed,
-      studio,
-      currentYear: new Date().getFullYear(),
-      currentWeek: 1,
-      currentQuarter: 1,
-      projects: [],
-      talent: generatedTalent,
-      scripts: [],
-      competitorStudios,
-      marketConditions: {
-        trendingGenres: ['action', 'drama', 'comedy'] as Genre[],
-        audiencePreferences: [],
-        economicClimate: 'stable' as const,
-        technologicalAdvances: [],
-        regulatoryChanges: [],
-        seasonalTrends: [],
-        competitorReleases: [],
-        awardsSeasonActive: false
-      },
-      eventQueue: [],
-      boxOfficeHistory: [],
-      awardsCalendar: [],
-      industryTrends: [],
-      allReleases: (() => {
-        const sg = new StudioGenerator();
-        const releases: Project[] = [];
-        const currentYear = new Date().getFullYear();
-        const yearsToSeed = [currentYear - 1, currentYear];
-        for (const year of yearsToSeed) {
-          for (let w = 1; w <= 52; w++) {
-            let releasesThisWeek = 0;
-            for (const st of competitorStudios) {
-              const profile = sg.getStudioProfile(st.name);
-              const rel = profile ? sg.generateStudioRelease(profile, w, year) : null;
-              if (rel) {
-                releases.push(rel);
-                releases[releases.length - 1] = attachBasicCastForAI(releases[releases.length - 1] as Project, generatedTalent);
-                releasesThisWeek += 1;
-              }
-            }
-            if (releasesThisWeek === 0 && competitorStudios[0]) {
-              const fallback = sg.getStudioProfile(competitorStudios[0].name);
-              if (fallback) {
-                const rel = sg.generateStudioRelease(fallback, w, year);
-                if (rel) {
-                  releases.push(rel);
-                  releases[releases.length - 1] = attachBasicCastForAI(releases[releases.length - 1] as Project, generatedTalent);
-                } else {
-                  // Guarantee at least one release per week: synthesize a small indie release
-                  const genre = fallback.specialties[0] as Genre;
-                  const script = {
-                    id: `script-${year}-${w}-${Math.random().toString(36).slice(2, 8)}`,
-                    title: sg.generateFilmTitle(genre, fallback.name),
-                    genre,
-                    logline: 'An indie story released to keep the slate full.',
-                    writer: 'Staff Writer',
-                    pages: 100,
-                    quality: 60,
-                    budget: 12000000,
-                    developmentStage: 'final',
-                    themes: ['indie','festival'],
-                    targetAudience: 'general',
-                    estimatedRuntime: 110,
-                    characteristics: { tone: 'balanced', pacing: 'steady', dialogue: 'naturalistic', visualStyle: 'realistic', commercialAppeal: 5, criticalPotential: 6, cgiIntensity: 'minimal' }
-                  } as Script;
-                  releases.push({
-                    id: `ai-project-${year}-${w}-${Math.random().toString(36).slice(2, 6)}`,
-                    title: script.title,
-                    script,
-                    type: 'feature',
-                    currentPhase: 'release',
-                    status: 'released',
-                    phaseDuration: 0,
-                    contractedTalent: [],
-                    developmentProgress: { scriptCompletion: 100, budgetApproval: 100, talentAttached: 100, locationSecured: 100, completionThreshold: 100, issues: [] },
-                    budget: {
-                      total: script.budget,
-                      allocated: { aboveTheLine: script.budget * 0.2, belowTheLine: script.budget * 0.3, postProduction: script.budget * 0.15, marketing: script.budget * 0.25, distribution: script.budget * 0.1, contingency: 0 },
-                      spent: { aboveTheLine: script.budget * 0.2, belowTheLine: script.budget * 0.3, postProduction: script.budget * 0.15, marketing: script.budget * 0.25, distribution: script.budget * 0.1, contingency: 0 },
-                      overages: { aboveTheLine: 0, belowTheLine: 0, postProduction: 0, marketing: 0, distribution: 0, contingency: 0 }
-                    },
-                    cast: [],
-                    crew: [],
-                    timeline: { preProduction: { start: new Date(), end: new Date() }, principalPhotography: { start: new Date(), end: new Date() }, postProduction: { start: new Date(), end: new Date() }, release: new Date(), milestones: [] },
-                    locations: [],
-                    distributionStrategy: { primary: { platform: 'Theatrical', type: 'theatrical', revenue: { type: 'box-office', studioShare: 50 } }, international: [], windows: [], marketingBudget: script.budget * 0.25 },
-                    metrics: {
-                      inTheaters: true,
-                      boxOfficeTotal: Math.floor(script.budget * 2.2),
-                      theaterCount: 1200,
-                      weeksSinceRelease: 0,
-                      criticsScore: 70,
-                      audienceScore: 72,
-                      boxOfficeStatus: 'Current',
-                      theatricalRunLocked: false,
-                      boxOffice: { openingWeekend: 0, domesticTotal: 0, internationalTotal: 0, production: script.budget, marketing: script.budget * 0.25, profit: 0, theaters: 1200, weeks: 0 }
-                    },
-                    releaseWeek: w,
-                    releaseYear: year,
-                    studioName: fallback.name
-                  } as Project);
-                  releases[releases.length - 1] = attachBasicCastForAI(releases[releases.length - 1] as Project, generatedTalent);
-                }
-              }
-            }
-          }
-        }
-        return releases;
-      })(), // Pre-generated AI releases for current and previous year
-      topFilmsHistory: [],
-      // Initialize Franchise & Public Domain Systems
-      franchises: applyPatchesByKey(
-        FranchiseGenerator.generateInitialFranchises(30),
-        getPatchesForEntity(mods, 'franchise'),
-        (f) => f.id
-      ),
-      publicDomainIPs: PublicDomainGenerator.generateInitialPublicDomainIPs(50, mods),
-      aiStudioProjects: [] as Project[],
-    };
-
-    // Prime competitor TV shows so they have seasons/episodes/rating state at game start.
-    initialState = primeCompetitorTelevision(initialState);
-
-    // Seed talent careers from AI releases so the world starts with real filmographies/fame.
-    try {
-      let filmographyState = initialState;
-      for (const release of initialState.allReleases) {
-        if ('script' in release) {
-          filmographyState = TalentFilmographyManager.updateFilmographyOnRelease(filmographyState, release as Project);
-        }
-      }
-      initialState = filmographyState;
-    } catch (e) {
-      console.warn('Failed to seed talent filmographies from AI releases', e);
-    }
-
-    return initialState;
+    return buildFreshGameState(gameConfig);
   });
 
   useEffect(() => {
@@ -3271,4 +3277,81 @@ export const StudioMagnateGame: React.FC<StudioMagnateGameProps> = ({
     </div>
     </>
   );
+};
+
+export const StudioMagnateGame: React.FC<StudioMagnateGameProps> = (props) => {
+  const { loading, startOperation, updateOperation, completeOperation } = useLoadingContext();
+  const initGame = useGameStore((s) => s.initGame);
+  const storeGameState = useGameStore((s) => s.game);
+  const [bootError, setBootError] = useState<unknown>(null);
+
+  useEffect(() => {
+    if (props.initialGameState) return;
+    if (storeGameState) return;
+
+    let cancelled = false;
+
+    const run = async () => {
+      startOperation(LOADING_OPERATIONS.GAME_INIT.id, LOADING_OPERATIONS.GAME_INIT.name, LOADING_OPERATIONS.GAME_INIT.estimatedTime);
+      updateOperation(LOADING_OPERATIONS.GAME_INIT.id, 10, 'Generating world');
+
+      // Yield so the loading overlay can paint before the heavy bootstrap work.
+      await new Promise<void>((resolve) => setTimeout(resolve, 0));
+
+      const state = buildFreshGameState(props.gameConfig);
+      if (cancelled) return;
+
+      updateOperation(LOADING_OPERATIONS.GAME_INIT.id, 95, 'Finalizing');
+      await new Promise<void>((resolve) => setTimeout(resolve, 0));
+
+      initGame(state, state.universeSeed);
+      completeOperation(LOADING_OPERATIONS.GAME_INIT.id);
+    };
+
+    void run().catch((error) => {
+      console.error('Failed to bootstrap new game', error);
+      setBootError(error);
+      completeOperation(LOADING_OPERATIONS.GAME_INIT.id);
+    });
+
+    return () => {
+      cancelled = true;
+    };
+  }, [
+    props.initialGameState,
+    props.gameConfig,
+    storeGameState,
+    initGame,
+    startOperation,
+    updateOperation,
+    completeOperation,
+  ]);
+
+  if (bootError) {
+    return (
+      <div className="min-h-screen bg-background font-studio flex items-center justify-center p-6">
+        <div className="max-w-lg w-full space-y-3">
+          <div className="text-lg font-semibold">Game failed to start</div>
+          <div className="text-sm text-muted-foreground">See console for details.</div>
+        </div>
+      </div>
+    );
+  }
+
+  if (props.initialGameState) {
+    return <StudioMagnateGameImpl {...props} />;
+  }
+
+  if (!storeGameState) {
+    return (
+      <>
+        <LoadingOverlay loading={loading} />
+        <div className="min-h-screen bg-background font-studio flex items-center justify-center p-6">
+          <div className="text-sm text-muted-foreground">Starting game…</div>
+        </div>
+      </>
+    );
+  }
+
+  return <StudioMagnateGameImpl {...props} />;
 };
