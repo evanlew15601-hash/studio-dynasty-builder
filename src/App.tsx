@@ -16,12 +16,11 @@ const App = () => (
     <TooltipProvider>
       <Toaster />
       <Sonner />
-<BrowserRouter basename={import.meta.env.BASE_URL}>
+      <BrowserRouter basename={import.meta.env.BASE_URL}>
         <Suspense fallback={<div className="p-6 text-sm text-muted-foreground">Loading…</div>}>
           <Routes>
             <Route path="/" element={<Index />} />
             <Route path="/help" element={<Help />} />
-            {/* ADD ALL CUSTOM ROUTES ABOVE THE CATCH-ALL "*" ROUTE */}
             <Route path="*" element={<NotFound />} />
           </Routes>
         </Suspense>

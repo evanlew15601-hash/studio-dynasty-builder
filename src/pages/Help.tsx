@@ -22,7 +22,7 @@ const Help = () => {
 
           <Button variant="outline" asChild>
             <Link to="/">
-              <ArrowLeft />
+              <ArrowLeft aria-hidden="true" />
               Back
             </Link>
           </Button>

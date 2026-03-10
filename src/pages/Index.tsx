@@ -1,5 +1,3 @@
-// Update this page (the content is just a fallback if you fail to update the page)
-
 import { GameLanding } from '@/components/game/GameLanding';
 import { LoadingProvider } from '@/contexts/LoadingContext';
 import { Suspense, lazy, useState } from 'react';
@@ -81,14 +79,11 @@ const Index = () => {
   return (
     <LoadingProvider>
       {!gameStarted ? (
-        <GameLanding 
-          onStartGame={handleStartGame}
-          onLoadGame={handleLoadGame}
-        />
+        <GameLanding onStartGame={handleStartGame} onLoadGame={handleLoadGame} />
       ) : (
         <Suspense fallback={<div className="p-6 text-sm text-muted-foreground">Loading game...</div>}>
-          <StudioMagnateGame 
-            gameConfig={gameConfig ?? undefined} 
+          <StudioMagnateGame
+            gameConfig={gameConfig ?? undefined}
             initialGameState={loadedSnapshot?.gameState}
             initialPhase={loadedSnapshot?.meta.currentPhase}
             initialUnlockedAchievements={loadedSnapshot?.unlockedAchievements}

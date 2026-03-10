@@ -1,8 +1,9 @@
 [package]
 name = "studio-magnate"
-version = "0.1.0"
+version = "0.1.0-beta.1"
 description = "Studio Magnate"
-authors = ["you"]
+authors = ["Studio Magnate Contributors"]
+license = "Apache-2.0"
 edition = "2021"
 
 [lib]

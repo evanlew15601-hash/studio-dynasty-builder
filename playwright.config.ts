@@ -6,8 +6,20 @@ export default defineConfig({
   testDir: './e2e',
   fullyParallel: true,
   reporter: 'list',
+  retries: process.env.CI ? 2 : 0,
+  workers: process.env.CI ? 1 : undefined,
+  timeout: 30_000,
+  expect: {
+    timeout: 10_000,
+  },
   use: {
     baseURL,
+    actionTimeout: 10_000,
+    navigationTimeout: 30_000,
+    trace: 'on-first-retry',
+    screenshot: 'only-on-failure',
+    video: 'retain-on-failure',
+    reducedMotion: 'reduce',
     launchOptions: {
       args: ['--proxy-bypass-list=<-loopback>'],
     },
