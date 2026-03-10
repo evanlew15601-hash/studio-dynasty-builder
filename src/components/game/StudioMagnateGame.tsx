@@ -3290,32 +3290,38 @@ export const StudioMagnateGame: React.FC<StudioMagnateGameProps> = (props) => {
     if (storeGameState) return;
 
     let cancelled = false;
+    const opId = LOADING_OPERATIONS.GAME_INIT.id;
 
     const run = async () => {
-      startOperation(LOADING_OPERATIONS.GAME_INIT.id, LOADING_OPERATIONS.GAME_INIT.name, LOADING_OPERATIONS.GAME_INIT.estimatedTime);
-      updateOperation(LOADING_OPERATIONS.GAME_INIT.id, 10, 'Generating world');
+      startOperation(opId, LOADING_OPERATIONS.GAME_INIT.name, LOADING_OPERATIONS.GAME_INIT.estimatedTime);
+      updateOperation(opId, 10, 'Generating world');
 
-      // Yield so the loading overlay can paint before the heavy bootstrap work.
-      await new Promise<void>((resolve) => setTimeout(resolve, 0));
+      try {
+        // Yield so the loading overlay can paint before the heavy bootstrap work.
+        await new Promise<void>((resolve) => setTimeout(resolve, 0));
+        if (cancelled) return;
 
-      const state = buildFreshGameState(props.gameConfig);
-      if (cancelled) return;
+        const state = buildFreshGameState(props.gameConfig);
+        if (cancelled) return;
 
-      updateOperation(LOADING_OPERATIONS.GAME_INIT.id, 95, 'Finalizing');
-      await new Promise<void>((resolve) => setTimeout(resolve, 0));
+        updateOperation(opId, 95, 'Finalizing');
+        await new Promise<void>((resolve) => setTimeout(resolve, 0));
 
-      initGame(state, state.universeSeed);
-      completeOperation(LOADING_OPERATIONS.GAME_INIT.id);
+        initGame(state, state.universeSeed);
+      } finally {
+        // Ensure we never leave a stuck loading operation behind (important for React StrictMode).
+        completeOperation(opId);
+      }
     };
 
     void run().catch((error) => {
       console.error('Failed to bootstrap new game', error);
       setBootError(error);
-      completeOperation(LOADING_OPERATIONS.GAME_INIT.id);
     });
 
     return () => {
       cancelled = true;
+      completeOperation(opId);
     };
   }, [
     props.initialGameState,
