@@ -3417,8 +3417,8 @@ export const ModsPanel: React.FC = () => {
                           <TableCell className="p-2">
                             <Input
                               className="h-8 min-w-[220px]"
-                              value={(edited.tags || []).join(', ')}
-                              onChange={(e) => updateFranchise(base.id, { tags: splitCsv(e.target.value) })}
+                              value={(edited.franchiseTags || []).join(', ')}
+                              onChange={(e) => updateFranchise(base.id, { franchiseTags: splitCsv(e.target.value) })}
                             />
                           </TableCell>
                           <TableCell className="p-2">
