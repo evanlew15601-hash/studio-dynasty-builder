@@ -493,25 +493,30 @@ function buildFreshGameState(gameConfig?: StudioMagnateGameProps['gameConfig']):
       const releases: Project[] = [];
       const currentYear = new Date().getFullYear();
       const yearsToSeed = [currentYear - 1, currentYear];
+      const releasesPerWeek = Math.min(2, competitorStudios.length || 1);
+
       for (const year of yearsToSeed) {
         for (let w = 1; w <= 52; w++) {
           let releasesThisWeek = 0;
-          for (const st of competitorStudios) {
+
+          for (let i = 0; i < releasesPerWeek; i++) {
+            const st = competitorStudios.length > 0 ? competitorStudios[(w + i) % competitorStudios.length] : null;
+            if (!st) continue;
+
             const profile = sg.getStudioProfile(st.name);
             const rel = profile ? sg.generateStudioRelease(profile, w, year) : null;
-            if (rel) {
-              releases.push(rel);
-              releases[releases.length - 1] = attachBasicCastForAI(releases[releases.length - 1] as Project, generatedTalent);
-              releasesThisWeek += 1;
-            }
+            if (!rel) continue;
+
+            releases.push(attachBasicCastForAI(rel as Project, generatedTalent));
+            releasesThisWeek += 1;
           }
+
           if (releasesThisWeek === 0 && competitorStudios[0]) {
             const fallback = sg.getStudioProfile(competitorStudios[0].name);
             if (fallback) {
               const rel = sg.generateStudioRelease(fallback, w, year);
               if (rel) {
-                releases.push(rel);
-                releases[releases.length - 1] = attachBasicCastForAI(releases[releases.length - 1] as Project, generatedTalent);
+                releases.push(attachBasicCastForAI(rel as Project, generatedTalent));
               } else {
                 // Guarantee at least one release per week: synthesize a small indie release
                 const genre = fallback.specialties[0] as Genre;
@@ -530,7 +535,7 @@ function buildFreshGameState(gameConfig?: StudioMagnateGameProps['gameConfig']):
                   estimatedRuntime: 110,
                   characteristics: { tone: 'balanced', pacing: 'steady', dialogue: 'naturalistic', visualStyle: 'realistic', commercialAppeal: 5, criticalPotential: 6, cgiIntensity: 'minimal' }
                 } as Script;
-                releases.push({
+                releases.push(attachBasicCastForAI({
                   id: `ai-project-${year}-${w}-${Math.random().toString(36).slice(2, 6)}`,
                   title: script.title,
                   script,
@@ -565,10 +570,63 @@ function buildFreshGameState(gameConfig?: StudioMagnateGameProps['gameConfig']):
                   releaseWeek: w,
                   releaseYear: year,
                   studioName: fallback.name
-                } as Project);
-                releases[releases.length - 1] = attachBasicCastForAI(releases[releases.length - 1] as Project, generatedTalent);
+                } as Project, generatedTalent));
               }
             }
+          } else if (releasesThisWeek === 0) {
+            const genre: Genre = 'drama' as any;
+            const script = {
+              id: `script-${year}-${w}-${Math.random().toString(36).slice(2, 8)}`,
+              title: sg.generateFilmTitle(genre, 'Indie Circuit'),
+              genre,
+              logline: 'A small release that keeps the slate moving.',
+              writer: 'Staff Writer',
+              pages: 100,
+              quality: 55,
+              budget: 9000000,
+              developmentStage: 'final',
+              themes: ['indie'],
+              targetAudience: 'general',
+              estimatedRuntime: 105,
+              characteristics: { tone: 'balanced', pacing: 'steady', dialogue: 'naturalistic', visualStyle: 'realistic', commercialAppeal: 5, criticalPotential: 5, cgiIntensity: 'minimal' }
+            } as Script;
+
+            releases.push(attachBasicCastForAI({
+              id: `ai-project-${year}-${w}-${Math.random().toString(36).slice(2, 6)}`,
+              title: script.title,
+              script,
+              type: 'feature',
+              currentPhase: 'release',
+              status: 'released',
+              phaseDuration: 0,
+              contractedTalent: [],
+              developmentProgress: { scriptCompletion: 100, budgetApproval: 100, talentAttached: 100, locationSecured: 100, completionThreshold: 100, issues: [] },
+              budget: {
+                total: script.budget,
+                allocated: { aboveTheLine: script.budget * 0.2, belowTheLine: script.budget * 0.3, postProduction: script.budget * 0.15, marketing: script.budget * 0.25, distribution: script.budget * 0.1, contingency: 0 },
+                spent: { aboveTheLine: script.budget * 0.2, belowTheLine: script.budget * 0.3, postProduction: script.budget * 0.15, marketing: script.budget * 0.25, distribution: script.budget * 0.1, contingency: 0 },
+                overages: { aboveTheLine: 0, belowTheLine: 0, postProduction: 0, marketing: 0, distribution: 0, contingency: 0 }
+              },
+              cast: [],
+              crew: [],
+              timeline: { preProduction: { start: new Date(), end: new Date() }, principalPhotography: { start: new Date(), end: new Date() }, postProduction: { start: new Date(), end: new Date() }, release: new Date(), milestones: [] },
+              locations: [],
+              distributionStrategy: { primary: { platform: 'Theatrical', type: 'theatrical', revenue: { type: 'box-office', studioShare: 50 } }, international: [], windows: [], marketingBudget: script.budget * 0.25 },
+              metrics: {
+                inTheaters: true,
+                boxOfficeTotal: Math.floor(script.budget * 2.0),
+                theaterCount: 900,
+                weeksSinceRelease: 0,
+                criticsScore: 65,
+                audienceScore: 68,
+                boxOfficeStatus: 'Current',
+                theatricalRunLocked: false,
+                boxOffice: { openingWeekend: 0, domesticTotal: 0, internationalTotal: 0, production: script.budget, marketing: script.budget * 0.25, profit: 0, theaters: 900, weeks: 0 }
+              },
+              releaseWeek: w,
+              releaseYear: year,
+              studioName: 'Indie Circuit'
+            } as Project, generatedTalent));
           }
         }
       }
@@ -588,10 +646,12 @@ function buildFreshGameState(gameConfig?: StudioMagnateGameProps['gameConfig']):
   // Prime competitor TV shows so they have seasons/episodes/rating state at game start.
   initialState = primeCompetitorTelevision(initialState);
 
-  // Seed talent careers from AI releases so the world starts with real filmographies/fame.
+  // Seed a small amount of talent careers from AI releases so the world starts with some real filmographies/fame,
+  // without turning boot into a multi-second CPU spike.
   try {
     let filmographyState = initialState;
-    for (const release of initialState.allReleases) {
+    const seedReleases = (initialState.allReleases || []).slice(0, 60);
+    for (const release of seedReleases) {
       if ('script' in release) {
         filmographyState = TalentFilmographyManager.updateFilmographyOnRelease(filmographyState, release as Project);
       }
