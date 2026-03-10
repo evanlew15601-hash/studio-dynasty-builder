@@ -12,8 +12,6 @@
 
 import { create } from 'zustand';
 import { immer } from 'zustand/middleware/immer';
-// eslint-disable-next-line @typescript-eslint/no-explicit-any
-type WritableNonArrayDraft<T> = T;
 import type { WritableDraft } from 'immer';
 import type { Franchise, GameState, Project, Script, Studio, StudioAward, TalentPerson } from '@/types/game';
 import type { TickReport } from '@/types/tickReport';
