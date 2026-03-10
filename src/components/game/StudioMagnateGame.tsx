@@ -42,7 +42,8 @@ import { DeepReputationPanel } from './DeepReputationPanel';
 import { MediaAnalyticsPanel } from './MediaAnalyticsPanel';
 import { BackgroundSimulation as BackgroundSimulationComponent } from './BackgroundSimulation';
 import { SequelManagement as SequelManagementComponent } from './SequelManagement';
-import { generateInitialTalentPool } from '@/data/WorldGenerator';
+import { buildCoreTalentDebutsForYear, ensureCoreTalentRelationships, generateInitialTalentPool } from '@/data/WorldGenerator';
+import { generateProceduralDebuts } from '@/data/TalentDebutGenerator';
 import { 
   DropdownMenu,
   DropdownMenuContent,
@@ -2008,6 +2009,37 @@ export const StudioMagnateGame: React.FC<StudioMagnateGameProps> = ({
         }
         return { ...t, contractStatus: status, busyUntilWeek: busyUntil };
       });
+
+      // New-year talent debuts (Cornellverse core + small procedural rookie class)
+      if (newTimeState.currentYear !== prev.currentYear) {
+        const existingIds = new Set(updatedTalent.map(t => t.id));
+
+        const handcraftedDebuts = buildCoreTalentDebutsForYear(newTimeState.currentYear).filter(t => !existingIds.has(t.id));
+        const rookieDebuts = generateProceduralDebuts({
+          existingTalent: updatedTalent,
+          year: newTimeState.currentYear,
+          actorCount: 8,
+          directorCount: 2,
+        });
+
+        const incoming = [...handcraftedDebuts, ...rookieDebuts];
+        if (incoming.length > 0) {
+          updatedTalent = ensureCoreTalentRelationships([...updatedTalent, ...incoming]);
+
+          if (recapEnabled) {
+            const visible = incoming.slice(0, 10);
+            const remaining = incoming.length - visible.length;
+            recap.push({
+              type: 'talent',
+              title: `${incoming.length} new talent debut${incoming.length === 1 ? '' : 's'} in ${newTimeState.currentYear}`,
+              body:
+                visible.map(t => `• ${t.name} (${t.type})`).join('\n') +
+                (remaining > 0 ? `\n…and ${remaining} more` : ''),
+              severity: 'info',
+            });
+          }
+        }
+      }
 
       // Mark talent as busy if they're currently committed to an AI studio project
       updatedTalent = updatedTalent.map(t => {
