@@ -22,6 +22,7 @@ import { SystemRegistry } from './core/registry';
 import type { TickResult, TickSystem } from './core/types';
 import { advanceWeekInWorker } from './worker/client';
 import { saveGame } from '@/utils/saveLoad';
+import { TalentDebutSystem } from './systems/talentDebutSystem';
 
 // ---------------------------------------------------------------------------
 // Store shape
@@ -140,7 +141,11 @@ export const useGameStore = create<GameStoreState>()(
     game: null,
     seed: 0,
     rng: null,
-    registry: new SystemRegistry(),
+    registry: (() => {
+      const r = new SystemRegistry();
+      r.register(TalentDebutSystem);
+      return r;
+    })(),
     lastTickReport: null,
     tickHistory: [],
     initialized: false,

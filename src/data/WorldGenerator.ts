@@ -225,8 +225,8 @@ function buildCoreTalent(currentYear: number): TalentPerson[] {
       traits: [...(b.quirks || []), ...b.narratives].slice(0, 8),
       careerStage,
       availability: {
-        start: new Date(),
-        end: new Date(Date.now() + 365 * 24 * 60 * 60 * 1000),
+        start: new Date(Date.UTC(currentYear, 0, 1)),
+        end: new Date(Date.UTC(currentYear + 1, 0, 1)),
       },
       burnoutLevel: b.tier === 'marquee' ? 10 : 15,
       studioLoyalty: {},
@@ -330,8 +330,8 @@ export function buildCoreTalentDebutsForYear(year: number): TalentPerson[] {
         traits: [...(b.quirks || []), ...b.narratives].slice(0, 8),
         careerStage,
         availability: {
-          start: new Date(),
-          end: new Date(Date.now() + 365 * 24 * 60 * 60 * 1000),
+          start: new Date(Date.UTC(year, 0, 1)),
+          end: new Date(Date.UTC(year + 1, 0, 1)),
         },
         burnoutLevel: b.tier === 'marquee' ? 10 : 15,
         studioLoyalty: {},

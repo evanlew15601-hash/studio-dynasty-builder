@@ -2020,6 +2020,7 @@ export const StudioMagnateGame: React.FC<StudioMagnateGameProps> = ({
           year: newTimeState.currentYear,
           actorCount: 8,
           directorCount: 2,
+          seed: `rookies:${newTimeState.currentYear}`,
         });
 
         const incoming = [...handcraftedDebuts, ...rookieDebuts];
