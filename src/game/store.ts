@@ -12,6 +12,7 @@
 
 import { create } from 'zustand';
 import { immer } from 'zustand/middleware/immer';
+import type { WritableDraft } from 'immer';
 import type { Franchise, GameState, Project, Script, Studio, StudioAward, TalentPerson } from '@/types/game';
 import type { TickReport } from '@/types/tickReport';
 import type { ModBundle } from '@/types/modding';
@@ -137,7 +138,7 @@ export interface GameStoreState {
 
 const MAX_TICK_HISTORY = 20;
 
-export const useGameStore = create<GameStoreState>()(
+export const useGameStore: import('zustand').UseBoundStore<import('zustand').StoreApi<GameStoreState>> = create<GameStoreState>()(
   immer((set, get) => ({
     game: null,
     seed: 0,
