@@ -659,7 +659,7 @@ export class StudioGenerator {
     return project;
   }
 
-  private generateStudioTvRelease(studioProfile: StudioProfile, currentWeek: number, currentYear: number): Project {
+  generateStudioTvRelease(studioProfile: StudioProfile, currentWeek: number, currentYear: number): Project {
     const genre = studioProfile.specialties[Math.floor(Math.random() * studioProfile.specialties.length)];
 
     const episodeCount = 8 + Math.floor(Math.random() * 6); // 8-13

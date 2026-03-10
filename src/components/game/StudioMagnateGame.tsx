@@ -347,6 +347,73 @@ function attachBasicCastForAI(project: Project, talentPool: TalentPerson[]): Pro
   }
 }
 
+function primeCompetitorTelevision(gameState: GameState): GameState {
+  const playerProjectIds = new Set((gameState.projects || []).map(p => p.id));
+
+  let allReleases = (gameState.allReleases || []).map((r) => {
+    if (!('script' in r)) return r;
+
+    const p = r as Project;
+    if (playerProjectIds.has(p.id)) return r;
+    if (p.type !== 'series' && p.type !== 'limited-series') return r;
+    if (!p.releaseWeek || !p.releaseYear) return r;
+
+    let next = TVEpisodeSystem.ensureSeason(p);
+    next = TVEpisodeSystem.autoReleaseEpisodesIfDue(next, gameState.currentWeek, gameState.currentYear);
+    next = TVEpisodeSystem.processWeeklyEpisodeDecay(next, gameState.currentWeek, gameState.currentYear);
+    next = TVRatingsSystem.processWeeklyRatings(next, gameState.currentWeek, gameState.currentYear);
+    return next;
+  });
+
+  const currentAbs = (gameState.currentYear * 52) + gameState.currentWeek;
+
+  const airingCompetitorTv = allReleases
+    .filter((r): r is Project => typeof (r as any)?.script !== 'undefined')
+    .filter((p) => !playerProjectIds.has(p.id))
+    .filter((p) => p.type === 'series' || p.type === 'limited-series')
+    .filter((p) => !!p.releaseWeek && !!p.releaseYear)
+    .filter((p) => (p.releaseYear! * 52 + p.releaseWeek!) <= currentAbs)
+    .filter((p) => {
+      const season = p.seasons?.[0];
+      const aired = season?.episodesAired || 0;
+      const total = season?.totalEpisodes || p.episodeCount || 0;
+      return aired > 0 && total > 0 && aired < total;
+    });
+
+  const MIN_AIRING_SHOWS = 2;
+
+  if (airingCompetitorTv.length < MIN_AIRING_SHOWS && (gameState.competitorStudios || []).length > 0) {
+    const sg = new StudioGenerator();
+    const premiereYear = gameState.currentYear - 1;
+
+    const needed = MIN_AIRING_SHOWS - airingCompetitorTv.length;
+
+    for (let i = 0; i < needed; i += 1) {
+      const st = gameState.competitorStudios[i % gameState.competitorStudios.length];
+      const profile = sg.getStudioProfile(st.name);
+      if (!profile) continue;
+
+      const premiereWeek = Math.max(1, 52 - i * 2);
+
+      let rel = sg.generateStudioTvRelease(profile, premiereWeek, premiereYear);
+      rel = { ...rel, releaseFormat: 'weekly' as any };
+      rel = attachBasicCastForAI(rel, gameState.talent);
+
+      rel = TVEpisodeSystem.ensureSeason(rel);
+      rel = TVEpisodeSystem.autoReleaseEpisodesIfDue(rel, gameState.currentWeek, gameState.currentYear);
+      rel = TVEpisodeSystem.processWeeklyEpisodeDecay(rel, gameState.currentWeek, gameState.currentYear);
+      rel = TVRatingsSystem.processWeeklyRatings(rel, gameState.currentWeek, gameState.currentYear);
+
+      allReleases = [...allReleases, rel];
+    }
+  }
+
+  return {
+    ...gameState,
+    allReleases,
+  };
+}
+
 interface StudioMagnateGameProps {
   onPhaseChange?: (phase: string) => void;
   gameConfig?: {
@@ -421,7 +488,7 @@ export const StudioMagnateGame: React.FC<StudioMagnateGameProps> = ({
           ? initialGameState.rngState
           : derivedUniverseSeed;
 
-      return { ...initialGameState, universeSeed: derivedUniverseSeed, rngState: derivedRngState };
+      return primeCompetitorTelevision({ ...initialGameState, universeSeed: derivedUniverseSeed, rngState: derivedRngState });
     }
 
     const universeSeed = generateGameSeed();
@@ -583,6 +650,9 @@ export const StudioMagnateGame: React.FC<StudioMagnateGameProps> = ({
       publicDomainIPs: PublicDomainGenerator.generateInitialPublicDomainIPs(50, mods),
       aiStudioProjects: [] as Project[],
     };
+
+    // Prime competitor TV shows so they have seasons/episodes/rating state at game start.
+    initialState = primeCompetitorTelevision(initialState);
 
     // Seed talent careers from AI releases so the world starts with real filmographies/fame.
     try {

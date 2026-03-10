@@ -160,4 +160,52 @@ describe('TV pipeline guardrails', () => {
     const updated = TVEpisodeSystem.ensureSeason(project);
     expect(updated.seasons?.[0]?.totalEpisodes).toBe(13);
   });
+
+  it('TVEpisodeSystem.autoReleaseEpisodesIfDue catches up episodes and assigns correct air weeks', () => {
+    const project = makeBaseTvProject({
+      releaseWeek: 10,
+      releaseYear: 2024,
+      seasons: [],
+      releaseFormat: 'weekly' as any,
+    });
+
+    const seeded = TVEpisodeSystem.ensureSeason(project);
+    const updated = TVEpisodeSystem.autoReleaseEpisodesIfDue(seeded, 13, 2024);
+
+    const season = updated.seasons?.[0];
+    expect(season?.episodesAired).toBe(4);
+    expect(season?.episodes[0]?.airDate).toEqual({ week: 10, year: 2024 });
+    expect(season?.episodes[3]?.airDate).toEqual({ week: 13, year: 2024 });
+  });
+
+  it('TVRatingsSystem.processWeeklyRatings catches up missing weeks without double-counting week 0', () => {
+    let project = makeBaseTvProject({
+      metrics: { criticsScore: 70, audienceScore: 75 } as any,
+      seasons: [
+        {
+          seasonNumber: 1,
+          totalEpisodes: 10,
+          episodesAired: 1,
+          releaseFormat: 'weekly',
+          averageViewers: 0,
+          seasonCompletionRate: 0,
+          seasonDropoffRate: 0,
+          totalBudget: 0,
+          spentBudget: 0,
+          productionStatus: 'complete',
+          episodes: [],
+        } as any,
+      ],
+    });
+
+    project = TVRatingsSystem.initializeAiring(project, 10, 2024);
+
+    const w11 = TVRatingsSystem.processWeeklyRatings(project, 11, 2024);
+    const w12 = TVRatingsSystem.processWeeklyRatings(w11, 12, 2024);
+    const w13 = TVRatingsSystem.processWeeklyRatings(w12, 13, 2024);
+
+    const caughtUp = TVRatingsSystem.processWeeklyRatings(project, 13, 2024);
+
+    expect(caughtUp.metrics?.streaming?.totalViews).toBe(w13.metrics?.streaming?.totalViews);
+  });
 });

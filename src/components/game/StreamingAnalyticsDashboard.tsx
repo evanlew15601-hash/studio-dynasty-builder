@@ -102,7 +102,13 @@ export const StreamingAnalyticsDashboard: React.FC = () => {
 
   // Generate competitive comparison data
   const getCompetitiveData = () => {
-    const genreProjects = gameState.projects.filter(p => 
+    const aiGenreProjects = (gameState.allReleases || [])
+      .filter((r): r is Project => typeof (r as any)?.script !== 'undefined')
+      .filter(p => (p.type === 'series' || p.type === 'limited-series') && !!p.metrics?.streaming)
+      .filter(p => !gameState.projects.some(pp => pp.id === p.id))
+      .filter(p => !!p.studioName && p.studioName !== gameState.studio.name);
+
+    const genreProjects = [...gameState.projects, ...aiGenreProjects].filter(p => 
       p.script?.genre === project.script?.genre &&
       p.id !== project.id &&
       p.metrics?.streaming

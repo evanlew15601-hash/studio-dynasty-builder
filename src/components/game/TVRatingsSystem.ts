@@ -80,21 +80,33 @@ export class TVRatingsSystem {
     const releaseAbs = project.releaseYear * 52 + project.releaseWeek;
     const weeksSinceRelease = Math.max(0, currentAbs - releaseAbs);
 
-    // Calculate this week's views
-    const weeklyViews = this.calculateWeeklyViews(project, weeksSinceRelease);
+    const lastProcessed = Math.max(0, project.metrics?.weeksSinceRelease || 0);
+    if (weeksSinceRelease <= lastProcessed) return project;
+
+    const startIdx = Math.max(1, lastProcessed + 1); // week 0 is already captured by initializeAiring()
+
+    let addViews = 0;
+    let latestWeekViews = 0;
+
+    for (let idx = startIdx; idx <= weeksSinceRelease; idx += 1) {
+      const v = this.calculateWeeklyViews(project, idx);
+      addViews += v;
+      latestWeekViews = v;
+    }
+
     const prevTotal = project.metrics?.streaming?.totalViews || 0;
-    const newTotal = prevTotal + weeklyViews;
+    const newTotal = prevTotal + addViews;
 
     const completionRate = this.updateCompletionRate(project, weeksSinceRelease);
     const audienceShare = this.updateAudienceShare(project, weeksSinceRelease);
-    const subscriberGrowth = this.updateSubscriberGrowth(project, weeklyViews);
+    const subscriberGrowth = this.updateSubscriberGrowth(project, latestWeekViews);
 
     return {
       ...project,
       metrics: {
         ...project.metrics,
         streaming: {
-          viewsFirstWeek: project.metrics?.streaming?.viewsFirstWeek || weeklyViews,
+          viewsFirstWeek: project.metrics?.streaming?.viewsFirstWeek || latestWeekViews,
           totalViews: newTotal,
           completionRate,
           audienceShare,

@@ -23,6 +23,7 @@ import type { TickResult, TickSystem } from './core/types';
 import { advanceWeekInWorker } from './worker/client';
 import { saveGame } from '@/utils/saveLoad';
 import { TalentDebutSystem } from './systems/talentDebutSystem';
+import { AiTelevisionSystem } from './systems/aiTelevisionSystem';
 
 // ---------------------------------------------------------------------------
 // Store shape
@@ -144,6 +145,7 @@ export const useGameStore = create<GameStoreState>()(
     registry: (() => {
       const r = new SystemRegistry();
       r.register(TalentDebutSystem);
+      r.register(AiTelevisionSystem);
       return r;
     })(),
     lastTickReport: null,
