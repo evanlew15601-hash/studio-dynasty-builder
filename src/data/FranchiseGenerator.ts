@@ -288,6 +288,14 @@ export class FranchiseGenerator {
     return true;
   }
   
+  static calculateFranchiseCost(franchise: Franchise): number {
+    const baseCost = 50_000_000;
+    const culturalMultiplier = 1 + (franchise.culturalWeight / 100);
+    const fanbaseMultiplier = 1 + (franchise.fanbaseSize || 0) / 1_000_000;
+    const fatigueDiscount = 1 - ((franchise.criticalFatigue || 0) / 200);
+    return Math.round(baseCost * culturalMultiplier * fanbaseMultiplier * fatigueDiscount);
+  }
+
   static updateFranchiseMetrics(franchise: Franchise, newEntry: { boxOffice: number; rating: number }): Franchise {
     const updatedEntries = [...franchise.entries];
     const newTotalBoxOffice = (franchise.totalBoxOffice || 0) + newEntry.boxOffice;
