@@ -444,8 +444,7 @@ export class TalentGenerator {
       filmography: []
     };
     
-    // Add biography as a custom property
-    (actor as any).biography = this.generateBiography(actor, template);
+    actor.biography = this.generateBiography(actor, template);
     
     return actor;
   }
@@ -499,11 +498,10 @@ export class TalentGenerator {
       filmography: []
     };
     
-    // Add biography and director-specific traits
-    (director as any).biography = this.generateBiography(director, template);
-    (director as any).directingStyle = this.selectDirectingStyle();
-    (director as any).temperament = this.selectTemperament();
-    (director as any).budgetApproach = this.selectBudgetApproach();
+    director.biography = this.generateBiography(director, template);
+    director.directingStyle = this.selectDirectingStyle();
+    director.temperament = this.selectTemperament();
+    director.budgetApproach = this.selectBudgetApproach();
     
     return director;
   }
