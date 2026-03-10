@@ -1015,6 +1015,7 @@ export const ModsPanel: React.FC = () => {
       riskTolerance: 'moderate',
       releaseFrequency: 6,
       brandIdentity: 'Custom studio identity',
+      biography: 'Custom studio biography',
     };
 
     setStudioEdits((prev) => ({ ...prev, [name]: stripUndefined(profile) }));
@@ -3640,6 +3641,7 @@ export const ModsPanel: React.FC = () => {
                       <TableHead className="p-2">Reputation</TableHead>
                       <TableHead className="p-2">Specialties</TableHead>
                       <TableHead className="p-2">Founded</TableHead>
+                      <TableHead className="p-2">Biography</TableHead>
                       <TableHead className="p-2"></TableHead>
                     </TableRow>
                   </TableHeader>
@@ -3687,6 +3689,14 @@ export const ModsPanel: React.FC = () => {
                               type="number"
                               value={String(edited.foundedYear ?? 0)}
                               onChange={(e) => updateStudio(row.name, { foundedYear: Number(e.target.value) || 0 })}
+                            />
+                          </TableCell>
+                          <TableCell className="p-2">
+                            <Textarea
+                              className="h-20 min-w-[360px]"
+                              value={edited.biography ?? ''}
+                              onChange={(e) => updateStudio(row.name, { biography: e.target.value || undefined })}
+                              placeholder="(optional)"
                             />
                           </TableCell>
                           <TableCell className="p-2">

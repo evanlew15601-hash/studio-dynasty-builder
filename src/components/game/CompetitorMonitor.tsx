@@ -135,6 +135,11 @@ export const CompetitorMonitor: React.FC = () => {
                                 {studio.personality}
                               </div>
                             )}
+                            {studio.biography && (
+                              <div className="text-xs text-muted-foreground mt-1">
+                                {studio.biography.length > 180 ? studio.biography.slice(0, 180) + '…' : studio.biography}
+                              </div>
+                            )}
                           </div>
                           <Badge variant="outline">
                             {activeFilms.length} Active

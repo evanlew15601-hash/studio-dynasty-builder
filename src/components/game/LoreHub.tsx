@@ -316,6 +316,13 @@ const StudioEncyclopedia: React.FC<{ studios: Studio[] }> = ({ studios }) => {
                   )}
                 </div>
 
+                {selected.biography && (
+                  <div>
+                    <div className="text-sm font-medium">Biography</div>
+                    <div className="text-sm text-muted-foreground">{selected.biography}</div>
+                  </div>
+                )}
+
                 <div className="space-y-2">
                   <div className="text-sm font-medium">Specialties</div>
                   <div className="flex flex-wrap gap-2">
@@ -346,7 +353,7 @@ const StudioEncyclopedia: React.FC<{ studios: Studio[] }> = ({ studios }) => {
                       <div className="text-sm text-muted-foreground">{selected.businessTendency}</div>
                     </div>
                   )}
-                  {!selected.brandIdentity && !selected.personality && !selected.businessTendency && (
+                  {!selected.biography && !selected.brandIdentity && !selected.personality && !selected.businessTendency && (
                     <div className="text-sm text-muted-foreground">
                       No additional lore available for this studio yet.
                     </div>

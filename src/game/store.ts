@@ -16,12 +16,13 @@ import type { Franchise, GameState, Project, Script, Studio, StudioAward, Talent
 import type { TickReport } from '@/types/tickReport';
 import type { ModBundle } from '@/types/modding';
 import type { SeededRng } from './core/rng';
-import { createRng, generateGameSeed } from './core/rng';
+import { createRng, generateGameSeed, seedFromString } from './core/rng';
 import { advanceWeek as tickAdvanceWeek } from './core/tick';
 import { SystemRegistry } from './core/registry';
 import type { TickResult, TickSystem } from './core/types';
 import { advanceWeekInWorker } from './worker/client';
 import { saveGame } from '@/utils/saveLoad';
+import { TalentDebutSystem } from './systems/talentDebutSystem';
 
 // ---------------------------------------------------------------------------
 // Store shape
@@ -140,7 +141,11 @@ export const useGameStore = create<GameStoreState>()(
     game: null,
     seed: 0,
     rng: null,
-    registry: new SystemRegistry(),
+    registry: (() => {
+      const r = new SystemRegistry();
+      r.register(TalentDebutSystem);
+      return r;
+    })(),
     lastTickReport: null,
     tickHistory: [],
     initialized: false,
@@ -149,7 +154,7 @@ export const useGameStore = create<GameStoreState>()(
     initGame: (state, seed) => {
       const gameSeed = seed ?? generateGameSeed();
       set((s) => {
-        s.game = state;
+        s.game = { ...state, universeSeed: state.universeSeed ?? gameSeed, rngState: state.rngState ?? gameSeed };
         s.seed = gameSeed;
         s.rng = createRng(gameSeed);
         s.initialized = true;
@@ -159,9 +164,21 @@ export const useGameStore = create<GameStoreState>()(
     },
 
     loadGame: (state, seed) => {
-      const gameSeed = seed ?? generateGameSeed();
+      const derivedUniverseSeed =
+        typeof state.universeSeed === 'number'
+          ? state.universeSeed
+          : seedFromString(`${state.studio?.id ?? 'studio'}`);
+
+      const derivedRngState = typeof state.rngState === 'number' ? state.rngState : derivedUniverseSeed;
+
+      const gameSeed = seed ?? derivedRngState;
+
       set((s) => {
-        s.game = state;
+        s.game = {
+          ...state,
+          universeSeed: typeof state.universeSeed === 'number' ? state.universeSeed : derivedUniverseSeed,
+          rngState: typeof state.rngState === 'number' ? state.rngState : derivedRngState,
+        };
         s.seed = gameSeed;
         s.rng = createRng(gameSeed);
         s.initialized = true;
@@ -194,7 +211,11 @@ export const useGameStore = create<GameStoreState>()(
       };
 
       set((s) => {
-        s.game = result.nextState as any;
+        s.game = {
+          ...(result.nextState as any),
+          universeSeed: (s.game as any)?.universeSeed,
+          rngState: rng.state,
+        };
         // Persist the PRNG state ("seed" here is treated as current RNG state).
         s.seed = rng.state;
         s.rng = createRng(rng.state);
@@ -243,7 +264,11 @@ export const useGameStore = create<GameStoreState>()(
       };
 
       set((s) => {
-        s.game = result.nextState as any;
+        s.game = {
+          ...(result.nextState as any),
+          universeSeed: (s.game as any)?.universeSeed,
+          rngState,
+        };
         s.seed = rngState;
         s.rng = createRng(rngState);
         s.lastTickReport = report as any;

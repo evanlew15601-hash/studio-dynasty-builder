@@ -17,6 +17,7 @@ export function ensureCompetitorStudiosLore(gameState: GameState): GameState {
       personality: profile.personality,
       businessTendency: profile.businessTendency,
       brandIdentity: profile.brandIdentity,
+      biography: profile.biography,
       riskTolerance: profile.riskTolerance,
       releaseFrequency: profile.releaseFrequency,
     };

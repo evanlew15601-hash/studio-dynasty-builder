@@ -24,6 +24,8 @@ import { updateProjectFinancials } from './FinancialCalculations';
 import { TalentFilmographyManager } from '@/utils/talentFilmographyManager';
 import { stablePick } from '@/utils/stablePick';
 import { stableInt } from '@/utils/stableRandom';
+import { createRng, generateGameSeed, seedFromString } from '@/game/core/rng';
+import { advanceWeek as engineAdvanceWeek } from '@/game/core/tick';
 import { useUiStore } from '@/game/uiStore';
 import { AwardsSystem } from './AwardsSystem';
 import { EnhancedAwardsSystem } from './EnhancedAwardsSystem';
@@ -404,12 +406,25 @@ export const StudioMagnateGame: React.FC<StudioMagnateGameProps> = ({
   const upsertScript = useGameStore((s) => s.upsertScript);
   const updateBudget = useGameStore((s) => s.updateBudget);
   const updateReputation = useGameStore((s) => s.updateReputation);
+  const gameRegistry = useGameStore((s) => s.registry);
 
   const [bootstrapGameState] = useState<GameState>(() => {
     // If we have a loaded game, use it directly and skip heavy init
     if (initialGameState) {
-      return initialGameState;
+      const derivedUniverseSeed =
+        typeof initialGameState.universeSeed === 'number'
+          ? initialGameState.universeSeed
+          : seedFromString(`${initialGameState.studio?.id ?? 'studio'}`);
+
+      const derivedRngState =
+        typeof initialGameState.rngState === 'number'
+          ? initialGameState.rngState
+          : derivedUniverseSeed;
+
+      return { ...initialGameState, universeSeed: derivedUniverseSeed, rngState: derivedRngState };
     }
+
+    const universeSeed = generateGameSeed();
 
     // Start loading for game initialization
     startOperation(LOADING_OPERATIONS.GAME_INIT.id, LOADING_OPERATIONS.GAME_INIT.name, LOADING_OPERATIONS.GAME_INIT.estimatedTime);
@@ -435,7 +450,7 @@ export const StudioMagnateGame: React.FC<StudioMagnateGameProps> = ({
     const mods = getModBundle();
 
     const generatedTalent = applyPatchesByKey(
-      generateInitialTalentPool({ currentYear: new Date().getFullYear(), actorCount: 80, directorCount: 20 }),
+      generateInitialTalentPool({ currentYear: new Date().getFullYear() }),
       getPatchesForEntity(mods, 'talent'),
       (t) => t.id
     );
@@ -448,6 +463,8 @@ export const StudioMagnateGame: React.FC<StudioMagnateGameProps> = ({
     updateOperation(LOADING_OPERATIONS.GAME_INIT.id, 80, 'Initializing systems...');
 
     let initialState: GameState = {
+      universeSeed,
+      rngState: universeSeed,
       studio,
       currentYear: new Date().getFullYear(),
       currentWeek: 1,
@@ -594,9 +611,9 @@ export const StudioMagnateGame: React.FC<StudioMagnateGameProps> = ({
     if (storeGameState) return;
 
     if (initialGameState) {
-      loadGameToStore(initialGameState);
+      loadGameToStore(initialGameState, initialGameState.rngState ?? initialGameState.universeSeed);
     } else {
-      initGame(bootstrapGameState);
+      initGame(bootstrapGameState, bootstrapGameState.universeSeed);
     }
   }, [storeGameState, initialGameState, loadGameToStore, initGame, bootstrapGameState]);
 
@@ -1750,14 +1767,29 @@ export const StudioMagnateGame: React.FC<StudioMagnateGameProps> = ({
         return result;
       };
 
-      const newTimeState = measure('time', 'Advance time', () =>
-        TimeSystem.advanceWeek({
-          currentWeek: prev.currentWeek,
-          currentYear: prev.currentYear,
-          currentQuarter: prev.currentQuarter,
-        })
+      const engineRng = createRng(prev.rngState ?? prev.universeSeed ?? 0);
+      const engineSystems = gameRegistry.getOrdered();
+
+      const engineTick = measure('engineTick', 'Engine tick (time + systems)', () =>
+        engineAdvanceWeek(prev, engineRng, engineSystems, { debug: diagnosticsEnabled })
       );
-      
+
+      const baseAfterEngine = engineTick.nextState;
+
+      const newTimeState = {
+        currentWeek: baseAfterEngine.currentWeek,
+        currentYear: baseAfterEngine.currentYear,
+        currentQuarter: baseAfterEngine.currentQuarter,
+      };
+
+      if (recapEnabled) {
+        const isFallbackOnly =
+          engineTick.recap.length === 1 &&
+          engineTick.recap[0].type === 'system' &&
+          engineTick.recap[0].title === 'Week advanced';
+        if (!isFallbackOnly) recap.push(...engineTick.recap);
+      }
+
       if (diagnosticsEnabled) {
         console.log(`NEW TIME STATE: Y${newTimeState.currentYear}W${newTimeState.currentWeek}`);
       }
@@ -1766,15 +1798,15 @@ export const StudioMagnateGame: React.FC<StudioMagnateGameProps> = ({
       measure('ai', 'AI studios', () => {
         try {
           AIStudioManager.processWeeklyAIFilms(newTimeState.currentWeek, newTimeState.currentYear);
-          if (prev.competitorStudios.length > 0) {
+          if (baseAfterEngine.competitorStudios.length > 0) {
             const shouldStartAIFilm = (newTimeState.currentWeek % 4 === 1) || Math.random() < 0.35;
             if (shouldStartAIFilm) {
-              const randomStudio = prev.competitorStudios[Math.floor(Math.random() * prev.competitorStudios.length)];
+              const randomStudio = baseAfterEngine.competitorStudios[Math.floor(Math.random() * baseAfterEngine.competitorStudios.length)];
               AIStudioManager.createAIFilm(
                 randomStudio,
                 newTimeState.currentWeek,
                 newTimeState.currentYear,
-                prev.talent.filter(t => t.contractStatus === 'available')
+                baseAfterEngine.talent.filter(t => t.contractStatus === 'available')
               );
             }
           }
@@ -1783,12 +1815,12 @@ export const StudioMagnateGame: React.FC<StudioMagnateGameProps> = ({
         }
       });
       
-      let updatedProjects = prev.projects;
+      let updatedProjects = baseAfterEngine.projects;
 
       // Simulate box office and process weekly financial events
       // NOTE: This must be synchronous inside the state transition; async imports would
       // run after this updater returns and would not be applied to the new state.
-      const aiReleased = prev.allReleases
+      const aiReleased = baseAfterEngine.allReleases
         .filter((r): r is Project => 'script' in r && (r as any).status === 'released' && !!r.releaseWeek && !!r.releaseYear)
         .map(r => ({
           id: r.id,
@@ -1811,7 +1843,7 @@ export const StudioMagnateGame: React.FC<StudioMagnateGameProps> = ({
         FinancialEngine.processWeeklyFinancialEvents(
           newTimeState.currentWeek,
           newTimeState.currentYear,
-          [prev.studio, ...prev.competitorStudios],
+          [baseAfterEngine.studio, ...baseAfterEngine.competitorStudios],
           updatedProjects
         );
       });
@@ -1872,7 +1904,7 @@ export const StudioMagnateGame: React.FC<StudioMagnateGameProps> = ({
             const profile = sg.getStudioProfile(st.name);
             const rel = profile ? sg.generateStudioRelease(profile, w, newTimeState.currentYear) : null;
             if (rel) {
-              newAIReleases.push(attachBasicCastForAI(rel, prev.talent));
+              newAIReleases.push(attachBasicCastForAI(rel, baseAfterEngine.talent));
               releasesThisWeek += 1;
             }
           }
@@ -1882,7 +1914,7 @@ export const StudioMagnateGame: React.FC<StudioMagnateGameProps> = ({
             if (fallback) {
               const rel = sg.generateStudioRelease(fallback, w, newTimeState.currentYear);
               if (rel) {
-                newAIReleases.push(attachBasicCastForAI(rel, prev.talent));
+                newAIReleases.push(attachBasicCastForAI(rel, baseAfterEngine.talent));
               } else {
                 // Guarantee at least one release per week: synthesize a small indie release
                 const genre = fallback.specialties[0] as Genre;
@@ -1939,7 +1971,7 @@ export const StudioMagnateGame: React.FC<StudioMagnateGameProps> = ({
                   studioName: fallback.name
                 };
 
-                newAIReleases.push(attachBasicCastForAI(indie, prev.talent));
+                newAIReleases.push(attachBasicCastForAI(indie, baseAfterEngine.talent));
               }
             }
           }
@@ -1971,17 +2003,17 @@ export const StudioMagnateGame: React.FC<StudioMagnateGameProps> = ({
       }
       
       // Process weekly costs and reputation with deep system
-      const weeklyResults = measure('weeklyCosts', 'Weekly costs & debt', () => processWeeklyCosts(prev, updatedProjects, diagnosticsEnabled));
+      const weeklyResults = measure('weeklyCosts', 'Weekly costs & debt', () => processWeeklyCosts(baseAfterEngine, updatedProjects, diagnosticsEnabled));
       
       // Update industry context and calculate deep reputation
       const deepRepResult = measure('reputation', 'Reputation', () => {
-        DeepReputationSystem.updateIndustryContext([...prev.competitorStudios, prev.studio], newTimeState);
+        DeepReputationSystem.updateIndustryContext([...baseAfterEngine.competitorStudios, baseAfterEngine.studio], newTimeState);
         return DeepReputationSystem.calculateDeepReputation(
           weeklyResults.studio,
           updatedProjects,
-          prev.talent,
+          baseAfterEngine.talent,
           newTimeState,
-          prev.competitorStudios
+          baseAfterEngine.competitorStudios
         );
       });
       
@@ -1999,7 +2031,7 @@ export const StudioMagnateGame: React.FC<StudioMagnateGameProps> = ({
       
       // Update talent availability (prevent double-booking during filming)
       const currentAbsWeek = (newTimeState.currentYear * 52) + newTimeState.currentWeek;
-      let updatedTalent = prev.talent.map(t => {
+      let updatedTalent = (baseAfterEngine.talent || []).map(t => {
         let status = t.contractStatus;
         let busyUntil = t.busyUntilWeek;
         if (status === 'busy' && typeof busyUntil === 'number' && busyUntil <= currentAbsWeek) {
@@ -2053,7 +2085,7 @@ export const StudioMagnateGame: React.FC<StudioMagnateGameProps> = ({
           updatedTalent.map(t => [t.id, { filmographyCount: (t.filmography || []).length, fame: t.fame ?? 0 }] as const)
         );
 
-        let filmographyState: GameState = { ...prev, talent: updatedTalent };
+        let filmographyState: GameState = { ...baseAfterEngine, talent: updatedTalent };
         for (const released of releasedForFilmography) {
           filmographyState = TalentFilmographyManager.updateFilmographyOnRelease(filmographyState, released);
         }
@@ -2104,7 +2136,7 @@ export const StudioMagnateGame: React.FC<StudioMagnateGameProps> = ({
         (p) => p.status === 'released' && !!p.releaseWeek && !!p.releaseYear
       );
 
-      const releasePool = [...prev.allReleases, ...newAIReleases, ...playerReleases];
+      const releasePool = [...baseAfterEngine.allReleases, ...newAIReleases, ...playerReleases];
 
       const dedupedReleases = (() => {
         const seen = new Set<string>();
@@ -2124,17 +2156,18 @@ export const StudioMagnateGame: React.FC<StudioMagnateGameProps> = ({
       });
 
       // Also prune old box office history if it exists
-      const prunedBoxOfficeHistory = (prev.boxOfficeHistory || []).filter((entry: any) => {
+      const prunedBoxOfficeHistory = (baseAfterEngine.boxOfficeHistory || []).filter((entry: any) => {
         if (!entry.week || !entry.year) return true;
         const entryAbsWeek = (entry.year * 52) + entry.week;
         return (currentAbsoluteWeek - entryAbsWeek) <= MAX_RELEASE_AGE_WEEKS;
       });
 
       // Prune old top films history
-      const prunedTopFilmsHistory = (prev.topFilmsHistory || []).slice(-52); // Keep last 52 entries max
+      const prunedTopFilmsHistory = (baseAfterEngine.topFilmsHistory || []).slice(-52); // Keep last 52 entries max
 
       const newState = {
-        ...prev,
+        ...baseAfterEngine,
+        rngState: engineRng.state,
         currentWeek: newTimeState.currentWeek,
         currentYear: newTimeState.currentYear,
         currentQuarter: newTimeState.currentQuarter,

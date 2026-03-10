@@ -28,6 +28,7 @@ describe('competitorStudiosPatches', () => {
           personality: 'OLD',
           businessTendency: 'OLD',
           brandIdentity: 'OLD',
+          biography: 'OLD',
           riskTolerance: 'conservative',
           releaseFrequency: 5,
         },
@@ -53,6 +54,7 @@ describe('competitorStudiosPatches', () => {
     expect(st.personality).toBe(profile!.personality);
     expect(st.businessTendency).toBe(profile!.businessTendency);
     expect(st.brandIdentity).toBe(profile!.brandIdentity);
+    expect(st.biography).toBe(profile!.biography);
     expect(st.riskTolerance).toBe(profile!.riskTolerance);
     expect(st.releaseFrequency).toBe(profile!.releaseFrequency);
   });

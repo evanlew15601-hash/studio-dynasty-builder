@@ -4,6 +4,8 @@ import { CORE_TALENT_BIBLE, WorldTalentBlueprint } from '@/data/WorldBible';
 import { stableInt } from '@/utils/stableRandom';
 import { stablePick } from '@/utils/stablePick';
 
+const idForSlug = (slug: string) => `core:${slug}`;
+
 function determineCareerStage(age: number, experience: number, reputation: number): TalentPerson['careerStage'] {
   if (experience < 2 || reputation < 30) return 'unknown';
   if (experience < 8 && age < 30) return 'rising';
@@ -133,6 +135,10 @@ function buildCoreBiography(b: WorldTalentBlueprint): string {
 function generateLightFilmography(t: WorldTalentBlueprint, currentYear: number): NonNullable<TalentPerson['filmography']> {
   const start = Math.max(t.careerStartYear, currentYear - 25);
   const end = currentYear - 1;
+
+  // If the talent is debuting this year (or later), they have no historical credits yet.
+  if (start > end) return [];
+
   const years = [start, Math.min(end, start + 4), Math.min(end, start + 9), Math.min(end, currentYear - 3)].filter(
     (y, i, arr) => y >= 1980 && arr.indexOf(y) === i
   );
@@ -180,10 +186,10 @@ function generateLightFilmography(t: WorldTalentBlueprint, currentYear: number):
 }
 
 function buildCoreTalent(currentYear: number): TalentPerson[] {
-  const idForSlug = (slug: string) => `core:${slug}`;
+  const activeBible = CORE_TALENT_BIBLE.filter((b) => b.careerStartYear <= currentYear);
 
   // First pass: create base people.
-  const people: TalentPerson[] = CORE_TALENT_BIBLE.map((b) => {
+  const people: TalentPerson[] = activeBible.map((b) => {
     const id = idForSlug(b.slug);
     const age = Math.max(18, currentYear - b.birthYear);
     const experience = Math.max(0, currentYear - b.careerStartYear);
@@ -219,8 +225,8 @@ function buildCoreTalent(currentYear: number): TalentPerson[] {
       traits: [...(b.quirks || []), ...b.narratives].slice(0, 8),
       careerStage,
       availability: {
-        start: new Date(),
-        end: new Date(Date.now() + 365 * 24 * 60 * 60 * 1000),
+        start: new Date(Date.UTC(currentYear, 0, 1)),
+        end: new Date(Date.UTC(currentYear + 1, 0, 1)),
       },
       burnoutLevel: b.tier === 'marquee' ? 10 : 15,
       studioLoyalty: {},
@@ -240,10 +246,15 @@ function buildCoreTalent(currentYear: number): TalentPerson[] {
     };
   });
 
+  return ensureCoreTalentRelationships(people);
+}
+
+export function ensureCoreTalentRelationships(people: TalentPerson[]): TalentPerson[] {
   const bySlug = new Map(CORE_TALENT_BIBLE.map((b) => [b.slug, idForSlug(b.slug)]));
   const byId = new Map(people.map((p) => [p.id, p] as const));
 
-  // Second pass: relationships + chemistry
+  // Ensure any relationship declared in the world bible is wired up for any core talent
+  // that exists in the current pool (useful for future debuts / live patching).
   for (const b of CORE_TALENT_BIBLE) {
     const id = idForSlug(b.slug);
     const person = byId.get(id);
@@ -257,25 +268,89 @@ function buildCoreTalent(currentYear: number): TalentPerson[] {
       const otherId = bySlug.get(rel.with);
       if (!otherId) continue;
 
-      person.relationships[otherId] = rel.type;
-      person.relationshipNotes[otherId] = rel.note;
-      person.chemistry[otherId] = relationshipToChemistry(rel.type);
+      // Only wire the relationship if the other party exists in the pool.
+      const other = byId.get(otherId);
+      if (!other) continue;
+
+      if (!person.relationships[otherId]) person.relationships[otherId] = rel.type;
+      if (!person.relationshipNotes[otherId]) person.relationshipNotes[otherId] = rel.note;
+      if (typeof person.chemistry[otherId] !== 'number') person.chemistry[otherId] = relationshipToChemistry(rel.type);
 
       // Make it (mostly) bidirectional to avoid one-sided UI holes.
-      const other = byId.get(otherId);
-      if (other) {
-        other.relationships = other.relationships || {};
-        other.relationshipNotes = other.relationshipNotes || {};
-        other.chemistry = other.chemistry || {};
+      other.relationships = other.relationships || {};
+      other.relationshipNotes = other.relationshipNotes || {};
+      other.chemistry = other.chemistry || {};
 
-        if (!other.relationships[id]) other.relationships[id] = rel.type;
-        if (!other.relationshipNotes[id]) other.relationshipNotes[id] = rel.note;
-        if (!other.chemistry[id]) other.chemistry[id] = relationshipToChemistry(rel.type);
-      }
+      if (!other.relationships[id]) other.relationships[id] = rel.type;
+      if (!other.relationshipNotes[id]) other.relationshipNotes[id] = rel.note;
+      if (typeof other.chemistry[id] !== 'number') other.chemistry[id] = relationshipToChemistry(rel.type);
     }
   }
 
   return people;
+}
+
+export function buildCoreTalentDebutsForYear(year: number): TalentPerson[] {
+  const debuts = CORE_TALENT_BIBLE.filter((b) => b.careerStartYear === year);
+
+  return ensureCoreTalentRelationships(
+    debuts.map((b) => {
+      const id = idForSlug(b.slug);
+      const age = Math.max(18, year - b.birthYear);
+      const experience = 0;
+      const careerStage = determineCareerStage(age, experience, b.reputation);
+
+      const filmography = (b.filmography || generateLightFilmography(b, year)).map((f) => ({
+        projectId: f.projectId || `hist-project:${f.title}:${f.year}`,
+        title: f.title,
+        role: f.role,
+        year: f.year,
+        boxOffice: f.boxOffice,
+      }));
+
+      const awards = (b.awards || []).map((a) => awardToTalentAward(id, a));
+
+      const baseBio = b.biography || buildCoreBiography(b);
+
+      return {
+        id,
+        name: b.name,
+        type: b.type,
+        age,
+        gender: b.gender,
+        race: b.race,
+        nationality: b.nationality,
+        experience,
+        reputation: b.reputation,
+        marketValue: generateMarketValue(age, experience, b.reputation, b.type),
+        contractStatus: 'available',
+        genres: ensureGenres(b.genres),
+        specialties: ensureGenres(b.genres).slice(0, Math.min(3, b.genres.length)),
+        awards,
+        traits: [...(b.quirks || []), ...b.narratives].slice(0, 8),
+        careerStage,
+        availability: {
+          start: new Date(Date.UTC(year, 0, 1)),
+          end: new Date(Date.UTC(year + 1, 0, 1)),
+        },
+        burnoutLevel: b.tier === 'marquee' ? 10 : 15,
+        studioLoyalty: {},
+        chemistry: {},
+        futureHolds: [],
+        recentProjects: [],
+        biography: baseBio,
+        archetype: b.archetype,
+        narratives: b.narratives,
+        movementTags: b.movementTags,
+        careerStartYear: b.careerStartYear,
+        quirks: b.quirks,
+        isNotable: true,
+        publicImage: b.publicImage,
+        fame: b.type === 'actor' ? (b.fame ?? Math.min(100, Math.round(b.reputation * 0.75))) : undefined,
+        filmography,
+      };
+    })
+  );
 }
 
 export function generateInitialTalentPool(options: {
@@ -288,9 +363,9 @@ export function generateInitialTalentPool(options: {
   // Core: 100-200 anchor figures.
   const core = buildCoreTalent(currentYear);
 
-  // Procedural filler: smaller, primarily to give the market depth.
-  const fillerActorCount = Math.max(0, (options.actorCount ?? 80));
-  const fillerDirectorCount = Math.max(0, (options.directorCount ?? 20));
+  // Procedural filler: optional (Cornellverse defaults to core-only).
+  const fillerActorCount = Math.max(0, (options.actorCount ?? 0));
+  const fillerDirectorCount = Math.max(0, (options.directorCount ?? 0));
 
   const gen = new TalentGenerator();
   const filler = gen.generateTalentPool(fillerActorCount, fillerDirectorCount).map((t) => ({
