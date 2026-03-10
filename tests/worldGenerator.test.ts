@@ -3,9 +3,12 @@ import { generateInitialTalentPool } from '@/data/WorldGenerator';
 
 describe('world generator (core universe)', () => {
   it('includes a large core roster with seeded history + relationships', () => {
-    const pool = generateInitialTalentPool({ currentYear: 2026, actorCount: 5, directorCount: 2 });
+    const pool = generateInitialTalentPool({ currentYear: 2026 });
 
-    // Core roster should be substantial even with tiny filler.
+    // Cornellverse defaults to core-only (no procedural filler).
+    expect(pool.some((t) => t.isNotable === false)).toBe(false);
+
+    // Core roster should be substantial.
     expect(pool.length).toBeGreaterThanOrEqual(110);
 
     const eleanor = pool.find((t) => t.name === 'Eleanor Vale');

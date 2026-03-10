@@ -288,9 +288,9 @@ export function generateInitialTalentPool(options: {
   // Core: 100-200 anchor figures.
   const core = buildCoreTalent(currentYear);
 
-  // Procedural filler: smaller, primarily to give the market depth.
-  const fillerActorCount = Math.max(0, (options.actorCount ?? 80));
-  const fillerDirectorCount = Math.max(0, (options.directorCount ?? 20));
+  // Procedural filler: optional (Cornellverse defaults to core-only).
+  const fillerActorCount = Math.max(0, (options.actorCount ?? 0));
+  const fillerDirectorCount = Math.max(0, (options.directorCount ?? 0));
 
   const gen = new TalentGenerator();
   const filler = gen.generateTalentPool(fillerActorCount, fillerDirectorCount).map((t) => ({

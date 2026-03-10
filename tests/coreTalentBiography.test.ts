@@ -16,13 +16,16 @@ describe('core talent biographies (handcrafted)', () => {
     }
   });
 
-  it('has explicit biography text for every notable core talent entry', () => {
+  it('has explicit (non-template) biography text for every notable core talent entry', () => {
     const notable = CORE_TALENT_BIBLE.filter((t) => t.tier === 'notable');
     expect(notable.length).toBeGreaterThan(0);
 
     for (const t of notable) {
       expect(typeof t.biography).toBe('string');
       expect((t.biography || '').trim().length).toBeGreaterThan(0);
+
+      // The procedural fallback uses this phrase.
+      expect(t.biography || '').not.toContain('Industry shorthand:');
     }
   });
 

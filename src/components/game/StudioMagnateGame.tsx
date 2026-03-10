@@ -435,7 +435,7 @@ export const StudioMagnateGame: React.FC<StudioMagnateGameProps> = ({
     const mods = getModBundle();
 
     const generatedTalent = applyPatchesByKey(
-      generateInitialTalentPool({ currentYear: new Date().getFullYear(), actorCount: 80, directorCount: 20 }),
+      generateInitialTalentPool({ currentYear: new Date().getFullYear() }),
       getPatchesForEntity(mods, 'talent'),
       (t) => t.id
     );
