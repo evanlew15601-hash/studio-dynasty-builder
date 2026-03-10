@@ -8,16 +8,13 @@ This is a lightweight checklist to help ensure builds are reproducible and artif
 - [ ] Bump version in `src-tauri/Cargo.toml` (crate/app metadata)
 - [ ] Ensure `src-tauri/tauri.conf.json` identifier, product name, and bundle settings are correct
 
-## 2) Environment / Supabase
+## 2) Environment
 
-- [ ] Create `.env` from `.env.example`
-- [ ] Confirm only the **anon/publishable** Supabase key is used in the frontend
-- [ ] Confirm the app starts with missing env vars (it should fail fast with a clear error)
+- [ ] Confirm the app starts and plays a new run with no environment variables set
 
 ## 3) Security
 
 - [ ] Review `src-tauri/tauri.conf.json` CSP (keep it as strict as possible)
-- [ ] Confirm the CSP allows required network access (e.g. `https://*.supabase.co`, `wss://*.supabase.co`)
 
 ## 4) Preflight
 

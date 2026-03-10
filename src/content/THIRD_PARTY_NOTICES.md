@@ -10,7 +10,6 @@ This application bundles open source software.
 - Radix UI — MIT — https://github.com/radix-ui/primitives
 - shadcn/ui — MIT — https://github.com/shadcn-ui/ui
 - Tauri — MIT OR Apache-2.0 — https://github.com/tauri-apps/tauri
-- Supabase JS — MIT — https://github.com/supabase/supabase-js
 - Lucide Icons — ISC — https://github.com/lucide-icons/lucide
 
 ## Full dependency tree

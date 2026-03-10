@@ -6,10 +6,6 @@ A film-studio management / “Hollywood tycoon” simulation game built with Vit
 
 ```sh
 npm i
-
-# Optional: only needed if/when enabling Supabase features
-cp .env.example .env
-
 npm run dev
 ```
 
@@ -33,16 +29,10 @@ npm run tauri:build
 
 ## Configuration
 
-This project includes a generated Supabase client (`src/integrations/supabase/client.ts`).
-
-If/when Supabase features are enabled, set these environment variables:
-
-- `VITE_SUPABASE_URL`
-- `VITE_SUPABASE_PUBLISHABLE_KEY`
+No environment variables are required to run the base game.
 
 Notes:
 - `.env` is gitignored to avoid committing secrets.
-- The frontend should only ever use the Supabase anon/publishable key (never a service role key).
 
 ## Open source & compliance
 
