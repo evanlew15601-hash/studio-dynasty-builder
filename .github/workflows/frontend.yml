@@ -15,6 +15,7 @@ on:
       - "vitest.config.ts"
       - "tailwind.config.ts"
       - "eslint.config.js"
+      - "types/**"
       - ".github/workflows/frontend.yml"
 
   pull_request:
@@ -31,6 +32,7 @@ on:
       - "vitest.config.ts"
       - "tailwind.config.ts"
       - "eslint.config.js"
+      - "types/**"
       - ".github/workflows/frontend.yml"
 
 jobs:
@@ -52,8 +54,20 @@ jobs:
       - name: Lint
         run: npm run lint
 
+      - name: Typecheck
+        run: npm run typecheck
+
       - name: Unit tests
         run: npm test
+
+      - name: Build
+        run: npm run build
+
+      - name: Install Playwright browsers
+        run: npx playwright install --with-deps chromium
+
+      - name: E2E tests
+        run: npm run test:e2e
 
       - name: License allowlist check
         run: npm run licenses:check

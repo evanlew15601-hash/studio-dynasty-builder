@@ -1,7 +1,7 @@
 {
-  "name": "vite_react_shadcn_ts",
+  "name": "studio-magnate",
   "private": true,
-  "version": "0.0.0",
+  "version": "0.1.0-beta.1",
   "license": "Apache-2.0",
   "type": "module",
   "scripts": {
@@ -9,6 +9,8 @@
     "build": "vite build",
     "build:dev": "vite build --mode development",
     "lint": "eslint .",
+    "typecheck": "tsc -b",
+    "check": "npm run lint && npm run typecheck && npm test && npm run build && npm run licenses:check",
     "preview": "vite preview",
     "test": "npx vitest run",
     "test:watch": "npx vitest",

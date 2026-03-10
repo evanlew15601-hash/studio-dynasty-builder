@@ -1,76 +1,48 @@
-# Welcome to your Lovable project
+# Studio Magnate
 
-## Project info
+A film-studio management / “Hollywood tycoon” simulation game built with Vite + React + TypeScript.
 
-**URL**: https://lovable.dev/projects/7e87531d-d46f-4b62-9b65-548132b79b80
-
-## How can I edit this code?
-
-There are several ways of editing your application.
-
-**Use Lovable**
-
-Simply visit the [Lovable Project](https://lovable.dev/projects/7e87531d-d46f-4b62-9b65-548132b79b80) and start prompting.
-
-Changes made via Lovable will be committed automatically to this repo.
-
-**Use your preferred IDE**
-
-If you want to work locally using your own IDE, you can clone this repo and push changes. Pushed changes will also be reflected in Lovable.
-
-The only requirement is having Node.js & npm installed - [install with nvm](https://github.com/nvm-sh/nvm#installing-and-updating)
-
-Follow these steps:
+## Local development
 
 ```sh
-# Step 1: Clone the repository using the project's Git URL.
-git clone <YOUR_GIT_URL>
-
-# Step 2: Navigate to the project directory.
-cd <YOUR_PROJECT_NAME>
-
-# Step 3: Install the necessary dependencies.
 npm i
 
-# Step 4: Start the development server with auto-reloading and an instant preview.
+# Optional: only needed if/when enabling Supabase features
+cp .env.example .env
+
 npm run dev
 ```
 
-**Edit a file directly in GitHub**
+## Scripts
 
-- Navigate to the desired file(s).
-- Click the "Edit" button (pencil icon) at the top right of the file view.
-- Make your changes and commit the changes.
+- `npm run lint` — ESLint
+- `npm run typecheck` — TypeScript typecheck (project references)
+- `npm test` — Vitest (simulation/integration tests live in `tests/`)
+- `npm run test:e2e` — Playwright
+- `npm run build` / `npm run preview` — production build / serve build
+- `npm run check` — preflight (lint + typecheck + tests + build + license allowlist)
 
-**Use GitHub Codespaces**
+## Desktop app (Tauri)
 
-- Navigate to the main page of your repository.
-- Click on the "Code" button (green button) near the top right.
-- Select the "Codespaces" tab.
-- Click on "New codespace" to launch a new Codespace environment.
-- Edit files directly within the Codespace and commit and push your changes once you're done.
+If you have a Rust toolchain installed, you can run the desktop shell:
 
-## What technologies are used for this project?
+```sh
+npm run tauri:dev
+npm run tauri:build
+```
 
-This project is built with:
+## Configuration
 
-- Vite
-- TypeScript
-- React
-- shadcn-ui
-- Tailwind CSS
+This project includes a generated Supabase client (`src/integrations/supabase/client.ts`).
 
-## How can I deploy this project?
+If/when Supabase features are enabled, set these environment variables:
 
-Simply open [Lovable](https://lovable.dev/projects/7e87531d-d46f-4b62-9b65-548132b79b80) and click on Share -> Publish.
+- `VITE_SUPABASE_URL`
+- `VITE_SUPABASE_PUBLISHABLE_KEY`
 
-## Can I connect a custom domain to my Lovable project?
-
-Yes, you can!
-
-To connect a domain, navigate to Project > Settings > Domains and click Connect Domain.
-
-Read more here: [Setting up a custom domain](https://docs.lovable.dev/tips-tricks/custom-domain#step-by-step-guide)
+Notes:
+- `.env` is gitignored to avoid committing secrets.
+- The frontend should only ever use the Supabase anon/publishable key (never a service role key).
 
 ## Open source & compliance
 

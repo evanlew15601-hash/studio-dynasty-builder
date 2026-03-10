@@ -195,7 +195,7 @@ export const GameLanding: React.FC<GameLandingProps> = ({ onStartGame, onLoadGam
                 asChild
               >
                 <Link to="/help">
-                  <HelpCircle />
+                  <HelpCircle aria-hidden="true" />
                   Help & Open Source
                 </Link>
               </Button>
