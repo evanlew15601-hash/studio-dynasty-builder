@@ -116,24 +116,17 @@ export class TVEpisodeSystem {
     const remaining = season.totalEpisodes - season.episodesAired;
     if (remaining <= 0) return withSeason;
 
-    let episodesToRelease = 0;
+    const resolvedFormat = season.releaseFormat || withSeason.releaseFormat || 'weekly';
 
-    if (weeksSincePremiere === 0) {
-      if (season.releaseFormat === 'binge') {
-        episodesToRelease = remaining;
-      } else if (season.releaseFormat === 'batch') {
-        episodesToRelease = Math.min(3, remaining);
-      } else {
-        episodesToRelease = 1;
-      }
-    } else {
-      if (season.releaseFormat === 'weekly') {
-        episodesToRelease = 1;
-      } else if (season.releaseFormat === 'batch') {
-        episodesToRelease = Math.min(3, remaining);
-      }
-    }
+    // Catch-up: if the game advances quickly (or an AI show premiered in the past),
+    // release any episodes that should have aired by now.
+    const expectedAired = (() => {
+      if (resolvedFormat === 'binge') return season.totalEpisodes;
+      if (resolvedFormat === 'batch') return Math.min(season.totalEpisodes, (weeksSincePremiere + 1) * 3);
+      return Math.min(season.totalEpisodes, weeksSincePremiere + 1);
+    })();
 
+    let episodesToRelease = Math.max(0, expectedAired - season.episodesAired);
     if (episodesToRelease <= 0) return withSeason;
 
     let updatedProject = withSeason;
@@ -149,18 +142,33 @@ export class TVEpisodeSystem {
     const seasons = [...(updatedProject.seasons || [])];
     const updatedSeason: SeasonData = {
       ...season,
-      releaseFormat: season.releaseFormat || updatedProject.releaseFormat || 'weekly',
+      releaseFormat: resolvedFormat,
       episodes: [...season.episodes],
     };
 
     const startEpisode = updatedSeason.episodesAired;
     const endEpisode = Math.min(startEpisode + episodesToRelease, updatedSeason.totalEpisodes);
 
+    const fromAbsWeek = (abs: number): { week: number; year: number } => {
+      const year = Math.floor((abs - 1) / 52);
+      const week = ((abs - 1) % 52) + 1;
+      return { week, year };
+    };
+
+    const episodeAirAbsForIndex = (episodeIndex0: number): number => {
+      if (resolvedFormat === 'binge') return premiereAbs;
+      if (resolvedFormat === 'batch') return premiereAbs + Math.floor(episodeIndex0 / 3);
+      return premiereAbs + episodeIndex0;
+    };
+
     for (let i = startEpisode; i < endEpisode; i += 1) {
       const episode = updatedSeason.episodes[i];
 
+      const episodeAirAbs = episodeAirAbsForIndex(i);
+      const { week: airWeek, year: airYear } = fromAbsWeek(episodeAirAbs);
+
       const multiplier = i === 0 ? 1.0 : Math.max(0.6, 1 - i * 0.05);
-      const variation = 0.8 + pseudoRandom01(`${updatedProject.id}:${seasonNumber}:${episode.episodeNumber}:${currentYear}:${currentWeek}`) * 0.4;
+      const variation = 0.8 + pseudoRandom01(`${updatedProject.id}:${seasonNumber}:${episode.episodeNumber}:${airYear}:${airWeek}`) * 0.4;
       const viewers = Math.floor(baseViewers * multiplier * variation);
 
       const completionRate = Math.min(95, Math.max(45, Math.floor(65 + (updatedProject.metrics?.audienceScore || 60) * 0.25)));
@@ -174,7 +182,7 @@ export class TVEpisodeSystem {
 
       const updatedEpisode: EpisodeData = {
         ...episode,
-        airDate: { week: currentWeek, year: currentYear },
+        airDate: { week: airWeek, year: airYear },
         viewers,
         completionRate,
         averageWatchTime,
@@ -191,11 +199,11 @@ export class TVEpisodeSystem {
     updatedSeason.episodesAired = endEpisode;
 
     if (!updatedSeason.premiereDate && endEpisode > 0) {
-      updatedSeason.premiereDate = { week: currentWeek, year: currentYear };
+      updatedSeason.premiereDate = fromAbsWeek(premiereAbs);
     }
 
     if (updatedSeason.episodesAired >= updatedSeason.totalEpisodes && !updatedSeason.finaleDate) {
-      updatedSeason.finaleDate = { week: currentWeek, year: currentYear };
+      updatedSeason.finaleDate = fromAbsWeek(episodeAirAbsForIndex(updatedSeason.totalEpisodes - 1));
     }
 
     const airedEpisodes = updatedSeason.episodes.slice(0, updatedSeason.episodesAired);

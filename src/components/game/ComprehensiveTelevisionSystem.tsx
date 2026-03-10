@@ -86,12 +86,10 @@ export const ComprehensiveTelevisionSystem: React.FC<ComprehensiveTelevisionSyst
             <Monitor className="h-4 w-4" />
             Streaming Deals
           </TabsTrigger>
-          {import.meta.env.DEV && (
-            <TabsTrigger value="competition" className="flex items-center gap-2">
-              <Building className="h-4 w-4" />
-              AI Studios
-            </TabsTrigger>
-          )}
+          <TabsTrigger value="competition" className="flex items-center gap-2">
+            <Building className="h-4 w-4" />
+            Competition
+          </TabsTrigger>
         </TabsList>
 
         <TabsContent value="development">
@@ -123,11 +121,9 @@ export const ComprehensiveTelevisionSystem: React.FC<ComprehensiveTelevisionSyst
           <StreamingContractSystem />
         </TabsContent>
 
-        {import.meta.env.DEV && (
-          <TabsContent value="competition">
-            <AITelevisionStudios />
-          </TabsContent>
-        )}
+        <TabsContent value="competition">
+          <AITelevisionStudios />
+        </TabsContent>
       </Tabs>
     </div>
   );

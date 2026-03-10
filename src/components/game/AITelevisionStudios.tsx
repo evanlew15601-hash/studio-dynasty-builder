@@ -33,14 +33,27 @@ export const AITelevisionStudios: React.FC<AITelevisionStudiosProps> = () => {
 
   const currentAbs = absWeek(gameState.currentWeek, gameState.currentYear);
 
+  const competitorNames = new Set((gameState.competitorStudios || []).map((s) => s.name));
+  const playerProjectIds = new Set((gameState.projects || []).map((p) => p.id));
+
   const tvReleases = (gameState.allReleases || [])
     .filter((r): r is Project => typeof (r as any)?.script !== 'undefined')
     .filter((p) => p.type === 'series' || p.type === 'limited-series')
     .filter((p) => !!p.releaseWeek && !!p.releaseYear)
+    // Only show competitor studio TV shows (exclude player projects that may be copied into allReleases)
+    .filter((p) => !playerProjectIds.has(p.id))
+    .filter((p) => !!p.studioName && competitorNames.has(p.studioName))
     .sort((a, b) => absWeek(b.releaseWeek!, b.releaseYear!) - absWeek(a.releaseWeek!, a.releaseYear!));
 
   const released = tvReleases.filter((p) => absWeek(p.releaseWeek!, p.releaseYear!) <= currentAbs);
   const upcoming = tvReleases.filter((p) => absWeek(p.releaseWeek!, p.releaseYear!) > currentAbs);
+
+  const airing = released.filter((p) => {
+    const season = p.seasons?.[0];
+    const aired = season?.episodesAired || 0;
+    const total = season?.totalEpisodes || p.episodeCount || 0;
+    return aired > 0 && total > 0 && aired < total;
+  });
 
   return (
     <div className="space-y-4">
@@ -53,6 +66,7 @@ export const AITelevisionStudios: React.FC<AITelevisionStudiosProps> = () => {
         </CardHeader>
         <CardContent>
           <div className="flex flex-wrap gap-2 text-sm">
+            <Badge variant="outline">Airing: {airing.length}</Badge>
             <Badge variant="outline">Released: {released.length}</Badge>
             <Badge variant="outline">Upcoming: {upcoming.length}</Badge>
             <Badge variant="secondary">Total tracked: {tvReleases.length}</Badge>
@@ -80,17 +94,24 @@ export const AITelevisionStudios: React.FC<AITelevisionStudiosProps> = () => {
                 const views = p.metrics?.streaming?.totalViews;
                 const isUpcoming = absWeek(p.releaseWeek!, p.releaseYear!) > currentAbs;
 
+                const season = p.seasons?.[0];
+                const aired = season?.episodesAired || 0;
+                const total = season?.totalEpisodes || epCount || 0;
+                const isAiring = !isUpcoming && aired > 0 && total > 0 && aired < total;
+
                 return (
                   <div key={p.id} className="flex items-center justify-between gap-3 p-3 border rounded">
                     <div className="min-w-0">
                       <div className="flex items-center gap-2">
                         <span className="font-medium truncate">{p.title}</span>
                         <Badge variant={isUpcoming ? 'secondary' : 'default'} className="text-xs">
-                          {isUpcoming ? 'Upcoming' : 'Released'}
+                          {isUpcoming ? 'Upcoming' : isAiring ? 'Airing' : 'Released'}
                         </Badge>
                         <Badge variant="outline" className="text-xs">{p.script?.genre}</Badge>
-                        {typeof epCount === 'number' && (
-                          <Badge variant="outline" className="text-xs">{epCount} eps</Badge>
+                        {typeof total === 'number' && total > 0 && (
+                          <Badge variant="outline" className="text-xs">
+                            {aired > 0 ? `${aired}/${total} eps` : `${total} eps`}
+                          </Badge>
                         )}
                       </div>
                       <div className="text-xs text-muted-foreground mt-1">
