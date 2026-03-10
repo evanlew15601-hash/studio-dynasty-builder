@@ -1798,10 +1798,10 @@ export const StudioMagnateGame: React.FC<StudioMagnateGameProps> = ({
       measure('ai', 'AI studios', () => {
         try {
           AIStudioManager.processWeeklyAIFilms(newTimeState.currentWeek, newTimeState.currentYear);
-          if (prev.competitorStudios.length > 0) {
+          if (baseAfterEngine.competitorStudios.length > 0) {
             const shouldStartAIFilm = (newTimeState.currentWeek % 4 === 1) || Math.random() < 0.35;
             if (shouldStartAIFilm) {
-              const randomStudio = prev.competitorStudios[Math.floor(Math.random() * prev.competitorStudios.length)];
+              const randomStudio = baseAfterEngine.competitorStudios[Math.floor(Math.random() * baseAfterEngine.competitorStudios.length)];
               AIStudioManager.createAIFilm(
                 randomStudio,
                 newTimeState.currentWeek,
@@ -1843,7 +1843,7 @@ export const StudioMagnateGame: React.FC<StudioMagnateGameProps> = ({
         FinancialEngine.processWeeklyFinancialEvents(
           newTimeState.currentWeek,
           newTimeState.currentYear,
-          [prev.studio, ...prev.competitorStudios],
+          [baseAfterEngine.studio, ...baseAfterEngine.competitorStudios],
           updatedProjects
         );
       });
@@ -2003,17 +2003,17 @@ export const StudioMagnateGame: React.FC<StudioMagnateGameProps> = ({
       }
       
       // Process weekly costs and reputation with deep system
-      const weeklyResults = measure('weeklyCosts', 'Weekly costs & debt', () => processWeeklyCosts(prev, updatedProjects, diagnosticsEnabled));
+      const weeklyResults = measure('weeklyCosts', 'Weekly costs & debt', () => processWeeklyCosts(baseAfterEngine, updatedProjects, diagnosticsEnabled));
       
       // Update industry context and calculate deep reputation
       const deepRepResult = measure('reputation', 'Reputation', () => {
-        DeepReputationSystem.updateIndustryContext([...prev.competitorStudios, prev.studio], newTimeState);
+        DeepReputationSystem.updateIndustryContext([...baseAfterEngine.competitorStudios, baseAfterEngine.studio], newTimeState);
         return DeepReputationSystem.calculateDeepReputation(
           weeklyResults.studio,
           updatedProjects,
           baseAfterEngine.talent,
           newTimeState,
-          prev.competitorStudios
+          baseAfterEngine.competitorStudios
         );
       });
       
@@ -2136,7 +2136,7 @@ export const StudioMagnateGame: React.FC<StudioMagnateGameProps> = ({
         (p) => p.status === 'released' && !!p.releaseWeek && !!p.releaseYear
       );
 
-      const releasePool = [...prev.allReleases, ...newAIReleases, ...playerReleases];
+      const releasePool = [...baseAfterEngine.allReleases, ...newAIReleases, ...playerReleases];
 
       const dedupedReleases = (() => {
         const seen = new Set<string>();
@@ -2156,14 +2156,14 @@ export const StudioMagnateGame: React.FC<StudioMagnateGameProps> = ({
       });
 
       // Also prune old box office history if it exists
-      const prunedBoxOfficeHistory = (prev.boxOfficeHistory || []).filter((entry: any) => {
+      const prunedBoxOfficeHistory = (baseAfterEngine.boxOfficeHistory || []).filter((entry: any) => {
         if (!entry.week || !entry.year) return true;
         const entryAbsWeek = (entry.year * 52) + entry.week;
         return (currentAbsoluteWeek - entryAbsWeek) <= MAX_RELEASE_AGE_WEEKS;
       });
 
       // Prune old top films history
-      const prunedTopFilmsHistory = (prev.topFilmsHistory || []).slice(-52); // Keep last 52 entries max
+      const prunedTopFilmsHistory = (baseAfterEngine.topFilmsHistory || []).slice(-52); // Keep last 52 entries max
 
       const newState = {
         ...baseAfterEngine,
