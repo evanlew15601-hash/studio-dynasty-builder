@@ -243,7 +243,7 @@ export class FranchiseGenerator {
         cost: 0, // Will be calculated
       };
 
-      franchise.cost = FranchiseGenerator.calculateFranchiseCost(franchise);
+      franchise.cost = calculateFranchiseCostImpl(franchise);
       franchises.push(franchise);
     }
 
@@ -274,7 +274,7 @@ export class FranchiseGenerator {
         cost: 0,
       };
 
-      franchise.cost = FranchiseGenerator.calculateFranchiseCost(franchise);
+      franchise.cost = calculateFranchiseCostImpl(franchise);
       franchises.push(franchise);
     }
 
@@ -300,8 +300,8 @@ export class FranchiseGenerator {
     
     // Check if enough time has passed since last entry
     if (franchise.lastEntryDate) {
-      const lastYear = parseInt(franchise.lastEntryDate.split('-')[0]);
-      const currentYear = parseInt(currentDate.split('-')[0]);
+      const lastYear = parseInt(franchise.lastEntryDate.split('-')[0], 10);
+      const currentYear = parseInt(currentDate.split('-')[0], 10);
       return currentYear - lastYear >= 2; // At least 2 years between entries
     }
     
