@@ -104,20 +104,55 @@ export function getEnabledModsSorted(bundle: ModBundle): ModInfo[] {
     .sort((a, b) => (a.priority ?? 0) - (b.priority ?? 0) || a.id.localeCompare(b.id));
 }
 
-export function getPatchesForEntity(bundle: ModBundle, entityType: string): ModPatch[] {
+type PatchIndexCache = {
+  modsRef: ModBundle['mods'];
+  patchesRef: ModBundle['patches'];
+  patchesByEntity: Map<string, ModPatch[]>;
+};
+
+const patchIndexCache = new WeakMap<ModBundle, PatchIndexCache>();
+
+function getPatchIndex(bundle: ModBundle): PatchIndexCache {
+  const modsRef = bundle.mods || [];
+  const patchesRef = bundle.patches || [];
+
+  const cached = patchIndexCache.get(bundle);
+  if (cached && cached.modsRef === modsRef && cached.patchesRef === patchesRef) return cached;
+
   const enabledMods = getEnabledModsSorted(bundle);
   const enabledIds = new Set(enabledMods.map((m) => m.id));
   const modOrder = new Map<string, number>();
   enabledMods.forEach((m, idx) => modOrder.set(m.id, idx));
 
-  return (bundle.patches || [])
-    .filter((p) => !!p && p.entityType === entityType && enabledIds.has(p.modId))
-    .slice()
-    .sort((a, b) => {
+  const patchesByEntity = new Map<string, ModPatch[]>();
+
+  for (const p of patchesRef) {
+    if (!p) continue;
+    if (!enabledIds.has(p.modId)) continue;
+
+    const list = patchesByEntity.get(p.entityType) || [];
+    list.push(p);
+    patchesByEntity.set(p.entityType, list);
+  }
+
+  for (const list of patchesByEntity.values()) {
+    list.sort((a, b) => {
       const ma = modOrder.get(a.modId) ?? 0;
       const mb = modOrder.get(b.modId) ?? 0;
       return ma - mb;
     });
+  }
+
+  const next: PatchIndexCache = { modsRef, patchesRef, patchesByEntity };
+  patchIndexCache.set(bundle, next);
+  return next;
+}
+
+export function getPatchesForEntity(bundle: ModBundle, entityType: string): ModPatch[] {
+  const idx = getPatchIndex(bundle);
+  const list = idx.patchesByEntity.get(entityType) || [];
+  // Return a copy to preserve the previous semantics (callers could mutate the array).
+  return list.slice();
 }
 
 function isPlainObject(value: unknown): value is Record<string, unknown> {

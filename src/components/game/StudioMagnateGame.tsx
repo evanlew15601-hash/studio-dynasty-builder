@@ -101,7 +101,7 @@ import { SystemIntegration } from './SystemIntegration';
 import { useGameStore } from '@/game/store';
 import { saveGameAsync } from '@/utils/saveLoad';
 import { syncAndPersistIndustryDatabase } from '@/utils/industryDatabase';
-import { applyPatchesByKey, getPatchesForEntity } from '@/utils/modding';
+import { applyPatchesByKey, deepMerge, getPatchesForEntity } from '@/utils/modding';
 import { getModBundle } from '@/utils/moddingStore';
 import { DebugControlPanel } from './DebugControlPanel';
 import { IndustryDatabasePanel } from './IndustryDatabasePanel';
@@ -616,6 +616,64 @@ export const StudioMagnateGame: React.FC<StudioMagnateGameProps> = ({
           setTimeout(() => done(), 0);
         });
 
+      const applyPatchesByKeyYielding = async <T,>(
+        base: T[],
+        patches: Array<{ op: string; target?: string; payload?: any }> | undefined,
+        getKey: (item: T) => string,
+        progressStart: number,
+        progressEnd: number,
+        label: string
+      ): Promise<T[]> => {
+        const list = patches || [];
+        if (list.length === 0) return base;
+
+        let next = base.slice();
+
+        for (let i = 0; i < list.length; i++) {
+          const patch = list[i];
+
+          if (patch.op === 'delete') {
+            if (!patch.target) continue;
+            next = next.filter((item) => getKey(item) !== patch.target);
+          } else if (patch.op === 'insert') {
+            const incoming = patch.payload as T | undefined;
+            if (!incoming) continue;
+
+            const key = getKey(incoming);
+            const idx = next.findIndex((item) => getKey(item) === key);
+            if (idx === -1) {
+              next = [...next, incoming];
+            } else {
+              const merged = deepMerge(next[idx], incoming);
+              const copy = next.slice();
+              copy[idx] = merged;
+              next = copy;
+            }
+          } else if (patch.op === 'update') {
+            if (!patch.target) continue;
+            const idx = next.findIndex((item) => getKey(item) === patch.target);
+            if (idx === -1) continue;
+
+            const merged = deepMerge(next[idx], patch.payload);
+            const copy = next.slice();
+            copy[idx] = merged;
+            next = copy;
+          }
+
+          // Yield periodically so the loading overlay keeps updating on mobile.
+          if (i % 50 === 0) {
+            const pct = progressStart + (i / list.length) * (progressEnd - progressStart);
+            updateOperation(LOADING_OPERATIONS.GAME_INIT.id, Math.min(progressEnd, Math.max(progressStart, Math.round(pct))), `${label} (${i}/${list.length})`);
+            await yieldFrame();
+          }
+        }
+
+        updateOperation(LOADING_OPERATIONS.GAME_INIT.id, progressEnd, label);
+        await yieldFrame();
+
+        return next;
+      };
+
       await yieldFrame();
 
       const universeSeed = generateGameSeed();
@@ -872,9 +930,34 @@ export const StudioMagnateGame: React.FC<StudioMagnateGameProps> = ({
 
       mark(`Seeding AI releases (done): ${releases.length} releases`);
 
-      updateOperation(LOADING_OPERATIONS.GAME_INIT.id, 78, 'Generating franchises & public-domain IPs...');
+      updateOperation(LOADING_OPERATIONS.GAME_INIT.id, 78, 'Generating franchises...');
       await yieldFrame();
-      mark('Generated franchises & public-domain IPs (start)');
+
+      const baseFranchises = FranchiseGenerator.generateInitialFranchises(30);
+      mark(`Generated base franchises (${baseFranchises.length})`);
+
+      updateOperation(LOADING_OPERATIONS.GAME_INIT.id, 79, 'Applying franchise mods...');
+      await yieldFrame();
+
+      const franchisePatches = getPatchesForEntity(mods, 'franchise');
+      const franchises = await applyPatchesByKeyYielding(
+        baseFranchises,
+        franchisePatches,
+        (f) => f.id,
+        79,
+        80,
+        'Applying franchise mods...'
+      );
+      mark(`Applied franchise mods (${franchisePatches.length} patches)`);
+
+      updateOperation(LOADING_OPERATIONS.GAME_INIT.id, 80, 'Generating public-domain IPs...');
+      await yieldFrame();
+
+      const publicDomainIPs = PublicDomainGenerator.generateInitialPublicDomainIPs(50, mods);
+      mark(`Generated public-domain IPs (${publicDomainIPs.length})`);
+
+      updateOperation(LOADING_OPERATIONS.GAME_INIT.id, 81, 'Assembling initial world...');
+      await yieldFrame();
 
       let initialState: GameState = {
         universeSeed,
@@ -903,14 +986,11 @@ export const StudioMagnateGame: React.FC<StudioMagnateGameProps> = ({
         industryTrends: [],
         allReleases: releases,
         topFilmsHistory: [],
-        franchises: applyPatchesByKey(
-          FranchiseGenerator.generateInitialFranchises(30),
-          getPatchesForEntity(mods, 'franchise'),
-          (f) => f.id
-        ),
-        publicDomainIPs: PublicDomainGenerator.generateInitialPublicDomainIPs(50, mods),
+        franchises,
+        publicDomainIPs,
         aiStudioProjects: [] as Project[],
       };
+      mark('Assembled initial world');
 
       updateOperation(LOADING_OPERATIONS.GAME_INIT.id, 82, 'Priming competitor television...');
       await yieldFrame();
