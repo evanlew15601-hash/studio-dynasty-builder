@@ -839,7 +839,6 @@ export const StudioMagnateGame: React.FC<StudioMagnateGameProps> = ({
       initGame(initialState, initialState.universeSeed);
 
       requestAnimationFrame(() => {
-        if (cancelled) return;
         completeOperation(LOADING_OPERATIONS.GAME_INIT.id);
       });
     };
@@ -851,6 +850,7 @@ export const StudioMagnateGame: React.FC<StudioMagnateGameProps> = ({
 
     return () => {
       cancelled = true;
+      completeOperation(LOADING_OPERATIONS.GAME_INIT.id);
     };
   }, [
     storeGameState,
