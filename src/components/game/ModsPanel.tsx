@@ -2234,7 +2234,7 @@ export const ModsPanel: React.FC = () => {
         const allowedTypes = new Set<MediaSource['type']>(['newspaper', 'magazine', 'blog', 'social_media', 'trade_publication', 'tv_network']);
 
         setMediaSourceEdits((prev) => {
-          let next = { ...prev };
+          const next = { ...prev };
 
           for (const row of rows) {
             const id = (row.id || '').trim();
@@ -2333,7 +2333,7 @@ export const ModsPanel: React.FC = () => {
         const allowedTypes = new Set(['literature', 'mythology', 'folklore', 'historical', 'religious']);
 
         setPublicDomainEdits((prev) => {
-          let next = { ...prev };
+          const next = { ...prev };
 
           for (const row of rows) {
             const id = (row.id || '').trim();

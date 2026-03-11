@@ -42,37 +42,36 @@ function formatViews(amount?: number): string {
   return amount.toLocaleString();
 }
 
-export const AITelevisionStudios: React.FC<AITelevisionStudiosProps> = () => {
-  const gameState = useGameStore((s) => s.game);
+function AITelevisionStudiosInner({ gameState }: { gameState: any }) {
   const [selectedShowId, setSelectedShowId] = useState<string>('');
 
-  if (!gameState) {
-    return <div className="p-6 text-sm text-muted-foreground">Loading AI studios...</div>;
-  }
+  const { currentAbs, tvReleases, released, upcoming, airing } = useMemo(() => {
+    const currentAbs = absWeek(gameState.currentWeek, gameState.currentYear);
 
-  const currentAbs = absWeek(gameState.currentWeek, gameState.currentYear);
+    const competitorNames = new Set((gameState.competitorStudios || []).map((s: any) => s.name));
+    const playerProjectIds = new Set((gameState.projects || []).map((p: any) => p.id));
 
-  const competitorNames = new Set((gameState.competitorStudios || []).map((s) => s.name));
-  const playerProjectIds = new Set((gameState.projects || []).map((p) => p.id));
+    const tvReleases = (gameState.allReleases || [])
+      .filter((r: any): r is Project => typeof (r as any)?.script !== 'undefined')
+      .filter((p: Project) => p.type === 'series' || p.type === 'limited-series')
+      .filter((p: Project) => !!p.releaseWeek && !!p.releaseYear)
+      // Only show competitor studio TV shows (exclude player projects that may be copied into allReleases)
+      .filter((p: Project) => !playerProjectIds.has(p.id))
+      .filter((p: Project) => !!p.studioName && competitorNames.has(p.studioName))
+      .sort((a: Project, b: Project) => absWeek(b.releaseWeek!, b.releaseYear!) - absWeek(a.releaseWeek!, a.releaseYear!));
 
-  const tvReleases = (gameState.allReleases || [])
-    .filter((r): r is Project => typeof (r as any)?.script !== 'undefined')
-    .filter((p) => p.type === 'series' || p.type === 'limited-series')
-    .filter((p) => !!p.releaseWeek && !!p.releaseYear)
-    // Only show competitor studio TV shows (exclude player projects that may be copied into allReleases)
-    .filter((p) => !playerProjectIds.has(p.id))
-    .filter((p) => !!p.studioName && competitorNames.has(p.studioName))
-    .sort((a, b) => absWeek(b.releaseWeek!, b.releaseYear!) - absWeek(a.releaseWeek!, a.releaseYear!));
+    const released = tvReleases.filter((p: Project) => absWeek(p.releaseWeek!, p.releaseYear!) <= currentAbs);
+    const upcoming = tvReleases.filter((p: Project) => absWeek(p.releaseWeek!, p.releaseYear!) > currentAbs);
 
-  const released = tvReleases.filter((p) => absWeek(p.releaseWeek!, p.releaseYear!) <= currentAbs);
-  const upcoming = tvReleases.filter((p) => absWeek(p.releaseWeek!, p.releaseYear!) > currentAbs);
+    const airing = released.filter((p: Project) => {
+      const season = p.seasons?.[0];
+      const aired = season?.episodesAired || 0;
+      const total = season?.totalEpisodes || p.episodeCount || 0;
+      return aired > 0 && total > 0 && aired < total;
+    });
 
-  const airing = released.filter((p) => {
-    const season = p.seasons?.[0];
-    const aired = season?.episodesAired || 0;
-    const total = season?.totalEpisodes || p.episodeCount || 0;
-    return aired > 0 && total > 0 && aired < total;
-  });
+    return { currentAbs, tvReleases, released, upcoming, airing };
+  }, [gameState]);
 
   useEffect(() => {
     if (selectedShowId) return;
@@ -82,7 +81,7 @@ export const AITelevisionStudios: React.FC<AITelevisionStudiosProps> = () => {
 
   const selected = useMemo(() => {
     if (!selectedShowId) return null;
-    return tvReleases.find((p) => p.id === selectedShowId) || null;
+    return tvReleases.find((p: Project) => p.id === selectedShowId) || null;
   }, [selectedShowId, tvReleases]);
 
   const selectedSeason = selected?.seasons?.[0];
@@ -93,7 +92,7 @@ export const AITelevisionStudios: React.FC<AITelevisionStudiosProps> = () => {
     const episodes = selectedSeason?.episodes || [];
     const slice = episodes.slice(0, Math.max(0, selectedAired));
 
-    return slice.map((e) => ({
+    return slice.map((e: any) => ({
       episode: `E${e.episodeNumber}`,
       viewers: e.viewers || 0,
       completionRate: e.completionRate || 0,
@@ -193,7 +192,7 @@ export const AITelevisionStudios: React.FC<AITelevisionStudiosProps> = () => {
                       <SelectValue placeholder="Choose a competitor show" />
                     </SelectTrigger>
                     <SelectContent>
-                      {tvReleases.slice(0, 50).map((p) => (
+                      {tvReleases.slice(0, 50).map((p: Project) => (
                         <SelectItem key={p.id} value={p.id}>
                           {p.title} ({p.studioName})
                         </SelectItem>
@@ -332,7 +331,7 @@ export const AITelevisionStudios: React.FC<AITelevisionStudiosProps> = () => {
             <p className="text-muted-foreground text-center py-8">No AI TV shows generated yet.</p>
           ) : (
             <div className="space-y-2">
-              {tvReleases.slice(0, 20).map((p) => {
+              {tvReleases.slice(0, 20).map((p: Project) => {
                 const epCount = p.episodeCount || p.seasons?.[0]?.totalEpisodes;
                 const views = p.metrics?.streaming?.totalViews;
                 const isUpcoming = absWeek(p.releaseWeek!, p.releaseYear!) > currentAbs;
@@ -393,4 +392,14 @@ export const AITelevisionStudios: React.FC<AITelevisionStudiosProps> = () => {
       </Card>
     </div>
   );
+}
+
+export const AITelevisionStudios: React.FC<AITelevisionStudiosProps> = () => {
+  const gameState = useGameStore((s) => s.game);
+
+  if (!gameState) {
+    return <div className="p-6 text-sm text-muted-foreground">Loading AI studios...</div>;
+  }
+
+  return <AITelevisionStudiosInner gameState={gameState} />;
 };
