@@ -1,4 +1,5 @@
 import { GameLanding } from '@/components/game/GameLanding';
+import { GlobalLoadingOverlay } from '@/components/ui/global-loading-overlay';
 import { LoadingProvider } from '@/contexts/LoadingContext';
 import { Suspense, lazy, useState } from 'react';
 import { loadGameAsync, SaveGameSnapshot } from '@/utils/saveLoad';
@@ -78,6 +79,7 @@ const Index = () => {
 
   return (
     <LoadingProvider>
+      <GlobalLoadingOverlay />
       {!gameStarted ? (
         <GameLanding onStartGame={handleStartGame} onLoadGame={handleLoadGame} />
       ) : (
