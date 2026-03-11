@@ -22,8 +22,8 @@ export const LoadingOverlay: React.FC<LoadingOverlayProps> = ({ loading, classNa
   const isWeeklyTick = loading.operationId === LOADING_OPERATIONS.WEEKLY_PROCESSING.id;
 
   const wrapperClass = isWeeklyTick
-    ? `fixed inset-0 bg-black/30 z-50 flex items-center justify-center ${className}`
-    : `fixed inset-0 bg-black/50 backdrop-blur-sm z-50 flex items-center justify-center ${className}`;
+    ? `fixed inset-0 bg-black/30 z-[9999] flex items-center justify-center ${className}`
+    : `fixed inset-0 bg-black/50 backdrop-blur-sm z-[9999] flex items-center justify-center ${className}`;
 
   const cardClass = isWeeklyTick ? 'w-[22rem] max-w-[calc(100vw-2rem)] shadow-xl' : 'w-96 mx-4';
 

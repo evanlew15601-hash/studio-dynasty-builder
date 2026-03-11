@@ -39,15 +39,25 @@ const IndexInner = () => {
       LOADING_OPERATIONS.GAME_SHELL_LOAD.name,
       LOADING_OPERATIONS.GAME_SHELL_LOAD.estimatedTime
     );
-    updateOperation(LOADING_OPERATIONS.GAME_SHELL_LOAD.id, 5, 'Starting...');
+    updateOperation(LOADING_OPERATIONS.GAME_SHELL_LOAD.id, 5, 'Loading game files...');
 
-    // Kick off chunk download ASAP (without blocking the UI event handler).
-    void import('@/components/game/StudioMagnateGame');
+    void (async () => {
+      try {
+        await import('@/components/game/StudioMagnateGame');
 
-    // Starting a fresh game clears any loaded snapshot
-    setLoadedSnapshot(null);
-    setGameConfig(config);
-    setGameStarted(true);
+        // Starting a fresh game clears any loaded snapshot
+        setLoadedSnapshot(null);
+        setGameConfig(config);
+        setGameStarted(true);
+      } catch (e) {
+        console.error('[Game Start] Failed to load game shell', e);
+        completeOperation(LOADING_OPERATIONS.GAME_SHELL_LOAD.id);
+
+        if (typeof window !== 'undefined') {
+          window.alert('Failed to start the game. Please refresh and try again.');
+        }
+      }
+    })();
   };
 
   const handleLoadGame = async () => {
@@ -56,12 +66,12 @@ const IndexInner = () => {
       LOADING_OPERATIONS.GAME_SHELL_LOAD.name,
       LOADING_OPERATIONS.GAME_SHELL_LOAD.estimatedTime
     );
-    updateOperation(LOADING_OPERATIONS.GAME_SHELL_LOAD.id, 10, 'Loading save...');
+    updateOperation(LOADING_OPERATIONS.GAME_SHELL_LOAD.id, 10, 'Loading game files...');
 
-    // Kick off chunk download ASAP while we load/patch the save.
-    void import('@/components/game/StudioMagnateGame');
+    const gameModulePromise = import('@/components/game/StudioMagnateGame');
 
     try {
+      updateOperation(LOADING_OPERATIONS.GAME_SHELL_LOAD.id, 20, 'Loading save...');
       const snapshot = await loadGameAsync('slot1');
 
       if (!snapshot) {
@@ -75,7 +85,7 @@ const IndexInner = () => {
         return;
       }
 
-      updateOperation(LOADING_OPERATIONS.GAME_SHELL_LOAD.id, 40, 'Applying patches...');
+      updateOperation(LOADING_OPERATIONS.GAME_SHELL_LOAD.id, 50, 'Applying patches...');
 
       const mods = getModBundle();
 
@@ -100,7 +110,8 @@ const IndexInner = () => {
         )
       );
 
-      updateOperation(LOADING_OPERATIONS.GAME_SHELL_LOAD.id, 80, 'Starting game...');
+      updateOperation(LOADING_OPERATIONS.GAME_SHELL_LOAD.id, 85, 'Starting game...');
+      await gameModulePromise;
 
       setLoadedSnapshot({ ...snapshot, gameState: patchedGameState });
       setGameConfig(null);
