@@ -1,7 +1,7 @@
 import React, { useEffect, useRef, useState, Suspense } from 'react';
 import type { GameState, Studio, Project, Script, TalentPerson, Genre, MarketingStrategy, ReleaseStrategy, ProductionPhase, ScriptCharacter } from '@/types/game';
 import { useLoadingActions } from '@/contexts/LoadingContext';
-import { LOADING_OPERATIONS, delay } from '@/utils/loadingUtils';
+import { LOADING_OPERATIONS } from '@/utils/loadingUtils';
 import { FranchiseGenerator } from '@/data/FranchiseGenerator';
 import { PublicDomainGenerator } from '@/data/PublicDomainGenerator';
 import { ScriptDevelopment } from './ScriptDevelopment';
@@ -109,7 +109,13 @@ import { TalentProfileDialog } from './TalentProfileDialog';
 import { StudioIconRenderer as StudioIconRendererLazy } from './StudioIconCustomizer';
 
 // Ensure AI films have credited talent so awards/filmographies have real people to reference
-function attachBasicCastForAI(project: Project, talentPool: TalentPerson[]): Project {
+type TalentIndex = {
+  talentById: Map<string, TalentPerson>;
+  directors: TalentPerson[];
+  actors: TalentPerson[];
+};
+
+function attachBasicCastForAI(project: Project, talentPool: TalentPerson[], index?: TalentIndex): Project {
   try {
     if (!project.script) return project;
 
@@ -136,10 +142,13 @@ function attachBasicCastForAI(project: Project, talentPool: TalentPerson[]): Pro
       return project;
     }
 
-    const directors = talentPool.filter(t => t.type === 'director');
-    const actors = talentPool.filter(t => t.type === 'actor');
+    const directors = index?.directors ?? talentPool.filter(t => t.type === 'director');
+    const actors = index?.actors ?? talentPool.filter(t => t.type === 'actor');
 
-    const getTalentById = (id?: string) => talentPool.find(t => t.id === id);
+    const getTalentById = (id?: string) => {
+      if (!id) return undefined;
+      return index?.talentById?.get(id) ?? talentPool.find(t => t.id === id);
+    };
 
     const existingDirectorId =
       existingCrew.find(c => c.role.toLowerCase().includes('director'))?.talentId ||
@@ -571,7 +580,16 @@ export const StudioMagnateGame: React.FC<StudioMagnateGameProps> = ({
       completeOperation(LOADING_OPERATIONS.GAME_SHELL_LOAD.id);
       updateOperation(LOADING_OPERATIONS.GAME_INIT.id, 1, 'Preparing the world...');
 
-      await new Promise<void>((resolve) => requestAnimationFrame(() => resolve()));
+      const yieldFrame = () =>
+        new Promise<void>((resolve) => {
+          if (typeof requestAnimationFrame === 'function') {
+            requestAnimationFrame(() => resolve());
+          } else {
+            setTimeout(() => resolve(), 0);
+          }
+        });
+
+      await yieldFrame();
 
       const universeSeed = generateGameSeed();
 
@@ -590,7 +608,7 @@ export const StudioMagnateGame: React.FC<StudioMagnateGameProps> = ({
       const mods = getModBundle();
 
       updateOperation(LOADING_OPERATIONS.GAME_INIT.id, 10, 'Generating talent pool...');
-      await delay(0);
+      await yieldFrame();
 
       const generatedTalent = applyPatchesByKey(
         generateInitialTalentPool({ currentYear: new Date().getFullYear() }),
@@ -599,13 +617,13 @@ export const StudioMagnateGame: React.FC<StudioMagnateGameProps> = ({
       );
 
       updateOperation(LOADING_OPERATIONS.GAME_INIT.id, 25, 'Generating competitor studios...');
-      await delay(0);
+      await yieldFrame();
 
       const studioGenerator = new StudioGenerator();
       const competitorStudios = studioGenerator.generateCompetitorStudios();
 
       updateOperation(LOADING_OPERATIONS.GAME_INIT.id, 30, 'Seeding AI releases...');
-      await delay(0);
+      await yieldFrame();
 
       const sg = new StudioGenerator();
       const releases: Project[] = [];
@@ -613,6 +631,12 @@ export const StudioMagnateGame: React.FC<StudioMagnateGameProps> = ({
       const yearsToSeed = [currentYear - 1, currentYear];
       const totalWeeks = yearsToSeed.length * 52;
       let processedWeeks = 0;
+
+      const talentIndex: TalentIndex = {
+        talentById: new Map(generatedTalent.map(t => [t.id, t] as const)),
+        directors: generatedTalent.filter(t => t.type === 'director'),
+        actors: generatedTalent.filter(t => t.type === 'actor'),
+      };
 
       for (const year of yearsToSeed) {
         for (let w = 1; w <= 52; w++) {
@@ -626,8 +650,18 @@ export const StudioMagnateGame: React.FC<StudioMagnateGameProps> = ({
             const rel = profile ? sg.generateStudioRelease(profile, w, year) : null;
             if (rel) {
               releases.push(rel);
-              releases[releases.length - 1] = attachBasicCastForAI(releases[releases.length - 1] as Project, generatedTalent);
+              releases[releases.length - 1] = attachBasicCastForAI(releases[releases.length - 1] as Project, generatedTalent, talentIndex);
               releasesThisWeek += 1;
+
+              if (releases.length % 12 === 0) {
+                const progress = 30 + (processedWeeks / totalWeeks) * 45;
+                updateOperation(
+                  LOADING_OPERATIONS.GAME_INIT.id,
+                  Math.min(75, Math.round(progress)),
+                  `Seeding AI releases... (${releases.length} releases)`
+                );
+                await yieldFrame();
+              }
             }
           }
 
@@ -637,7 +671,17 @@ export const StudioMagnateGame: React.FC<StudioMagnateGameProps> = ({
               const rel = sg.generateStudioRelease(fallback, w, year);
               if (rel) {
                 releases.push(rel);
-                releases[releases.length - 1] = attachBasicCastForAI(releases[releases.length - 1] as Project, generatedTalent);
+                releases[releases.length - 1] = attachBasicCastForAI(releases[releases.length - 1] as Project, generatedTalent, talentIndex);
+
+                if (releases.length % 12 === 0) {
+                  const progress = 30 + (processedWeeks / totalWeeks) * 45;
+                  updateOperation(
+                    LOADING_OPERATIONS.GAME_INIT.id,
+                    Math.min(75, Math.round(progress)),
+                    `Seeding AI releases... (${releases.length} releases)`
+                  );
+                  await yieldFrame();
+                }
               } else {
                 // Guarantee at least one release per week: synthesize a small indie release
                 const genre = fallback.specialties[0] as Genre;
@@ -754,7 +798,17 @@ export const StudioMagnateGame: React.FC<StudioMagnateGameProps> = ({
                   studioName: fallback.name,
                 } as Project);
 
-                releases[releases.length - 1] = attachBasicCastForAI(releases[releases.length - 1] as Project, generatedTalent);
+                releases[releases.length - 1] = attachBasicCastForAI(releases[releases.length - 1] as Project, generatedTalent, talentIndex);
+
+                if (releases.length % 12 === 0) {
+                  const progress = 30 + (processedWeeks / totalWeeks) * 45;
+                  updateOperation(
+                    LOADING_OPERATIONS.GAME_INIT.id,
+                    Math.min(75, Math.round(progress)),
+                    `Seeding AI releases... (${releases.length} releases)`
+                  );
+                  await yieldFrame();
+                }
               }
             }
           }
@@ -766,13 +820,13 @@ export const StudioMagnateGame: React.FC<StudioMagnateGameProps> = ({
               Math.min(75, Math.round(progress)),
               `Seeding AI releases... (Y${year}W${w})`
             );
-            await delay(0);
+            await yieldFrame();
           }
         }
       }
 
       updateOperation(LOADING_OPERATIONS.GAME_INIT.id, 78, 'Generating franchises & public-domain IPs...');
-      await delay(0);
+      await yieldFrame();
 
       let initialState: GameState = {
         universeSeed,
@@ -811,12 +865,12 @@ export const StudioMagnateGame: React.FC<StudioMagnateGameProps> = ({
       };
 
       updateOperation(LOADING_OPERATIONS.GAME_INIT.id, 82, 'Priming competitor television...');
-      await delay(0);
+      await yieldFrame();
 
       initialState = primeCompetitorTelevision(initialState);
 
       updateOperation(LOADING_OPERATIONS.GAME_INIT.id, 88, 'Seeding filmographies...');
-      await delay(0);
+      await yieldFrame();
 
       try {
         let filmographyState = initialState;
@@ -834,7 +888,7 @@ export const StudioMagnateGame: React.FC<StudioMagnateGameProps> = ({
           if (i % 250 === 0) {
             const p = 88 + (i / Math.max(1, total)) * 10;
             updateOperation(LOADING_OPERATIONS.GAME_INIT.id, Math.min(98, Math.round(p)), `Seeding filmographies... (${i}/${total})`);
-            await delay(0);
+            await yieldFrame();
           }
         }
 
