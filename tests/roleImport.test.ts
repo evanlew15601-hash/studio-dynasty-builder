@@ -6,7 +6,7 @@ import { importRolesForScript } from '@/utils/roleImport';
 let mockedBundle: ModBundle | null = null;
 
 vi.mock('@/utils/moddingStore', async (importOriginal) => {
-  const actual = await importOriginal<typeof import('@/utils/moddingStore')>();
+  const actual: any = await importOriginal();
 
   return {
     ...actual,
