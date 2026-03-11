@@ -1,5 +1,5 @@
 import React, { useEffect, useRef, useState, Suspense } from 'react';
-import type { GameState, Studio, Project, Script, TalentPerson, Genre, MarketingStrategy, ReleaseStrategy, ProductionPhase, ScriptCharacter } from '@/types/game';
+import type { GameState, Studio, Project, Script, TalentPerson, Genre, MarketingStrategy, ReleaseStrategy, ProductionPhase, ScriptCharacter, Franchise, PublicDomainIP } from '@/types/game';
 import { useLoadingActions } from '@/contexts/LoadingContext';
 import { LOADING_OPERATIONS } from '@/utils/loadingUtils';
 import { FranchiseGenerator } from '@/data/FranchiseGenerator';
@@ -101,7 +101,7 @@ import { SystemIntegration } from './SystemIntegration';
 import { useGameStore } from '@/game/store';
 import { saveGameAsync } from '@/utils/saveLoad';
 import { syncAndPersistIndustryDatabase } from '@/utils/industryDatabase';
-import { applyPatchesByKey, deepMerge, getPatchesForEntity } from '@/utils/modding';
+import { deepMerge, getPatchesForEntity } from '@/utils/modding';
 import { getModBundle } from '@/utils/moddingStore';
 import { DebugControlPanel } from './DebugControlPanel';
 import { IndustryDatabasePanel } from './IndustryDatabasePanel';
@@ -695,12 +695,18 @@ export const StudioMagnateGame: React.FC<StudioMagnateGameProps> = ({
       updateOperation(LOADING_OPERATIONS.GAME_INIT.id, 10, 'Generating talent pool...');
       await yieldFrame();
 
-      const generatedTalent = applyPatchesByKey(
-        generateInitialTalentPool({ currentYear: new Date().getFullYear() }),
-        getPatchesForEntity(mods, 'talent'),
-        (t) => t.id
+      const baseTalent = generateInitialTalentPool({ currentYear: new Date().getFullYear() });
+      const talentPatches = getPatchesForEntity(mods, 'talent');
+
+      const generatedTalent = await applyPatchesByKeyYielding(
+        baseTalent,
+        talentPatches,
+        (t) => t.id,
+        12,
+        24,
+        'Applying talent mods...'
       );
-      mark('Generated talent pool');
+      mark(`Generated talent pool (${generatedTalent.length})`);
 
       updateOperation(LOADING_OPERATIONS.GAME_INIT.id, 25, 'Generating competitor studios...');
       await yieldFrame();
@@ -930,31 +936,14 @@ export const StudioMagnateGame: React.FC<StudioMagnateGameProps> = ({
 
       mark(`Seeding AI releases (done): ${releases.length} releases`);
 
-      updateOperation(LOADING_OPERATIONS.GAME_INIT.id, 78, 'Generating franchises...');
+      // This step has been a recurring stall point on low-end / mobile Safari.
+      // TEW-style: avoid blocking initial load on large catalogue/mod patch application.
+      // We hydrate these asynchronously after the core world is playable.
+      updateOperation(LOADING_OPERATIONS.GAME_INIT.id, 78, 'Deferring franchises & public-domain IPs...');
       await yieldFrame();
 
-      const baseFranchises = FranchiseGenerator.generateInitialFranchises(30);
-      mark(`Generated base franchises (${baseFranchises.length})`);
-
-      updateOperation(LOADING_OPERATIONS.GAME_INIT.id, 79, 'Applying franchise mods...');
-      await yieldFrame();
-
-      const franchisePatches = getPatchesForEntity(mods, 'franchise');
-      const franchises = await applyPatchesByKeyYielding(
-        baseFranchises,
-        franchisePatches,
-        (f) => f.id,
-        79,
-        80,
-        'Applying franchise mods...'
-      );
-      mark(`Applied franchise mods (${franchisePatches.length} patches)`);
-
-      updateOperation(LOADING_OPERATIONS.GAME_INIT.id, 80, 'Generating public-domain IPs...');
-      await yieldFrame();
-
-      const publicDomainIPs = PublicDomainGenerator.generateInitialPublicDomainIPs(50, mods);
-      mark(`Generated public-domain IPs (${publicDomainIPs.length})`);
+      const franchises: Franchise[] = [];
+      const publicDomainIPs: PublicDomainIP[] = [];
 
       updateOperation(LOADING_OPERATIONS.GAME_INIT.id, 81, 'Assembling initial world...');
       await yieldFrame();
@@ -1034,6 +1023,122 @@ export const StudioMagnateGame: React.FC<StudioMagnateGameProps> = ({
     completeOperation,
     initGame,
   ]);
+
+  // Hydrate franchise + public-domain catalogues asynchronously after the game becomes playable.
+  // This avoids blocking startup on slower mobile browsers.
+  const catalogueHydrationStartedRef = useRef(false);
+
+  useEffect(() => {
+    if (!storeGameState) return;
+    if (initialGameState) return;
+
+    const hasFranchises = (storeGameState.franchises || []).length > 0;
+    const hasPublicDomain = (storeGameState.publicDomainIPs || []).length > 0;
+    if (hasFranchises && hasPublicDomain) return;
+
+    if (catalogueHydrationStartedRef.current) return;
+    catalogueHydrationStartedRef.current = true;
+
+    let cancelled = false;
+
+    const yieldFrame = () =>
+      new Promise<void>((resolve) => {
+        let resolved = false;
+        const done = () => {
+          if (resolved) return;
+          resolved = true;
+          resolve();
+        };
+
+        if (typeof requestAnimationFrame === 'function') {
+          requestAnimationFrame(() => done());
+        }
+        setTimeout(() => done(), 0);
+      });
+
+    const applyPatchesYielding = async <T,>(
+      base: T[],
+      patches: Array<{ op: string; target?: string; payload?: any }> | undefined,
+      getKey: (item: T) => string
+    ): Promise<T[]> => {
+      const list = patches || [];
+      if (list.length === 0) return base;
+
+      let next = base.slice();
+
+      for (let i = 0; i < list.length; i++) {
+        if (cancelled) return next;
+
+        const patch = list[i];
+
+        if (patch.op === 'delete') {
+          if (patch.target) {
+            next = next.filter((item) => getKey(item) !== patch.target);
+          }
+        } else if (patch.op === 'insert') {
+          const incoming = patch.payload as T | undefined;
+          if (incoming) {
+            const key = getKey(incoming);
+            const idx = next.findIndex((item) => getKey(item) === key);
+            if (idx === -1) {
+              next = [...next, incoming];
+            } else {
+              const merged = deepMerge(next[idx], incoming);
+              const copy = next.slice();
+              copy[idx] = merged;
+              next = copy;
+            }
+          }
+        } else if (patch.op === 'update') {
+          if (patch.target) {
+            const idx = next.findIndex((item) => getKey(item) === patch.target);
+            if (idx !== -1) {
+              const merged = deepMerge(next[idx], patch.payload);
+              const copy = next.slice();
+              copy[idx] = merged;
+              next = copy;
+            }
+          }
+        }
+
+        if (i % 50 === 0) {
+          await yieldFrame();
+        }
+      }
+
+      return next;
+    };
+
+    const run = async () => {
+      // Let the first frame of the actual game UI paint.
+      await yieldFrame();
+
+      const mods = getModBundle();
+
+      const baseFranchises = FranchiseGenerator.generateInitialFranchises(30);
+      const franchisePatches = getPatchesForEntity(mods, 'franchise');
+      const franchises = await applyPatchesYielding<Franchise>(baseFranchises, franchisePatches, (f) => f.id);
+
+      const basePublicDomain = PublicDomainGenerator.getBasePublicDomainIPs(50);
+      const publicDomainPatches = getPatchesForEntity(mods, 'publicDomainIP');
+      const publicDomainIPs = await applyPatchesYielding<PublicDomainIP>(basePublicDomain, publicDomainPatches, (p) => p.id);
+
+      if (cancelled) return;
+
+      mergeGameState({
+        franchises,
+        publicDomainIPs,
+      });
+    };
+
+    run().catch((e) => {
+      console.error('[Catalogue Init] Failed to hydrate catalogues', e);
+    });
+
+    return () => {
+      cancelled = true;
+    };
+  }, [storeGameState, initialGameState, mergeGameState]);
 
   const gameState = storeGameState ?? bootstrapGameState;
 
