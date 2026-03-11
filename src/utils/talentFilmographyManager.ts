@@ -5,7 +5,7 @@ export const TalentFilmographyManager = {
   /**
    * Update talent filmography when a project is released
    */
-  updateFilmographyOnRelease(gameState: GameState, project: Project): GameState {
+  updateFilmographyOnRelease(gameState: GameState, project: Project, talentIdToIndex?: Map<string, number>): GameState {
     if (project.status !== 'released') {
       return gameState;
     }
@@ -64,16 +64,29 @@ export const TalentFilmographyManager = {
       }
     }
 
-    const creditedIds = new Set(Object.keys(roleByTalentId));
-    if (creditedIds.size === 0) {
+    const creditedIds = Object.keys(roleByTalentId);
+    if (creditedIds.length === 0) {
       return gameState;
     }
 
-    const releaseYear = project.releaseYear ?? gameState.currentYear;
+    const idToIndex =
+      talentIdToIndex ?? new Map(gameState.talent.map((t, idx) => [t.id, idx] as const));
 
-    const updatedTalent = gameState.talent.map(talent => {
+    const releaseYear = project.releaseYear ?? gameState.currentYear;
+    const updatedTalent = [...gameState.talent];
+    let didChange = false;
+
+    for (const talentId of creditedIds) {
+      const idx = idToIndex.get(talentId);
+      if (idx === undefined) continue;
+
+      const talent = updatedTalent[idx];
       const role = roleByTalentId[talent.id];
-      if (!role) return talent;
+      if (!role) continue;
+
+      const existingFilmography = talent.filmography || [];
+      const alreadyExists = existingFilmography.some(film => film.projectId === project.id);
+      if (alreadyExists) continue;
 
       // Add to filmography if not already there
       const filmEntry = {
@@ -83,13 +96,6 @@ export const TalentFilmographyManager = {
         year: releaseYear,
         boxOffice: project.metrics?.boxOfficeTotal || 0
       };
-
-      const existingFilmography = talent.filmography || [];
-      const alreadyExists = existingFilmography.some(
-        film => film.projectId === project.id
-      );
-
-      if (alreadyExists) return talent;
 
       // Add new film and sort by year descending
       const updatedFilmography = [...existingFilmography, filmEntry]
@@ -115,12 +121,15 @@ export const TalentFilmographyManager = {
         console.log(`📽️ FILMOGRAPHY UPDATE: ${talent.name} in "${project.title}" as ${role}. Fame: ${talent.fame || 0} → ${newFame}`);
       }
 
-      return {
+      updatedTalent[idx] = {
         ...talent,
         filmography: updatedFilmography,
         fame: newFame
       };
-    });
+      didChange = true;
+    }
+
+    if (!didChange) return gameState;
 
     return {
       ...gameState,

@@ -214,6 +214,7 @@ export class StudioGenerator {
 
   generateFilmTitle(genre: Genre, studioName: string): string {
     const keywords = TITLE_KEYWORDS[genre] || TITLE_KEYWORDS.drama;
+    const keyFor = (t: string) => `${studioName}|${t}`;
     let attempts = 0;
     let title: string;
 
@@ -236,14 +237,14 @@ export class StudioGenerator {
       }
       
       attempts++;
-    } while (this.usedTitles.has(title) && attempts < 50);
+    } while (this.usedTitles.has(keyFor(title)) && attempts < 12);
 
-    // If we can't find a unique title, add studio name
-    if (this.usedTitles.has(title)) {
-      title = `${title}: ${studioName.split(' ')[0]} Edition`;
+    // If we can't find a unique title, add a stable, cheap disambiguator.
+    if (this.usedTitles.has(keyFor(title))) {
+      title = `${title}: ${studioName.split(' ')[0]} Edition ${this.usedTitles.size + 1}`;
     }
 
-    this.usedTitles.add(title);
+    this.usedTitles.add(keyFor(title));
     return title;
   }
 
