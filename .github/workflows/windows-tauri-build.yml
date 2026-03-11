@@ -31,13 +31,13 @@ jobs:
         run: npm run tauri:build
 
       - name: Upload NSIS installer
-        uses: actions/upload-artifact@v6
+        uses: actions/upload-artifact@v7
         with:
           name: studio-magnate-windows-nsis
           path: src-tauri/target/release/bundle/nsis/*.exe
 
       - name: Upload MSI installer
-        uses: actions/upload-artifact@v6
+        uses: actions/upload-artifact@v7
         with:
           name: studio-magnate-windows-msi
           path: src-tauri/target/release/bundle/msi/*.msi
