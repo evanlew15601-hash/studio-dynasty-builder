@@ -635,9 +635,20 @@ export const StudioMagnateGame: React.FC<StudioMagnateGameProps> = ({
       const sg = new StudioGenerator();
       const releases: Project[] = [];
       const currentYear = new Date().getFullYear();
-      const yearsToSeed = [currentYear - 1, currentYear];
-      const totalWeeks = yearsToSeed.length * 52;
-      let processedWeeks = 0;
+
+      const isLowEndDevice = (() => {
+        if (typeof navigator === 'undefined') return false;
+
+        const nav: any = navigator;
+        const deviceMemory = typeof nav.deviceMemory === 'number' ? nav.deviceMemory : undefined;
+        const cores = typeof navigator.hardwareConcurrency === 'number' ? navigator.hardwareConcurrency : undefined;
+        const conn = nav.connection;
+        const saveData = !!conn?.saveData;
+        const effectiveType = typeof conn?.effectiveType === 'string' ? conn.effectiveType : '';
+        const lowNet = effectiveType === 'slow-2g' || effectiveType === '2g' || effectiveType === '3g';
+
+        return saveData || lowNet || (typeof deviceMemory === 'number' && deviceMemory <= 4) || (typeof cores === 'number' && cores <= 4);
+      })();
 
       const talentIndex: TalentIndex = {
         talentById: new Map(generatedTalent.map(t => [t.id, t] as const)),
@@ -645,40 +656,33 @@ export const StudioMagnateGame: React.FC<StudioMagnateGameProps> = ({
         actors: generatedTalent.filter(t => t.type === 'actor'),
       };
 
-      for (const year of yearsToSeed) {
-        for (let w = 1; w <= 52; w++) {
-          if (cancelled) return;
+      if (!isLowEndDevice) {
+        const yearsToSeed = [currentYear - 1, currentYear];
+        const totalWeeks = yearsToSeed.length * 52;
+        let processedWeeks = 0;
 
-          processedWeeks += 1;
-          let releasesThisWeek = 0;
+        let aborted = false;
+        const startedAt = (typeof performance !== 'undefined' && typeof performance.now === 'function') ? performance.now() : Date.now();
+        const timeBudgetMs = 1500;
+        const overBudget = () => {
+          const now = (typeof performance !== 'undefined' && typeof performance.now === 'function') ? performance.now() : Date.now();
+          return now - startedAt > timeBudgetMs;
+        };
 
-          for (const st of competitorStudios) {
-            const profile = sg.getStudioProfile(st.name);
-            const rel = profile ? sg.generateStudioRelease(profile, w, year) : null;
-            if (rel) {
-              releases.push(rel);
-              releases[releases.length - 1] = attachBasicCastForAI(releases[releases.length - 1] as Project, generatedTalent, talentIndex);
-              releasesThisWeek += 1;
+        seeding: for (const year of yearsToSeed) {
+          for (let w = 1; w <= 52; w++) {
+            if (cancelled) return;
 
-              if (releases.length % 12 === 0) {
-                const progress = 30 + (processedWeeks / totalWeeks) * 45;
-                updateOperation(
-                  LOADING_OPERATIONS.GAME_INIT.id,
-                  Math.min(75, Math.round(progress)),
-                  `Seeding AI releases... (${releases.length} releases)`
-                );
-                await yieldFrame();
-              }
-            }
-          }
+            processedWeeks += 1;
+            let releasesThisWeek = 0;
 
-          if (releasesThisWeek === 0 && competitorStudios[0]) {
-            const fallback = sg.getStudioProfile(competitorStudios[0].name);
-            if (fallback) {
-              const rel = sg.generateStudioRelease(fallback, w, year);
+            for (const st of competitorStudios) {
+              const profile = sg.getStudioProfile(st.name);
+              const rel = profile ? sg.generateStudioRelease(profile, w, year) : null;
               if (rel) {
                 releases.push(rel);
                 releases[releases.length - 1] = attachBasicCastForAI(releases[releases.length - 1] as Project, generatedTalent, talentIndex);
+                releasesThisWeek += 1;
 
                 if (releases.length % 12 === 0) {
                   const progress = 30 + (processedWeeks / totalWeeks) * 45;
@@ -687,149 +691,202 @@ export const StudioMagnateGame: React.FC<StudioMagnateGameProps> = ({
                     Math.min(75, Math.round(progress)),
                     `Seeding AI releases... (${releases.length} releases)`
                   );
-                  await yieldFrame();
-                }
-              } else {
-                // Guarantee at least one release per week: synthesize a small indie release
-                const genre = fallback.specialties[0] as Genre;
-                const script = {
-                  id: `script-${year}-${w}-${Math.random().toString(36).slice(2, 8)}`,
-                  title: sg.generateFilmTitle(genre, fallback.name),
-                  genre,
-                  logline: 'An indie story released to keep the slate full.',
-                  writer: 'Staff Writer',
-                  pages: 100,
-                  quality: 60,
-                  budget: 12000000,
-                  developmentStage: 'final',
-                  themes: ['indie', 'festival'],
-                  targetAudience: 'general',
-                  estimatedRuntime: 110,
-                  characteristics: {
-                    tone: 'balanced',
-                    pacing: 'steady',
-                    dialogue: 'naturalistic',
-                    visualStyle: 'realistic',
-                    commercialAppeal: 5,
-                    criticalPotential: 6,
-                    cgiIntensity: 'minimal',
-                  },
-                } as Script;
 
-                releases.push({
-                  id: `ai-project-${year}-${w}-${Math.random().toString(36).slice(2, 6)}`,
-                  title: script.title,
-                  script,
-                  type: 'feature',
-                  currentPhase: 'release',
-                  status: 'released',
-                  phaseDuration: 0,
-                  contractedTalent: [],
-                  developmentProgress: {
-                    scriptCompletion: 100,
-                    budgetApproval: 100,
-                    talentAttached: 100,
-                    locationSecured: 100,
-                    completionThreshold: 100,
-                    issues: [],
-                  },
-                  budget: {
-                    total: script.budget,
-                    allocated: {
-                      aboveTheLine: script.budget * 0.2,
-                      belowTheLine: script.budget * 0.3,
-                      postProduction: script.budget * 0.15,
-                      marketing: script.budget * 0.25,
-                      distribution: script.budget * 0.1,
-                      contingency: 0,
-                    },
-                    spent: {
-                      aboveTheLine: script.budget * 0.2,
-                      belowTheLine: script.budget * 0.3,
-                      postProduction: script.budget * 0.15,
-                      marketing: script.budget * 0.25,
-                      distribution: script.budget * 0.1,
-                      contingency: 0,
-                    },
-                    overages: {
-                      aboveTheLine: 0,
-                      belowTheLine: 0,
-                      postProduction: 0,
-                      marketing: 0,
-                      distribution: 0,
-                      contingency: 0,
-                    },
-                  },
-                  cast: [],
-                  crew: [],
-                  timeline: {
-                    preProduction: { start: new Date(), end: new Date() },
-                    principalPhotography: { start: new Date(), end: new Date() },
-                    postProduction: { start: new Date(), end: new Date() },
-                    release: new Date(),
-                    milestones: [],
-                  },
-                  locations: [],
-                  distributionStrategy: {
-                    primary: {
-                      platform: 'Theatrical',
-                      type: 'theatrical',
-                      revenue: { type: 'box-office', studioShare: 50 },
-                    },
-                    international: [],
-                    windows: [],
-                    marketingBudget: script.budget * 0.25,
-                  },
-                  metrics: {
-                    inTheaters: true,
-                    boxOfficeTotal: Math.floor(script.budget * 2.2),
-                    theaterCount: 1200,
-                    weeksSinceRelease: 0,
-                    criticsScore: 70,
-                    audienceScore: 72,
-                    boxOfficeStatus: 'Current',
-                    theatricalRunLocked: false,
-                    boxOffice: {
-                      openingWeekend: 0,
-                      domesticTotal: 0,
-                      internationalTotal: 0,
-                      production: script.budget,
-                      marketing: script.budget * 0.25,
-                      profit: 0,
-                      theaters: 1200,
-                      weeks: 0,
-                    },
-                  },
-                  releaseWeek: w,
-                  releaseYear: year,
-                  studioName: fallback.name,
-                } as Project);
+                  if (overBudget()) {
+                    aborted = true;
+                    break seeding;
+                  }
 
-                releases[releases.length - 1] = attachBasicCastForAI(releases[releases.length - 1] as Project, generatedTalent, talentIndex);
-
-                if (releases.length % 12 === 0) {
-                  const progress = 30 + (processedWeeks / totalWeeks) * 45;
-                  updateOperation(
-                    LOADING_OPERATIONS.GAME_INIT.id,
-                    Math.min(75, Math.round(progress)),
-                    `Seeding AI releases... (${releases.length} releases)`
-                  );
                   await yieldFrame();
                 }
               }
             }
-          }
 
-          if (processedWeeks % 2 === 0) {
-            const progress = 30 + (processedWeeks / totalWeeks) * 45;
-            updateOperation(
-              LOADING_OPERATIONS.GAME_INIT.id,
-              Math.min(75, Math.round(progress)),
-              `Seeding AI releases... (Y${year}W${w})`
-            );
-            await yieldFrame();
+            if (releasesThisWeek === 0 && competitorStudios[0]) {
+              const fallback = sg.getStudioProfile(competitorStudios[0].name);
+              if (fallback) {
+                const rel = sg.generateStudioRelease(fallback, w, year);
+                if (rel) {
+                  releases.push(rel);
+                  releases[releases.length - 1] = attachBasicCastForAI(releases[releases.length - 1] as Project, generatedTalent, talentIndex);
+
+                  if (releases.length % 12 === 0) {
+                    const progress = 30 + (processedWeeks / totalWeeks) * 45;
+                    updateOperation(
+                      LOADING_OPERATIONS.GAME_INIT.id,
+                      Math.min(75, Math.round(progress)),
+                      `Seeding AI releases... (${releases.length} releases)`
+                    );
+
+                    if (overBudget()) {
+                      aborted = true;
+                      break seeding;
+                    }
+
+                    await yieldFrame();
+                  }
+                } else {
+                  // Guarantee at least one release per week: synthesize a small indie release
+                  const genre = fallback.specialties[0] as Genre;
+                  const script = {
+                    id: `script-${year}-${w}-${Math.random().toString(36).slice(2, 8)}`,
+                    title: sg.generateFilmTitle(genre, fallback.name),
+                    genre,
+                    logline: 'An indie story released to keep the slate full.',
+                    writer: 'Staff Writer',
+                    pages: 100,
+                    quality: 60,
+                    budget: 12000000,
+                    developmentStage: 'final',
+                    themes: ['indie', 'festival'],
+                    targetAudience: 'general',
+                    estimatedRuntime: 110,
+                    characteristics: {
+                      tone: 'balanced',
+                      pacing: 'steady',
+                      dialogue: 'naturalistic',
+                      visualStyle: 'realistic',
+                      commercialAppeal: 5,
+                      criticalPotential: 6,
+                      cgiIntensity: 'minimal',
+                    },
+                  } as Script;
+
+                  releases.push({
+                    id: `ai-project-${year}-${w}-${Math.random().toString(36).slice(2, 6)}`,
+                    title: script.title,
+                    script,
+                    type: 'feature',
+                    currentPhase: 'release',
+                    status: 'released',
+                    phaseDuration: 0,
+                    contractedTalent: [],
+                    developmentProgress: {
+                      scriptCompletion: 100,
+                      budgetApproval: 100,
+                      talentAttached: 100,
+                      locationSecured: 100,
+                      completionThreshold: 100,
+                      issues: [],
+                    },
+                    budget: {
+                      total: script.budget,
+                      allocated: {
+                        aboveTheLine: script.budget * 0.2,
+                        belowTheLine: script.budget * 0.3,
+                        postProduction: script.budget * 0.15,
+                        marketing: script.budget * 0.25,
+                        distribution: script.budget * 0.1,
+                        contingency: 0,
+                      },
+                      spent: {
+                        aboveTheLine: script.budget * 0.2,
+                        belowTheLine: script.budget * 0.3,
+                        postProduction: script.budget * 0.15,
+                        marketing: script.budget * 0.25,
+                        distribution: script.budget * 0.1,
+                        contingency: 0,
+                      },
+                      overages: {
+                        aboveTheLine: 0,
+                        belowTheLine: 0,
+                        postProduction: 0,
+                        marketing: 0,
+                        distribution: 0,
+                        contingency: 0,
+                      },
+                    },
+                    cast: [],
+                    crew: [],
+                    timeline: {
+                      preProduction: { start: new Date(), end: new Date() },
+                      principalPhotography: { start: new Date(), end: new Date() },
+                      postProduction: { start: new Date(), end: new Date() },
+                      release: new Date(),
+                      milestones: [],
+                    },
+                    locations: [],
+                    distributionStrategy: {
+                      primary: {
+                        platform: 'Theatrical',
+                        type: 'theatrical',
+                        revenue: { type: 'box-office', studioShare: 50 },
+                      },
+                      international: [],
+                      windows: [],
+                      marketingBudget: script.budget * 0.25,
+                    },
+                    metrics: {
+                      inTheaters: true,
+                      boxOfficeTotal: Math.floor(script.budget * 2.2),
+                      theaterCount: 1200,
+                      weeksSinceRelease: 0,
+                      criticsScore: 70,
+                      audienceScore: 72,
+                      boxOfficeStatus: 'Current',
+                      theatricalRunLocked: false,
+                      boxOffice: {
+                        openingWeekend: 0,
+                        domesticTotal: 0,
+                        internationalTotal: 0,
+                        production: script.budget,
+                        marketing: script.budget * 0.25,
+                        profit: 0,
+                        theaters: 1200,
+                        weeks: 0,
+                      },
+                    },
+                    releaseWeek: w,
+                    releaseYear: year,
+                    studioName: fallback.name,
+                  } as Project);
+
+                  releases[releases.length - 1] = attachBasicCastForAI(releases[releases.length - 1] as Project, generatedTalent, talentIndex);
+
+                  if (releases.length % 12 === 0) {
+                    const progress = 30 + (processedWeeks / totalWeeks) * 45;
+                    updateOperation(
+                      LOADING_OPERATIONS.GAME_INIT.id,
+                      Math.min(75, Math.round(progress)),
+                      `Seeding AI releases... (${releases.length} releases)`
+                    );
+
+                    if (overBudget()) {
+                      aborted = true;
+                      break seeding;
+                    }
+
+                    await yieldFrame();
+                  }
+                }
+              }
+            }
+
+            if (processedWeeks % 2 === 0) {
+              const progress = 30 + (processedWeeks / totalWeeks) * 45;
+              updateOperation(
+                LOADING_OPERATIONS.GAME_INIT.id,
+                Math.min(75, Math.round(progress)),
+                `Seeding AI releases... (Y${year}W${w})`
+              );
+
+              if (overBudget()) {
+                aborted = true;
+                break seeding;
+              }
+
+              await yieldFrame();
+            }
           }
         }
+
+        if (aborted) {
+          updateOperation(LOADING_OPERATIONS.GAME_INIT.id, 75, 'Seeding AI releases... (skipped remaining history for performance)');
+          await yieldFrame();
+        }
+      } else {
+        updateOperation(LOADING_OPERATIONS.GAME_INIT.id, 75, 'Seeding AI releases... (skipped on low-end device)');
+        await yieldFrame();
       }
 
       updateOperation(LOADING_OPERATIONS.GAME_INIT.id, 78, 'Generating franchises & public-domain IPs...');
@@ -879,29 +936,48 @@ export const StudioMagnateGame: React.FC<StudioMagnateGameProps> = ({
       updateOperation(LOADING_OPERATIONS.GAME_INIT.id, 88, 'Seeding filmographies...');
       await yieldFrame();
 
-      try {
-        let filmographyState = initialState;
-        let i = 0;
-        const total = initialState.allReleases.length;
+      if (!isLowEndDevice) {
+        try {
+          let filmographyState = initialState;
+          let i = 0;
+          const total = initialState.allReleases.length;
 
-        for (const release of initialState.allReleases) {
-          if (cancelled) return;
+          const startedAt = (typeof performance !== 'undefined' && typeof performance.now === 'function') ? performance.now() : Date.now();
+          const timeBudgetMs = 1200;
+          const overBudget = () => {
+            const now = (typeof performance !== 'undefined' && typeof performance.now === 'function') ? performance.now() : Date.now();
+            return now - startedAt > timeBudgetMs;
+          };
 
-          i += 1;
-          if ('script' in release) {
-            filmographyState = TalentFilmographyManager.updateFilmographyOnRelease(filmographyState, release as Project);
+          for (const release of initialState.allReleases) {
+            if (cancelled) return;
+
+            i += 1;
+            if ('script' in release) {
+              filmographyState = TalentFilmographyManager.updateFilmographyOnRelease(filmographyState, release as Project);
+            }
+
+            if (i % 250 === 0) {
+              const p = 88 + (i / Math.max(1, total)) * 10;
+              updateOperation(LOADING_OPERATIONS.GAME_INIT.id, Math.min(98, Math.round(p)), `Seeding filmographies... (${i}/${total})`);
+
+              if (overBudget()) {
+                updateOperation(LOADING_OPERATIONS.GAME_INIT.id, 98, 'Seeding filmographies... (skipped remaining history for performance)');
+                await yieldFrame();
+                break;
+              }
+
+              await yieldFrame();
+            }
           }
 
-          if (i % 250 === 0) {
-            const p = 88 + (i / Math.max(1, total)) * 10;
-            updateOperation(LOADING_OPERATIONS.GAME_INIT.id, Math.min(98, Math.round(p)), `Seeding filmographies... (${i}/${total})`);
-            await yieldFrame();
-          }
+          initialState = filmographyState;
+        } catch (e) {
+          console.warn('Failed to seed talent filmographies from AI releases', e);
         }
-
-        initialState = filmographyState;
-      } catch (e) {
-        console.warn('Failed to seed talent filmographies from AI releases', e);
+      } else {
+        updateOperation(LOADING_OPERATIONS.GAME_INIT.id, 98, 'Seeding filmographies... (skipped on low-end device)');
+        await yieldFrame();
       }
 
       if (cancelled) return;
