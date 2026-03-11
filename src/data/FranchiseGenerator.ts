@@ -1,7 +1,7 @@
 // Franchise Generation System
 import { Franchise, Genre } from '@/types/game';
-import { stablePick } from '@/utils/stablePick';
 import { stableFloat01, stableInt } from '@/utils/stableRandom';
+import { stablePick } from '@/utils/stablePick';
 
 interface FranchiseTemplate {
   titlePatterns: string[];
@@ -151,25 +151,8 @@ const generateRandomDateImpl = (startYear: number, endYear: number, seed: string
   return `${year}-${String(month).padStart(2, '0')}-${String(day).padStart(2, '0')}`;
 };
 
-const generateRandomTitleImpl = (seed: string): string => {
-  const prefixes = ['The', 'Dark', 'Last', 'New', 'Ultimate', 'Secret', 'Hidden', 'Lost'];
-  const subjects = ['Warriors', 'Legends', 'Chronicles', 'Saga', 'Dynasty', 'Empire', 'Alliance', 'Order'];
-  const suffixes = ['Rising', 'Returns', 'Awakens', 'Reborn', 'United', 'Forever', 'Legacy', 'Destiny'];
-
-  const usePrefix = stableFloat01(`${seed}|usePrefix`) > 0.5;
-  const useSuffix = stableFloat01(`${seed}|useSuffix`) > 0.6;
-
-  const prefix = stablePick(prefixes, `${seed}|prefix`) || prefixes[0];
-  const subject = stablePick(subjects, `${seed}|subject`) || subjects[0];
-  const suffix = stablePick(suffixes, `${seed}|suffix`) || suffixes[0];
-
-  let title = '';
-  if (usePrefix) title += `${prefix} `;
-  title += subject;
-  if (useSuffix) title += `: ${suffix}`;
-
-  return title;
-};
+// NOTE: Movie title generation should remain random/procedural (e.g. competitor releases).
+// Franchises, however, are treated as a preset catalogue; keep franchise generation deterministic + cheap.
 
 const generateRandomTagsImpl = (seed: string): string[] => {
   const allTags = [
@@ -201,98 +184,87 @@ const calculateFranchiseCostImpl = (franchise: Franchise): number => {
 
 export class FranchiseGenerator {
   static generateInitialFranchises(count: number = 30, seed: string = 'franchise:v1'): Franchise[] {
-    const franchises: Franchise[] = [];
-    const usedTitles = new Set<string>();
-    const usedSources = new Set<string>();
+    // Franchises are meant to be a preset catalogue (similar to public-domain IPs),
+    // not procedurally generated movie titles. Keep this fast + deterministic for low-end devices.
+    const base: Franchise[] = [];
+    let idx = 0;
 
-    // Generate some parody franchises based on templates
-    const templatesUsed = Math.min(FRANCHISE_TEMPLATES.length, Math.floor(count * 0.6));
+    for (const template of FRANCHISE_TEMPLATES) {
+      for (const title of template.titlePatterns) {
+        idx += 1;
+        const id = `FR${String(idx).padStart(3, '0')}`;
 
-    for (let i = 0; i < templatesUsed; i++) {
-      const template = FRANCHISE_TEMPLATES[i];
-      if (usedSources.has(template.parodySource)) continue;
+        const culturalWeight = template.culturalWeight + stableInt(`${seed}|cw|${id}`, -5, 4); // ±5 variation
 
-      const titleOptions = template.titlePatterns.filter((title) => !usedTitles.has(title));
-      const picked = stablePick(titleOptions, `${seed}|parodyTitle|${template.parodySource}`);
-      const title = picked || template.titlePatterns[0];
+        const franchise: Franchise = {
+          id,
+          title,
+          originDate: generateRandomDateImpl(1990, 2022, `${seed}|origin|${id}`),
+          creatorStudioId: `COMP_${stableInt(`${seed}|creator|${id}`, 1, 15)}`,
+          genre: template.genre,
+          tone: template.tone,
+          parodySource: template.parodySource,
+          entries: [],
+          status: stableFloat01(`${seed}|status|${id}`) > 0.3 ? 'active' : 'dormant',
+          franchiseTags: template.tags,
+          culturalWeight: Math.min(100, Math.max(0, culturalWeight)),
+          merchandisingPotential: stableInt(`${seed}|merch|${id}`, 0, 99),
+          fanbaseSize: stableInt(`${seed}|fanbase|${id}`, 0, 999_999),
+          criticalFatigue: stableInt(`${seed}|fatigue|${id}`, 0, 29),
+          description: template.description,
+          cost: 0, // Will be calculated
+        };
 
-      usedTitles.add(title);
-      usedSources.add(template.parodySource);
-
-      const id = `FR${String(i + 1).padStart(3, '0')}`;
-      const originDate = generateRandomDateImpl(2000, 2020, `${seed}|origin|${id}`);
-
-      const culturalWeight = template.culturalWeight + stableInt(`${seed}|cw|${id}`, -5, 4); // ±5 variation
-
-      const franchise: Franchise = {
-        id,
-        title,
-        originDate,
-        creatorStudioId: `COMP_${stableInt(`${seed}|creator|${id}`, 1, 10)}`,
-        genre: template.genre,
-        tone: template.tone,
-        parodySource: template.parodySource,
-        entries: [],
-        status: stableFloat01(`${seed}|status|${id}`) > 0.3 ? 'active' : 'dormant',
-        franchiseTags: template.tags,
-        culturalWeight: Math.min(100, Math.max(0, culturalWeight)),
-        merchandisingPotential: stableInt(`${seed}|merch|${id}`, 0, 99),
-        fanbaseSize: stableInt(`${seed}|fanbase|${id}`, 0, 999_999),
-        criticalFatigue: stableInt(`${seed}|fatigue|${id}`, 0, 29),
-        description: template.description,
-        cost: 0, // Will be calculated
-      };
-
-      franchise.cost = calculateFranchiseCostImpl(franchise);
-      franchises.push(franchise);
+        franchise.cost = calculateFranchiseCostImpl(franchise);
+        base.push(franchise);
+      }
     }
 
-    // Generate additional original franchises
-    while (franchises.length < count) {
-      const id = `FR${String(franchises.length + 1).padStart(3, '0')}`;
-      const randomTemplate = stablePick(FRANCHISE_TEMPLATES, `${seed}|template|${id}`) || FRANCHISE_TEMPLATES[0];
-      const title = generateRandomTitleImpl(`${seed}|title|${id}`);
-
-      if (usedTitles.has(title)) continue;
-      usedTitles.add(title);
-
-      const franchise: Franchise = {
-        id,
-        title,
-        originDate: generateRandomDateImpl(1990, 2022, `${seed}|origin|${id}`),
-        creatorStudioId: `COMP_${stableInt(`${seed}|creator|${id}`, 1, 15)}`,
-        genre: randomTemplate.genre,
-        tone: randomTemplate.tone,
-        entries: [],
-        status: stableFloat01(`${seed}|status|${id}`) > 0.4 ? 'active' : 'dormant',
-        franchiseTags: generateRandomTagsImpl(`${seed}|tags|${id}`),
-        culturalWeight: stableInt(`${seed}|cw|${id}`, 30, 69),
-        merchandisingPotential: stableInt(`${seed}|merch|${id}`, 0, 99),
-        fanbaseSize: stableInt(`${seed}|fanbase|${id}`, 0, 499_999),
-        criticalFatigue: stableInt(`${seed}|fatigue|${id}`, 0, 49),
-        description: `An original ${randomTemplate.genre[0]} franchise with ${randomTemplate.tone} tone.`,
-        cost: 0,
-      };
-
-      franchise.cost = calculateFranchiseCostImpl(franchise);
-      franchises.push(franchise);
+    if (count <= base.length) {
+      return base.slice(0, count);
     }
 
-    return franchises;
+    // If a caller asks for more than we have presets for, extend deterministically by cloning.
+    // Titles must remain unique, but also must not introduce any heavy deterministic generation.
+    const extended: Franchise[] = [...base];
+    const usedTitles = new Set(base.map((f) => f.title));
+
+    while (extended.length < count) {
+      idx += 1;
+      const id = `FR${String(idx).padStart(3, '0')}`;
+      const source = base[(extended.length - base.length) % base.length];
+
+      let title = `${source.title} ${stableInt(`${seed}|cloneSuffix|${id}`, 2, 9)}`;
+      if (usedTitles.has(title)) {
+        let suffix = 2;
+        while (usedTitles.has(`${source.title} ${suffix}`)) suffix += 1;
+        title = `${source.title} ${suffix}`;
+      }
+
+      const clone: Franchise = {
+        ...source,
+        id,
+        title,
+      };
+
+      usedTitles.add(clone.title);
+      clone.cost = calculateFranchiseCostImpl(clone);
+      extended.push(clone);
+    }
+
+    return extended;
   }
 
   static generateRandomDate(startYear: number, endYear: number, seed: string): string {
     return generateRandomDateImpl(startYear, endYear, seed);
   }
 
-  static generateRandomTitle(seed: string): string {
-    return generateRandomTitleImpl(seed);
-  }
+  
 
   static generateRandomTags(seed: string): string[] {
     return generateRandomTagsImpl(seed);
   }
-  
+
   static canCreateSequel(franchise: Franchise, currentDate: string): boolean {
     if (franchise.status !== 'active') return false;
     if (franchise.entries.length === 0) return true; // First entry
