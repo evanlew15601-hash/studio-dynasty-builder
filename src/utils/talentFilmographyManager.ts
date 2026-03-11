@@ -97,9 +97,8 @@ export const TalentFilmographyManager = {
         boxOffice: project.metrics?.boxOfficeTotal || 0
       };
 
-      // Add new film and sort by year descending
-      const updatedFilmography = [...existingFilmography, filmEntry]
-        .sort((a, b) => (b.year || 0) - (a.year || 0));
+      // Keep newest credits first without resorting the whole list each time
+      const updatedFilmography = [filmEntry, ...existingFilmography];
 
       // Update fame based on box office performance
       const performance = project.metrics?.boxOfficeTotal || 0;
