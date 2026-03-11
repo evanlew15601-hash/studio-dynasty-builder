@@ -127,9 +127,9 @@ function computeFame(t: TalentPerson): number {
   return Math.max(0, Math.min(100, t.fame ?? rep));
 }
 
-function buildTalentRecord(t: TalentPerson): TalentDbRecord {
+function buildTalentRecord(t: TalentPerson, filmographyCountOverride?: number): TalentDbRecord {
   const awardsCount = (t.awards || []).length;
-  const filmographyCount = (t.filmography || []).length;
+  const filmographyCount = filmographyCountOverride ?? (t.filmography || []).length;
 
   return {
     id: t.id,
@@ -276,10 +276,40 @@ export function syncIndustryDatabase(db: IndustryDatabase, gameState: GameState)
     changed = changed || sc;
   }
 
+  const creditCounts = new Map<string, number>();
+
+  for (const p of allProjects) {
+    const isReleased = p.status === 'released' || p.status === 'distribution' || p.status === 'archived';
+    if (!isReleased) continue;
+
+    const credited = new Set<string>();
+
+    const roles = p.script?.characters || [];
+    for (const r of roles) {
+      if (r.assignedTalentId) credited.add(r.assignedTalentId);
+    }
+
+    for (const c of (p.cast || [])) {
+      if (c.talentId) credited.add(c.talentId);
+    }
+
+    for (const c of (p.crew || [])) {
+      if (c.talentId) credited.add(c.talentId);
+    }
+
+    for (const id of credited) {
+      creditCounts.set(id, (creditCounts.get(id) || 0) + 1);
+    }
+  }
+
   // Talent (actors + directors)
   for (const t of gameState.talent) {
     if (t.type !== 'actor' && t.type !== 'director') continue;
-    const { list, changed: c } = upsertById(nextTalent, buildTalentRecord(t));
+
+    const seededCount = (t.filmography || []).length;
+    const filmographyCount = seededCount > 0 ? seededCount : (creditCounts.get(t.id) || 0);
+
+    const { list, changed: c } = upsertById(nextTalent, buildTalentRecord(t, filmographyCount));
     nextTalent = list;
     changed = changed || c;
   }

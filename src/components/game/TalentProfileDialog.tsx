@@ -5,6 +5,7 @@ import { Badge } from '@/components/ui/badge';
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from '@/components/ui/dialog';
 import { ScrollArea } from '@/components/ui/scroll-area';
 import { Separator } from '@/components/ui/separator';
+import { TalentFilmographyManager } from '@/utils/talentFilmographyManager';
 
 const formatMoney = (amount: number) => `$${(amount / 1_000_000).toFixed(1)}M`;
 
@@ -32,6 +33,20 @@ export const TalentProfileDialog: React.FC = () => {
         };
       })
       .slice(0, 12);
+  }, [gameState, talent]);
+
+  const filmography = useMemo(() => {
+    if (!gameState || !talent) return [];
+
+    const existing = talent.filmography || [];
+    if (existing.length > 0) return existing;
+
+    const allProjects = [
+      ...gameState.projects,
+      ...gameState.allReleases.filter((r): r is any => 'script' in (r as any)),
+    ];
+
+    return TalentFilmographyManager.deriveFilmographyForTalent(allProjects as any, talent.id, gameState.currentYear);
   }, [gameState, talent]);
 
   return (
@@ -140,15 +155,13 @@ export const TalentProfileDialog: React.FC = () => {
                 </>
               )}
 
-              {(talent.filmography || []).length > 0 && (
+              {filmography.length > 0 && (
                 <>
                   <Separator />
                   <div className="space-y-2">
                     <div className="text-sm font-medium">Filmography</div>
                     <div className="space-y-2">
-                      {(talent.filmography || [])
-                        .slice()
-                        .sort((a, b) => (b.year || 0) - (a.year || 0))
+                      {filmography
                         .slice(0, 12)
                         .map((f) => (
                           <div key={f.projectId} className="rounded border p-2 text-sm">

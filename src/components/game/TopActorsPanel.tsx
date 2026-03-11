@@ -1,4 +1,4 @@
-import React from 'react';
+import React, { useMemo } from 'react';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
 import { useGameStore } from '@/game/store';
@@ -10,26 +10,55 @@ export const TopActorsPanel: React.FC<TopActorsPanelProps> = () => {
   const gameState = useGameStore((s) => s.game);
   const openTalentProfile = useUiStore((s) => s.openTalentProfile);
 
+  const actors = useMemo(() => {
+    if (!gameState) return [];
+
+    return [...gameState.talent]
+      .filter(t => t.type === 'actor')
+      .sort((a, b) => (b.fame ?? Math.round(b.reputation)) - (a.fame ?? Math.round(a.reputation)))
+      .slice(0, 50);
+  }, [gameState]);
+
+  const filmographyCounts = useMemo(() => {
+    const counts = new Map<string, number>();
+    if (!gameState) return counts;
+
+    const allProjects = [
+      ...gameState.projects,
+      ...gameState.allReleases.filter((r): r is any => 'script' in (r as any)),
+    ];
+
+    for (const p of allProjects) {
+      if (!p || p.status !== 'released') continue;
+
+      const credited = new Set<string>();
+
+      const roles = p.script?.characters || [];
+      for (const r of roles) {
+        if (r.assignedTalentId) credited.add(r.assignedTalentId);
+      }
+
+      for (const c of (p.cast || [])) {
+        if (c.talentId) credited.add(c.talentId);
+      }
+
+      for (const c of (p.crew || [])) {
+        if (c.talentId) credited.add(c.talentId);
+      }
+
+      for (const id of credited) {
+        counts.set(id, (counts.get(id) || 0) + 1);
+      }
+    }
+
+    return counts;
+  }, [gameState]);
+
   if (!gameState) {
     return <div className="p-6 text-sm text-muted-foreground">Loading top actors...</div>;
   }
-  const actors = [...gameState.talent]
-    .filter(t => t.type === 'actor')
-    .sort((a, b) => (b.fame ?? Math.round(b.reputation)) - (a.fame ?? Math.round(a.reputation)))
-    .slice(0, 50);
 
-  const getFilmographyCount = (actorId: string) => {
-    let count = 0;
-    for (const p of gameState.projects) {
-      const roles = p.script?.characters || [];
-      if (roles.some(r => r.assignedTalentId === actorId)) count++;
-    }
-    const talent = gameState.talent.find(t => t.id === actorId);
-    if (talent?.filmography) {
-      count += talent.filmography.length;
-    }
-    return count;
-  };
+  const getFilmographyCount = (actorId: string) => filmographyCounts.get(actorId) || 0;
 
   return (
     <div className="space-y-6">

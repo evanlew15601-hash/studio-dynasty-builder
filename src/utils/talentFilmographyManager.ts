@@ -2,6 +2,76 @@
 import { GameState, TalentPerson, Project } from '@/types/game';
 
 export const TalentFilmographyManager = {
+  deriveFilmographyForTalent(projects: Project[], talentId: string, fallbackYear: number): NonNullable<TalentPerson['filmography']> {
+    const entries: NonNullable<TalentPerson['filmography']> = [];
+
+    for (const project of projects) {
+      if (!project || project.status !== 'released') continue;
+
+      let bestRole: string | null = null;
+      let bestPriority = -1;
+
+      const setRole = (role: string, priority: number) => {
+        if (priority > bestPriority) {
+          bestRole = role;
+          bestPriority = priority;
+        }
+      };
+
+      const characters = project.script?.characters || [];
+      for (const ch of characters) {
+        if (ch.assignedTalentId !== talentId) continue;
+
+        if (ch.requiredType === 'director') {
+          setRole('Director', 3);
+        } else if (ch.importance === 'lead') {
+          setRole('Lead Actor', 2);
+        } else if (ch.importance === 'supporting') {
+          setRole('Supporting Actor', 1);
+        } else {
+          setRole('Supporting Actor', 0);
+        }
+      }
+
+      const cast = project.cast || [];
+      for (const c of cast) {
+        if (c.talentId !== talentId) continue;
+        const roleLower = (c.role || '').toLowerCase();
+
+        if (roleLower.includes('director')) {
+          setRole('Director', 3);
+        } else if (roleLower.includes('lead')) {
+          setRole('Lead Actor', 2);
+        } else if (roleLower.includes('supporting')) {
+          setRole('Supporting Actor', 1);
+        } else {
+          setRole('Supporting Actor', 0);
+        }
+      }
+
+      const crew = project.crew || [];
+      for (const c of crew) {
+        if (c.talentId !== talentId) continue;
+        const roleLower = (c.role || '').toLowerCase();
+        if (roleLower.includes('director')) {
+          setRole('Director', 3);
+        }
+      }
+
+      if (!bestRole) continue;
+
+      entries.push({
+        projectId: project.id,
+        title: project.title,
+        role: bestRole,
+        year: project.releaseYear ?? fallbackYear,
+        boxOffice: project.metrics?.boxOfficeTotal || 0,
+      });
+    }
+
+    return entries.sort((a, b) => (b.year || 0) - (a.year || 0));
+  },
+
   /**
    * Update talent filmography when a project is released
    */
@@ -97,8 +167,11 @@ export const TalentFilmographyManager = {
         boxOffice: project.metrics?.boxOfficeTotal || 0
       };
 
-      // Keep newest credits first without resorting the whole list each time
-      const updatedFilmography = [filmEntry, ...existingFilmography];
+      // Insert into a year-descending list without resorting the whole list each time
+      const updatedFilmography = [...existingFilmography];
+      let insertAt = updatedFilmography.findIndex((f) => (f.year || 0) < (filmEntry.year || 0));
+      if (insertAt === -1) insertAt = updatedFilmography.length;
+      updatedFilmography.splice(insertAt, 0, filmEntry);
 
       // Update fame based on box office performance
       const performance = project.metrics?.boxOfficeTotal || 0;

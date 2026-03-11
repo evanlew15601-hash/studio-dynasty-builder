@@ -10,6 +10,7 @@ import { Separator } from '@/components/ui/separator';
 import { useGameStore } from '@/game/store';
 import { useUiStore } from '@/game/uiStore';
 import { cn } from '@/lib/utils';
+import { TalentFilmographyManager } from '@/utils/talentFilmographyManager';
 import { Book, Building, Film, Search, User, ExternalLink } from 'lucide-react';
 
 const formatMoney = (amount: number) => "$" + (amount / 1_000_000).toFixed(0) + "M";
@@ -46,6 +47,7 @@ const TwoPaneLayout: React.FC<{
 // ─── Talent ─────────────────────────────────────────────────────────────────────
 
 const TalentEncyclopedia: React.FC<{ talent: TalentPerson[] }> = ({ talent }) => {
+  const gameState = useGameStore((s) => s.game);
   const [search, setSearch] = useState('');
   const [typeFilter, setTypeFilter] = useState<'all' | 'actor' | 'director'>('all');
   const [selectedId, setSelectedId] = useState<string | null>(talent[0]?.id ?? null);
@@ -63,6 +65,22 @@ const TalentEncyclopedia: React.FC<{ talent: TalentPerson[] }> = ({ talent }) =>
     () => talent.find(t => t.id === selectedId) || filtered[0] || null,
     [filtered, selectedId, talent]
   );
+
+  const recentFilmography = useMemo(() => {
+    if (!gameState || !selected) return [];
+
+    const existing = selected.filmography || [];
+    if (existing.length > 0) return existing.slice(0, 5);
+
+    const allProjects = [
+      ...gameState.projects,
+      ...gameState.allReleases.filter((r): r is any => 'script' in (r as any)),
+    ];
+
+    return TalentFilmographyManager
+      .deriveFilmographyForTalent(allProjects as any, selected.id, gameState.currentYear)
+      .slice(0, 5);
+  }, [gameState, selected]);
 
   return (
     <div className="space-y-3">
@@ -198,16 +216,13 @@ const TalentEncyclopedia: React.FC<{ talent: TalentPerson[] }> = ({ talent }) =>
                     </>
                   )}
 
-                  {(selected.filmography || []).length > 0 && (
+                  {recentFilmography.length > 0 && (
                     <>
                       <Separator />
                       <div className="space-y-2">
                         <div className="text-sm font-medium">Recent Filmography</div>
                         <div className="space-y-1">
-                          {(selected.filmography || [])
-                            .slice()
-                            .sort((a, b) => (b.year || 0) - (a.year || 0))
-                            .slice(0, 5)
+                          {recentFilmography
                             .map((f) => (
                               <div key={f.projectId} className="rounded border p-2 text-sm">
                                 <div className="font-medium">{f.year ? `${f.year} — ` : ''}{f.title}</div>

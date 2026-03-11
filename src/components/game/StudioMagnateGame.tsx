@@ -886,34 +886,9 @@ export const StudioMagnateGame: React.FC<StudioMagnateGameProps> = ({
 
       initialState = primeCompetitorTelevision(initialState);
 
-      updateOperation(LOADING_OPERATIONS.GAME_INIT.id, 88, 'Seeding filmographies...');
+      // TEW-style: filmographies are derived on demand when viewed, rather than precomputed during init.
+      updateOperation(LOADING_OPERATIONS.GAME_INIT.id, 88, 'Deferring talent filmographies (computed on demand)...');
       await yieldFrame();
-
-      try {
-        let filmographyState = initialState;
-        let i = 0;
-        const total = initialState.allReleases.length;
-        const talentIdToIndex = new Map(initialState.talent.map((t, idx) => [t.id, idx] as const));
-
-        for (const release of initialState.allReleases) {
-          if (cancelled) return;
-
-          i += 1;
-          if ('script' in release) {
-            filmographyState = TalentFilmographyManager.updateFilmographyOnRelease(filmographyState, release as Project, talentIdToIndex);
-          }
-
-          if (i % 250 === 0) {
-            const p = 88 + (i / Math.max(1, total)) * 10;
-            updateOperation(LOADING_OPERATIONS.GAME_INIT.id, Math.min(98, Math.round(p)), `Seeding filmographies... (${i}/${total})`);
-            await yieldFrame();
-          }
-        }
-
-        initialState = filmographyState;
-      } catch (e) {
-        console.warn('Failed to seed talent filmographies from AI releases', e);
-      }
 
       if (cancelled) return;
 
