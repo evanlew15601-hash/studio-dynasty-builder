@@ -243,7 +243,7 @@ export class FranchiseGenerator {
         cost: 0, // Will be calculated
       };
 
-      franchise.cost = calculateFranchiseCostImpl(franchise);
+      franchise.cost = FranchiseGenerator.calculateFranchiseCost(franchise);
       franchises.push(franchise);
     }
 
@@ -274,7 +274,7 @@ export class FranchiseGenerator {
         cost: 0,
       };
 
-      franchise.cost = calculateFranchiseCostImpl(franchise);
+      franchise.cost = FranchiseGenerator.calculateFranchiseCost(franchise);
       franchises.push(franchise);
     }
 
