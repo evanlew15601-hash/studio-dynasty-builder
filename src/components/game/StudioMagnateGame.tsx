@@ -546,6 +546,15 @@ export const StudioMagnateGame: React.FC<StudioMagnateGameProps> = ({
     loadGameToStore(initialGameState, initialGameState.rngState ?? initialGameState.universeSeed);
   }, [storeGameState, initialGameState, loadGameToStore]);
 
+  // If we started the shell-level loading overlay (module/network time), dismiss it after the first render.
+  useEffect(() => {
+    if (!initialGameState) return;
+
+    requestAnimationFrame(() => {
+      completeOperation(LOADING_OPERATIONS.GAME_SHELL_LOAD.id);
+    });
+  }, [initialGameState, completeOperation]);
+
   // Generate a fresh world asynchronously so the loading overlay can appear immediately.
   const newGameInitStartedRef = useRef(false);
 
@@ -559,6 +568,7 @@ export const StudioMagnateGame: React.FC<StudioMagnateGameProps> = ({
 
     const run = async () => {
       startOperation(LOADING_OPERATIONS.GAME_INIT.id, LOADING_OPERATIONS.GAME_INIT.name, LOADING_OPERATIONS.GAME_INIT.estimatedTime);
+      completeOperation(LOADING_OPERATIONS.GAME_SHELL_LOAD.id);
       updateOperation(LOADING_OPERATIONS.GAME_INIT.id, 1, 'Preparing the world...');
 
       await new Promise<void>((resolve) => requestAnimationFrame(() => resolve()));

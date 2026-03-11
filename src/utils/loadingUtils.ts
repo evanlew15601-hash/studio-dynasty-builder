@@ -43,6 +43,11 @@ export const simulateProgress = async (
 
 // Pre-defined loading operations
 export const LOADING_OPERATIONS = {
+  GAME_SHELL_LOAD: {
+    id: 'game-shell-load',
+    name: 'Loading Game',
+    estimatedTime: 1,
+  },
   GAME_INIT: {
     id: 'game-init',
     name: 'Initializing Game',
