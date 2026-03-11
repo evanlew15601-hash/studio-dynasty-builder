@@ -144,6 +144,61 @@ const FRANCHISE_TEMPLATES: FranchiseTemplate[] = [
   }
 ];
 
+const generateRandomDateImpl = (startYear: number, endYear: number, seed: string): string => {
+  const year = stableInt(`${seed}|year`, startYear, endYear);
+  const month = stableInt(`${seed}|month`, 1, 12);
+  const day = stableInt(`${seed}|day`, 1, 28);
+  return `${year}-${String(month).padStart(2, '0')}-${String(day).padStart(2, '0')}`;
+};
+
+const generateRandomTitleImpl = (seed: string): string => {
+  const prefixes = ['The', 'Dark', 'Last', 'New', 'Ultimate', 'Secret', 'Hidden', 'Lost'];
+  const subjects = ['Warriors', 'Legends', 'Chronicles', 'Saga', 'Dynasty', 'Empire', 'Alliance', 'Order'];
+  const suffixes = ['Rising', 'Returns', 'Awakens', 'Reborn', 'United', 'Forever', 'Legacy', 'Destiny'];
+
+  const usePrefix = stableFloat01(`${seed}|usePrefix`) > 0.5;
+  const useSuffix = stableFloat01(`${seed}|useSuffix`) > 0.6;
+
+  const prefix = stablePick(prefixes, `${seed}|prefix`) || prefixes[0];
+  const subject = stablePick(subjects, `${seed}|subject`) || subjects[0];
+  const suffix = stablePick(suffixes, `${seed}|suffix`) || suffixes[0];
+
+  let title = '';
+  if (usePrefix) title += `${prefix} `;
+  title += subject;
+  if (useSuffix) title += `: ${suffix}`;
+
+  return title;
+};
+
+const generateRandomTagsImpl = (seed: string): string[] => {
+  const allTags = [
+    'action', 'adventure', 'mystery', 'romance', 'comedy', 'drama',
+    'supernatural', 'technology', 'family', 'friendship', 'betrayal',
+    'revenge', 'redemption', 'power', 'corruption', 'justice',
+  ];
+
+  const tagCount = stableInt(`${seed}|count`, 2, 4);
+  const selectedTags: string[] = [];
+
+  for (let i = 0; i < tagCount; i++) {
+    const availableTags = allTags.filter((tag) => !selectedTags.includes(tag));
+    if (availableTags.length === 0) break;
+    const picked = stablePick(availableTags, `${seed}|tag|${i}`) || availableTags[0];
+    selectedTags.push(picked);
+  }
+
+  return selectedTags;
+};
+
+const calculateFranchiseCostImpl = (franchise: Franchise): number => {
+  const baseCost = 50_000_000;
+  const culturalMultiplier = 1 + (franchise.culturalWeight / 100);
+  const fanbaseMultiplier = 1 + (franchise.fanbaseSize || 0) / 1_000_000;
+  const fatigueDiscount = 1 - ((franchise.criticalFatigue || 0) / 200);
+  return Math.round(baseCost * culturalMultiplier * fanbaseMultiplier * fatigueDiscount);
+};
+
 export class FranchiseGenerator {
   static generateInitialFranchises(count: number = 30, seed: string = 'franchise:v1'): Franchise[] {
     const franchises: Franchise[] = [];
@@ -165,7 +220,7 @@ export class FranchiseGenerator {
       usedSources.add(template.parodySource);
 
       const id = `FR${String(i + 1).padStart(3, '0')}`;
-      const originDate = FranchiseGenerator.generateRandomDate(2000, 2020, `${seed}|origin|${id}`);
+      const originDate = generateRandomDateImpl(2000, 2020, `${seed}|origin|${id}`);
 
       const culturalWeight = template.culturalWeight + stableInt(`${seed}|cw|${id}`, -5, 4); // ±5 variation
 
@@ -188,7 +243,7 @@ export class FranchiseGenerator {
         cost: 0, // Will be calculated
       };
 
-      franchise.cost = FranchiseGenerator.calculateFranchiseCost(franchise);
+      franchise.cost = calculateFranchiseCostImpl(franchise);
       franchises.push(franchise);
     }
 
@@ -196,7 +251,7 @@ export class FranchiseGenerator {
     while (franchises.length < count) {
       const id = `FR${String(franchises.length + 1).padStart(3, '0')}`;
       const randomTemplate = stablePick(FRANCHISE_TEMPLATES, `${seed}|template|${id}`) || FRANCHISE_TEMPLATES[0];
-      const title = FranchiseGenerator.generateRandomTitle(`${seed}|title|${id}`);
+      const title = generateRandomTitleImpl(`${seed}|title|${id}`);
 
       if (usedTitles.has(title)) continue;
       usedTitles.add(title);
@@ -204,13 +259,13 @@ export class FranchiseGenerator {
       const franchise: Franchise = {
         id,
         title,
-        originDate: FranchiseGenerator.generateRandomDate(1990, 2022, `${seed}|origin|${id}`),
+        originDate: generateRandomDateImpl(1990, 2022, `${seed}|origin|${id}`),
         creatorStudioId: `COMP_${stableInt(`${seed}|creator|${id}`, 1, 15)}`,
         genre: randomTemplate.genre,
         tone: randomTemplate.tone,
         entries: [],
         status: stableFloat01(`${seed}|status|${id}`) > 0.4 ? 'active' : 'dormant',
-        franchiseTags: FranchiseGenerator.generateRandomTags(`${seed}|tags|${id}`),
+        franchiseTags: generateRandomTagsImpl(`${seed}|tags|${id}`),
         culturalWeight: stableInt(`${seed}|cw|${id}`, 30, 69),
         merchandisingPotential: stableInt(`${seed}|merch|${id}`, 0, 99),
         fanbaseSize: stableInt(`${seed}|fanbase|${id}`, 0, 499_999),
@@ -219,7 +274,7 @@ export class FranchiseGenerator {
         cost: 0,
       };
 
-      franchise.cost = FranchiseGenerator.calculateFranchiseCost(franchise);
+      franchise.cost = calculateFranchiseCostImpl(franchise);
       franchises.push(franchise);
     }
 
@@ -227,50 +282,15 @@ export class FranchiseGenerator {
   }
 
   static generateRandomDate(startYear: number, endYear: number, seed: string): string {
-    const year = stableInt(`${seed}|year`, startYear, endYear);
-    const month = stableInt(`${seed}|month`, 1, 12);
-    const day = stableInt(`${seed}|day`, 1, 28);
-    return `${year}-${String(month).padStart(2, '0')}-${String(day).padStart(2, '0')}`;
+    return generateRandomDateImpl(startYear, endYear, seed);
   }
 
   static generateRandomTitle(seed: string): string {
-    const prefixes = ['The', 'Dark', 'Last', 'New', 'Ultimate', 'Secret', 'Hidden', 'Lost'];
-    const subjects = ['Warriors', 'Legends', 'Chronicles', 'Saga', 'Dynasty', 'Empire', 'Alliance', 'Order'];
-    const suffixes = ['Rising', 'Returns', 'Awakens', 'Reborn', 'United', 'Forever', 'Legacy', 'Destiny'];
-
-    const usePrefix = stableFloat01(`${seed}|usePrefix`) > 0.5;
-    const useSuffix = stableFloat01(`${seed}|useSuffix`) > 0.6;
-
-    const prefix = stablePick(prefixes, `${seed}|prefix`) || prefixes[0];
-    const subject = stablePick(subjects, `${seed}|subject`) || subjects[0];
-    const suffix = stablePick(suffixes, `${seed}|suffix`) || suffixes[0];
-
-    let title = '';
-    if (usePrefix) title += `${prefix} `;
-    title += subject;
-    if (useSuffix) title += `: ${suffix}`;
-
-    return title;
+    return generateRandomTitleImpl(seed);
   }
 
   static generateRandomTags(seed: string): string[] {
-    const allTags = [
-      'action', 'adventure', 'mystery', 'romance', 'comedy', 'drama',
-      'supernatural', 'technology', 'family', 'friendship', 'betrayal',
-      'revenge', 'redemption', 'power', 'corruption', 'justice',
-    ];
-
-    const tagCount = stableInt(`${seed}|count`, 2, 4);
-    const selectedTags: string[] = [];
-
-    for (let i = 0; i < tagCount; i++) {
-      const availableTags = allTags.filter((tag) => !selectedTags.includes(tag));
-      if (availableTags.length === 0) break;
-      const picked = stablePick(availableTags, `${seed}|tag|${i}`) || availableTags[0];
-      selectedTags.push(picked);
-    }
-
-    return selectedTags;
+    return generateRandomTagsImpl(seed);
   }
   
   static canCreateSequel(franchise: Franchise, currentDate: string): boolean {
@@ -289,11 +309,7 @@ export class FranchiseGenerator {
   }
   
   static calculateFranchiseCost(franchise: Franchise): number {
-    const baseCost = 50_000_000;
-    const culturalMultiplier = 1 + (franchise.culturalWeight / 100);
-    const fanbaseMultiplier = 1 + (franchise.fanbaseSize || 0) / 1_000_000;
-    const fatigueDiscount = 1 - ((franchise.criticalFatigue || 0) / 200);
-    return Math.round(baseCost * culturalMultiplier * fanbaseMultiplier * fatigueDiscount);
+    return calculateFranchiseCostImpl(franchise);
   }
 
   static updateFranchiseMetrics(franchise: Franchise, newEntry: { boxOffice: number; rating: number }): Franchise {
