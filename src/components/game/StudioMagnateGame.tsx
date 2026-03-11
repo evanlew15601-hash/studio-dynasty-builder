@@ -332,7 +332,7 @@ function attachBasicCastForAI(project: Project, talentPool: TalentPerson[], inde
 
     // Star power: derive from top-2 cast fame to make fame actually matter in outcomes.
     const castFame = cast
-      .map(c => talentPool.find(t => t.id === c.talentId))
+      .map(c => getTalentById(c.talentId))
       .filter(Boolean)
       .map(t => (t!.fame ?? Math.min(100, Math.round(t!.reputation || 50))));
 
@@ -582,11 +582,18 @@ export const StudioMagnateGame: React.FC<StudioMagnateGameProps> = ({
 
       const yieldFrame = () =>
         new Promise<void>((resolve) => {
+          let resolved = false;
+          const done = () => {
+            if (resolved) return;
+            resolved = true;
+            resolve();
+          };
+
+          // Use whichever fires first. This avoids rare cases where rAF is heavily throttled or paused.
           if (typeof requestAnimationFrame === 'function') {
-            requestAnimationFrame(() => resolve());
-          } else {
-            setTimeout(() => resolve(), 0);
+            requestAnimationFrame(() => done());
           }
+          setTimeout(() => done(), 0);
         });
 
       await yieldFrame();
