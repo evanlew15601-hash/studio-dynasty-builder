@@ -1,7 +1,20 @@
 import { afterEach, describe, expect, it, vi } from 'vitest';
 import type { Franchise, GameState, Script } from '@/types/game';
 import type { ModBundle } from '@/types/modding';
-import * afunction makeBaseGameState(): GameState {
+import { importRolesForScript } from '@/utils/roleImport';
+
+let mockedBundle: ModBundle | null = null;
+
+vi.mock('@/utils/moddingStore', async (importOriginal) => {
+  const actual = await importOriginal<typeof import('@/utils/moddingStore')>();
+
+  return {
+    ...actual,
+    getModBundle: () => mockedBundle ?? actual.getModBundle(),
+  };
+});
+
+function makeBaseGameState(overrides: Partial<GameState> = {}): GameState {
   return {
     studio: {
       id: 'studio-1',
@@ -24,7 +37,9 @@ import * afunction makeBaseGameState(): GameState {
       economicClimate: 'stable',
       technologicalAdvances: [],
       regulatoryChanges: [],
-      sea      economicCli      competitor      technolo    },
+      seasonalTrends: [],
+      competitorReleases: [],
+    },
     eventQueue: [],
     boxOfficeHistory: [],
     awardsCalendar: [],
@@ -33,36 +48,47 @@ import * afunction makeBaseGameState(): GameState {
     topFilmsHistory: [],
     franchises: [],
     publicDomainIPs: [],
+    ...overrides,
   };
 }
 
 function makeBaseScript(overrides: Partial<Script> = {}): Script {
   return {
     id: 'script-1',
-    tifunction makeBaseSc    genre: 'sci-fi',
-    logline: 'A farm kid discovers the    id: 'script-1',
     title: 'Space Saga',
     genre: 'sci-fi',
-    logline: 'A farm     budget: 10_000_000,
+    logline: 'A farm kid discovers the stars.',
+    writer: 'Test Writer',
+    pages: 110,
+    quality: 70,
+    budget: 10_000_000,
     developmentStage: 'polish',
     themes: [],
     targetAudience: 'general',
-    estimatedRuntime: 120      characteristics: {
-      tone: 'balanced',       pacing: 'steady',
+    estimatedRuntime: 120,
+    characteristics: {
+      tone: 'balanced',
+      pacing: 'steady',
       dialogue: 'naturalistic',
-      visualStyle: 'real      to      commercial      pacin      critica      dialogue:      cgiIntensit      visualSt    },
+      visualStyle: 'realistic',
+      commercialAppeal: 7,
+      criticalPotential: 6,
+      cgiIntensity: 'moderate',
+    },
     ...overrides,
   };
 }
 
 describe('importRolesForScript', () => {
   afterEach(() => {
+    mockedBundle = null;
     vi.restoreAllMocks();
   });
 
-  it('imports franchise roles via parodySource DB and applies recogniza    vi.restoreAllMocks();
-     v
-  it('imports franchise roles via parodySou    const franchise: Franchise = {
+  it('imports franchise roles via parodySource DB and applies recognizable names', () => {
+    vi.spyOn(Date, 'now').mockReturnValue(123);
+
+    const franchise: Franchise = {
       id: 'f-1',
       title: 'Space Saga',
       originDate: '2024-01-01',
@@ -77,8 +103,7 @@ describe('importRolesForScript', () => {
       cost: 0,
     };
 
-    const gameState = makeBaseGameState();
-    gameState.franchises = [franchise];
+    const gameState = makeBaseGameState({ franchises: [franchise] });
 
     const script = makeBaseScript({
       sourceType: 'franchise',
@@ -88,60 +113,35 @@ describe('importRolesForScript', () => {
 
     const imported = importRolesForScript(script, gameState);
 
-    expect(imported.some(c => c.franchise    const imported = importRolesForScript(script, gameState);
+    expect(imported.some((c) => c.franchiseCharacterId === 'char_hero_pilot' && c.name === 'Luke Starwalker')).toBe(true);
+    expect(imported.some((c) => c.requiredType === 'director')).toBe(true);
+    expect(imported.some((c) => c.importance === 'minor')).toBe(true);
 
-    expect(imported.some(c => c.franchiseCharacterId === 'char_hero_pilot' && c.name === 'Luke Starwalker')).toBe(true);
-    expect(imported.filter(c => c.requiredType     // Should be idempotent (no du    expect(imported.some(c => c.importance === 'minor')).toBe    cons
-    // Should be idempotent (no duplicate locked roles, and cameo isn't re-added once present)
-    const importedAgain = importRolesForScript({ ...scr
-  it('applies modded parody name mappings when importing franchise roles', () => {
-    vi.spyOn(Date, '
-  it('merges imported roles     const bundle: ModBundle = {
-      version: 1,
-      mods: [{ id: 'names-mod', name: 'names-mod', version:    const franchise: Franchise = {
-      id: 'f-2',
-      title: 'Sp          i      originDate: '2024-01-01',
-      creatorStudioId: 'studio-1',
-      genre: ['sci-fi'],
-      tone: 'epic',
-      parodySource: 'Star Wars',
-      entries: [],
-      status: 'active',
-      franchiseTags: [],
-      culturalWeight: 50,
-      cost: 0,
-    };
-
-    const gameState = makeBaseGameState();
-    gameState.franchises = [fr    vi.spy
-    const script = makeBaseScript({
-      sourceType: 'franchise',
-      franchiseId: franchise.id,
-      characters: [
-        {
-          id: 'hero-custom-id',
-          name: 'Luke Starwalker',
-          importance: 'lead',
-          requiredType: 'actor',
-          franchiseId: franchise.id,
-          franchiseCharacterId:       franchiseTags            culturalWeig              cost: 0,
-    };
-
-    const gameState = makeBaseGameState();
-    gameState.franchises = [franchise];
-
-    const script = makeBaseScript({
-      sourceType: 'franchise',
-          const imported = import      characters: [],
-    });
-
-    const imported = importRolesForScript(script, gameState);
-
-    expect(imported.some((c) => c.franchiseCharacterId === 'char_hero_pilot' && c.name === 'Luke Patchwalker')).toBe(true);
+    const importedAgain = importRolesForScript({ ...script, characters: imported }, gameState);
+    expect(importedAgain).toHaveLength(imported.length);
   });
 
-  it('merges imported roles with existing localOverrides and assignedTalentId', () => {
-    vi.spyOn(Date, 'now').mockReturnValue(456);
+  it('applies modded parody name mappings when importing franchise roles', () => {
+    vi.spyOn(Date, 'now').mockReturnValue(234);
+
+    mockedBundle = {
+      version: 1,
+      mods: [{ id: 'names-mod', name: 'names-mod', version: '1.0.0', enabled: true, priority: 0 }],
+      patches: [
+        {
+          id: 'p-1',
+          modId: 'names-mod',
+          entityType: 'parodyCharacterNames',
+          op: 'update',
+          target: 'Star Wars',
+          payload: {
+            byCharacterId: {
+              char_hero_pilot: 'Luke Patchwalker',
+            },
+          },
+        },
+      ],
+    };
 
     const franchise: Franchise = {
       id: 'f-2',
@@ -158,8 +158,37 @@ describe('importRolesForScript', () => {
       cost: 0,
     };
 
-    const gameState = makeBaseGameState();
-    gameState.franchises = [franchise];
+    const gameState = makeBaseGameState({ franchises: [franchise] });
+
+    const script = makeBaseScript({
+      sourceType: 'franchise',
+      franchiseId: franchise.id,
+      characters: [],
+    });
+
+    const imported = importRolesForScript(script, gameState);
+    expect(imported.some((c) => c.franchiseCharacterId === 'char_hero_pilot' && c.name === 'Luke Patchwalker')).toBe(true);
+  });
+
+  it('merges imported roles with existing localOverrides and assignedTalentId', () => {
+    vi.spyOn(Date, 'now').mockReturnValue(456);
+
+    const franchise: Franchise = {
+      id: 'f-3',
+      title: 'Space Saga',
+      originDate: '2024-01-01',
+      creatorStudioId: 'studio-1',
+      genre: ['sci-fi'],
+      tone: 'epic',
+      parodySource: 'Star Wars',
+      entries: [],
+      status: 'active',
+      franchiseTags: [],
+      culturalWeight: 50,
+      cost: 0,
+    };
+
+    const gameState = makeBaseGameState({ franchises: [franchise] });
 
     const script = makeBaseScript({
       sourceType: 'franchise',
@@ -183,7 +212,7 @@ describe('importRolesForScript', () => {
     });
 
     const imported = importRolesForScript(script, gameState);
-    const hero = imported.find(c => c.franchiseCharacterId === 'char_hero_pilot');
+    const hero = imported.find((c) => c.franchiseCharacterId === 'char_hero_pilot');
 
     expect(hero).toBeTruthy();
     expect(hero?.id).toBe('hero-custom-id');
@@ -196,30 +225,31 @@ describe('importRolesForScript', () => {
   it('imports public-domain suggested roles idempotently (no duplicates on re-import)', () => {
     vi.spyOn(Date, 'now').mockReturnValue(789);
 
-    const gameState = makeBaseGameState();
-    gameState.publicDomainIPs = [
-      {
-        id: 'pd-1',
-        name: 'Sherlock Holmes',
-        domainType: 'literature',
-        dateEnteredDomain: '1920-01-01',
-        coreElements: ['Detective', 'London'],
-        genreFlexibility: ['mystery'],
-        notableAdaptations: [],
-        reputationScore: 90,
-        cost: 0,
-        suggestedCharacters: [
-          {
-            id: 'detective',
-            name: 'Detective',
-            importance: 'lead',
-            description: 'Brilliant detective protagonist',
-            requiredType: 'actor',
-            ageRange: [25, 55],
-          },
-        ],
-      } as any,
-    ];
+    const gameState = makeBaseGameState({
+      publicDomainIPs: [
+        {
+          id: 'pd-1',
+          name: 'Sherlock Holmes',
+          domainType: 'literature',
+          dateEnteredDomain: '1920-01-01',
+          coreElements: ['Detective', 'London'],
+          genreFlexibility: ['mystery'],
+          notableAdaptations: [],
+          reputationScore: 90,
+          cost: 0,
+          suggestedCharacters: [
+            {
+              id: 'detective',
+              name: 'Detective',
+              importance: 'lead',
+              description: 'Brilliant detective protagonist',
+              requiredType: 'actor',
+              ageRange: [25, 55],
+            },
+          ],
+        },
+      ],
+    });
 
     const script = makeBaseScript({
       sourceType: 'public-domain',
@@ -229,9 +259,9 @@ describe('importRolesForScript', () => {
 
     const imported = importRolesForScript(script, gameState);
 
-    expect(imported.some(c => c.franchiseCharacterId === 'detective' && c.importance === 'lead')).toBe(true);
-    expect(imported.filter(c => c.requiredType === 'director')).toHaveLength(1);
-    expect(imported.some(c => c.importance === 'minor')).toBe(true);
+    expect(imported.some((c) => c.franchiseCharacterId === 'detective' && c.importance === 'lead')).toBe(true);
+    expect(imported.some((c) => c.requiredType === 'director')).toBe(true);
+    expect(imported.some((c) => c.importance === 'minor')).toBe(true);
 
     const importedAgain = importRolesForScript({ ...script, characters: imported }, gameState);
     expect(importedAgain).toHaveLength(imported.length);

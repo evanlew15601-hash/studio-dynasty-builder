@@ -46,33 +46,43 @@ export const AITelevisionStudios: React.FC<AITelevisionStudiosProps> = () => {
   const gameState = useGameStore((s) => s.game);
   const [selectedShowId, setSelectedShowId] = useState<string>('');
 
-  if (!gameState) {
-    return <div className="p-6 text-sm text-muted-foreground">Loading AI studios...</div>;
-  }
+  const { currentAbs, tvReleases, released, upcoming, airing } = useMemo(() => {
+    if (!gameState) {
+      return {
+        currentAbs: 0,
+        tvReleases: [] as Project[],
+        released: [] as Project[],
+        upcoming: [] as Project[],
+        airing: [] as Project[],
+      };
+    }
 
-  const currentAbs = absWeek(gameState.currentWeek, gameState.currentYear);
+    const currentAbs = absWeek(gameState.currentWeek, gameState.currentYear);
 
-  const competitorNames = new Set((gameState.competitorStudios || []).map((s) => s.name));
-  const playerProjectIds = new Set((gameState.projects || []).map((p) => p.id));
+    const competitorNames = new Set((gameState.competitorStudios || []).map((s) => s.name));
+    const playerProjectIds = new Set((gameState.projects || []).map((p) => p.id));
 
-  const tvReleases = (gameState.allReleases || [])
-    .filter((r): r is Project => typeof (r as any)?.script !== 'undefined')
-    .filter((p) => p.type === 'series' || p.type === 'limited-series')
-    .filter((p) => !!p.releaseWeek && !!p.releaseYear)
-    // Only show competitor studio TV shows (exclude player projects that may be copied into allReleases)
-    .filter((p) => !playerProjectIds.has(p.id))
-    .filter((p) => !!p.studioName && competitorNames.has(p.studioName))
-    .sort((a, b) => absWeek(b.releaseWeek!, b.releaseYear!) - absWeek(a.releaseWeek!, a.releaseYear!));
+    const tvReleases = (gameState.allReleases || [])
+      .filter((r): r is Project => typeof (r as any)?.script !== 'undefined')
+      .filter((p) => p.type === 'series' || p.type === 'limited-series')
+      .filter((p) => !!p.releaseWeek && !!p.releaseYear)
+      // Only show competitor studio TV shows (exclude player projects that may be copied into allReleases)
+      .filter((p) => !playerProjectIds.has(p.id))
+      .filter((p) => !!p.studioName && competitorNames.has(p.studioName))
+      .sort((a, b) => absWeek(b.releaseWeek!, b.releaseYear!) - absWeek(a.releaseWeek!, a.releaseYear!));
 
-  const released = tvReleases.filter((p) => absWeek(p.releaseWeek!, p.releaseYear!) <= currentAbs);
-  const upcoming = tvReleases.filter((p) => absWeek(p.releaseWeek!, p.releaseYear!) > currentAbs);
+    const released = tvReleases.filter((p) => absWeek(p.releaseWeek!, p.releaseYear!) <= currentAbs);
+    const upcoming = tvReleases.filter((p) => absWeek(p.releaseWeek!, p.releaseYear!) > currentAbs);
 
-  const airing = released.filter((p) => {
-    const season = p.seasons?.[0];
-    const aired = season?.episodesAired || 0;
-    const total = season?.totalEpisodes || p.episodeCount || 0;
-    return aired > 0 && total > 0 && aired < total;
-  });
+    const airing = released.filter((p) => {
+      const season = p.seasons?.[0];
+      const aired = season?.episodesAired || 0;
+      const total = season?.totalEpisodes || p.episodeCount || 0;
+      return aired > 0 && total > 0 && aired < total;
+    });
+
+    return { currentAbs, tvReleases, released, upcoming, airing };
+  }, [gameState]);
 
   useEffect(() => {
     if (selectedShowId) return;
@@ -150,6 +160,10 @@ export const AITelevisionStudios: React.FC<AITelevisionStudiosProps> = () => {
   const selectedIsUpcoming = !!selected && absWeek(selected.releaseWeek!, selected.releaseYear!) > currentAbs;
   const selectedIsAiring =
     !!selected && !selectedIsUpcoming && selectedAired > 0 && selectedTotal > 0 && selectedAired < selectedTotal;
+
+  if (!gameState) {
+    return <div className="p-6 text-sm text-muted-foreground">Loading AI studios...</div>;
+  }
 
   return (
     <div className="space-y-4">
