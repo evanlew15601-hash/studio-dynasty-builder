@@ -581,6 +581,25 @@ export const StudioMagnateGame: React.FC<StudioMagnateGameProps> = ({
       completeOperation(LOADING_OPERATIONS.GAME_SHELL_LOAD.id);
       updateOperation(LOADING_OPERATIONS.GAME_INIT.id, 1, 'Preparing the world...');
 
+      const initDebug = (() => {
+        if (typeof window === 'undefined') return false;
+        try {
+          return new URLSearchParams(window.location.search).has('initDebug');
+        } catch {
+          return false;
+        }
+      })();
+
+      const nowMs = () => (typeof performance !== 'undefined' ? performance.now() : Date.now());
+      let lastMark = nowMs();
+      const mark = (label: string) => {
+        const t = nowMs();
+        if (initDebug) {
+          console.log(`[Game Init] ${label} (+${Math.round(t - lastMark)}ms)`);
+        }
+        lastMark = t;
+      };
+
       const yieldFrame = () =>
         new Promise<void>((resolve) => {
           let resolved = false;
@@ -623,22 +642,31 @@ export const StudioMagnateGame: React.FC<StudioMagnateGameProps> = ({
         getPatchesForEntity(mods, 'talent'),
         (t) => t.id
       );
+      mark('Generated talent pool');
 
       updateOperation(LOADING_OPERATIONS.GAME_INIT.id, 25, 'Generating competitor studios...');
       await yieldFrame();
 
       const studioGenerator = new StudioGenerator();
       const competitorStudios = studioGenerator.generateCompetitorStudios(mods);
-
-      updateOperation(LOADING_OPERATIONS.GAME_INIT.id, 30, 'Seeding AI releases...');
-      await yieldFrame();
+      mark(`Generated competitor studios (${competitorStudios.length})`);
 
       const sg = new StudioGenerator();
       const releases: Project[] = [];
       const currentYear = new Date().getFullYear();
 
-      const yearsToSeed = [currentYear - 1, currentYear];
-      const totalWeeks = yearsToSeed.length * 52;
+      // Minimal seeding: enough history to make the world feel alive without a long init.
+      // (Avoids huge multi-year backfills that can stall on mobile browsers.)
+      const seedHistoryWeeks = 12;
+      const yearsToSeed = [currentYear - 1];
+      const startWeek = Math.max(1, 53 - seedHistoryWeeks);
+      const weeksToSeed = Array.from({ length: seedHistoryWeeks }, (_, i) => startWeek + i);
+
+      updateOperation(LOADING_OPERATIONS.GAME_INIT.id, 30, `Seeding AI releases... (last ${seedHistoryWeeks} weeks)`);
+      await yieldFrame();
+      mark('Seeding AI releases (start)');
+
+      const totalWeeks = yearsToSeed.length * weeksToSeed.length;
       let processedWeeks = 0;
 
       const talentIndex: TalentIndex = {
@@ -656,7 +684,7 @@ export const StudioMagnateGame: React.FC<StudioMagnateGameProps> = ({
       };
 
       for (const year of yearsToSeed) {
-        for (let w = 1; w <= 52; w++) {
+        for (const w of weeksToSeed) {
           if (cancelled) return;
 
           processedWeeks += 1;
@@ -842,8 +870,11 @@ export const StudioMagnateGame: React.FC<StudioMagnateGameProps> = ({
         }
       }
 
+      mark(`Seeding AI releases (done): ${releases.length} releases`);
+
       updateOperation(LOADING_OPERATIONS.GAME_INIT.id, 78, 'Generating franchises & public-domain IPs...');
       await yieldFrame();
+      mark('Generated franchises & public-domain IPs (start)');
 
       let initialState: GameState = {
         universeSeed,
@@ -883,20 +914,25 @@ export const StudioMagnateGame: React.FC<StudioMagnateGameProps> = ({
 
       updateOperation(LOADING_OPERATIONS.GAME_INIT.id, 82, 'Priming competitor television...');
       await yieldFrame();
+      mark('Priming competitor television (start)');
 
       initialState = primeCompetitorTelevision(initialState);
+      mark('Priming competitor television (done)');
 
       // TEW-style: filmographies are derived on demand when viewed, rather than precomputed during init.
       updateOperation(LOADING_OPERATIONS.GAME_INIT.id, 88, 'Deferring talent filmographies (computed on demand)...');
       await yieldFrame();
+      mark('Deferred talent filmographies');
 
       if (cancelled) return;
 
       updateOperation(LOADING_OPERATIONS.GAME_INIT.id, 100, 'Finalizing...');
       initGame(initialState, initialState.universeSeed);
+      mark('Committed initial state');
 
       requestAnimationFrame(() => {
         completeOperation(LOADING_OPERATIONS.GAME_INIT.id);
+        mark('Loading overlay dismissed');
       });
     };
 
