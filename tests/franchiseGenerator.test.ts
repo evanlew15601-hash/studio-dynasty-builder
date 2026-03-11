@@ -11,4 +11,11 @@ describe('FranchiseGenerator', () => {
     const d = FranchiseGenerator.generateInitialFranchises(12, 'seed:test');
     expect(c).toEqual(d);
   });
+
+  it('generateInitialFranchises does not depend on this binding', () => {
+    const fn = FranchiseGenerator.generateInitialFranchises;
+
+    expect(() => fn.call({}, 5, 'seed:unbind')).not.toThrow();
+    expect(fn.call({}, 5, 'seed:unbind')).toHaveLength(5);
+  });
 });

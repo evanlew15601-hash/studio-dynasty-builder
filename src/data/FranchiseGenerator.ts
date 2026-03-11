@@ -165,7 +165,7 @@ export class FranchiseGenerator {
       usedSources.add(template.parodySource);
 
       const id = `FR${String(i + 1).padStart(3, '0')}`;
-      const originDate = this.generateRandomDate(2000, 2020, `${seed}|origin|${id}`);
+      const originDate = FranchiseGenerator.generateRandomDate(2000, 2020, `${seed}|origin|${id}`);
 
       const culturalWeight = template.culturalWeight + stableInt(`${seed}|cw|${id}`, -5, 4); // ±5 variation
 
@@ -188,7 +188,7 @@ export class FranchiseGenerator {
         cost: 0, // Will be calculated
       };
 
-      franchise.cost = this.calculateFranchiseCost(franchise);
+      franchise.cost = FranchiseGenerator.calculateFranchiseCost(franchise);
       franchises.push(franchise);
     }
 
@@ -196,7 +196,7 @@ export class FranchiseGenerator {
     while (franchises.length < count) {
       const id = `FR${String(franchises.length + 1).padStart(3, '0')}`;
       const randomTemplate = stablePick(FRANCHISE_TEMPLATES, `${seed}|template|${id}`) || FRANCHISE_TEMPLATES[0];
-      const title = this.generateRandomTitle(`${seed}|title|${id}`);
+      const title = FranchiseGenerator.generateRandomTitle(`${seed}|title|${id}`);
 
       if (usedTitles.has(title)) continue;
       usedTitles.add(title);
@@ -204,13 +204,13 @@ export class FranchiseGenerator {
       const franchise: Franchise = {
         id,
         title,
-        originDate: this.generateRandomDate(1990, 2022, `${seed}|origin|${id}`),
+        originDate: FranchiseGenerator.generateRandomDate(1990, 2022, `${seed}|origin|${id}`),
         creatorStudioId: `COMP_${stableInt(`${seed}|creator|${id}`, 1, 15)}`,
         genre: randomTemplate.genre,
         tone: randomTemplate.tone,
         entries: [],
         status: stableFloat01(`${seed}|status|${id}`) > 0.4 ? 'active' : 'dormant',
-        franchiseTags: this.generateRandomTags(`${seed}|tags|${id}`),
+        franchiseTags: FranchiseGenerator.generateRandomTags(`${seed}|tags|${id}`),
         culturalWeight: stableInt(`${seed}|cw|${id}`, 30, 69),
         merchandisingPotential: stableInt(`${seed}|merch|${id}`, 0, 99),
         fanbaseSize: stableInt(`${seed}|fanbase|${id}`, 0, 499_999),
@@ -219,7 +219,7 @@ export class FranchiseGenerator {
         cost: 0,
       };
 
-      franchise.cost = this.calculateFranchiseCost(franchise);
+      franchise.cost = FranchiseGenerator.calculateFranchiseCost(franchise);
       franchises.push(franchise);
     }
 
