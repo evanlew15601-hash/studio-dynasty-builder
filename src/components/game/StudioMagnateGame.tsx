@@ -445,6 +445,7 @@ export const StudioMagnateGame: React.FC<StudioMagnateGameProps> = ({
   const { toast } = useToast();
   const { startOperation, updateOperation, completeOperation } = useLoadingActions();
   const weeklyProcessingRef = useRef(false);
+  const aiSlateGeneratorRef = useRef<{ year: number; nextWeek: number; generator: StudioGenerator } | null>(null);
   
   const getPhaseWeeks = (phase: string): number => {
     switch (phase) {
@@ -604,6 +605,10 @@ export const StudioMagnateGame: React.FC<StudioMagnateGameProps> = ({
       const totalWeeks = yearsToSeed.length * 52;
       let processedWeeks = 0;
 
+      const yieldToBrowser = () => new Promise<void>((resolve) => requestAnimationFrame(() => resolve()));
+      const YIELD_EVERY_OPS = 25;
+      let processedOps = 0;
+
       for (const year of yearsToSeed) {
         for (let w = 1; w <= 52; w++) {
           if (cancelled) return;
@@ -612,12 +617,19 @@ export const StudioMagnateGame: React.FC<StudioMagnateGameProps> = ({
           let releasesThisWeek = 0;
 
           for (const st of competitorStudios) {
+            if (cancelled) return;
+
             const profile = sg.getStudioProfile(st.name);
             const rel = profile ? sg.generateStudioRelease(profile, w, year) : null;
             if (rel) {
               releases.push(rel);
               releases[releases.length - 1] = attachBasicCastForAI(releases[releases.length - 1] as Project, generatedTalent);
               releasesThisWeek += 1;
+            }
+
+            processedOps += 1;
+            if (processedOps % YIELD_EVERY_OPS === 0) {
+              await yieldToBrowser();
             }
           }
 
@@ -747,6 +759,11 @@ export const StudioMagnateGame: React.FC<StudioMagnateGameProps> = ({
                 releases[releases.length - 1] = attachBasicCastForAI(releases[releases.length - 1] as Project, generatedTalent);
               }
             }
+
+            processedOps += 1;
+            if (processedOps % YIELD_EVERY_OPS === 0) {
+              await yieldToBrowser();
+            }
           }
 
           if (processedWeeks % 2 === 0) {
@@ -756,7 +773,7 @@ export const StudioMagnateGame: React.FC<StudioMagnateGameProps> = ({
               Math.min(75, Math.round(progress)),
               `Seeding AI releases... (Y${year}W${w})`
             );
-            await delay(0);
+            await yieldToBrowser();
           }
         }
       }
@@ -821,10 +838,10 @@ export const StudioMagnateGame: React.FC<StudioMagnateGameProps> = ({
             filmographyState = TalentFilmographyManager.updateFilmographyOnRelease(filmographyState, release as Project);
           }
 
-          if (i % 250 === 0) {
+          if (i % 25 === 0) {
             const p = 88 + (i / Math.max(1, total)) * 10;
             updateOperation(LOADING_OPERATIONS.GAME_INIT.id, Math.min(98, Math.round(p)), `Seeding filmographies... (${i}/${total})`);
-            await delay(0);
+            await new Promise<void>((resolve) => requestAnimationFrame(() => resolve()));
           }
         }
 
@@ -2136,20 +2153,67 @@ export const StudioMagnateGame: React.FC<StudioMagnateGameProps> = ({
       }
 
       // If the simulation has advanced into a year without a pre-generated competitor slate,
-      // generate a full year's worth of AI releases now (so releases remain predictable).
+      // generate competitor releases incrementally (generating all 52 weeks in one tick can freeze the tab).
       const hasAiSlateForYear = prev.allReleases.some(
         (r): r is Project => 'script' in r && r.releaseYear === newTimeState.currentYear
       );
 
-      if (!hasAiSlateForYear && prev.competitorStudios.length > 0) {
-        const sg = new StudioGenerator();
+      const slateYear = newTimeState.currentYear;
 
-        for (let w = 1; w <= 52; w++) {
+      // If we have a partial slate (e.g., older saves), attempt to resume generation.
+      const maxAiWeekForYear = prev.allReleases
+        .filter((r): r is Project =>
+          'script' in r &&
+          (r as any).releaseYear === slateYear &&
+          !!(r as any).releaseWeek &&
+          !!(r as any).studioName &&
+          (r as any).studioName !== prev.studio.name
+        )
+        .reduce((max, r) => Math.max(max, r.releaseWeek || 0), 0);
+
+      if (
+        prev.competitorStudios.length > 0 &&
+        aiSlateGeneratorRef.current?.year !== slateYear &&
+        (!hasAiSlateForYear || (maxAiWeekForYear > 0 && maxAiWeekForYear < 52))
+      ) {
+        const generator = new StudioGenerator();
+
+        // Fast-forward the generator so studio release schedules roughly line up with existing releases.
+        // (This is best-effort: StudioGenerator relies on Math.random/Date.now, so exact determinism isn't possible.)
+        for (let w = 1; w <= maxAiWeekForYear; w++) {
+          let releasesThisWeek = 0;
+
+          for (const st of prev.competitorStudios) {
+            const profile = generator.getStudioProfile(st.name);
+            const rel = profile ? generator.generateStudioRelease(profile, w, slateYear) : null;
+            if (rel) releasesThisWeek += 1;
+          }
+
+          if (releasesThisWeek === 0 && prev.competitorStudios[0]) {
+            const fallback = generator.getStudioProfile(prev.competitorStudios[0].name);
+            if (fallback) {
+              generator.generateStudioRelease(fallback, w, slateYear);
+            }
+          }
+        }
+
+        aiSlateGeneratorRef.current = { year: slateYear, nextWeek: Math.max(1, maxAiWeekForYear + 1), generator };
+      }
+
+      const activeAiSlate = aiSlateGeneratorRef.current;
+
+      if (activeAiSlate && activeAiSlate.year === slateYear && prev.competitorStudios.length > 0) {
+        const sg = activeAiSlate.generator;
+
+        while (activeAiSlate.nextWeek <= Math.min(52, newTimeState.currentWeek)) {
+          const w = activeAiSlate.nextWeek;
+          activeAiSlate.nextWeek += 1;
+
           let releasesThisWeek = 0;
 
           for (const st of prev.competitorStudios) {
             const profile = sg.getStudioProfile(st.name);
-            const rel = profile ? sg.generateStudioRelease(profile, w, newTimeState.currentYear) : null;
+            const rel = profile ? sg.generateStudioRelease(profile, w, slateYear) : null;
             if (rel) {
               newAIReleases.push(attachBasicCastForAI(rel, baseAfterEngine.talent));
               releasesThisWeek += 1;
@@ -2159,14 +2223,14 @@ export const StudioMagnateGame: React.FC<StudioMagnateGameProps> = ({
           if (releasesThisWeek === 0 && prev.competitorStudios[0]) {
             const fallback = sg.getStudioProfile(prev.competitorStudios[0].name);
             if (fallback) {
-              const rel = sg.generateStudioRelease(fallback, w, newTimeState.currentYear);
+              const rel = sg.generateStudioRelease(fallback, w, slateYear);
               if (rel) {
                 newAIReleases.push(attachBasicCastForAI(rel, baseAfterEngine.talent));
               } else {
                 // Guarantee at least one release per week: synthesize a small indie release
                 const genre = fallback.specialties[0] as Genre;
                 const script = {
-                  id: `script-${newTimeState.currentYear}-${w}-${Math.random().toString(36).slice(2, 8)}`,
+                  id: `script-${slateYear}-${w}-${Math.random().toString(36).slice(2, 8)}`,
                   title: sg.generateFilmTitle(genre, fallback.name),
                   genre,
                   logline: 'An indie story released to keep the slate full.',
@@ -2182,7 +2246,7 @@ export const StudioMagnateGame: React.FC<StudioMagnateGameProps> = ({
                 } as Script;
 
                 const indie: Project = {
-                  id: `ai-project-${newTimeState.currentYear}-${w}-${Math.random().toString(36).slice(2, 6)}`,
+                  id: `ai-project-${slateYear}-${w}-${Math.random().toString(36).slice(2, 6)}`,
                   title: script.title,
                   script,
                   type: 'feature',
@@ -2214,7 +2278,7 @@ export const StudioMagnateGame: React.FC<StudioMagnateGameProps> = ({
                     boxOffice: { openingWeekend: 0, domesticTotal: 0, internationalTotal: 0, production: script.budget, marketing: script.budget * 0.25, profit: 0, theaters: 1200, weeks: 0 }
                   },
                   releaseWeek: w,
-                  releaseYear: newTimeState.currentYear,
+                  releaseYear: slateYear,
                   studioName: fallback.name
                 };
 
@@ -2240,12 +2304,16 @@ export const StudioMagnateGame: React.FC<StudioMagnateGameProps> = ({
             },
             eventData: { project: thisWeekRelease },
             week: newTimeState.currentWeek,
-            year: newTimeState.currentYear
+            year: slateYear
           });
         }
 
-        if (diagnosticsEnabled) {
-          console.log(`AI SLATE: Generated competitor releases for ${newTimeState.currentYear} (${newAIReleases.length} total) (week ${newTimeState.currentWeek})`);
+        if (diagnosticsEnabled && newAIReleases.length > 0) {
+          console.log(`AI SLATE: Generated competitor releases for ${slateYear} (+${newAIReleases.length} this tick) (week ${newTimeState.currentWeek})`);
+        }
+
+        if (activeAiSlate.nextWeek > 52) {
+          aiSlateGeneratorRef.current = null;
         }
       }
       
