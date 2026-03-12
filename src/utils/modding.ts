@@ -195,12 +195,39 @@ export function applyPatchesByKey<T>(
 ): T[] {
   if (!patches.length) return base;
 
-  let next = base.slice();
+  // Linear-time patch application.
+  // Important for large mod bundles (startup & save-load).
+  const next = base.slice();
+  const indicesByKey = new Map<string, number[]>();
+  const deleted = new Set<number>();
+
+  for (let i = 0; i < next.length; i++) {
+    const k = getKey(next[i]);
+    const list = indicesByKey.get(k);
+    if (list) {
+      list.push(i);
+    } else {
+      indicesByKey.set(k, [i]);
+    }
+  }
+
+  const findIndexForKey = (key: string): number | undefined => {
+    const list = indicesByKey.get(key);
+    if (!list) return undefined;
+    for (let i = 0; i < list.length; i++) {
+      const idx = list[i];
+      if (!deleted.has(idx)) return idx;
+    }
+    return undefined;
+  };
 
   for (const patch of patches) {
     if (patch.op === 'delete') {
       if (!patch.target) continue;
-      next = next.filter((item) => getKey(item) !== patch.target);
+      const list = indicesByKey.get(patch.target);
+      if (!list) continue;
+      for (const idx of list) deleted.add(idx);
+      indicesByKey.delete(patch.target);
       continue;
     }
 
@@ -209,32 +236,29 @@ export function applyPatchesByKey<T>(
       if (!incoming) continue;
 
       const key = getKey(incoming);
-      const idx = next.findIndex((item) => getKey(item) === key);
-      if (idx === -1) {
-        next = [...next, incoming];
+      const existingIdx = findIndexForKey(key);
+
+      if (existingIdx === undefined) {
+        next.push(incoming);
+        indicesByKey.set(key, [next.length - 1]);
       } else {
-        const merged = deepMerge(next[idx], incoming);
-        const copy = next.slice();
-        copy[idx] = merged;
-        next = copy;
+        next[existingIdx] = deepMerge(next[existingIdx], incoming);
       }
+
       continue;
     }
 
     if (patch.op === 'update') {
       if (!patch.target) continue;
-      const idx = next.findIndex((item) => getKey(item) === patch.target);
-      if (idx === -1) continue;
-
-      const merged = deepMerge(next[idx], patch.payload);
-      const copy = next.slice();
-      copy[idx] = merged;
-      next = copy;
+      const existingIdx = findIndexForKey(patch.target);
+      if (existingIdx === undefined) continue;
+      next[existingIdx] = deepMerge(next[existingIdx], patch.payload);
       continue;
     }
   }
 
-  return next;
+  if (!deleted.size) return next;
+  return next.filter((_, idx) => !deleted.has(idx));
 }
 
 export function applyPatchesToRecord<T>(base: Record<string, T>, patches: ModPatch[]): Record<string, T> {

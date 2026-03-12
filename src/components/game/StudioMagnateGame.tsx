@@ -1,5 +1,5 @@
 import React, { useEffect, useRef, useState, Suspense } from 'react';
-import type { GameState, Studio, Project, Script, TalentPerson, Genre, MarketingStrategy, ReleaseStrategy, ProductionPhase, ScriptCharacter, Franchise, PublicDomainIP } from '@/types/game';
+import type { GameState, Studio, Project, Script, TalentPerson, Genre, MarketingStrategy, ReleaseStrategy, ProductionPhase, ScriptCharacter, Franchise } from '@/types/game';
 import { useLoadingActions } from '@/contexts/LoadingContext';
 import { LOADING_OPERATIONS } from '@/utils/loadingUtils';
 import { FranchiseGenerator } from '@/data/FranchiseGenerator';
@@ -101,7 +101,7 @@ import { SystemIntegration } from './SystemIntegration';
 import { useGameStore } from '@/game/store';
 import { saveGameAsync } from '@/utils/saveLoad';
 import { syncAndPersistIndustryDatabase } from '@/utils/industryDatabase';
-import { deepMerge, getPatchesForEntity } from '@/utils/modding';
+import { applyPatchesByKey, getPatchesForEntity } from '@/utils/modding';
 import { getModBundle } from '@/utils/moddingStore';
 import { DebugControlPanel } from './DebugControlPanel';
 import { IndustryDatabasePanel } from './IndustryDatabasePanel';
@@ -616,63 +616,7 @@ export const StudioMagnateGame: React.FC<StudioMagnateGameProps> = ({
           setTimeout(() => done(), 0);
         });
 
-      const applyPatchesByKeyYielding = async <T,>(
-        base: T[],
-        patches: Array<{ op: string; target?: string; payload?: any }> | undefined,
-        getKey: (item: T) => string,
-        progressStart: number,
-        progressEnd: number,
-        label: string
-      ): Promise<T[]> => {
-        const list = patches || [];
-        if (list.length === 0) return base;
-
-        let next = base.slice();
-
-        for (let i = 0; i < list.length; i++) {
-          const patch = list[i];
-
-          if (patch.op === 'delete') {
-            if (!patch.target) continue;
-            next = next.filter((item) => getKey(item) !== patch.target);
-          } else if (patch.op === 'insert') {
-            const incoming = patch.payload as T | undefined;
-            if (!incoming) continue;
-
-            const key = getKey(incoming);
-            const idx = next.findIndex((item) => getKey(item) === key);
-            if (idx === -1) {
-              next = [...next, incoming];
-            } else {
-              const merged = deepMerge(next[idx], incoming);
-              const copy = next.slice();
-              copy[idx] = merged;
-              next = copy;
-            }
-          } else if (patch.op === 'update') {
-            if (!patch.target) continue;
-            const idx = next.findIndex((item) => getKey(item) === patch.target);
-            if (idx === -1) continue;
-
-            const merged = deepMerge(next[idx], patch.payload);
-            const copy = next.slice();
-            copy[idx] = merged;
-            next = copy;
-          }
-
-          // Yield periodically so the loading overlay keeps updating on mobile.
-          if (i % 50 === 0) {
-            const pct = progressStart + (i / list.length) * (progressEnd - progressStart);
-            updateOperation(LOADING_OPERATIONS.GAME_INIT.id, Math.min(progressEnd, Math.max(progressStart, Math.round(pct))), `${label} (${i}/${list.length})`);
-            await yieldFrame();
-          }
-        }
-
-        updateOperation(LOADING_OPERATIONS.GAME_INIT.id, progressEnd, label);
-        await yieldFrame();
-
-        return next;
-      };
+      
 
       await yieldFrame();
 
@@ -698,14 +642,10 @@ export const StudioMagnateGame: React.FC<StudioMagnateGameProps> = ({
       const baseTalent = generateInitialTalentPool({ currentYear: new Date().getFullYear() });
       const talentPatches = getPatchesForEntity(mods, 'talent');
 
-      const generatedTalent = await applyPatchesByKeyYielding(
-        baseTalent,
-        talentPatches,
-        (t) => t.id,
-        12,
-        24,
-        'Applying talent mods...'
-      );
+      updateOperation(LOADING_OPERATIONS.GAME_INIT.id, 20, `Applying talent mods... (${talentPatches.length})`);
+      await yieldFrame();
+
+      const generatedTalent = applyPatchesByKey(baseTalent, talentPatches, (t) => t.id);
       mark(`Generated talent pool (${generatedTalent.length})`);
 
       updateOperation(LOADING_OPERATIONS.GAME_INIT.id, 25, 'Generating competitor studios...');
@@ -936,14 +876,24 @@ export const StudioMagnateGame: React.FC<StudioMagnateGameProps> = ({
 
       mark(`Seeding AI releases (done): ${releases.length} releases`);
 
-      // This step has been a recurring stall point on low-end / mobile Safari.
-      // TEW-style: avoid blocking initial load on large catalogue/mod patch application.
-      // We hydrate these asynchronously after the core world is playable.
-      updateOperation(LOADING_OPERATIONS.GAME_INIT.id, 78, 'Deferring franchises & public-domain IPs...');
+      updateOperation(LOADING_OPERATIONS.GAME_INIT.id, 78, 'Generating franchises...');
       await yieldFrame();
 
-      const franchises: Franchise[] = [];
-      const publicDomainIPs: PublicDomainIP[] = [];
+      const baseFranchises = FranchiseGenerator.generateInitialFranchises(30);
+      mark(`Generated base franchises (${baseFranchises.length})`);
+
+      const franchisePatches = getPatchesForEntity(mods, 'franchise');
+      updateOperation(LOADING_OPERATIONS.GAME_INIT.id, 79, `Applying franchise mods... (${franchisePatches.length})`);
+      await yieldFrame();
+
+      const franchises = applyPatchesByKey(baseFranchises as Franchise[], franchisePatches, (f) => f.id);
+      mark(`Applied franchise mods (${franchisePatches.length} patches)`);
+
+      updateOperation(LOADING_OPERATIONS.GAME_INIT.id, 80, 'Generating public-domain IPs...');
+      await yieldFrame();
+
+      const publicDomainIPs = PublicDomainGenerator.generateInitialPublicDomainIPs(50, mods);
+      mark(`Generated public-domain IPs (${publicDomainIPs.length})`);
 
       updateOperation(LOADING_OPERATIONS.GAME_INIT.id, 81, 'Assembling initial world...');
       await yieldFrame();
@@ -1023,122 +973,6 @@ export const StudioMagnateGame: React.FC<StudioMagnateGameProps> = ({
     completeOperation,
     initGame,
   ]);
-
-  // Hydrate franchise + public-domain catalogues asynchronously after the game becomes playable.
-  // This avoids blocking startup on slower mobile browsers.
-  const catalogueHydrationStartedRef = useRef(false);
-
-  useEffect(() => {
-    if (!storeGameState) return;
-    if (initialGameState) return;
-
-    const hasFranchises = (storeGameState.franchises || []).length > 0;
-    const hasPublicDomain = (storeGameState.publicDomainIPs || []).length > 0;
-    if (hasFranchises && hasPublicDomain) return;
-
-    if (catalogueHydrationStartedRef.current) return;
-    catalogueHydrationStartedRef.current = true;
-
-    let cancelled = false;
-
-    const yieldFrame = () =>
-      new Promise<void>((resolve) => {
-        let resolved = false;
-        const done = () => {
-          if (resolved) return;
-          resolved = true;
-          resolve();
-        };
-
-        if (typeof requestAnimationFrame === 'function') {
-          requestAnimationFrame(() => done());
-        }
-        setTimeout(() => done(), 0);
-      });
-
-    const applyPatchesYielding = async <T,>(
-      base: T[],
-      patches: Array<{ op: string; target?: string; payload?: any }> | undefined,
-      getKey: (item: T) => string
-    ): Promise<T[]> => {
-      const list = patches || [];
-      if (list.length === 0) return base;
-
-      let next = base.slice();
-
-      for (let i = 0; i < list.length; i++) {
-        if (cancelled) return next;
-
-        const patch = list[i];
-
-        if (patch.op === 'delete') {
-          if (patch.target) {
-            next = next.filter((item) => getKey(item) !== patch.target);
-          }
-        } else if (patch.op === 'insert') {
-          const incoming = patch.payload as T | undefined;
-          if (incoming) {
-            const key = getKey(incoming);
-            const idx = next.findIndex((item) => getKey(item) === key);
-            if (idx === -1) {
-              next = [...next, incoming];
-            } else {
-              const merged = deepMerge(next[idx], incoming);
-              const copy = next.slice();
-              copy[idx] = merged;
-              next = copy;
-            }
-          }
-        } else if (patch.op === 'update') {
-          if (patch.target) {
-            const idx = next.findIndex((item) => getKey(item) === patch.target);
-            if (idx !== -1) {
-              const merged = deepMerge(next[idx], patch.payload);
-              const copy = next.slice();
-              copy[idx] = merged;
-              next = copy;
-            }
-          }
-        }
-
-        if (i % 50 === 0) {
-          await yieldFrame();
-        }
-      }
-
-      return next;
-    };
-
-    const run = async () => {
-      // Let the first frame of the actual game UI paint.
-      await yieldFrame();
-
-      const mods = getModBundle();
-
-      const baseFranchises = FranchiseGenerator.generateInitialFranchises(30);
-      const franchisePatches = getPatchesForEntity(mods, 'franchise');
-      const franchises = await applyPatchesYielding<Franchise>(baseFranchises, franchisePatches, (f) => f.id);
-
-      const basePublicDomain = PublicDomainGenerator.getBasePublicDomainIPs(50);
-      const publicDomainPatches = getPatchesForEntity(mods, 'publicDomainIP');
-      const publicDomainIPs = await applyPatchesYielding<PublicDomainIP>(basePublicDomain, publicDomainPatches, (p) => p.id);
-
-      if (cancelled) return;
-
-      mergeGameState({
-        franchises,
-        publicDomainIPs,
-      });
-    };
-
-    run().catch((e) => {
-      console.error('[Catalogue Init] Failed to hydrate catalogues', e);
-    });
-
-    return () => {
-      cancelled = true;
-    };
-  }, [storeGameState, initialGameState, mergeGameState]);
 
   const gameState = storeGameState ?? bootstrapGameState;
 
