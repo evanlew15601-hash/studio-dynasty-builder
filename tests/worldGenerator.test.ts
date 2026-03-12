@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest';
-import { generateInitialTalentPool } from '@/data/WorldGenerator';
+import { generateInitialTalentPool, generateInitialTalentPoolAsync } from '@/data/WorldGenerator';
 
 describe('world generator (core universe)', () => {
   it('includes a large core roster with seeded history + relationships', () => {
@@ -27,5 +27,11 @@ describe('world generator (core universe)', () => {
 
     // Chemistry is derived from relationship type (negative for rivals)
     expect((eleanor?.chemistry?.[jonah!.id] ?? 0)).toBeLessThan(0);
+  });
+
+  it('generateInitialTalentPoolAsync matches the synchronous generator', async () => {
+    const sync = generateInitialTalentPool({ currentYear: 2026 });
+    const asyncPool = await generateInitialTalentPoolAsync({ currentYear: 2026, yieldEvery: 25 });
+    expect(asyncPool).toEqual(sync);
   });
 });

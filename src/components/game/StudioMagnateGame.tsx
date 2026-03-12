@@ -43,7 +43,7 @@ import { DeepReputationPanel } from './DeepReputationPanel';
 import { MediaAnalyticsPanel } from './MediaAnalyticsPanel';
 import { BackgroundSimulation as BackgroundSimulationComponent } from './BackgroundSimulation';
 import { SequelManagement as SequelManagementComponent } from './SequelManagement';
-import { generateInitialTalentPool } from '@/data/WorldGenerator';
+import { generateInitialTalentPoolAsync } from '@/data/WorldGenerator';
 import { 
   DropdownMenu,
   DropdownMenuContent,
@@ -584,7 +584,24 @@ export const StudioMagnateGame: React.FC<StudioMagnateGameProps> = ({
       await delay(0);
 
       const generatedTalent = applyPatchesByKey(
-        generateInitialTalentPool({ currentYear: new Date().getFullYear() }),
+        await generateInitialTalentPoolAsync({
+          currentYear: new Date().getFullYear(),
+          yieldEvery: 20,
+          onProgress: (info) => {
+            const pct = Math.floor((info.completed / Math.max(1, info.total)) * 100);
+
+            if (info.phase === 'core') {
+              const progress = 10 + Math.min(11, Math.floor((pct / 100) * 11));
+              updateOperation(LOADING_OPERATIONS.GAME_INIT.id, progress, `Generating talent pool... (${pct}%)`);
+              return;
+            }
+
+            if (info.phase === 'relationships') {
+              const progress = 21 + Math.min(3, Math.floor((pct / 100) * 3));
+              updateOperation(LOADING_OPERATIONS.GAME_INIT.id, progress, `Wiring talent relationships... (${pct}%)`);
+            }
+          },
+        }),
         getPatchesForEntity(mods, 'talent'),
         (t) => t.id
       );

@@ -251,9 +251,21 @@ export class FranchiseGenerator {
     while (franchises.length < count) {
       const id = `FR${String(franchises.length + 1).padStart(3, '0')}`;
       const randomTemplate = stablePick(FRANCHISE_TEMPLATES, `${seed}|template|${id}`) || FRANCHISE_TEMPLATES[0];
-      const title = generateRandomTitleImpl(`${seed}|title|${id}`);
 
-      if (usedTitles.has(title)) continue;
+      // Titles are deterministic based on seed/id, so collisions must be handled explicitly.
+      // Otherwise we can get stuck in an infinite loop if a generated title repeats.
+      let title = generateRandomTitleImpl(`${seed}|title|${id}`);
+      let attempt = 0;
+      while (usedTitles.has(title) && attempt < 25) {
+        attempt += 1;
+        title = generateRandomTitleImpl(`${seed}|title|${id}|retry|${attempt}`);
+      }
+
+      if (usedTitles.has(title)) {
+        // Last-resort: make it unique but still stable.
+        title = `${title} (${id})`;
+      }
+
       usedTitles.add(title);
 
       const franchise: Franchise = {

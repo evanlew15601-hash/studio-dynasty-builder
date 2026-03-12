@@ -378,6 +378,142 @@ export function generateInitialTalentPool(options: {
   return [...core, ...filler];
 }
 
+export async function generateInitialTalentPoolAsync(options: {
+  currentYear: number;
+  actorCount?: number;
+  directorCount?: number;
+  yieldEvery?: number;
+  onProgress?: (info: { phase: 'core' | 'relationships' | 'filler'; completed: number; total: number }) => void;
+}): Promise<TalentPerson[]> {
+  const { currentYear } = options;
+  const yieldEvery = Math.max(1, options.yieldEvery ?? 25);
+
+  const yieldToMain = () => new Promise<void>((resolve) => setTimeout(resolve, 0));
+
+  const activeBible = CORE_TALENT_BIBLE.filter((b) => b.careerStartYear <= currentYear);
+  const people: TalentPerson[] = [];
+
+  for (let i = 0; i < activeBible.length; i += 1) {
+    const b = activeBible[i];
+    const id = idForSlug(b.slug);
+    const age = Math.max(18, currentYear - b.birthYear);
+    const experience = Math.max(0, currentYear - b.careerStartYear);
+    const careerStage = determineCareerStage(age, experience, b.reputation);
+
+    const filmography = (b.filmography || generateLightFilmography(b, currentYear)).map((f) => ({
+      projectId: f.projectId || `hist-project:${f.title}:${f.year}`,
+      title: f.title,
+      role: f.role,
+      year: f.year,
+      boxOffice: f.boxOffice,
+    }));
+
+    const awards = (b.awards || []).map((a) => awardToTalentAward(id, a));
+
+    const baseBio = b.biography || buildCoreBiography(b);
+
+    people.push({
+      id,
+      name: b.name,
+      type: b.type,
+      age,
+      gender: b.gender,
+      race: b.race,
+      nationality: b.nationality,
+      experience,
+      reputation: b.reputation,
+      marketValue: generateMarketValue(age, experience, b.reputation, b.type),
+      contractStatus: 'available',
+      genres: ensureGenres(b.genres),
+      specialties: ensureGenres(b.genres).slice(0, Math.min(3, b.genres.length)),
+      awards,
+      traits: [...(b.quirks || []), ...b.narratives].slice(0, 8),
+      careerStage,
+      availability: {
+        start: new Date(Date.UTC(currentYear, 0, 1)),
+        end: new Date(Date.UTC(currentYear + 1, 0, 1)),
+      },
+      burnoutLevel: b.tier === 'marquee' ? 10 : 15,
+      studioLoyalty: {},
+      chemistry: {},
+      futureHolds: [],
+      recentProjects: [],
+      biography: baseBio,
+      archetype: b.archetype,
+      narratives: b.narratives,
+      movementTags: b.movementTags,
+      careerStartYear: b.careerStartYear,
+      quirks: b.quirks,
+      isNotable: true,
+      publicImage: b.publicImage,
+      fame: b.type === 'actor' ? (b.fame ?? Math.min(100, Math.round(b.reputation * 0.75))) : undefined,
+      filmography,
+    });
+
+    if ((i + 1) % yieldEvery === 0) {
+      options.onProgress?.({ phase: 'core', completed: i + 1, total: activeBible.length });
+      await yieldToMain();
+    }
+  }
+
+  options.onProgress?.({ phase: 'core', completed: people.length, total: activeBible.length });
+
+  const bySlug = new Map(CORE_TALENT_BIBLE.map((b) => [b.slug, idForSlug(b.slug)]));
+  const byId = new Map(people.map((p) => [p.id, p] as const));
+
+  for (let i = 0; i < CORE_TALENT_BIBLE.length; i += 1) {
+    const b = CORE_TALENT_BIBLE[i];
+    const id = idForSlug(b.slug);
+    const person = byId.get(id);
+    if (!person || !b.relationships || b.relationships.length === 0) continue;
+
+    person.relationships = person.relationships || {};
+    person.relationshipNotes = person.relationshipNotes || {};
+    person.chemistry = person.chemistry || {};
+
+    for (const rel of b.relationships) {
+      const otherId = bySlug.get(rel.with);
+      if (!otherId) continue;
+
+      const other = byId.get(otherId);
+      if (!other) continue;
+
+      if (!person.relationships[otherId]) person.relationships[otherId] = rel.type;
+      if (!person.relationshipNotes[otherId]) person.relationshipNotes[otherId] = rel.note;
+      if (typeof person.chemistry[otherId] !== 'number') person.chemistry[otherId] = relationshipToChemistry(rel.type);
+
+      other.relationships = other.relationships || {};
+      other.relationshipNotes = other.relationshipNotes || {};
+      other.chemistry = other.chemistry || {};
+
+      if (!other.relationships[id]) other.relationships[id] = rel.type;
+      if (!other.relationshipNotes[id]) other.relationshipNotes[id] = rel.note;
+      if (typeof other.chemistry[id] !== 'number') other.chemistry[id] = relationshipToChemistry(rel.type);
+    }
+
+    if ((i + 1) % yieldEvery === 0) {
+      options.onProgress?.({ phase: 'relationships', completed: i + 1, total: CORE_TALENT_BIBLE.length });
+      await yieldToMain();
+    }
+  }
+
+  options.onProgress?.({ phase: 'relationships', completed: CORE_TALENT_BIBLE.length, total: CORE_TALENT_BIBLE.length });
+
+  const fillerActorCount = Math.max(0, (options.actorCount ?? 0));
+  const fillerDirectorCount = Math.max(0, (options.directorCount ?? 0));
+
+  const gen = new TalentGenerator();
+  const filler = gen.generateTalentPool(fillerActorCount, fillerDirectorCount).map((t) => ({
+    ...t,
+    isNotable: false,
+    narratives: t.narratives || [],
+  }));
+
+  options.onProgress?.({ phase: 'filler', completed: filler.length, total: filler.length });
+
+  return [...people, ...filler];
+}
+
 /**
  * Convenience: construct a new GameState with a rebuilt core universe.
  * Useful for dev tools / future "restart universe" UI.
