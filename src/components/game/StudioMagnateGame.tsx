@@ -605,6 +605,10 @@ export const StudioMagnateGame: React.FC<StudioMagnateGameProps> = ({
       const totalWeeks = yearsToSeed.length * 52;
       let processedWeeks = 0;
 
+      const yieldToBrowser = () => new Promise<void>((resolve) => requestAnimationFrame(() => resolve()));
+      const YIELD_EVERY_OPS = 25;
+      let processedOps = 0;
+
       for (const year of yearsToSeed) {
         for (let w = 1; w <= 52; w++) {
           if (cancelled) return;
@@ -613,12 +617,19 @@ export const StudioMagnateGame: React.FC<StudioMagnateGameProps> = ({
           let releasesThisWeek = 0;
 
           for (const st of competitorStudios) {
+            if (cancelled) return;
+
             const profile = sg.getStudioProfile(st.name);
             const rel = profile ? sg.generateStudioRelease(profile, w, year) : null;
             if (rel) {
               releases.push(rel);
               releases[releases.length - 1] = attachBasicCastForAI(releases[releases.length - 1] as Project, generatedTalent);
               releasesThisWeek += 1;
+            }
+
+            processedOps += 1;
+            if (processedOps % YIELD_EVERY_OPS === 0) {
+              await yieldToBrowser();
             }
           }
 
@@ -748,6 +759,11 @@ export const StudioMagnateGame: React.FC<StudioMagnateGameProps> = ({
                 releases[releases.length - 1] = attachBasicCastForAI(releases[releases.length - 1] as Project, generatedTalent);
               }
             }
+
+            processedOps += 1;
+            if (processedOps % YIELD_EVERY_OPS === 0) {
+              await yieldToBrowser();
+            }
           }
 
           if (processedWeeks % 2 === 0) {
@@ -757,7 +773,7 @@ export const StudioMagnateGame: React.FC<StudioMagnateGameProps> = ({
               Math.min(75, Math.round(progress)),
               `Seeding AI releases... (Y${year}W${w})`
             );
-            await delay(0);
+            await yieldToBrowser();
           }
         }
       }
@@ -822,10 +838,10 @@ export const StudioMagnateGame: React.FC<StudioMagnateGameProps> = ({
             filmographyState = TalentFilmographyManager.updateFilmographyOnRelease(filmographyState, release as Project);
           }
 
-          if (i % 250 === 0) {
+          if (i % 25 === 0) {
             const p = 88 + (i / Math.max(1, total)) * 10;
             updateOperation(LOADING_OPERATIONS.GAME_INIT.id, Math.min(98, Math.round(p)), `Seeding filmographies... (${i}/${total})`);
-            await delay(0);
+            await new Promise<void>((resolve) => requestAnimationFrame(() => resolve()));
           }
         }
 
