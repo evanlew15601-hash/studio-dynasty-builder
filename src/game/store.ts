@@ -26,6 +26,78 @@ import { saveGame } from '@/utils/saveLoad';
 import { TalentDebutSystem } from './systems/talentDebutSystem';
 import { AiTelevisionSystem } from './systems/aiTelevisionSystem';
 
+const MAX_RELEASE_AGE_WEEKS = 156;
+const MAX_UNKNOWN_RELEASES = 500;
+
+function absWeek(week: number, year: number): number {
+  return year * 52 + week;
+}
+
+function pruneForPerformance(state: GameState): GameState {
+  const currentAbs = absWeek(state.currentWeek, state.currentYear);
+
+  const source = state.allReleases || [];
+  const cutoffAbs = currentAbs - MAX_RELEASE_AGE_WEEKS;
+
+  // Keep releases with a real week/year within the lookback window.
+  // Also keep a bounded number of "unknown" entries (older saves sometimes have mixed items).
+  let unknownKept = 0;
+
+  // De-dupe by id/projectId, keeping the most recent occurrence.
+  const seen = new Set<string>();
+  const reversed: Array<Project | any> = [];
+
+  for (let i = source.length - 1; i >= 0; i -= 1) {
+    const r: any = source[i];
+    const y = typeof r?.releaseYear === 'number' ? r.releaseYear : (typeof r?.year === 'number' ? r.year : undefined);
+    const w = typeof r?.releaseWeek === 'number' ? r.releaseWeek : (typeof r?.week === 'number' ? r.week : undefined);
+
+    let keep = false;
+
+    if (typeof y === 'number' && typeof w === 'number') {
+      const rAbs = absWeek(w, y);
+      keep = Number.isFinite(rAbs) && rAbs >= cutoffAbs;
+    } else {
+      keep = unknownKept < MAX_UNKNOWN_RELEASES;
+      if (keep) unknownKept += 1;
+    }
+
+    if (!keep) continue;
+
+    const key = (typeof r?.id === 'string' && r.id.length > 0)
+      ? r.id
+      : (typeof r?.projectId === 'string' && r.projectId.length > 0)
+        ? r.projectId
+        : '';
+
+    if (key) {
+      if (seen.has(key)) continue;
+      seen.add(key);
+    }
+
+    reversed.push(r);
+  }
+
+  const nextAllReleases = reversed.reverse() as any;
+
+  const pruneByWeekYear = <T extends { week: number; year: number }>(items: T[] | undefined): T[] => {
+    const pool = items || [];
+    return pool.filter((x) => currentAbs - absWeek(x.week, x.year) <= MAX_RELEASE_AGE_WEEKS);
+  };
+
+  const aiStudioProjects = (nextAllReleases as any[])
+    .filter((r): r is Project => typeof (r as any)?.script !== 'undefined')
+    .filter((p) => !!p.studioName && p.studioName !== state.studio.name);
+
+  return {
+    ...state,
+    allReleases: nextAllReleases,
+    boxOfficeHistory: pruneByWeekYear(state.boxOfficeHistory),
+    topFilmsHistory: pruneByWeekYear(state.topFilmsHistory),
+    aiStudioProjects,
+  };
+}
+
 // ---------------------------------------------------------------------------
 // Store shape
 // ---------------------------------------------------------------------------
@@ -156,8 +228,14 @@ export const useGameStore: import('zustand').UseBoundStore<import('zustand').Sto
 
     initGame: (state, seed) => {
       const gameSeed = seed ?? generateGameSeed();
+      const nextGame = pruneForPerformance({
+        ...state,
+        universeSeed: state.universeSeed ?? gameSeed,
+        rngState: state.rngState ?? gameSeed,
+      });
+
       set((s) => {
-        s.game = { ...state, universeSeed: state.universeSeed ?? gameSeed, rngState: state.rngState ?? gameSeed };
+        s.game = nextGame;
         s.seed = gameSeed;
         s.rng = createRng(gameSeed);
         s.initialized = true;
@@ -176,12 +254,14 @@ export const useGameStore: import('zustand').UseBoundStore<import('zustand').Sto
 
       const gameSeed = seed ?? derivedRngState;
 
+      const nextGame = pruneForPerformance({
+        ...state,
+        universeSeed: typeof state.universeSeed === 'number' ? state.universeSeed : derivedUniverseSeed,
+        rngState: typeof state.rngState === 'number' ? state.rngState : derivedRngState,
+      });
+
       set((s) => {
-        s.game = {
-          ...state,
-          universeSeed: typeof state.universeSeed === 'number' ? state.universeSeed : derivedUniverseSeed,
-          rngState: typeof state.rngState === 'number' ? state.rngState : derivedRngState,
-        };
+        s.game = nextGame;
         s.seed = gameSeed;
         s.rng = createRng(gameSeed);
         s.initialized = true;

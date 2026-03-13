@@ -8,6 +8,9 @@ function isTvProject(p: Project): boolean {
   return p.type === 'series' || p.type === 'limited-series';
 }
 
+const MAX_RELEASE_AGE_WEEKS = 156;
+const MAX_UNKNOWN_RELEASES = 500;
+
 function absWeek(week: number, year: number): number {
   return year * 52 + week;
 }
@@ -158,6 +161,35 @@ export const AiTelevisionSystem: TickSystem = {
     const baseAllReleases = state.allReleases || [];
     if (baseAllReleases.length === 0) return state;
 
+    // Performance guard: late-game saves can accumulate very large allReleases arrays.
+    // The TV system only needs a recent window; keep a bounded subset to avoid long main-thread stalls.
+    const currentAbs = absWeek(ctx.week, ctx.year);
+    const cutoffAbs = currentAbs - MAX_RELEASE_AGE_WEEKS;
+
+    let unknownKept = 0;
+    const reversed: any[] = [];
+
+    for (let i = baseAllReleases.length - 1; i >= 0; i -= 1) {
+      const r: any = baseAllReleases[i];
+      const y = typeof r?.releaseYear === 'number' ? r.releaseYear : undefined;
+      const w = typeof r?.releaseWeek === 'number' ? r.releaseWeek : undefined;
+
+      if (typeof y === 'number' && typeof w === 'number') {
+        const rAbs = absWeek(w, y);
+        if (Number.isFinite(rAbs) && rAbs >= cutoffAbs) {
+          reversed.push(r);
+        }
+        continue;
+      }
+
+      if (unknownKept < MAX_UNKNOWN_RELEASES) {
+        reversed.push(r);
+        unknownKept += 1;
+      }
+    }
+
+    const workingAllReleases = reversed.reverse();
+
     const playerProjectIds = new Set((state.projects || []).map((p) => p.id));
 
     let changed = false;
@@ -168,13 +200,13 @@ export const AiTelevisionSystem: TickSystem = {
 
     const competitorStudios = state.competitorStudios || [];
 
-    const hasPremiereThisWeek = baseAllReleases
+    const hasPremiereThisWeek = workingAllReleases
       .filter((r): r is Project => typeof (r as any)?.script !== 'undefined')
       .filter((p) => !playerProjectIds.has(p.id))
       .filter((p) => isTvProject(p))
       .some((p) => p.releaseWeek === ctx.week && p.releaseYear === ctx.year);
 
-    const activeAiringCount = baseAllReleases
+    const activeAiringCount = workingAllReleases
       .filter((r): r is Project => typeof (r as any)?.script !== 'undefined')
       .filter((p) => !playerProjectIds.has(p.id))
       .filter((p) => isTvProject(p))
@@ -215,7 +247,9 @@ export const AiTelevisionSystem: TickSystem = {
       }
     }
 
-    const allReleases = additions.length > 0 ? [...baseAllReleases, ...additions] : baseAllReleases;
+    const didPrune = workingAllReleases.length !== baseAllReleases.length;
+
+    const allReleases = additions.length > 0 ? [...workingAllReleases, ...additions] : workingAllReleases;
 
     // ---------------------------------------------------------------------
     // 2) Tick competitor TV shows forward (episodes + decay + ratings)
@@ -238,7 +272,7 @@ export const AiTelevisionSystem: TickSystem = {
       return next;
     });
 
-    if (!changed) return state;
+    if (!changed && !didPrune) return state;
 
     const nextState: GameState = {
       ...state,
