@@ -1266,6 +1266,71 @@ export const StudioMagnateGame: React.FC<StudioMagnateGameProps> = ({
               updatedProject = TVEpisodeSystem.autoReleaseEpisodesIfDue(updatedProject, timeState.currentWeek, timeState.currentYear);
               updatedProject = TVEpisodeSystem.processWeeklyEpisodeDecay(updatedProject, timeState.currentWeek, timeState.currentYear);
             } else {
+              // Relationship/chemistry can influence reception (canon relationships + evolving dynamics).
+              // Apply this *before* initializeRelease so BoxOfficeSystem respects the adjusted scores.
+              try {
+                const talentById = new Map((baseState.talent || []).map(t => [t.id, t] as const));
+                const getChem = (a?: string, b?: string) => {
+                  if (!a || !b) return 0;
+                  const ta = talentById.get(a);
+                  const tb = talentById.get(b);
+                  return (ta?.chemistry?.[b] ?? tb?.chemistry?.[a] ?? 0) as number;
+                };
+
+                const characters = updatedProject.script?.characters || [];
+                const directorId =
+                  characters.find(c => c.requiredType === 'director')?.assignedTalentId ||
+                  updatedProject.crew?.find(r => r.role.toLowerCase().includes('director'))?.talentId;
+
+                const leadIds = characters
+                  .filter(c => c.importance === 'lead' && !!c.assignedTalentId)
+                  .map(c => c.assignedTalentId as string)
+                  .slice(0, 2);
+
+                const castFallback = (updatedProject.cast || [])
+                  .map(c => c.talentId)
+                  .filter(Boolean)
+                  .slice(0, 2) as string[];
+
+                const leads = leadIds.length > 0 ? leadIds : castFallback;
+
+                const pairs: Array<[string, string]> = [];
+                if (directorId) {
+                  for (const lead of leads) pairs.push([directorId as string, lead]);
+                }
+                if (leads.length >= 2) {
+                  pairs.push([leads[0], leads[1]]);
+                }
+
+                if (pairs.length > 0) {
+                  const avgChem = pairs.reduce((sum, [a, b]) => sum + getChem(a, b), 0) / pairs.length;
+
+                  const baseCritics =
+                    typeof updatedProject.metrics?.criticsScore === 'number'
+                      ? updatedProject.metrics.criticsScore
+                      : stableInt(`${updatedProject.id}|critics|${resolvedReleaseYear}|${resolvedReleaseWeek}`, 50, 90);
+
+                  const baseAudience =
+                    typeof updatedProject.metrics?.audienceScore === 'number'
+                      ? updatedProject.metrics.audienceScore
+                      : stableInt(`${updatedProject.id}|audience|${resolvedReleaseYear}|${resolvedReleaseWeek}`, 50, 90);
+
+                  const criticsDelta = Math.max(-6, Math.min(6, Math.round(avgChem / 18)));
+                  const audienceDelta = Math.max(-5, Math.min(5, Math.round(avgChem / 22)));
+
+                  updatedProject = {
+                    ...updatedProject,
+                    metrics: {
+                      ...updatedProject.metrics,
+                      criticsScore: Math.max(1, Math.min(99, Math.round(baseCritics + criticsDelta))),
+                      audienceScore: Math.max(1, Math.min(99, Math.round(baseAudience + audienceDelta))),
+                    },
+                  };
+                }
+              } catch (e) {
+                console.warn('Failed to apply relationship reception modifiers', e);
+              }
+
               updatedProject = {
                 ...BoxOfficeSystem.initializeRelease(updatedProject, resolvedReleaseWeek, resolvedReleaseYear),
                 currentPhase: 'distribution' as const,
@@ -1962,7 +2027,7 @@ export const StudioMagnateGame: React.FC<StudioMagnateGameProps> = ({
       }
       
       const weeklyProjectEffects = measure('projects', 'Projects (phases/releases)', () =>
-        processWeeklyProjectEffects(updatedProjects, newTimeState, prev, toastEnabled, diagnosticsEnabled)
+        processWeeklyProjectEffects(updatedProjects, newTimeState, baseAfterEngine, toastEnabled, diagnosticsEnabled)
       );
       updatedProjects = weeklyProjectEffects.projects;
 
@@ -2347,6 +2412,55 @@ export const StudioMagnateGame: React.FC<StudioMagnateGameProps> = ({
         MediaResponseSystem.processWeeklyCampaigns(newState);
       } catch (e) {
         console.warn('Media response campaign processing error', e);
+      }
+
+      // Relationship changes can become news (TEW-style "backstage" dynamics).
+      // Detect canonical relationship shifts and feed them into the media queue.
+      try {
+        const beforeById = new Map((prev.talent || []).map(t => [t.id, t] as const));
+        const seenPairs = new Set<string>();
+
+        for (const t of newState.talent || []) {
+          const before = beforeById.get(t.id);
+          if (!before) continue;
+
+          const afterRels = t.relationships || {};
+          const beforeRels = before.relationships || {};
+
+          for (const [otherId, afterType] of Object.entries(afterRels)) {
+            const beforeType = beforeRels[otherId];
+            if (beforeType === afterType) continue;
+
+            // Avoid double-reporting (A->B and B->A)
+            const key = t.id < otherId ? `${t.id}|${otherId}` : `${otherId}|${t.id}`;
+            if (seenPairs.has(key)) continue;
+            seenPairs.add(key);
+
+            // Skip no-op changes into default professional unless we're de-escalating from something notable.
+            if (afterType === 'professional' && (!beforeType || beforeType === 'professional')) continue;
+
+            const otherExists = (newState.talent || []).some(o => o.id === otherId);
+            if (!otherExists) continue;
+
+            MediaEngine.queueMediaEvent({
+              type: 'rumor',
+              triggerType: 'automatic',
+              priority: afterType === 'hostile' || afterType === 'rivals' || afterType === 'romantic' ? 'medium' : 'low',
+              entities: {
+                talent: [t.id, otherId],
+              },
+              eventData: {
+                kind: 'relationship',
+                relationshipType: afterType,
+                from: beforeType,
+              },
+              week: newTimeState.currentWeek,
+              year: newTimeState.currentYear,
+            });
+          }
+        }
+      } catch (e) {
+        console.warn('Relationship media integration error', e);
       }
 
       // Process media events and run system integration checks

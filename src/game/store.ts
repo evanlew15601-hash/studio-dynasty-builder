@@ -25,6 +25,7 @@ import { advanceWeekInWorker } from './worker/client';
 import { saveGame } from '@/utils/saveLoad';
 import { TalentDebutSystem } from './systems/talentDebutSystem';
 import { AiTelevisionSystem } from './systems/aiTelevisionSystem';
+import { TalentRelationshipSystem } from './systems/talentRelationshipSystem';
 
 // ---------------------------------------------------------------------------
 // Store shape
@@ -146,6 +147,7 @@ export const useGameStore: import('zustand').UseBoundStore<import('zustand').Sto
     registry: (() => {
       const r = new SystemRegistry();
       r.register(TalentDebutSystem);
+      r.register(TalentRelationshipSystem);
       r.register(AiTelevisionSystem);
       return r;
     })(),

@@ -67,7 +67,10 @@ export class MediaContentGenerator {
       "Sources Say {ActorName} Unhappy with {FilmTitle}",
       "Is {ActorName} Leaving {StudioName}?",
       "Whispers: {FilmTitle} Facing Production Issues",
-      "Inside Sources: {ActorName} Demands Changes"
+      "Inside Sources: {ActorName} Demands Changes",
+      "Rumor Mill: {ActorName} and {ActorName2} Growing {RelationshipType}?",
+      "On-Set Tension: {ActorName} vs. {ActorName2} During {FilmTitle}",
+      "Hollywood Buzz: {ActorName} and {ActorName2} Becoming {RelationshipType}"
     ],
     leak: [
       "LEAK: New Details About {FilmTitle} Emerge Online",
@@ -136,7 +139,10 @@ export class MediaContentGenerator {
     rumor: [
       "Speculation is building around {ActorName}, with sources hinting at behind-the-scenes tension. Insiders say the situation could impact future collaborations.",
       "Whispers in the industry suggest {ActorName} may be weighing a major move. No official statements have been made, but chatter continues.",
-      "Rumors are circulating that {FilmTitle} may face changes. While the studio has offered no confirmation, sources say discussions are ongoing."
+      "Rumors are circulating that {FilmTitle} may face changes. While the studio has offered no confirmation, sources say discussions are ongoing.",
+      "Insiders claim {ActorName} and {ActorName2} have become {RelationshipType} during the making of {FilmTitle}. Representatives declined to comment.",
+      "Sources close to the production say the dynamic between {ActorName} and {ActorName2} has shifted — now described as {RelationshipType}.",
+      "On-set chatter points to {ActorName} and {ActorName2} as the story behind the story. Some say it's {RelationshipHook}."
     ],
     leak: [
       "Leaked materials tied to {FilmTitle} have surfaced online, prompting a wave of speculation. {StudioName} has not issued an official response.",
@@ -326,6 +332,7 @@ export class MediaContentGenerator {
     let result = template;
 
     const actor = entities.talent?.[0];
+    const actor2 = entities.talent?.[1];
     const studio = entities.studios?.[0];
     const project = entities.projects?.[0];
 
@@ -391,8 +398,28 @@ export class MediaContentGenerator {
       return 'a box office bomb';
     })();
 
+    const relationshipTypeRaw = (event.eventData?.relationshipType || event.eventData?.relationship) as string | undefined;
+    const relationshipType = relationshipTypeRaw ? String(relationshipTypeRaw).replace(/-/g, ' ') : 'close';
+
+    const relationshipHook = (() => {
+      switch (relationshipTypeRaw) {
+        case 'romantic':
+          return 'a romance';
+        case 'friendly':
+          return 'a new friendship';
+        case 'rivals':
+        case 'hostile':
+          return 'a feud';
+        case 'mentor-mentee':
+          return 'a mentor bond';
+        default:
+          return 'a shifting dynamic';
+      }
+    })();
+
     const replacements: Record<string, string> = {
       ActorName: actor?.name ?? 'a leading star',
+      ActorName2: actor2?.name ?? 'another star',
       CareerStage: actor?.careerStage ?? 'established',
       PreviousWork: 'previous acclaimed performances',
       Qualities: 'depth and authenticity',
@@ -402,6 +429,9 @@ export class MediaContentGenerator {
       FilmTitle: project?.title ?? 'the upcoming project',
       Genre: project?.script?.genre ?? 'drama',
       Budget: budgetText,
+
+      RelationshipType: relationshipType,
+      RelationshipHook: relationshipHook,
 
       Role: 'leading',
       Amount: earnings ? (earnings / 1000000).toFixed(1) : (Math.random() * 50 + 10).toFixed(1),
@@ -425,7 +455,7 @@ export class MediaContentGenerator {
     }
 
     // Ensure we never leak raw {Placeholders} into the UI
-    result = result.replace(/\{[A-Za-z]+\}/g, '');
+    result = result.replace(/\{[A-Za-z0-9_-]+\}/g, '');
 
     // Normalize whitespace after placeholder cleanup
     result = result.replace(/\s{2,}/g, ' ').trim();

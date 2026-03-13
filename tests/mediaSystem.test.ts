@@ -87,8 +87,8 @@ describe('media system', () => {
 
     const item = MediaContentGenerator.generateMediaItem(event, entities);
 
-    expect(item.headline).not.toMatch(/\{[A-Za-z]+\}/);
-    expect(item.content).not.toMatch(/\{[A-Za-z]+\}/);
+    expect(item.headline).not.toMatch(/\{[A-Za-z0-9_-]+\}/);
+    expect(item.content).not.toMatch(/\{[A-Za-z0-9_-]+\}/);
   });
 
   it('resolves player studio/projects when generating media (player stories)', () => {
@@ -134,8 +134,8 @@ describe('media system', () => {
     expect(items.length).toBe(1);
     expect(items[0].headline).toContain(playerStudio.name);
     expect(items[0].headline).toContain(playerProject.title);
-    expect(items[0].headline).not.toMatch(/\{[A-Za-z]+\}/);
-    expect(items[0].content).not.toMatch(/\{[A-Za-z]+\}/);
+    expect(items[0].headline).not.toMatch(/\{[A-Za-z0-9_-]+\}/);
+    expect(items[0].content).not.toMatch(/\{[A-Za-z0-9_-]+\}/);
   });
 
   it('resolves competitor studios/projects when generating media (non-player stories)', () => {
@@ -180,8 +180,8 @@ describe('media system', () => {
     const items = MediaEngine.processMediaEvents(gameState);
     expect(items.length).toBe(1);
     expect(items[0].headline).toContain(competitorStudio.name);
-    expect(items[0].headline).not.toMatch(/\{[A-Za-z]+\}/);
-    expect(items[0].content).not.toMatch(/\{[A-Za-z]+\}/);
+    expect(items[0].headline).not.toMatch(/\{[A-Za-z0-9_-]+\}/);
+    expect(items[0].content).not.toMatch(/\{[A-Za-z0-9_-]+\}/);
   });
 
   it('generates award nomination stories without placeholder leaks', () => {
@@ -227,7 +227,7 @@ describe('media system', () => {
 
     const combined = `${items[0].headline} ${items[0].content}`;
     expect(combined).toContain('Crystal Ring');
-    expect(combined).not.toMatch(/\{[A-Za-z]+\}/);
+    expect(combined).not.toMatch(/\{[A-Za-z0-9_-]+\}/);
   });
 
   it('generates box office bomb stories and includes critics/audience context', () => {
@@ -270,7 +270,7 @@ describe('media system', () => {
     expect(combined).toContain('box office bomb');
     expect(combined).toContain('52/100');
     expect(combined).toContain('49/100');
-    expect(combined).not.toMatch(/\{[A-Za-z]+\}/);
+    expect(combined).not.toMatch(/\{[A-Za-z0-9_-]+\}/);
   });
 
   it('generates box office hit stories and includes critics/audience context', () => {
@@ -314,7 +314,7 @@ describe('media system', () => {
     expect(combined).toContain('breakout hit');
     expect(combined).toContain('91/100');
     expect(combined).toContain('88/100');
-    expect(combined).not.toMatch(/\{[A-Za-z]+\}/);
+    expect(combined).not.toMatch(/\{[A-Za-z0-9_-]+\}/);
   });
 
   it('generates leak stories from leak crises without placeholder leaks', () => {
@@ -344,7 +344,7 @@ describe('media system', () => {
     const items = MediaEngine.processMediaEvents(gameState);
     expect(items.length).toBe(1);
     expect(items[0].type).toBe('leak');
-    expect(items[0].headline).not.toMatch(/\{[A-Za-z]+\}/);
-    expect(items[0].content).not.toMatch(/\{[A-Za-z]+\}/);
+    expect(items[0].headline).not.toMatch(/\{[A-Za-z0-9_-]+\}/);
+    expect(items[0].content).not.toMatch(/\{[A-Za-z0-9_-]+\}/);
   });
 });
