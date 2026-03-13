@@ -622,8 +622,19 @@ export const StudioMagnateGame: React.FC<StudioMagnateGameProps> = ({
       updateOperation(LOADING_OPERATIONS.GAME_INIT.id, 75, 'Seeding AI releases... (deferred)');
       await delay(0);
 
-      updateOperation(LOADING_OPERATIONS.GAME_INIT.id, 78, 'Generating franchises & public-domain IPs...');
+      updateOperation(LOADING_OPERATIONS.GAME_INIT.id, 78, 'Generating franchises...');
       await delay(0);
+
+      const franchises = applyPatchesByKey(
+        FranchiseGenerator.generateInitialFranchises(30),
+        getPatchesForEntity(mods, 'franchise'),
+        (f) => f.id
+      );
+
+      updateOperation(LOADING_OPERATIONS.GAME_INIT.id, 80, 'Generating public-domain IPs...');
+      await delay(0);
+
+      const publicDomainIPs = PublicDomainGenerator.generateInitialPublicDomainIPs(50, mods);
 
       let initialState: GameState = {
         universeSeed,
@@ -652,12 +663,8 @@ export const StudioMagnateGame: React.FC<StudioMagnateGameProps> = ({
         industryTrends: [],
         allReleases: releases,
         topFilmsHistory: [],
-        franchises: applyPatchesByKey(
-          FranchiseGenerator.generateInitialFranchises(30),
-          getPatchesForEntity(mods, 'franchise'),
-          (f) => f.id
-        ),
-        publicDomainIPs: PublicDomainGenerator.generateInitialPublicDomainIPs(50, mods),
+        franchises,
+        publicDomainIPs,
         aiStudioProjects: [] as Project[],
       };
 
