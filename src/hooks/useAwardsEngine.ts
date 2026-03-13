@@ -35,7 +35,13 @@ export function useAwardsEngine(
   })();
   const isFilmAwardsSeasonWindow = gameState.currentWeek >= 1 && gameState.currentWeek <= filmAwardsEndWeek;
 
+  const MAX_AWARDS_ELIGIBLE_PROJECTS = 250;
+  const eligibleCache = new Map<string, Project[]>();
+
   const getEligibleProjects = (medium: 'film' | 'tv'): Project[] => {
+    const cacheKey = `${gameState.currentYear}|${medium}|${gameState.projects.length}|${gameState.allReleases.length}`;
+    const cached = eligibleCache.get(cacheKey);
+    if (cached) return cached;
     const matchesMedium = (p: Project) => (medium === 'tv' ? isTvProject(p) : isFilmProject(p));
 
     const playerProjects = gameState.projects.filter(
@@ -56,7 +62,27 @@ export function useAwardsEngine(
       matchesMedium(release)
     );
 
-    return [...playerProjects, ...aiProjects];
+    // Performance guard: award scoring is O(categories × projects log projects).
+    // Late-game saves can have thousands of eligible AI releases, which can freeze the UI on week 1.
+    // Cap the candidate pool to the most relevant projects.
+    const eligible = [...playerProjects, ...aiProjects]
+      .sort((a, b) => {
+        const aCrit = a.metrics?.criticsScore ?? 0;
+        const bCrit = b.metrics?.criticsScore ?? 0;
+        if (bCrit !== aCrit) return bCrit - aCrit;
+
+        const aAud = a.metrics?.audienceScore ?? 0;
+        const bAud = b.metrics?.audienceScore ?? 0;
+        if (bAud !== aAud) return bAud - aAud;
+
+        const aBox = a.metrics?.boxOfficeTotal ?? 0;
+        const bBox = b.metrics?.boxOfficeTotal ?? 0;
+        return bBox - aBox;
+      })
+      .slice(0, MAX_AWARDS_ELIGIBLE_PROJECTS);
+
+    eligibleCache.set(cacheKey, eligible);
+    return eligible;
   };
 
   const calculateAwardsProbability = (project: Project, medium: 'film' | 'tv'): number => {
