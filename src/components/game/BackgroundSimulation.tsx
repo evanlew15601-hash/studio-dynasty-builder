@@ -113,7 +113,10 @@ export const BackgroundSimulation: React.FC<BackgroundSimulationProps> = () => {
         type: 'talent_development' as const,
         weight: 25,
         generator: () => {
-          const talent = gameState.talent[Math.floor(Math.random() * gameState.talent.length)];
+          const talent = gameState.talent.length > 0
+            ? gameState.talent[Math.floor(Math.random() * gameState.talent.length)]
+            : null;
+
           const developments = [
             'taking method acting classes',
             'training for action roles',
@@ -121,8 +124,11 @@ export const BackgroundSimulation: React.FC<BackgroundSimulationProps> = () => {
             'developing production company',
             'exploring directing opportunities'
           ];
+
+          const detail = developments[Math.floor(Math.random() * developments.length)];
+
           return {
-            description: `${talent.name} ${developments[Math.floor(Math.random() * developments.length)]}`,
+            description: talent ? `${talent.name} ${detail}` : `A rising star is ${detail}`,
             impact: 'Talent skill development in progress',
             duration: 4 + Math.floor(Math.random() * 8),
             intensity: 30 + Math.random() * 40

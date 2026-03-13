@@ -44,6 +44,7 @@ import { MediaAnalyticsPanel } from './MediaAnalyticsPanel';
 import { BackgroundSimulation as BackgroundSimulationComponent } from './BackgroundSimulation';
 import { SequelManagement as SequelManagementComponent } from './SequelManagement';
 import { generateInitialTalentPoolAsync } from '@/data/WorldGenerator';
+import { TalentGenerator } from '@/data/TalentGenerator';
 import { 
   DropdownMenu,
   DropdownMenuContent,
@@ -489,12 +490,22 @@ export const StudioMagnateGame: React.FC<StudioMagnateGameProps> = ({
           ? initialGameState.rngState
           : derivedUniverseSeed;
 
-      return primeCompetitorTelevision({ ...initialGameState, universeSeed: derivedUniverseSeed, rngState: derivedRngState });
+      return { ...initialGameState, universeSeed: derivedUniverseSeed, rngState: derivedRngState };
     }
 
     // Lightweight placeholder so the LoadingOverlay can render before heavy init starts.
     // The real world state is generated in an effect below.
+    // IMPORTANT: this placeholder must be safe for *all* mounted panels (some pick random talent).
     const universeSeed = generateGameSeed();
+
+    const placeholderTalent = (() => {
+      const tg = new TalentGenerator();
+      return tg.generateTalentPool(40, 12).map((t) => ({
+        ...t,
+        isNotable: false,
+        narratives: (t as any).narratives || [],
+      }));
+    })();
 
     return {
       universeSeed,
@@ -514,7 +525,7 @@ export const StudioMagnateGame: React.FC<StudioMagnateGameProps> = ({
       currentWeek: 1,
       currentQuarter: 1,
       projects: [],
-      talent: [],
+      talent: placeholderTalent,
       scripts: [],
       competitorStudios: [],
       marketConditions: {
@@ -557,6 +568,17 @@ export const StudioMagnateGame: React.FC<StudioMagnateGameProps> = ({
     newGameInitStartedRef.current = true;
 
     let cancelled = false;
+    let initCommitted = false;
+
+    const failOpenTimer = setTimeout(() => {
+      if (cancelled || initCommitted) return;
+
+      console.warn('[Game Init] Timed out; falling back to bootstrap state');
+      cancelled = true;
+      initCommitted = true;
+      initGame(bootstrapGameState, bootstrapGameState.universeSeed);
+      completeOperation(LOADING_OPERATIONS.GAME_INIT.id);
+    }, 20000);
 
     const run = async () => {
       startOperation(LOADING_OPERATIONS.GAME_INIT.id, LOADING_OPERATIONS.GAME_INIT.name, LOADING_OPERATIONS.GAME_INIT.estimatedTime);
@@ -662,10 +684,8 @@ export const StudioMagnateGame: React.FC<StudioMagnateGameProps> = ({
         aiStudioProjects: [] as Project[],
       };
 
-      updateOperation(LOADING_OPERATIONS.GAME_INIT.id, 82, 'Priming competitor television...');
+      updateOperation(LOADING_OPERATIONS.GAME_INIT.id, 82, 'Priming competitor television... (deferred)');
       await delay(0);
-
-      initialState = primeCompetitorTelevision(initialState);
 
       updateOperation(LOADING_OPERATIONS.GAME_INIT.id, 88, 'Seeding filmographies...');
       await delay(0);
@@ -698,6 +718,8 @@ export const StudioMagnateGame: React.FC<StudioMagnateGameProps> = ({
       if (cancelled) return;
 
       updateOperation(LOADING_OPERATIONS.GAME_INIT.id, 100, 'Finalizing...');
+      initCommitted = true;
+      clearTimeout(failOpenTimer);
       initGame(initialState, initialState.universeSeed);
 
       // Avoid requestAnimationFrame here: rAF can be paused in background tabs and would leave the loading overlay stuck.
@@ -746,11 +768,19 @@ export const StudioMagnateGame: React.FC<StudioMagnateGameProps> = ({
 
     run().catch((e) => {
       console.error('[Game Init] Failed to generate a new world', e);
+
+      // Fail open: initialize with the lightweight bootstrap state so the user can still play.
+      // (Some environments intermittently fail during async world generation.)
+      initCommitted = true;
+      clearTimeout(failOpenTimer);
+      initGame(bootstrapGameState, bootstrapGameState.universeSeed);
+
       completeOperation(LOADING_OPERATIONS.GAME_INIT.id);
     });
 
     return () => {
       cancelled = true;
+      clearTimeout(failOpenTimer);
       completeOperation(LOADING_OPERATIONS.GAME_INIT.id);
     };
   }, [
@@ -1903,6 +1933,7 @@ export const StudioMagnateGame: React.FC<StudioMagnateGameProps> = ({
 
     const runTick = () => {
       setGameState((prev) => {
+        try {
       const tickStart = performance.now();
       const startedAtIso = new Date().toISOString();
 
@@ -2038,14 +2069,20 @@ export const StudioMagnateGame: React.FC<StudioMagnateGameProps> = ({
       }
 
       // If the simulation has advanced into a year without a pre-generated competitor slate,
-      // generate competitor releases incrementally (generating all 52 weeks in one tick can freeze the tab).
+      // only generate releases for the *current* week.
+      // (Generating weeks 1..N in one tick can freeze the tab, especially on older saves.)
       const hasAiSlateForYear = prev.allReleases.some(
-        (r): r is Project => 'script' in r && r.releaseYear === newTimeState.currentYear
+        (r): r is Project =>
+          'script' in r &&
+          (r as any).releaseYear === newTimeState.currentYear &&
+          !!(r as any).studioName &&
+          (r as any).studioName !== prev.studio.name
       );
 
       const slateYear = newTimeState.currentYear;
 
-      // If we have a partial slate (e.g., older saves), attempt to resume generation.
+      // If we have a partial slate (e.g., older saves), attempt to resume generation starting from
+      // either the next missing week or the current week (whichever is later).
       const maxAiWeekForYear = prev.allReleases
         .filter((r): r is Project =>
           'script' in r &&
@@ -2056,34 +2093,19 @@ export const StudioMagnateGame: React.FC<StudioMagnateGameProps> = ({
         )
         .reduce((max, r) => Math.max(max, r.releaseWeek || 0), 0);
 
+      const currentWeekClamped = Math.min(52, newTimeState.currentWeek);
+
       if (
         prev.competitorStudios.length > 0 &&
         aiSlateGeneratorRef.current?.year !== slateYear &&
-        (!hasAiSlateForYear || (maxAiWeekForYear > 0 && maxAiWeekForYear < 52))
+        (!hasAiSlateForYear || maxAiWeekForYear < 52)
       ) {
         const generator = new StudioGenerator();
-
-        // Best-effort warm-up: keep this bounded.
-        // If a save is loaded late in the year, running weeks 1..N here can freeze the tab.
-        const warmStart = Math.max(1, maxAiWeekForYear - 7);
-        for (let w = warmStart; w <= maxAiWeekForYear; w++) {
-          let releasesThisWeek = 0;
-
-          for (const st of prev.competitorStudios) {
-            const profile = generator.getStudioProfile(st.name);
-            const rel = profile ? generator.generateStudioRelease(profile, w, slateYear) : null;
-            if (rel) releasesThisWeek += 1;
-          }
-
-          if (releasesThisWeek === 0 && prev.competitorStudios[0]) {
-            const fallback = generator.getStudioProfile(prev.competitorStudios[0].name);
-            if (fallback) {
-              generator.generateStudioRelease(fallback, w, slateYear);
-            }
-          }
-        }
-
-        aiSlateGeneratorRef.current = { year: slateYear, nextWeek: Math.max(1, maxAiWeekForYear + 1), generator };
+        aiSlateGeneratorRef.current = {
+          year: slateYear,
+          nextWeek: Math.max(1, Math.max(maxAiWeekForYear + 1, currentWeekClamped)),
+          generator,
+        };
       }
 
       const activeAiSlate = aiSlateGeneratorRef.current;
@@ -2091,21 +2113,14 @@ export const StudioMagnateGame: React.FC<StudioMagnateGameProps> = ({
       if (activeAiSlate && activeAiSlate.year === slateYear && prev.competitorStudios.length > 0) {
         const sg = activeAiSlate.generator;
 
-        const targetWeek = Math.min(52, newTimeState.currentWeek);
-        const maxWeeksPerTick = options?.suppressLoading ? 1 : 2;
-
-        // If a save is loaded late in the year without a populated competitor slate,
-        // do not attempt to backfill weeks 1..N in a single tick (it can freeze the tab).
-        // Instead, jump near the current week and generate forward.
-        if (targetWeek - activeAiSlate.nextWeek > 8) {
-          activeAiSlate.nextWeek = Math.max(1, targetWeek - (maxWeeksPerTick - 1));
+        // Never backfill earlier weeks inside a single tick.
+        if (activeAiSlate.nextWeek < currentWeekClamped) {
+          activeAiSlate.nextWeek = currentWeekClamped;
         }
 
-        let weeksGenerated = 0;
-        while (activeAiSlate.nextWeek <= targetWeek && weeksGenerated < maxWeeksPerTick) {
-          const w = activeAiSlate.nextWeek;
+        if (activeAiSlate.nextWeek === currentWeekClamped) {
+          const w = currentWeekClamped;
           activeAiSlate.nextWeek += 1;
-          weeksGenerated += 1;
 
           let releasesThisWeek = 0;
 
@@ -2184,26 +2199,26 @@ export const StudioMagnateGame: React.FC<StudioMagnateGameProps> = ({
               }
             }
           }
-        }
 
-        // Queue a single media story for one competitor release happening this week.
-        const thisWeekRelease = newAIReleases.find(r => r.releaseWeek === newTimeState.currentWeek);
-        if (thisWeekRelease) {
-          const studio = prev.competitorStudios.find(s => s.name === thisWeekRelease.studioName) || prev.competitorStudios[0];
+          // Queue a single media story for one competitor release happening this week.
+          const thisWeekRelease = newAIReleases.find(r => r.releaseWeek === w);
+          if (thisWeekRelease) {
+            const studio = prev.competitorStudios.find(s => s.name === thisWeekRelease.studioName) || prev.competitorStudios[0];
 
-          MediaEngine.queueMediaEvent({
-            type: 'release',
-            triggerType: 'competitor_action',
-            priority: 'low',
-            entities: {
-              studios: studio ? [studio.id] : undefined,
-              projects: [thisWeekRelease.id],
-              talent: (thisWeekRelease.cast || []).slice(0, 2).map(c => c.talentId)
-            },
-            eventData: { project: thisWeekRelease },
-            week: newTimeState.currentWeek,
-            year: slateYear
-          });
+            MediaEngine.queueMediaEvent({
+              type: 'release',
+              triggerType: 'competitor_action',
+              priority: 'low',
+              entities: {
+                studios: studio ? [studio.id] : undefined,
+                projects: [thisWeekRelease.id],
+                talent: (thisWeekRelease.cast || []).slice(0, 2).map(c => c.talentId)
+              },
+              eventData: { project: thisWeekRelease },
+              week: w,
+              year: slateYear
+            });
+          }
         }
 
         if (diagnosticsEnabled && newAIReleases.length > 0) {
@@ -2507,6 +2522,18 @@ export const StudioMagnateGame: React.FC<StudioMagnateGameProps> = ({
       }
 
       return newState;
+        } catch (e) {
+          console.error('[Advance Week] Tick failed', e);
+          if (loadingEnabled) {
+            try {
+              completeOperation(LOADING_OPERATIONS.WEEKLY_PROCESSING.id);
+            } catch (err) {
+              // ignore
+            }
+            weeklyProcessingRef.current = false;
+          }
+          return prev;
+        }
     });
     };
 
