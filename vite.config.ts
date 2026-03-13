@@ -4,7 +4,7 @@ import path from "path";
 import { componentTagger } from "lovable-tagger";
 
 // https://vitejs.dev/config/
-export default defineConfig(({ mode }) => {
+export default defineConfig(({ command, mode }) => {
   const env = loadEnv(mode, process.cwd(), "");
   const repoName = process.env.GITHUB_REPOSITORY?.split("/")?.[1];
   const ghPagesBase = (repoName && repoName.length > 0)
@@ -34,6 +34,10 @@ export default defineConfig(({ mode }) => {
     },
     plugins: [
       react(),
+      // The lovable tagger injects a helper script that postMessages to specific origins.
+      // Only enable it for the local dev server to avoid console spam (and potential slowdowns)
+      // on hosted preview environments.
+      command === "serve" &&
       mode === "development" &&
       componentTagger(),
     ].filter(Boolean),
