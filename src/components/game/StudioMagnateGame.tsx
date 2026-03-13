@@ -2063,9 +2063,10 @@ export const StudioMagnateGame: React.FC<StudioMagnateGameProps> = ({
       ) {
         const generator = new StudioGenerator();
 
-        // Fast-forward the generator so studio release schedules roughly line up with existing releases.
-        // (This is best-effort: StudioGenerator relies on Math.random/Date.now, so exact determinism isn't possible.)
-        for (let w = 1; w <= maxAiWeekForYear; w++) {
+        // Best-effort warm-up: keep this bounded.
+        // If a save is loaded late in the year, running weeks 1..N here can freeze the tab.
+        const warmStart = Math.max(1, maxAiWeekForYear - 7);
+        for (let w = warmStart; w <= maxAiWeekForYear; w++) {
           let releasesThisWeek = 0;
 
           for (const st of prev.competitorStudios) {
@@ -2090,9 +2091,21 @@ export const StudioMagnateGame: React.FC<StudioMagnateGameProps> = ({
       if (activeAiSlate && activeAiSlate.year === slateYear && prev.competitorStudios.length > 0) {
         const sg = activeAiSlate.generator;
 
-        while (activeAiSlate.nextWeek <= Math.min(52, newTimeState.currentWeek)) {
+        const targetWeek = Math.min(52, newTimeState.currentWeek);
+        const maxWeeksPerTick = options?.suppressLoading ? 1 : 2;
+
+        // If a save is loaded late in the year without a populated competitor slate,
+        // do not attempt to backfill weeks 1..N in a single tick (it can freeze the tab).
+        // Instead, jump near the current week and generate forward.
+        if (targetWeek - activeAiSlate.nextWeek > 8) {
+          activeAiSlate.nextWeek = Math.max(1, targetWeek - (maxWeeksPerTick - 1));
+        }
+
+        let weeksGenerated = 0;
+        while (activeAiSlate.nextWeek <= targetWeek && weeksGenerated < maxWeeksPerTick) {
           const w = activeAiSlate.nextWeek;
           activeAiSlate.nextWeek += 1;
+          weeksGenerated += 1;
 
           let releasesThisWeek = 0;
 
