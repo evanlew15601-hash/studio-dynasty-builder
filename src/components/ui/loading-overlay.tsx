@@ -32,6 +32,10 @@ export const LoadingOverlay: React.FC<LoadingOverlayProps> = ({ loading, classNa
       return 'Building the initial game world: studios and talent. Some content (AI releases, franchises, public-domain IPs) may load after startup.';
     }
 
+    if (loading.operationId === LOADING_OPERATIONS.GAME_LOAD.id) {
+      return 'Loading your save and applying compatibility fixes. Large saves may take a moment.';
+    }
+
     if (isWeeklyTick) {
       return 'Advancing the simulation: projects, AI studios, finances, media, and reputation.';
     }

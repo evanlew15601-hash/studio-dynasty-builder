@@ -3,15 +3,8 @@ import { GlobalLoadingOverlay } from '@/components/ui/global-loading-overlay';
 import { LoadingProvider } from '@/contexts/LoadingContext';
 import { Suspense, lazy, useState } from 'react';
 import { loadGameAsync, SaveGameSnapshot } from '@/utils/saveLoad';
-import { ensureGameStateRoleGenders, ensureTalentDemographics } from '@/utils/demographics';
-import { ensureGameStateFictionalAwardNames } from '@/utils/awardsNaming';
-import { ensureCompetitorStudiosLore } from '@/utils/competitorStudiosPatches';
-import { ensureTalentLore } from '@/utils/talentLorePatches';
-import { primeCompetitorTelevision } from '@/utils/televisionPatches';
 import { Genre } from '@/types/game';
 import type { StudioIconConfig } from '@/components/game/StudioIconCustomizer';
-import { getModBundle } from '@/utils/moddingStore';
-import { applyPatchesByKey, getPatchesForEntity } from '@/utils/modding';
 
 const StudioMagnateGame = lazy(() =>
   import('@/components/game/StudioMagnateGame').then((m) => ({ default: m.StudioMagnateGame }))
@@ -49,30 +42,7 @@ const Index = () => {
       return;
     }
 
-    const mods = getModBundle();
-
-    const patchedTalent = applyPatchesByKey(snapshot.gameState.talent || [], getPatchesForEntity(mods, 'talent'), (t) => t.id);
-
-    const patchedGameState = primeCompetitorTelevision(
-      ensureCompetitorStudiosLore(
-        ensureTalentLore(
-          ensureGameStateFictionalAwardNames(
-            ensureGameStateRoleGenders({
-              ...snapshot.gameState,
-              talent: ensureTalentDemographics(patchedTalent),
-              franchises: applyPatchesByKey(snapshot.gameState.franchises || [], getPatchesForEntity(mods, 'franchise'), (f) => f.id),
-              publicDomainIPs: applyPatchesByKey(
-                snapshot.gameState.publicDomainIPs || [],
-                getPatchesForEntity(mods, 'publicDomainIP'),
-                (p) => p.id
-              ),
-            })
-          )
-        )
-      )
-    );
-
-    setLoadedSnapshot({ ...snapshot, gameState: patchedGameState });
+    setLoadedSnapshot(snapshot);
     setGameConfig(null);
     setGameStarted(true);
   };

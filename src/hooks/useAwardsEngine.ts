@@ -12,7 +12,8 @@ export function useAwardsEngine(
   gameState: GameState,
   onStudioUpdate: (updates: Partial<Studio>) => void,
   onTalentUpdate?: (talentId: string, updates: Partial<TalentPerson>) => void,
-  onAwardShowTrigger?: (ceremony: AwardShowCeremony) => void
+  onAwardShowTrigger?: (ceremony: AwardShowCeremony) => void,
+  enabled: boolean = true
 ) {
   const { toast } = useToast();
 
@@ -590,23 +591,27 @@ export function useAwardsEngine(
 
   // Reset season each year/week 1
   useEffect(() => {
+    if (!enabled) return;
+
     if (gameState.currentWeek === 1) {
       setProcessedCeremonies(new Set());
       setSeasonNominations({});
       setSeasonMomentum({});
       console.log(`[AwardsEngine] Reset season state for Y${gameState.currentYear}`);
     }
-  }, [gameState.currentYear, gameState.currentWeek]);
+  }, [enabled, gameState.currentYear, gameState.currentWeek]);
 
   // Weekly triggers
   useEffect(() => {
+    if (!enabled) return;
+
     const shows = getAwardShowsForYear(gameState.currentYear);
 
     shows.forEach((s) => {
       if (gameState.currentWeek === s.nominationWeek) announceNominations(s.id);
     });
     shows.forEach((s) => triggerAwardsCeremony(s.id));
-  }, [gameState.currentWeek, gameState.currentYear]);
+  }, [enabled, gameState.currentWeek, gameState.currentYear]);
 
   // Helper function to find relevant talent for awards categories
   const findRelevantTalent = (project: Project, category: string, categoryDef?: AwardCategoryDefinition): TalentPerson | undefined => {

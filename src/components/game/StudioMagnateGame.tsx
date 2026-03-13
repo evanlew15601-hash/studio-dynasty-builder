@@ -101,6 +101,10 @@ import { SystemIntegration } from './SystemIntegration';
 import { useGameStore } from '@/game/store';
 import { saveGameAsync } from '@/utils/saveLoad';
 import { syncAndPersistIndustryDatabase } from '@/utils/industryDatabase';
+import { ensureGameStateRoleGenders, ensureTalentDemographics } from '@/utils/demographics';
+import { ensureGameStateFictionalAwardNames } from '@/utils/awardsNaming';
+import { ensureCompetitorStudiosLore } from '@/utils/competitorStudiosPatches';
+import { ensureTalentLore } from '@/utils/talentLorePatches';
 import { applyPatchesByKey, getPatchesForEntity } from '@/utils/modding';
 import { getModBundle } from '@/utils/moddingStore';
 import { DebugControlPanel } from './DebugControlPanel';
@@ -478,7 +482,9 @@ export const StudioMagnateGame: React.FC<StudioMagnateGameProps> = ({
   const gameRegistry = useGameStore((s) => s.registry);
 
   const [bootstrapGameState] = useState<GameState>(() => {
-    // If we have a loaded game, use it directly and skip heavy init
+    // If we have a loaded game, avoid rendering the full save on the first paint.
+    // Large saves (especially allReleases) can freeze the UI before the hydration effect runs.
+    // We render a lightweight placeholder instead, then hydrate the full save into the store.
     if (initialGameState) {
       const derivedUniverseSeed =
         typeof initialGameState.universeSeed === 'number'
@@ -490,7 +496,60 @@ export const StudioMagnateGame: React.FC<StudioMagnateGameProps> = ({
           ? initialGameState.rngState
           : derivedUniverseSeed;
 
-      return { ...initialGameState, universeSeed: derivedUniverseSeed, rngState: derivedRngState };
+      const placeholderTalent = (() => {
+        const tg = new TalentGenerator();
+        return tg.generateTalentPool(40, 12).map((t) => ({
+          ...t,
+          isNotable: false,
+          narratives: (t as any).narratives || [],
+        }));
+      })();
+
+      const studio = initialGameState.studio ?? {
+        id: 'player-studio',
+        name: 'Untitled Pictures',
+        reputation: 50,
+        budget: 10000000,
+        founded: 1965,
+        specialties: ['drama'] as Genre[],
+        debt: 0,
+        lastProjectWeek: 0,
+        weeksSinceLastProject: 0,
+      };
+
+      return {
+        universeSeed: derivedUniverseSeed,
+        rngState: derivedRngState,
+        studio,
+        currentYear: initialGameState.currentYear || new Date().getFullYear(),
+        currentWeek: initialGameState.currentWeek || 1,
+        currentQuarter: initialGameState.currentQuarter || 1,
+        projects: [],
+        talent: placeholderTalent,
+        scripts: [],
+        competitorStudios: [],
+        marketConditions:
+          initialGameState.marketConditions ||
+          ({
+            trendingGenres: ['action', 'drama', 'comedy'] as Genre[],
+            audiencePreferences: [],
+            economicClimate: 'stable' as const,
+            technologicalAdvances: [],
+            regulatoryChanges: [],
+            seasonalTrends: [],
+            competitorReleases: [],
+            awardsSeasonActive: false,
+          } as any),
+        eventQueue: [],
+        boxOfficeHistory: [],
+        awardsCalendar: [],
+        industryTrends: [],
+        allReleases: [],
+        topFilmsHistory: [],
+        franchises: [],
+        publicDomainIPs: [],
+        aiStudioProjects: [],
+      } as GameState;
     }
 
     // Lightweight placeholder so the LoadingOverlay can render before heavy init starts.
@@ -551,12 +610,102 @@ export const StudioMagnateGame: React.FC<StudioMagnateGameProps> = ({
   });
 
   // Hydrate the store from an existing save.
+  const savedGameLoadStartedRef = useRef(false);
+
   useEffect(() => {
     if (storeGameState) return;
     if (!initialGameState) return;
+    if (savedGameLoadStartedRef.current) return;
+    savedGameLoadStartedRef.current = true;
 
-    loadGameToStore(initialGameState, initialGameState.rngState ?? initialGameState.universeSeed);
-  }, [storeGameState, initialGameState, loadGameToStore]);
+    let cancelled = false;
+
+    const run = async () => {
+      startOperation(LOADING_OPERATIONS.GAME_LOAD.id, LOADING_OPERATIONS.GAME_LOAD.name, LOADING_OPERATIONS.GAME_LOAD.estimatedTime);
+
+      const yieldToBrowser = () => new Promise<void>((resolve) => requestAnimationFrame(() => resolve()));
+
+      try {
+        updateOperation(LOADING_OPERATIONS.GAME_LOAD.id, 5, 'Preparing save...');
+        await yieldToBrowser();
+
+        const mods = getModBundle();
+
+        const derivedUniverseSeed =
+          typeof initialGameState.universeSeed === 'number'
+            ? initialGameState.universeSeed
+            : seedFromString(`${initialGameState.studio?.id ?? 'studio'}`);
+
+        const derivedRngState =
+          typeof initialGameState.rngState === 'number'
+            ? initialGameState.rngState
+            : derivedUniverseSeed;
+
+        updateOperation(LOADING_OPERATIONS.GAME_LOAD.id, 20, 'Applying patches...');
+        await yieldToBrowser();
+
+        const patchedTalent = applyPatchesByKey(
+          initialGameState.talent || [],
+          getPatchesForEntity(mods, 'talent'),
+          (t) => t.id
+        );
+
+        const patchedState = ensureCompetitorStudiosLore(
+          ensureTalentLore(
+            ensureGameStateFictionalAwardNames(
+              ensureGameStateRoleGenders({
+                ...initialGameState,
+                universeSeed: derivedUniverseSeed,
+                rngState: derivedRngState,
+                talent: ensureTalentDemographics(patchedTalent),
+                franchises: applyPatchesByKey(
+                  initialGameState.franchises || [],
+                  getPatchesForEntity(mods, 'franchise'),
+                  (f) => f.id
+                ),
+                publicDomainIPs: applyPatchesByKey(
+                  initialGameState.publicDomainIPs || [],
+                  getPatchesForEntity(mods, 'publicDomainIP'),
+                  (p) => p.id
+                ),
+              })
+            )
+          )
+        );
+
+        updateOperation(LOADING_OPERATIONS.GAME_LOAD.id, 60, 'Hydrating game...');
+        await yieldToBrowser();
+
+        if (cancelled) return;
+
+        loadGameToStore(patchedState, patchedState.rngState ?? patchedState.universeSeed);
+
+        updateOperation(LOADING_OPERATIONS.GAME_LOAD.id, 100, 'Ready');
+      } catch (e) {
+        console.warn('Failed to load saved game; falling back to bootstrap state', e);
+        if (!cancelled) {
+          initGame(bootstrapGameState, bootstrapGameState.universeSeed);
+        }
+      } finally {
+        completeOperation(LOADING_OPERATIONS.GAME_LOAD.id);
+      }
+    };
+
+    run();
+
+    return () => {
+      cancelled = true;
+    };
+  }, [
+    storeGameState,
+    initialGameState,
+    loadGameToStore,
+    startOperation,
+    updateOperation,
+    completeOperation,
+    initGame,
+    bootstrapGameState,
+  ]);
 
   // Generate a fresh world asynchronously so the loading overlay can appear immediately.
   const newGameInitStartedRef = useRef(false);
@@ -1136,7 +1285,7 @@ export const StudioMagnateGame: React.FC<StudioMagnateGameProps> = ({
   };
 
   // Always run awards engine in the background (independent of UI phase)
-  useAwardsEngine(gameState, handleStudioUpdate, handleTalentUpdate, handleAwardShow);
+  useAwardsEngine(gameState, handleStudioUpdate, handleTalentUpdate, handleAwardShow, !(!storeGameState && initialGameState));
 
   
 

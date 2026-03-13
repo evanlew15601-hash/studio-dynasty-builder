@@ -48,6 +48,11 @@ export const LOADING_OPERATIONS = {
     name: 'Initializing Game',
     estimatedTime: 3,
   },
+  GAME_LOAD: {
+    id: 'game-load',
+    name: 'Loading Saved Game',
+    estimatedTime: 2,
+  },
   TALENT_GENERATION: {
     id: 'talent-gen',
     name: 'Generating Talent Pool',
