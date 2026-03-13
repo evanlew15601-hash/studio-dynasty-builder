@@ -1,4 +1,4 @@
-import { useEffect, useState } from 'react';
+import { useEffect, useRef, useState } from 'react';
 import { GameState, Project, Studio, StudioAward, TalentAward, TalentPerson } from '@/types/game';
 import { getAwardShowsForYear } from '@/data/AwardsSchedule';
 import type { AwardCategoryDefinition } from '@/data/AwardsSchedule';
@@ -36,12 +36,13 @@ export function useAwardsEngine(
   const isFilmAwardsSeasonWindow = gameState.currentWeek >= 1 && gameState.currentWeek <= filmAwardsEndWeek;
 
   const MAX_AWARDS_ELIGIBLE_PROJECTS = 250;
-  const eligibleCache = new Map<string, Project[]>();
+  const eligibleCacheRef = useRef(new Map<string, Project[]>());
 
   const getEligibleProjects = (medium: 'film' | 'tv'): Project[] => {
     const cacheKey = `${gameState.currentYear}|${medium}|${gameState.projects.length}|${gameState.allReleases.length}`;
-    const cached = eligibleCache.get(cacheKey);
+    const cached = eligibleCacheRef.current.get(cacheKey);
     if (cached) return cached;
+
     const matchesMedium = (p: Project) => (medium === 'tv' ? isTvProject(p) : isFilmProject(p));
 
     const playerProjects = gameState.projects.filter(
@@ -64,24 +65,75 @@ export function useAwardsEngine(
 
     // Performance guard: award scoring is O(categories × projects log projects).
     // Late-game saves can have thousands of eligible AI releases, which can freeze the UI on week 1.
-    // Cap the candidate pool to the most relevant projects.
-    const eligible = [...playerProjects, ...aiProjects]
-      .sort((a, b) => {
-        const aCrit = a.metrics?.criticsScore ?? 0;
-        const bCrit = b.metrics?.criticsScore ?? 0;
-        if (bCrit !== aCrit) return bCrit - aCrit;
+    // Cap the candidate pool to the most relevant projects (without sorting the full list).
 
-        const aAud = a.metrics?.audienceScore ?? 0;
-        const bAud = b.metrics?.audienceScore ?? 0;
-        if (bAud !== aAud) return bAud - aAud;
+    const rank = (p: Project) => {
+      const critics = p.metrics?.criticsScore ?? 0;
+      const audience = p.metrics?.audienceScore ?? 0;
+      const boxOffice = p.metrics?.boxOfficeTotal ?? 0;
 
-        const aBox = a.metrics?.boxOfficeTotal ?? 0;
-        const bBox = b.metrics?.boxOfficeTotal ?? 0;
-        return bBox - aBox;
-      })
-      .slice(0, MAX_AWARDS_ELIGIBLE_PROJECTS);
+      // Keep within Number safe integer range.
+      return critics * 1e13 + audience * 1e11 + Math.min(boxOffice, 1e11);
+    };
 
-    eligibleCache.set(cacheKey, eligible);
+    type HeapItem = { key: number; project: Project };
+
+    const heap: HeapItem[] = [];
+
+    const swap = (i: number, j: number) => {
+      const t = heap[i];
+      heap[i] = heap[j];
+      heap[j] = t;
+    };
+
+    const heapifyUp = (idx: number) => {
+      let i = idx;
+      while (i > 0) {
+        const parent = Math.floor((i - 1) / 2);
+        if (heap[parent].key <= heap[i].key) break;
+        swap(parent, i);
+        i = parent;
+      }
+    };
+
+    const heapifyDown = (idx: number) => {
+      let i = idx;
+      for (;;) {
+        const left = i * 2 + 1;
+        const right = i * 2 + 2;
+        let smallest = i;
+
+        if (left < heap.length && heap[left].key < heap[smallest].key) smallest = left;
+        if (right < heap.length && heap[right].key < heap[smallest].key) smallest = right;
+        if (smallest === i) break;
+
+        swap(i, smallest);
+        i = smallest;
+      }
+    };
+
+    const pushCandidate = (p: Project) => {
+      const key = rank(p);
+
+      if (heap.length < MAX_AWARDS_ELIGIBLE_PROJECTS) {
+        heap.push({ key, project: p });
+        heapifyUp(heap.length - 1);
+        return;
+      }
+
+      if (heap[0].key >= key) return;
+
+      heap[0] = { key, project: p };
+      heapifyDown(0);
+    };
+
+    [...playerProjects, ...aiProjects].forEach(pushCandidate);
+
+    const eligible = heap
+      .sort((a, b) => b.key - a.key)
+      .map((h) => h.project);
+
+    eligibleCacheRef.current.set(cacheKey, eligible);
     return eligible;
   };
 
