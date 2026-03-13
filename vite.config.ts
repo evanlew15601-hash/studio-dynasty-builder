@@ -23,6 +23,11 @@ export default defineConfig(({ mode }) => {
 
   return {
     base,
+    define: {
+      __APP_VERSION__: JSON.stringify(process.env.npm_package_version ?? ""),
+      __BUILD_SHA__: JSON.stringify((process.env.GITHUB_SHA ?? "").slice(0, 7)),
+      __BUILD_TIME__: JSON.stringify(new Date().toISOString()),
+    },
     server: {
       host: "127.0.0.1",
       port: 8080,

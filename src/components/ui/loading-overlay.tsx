@@ -29,7 +29,7 @@ export const LoadingOverlay: React.FC<LoadingOverlayProps> = ({ loading, classNa
 
   const footerCopy = (() => {
     if (loading.operationId === LOADING_OPERATIONS.GAME_INIT.id) {
-      return 'Building the initial game world: studios, talent, franchises, public-domain IPs, and seeding AI releases.';
+      return 'Building the initial game world: studios and talent. Some content (AI releases, franchises, public-domain IPs) may load after startup.';
     }
 
     if (isWeeklyTick) {
@@ -70,6 +70,12 @@ export const LoadingOverlay: React.FC<LoadingOverlayProps> = ({ loading, classNa
           {footerCopy && (
             <p className="text-xs text-muted-foreground mt-2">{footerCopy}</p>
           )}
+          {__APP_VERSION__ ? (
+            <p className="mt-2 text-[10px] text-muted-foreground">
+              v{__APP_VERSION__}
+              {__BUILD_SHA__ ? ` (${__BUILD_SHA__})` : ''}
+            </p>
+          ) : null}
         </div>
       </CardContent>
     </Card>

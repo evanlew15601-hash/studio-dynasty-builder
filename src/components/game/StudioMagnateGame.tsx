@@ -622,19 +622,13 @@ export const StudioMagnateGame: React.FC<StudioMagnateGameProps> = ({
       updateOperation(LOADING_OPERATIONS.GAME_INIT.id, 75, 'Seeding AI releases... (deferred)');
       await delay(0);
 
-      updateOperation(LOADING_OPERATIONS.GAME_INIT.id, 78, 'Generating franchises...');
+      // Franchises / public domain are nice-to-have on week 1, but they can be safely generated after
+      // the game starts. Deferring them avoids long main-thread stalls on slower devices.
+      updateOperation(LOADING_OPERATIONS.GAME_INIT.id, 78, 'Generating franchises... (deferred)');
       await delay(0);
 
-      const franchises = applyPatchesByKey(
-        FranchiseGenerator.generateInitialFranchises(30),
-        getPatchesForEntity(mods, 'franchise'),
-        (f) => f.id
-      );
-
-      updateOperation(LOADING_OPERATIONS.GAME_INIT.id, 80, 'Generating public-domain IPs...');
+      updateOperation(LOADING_OPERATIONS.GAME_INIT.id, 80, 'Generating public-domain IPs... (deferred)');
       await delay(0);
-
-      const publicDomainIPs = PublicDomainGenerator.generateInitialPublicDomainIPs(50, mods);
 
       let initialState: GameState = {
         universeSeed,
@@ -663,8 +657,8 @@ export const StudioMagnateGame: React.FC<StudioMagnateGameProps> = ({
         industryTrends: [],
         allReleases: releases,
         topFilmsHistory: [],
-        franchises,
-        publicDomainIPs,
+        franchises: [],
+        publicDomainIPs: [],
         aiStudioProjects: [] as Project[],
       };
 
@@ -709,6 +703,44 @@ export const StudioMagnateGame: React.FC<StudioMagnateGameProps> = ({
       // Avoid requestAnimationFrame here: rAF can be paused in background tabs and would leave the loading overlay stuck.
       delay(0).then(() => {
         completeOperation(LOADING_OPERATIONS.GAME_INIT.id);
+
+        // Generate non-critical world content after the game starts to avoid blocking startup.
+        // Scheduled after the overlay completes so it can't "freeze" the loading UI at ~75%.
+        const scheduleIdle = (cb: () => void) => {
+          const ric =
+            typeof window !== 'undefined'
+              ? ((window as any).requestIdleCallback as undefined | ((fn: () => void, opts?: { timeout?: number }) => void))
+              : undefined;
+
+          if (typeof ric === 'function') {
+            ric(cb, { timeout: 2000 });
+            return;
+          }
+
+          setTimeout(cb, 50);
+        };
+
+        scheduleIdle(() => {
+          void (async () => {
+            if (cancelled) return;
+
+            const franchises = applyPatchesByKey(
+              FranchiseGenerator.generateInitialFranchises(30),
+              getPatchesForEntity(mods, 'franchise'),
+              (f) => f.id
+            );
+
+            if (cancelled) return;
+            mergeGameState({ franchises });
+
+            await delay(0);
+            if (cancelled) return;
+
+            const publicDomainIPs = PublicDomainGenerator.generateInitialPublicDomainIPs(50, mods);
+            if (cancelled) return;
+            mergeGameState({ publicDomainIPs });
+          })();
+        });
       });
     };
 
@@ -729,6 +761,7 @@ export const StudioMagnateGame: React.FC<StudioMagnateGameProps> = ({
     updateOperation,
     completeOperation,
     initGame,
+    mergeGameState,
   ]);
 
   const gameState = storeGameState ?? bootstrapGameState;
