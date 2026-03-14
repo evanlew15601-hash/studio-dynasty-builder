@@ -12,6 +12,12 @@ type BokehSpec = {
   delaySec: number;
 };
 
+type PremiumBackgroundVariant = 'game' | 'landing';
+
+type PremiumBackgroundProps = {
+  variant?: PremiumBackgroundVariant;
+};
+
 function lcg(seed: number) {
   let s = seed >>> 0;
   return () => {
@@ -20,10 +26,12 @@ function lcg(seed: number) {
   };
 }
 
-export const PremiumBackground: React.FC = () => {
+export const PremiumBackground: React.FC<PremiumBackgroundProps> = ({ variant = 'game' }) => {
   const grainRef = useRef<HTMLCanvasElement | null>(null);
 
   const bokeh = useMemo<BokehSpec[]>(() => {
+    if (variant === 'landing') return [];
+
     const rand = lcg(0x6f6c6465);
 
     const count = 6;
@@ -49,7 +57,7 @@ export const PremiumBackground: React.FC = () => {
     }
 
     return specs;
-  }, []);
+  }, [variant]);
 
   useEffect(() => {
     const canvas = grainRef.current;
@@ -77,47 +85,63 @@ export const PremiumBackground: React.FC = () => {
     ctx.putImageData(img, 0, 0);
   }, []);
 
+  const baseGradient =
+    variant === 'landing'
+      ? [
+          'radial-gradient(1400px 720px at 50% 14%, hsl(var(--primary) / 0.14), transparent 62%)',
+          'radial-gradient(980px 720px at 18% 70%, hsl(var(--accent) / 0.06), transparent 70%)',
+          'radial-gradient(980px 720px at 82% 70%, hsl(var(--primary) / 0.05), transparent 70%)',
+          'linear-gradient(180deg, hsl(220 18% 10% / 0.55) 0%, transparent 45%)',
+        ].join(', ')
+      : [
+          'radial-gradient(1200px 600px at 50% 12%, hsl(var(--primary) / 0.10), transparent 62%)',
+          'radial-gradient(980px 640px at 16% 78%, hsl(var(--accent) / 0.05), transparent 70%)',
+          'radial-gradient(900px 620px at 86% 74%, hsl(var(--primary) / 0.05), transparent 70%)',
+          'radial-gradient(740px 560px at 70% 28%, hsl(220 18% 14% / 0.55), transparent 72%)',
+        ].join(', ');
+
+  const spotlightOpacity = variant === 'landing' ? 0.14 : 0.18;
+  const spotlightBlurPx = variant === 'landing' ? 72 : 58;
+  const spotlightDuration = variant === 'landing' ? '92s' : '78s';
+
+  const vignette =
+    variant === 'landing'
+      ? 'radial-gradient(ellipse at center, transparent 44%, hsl(var(--background) / 0.45) 74%, hsl(var(--background) / 0.78) 100%)'
+      : 'radial-gradient(ellipse at center, transparent 40%, hsl(var(--background) / 0.55) 72%, hsl(var(--background) / 0.86) 100%)';
+
   return (
     <div aria-hidden className="premium-background pointer-events-none fixed inset-0 z-0">
       {/* Base cinematic gradients */}
-      <div
-        className="absolute inset-0"
-        style={{
-          backgroundImage: [
-            'radial-gradient(1200px 600px at 50% 12%, hsl(var(--primary) / 0.10), transparent 62%)',
-            'radial-gradient(980px 640px at 16% 78%, hsl(var(--accent) / 0.05), transparent 70%)',
-            'radial-gradient(900px 620px at 86% 74%, hsl(var(--primary) / 0.05), transparent 70%)',
-            'radial-gradient(740px 560px at 70% 28%, hsl(220 18% 14% / 0.55), transparent 72%)',
-          ].join(', '),
-        }}
-      />
+      <div className="absolute inset-0" style={{ backgroundImage: baseGradient }} />
 
       {/* Soft bokeh blooms (very subtle) */}
-      <div className="absolute inset-0">
-        {bokeh.map((s, idx) => (
-          <div
-            key={idx}
-            className="absolute rounded-full"
-            style={{
-              left: `${s.leftPct}%`,
-              top: `${s.topPct}%`,
-              width: `${s.sizePx}px`,
-              height: `${s.sizePx}px`,
-              opacity: s.opacity,
-              filter: `blur(${s.blurPx}px)`,
-              background:
-                s.hue === 'primary'
-                  ? 'radial-gradient(circle, hsl(var(--primary) / 0.70), transparent 66%)'
-                  : 'radial-gradient(circle, hsl(var(--accent) / 0.55), transparent 66%)',
-              mixBlendMode: 'soft-light',
-              transform: 'translate3d(-50%, -50%, 0)',
-              animation: `premium-bokeh-float ${s.durationSec}s ease-in-out infinite`,
-              animationDelay: `${s.delaySec}s`,
-              ['--premium-bokeh-drift-y' as any]: `${s.driftY}px`,
-            }}
-          />
-        ))}
-      </div>
+      {bokeh.length > 0 && (
+        <div className="absolute inset-0">
+          {bokeh.map((s, idx) => (
+            <div
+              key={idx}
+              className="absolute rounded-full"
+              style={{
+                left: `${s.leftPct}%`,
+                top: `${s.topPct}%`,
+                width: `${s.sizePx}px`,
+                height: `${s.sizePx}px`,
+                opacity: s.opacity,
+                filter: `blur(${s.blurPx}px)`,
+                background:
+                  s.hue === 'primary'
+                    ? 'radial-gradient(circle, hsl(var(--primary) / 0.70), transparent 66%)'
+                    : 'radial-gradient(circle, hsl(var(--accent) / 0.55), transparent 66%)',
+                mixBlendMode: 'soft-light',
+                transform: 'translate3d(-50%, -50%, 0)',
+                animation: `premium-bokeh-float ${s.durationSec}s ease-in-out infinite`,
+                animationDelay: `${s.delaySec}s`,
+                ['--premium-bokeh-drift-y' as any]: `${s.driftY}px`,
+              }}
+            />
+          ))}
+        </div>
+      )}
 
       {/* Moving studio spotlight sweep (slow + understated) */}
       <div
@@ -125,10 +149,10 @@ export const PremiumBackground: React.FC = () => {
         style={{
           background:
             'linear-gradient(75deg, transparent 0%, hsl(var(--primary) / 0.06) 46%, hsl(var(--accent) / 0.03) 54%, transparent 100%)',
-          filter: 'blur(58px)',
-          opacity: 0.18,
+          filter: `blur(${spotlightBlurPx}px)`,
+          opacity: spotlightOpacity,
           transform: 'translate3d(-18%, 0, 0) rotate(10deg)',
-          animation: 'premium-spotlight-sweep 78s ease-in-out infinite',
+          animation: `premium-spotlight-sweep ${spotlightDuration} ease-in-out infinite`,
         }}
       />
 
@@ -147,8 +171,7 @@ export const PremiumBackground: React.FC = () => {
       <div
         className="absolute inset-0"
         style={{
-          backgroundImage:
-            'radial-gradient(ellipse at center, transparent 40%, hsl(var(--background) / 0.55) 72%, hsl(var(--background) / 0.86) 100%)',
+          backgroundImage: vignette,
         }}
       />
     </div>

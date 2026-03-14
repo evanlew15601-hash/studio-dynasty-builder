@@ -2748,7 +2748,7 @@ export const StudioMagnateGame: React.FC<StudioMagnateGameProps> = ({
         report={lastTickReport}
       />
       <div className="min-h-screen bg-background font-studio relative">
-      <PremiumBackground />
+      <PremiumBackground variant="game" />
       <div className="relative z-10">
       {/* Achievement Notifications */}
       <AchievementNotifications
