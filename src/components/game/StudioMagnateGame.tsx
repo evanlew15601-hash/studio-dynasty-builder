@@ -586,7 +586,6 @@ export const StudioMagnateGame: React.FC<StudioMagnateGameProps> = ({
   const lastNewGameInitAttemptRef = useRef<number | null>(null);
   const [newGameInitAttempt, setNewGameInitAttempt] = useState(0);
 
-  // eslint-disable-next-line react-hooks/exhaustive-deps
   useEffect(() => {
     if (storeGameState) return;
     if (initialGameState) return;
@@ -641,7 +640,7 @@ export const StudioMagnateGame: React.FC<StudioMagnateGameProps> = ({
         await delay(0);
       }
 
-      let releases: Project[] = [];
+      const releases: Project[] = [];
 
       if (!isOnlineMode) {
         updateOperation(LOADING_OPERATIONS.GAME_INIT.id, 30, 'Seeding AI releases...');
