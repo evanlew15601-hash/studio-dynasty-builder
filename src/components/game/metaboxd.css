@@ -359,7 +359,7 @@
   gap: 14px;
 }
 
-.metaboxd-sidebar .metaboxd-panel {
+.metaboxd-sidebar-sticky {
   position: sticky;
   top: 12px;
 }
@@ -395,4 +395,318 @@
 
 .metaboxd-link:hover {
   text-decoration: underline;
+}
+
+.metaboxd-account {
+  display: none;
+  flex-direction: column;
+  gap: 2px;
+  align-items: flex-end;
+  min-width: 160px;
+}
+
+@media (min-width: 920px) {
+  .metaboxd-account {
+    display: flex;
+  }
+}
+
+.metaboxd-account-name {
+  font-weight: 800;
+  font-size: 12px;
+  letter-spacing: 0.2px;
+}
+
+.metaboxd-account-sub {
+  font-size: 11px;
+  color: var(--mb-muted);
+}
+
+.metaboxd-panel-tools {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+}
+
+.metaboxd-select-label {
+  font-size: 11px;
+  color: var(--mb-muted);
+  text-transform: uppercase;
+  letter-spacing: 0.12em;
+}
+
+.metaboxd-select {
+  appearance: none;
+  background: rgba(0, 0, 0, 0.28);
+  border: 1px solid var(--mb-border);
+  border-radius: 999px;
+  padding: 8px 28px 8px 10px;
+  color: var(--mb-text);
+  font-size: 12px;
+  outline: none;
+  cursor: pointer;
+}
+
+.metaboxd-select:focus {
+  border-color: rgba(64, 188, 244, 0.55);
+  box-shadow: 0 0 0 3px rgba(64, 188, 244, 0.14);
+}
+
+.metaboxd-spotlight {
+  display: grid;
+  grid-template-columns: 110px 1fr;
+  gap: 12px;
+  padding: 12px;
+  margin: 12px;
+  border: 1px solid rgba(255, 255, 255, 0.12);
+  border-radius: 12px;
+  background: radial-gradient(circle at 20% 15%, rgba(64, 188, 244, 0.16), transparent 55%),
+    radial-gradient(circle at 85% 80%, rgba(0, 192, 48, 0.12), transparent 55%),
+    rgba(0, 0, 0, 0.22);
+}
+
+@media (min-width: 720px) {
+  .metaboxd-spotlight {
+    grid-template-columns: 150px 1fr;
+    padding: 14px;
+  }
+}
+
+.metaboxd-spotlight-poster {
+  background: transparent;
+  border: none;
+  padding: 0;
+  cursor: pointer;
+  text-align: left;
+}
+
+.metaboxd-spotlight-body {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+
+.metaboxd-spotlight-kicker {
+  font-size: 11px;
+  letter-spacing: 0.16em;
+  text-transform: uppercase;
+  color: rgba(255, 255, 255, 0.58);
+}
+
+.metaboxd-spotlight-title {
+  font-size: 18px;
+  font-weight: 850;
+  line-height: 1.1;
+}
+
+.metaboxd-spotlight-meta {
+  font-size: 12px;
+  color: var(--mb-muted);
+}
+
+.metaboxd-spotlight-scores {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+}
+
+.metaboxd-pill {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  border: 1px solid var(--mb-border);
+  background: rgba(0, 0, 0, 0.22);
+  border-radius: 999px;
+  padding: 6px 10px;
+  font-size: 12px;
+  color: rgba(255, 255, 255, 0.82);
+}
+
+.metaboxd-pill.good {
+  border-color: rgba(14, 224, 108, 0.28);
+  color: #0ee06c;
+}
+
+.metaboxd-pill.warn {
+  border-color: rgba(255, 176, 0, 0.35);
+  color: var(--mb-warn);
+}
+
+.metaboxd-pill.bad {
+  border-color: rgba(255, 76, 76, 0.35);
+  color: var(--mb-bad);
+}
+
+.metaboxd-spotlight-blurb {
+  font-size: 13px;
+  line-height: 1.45;
+  color: rgba(255, 255, 255, 0.84);
+}
+
+.metaboxd-spotlight-actions {
+  margin-top: 4px;
+}
+
+.metaboxd-btn {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  border: 1px solid rgba(64, 188, 244, 0.35);
+  background: rgba(64, 188, 244, 0.12);
+  color: rgba(255, 255, 255, 0.92);
+  border-radius: 999px;
+  padding: 8px 12px;
+  font-size: 12px;
+  font-weight: 750;
+  cursor: pointer;
+}
+
+.metaboxd-btn:hover {
+  background: rgba(64, 188, 244, 0.18);
+}
+
+.metaboxd-poster-your {
+  position: absolute;
+  left: 8px;
+  bottom: 8px;
+  padding: 4px 7px;
+  border-radius: 999px;
+  font-size: 11px;
+  border: 1px solid rgba(255, 255, 255, 0.18);
+  background: rgba(0, 0, 0, 0.45);
+  color: rgba(255, 255, 255, 0.88);
+}
+
+.metaboxd-subline-2 {
+  opacity: 0.95;
+}
+
+.metaboxd-section {
+  margin-top: 12px;
+  color: rgba(255, 255, 255, 0.82);
+}
+
+.metaboxd-section-kicker {
+  font-size: 11px;
+  text-transform: uppercase;
+  letter-spacing: 0.12em;
+  color: rgba(255, 255, 255, 0.58);
+}
+
+.metaboxd-section-body {
+  margin-top: 6px;
+  font-size: 13px;
+  line-height: 1.5;
+}
+
+.metaboxd-stars {
+  font-weight: 850;
+  font-size: 15px;
+}
+
+.metaboxd-stars-sub {
+  margin-left: 10px;
+  color: rgba(255, 255, 255, 0.62);
+  font-weight: 650;
+  font-size: 12px;
+}
+
+.metaboxd-facts {
+  margin-top: 12px;
+  display: grid;
+  grid-template-columns: 1fr;
+  gap: 8px;
+}
+
+@media (min-width: 720px) {
+  .metaboxd-facts {
+    grid-template-columns: 1fr 1fr;
+  }
+}
+
+.metaboxd-fact {
+  border: 1px solid var(--mb-border);
+  border-radius: 10px;
+  padding: 10px 12px;
+  background: rgba(0, 0, 0, 0.2);
+}
+
+.metaboxd-fact-label {
+  font-size: 11px;
+  color: var(--mb-muted);
+  text-transform: uppercase;
+  letter-spacing: 0.12em;
+}
+
+.metaboxd-fact-value {
+  margin-top: 6px;
+  font-size: 13px;
+  color: rgba(255, 255, 255, 0.86);
+}
+
+.metaboxd-performance {
+  margin-top: 12px;
+  border: 1px solid var(--mb-border);
+  border-radius: 12px;
+  padding: 12px;
+  background: rgba(0, 0, 0, 0.18);
+}
+
+.metaboxd-performance-grid {
+  margin-top: 8px;
+  display: grid;
+  grid-template-columns: 1fr;
+  gap: 10px;
+}
+
+@media (min-width: 720px) {
+  .metaboxd-performance-grid {
+    grid-template-columns: 1fr 1fr;
+  }
+}
+
+.metaboxd-perf-label {
+  font-size: 11px;
+  text-transform: uppercase;
+  letter-spacing: 0.12em;
+  color: rgba(255, 255, 255, 0.58);
+}
+
+.metaboxd-perf-value {
+  margin-top: 6px;
+  font-weight: 850;
+  font-size: 16px;
+}
+
+.metaboxd-player-review {
+  margin-top: 12px;
+  border: 1px solid rgba(64, 188, 244, 0.22);
+  border-radius: 12px;
+  padding: 12px;
+  background: rgba(64, 188, 244, 0.08);
+}
+
+.metaboxd-player-review-head {
+  margin-top: 6px;
+  display: flex;
+  align-items: baseline;
+  justify-content: space-between;
+  gap: 10px;
+}
+
+.metaboxd-player-review-stars {
+  font-weight: 900;
+  font-size: 14px;
+}
+
+.metaboxd-player-review-sub {
+  font-size: 11px;
+  color: rgba(255, 255, 255, 0.58);
+}
+
+.metaboxd-player-review-body {
+  margin-top: 10px;
+  font-size: 13px;
+  line-height: 1.55;
+  color: rgba(255, 255, 255, 0.84);
 }
