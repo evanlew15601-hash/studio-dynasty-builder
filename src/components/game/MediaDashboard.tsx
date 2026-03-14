@@ -315,6 +315,7 @@ export const MediaDashboard: React.FC<MediaDashboardProps> = ({
               <div className="flex gap-2 mt-1">
                 {['all', 'positive', 'negative', 'player'].map(filter => (
                   <Button
+                    key={filter}
                     variant="outline"
                     size="sm"
                     onClick={() => setSelectedFilter(filter as any)}
