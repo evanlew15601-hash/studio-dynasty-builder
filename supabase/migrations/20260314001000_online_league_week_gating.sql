@@ -3,6 +3,8 @@
 -- Goal: In online mode, the in-game week should only advance when either:
 -- - every league member has marked themselves "ready" for the next turn, or
 -- - the league owner (host) forces the advance.
+--
+-- Note: The readiness check counts all registered members (not only recently-active sessions).
 
 create table if not exists public.online_league_clock (
   league_id uuid primary key references public.online_leagues (id) on delete cascade,
