@@ -60,6 +60,7 @@ import { Card, CardContent } from '@/components/ui/card';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { ToastAction } from '@/components/ui/toast';
+import { PremiumBackground } from '@/components/ui/premium-background';
 import { useToast } from '@/hooks/use-toast';
 import type { TickRecapCard, TickReport, TickSystemReport } from '@/types/tickReport';
 import { createTickReport } from '@/utils/tickReport';
@@ -2746,7 +2747,9 @@ export const StudioMagnateGame: React.FC<StudioMagnateGameProps> = ({
         onOpenChange={setShowWeekRecap}
         report={lastTickReport}
       />
-      <div className="min-h-screen bg-background font-studio">
+      <div className="min-h-screen bg-background font-studio relative">
+      <PremiumBackground />
+      <div className="relative z-10">
       {/* Achievement Notifications */}
       <AchievementNotifications
         achievements={achievements.recentUnlocks}
@@ -3564,6 +3567,7 @@ export const StudioMagnateGame: React.FC<StudioMagnateGameProps> = ({
       )}
 
       <TalentProfileDialog />
+      </div>
     </div>
     </>
   );
