@@ -1,4 +1,4 @@
-import React, { useMemo, useState } from 'react';
+import React, { useEffect, useMemo, useState } from 'react';
 import type { GameState, Project } from '@/types/game';
 import { useGameStore } from '@/game/store';
 import { stableInt } from '@/utils/stableRandom';
@@ -326,6 +326,46 @@ function formatStars(stars: number): string {
   return '★'.repeat(full) + (half ? '½' : '') + '☆'.repeat(empty);
 }
 
+function mean(values: number[]): number {
+  if (values.length === 0) return 0;
+  return values.reduce((s, v) => s + v, 0) / values.length;
+}
+
+function stableSample<T>(items: T[], count: number, seed: string): T[] {
+  if (!items.length || count <= 0) return [];
+
+  const out: T[] = [];
+  const used = new Set<number>();
+
+  for (let i = 0; i < count && used.size < items.length; i += 1) {
+    const idx = stableInt(`${seed}|pick|${i}`, 0, items.length - 1);
+    if (used.has(idx)) continue;
+    used.add(idx);
+    out.push(items[idx]);
+  }
+
+  return out;
+}
+
+function formatAge(days: number): string {
+  if (days < 14) return `${days}d ago`;
+  if (days < 60) return `${Math.round(days / 7)}w ago`;
+  if (days < 720) return `${Math.round(days / 30)}mo ago`;
+  return `${Math.round(days / 365)}y ago`;
+}
+
+function criticBucket(score: number): 'raves' | 'mixed' | 'pans' {
+  if (score >= 80) return 'raves';
+  if (score >= 60) return 'mixed';
+  return 'pans';
+}
+
+function memberBucket(stars: number): 'high' | 'mid' | 'low' {
+  if (stars >= 4) return 'high';
+  if (stars >= 2.5) return 'mid';
+  return 'low';
+}
+
 export const Metaboxd: React.FC = () => {
   const gameState = useGameStore((s) => s.game);
   const [activeTab, setActiveTab] = useState<MetaboxdTitleKind | 'all'>('all');
@@ -333,6 +373,18 @@ export const Metaboxd: React.FC = () => {
   const [sortMode, setSortMode] = useState<'index' | 'recent' | 'critics' | 'audience'>('index');
   const [query, setQuery] = useState('');
   const [selectedId, setSelectedId] = useState<string | null>(null);
+
+  const [criticFilter, setCriticFilter] = useState<'all' | 'raves' | 'mixed' | 'pans'>('all');
+  const [criticSort, setCriticSort] = useState<'helpful' | 'score'>('helpful');
+  const [memberFilter, setMemberFilter] = useState<'all' | 'high' | 'mid' | 'low'>('all');
+  const [memberSort, setMemberSort] = useState<'helpful' | 'recent' | 'rating'>('helpful');
+
+  useEffect(() => {
+    setCriticFilter('all');
+    setCriticSort('helpful');
+    setMemberFilter('all');
+    setMemberSort('helpful');
+  }, [selectedId]);
 
   const titles = useMemo(() => {
     if (!gameState) return [] as MetaboxdTitle[];
@@ -386,6 +438,139 @@ export const Metaboxd: React.FC = () => {
     () => (selectedId ? titles.find((t) => t.id === selectedId) || null : null),
     [titles, selectedId]
   );
+
+  const reviewSeed = `${gameState?.universeSeed || 'seed'}|metaboxd|${selected?.id || 'none'}`;
+
+  const criticReviews = useMemo(() => {
+    if (!selected) return [] as Array<{ source: string; score: number; quote: string; helpful: number; ageDays: number }>;
+
+    return selected.reviews.map((r, i) => ({
+      ...r,
+      helpful: stableInt(`${reviewSeed}|critic-helpful|${i}`, 8, 260),
+      ageDays: stableInt(`${reviewSeed}|critic-age|${i}`, 3, 720),
+    }));
+  }, [selected, reviewSeed]);
+
+  const memberReviews = useMemo(() => {
+    if (!selected) return [] as Array<{ handle: string; stars: number; body: string; helpful: number; ageDays: number }>;
+
+    return selected.userReviews.map((r, i) => ({
+      ...r,
+      helpful: stableInt(`${reviewSeed}|member-helpful|${i}`, 0, 520),
+      ageDays: stableInt(`${reviewSeed}|member-age|${i}`, 1, 480),
+    }));
+  }, [selected, reviewSeed]);
+
+  const criticSummary = useMemo(() => {
+    const total = criticReviews.length;
+    const avg = total ? mean(criticReviews.map((r) => r.score)) : 0;
+
+    const buckets = [
+      { key: '90+', from: 90, to: 100 },
+      { key: '80s', from: 80, to: 89 },
+      { key: '70s', from: 70, to: 79 },
+      { key: '60s', from: 60, to: 69 },
+      { key: '<60', from: 0, to: 59 },
+    ];
+
+    const dist = buckets.map((b) => {
+      const count = criticReviews.filter((r) => r.score >= b.from && r.score <= b.to).length;
+      return { label: b.key, count, pct: total ? count / total : 0 };
+    });
+
+    return { total, avg, dist };
+  }, [criticReviews]);
+
+  const memberSummary = useMemo(() => {
+    const total = memberReviews.length;
+    const avg = total ? mean(memberReviews.map((r) => r.stars)) : 0;
+
+    const buckets = [
+      { key: '4–5', test: (s: number) => s >= 4 },
+      { key: '3–3½', test: (s: number) => s >= 3 && s < 4 },
+      { key: '2–2½', test: (s: number) => s >= 2 && s < 3 },
+      { key: '0½–1½', test: (s: number) => s < 2 },
+    ];
+
+    const dist = buckets.map((b) => {
+      const count = memberReviews.filter((r) => b.test(r.stars)).length;
+      return { label: b.key, count, pct: total ? count / total : 0 };
+    });
+
+    return { total, avg, dist };
+  }, [memberReviews]);
+
+  const visibleCriticReviews = useMemo(() => {
+    const scoped = criticFilter === 'all'
+      ? criticReviews
+      : criticReviews.filter((r) => criticBucket(r.score) === criticFilter);
+
+    const list = scoped.slice();
+
+    if (criticSort === 'score') {
+      return list.sort((a, b) => (b.score - a.score) || (b.helpful - a.helpful));
+    }
+
+    return list.sort((a, b) => (b.helpful - a.helpful) || (b.score - a.score));
+  }, [criticReviews, criticFilter, criticSort]);
+
+  const visibleMemberReviews = useMemo(() => {
+    const scoped = memberFilter === 'all'
+      ? memberReviews
+      : memberReviews.filter((r) => memberBucket(r.stars) === memberFilter);
+
+    const list = scoped.slice();
+
+    if (memberSort === 'rating') {
+      return list.sort((a, b) => (b.stars - a.stars) || (b.helpful - a.helpful));
+    }
+
+    if (memberSort === 'recent') {
+      return list.sort((a, b) => (a.ageDays - b.ageDays) || (b.helpful - a.helpful));
+    }
+
+    return list.sort((a, b) => (b.helpful - a.helpful) || (b.stars - a.stars));
+  }, [memberReviews, memberFilter, memberSort]);
+
+  const criticTags = useMemo(() => {
+    if (!selected) return [] as string[];
+    const bank = [
+      'performances',
+      'direction',
+      'script',
+      'tone',
+      'pacing',
+      'visual craft',
+      'set pieces',
+      'dialogue',
+      'worldbuilding',
+      'ending',
+    ];
+
+    const tagCount = selected.criticsScore >= 75 ? 4 : 3;
+    return stableSample(bank, tagCount, `${reviewSeed}|critic-tags|${criticBucket(selected.criticsScore)}`);
+  }, [selected, reviewSeed]);
+
+  const audienceTags = useMemo(() => {
+    if (!selected) return [] as string[];
+    const bank = [
+      'rewatchable',
+      'big moments',
+      'slow burn',
+      'crowd energy',
+      'quotable',
+      'comfort watch',
+      'surprisingly emotional',
+      'killer finale',
+      'buzzy',
+      'divisive',
+    ];
+
+    const gap = Math.abs(selected.criticsScore - selected.audienceScore);
+    const base = stableSample(bank, 4, `${reviewSeed}|audience-tags`);
+    if (gap >= 18 && !base.includes('divisive')) base.push('divisive');
+    return base.slice(0, 5);
+  }, [selected, reviewSeed]);
 
   const yourStudioName = gameState?.studio?.name;
 
@@ -721,6 +906,71 @@ export const Metaboxd: React.FC = () => {
                     </div>
                   </div>
 
+                  <div className="metaboxd-snapshots">
+                    <div className="metaboxd-snapshot">
+                      <div className="metaboxd-snapshot-head">
+                        <div>
+                          <div className="metaboxd-snapshot-title">Critic reviews</div>
+                          <div className="metaboxd-snapshot-meta">
+                            {criticSummary.total} blurbs • avg {Math.round(criticSummary.avg)}/100
+                          </div>
+                        </div>
+                      </div>
+                      <div className="metaboxd-dist">
+                        {criticSummary.dist.map((d) => (
+                          <div key={d.label} className="metaboxd-dist-row">
+                            <div className="metaboxd-dist-label">{d.label}</div>
+                            <div className="metaboxd-dist-bar" aria-hidden="true">
+                              <div className="metaboxd-dist-fill" style={{ width: `${Math.round(d.pct * 100)}%` }} />
+                            </div>
+                            <div className="metaboxd-dist-count">{d.count}</div>
+                          </div>
+                        ))}
+                      </div>
+                    </div>
+
+                    <div className="metaboxd-snapshot">
+                      <div className="metaboxd-snapshot-head">
+                        <div>
+                          <div className="metaboxd-snapshot-title">Member ratings</div>
+                          <div className="metaboxd-snapshot-meta">
+                            {memberSummary.total} reviews • avg {memberSummary.avg.toFixed(1)} / 5
+                          </div>
+                        </div>
+                      </div>
+                      <div className="metaboxd-dist">
+                        {memberSummary.dist.map((d) => (
+                          <div key={d.label} className="metaboxd-dist-row">
+                            <div className="metaboxd-dist-label">{d.label}</div>
+                            <div className="metaboxd-dist-bar" aria-hidden="true">
+                              <div className="metaboxd-dist-fill" style={{ width: `${Math.round(d.pct * 100)}%` }} />
+                            </div>
+                            <div className="metaboxd-dist-count">{d.count}</div>
+                          </div>
+                        ))}
+                      </div>
+                    </div>
+                  </div>
+
+                  <div className="metaboxd-tag-section">
+                    <div className="metaboxd-tag-block">
+                      <div className="metaboxd-tag-kicker">Critics highlight</div>
+                      <div className="metaboxd-tag-row">
+                        {criticTags.map((t) => (
+                          <span key={t} className="metaboxd-chip">{t}</span>
+                        ))}
+                      </div>
+                    </div>
+                    <div className="metaboxd-tag-block">
+                      <div className="metaboxd-tag-kicker">Audience buzz</div>
+                      <div className="metaboxd-tag-row">
+                        {audienceTags.map((t) => (
+                          <span key={t} className="metaboxd-chip">{t}</span>
+                        ))}
+                      </div>
+                    </div>
+                  </div>
+
                   <div className="metaboxd-section">
                     <div className="metaboxd-section-kicker">Critics consensus</div>
                     <div className="metaboxd-section-body">{selected.consensus}</div>
@@ -800,40 +1050,129 @@ export const Metaboxd: React.FC = () => {
               </div>
             </div>
 
-            <div className="metaboxd-panel-header">
-              <div>
-                <div className="metaboxd-panel-title">Top critic blurbs</div>
-                <div className="metaboxd-panel-subtitle">A handful of pull-quotes from across the trades</div>
-              </div>
-            </div>
-            <div className="metaboxd-review-list">
-              {selected.reviews.map((r, i) => (
-                <div key={`${r.source}-${i}`} className="metaboxd-review">
-                  <div className="metaboxd-review-head">
-                    <div className="metaboxd-review-source">{r.source}</div>
-                    <div className="metaboxd-review-score">{r.score}/100</div>
+            <div className="metaboxd-reviews-grid">
+              <div className="metaboxd-review-panel">
+                <div className="metaboxd-panel-header metaboxd-review-panel-header">
+                  <div>
+                    <div className="metaboxd-panel-title">Critic blurbs</div>
+                    <div className="metaboxd-panel-subtitle">
+                      {visibleCriticReviews.length} of {criticReviews.length} • filter {criticFilter} • sort {criticSort}
+                    </div>
                   </div>
-                  <div className="metaboxd-review-body">“{r.quote}”</div>
-                </div>
-              ))}
-            </div>
 
-            <div className="metaboxd-panel-header">
-              <div>
-                <div className="metaboxd-panel-title">Member reviews</div>
-                <div className="metaboxd-panel-subtitle">A slice of audience chatter</div>
-              </div>
-            </div>
-            <div className="metaboxd-review-list">
-              {selected.userReviews.map((r, i) => (
-                <div key={`${r.handle}-${i}`} className="metaboxd-review">
-                  <div className="metaboxd-review-head">
-                    <div className="metaboxd-review-source">{r.handle}</div>
-                    <div className="metaboxd-review-score">{formatStars(r.stars)}</div>
+                  <div className="metaboxd-review-tools">
+                    <div className="metaboxd-chip-row" aria-label="Critic filters">
+                      {([
+                        { k: 'all', label: 'All' },
+                        { k: 'raves', label: 'Raves' },
+                        { k: 'mixed', label: 'Mixed' },
+                        { k: 'pans', label: 'Pans' },
+                      ] as const).map((f) => (
+                        <button
+                          key={f.k}
+                          type="button"
+                          className={f.k === criticFilter ? 'metaboxd-chip active' : 'metaboxd-chip'}
+                          onClick={() => setCriticFilter(f.k)}
+                        >
+                          {f.label}
+                        </button>
+                      ))}
+                    </div>
+
+                    <select
+                      className="metaboxd-select"
+                      value={criticSort}
+                      onChange={(e) => setCriticSort(e.target.value as any)}
+                      aria-label="Critic sort"
+                    >
+                      <option value="helpful">Helpful</option>
+                      <option value="score">Score</option>
+                    </select>
                   </div>
-                  <div className="metaboxd-review-body">{r.body}</div>
                 </div>
-              ))}
+
+                <div className="metaboxd-review-list">
+                  {visibleCriticReviews.map((r, i) => (
+                    <div key={`${r.source}-${i}`} className="metaboxd-review">
+                      <div className="metaboxd-review-head">
+                        <div className="metaboxd-review-source">{r.source}</div>
+                        <div className="metaboxd-review-score">{r.score}/100</div>
+                      </div>
+                      <div className="metaboxd-review-body">“{r.quote}”</div>
+                      <div className="metaboxd-review-foot">
+                        <div className="metaboxd-review-foot-left">{formatAge(r.ageDays)}</div>
+                        <div className="metaboxd-review-foot-right">Helpful {r.helpful}</div>
+                      </div>
+                    </div>
+                  ))}
+
+                  {visibleCriticReviews.length === 0 && (
+                    <div className="metaboxd-review metaboxd-review-empty">No critic blurbs match this filter.</div>
+                  )}
+                </div>
+              </div>
+
+              <div className="metaboxd-review-panel">
+                <div className="metaboxd-panel-header metaboxd-review-panel-header">
+                  <div>
+                    <div className="metaboxd-panel-title">Member reviews</div>
+                    <div className="metaboxd-panel-subtitle">
+                      {visibleMemberReviews.length} of {memberReviews.length} • filter {memberFilter} • sort {memberSort}
+                    </div>
+                  </div>
+
+                  <div className="metaboxd-review-tools">
+                    <div className="metaboxd-chip-row" aria-label="Member filters">
+                      {([
+                        { k: 'all', label: 'All' },
+                        { k: 'high', label: '4–5★' },
+                        { k: 'mid', label: '2½–3½★' },
+                        { k: 'low', label: '0½–2★' },
+                      ] as const).map((f) => (
+                        <button
+                          key={f.k}
+                          type="button"
+                          className={f.k === memberFilter ? 'metaboxd-chip active' : 'metaboxd-chip'}
+                          onClick={() => setMemberFilter(f.k)}
+                        >
+                          {f.label}
+                        </button>
+                      ))}
+                    </div>
+
+                    <select
+                      className="metaboxd-select"
+                      value={memberSort}
+                      onChange={(e) => setMemberSort(e.target.value as any)}
+                      aria-label="Member sort"
+                    >
+                      <option value="helpful">Helpful</option>
+                      <option value="recent">Recent</option>
+                      <option value="rating">Rating</option>
+                    </select>
+                  </div>
+                </div>
+
+                <div className="metaboxd-review-list">
+                  {visibleMemberReviews.map((r, i) => (
+                    <div key={`${r.handle}-${i}`} className="metaboxd-review">
+                      <div className="metaboxd-review-head">
+                        <div className="metaboxd-review-source">{r.handle}</div>
+                        <div className="metaboxd-review-score">{formatStars(r.stars)}</div>
+                      </div>
+                      <div className="metaboxd-review-body">{r.body}</div>
+                      <div className="metaboxd-review-foot">
+                        <div className="metaboxd-review-foot-left">{formatAge(r.ageDays)}</div>
+                        <div className="metaboxd-review-foot-right">Helpful {r.helpful}</div>
+                      </div>
+                    </div>
+                  ))}
+
+                  {visibleMemberReviews.length === 0 && (
+                    <div className="metaboxd-review metaboxd-review-empty">No member reviews match this filter.</div>
+                  )}
+                </div>
+              </div>
             </div>
           </section>
 

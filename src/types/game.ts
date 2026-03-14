@@ -525,7 +525,7 @@ export interface StreamingMetrics {
 }
 
 export interface CriticalMetrics {
-  metaCriticScore?: number;
+  criticIndexScore?: number;
   audienceScore?: number;
   criticsConsensus: string;
   controversies?: string[];
