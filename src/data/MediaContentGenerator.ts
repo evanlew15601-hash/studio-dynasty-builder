@@ -325,9 +325,9 @@ export class MediaContentGenerator {
   private static replaceVariables(template: string, event: MediaEvent, entities: any): string {
     let result = template;
 
-    const actor = entities.talent?.[0];
+    const actor = entities.talent?.[0] ?? (event.eventData?.talent as TalentPerson | undefined);
     const studio = entities.studios?.[0];
-    const project = entities.projects?.[0];
+    const project = entities.projects?.[0] ?? (event.eventData?.project as Project | undefined);
 
     const awardName = event.eventData?.award || event.eventData?.awardName;
     const scandalType = event.eventData?.scandalType || event.eventData?.title;
@@ -420,15 +420,27 @@ export class MediaContentGenerator {
       BoxOfficeOutcome: boxOfficeOutcome,
     };
 
+    const tokenPattern = (key: string) => {
+      const spaced = key.replace(/([a-z])([A-Z])/g, '$1 $2');
+      const tokens = spaced.split(/\s+/).filter(Boolean);
+      const inner = tokens
+        .map(t => t.replace(/[.*+?^${}()|[\]\\]/g, '\\$&'))
+        .join('[ _-]*');
+      return new RegExp(`\\{\\s*${inner}\\s*\\}`, 'gi');
+    };
+
     for (const [key, value] of Object.entries(replacements)) {
-      result = result.replace(new RegExp(`\\{${key}\\}`, 'g'), value);
+      const rx = tokenPattern(key);
+      result = result.replace(rx, () => value);
     }
 
-    // Ensure we never leak raw {Placeholders} into the UI
-    result = result.replace(/\{[A-Za-z]+\}/g, '');
+    // Ensure we never leak raw {Placeholders} into the UI (including modded variants).
+    result = result.replace(/\{[^}]*\}/g, '');
 
-    // Normalize whitespace after placeholder cleanup
-    result = result.replace(/\s{2,}/g, ' ').trim();
+    // Normalize punctuation/whitespace after placeholder cleanup.
+    result = result.replace(/\s{2,}/g, ' ');
+    result = result.replace(/\s+([,.;:!?])/g, '$1');
+    result = result.trim();
 
     return result;
   }
