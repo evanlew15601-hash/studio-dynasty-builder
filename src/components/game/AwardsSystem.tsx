@@ -80,8 +80,8 @@ export const AwardsSystem: React.FC<AwardsSystemProps> = ({
     }
   }, [gameState, currentYear, currentWeek]);
 
-  const playerProjects = gameState?.projects ?? [];
-  const allReleases = gameState?.allReleases ?? [];
+  const playerProjects = useMemo(() => gameState?.projects ?? [], [gameState?.projects]);
+  const allReleases = useMemo(() => gameState?.allReleases ?? [], [gameState?.allReleases]);
 
   const playerProjectIds = useMemo(() => new Set(playerProjects.map(p => p.id)), [playerProjects]);
   const isPlayerProject = (project: Project) => playerProjectIds.has(project.id);

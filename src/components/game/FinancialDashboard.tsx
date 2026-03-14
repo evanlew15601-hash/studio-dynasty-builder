@@ -1,4 +1,4 @@
-import React, { useMemo, useState } from 'react';
+import React, { useCallback, useMemo, useState } from 'react';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { Badge } from '@/components/ui/badge';
@@ -19,7 +19,7 @@ export const FinancialDashboard: React.FC = () => {
 
   const currentWeek = game?.currentWeek ?? 0;
   const currentYear = game?.currentYear ?? 0;
-  const projects = game?.projects ?? [];
+  const projects = useMemo(() => game?.projects ?? [], [game?.projects]);
   const studioName = game?.studio?.name ?? '';
 
   // Financial ledger contains system-wide entries. The Financials UI is meant to show the
@@ -37,9 +37,9 @@ export const FinancialDashboard: React.FC = () => {
       if (t.category === 'overhead') return t.description.includes(studioPrefix);
       return true;
     });
-  }, [currentWeek, currentYear, studioName, playerProjectIds, game]);
+  }, [studioName, playerProjectIds, game]);
 
-  const getWeeklyFinancials = (week: number, year: number) => {
+  const getWeeklyFinancials = useCallback((week: number, year: number) => {
     const weekTransactions = playerTransactions.filter(t => t.week === week && t.year === year);
 
     const totalRevenue = weekTransactions
@@ -56,7 +56,7 @@ export const FinancialDashboard: React.FC = () => {
       netIncome: totalRevenue - totalExpenses,
       transactions: weekTransactions,
     };
-  };
+  }, [playerTransactions]);
 
   const summary = useMemo(() => {
     const allRevenue = playerTransactions
@@ -106,7 +106,7 @@ export const FinancialDashboard: React.FC = () => {
       profitableFilms,
       totalFilms: filmFinancials.size
     };
-  }, [currentWeek, currentYear, playerTransactions, game?.studio?.budget]);
+  }, [currentWeek, currentYear, playerTransactions, game?.studio?.budget, getWeeklyFinancials]);
 
   const recentTransactions = useMemo(() => {
     return playerTransactions
