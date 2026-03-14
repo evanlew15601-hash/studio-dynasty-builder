@@ -14,13 +14,192 @@ export type Database = {
   }
   public: {
     Tables: {
-      [_ in never]: never
+      online_leagues: {
+        Row: {
+          id: string
+          code: string
+          name: string
+          owner_user_id: string
+          created_at: string
+        }
+        Insert: {
+          id?: string
+          code: string
+          name: string
+          owner_user_id: string
+          created_at?: string
+        }
+        Update: {
+          id?: string
+          code?: string
+          name?: string
+          owner_user_id?: string
+          created_at?: string
+        }
+        Relationships: []
+      }
+      online_league_clock: {
+        Row: {
+          league_id: string
+          turn: number
+          last_advanced_by: string | null
+          updated_at: string
+        }
+        Insert: {
+          league_id: string
+          turn?: number
+          last_advanced_by?: string | null
+          updated_at?: string
+        }
+        Update: {
+          league_id?: string
+          turn?: number
+          last_advanced_by?: string | null
+          updated_at?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "online_league_clock_league_id_fkey"
+            columns: ["league_id"]
+            isOneToOne: true
+            referencedRelation: "online_leagues"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      online_league_members: {
+        Row: {
+          league_id: string
+          user_id: string
+          studio_name: string
+          joined_at: string
+          last_seen_at: string
+        }
+        Insert: {
+          league_id: string
+          user_id: string
+          studio_name: string
+          joined_at?: string
+          last_seen_at?: string
+        }
+        Update: {
+          league_id?: string
+          user_id?: string
+          studio_name?: string
+          joined_at?: string
+          last_seen_at?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "online_league_members_league_id_fkey"
+            columns: ["league_id"]
+            isOneToOne: false
+            referencedRelation: "online_leagues"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      online_league_ready: {
+        Row: {
+          league_id: string
+          user_id: string
+          ready_for_turn: number
+          updated_at: string
+        }
+        Insert: {
+          league_id: string
+          user_id: string
+          ready_for_turn?: number
+          updated_at?: string
+        }
+        Update: {
+          league_id?: string
+          user_id?: string
+          ready_for_turn?: number
+          updated_at?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "online_league_ready_league_id_fkey"
+            columns: ["league_id"]
+            isOneToOne: false
+            referencedRelation: "online_leagues"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      online_league_snapshots: {
+        Row: {
+          league_id: string
+          user_id: string
+          studio_name: string
+          budget: number
+          reputation: number
+          week: number
+          year: number
+          released_titles: number
+          updated_at: string
+        }
+        Insert: {
+          league_id: string
+          user_id: string
+          studio_name: string
+          budget: number
+          reputation: number
+          week: number
+          year: number
+          released_titles: number
+          updated_at?: string
+        }
+        Update: {
+          league_id?: string
+          user_id?: string
+          studio_name?: string
+          budget?: number
+          reputation?: number
+          week?: number
+          year?: number
+          released_titles?: number
+          updated_at?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "online_league_snapshots_league_id_fkey"
+            columns: ["league_id"]
+            isOneToOne: false
+            referencedRelation: "online_leagues"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
     }
     Views: {
       [_ in never]: never
     }
     Functions: {
-      [_ in never]: never
+      create_online_league: {
+        Args: {
+          league_code: string
+          league_name: string
+          studio_name: string
+        }
+        Returns: string
+      }
+      join_online_league: {
+        Args: {
+          league_code: string
+          studio_name: string
+        }
+        Returns: string
+      }
+      set_online_league_ready: {
+        Args: {
+          league_code: string
+          ready: boolean
+          force?: boolean
+        }
+        Returns: number
+      }
     }
     Enums: {
       [_ in never]: never

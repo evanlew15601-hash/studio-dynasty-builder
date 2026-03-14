@@ -19,17 +19,17 @@ describe('mod patch overlay (Option A)', () => {
           modId: 'm1',
           entityType: 'providerDeal',
           op: 'update',
-          target: 'netflix',
+          target: 'streamflix',
           payload: { averageRate: 1234567 },
         },
       ],
     };
 
-    const netflix = getProviderProfile('streaming', 'netflix', mods);
-    const amazon = getProviderProfile('streaming', 'amazon', mods);
+    const streamflix = getProviderProfile('streaming', 'streamflix', mods);
+    const primewave = getProviderProfile('streaming', 'primewave', mods);
 
-    expect(netflix?.averageRate).toBe(1234567);
-    expect(amazon?.averageRate).toBeTruthy();
+    expect(streamflix?.averageRate).toBe(1234567);
+    expect(primewave?.averageRate).toBeTruthy();
   });
 
   it('applies higher-priority mod patches later (wins conflicts)', () => {
@@ -40,12 +40,12 @@ describe('mod patch overlay (Option A)', () => {
         { id: 'm2', name: 'High', version: '1.0.0', enabled: true, priority: 10 },
       ],
       patches: [
-        { id: 'p1', modId: 'm1', entityType: 'providerDeal', op: 'update', target: 'netflix', payload: { averageRate: 111 } },
-        { id: 'p2', modId: 'm2', entityType: 'providerDeal', op: 'update', target: 'netflix', payload: { averageRate: 222 } },
+        { id: 'p1', modId: 'm1', entityType: 'providerDeal', op: 'update', target: 'streamflix', payload: { averageRate: 111 } },
+        { id: 'p2', modId: 'm2', entityType: 'providerDeal', op: 'update', target: 'streamflix', payload: { averageRate: 222 } },
       ],
     };
 
-    expect(getProviderProfile('streaming', 'netflix', mods)?.averageRate).toBe(222);
+    expect(getProviderProfile('streaming', 'streamflix', mods)?.averageRate).toBe(222);
   });
 
   it('can replace a franchise role set while still getting director + cameo defaults', () => {
@@ -56,7 +56,7 @@ describe('mod patch overlay (Option A)', () => {
       creatorStudioId: 'studio-1',
       genre: ['sci-fi'],
       tone: 'epic',
-      parodySource: 'Star Wars',
+      parodySource: 'Star Saga',
       entries: [],
       status: 'active',
       franchiseTags: [],
@@ -108,7 +108,7 @@ describe('mod patch overlay (Option A)', () => {
           modId: 'm1',
           entityType: 'franchiseRoleSet',
           op: 'update',
-          target: 'Star Wars',
+          target: 'Star Saga',
           payload: [{ id: 'lead', name: 'The Chosen One', importance: 'lead', requiredType: 'actor' }],
         },
       ],
@@ -122,7 +122,7 @@ describe('mod patch overlay (Option A)', () => {
 
   it('is a no-op with an empty mod bundle', () => {
     const mods = makeEmptyMods();
-    const netflix = getProviderProfile('streaming', 'netflix', mods);
-    expect(netflix?.id).toBe('netflix');
+    const streamflix = getProviderProfile('streaming', 'streamflix', mods);
+    expect(streamflix?.id).toBe('streamflix');
   });
 });

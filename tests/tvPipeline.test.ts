@@ -40,7 +40,7 @@ function makeBaseTvProject(overrides: Partial<Project> = {}): Project {
     },
     distributionStrategy: {
       primary: {
-        platform: 'netflix',
+        platform: 'streamflix',
         type: 'streaming',
         revenue: { type: 'subscription-share', studioShare: 60 },
       },

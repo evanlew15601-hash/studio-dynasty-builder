@@ -264,9 +264,9 @@ export const ModsPanel: React.FC = () => {
   const [publicDomainSearch, setPublicDomainSearch] = useState('');
   const [publicDomainEdits, setPublicDomainEdits] = useState<Record<string, PublicDomainIP>>({});
   const [publicDomainCharactersKey, setPublicDomainCharactersKey] = useState<string>('pd-1');
-  const [roleSetKey, setRoleSetKey] = useState<string>(() => Object.keys(FRANCHISE_ROLE_SETS)[0] ?? 'Star Wars');
+  const [roleSetKey, setRoleSetKey] = useState<string>(() => Object.keys(FRANCHISE_ROLE_SETS)[0] ?? 'Star Saga');
   const [roleSetRows, setRoleSetRows] = useState<ScriptCharacter[]>([]);
-  const [characterDbKey, setCharacterDbKey] = useState<string>(() => Object.keys(FRANCHISE_CHARACTER_DB)[0] ?? 'Star Wars');
+  const [characterDbKey, setCharacterDbKey] = useState<string>(() => Object.keys(FRANCHISE_CHARACTER_DB)[0] ?? 'Star Saga');
   const [characterDbRows, setCharacterDbRows] = useState<FranchiseCharacterDef[]>([]);
   const [talentSearch, setTalentSearch] = useState('');
   const [talentEdits, setTalentEdits] = useState<Record<string, TalentEdit>>({});
@@ -280,7 +280,7 @@ export const ModsPanel: React.FC = () => {
   const [newMediaTemplateKey, setNewMediaTemplateKey] = useState('');
   const [mediaHeadlineTemplateEdits, setMediaHeadlineTemplateEdits] = useState<Record<string, string[]>>({});
   const [mediaContentTemplateEdits, setMediaContentTemplateEdits] = useState<Record<string, string[]>>({});
-  const [parodyNamesKey, setParodyNamesKey] = useState<string>(() => Object.keys(PARODY_CHARACTER_NAME_MAP)[0] ?? 'Star Wars');
+  const [parodyNamesKey, setParodyNamesKey] = useState<string>(() => Object.keys(PARODY_CHARACTER_NAME_MAP)[0] ?? 'Star Saga');
   const [parodyByCharacterIdRows, setParodyByCharacterIdRows] = useState<NameMappingRow[]>([]);
   const [parodyByTemplateIdRows, setParodyByTemplateIdRows] = useState<NameMappingRow[]>([]);
 
