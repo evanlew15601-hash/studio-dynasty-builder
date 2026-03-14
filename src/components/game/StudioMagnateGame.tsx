@@ -2119,33 +2119,14 @@ export const StudioMagnateGame: React.FC<StudioMagnateGameProps> = ({
       
       let updatedProjects = baseAfterEngine.projects;
 
-      // Simulate box office and process weekly financial events
+      // Process weekly financial events
       // NOTE: This must be synchronous inside the state transition; async imports would
       // run after this updater returns and would not be applied to the new state.
-      const aiReleased = baseAfterEngine.allReleases
-        .filter((r): r is Project => 'script' in r && (r as any).status === 'released' && !!r.releaseWeek && !!r.releaseYear)
-        .map(r => ({
-          id: r.id,
-          title: r.title,
-          weeksSinceRelease: TimeSystem.calculateWeeksSince(
-            r.releaseWeek!,
-            r.releaseYear!,
-            newTimeState.currentWeek,
-            newTimeState.currentYear
-          ),
-          budget: (r as any).budget?.total || (r as any).budget || 10000000,
-          genre: (r as any).script?.genre || (r as any).genre || 'drama'
-        }));
-
-      measure('boxOfficeSim', 'Box office simulation', () => {
-        FinancialEngine.simulateBoxOfficeWeek(aiReleased, newTimeState.currentWeek, newTimeState.currentYear);
-      });
-
       measure('financeEvents', 'Financial events', () => {
         FinancialEngine.processWeeklyFinancialEvents(
           newTimeState.currentWeek,
           newTimeState.currentYear,
-          [baseAfterEngine.studio, ...baseAfterEngine.competitorStudios],
+          [baseAfterEngine.studio],
           updatedProjects
         );
       });
@@ -3500,7 +3481,7 @@ export const StudioMagnateGame: React.FC<StudioMagnateGameProps> = ({
         {currentPhase === 'awards' && (
           <Tabs defaultValue="core" className="space-y-4">
             <TabsList>
-              <TabsTrigger value="core">Awards Strategy</TabsTrigger>
+              <TabsTrigger value="core">Awards Campaigns</TabsTrigger>
               <TabsTrigger value="season">Awards Season Analytics</TabsTrigger>
             </TabsList>
 

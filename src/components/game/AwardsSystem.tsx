@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useCallback, useMemo, useState } from 'react';
 import { Project, AwardsCampaign, StudioAward } from '@/types/game';
 import { useGameStore } from '@/game/store';
 import { useUiStore } from '@/game/uiStore';
@@ -13,8 +13,7 @@ import {
   TrophyIcon, 
   StarIcon, 
   CalendarIcon,
-  DollarIcon,
-  TrendingIcon 
+  DollarIcon
 } from '@/components/ui/icons';
 import { getAwardShowsForYear } from '@/data/AwardsSchedule';
 
@@ -46,7 +45,10 @@ export const AwardsSystem: React.FC<AwardsSystemProps> = ({
   const [seasonMomentum, setSeasonMomentum] = useState<Record<string, number>>({});
   const [seasonNominations, setSeasonNominations] = useState<Record<string, { year: number; categories: Record<string, Array<{ project: Project; score: number }>> }>>({});
 
-  const isTvProject = (project: Project) => project.type === 'series' || project.type === 'limited-series';
+  const isTvProject = useCallback(
+    (project: Project) => project.type === 'series' || project.type === 'limited-series',
+    []
+  );
 
   React.useEffect(() => {
     if (!gameState) return;
@@ -75,29 +77,40 @@ export const AwardsSystem: React.FC<AwardsSystemProps> = ({
   const tvCampaignWindowOpen = gameState.currentWeek >= 1 && gameState.currentWeek <= tvAwardsEndWeek;
   const isAnyCampaignWindowOpen = filmCampaignWindowOpen || tvCampaignWindowOpen;
 
-  // Get eligible projects for awards (completed releases from previous year, including AI studios)
-  const getEligibleProjects = (): Project[] => {
-    // Include both player projects and AI studio releases
-const playerProjects = gameState.projects.filter(project => 
-  project.status === 'released' && 
-  project.releaseYear === gameState.currentYear - 1 && // Released previous year
-  project.metrics?.criticsScore && 
-  project.metrics.criticsScore >= 45 // Lower threshold to 45
-);
-    
-const aiProjects = gameState.allReleases.filter((release): release is Project => 
-  'script' in release && // It's a Project, not BoxOfficeRelease
-  release.status === 'released' &&
-  release.releaseYear === gameState.currentYear - 1 &&
-  release.metrics?.criticsScore && 
-  release.metrics.criticsScore >= 45
-);
-    
+  const [contenderScope, setContenderScope] = useState<'player' | 'all'>('player');
+  const [page, setPage] = useState(0);
+
+  const playerProjectIds = useMemo(() => new Set(gameState.projects.map(p => p.id)), [gameState.projects]);
+  const isPlayerProject = (project: Project) => playerProjectIds.has(project.id);
+
+  const eligibleProjectsAll = useMemo((): Project[] => {
+    const eligibleYear = gameState.currentYear - 1;
+
+    const playerProjects = gameState.projects.filter(project => 
+      project.status === 'released' &&
+      project.releaseYear === eligibleYear &&
+      project.metrics?.criticsScore &&
+      project.metrics.criticsScore >= 45
+    );
+
+    const aiProjects = gameState.allReleases.filter((release): release is Project => 
+      'script' in release &&
+      release.status === 'released' &&
+      release.releaseYear === eligibleYear &&
+      release.metrics?.criticsScore &&
+      release.metrics.criticsScore >= 45
+    );
+
     return [...playerProjects, ...aiProjects];
-  };
+  }, [gameState.allReleases, gameState.currentYear, gameState.projects]);
+
+  const eligiblePlayerProjects = useMemo(
+    () => eligibleProjectsAll.filter((p) => playerProjectIds.has(p.id)),
+    [eligibleProjectsAll, playerProjectIds]
+  );
 
   // Calculate award probability based on project metrics
-  const calculateAwardsProbability = (project: Project): number => {
+  const calculateAwardsProbability = useCallback((project: Project): number => {
     const criticsScore = project.metrics?.criticsScore || 0;
     const audienceScore = project.metrics?.audienceScore || 0;
 
@@ -141,7 +154,7 @@ const aiProjects = gameState.allReleases.filter((release): release is Project =>
     }
 
     return Math.min(100, Math.max(0, probability));
-  };
+  }, [gameState.currentWeek, isTvProject]);
 
   // Start awards campaign
   const startAwardsCampaign = (project: Project, budget: number) => {
@@ -266,7 +279,7 @@ const aiProjects = gameState.allReleases.filter((release): release is Project =>
     if (seasonNominations[key]) return; // idempotent
 
     const { categories } = getShowConfig(ceremonyName);
-    const eligible = getEligibleProjects();
+    const eligible = eligibleProjectsAll;
 
     const categoriesMap: Record<string, Array<{ project: Project; score: number }>> = {};
 
@@ -391,7 +404,32 @@ const aiProjects = gameState.allReleases.filter((release): release is Project =>
   //   shows.forEach(s => triggerAwardsCeremony(s.name));
   // }, [gameState.currentWeek, isAwardsSeasonActive, gameState.currentYear]);
 
-  const eligibleProjects = getEligibleProjects();
+  React.useEffect(() => {
+    setPage(0);
+  }, [contenderScope, gameState.currentYear]);
+
+  const contenders = useMemo(() => {
+    const pool = contenderScope === 'player' ? eligiblePlayerProjects : eligibleProjectsAll;
+
+    return pool
+      .map(project => {
+        const probability = calculateAwardsProbability(project);
+        const player = playerProjectIds.has(project.id);
+        const campaign = player ? (project.awardsCampaign as AwardsCampaign | undefined) : undefined;
+
+        return { project, probability, player, campaign };
+      })
+      .sort((a, b) => b.probability - a.probability);
+  }, [calculateAwardsProbability, contenderScope, eligiblePlayerProjects, eligibleProjectsAll, playerProjectIds]);
+
+  const PAGE_SIZE = contenderScope === 'player' ? 50 : 25;
+  const totalPages = Math.max(1, Math.ceil(contenders.length / PAGE_SIZE));
+  const currentPage = Math.min(page, totalPages - 1);
+
+  const visibleContenders = useMemo(() => {
+    const start = currentPage * PAGE_SIZE;
+    return contenders.slice(start, start + PAGE_SIZE);
+  }, [PAGE_SIZE, contenders, currentPage]);
 
   return (
     <div className="space-y-6">
@@ -445,10 +483,10 @@ const aiProjects = gameState.allReleases.filter((release): release is Project =>
             <div className="p-4 rounded-lg bg-gradient-to-r from-accent/10 to-primary/10">
               <div className="text-sm text-muted-foreground">Eligible Projects</div>
               <div className="text-xl font-bold text-accent">
-                {eligibleProjects.length}
+                {eligibleProjectsAll.length}
               </div>
               <div className="text-xs text-muted-foreground mt-1">
-                From {gameState.currentYear - 1}
+                Your studio: {eligiblePlayerProjects.length} • From {gameState.currentYear - 1}
               </div>
             </div>
             
@@ -478,97 +516,147 @@ const aiProjects = gameState.allReleases.filter((release): release is Project =>
       </Card>
 
       {/* Eligible Projects for Awards */}
-      {eligibleProjects.length > 0 && (
+      {eligibleProjectsAll.length > 0 && (
         <Card className="card-premium">
           <CardHeader>
-            <CardTitle className="flex items-center font-studio text-primary">
-              <CalendarIcon className="mr-2" size={20} />
-              Awards Contenders ({gameState.currentYear - 1})
-            </CardTitle>
+            <div className="flex flex-col gap-3 md:flex-row md:items-center md:justify-between">
+              <CardTitle className="flex items-center font-studio text-primary">
+                <CalendarIcon className="mr-2" size={20} />
+                Awards Contenders ({gameState.currentYear - 1})
+              </CardTitle>
+              <div className="flex flex-wrap gap-2">
+                <Button
+                  size="sm"
+                  variant={contenderScope === 'player' ? 'default' : 'outline'}
+                  onClick={() => setContenderScope('player')}
+                >
+                  My Studio
+                </Button>
+                <Button
+                  size="sm"
+                  variant={contenderScope === 'all' ? 'default' : 'outline'}
+                  onClick={() => setContenderScope('all')}
+                >
+                  All Studios
+                </Button>
+              </div>
+            </div>
+            <div className="text-xs text-muted-foreground mt-2">
+              Showing {contenders.length === 0 ? 0 : (currentPage * PAGE_SIZE + 1)}–{Math.min(contenders.length, (currentPage + 1) * PAGE_SIZE)} of {contenders.length} contenders
+            </div>
           </CardHeader>
           <CardContent className="space-y-4">
-            {eligibleProjects.map(project => {
-              const probability = calculateAwardsProbability(project);
-              const isPlayerProject = gameState.projects.some(p => p.id === project.id);
-              const campaign = isPlayerProject ? (project.awardsCampaign as AwardsCampaign | undefined) : undefined;
-
-              return (
-                <div key={project.id} className="p-4 rounded-lg border border-border/50 bg-card/50">
-                  <div className="flex justify-between items-start mb-3">
-                    <div>
-                      <div className="font-semibold text-lg">{project.title}</div>
-                      <div className="text-sm text-muted-foreground">
-                        {isTvProject(project) ? 'TV' : 'Film'} • {project.script.genre} • Critics: {project.metrics?.criticsScore}/100 • 
-                        Audience: {project.metrics?.audienceScore}/100
-                      </div>
-                    </div>
-                    <Badge variant={probability >= 70 ? "default" : probability >= 50 ? "secondary" : "outline"}>
-                      {probability >= 70 ? 'Strong Contender' : probability >= 50 ? 'Possible Nominee' : 'Long Shot'}
-                    </Badge>
-                  </div>
-                  
-                  <div className="mb-3">
-                    <div className="flex justify-between text-sm mb-1">
-                      <span>Awards Probability</span>
-                      <span>{probability.toFixed(1)}%</span>
-                    </div>
-                    <Progress value={probability} className="h-2" />
-                  </div>
-
-                  {campaign && (
-                    <div className="mb-3 flex items-center justify-between text-xs text-muted-foreground">
-                      <div className="flex items-center gap-2">
-                        <Badge variant="outline" className="text-[11px]">
-                          Awards Campaign Active
-                        </Badge>
-                        <span>
-                          Budget ${campaign.budget.toLocaleString()} • Effectiveness {Math.round(campaign.effectiveness).toString()}%
-                        </span>
-                      </div>
-                    </div>
-                  )}
-                  
-                  {(isTvProject(project) ? tvCampaignWindowOpen : filmCampaignWindowOpen) && isPlayerProject && (
-                    <div className="flex flex-col gap-2">
-                      <div className="flex flex-wrap gap-2">
-                        <Button
-                          size="sm"
-                          onClick={() => startAwardsCampaign(project, 500000)}
-                          variant="outline"
-                          disabled={!!campaign}
-                        >
-                          <DollarIcon className="mr-1" size={14} />
-                          Basic Campaign ($500K)
-                        </Button>
-                        <Button
-                          size="sm"
-                          onClick={() => startAwardsCampaign(project, 1500000)}
-                          variant="outline"
-                          disabled={!!campaign}
-                        >
-                          <DollarIcon className="mr-1" size={14} />
-                          Premium Campaign ($1.5M)
-                        </Button>
-                        <Button
-                          size="sm"
-                          onClick={() => startAwardsCampaign(project, 3000000)}
-                          variant="outline"
-                          disabled={!!campaign}
-                        >
-                          <DollarIcon className="mr-1" size={14} />
-                          Prestige Campaign ($3M)
-                        </Button>
-                      </div>
-                      {campaign && (
-                        <div className="text-xs text-muted-foreground">
-                          A campaign is already running for this project this season.
-                        </div>
-                      )}
-                    </div>
-                  )}
+            {totalPages > 1 && (
+              <div className="flex items-center justify-between">
+                <div className="text-xs text-muted-foreground">Page {currentPage + 1} of {totalPages}</div>
+                <div className="flex gap-2">
+                  <Button
+                    size="sm"
+                    variant="outline"
+                    disabled={currentPage === 0}
+                    onClick={() => setPage(p => Math.max(0, p - 1))}
+                  >
+                    Prev
+                  </Button>
+                  <Button
+                    size="sm"
+                    variant="outline"
+                    disabled={currentPage >= totalPages - 1}
+                    onClick={() => setPage(p => Math.min(totalPages - 1, p + 1))}
+                  >
+                    Next
+                  </Button>
                 </div>
-              );
-            })}
+              </div>
+            )}
+
+            {contenderScope === 'player' && eligiblePlayerProjects.length === 0 && (
+              <div className="rounded-lg border border-border/50 bg-card/50 p-4 text-sm text-muted-foreground">
+                Your studio has no eligible releases from {gameState.currentYear - 1}. Switch to <strong>All Studios</strong> to see the wider race.
+              </div>
+            )}
+
+            {visibleContenders.map(({ project, probability, player, campaign }) => (
+              <div key={project.id} className="p-4 rounded-lg border border-border/50 bg-card/50">
+                <div className="flex justify-between items-start mb-3">
+                  <div>
+                    <div className="font-semibold text-lg">{project.title}</div>
+                    <div className="text-sm text-muted-foreground">
+                      {isTvProject(project) ? 'TV' : 'Film'} • {project.script.genre} • Critics: {project.metrics?.criticsScore}/100 •
+                      Audience: {project.metrics?.audienceScore}/100
+                    </div>
+                    {!player && project.studioName && (
+                      <div className="text-xs text-muted-foreground mt-0.5">
+                        Studio: {project.studioName}
+                      </div>
+                    )}
+                  </div>
+                  <Badge variant={probability >= 70 ? "default" : probability >= 50 ? "secondary" : "outline"}>
+                    {probability >= 70 ? 'Strong Contender' : probability >= 50 ? 'Possible Nominee' : 'Long Shot'}
+                  </Badge>
+                </div>
+
+                <div className="mb-3">
+                  <div className="flex justify-between text-sm mb-1">
+                    <span>Awards Probability</span>
+                    <span>{probability.toFixed(1)}%</span>
+                  </div>
+                  <Progress value={probability} className="h-2" />
+                </div>
+
+                {campaign && (
+                  <div className="mb-3 flex items-center justify-between text-xs text-muted-foreground">
+                    <div className="flex items-center gap-2">
+                      <Badge variant="outline" className="text-[11px]">
+                        Awards Campaign Active
+                      </Badge>
+                      <span>
+                        Budget ${campaign.budget.toLocaleString()} • Effectiveness {Math.round(campaign.effectiveness).toString()}%
+                      </span>
+                    </div>
+                  </div>
+                )}
+
+                {(isTvProject(project) ? tvCampaignWindowOpen : filmCampaignWindowOpen) && player && (
+                  <div className="flex flex-col gap-2">
+                    <div className="flex flex-wrap gap-2">
+                      <Button
+                        size="sm"
+                        onClick={() => startAwardsCampaign(project, 500000)}
+                        variant="outline"
+                        disabled={!!campaign}
+                      >
+                        <DollarIcon className="mr-1" size={14} />
+                        Basic Campaign ($500K)
+                      </Button>
+                      <Button
+                        size="sm"
+                        onClick={() => startAwardsCampaign(project, 1500000)}
+                        variant="outline"
+                        disabled={!!campaign}
+                      >
+                        <DollarIcon className="mr-1" size={14} />
+                        Premium Campaign ($1.5M)
+                      </Button>
+                      <Button
+                        size="sm"
+                        onClick={() => startAwardsCampaign(project, 3000000)}
+                        variant="outline"
+                        disabled={!!campaign}
+                      >
+                        <DollarIcon className="mr-1" size={14} />
+                        Prestige Campaign ($3M)
+                      </Button>
+                    </div>
+                    {campaign && (
+                      <div className="text-xs text-muted-foreground">
+                        A campaign is already running for this project this season.
+                      </div>
+                    )}
+                  </div>
+                )}
+              </div>
+            ))}
           </CardContent>
         </Card>
       )}
@@ -631,7 +719,7 @@ const aiProjects = gameState.allReleases.filter((release): release is Project =>
         currentYear={gameState.currentYear}
       />
 
-      {eligibleProjects.length === 0 && (
+      {eligibleProjectsAll.length === 0 && (
         <Card className="card-premium">
           <CardContent className="text-center py-12">
             <TrophyIcon className="mx-auto text-muted-foreground/50 mb-4" size={48} />

@@ -213,33 +213,35 @@ export function useAwardsEngine(
       [key]: { year: gameState.currentYear, categories: categoriesMap },
     }));
 
-    // Hook nominations into the media feed (keep it lightweight: 1-2 highlight stories per show)
-    const nominationHighlights: Array<{ project: Project; category: string }> = [];
+    // Hook nominations into the media feed (1 highlight story per show)
     const isPlayerProject = (p: Project) => gameState.projects.some(pp => pp.id === p.id);
+
+    let highlight: { project: Project; category: string } | undefined;
 
     for (const [category, ranked] of Object.entries(categoriesMap)) {
       const playerNominee = ranked.find(n => isPlayerProject(n.project));
       if (playerNominee) {
-        nominationHighlights.push({ project: playerNominee.project, category });
+        highlight = { project: playerNominee.project, category };
         break;
       }
     }
 
-    const headlineCategory =
-      Object.keys(categoriesMap).find(c => /best (picture|film)/i.test(c)) ||
-      Object.keys(categoriesMap)[0];
+    if (!highlight) {
+      const headlineCategory =
+        Object.keys(categoriesMap).find(c => /best (picture|film)/i.test(c)) ||
+        Object.keys(categoriesMap)[0];
 
-    if (headlineCategory) {
-      const top = categoriesMap[headlineCategory]?.[0];
-      if (top && !nominationHighlights.some(n => n.project.id === top.project.id)) {
-        nominationHighlights.push({ project: top.project, category: headlineCategory });
+      if (headlineCategory) {
+        const top = categoriesMap[headlineCategory]?.[0];
+        if (top) highlight = { project: top.project, category: headlineCategory };
       }
     }
 
     const categoryDefByName = new Map(categories.map((c) => [c.name, c] as const));
 
     let queuedNominationMedia = false;
-    nominationHighlights.slice(0, 2).forEach(({ project, category }) => {
+    if (highlight) {
+      const { project, category } = highlight;
       const isPlayer = isPlayerProject(project);
       const competitorStudio = !isPlayer && project.studioName
         ? gameState.competitorStudios.find(s => s.name === project.studioName)
@@ -269,7 +271,7 @@ export function useAwardsEngine(
         year: gameState.currentYear
       });
       queuedNominationMedia = true;
-    });
+    }
 
     if (queuedNominationMedia) {
       MediaEngine.processMediaEvents(gameState);

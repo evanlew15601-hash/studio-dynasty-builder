@@ -125,18 +125,18 @@ class MediaEngine {
       }
     }
 
-    // Random industry events (5% chance per week)
-    if (Math.random() < 0.05 && gameState.talent.length > 0) {
-      const randomEventTypes = ['rumor', 'interview', 'exclusive'];
+    // Random industry events (keeps the feed from going quiet between major milestones)
+    if (Math.random() < 0.12 && gameState.talent.length > 0) {
+      const randomEventTypes = ['rumor', 'interview', 'exclusive', 'leak', 'rumor', 'interview', 'scandal'];
       const eventType = randomEventTypes[Math.floor(Math.random() * randomEventTypes.length)];
-      
+
       // Pick random talent for the event
       const talent = gameState.talent[Math.floor(Math.random() * gameState.talent.length)];
-      
+
       const eventId = this.queueMediaEvent({
         type: eventType as any,
         triggerType: 'random',
-        priority: 'low',
+        priority: eventType === 'scandal' ? 'high' : eventType === 'leak' ? 'medium' : 'low',
         entities: {
           talent: [talent.id]
         },
@@ -148,7 +148,7 @@ class MediaEngine {
     }
 
     // Competitor / industry release coverage (gives the feed non-player stories)
-    if (Math.random() < 0.12 && (gameState.allReleases?.length || 0) > 0) {
+    if (Math.random() < 0.35 && (gameState.allReleases?.length || 0) > 0) {
       const releasesThisWeek = (gameState.allReleases || [])
         .filter((r): r is Project => (r as any)?.script)
         .filter(p => (p.releaseWeek === gameState.currentWeek && p.releaseYear === gameState.currentYear));
@@ -298,8 +298,11 @@ class MediaEngine {
 
   // Public API for getting media data
   static getRecentMedia(limit: number = 20): MediaItem[] {
+    const abs = (m: MediaItem) => (m.publishDate.year * 52) + m.publishDate.week;
+
     return this.mediaHistory
-      .sort((a, b) => b.publishDate.week - a.publishDate.week)
+      .slice()
+      .sort((a, b) => abs(b) - abs(a))
       .slice(0, limit);
   }
 
@@ -320,14 +323,15 @@ class MediaEngine {
   }
 
   static getMediaStats() {
+    const abs = (m: MediaItem) => (m.publishDate.year * 52) + m.publishDate.week;
+    const latest = this.mediaHistory.reduce((max, item) => Math.max(max, abs(item)), 0);
+
     return {
       totalItems: this.mediaHistory.length,
       queuedEvents: this.eventQueue.filter(e => !e.processed).length,
       entitiesTracked: this.mediaMemory.size,
-      recentActivity: this.mediaHistory.filter(item => 
-        // Items from last 4 weeks
-        Date.now() - new Date(item.publishDate.year, 0, item.publishDate.week * 7).getTime() < 4 * 7 * 24 * 60 * 60 * 1000
-      ).length
+      // Items from last 4 in-game weeks relative to the newest article we have.
+      recentActivity: this.mediaHistory.filter(item => (latest - abs(item)) < 4).length
     };
   }
 
