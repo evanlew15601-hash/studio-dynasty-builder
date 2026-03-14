@@ -238,8 +238,13 @@ export const isWithinAwardCooldown = (
   const checkYear = (y: number): AwardShowDefinition | undefined => {
     const shows = getAwardShowsForYear(y).filter(s => s.medium === medium);
     for (const show of shows) {
-      const startAbs = (y * 52) + show.ceremonyWeek;
-      const endAbs = startAbs + Math.max(0, show.cooldownWeeks - 1);
+      if (show.cooldownWeeks <= 0) continue;
+
+      // Cooldown applies to the weeks *after* the ceremony.
+      // For example: ceremonyWeek=12, cooldownWeeks=1 => week 13 is blocked.
+      const startAbs = (y * 52) + show.ceremonyWeek + 1;
+      const endAbs = startAbs + (show.cooldownWeeks - 1);
+
       if (absWeek >= startAbs && absWeek <= endAbs) {
         return show;
       }

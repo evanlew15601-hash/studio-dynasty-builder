@@ -156,12 +156,15 @@ export class CalendarManager {
     // Awards show cooldown and eligibility checks
     const cooldown = isWithinAwardCooldown(targetWeek, targetYear, medium);
     if (cooldown.within) {
-      const recommendedAbs = (targetYear * 52) + (cooldown.show!.ceremonyWeek + cooldown.show!.cooldownWeeks);
+      const cooldownStart = cooldown.show!.ceremonyWeek + 1;
+      const cooldownEnd = cooldown.show!.ceremonyWeek + cooldown.show!.cooldownWeeks;
+
+      const recommendedAbs = (targetYear * 52) + (cooldownEnd + 1);
       const recommended = absToWeekYear(recommendedAbs);
 
       return {
         canRelease: false,
-        reason: `Release falls within ${cooldown.show!.name} cooldown period (weeks ${cooldown.show!.ceremonyWeek}-${cooldown.show!.ceremonyWeek + cooldown.show!.cooldownWeeks - 1})`,
+        reason: `Release falls within ${cooldown.show!.name} cooldown period (weeks ${cooldownStart}-${cooldownEnd})`,
         recommendedWeek: recommended.week,
         recommendedYear: recommended.year,
       };
