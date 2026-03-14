@@ -59,6 +59,7 @@ import { Button } from '@/components/ui/button';
 import { Card, CardContent } from '@/components/ui/card';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
+import { ToastAction } from '@/components/ui/toast';
 import { useToast } from '@/hooks/use-toast';
 import type { TickRecapCard, TickReport, TickSystemReport } from '@/types/tickReport';
 import { createTickReport } from '@/utils/tickReport';
@@ -544,11 +545,28 @@ export const StudioMagnateGame: React.FC<StudioMagnateGameProps> = ({
     if (storeGameState) return;
     if (!initialGameState) return;
 
-    loadGameToStore(initialGameState, initialGameState.rngState ?? initialGameState.universeSeed);
+    const derivedUniverseSeed =
+      typeof initialGameState.universeSeed === 'number'
+        ? initialGameState.universeSeed
+        : seedFromString(`${initialGameState.studio?.id ?? 'studio'}`);
+
+    const derivedRngState =
+      typeof initialGameState.rngState === 'number'
+        ? initialGameState.rngState
+        : derivedUniverseSeed;
+
+    const primed = primeCompetitorTelevision({
+      ...initialGameState,
+      universeSeed: derivedUniverseSeed,
+      rngState: derivedRngState,
+    });
+
+    loadGameToStore(primed, primed.rngState ?? primed.universeSeed);
   }, [storeGameState, initialGameState, loadGameToStore]);
 
   // Generate a fresh world asynchronously so the loading overlay can appear immediately.
   const newGameInitStartedRef = useRef(false);
+  const [newGameInitAttempt, setNewGameInitAttempt] = useState(0);
 
   useEffect(() => {
     if (storeGameState) return;
@@ -862,7 +880,25 @@ export const StudioMagnateGame: React.FC<StudioMagnateGameProps> = ({
 
     run().catch((e) => {
       console.error('[Game Init] Failed to generate a new world', e);
+      newGameInitStartedRef.current = false;
       completeOperation(LOADING_OPERATIONS.GAME_INIT.id);
+
+      toast({
+        title: 'World Generation Failed',
+        description: 'Something went wrong while generating a new game world. You can retry without reloading the page.',
+        variant: 'destructive',
+        action: (
+          <ToastAction
+            altText="Retry"
+            onClick={() => {
+              newGameInitStartedRef.current = false;
+              setNewGameInitAttempt((n) => n + 1);
+            }}
+          >
+            Retry
+          </ToastAction>
+        ),
+      });
     });
 
     return () => {
@@ -872,11 +908,13 @@ export const StudioMagnateGame: React.FC<StudioMagnateGameProps> = ({
   }, [
     storeGameState,
     initialGameState,
+    newGameInitAttempt,
     gameConfig,
     startOperation,
     updateOperation,
     completeOperation,
     initGame,
+    toast,
   ]);
 
   const gameState = storeGameState ?? bootstrapGameState;
