@@ -9,6 +9,18 @@ export type OnlineLeagueTickGateStatus =
   | 'ready'
   | 'error';
 
+export type OnlineLeagueTickGateRemoteStudio = {
+  userId: string;
+  studioName: string;
+  budget: number;
+  reputation: number;
+  week?: number;
+  year?: number;
+  releasedTitles?: number;
+  updatedAt?: string;
+  lastSeenAt?: string;
+};
+
 export type OnlineLeagueTickGateState = {
   status: OnlineLeagueTickGateStatus;
   error: string | null;
@@ -21,7 +33,7 @@ export type OnlineLeagueTickGateState = {
   memberCount: number;
   readyCount: number;
   isReady: boolean;
-  remoteStudios: Array<{ userId: string; studioName: string; budget: number; reputation: number }>;
+  remoteStudios: OnlineLeagueTickGateRemoteStudio[];
   setReady: (ready: boolean) => Promise<void>;
   forceAdvance: () => Promise<void>;
 };
@@ -56,7 +68,7 @@ export function useOnlineLeagueTickGate({
   const [memberCount, setMemberCount] = useState(0);
   const [readyCount, setReadyCount] = useState(0);
   const [isReady, setIsReady] = useState(false);
-  const [remoteStudios, setRemoteStudios] = useState<Array<{ userId: string; studioName: string; budget: number; reputation: number }>>([]);
+  const [remoteStudios, setRemoteStudios] = useState<OnlineLeagueTickGateRemoteStudio[]>([]);
 
   const isHost = !!userId && !!hostUserId && userId === hostUserId;
 
@@ -232,7 +244,7 @@ export function useOnlineLeagueTickGate({
 
       const membersRes = await supabase
         .from('online_league_members')
-        .select('user_id, studio_name')
+        .select('user_id, studio_name, last_seen_at')
         .eq('league_id', leagueId);
 
       const memberRows = membersRes.data || [];
@@ -240,15 +252,23 @@ export function useOnlineLeagueTickGate({
 
       const snapshotsRes = await supabase
         .from('online_league_snapshots')
-        .select('user_id, studio_name, budget, reputation')
+        .select('user_id, studio_name, budget, reputation, week, year, released_titles, updated_at')
         .eq('league_id', leagueId);
 
-      const snapshotByUserId = new Map<string, { studio_name: string; budget: number; reputation: number }>();
+      const snapshotByUserId = new Map<string, { studio_name: string; budget: number; reputation: number; week?: number; year?: number; released_titles?: number; updated_at?: string }>();
       for (const row of snapshotsRes.data || []) {
-        snapshotByUserId.set(row.user_id, { studio_name: row.studio_name, budget: row.budget, reputation: row.reputation });
+        snapshotByUserId.set(row.user_id, {
+          studio_name: row.studio_name,
+          budget: row.budget,
+          reputation: row.reputation,
+          week: row.week,
+          year: row.year,
+          released_titles: row.released_titles,
+          updated_at: row.updated_at,
+        });
       }
 
-      const otherStudios = memberRows
+      const otherStudios: OnlineLeagueTickGateRemoteStudio[] = memberRows
         .filter((m) => m.user_id !== userId)
         .map((m) => {
           const snap = snapshotByUserId.get(m.user_id);
@@ -257,6 +277,11 @@ export function useOnlineLeagueTickGate({
             studioName: snap?.studio_name || m.studio_name,
             budget: Number(snap?.budget ?? 0),
             reputation: Number(snap?.reputation ?? 0),
+            week: snap?.week,
+            year: snap?.year,
+            releasedTitles: Number(snap?.released_titles ?? 0),
+            updatedAt: snap?.updated_at,
+            lastSeenAt: m.last_seen_at,
           };
         });
 

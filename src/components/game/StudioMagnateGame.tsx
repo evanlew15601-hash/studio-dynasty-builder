@@ -16,6 +16,7 @@ import { FinancialDashboard } from './FinancialDashboard';
 import { IntegrationMonitor } from './IntegrationMonitor';
 import { AIStudioManager } from './AIStudioManager';
 import { CompetitorMonitor } from './CompetitorMonitor';
+import { LeagueStandings } from './LeagueStandings';
 import { TimeSystem, TimeState } from './TimeSystem';
 import { BoxOfficeSystem } from './BoxOfficeSystem';
 import { StreamingFilmSystem } from './StreamingFilmSystem';
@@ -2788,6 +2789,40 @@ export const StudioMagnateGame: React.FC<StudioMagnateGameProps> = ({
     }));
   }, [isOnlineMode, onlineTickGate.remoteStudios]);
 
+  const leagueRoster = useMemo(() => {
+    if (!isOnlineMode) return [] as Array<{ id: string; name: string; budget: number; reputation: number; releasedTitles: number; week: number; year: number; updatedAt?: string; isYou: boolean }>;
+
+    const you = {
+      id: onlineTickGate.userId ?? gameState.studio.id,
+      name: gameState.studio.name,
+      budget: gameState.studio.budget,
+      reputation: gameState.studio.reputation,
+      releasedTitles: gameState.projects.filter((p) => p.status === 'released').length,
+      week: gameState.currentWeek,
+      year: gameState.currentYear,
+      updatedAt: new Date().toISOString(),
+      isYou: true,
+    };
+
+    const others = (onlineTickGate.remoteStudios || []).map((s) => ({
+      id: s.userId,
+      name: s.studioName,
+      budget: s.budget,
+      reputation: s.reputation,
+      releasedTitles: s.releasedTitles ?? 0,
+      week: s.week ?? 0,
+      year: s.year ?? 0,
+      updatedAt: s.updatedAt,
+      isYou: false,
+    }));
+
+    return [you, ...others].sort((a, b) => {
+      if (b.reputation !== a.reputation) return b.reputation - a.reputation;
+      if (b.releasedTitles !== a.releasedTitles) return b.releasedTitles - a.releasedTitles;
+      return b.budget - a.budget;
+    });
+  }, [isOnlineMode, onlineTickGate.userId, onlineTickGate.remoteStudios, gameState.studio.id, gameState.studio.name, gameState.studio.budget, gameState.studio.reputation, gameState.projects, gameState.currentWeek, gameState.currentYear]);
+
   useEffect(() => {
     if (!isOnlineMode) return;
 
@@ -3203,7 +3238,7 @@ export const StudioMagnateGame: React.FC<StudioMagnateGameProps> = ({
                 </DropdownMenuItem>
                 <DropdownMenuItem onClick={() => handlePhaseChange('competition')}>
                   <BarChartIcon className="mr-2" size={16} />
-                  AI Competition
+                  {onlineLeagueCode ? 'League Standings' : 'AI Competition'}
                 </DropdownMenuItem>
                 <DropdownMenuItem onClick={() => handlePhaseChange('market')}>
                   <BarChartIcon className="mr-2" size={16} />
@@ -3294,7 +3329,60 @@ export const StudioMagnateGame: React.FC<StudioMagnateGameProps> = ({
       {/* Main Content */}
       <div className="container mx-auto px-6 py-8 animate-slide-up">
         {currentPhase === 'dashboard' && (
-          <StudioDashboard />
+          <div className="space-y-6">
+            {isOnlineMode && (
+              <Card className="card-premium">
+                <CardContent className="pt-6">
+                  <div className="flex items-center justify-between gap-4">
+                    <div>
+                      <div className="text-sm font-semibold">League roster</div>
+                      <div className="text-xs text-muted-foreground">
+                        {onlineTickGate.leagueCode} • Ready {onlineTickGate.readyCount}/{onlineTickGate.memberCount || '?'}
+                      </div>
+                    </div>
+                    <Button size="sm" variant="outline" onClick={() => handlePhaseChange('competition')}>
+                      Open leaderboard
+                    </Button>
+                  </div>
+
+                  <div className="mt-4 space-y-2">
+                    {onlineTickGate.status !== 'ready' ? (
+                      <div className="text-sm text-muted-foreground">
+                        {onlineTickGate.error || 'Connecting to the league…'}
+                      </div>
+                    ) : (
+                      <>
+                        {leagueRoster.slice(0, 6).map((s, idx) => (
+                          <div key={s.id} className="flex items-center justify-between rounded-md border p-3">
+                            <div>
+                              <div className="text-sm font-medium">{idx + 1}. {s.name}{s.isYou ? ' (You)' : ''}</div>
+                              <div className="text-xs text-muted-foreground">
+                                {s.year && s.week ? `Week ${s.week}, ${s.year}` : 'Progress unknown'}
+                              </div>
+                            </div>
+                            <div className="text-right">
+                              <div className="text-sm">Rep {Math.round(s.reputation)}/100</div>
+                              <div className="text-xs text-muted-foreground">
+                                ${(s.budget / 1_000_000).toFixed(0)}M • {s.releasedTitles} released
+                              </div>
+                            </div>
+                          </div>
+                        ))}
+
+                        {leagueRoster.length === 0 && (
+                          <div className="text-sm text-muted-foreground">
+                            Waiting for league members…
+                          </div>
+                        )}
+                      </>
+                    )}
+                  </div>
+                </CardContent>
+              </Card>
+            )}
+
+            <StudioDashboard />
+          </div>
         )}
         
         {currentPhase === 'franchise' && (
@@ -3765,7 +3853,7 @@ export const StudioMagnateGame: React.FC<StudioMagnateGameProps> = ({
         )}
         
         {currentPhase === 'competition' && (
-          <CompetitorMonitor />
+          isOnlineMode ? <LeagueStandings tickGate={onlineTickGate} /> : <CompetitorMonitor />
         )}
         
         {currentPhase === 'awards' && (
