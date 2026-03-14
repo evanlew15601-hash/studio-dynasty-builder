@@ -214,7 +214,12 @@ export class FranchiseGenerator {
 
       const titleOptions = template.titlePatterns.filter((title) => !usedTitles.has(title));
       const picked = stablePick(titleOptions, `${seed}|parodyTitle|${template.parodySource}`);
-      const title = picked || template.titlePatterns[0];
+      let title = picked || template.titlePatterns[0];
+
+      // Ensure we never get stuck reusing a title (mods can patch title patterns).
+      if (usedTitles.has(title)) {
+        title = `${title} (${i + 1})`;
+      }
 
       usedTitles.add(title);
       usedSources.add(template.parodySource);
@@ -251,9 +256,20 @@ export class FranchiseGenerator {
     while (franchises.length < count) {
       const id = `FR${String(franchises.length + 1).padStart(3, '0')}`;
       const randomTemplate = stablePick(FRANCHISE_TEMPLATES, `${seed}|template|${id}`) || FRANCHISE_TEMPLATES[0];
-      const title = generateRandomTitleImpl(`${seed}|title|${id}`);
 
-      if (usedTitles.has(title)) continue;
+      // Title generation is seeded and deterministic. If a mod (or future template tweaks)
+      // causes collisions, we must not get stuck in an infinite loop.
+      let title = '';
+      let attempt = 0;
+      do {
+        title = generateRandomTitleImpl(`${seed}|title|${id}|${attempt}`);
+        attempt += 1;
+      } while (usedTitles.has(title) && attempt < 50);
+
+      if (usedTitles.has(title)) {
+        title = `${title} ${id}`;
+      }
+
       usedTitles.add(title);
 
       const franchise: Franchise = {
