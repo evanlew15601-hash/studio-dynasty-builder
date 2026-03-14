@@ -108,16 +108,14 @@ begin
   else
     select count(*) into member_count
     from public.online_league_members m
-    where m.league_id = league_id
-      and m.last_seen_at >= (now() - interval '3 minutes');
+    where m.league_id = league_id;
 
     select count(*) into ready_count
     from public.online_league_ready r
     join public.online_league_members m
       on m.league_id = r.league_id and m.user_id = r.user_id
     where r.league_id = league_id
-      and r.ready_for_turn = next_turn
-      and m.last_seen_at >= (now() - interval '3 minutes');
+      and r.ready_for_turn = next_turn;
 
     if member_count > 0 and ready_count >= member_count then
       should_advance := true;

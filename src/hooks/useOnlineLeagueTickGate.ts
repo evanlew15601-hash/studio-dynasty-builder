@@ -21,6 +21,7 @@ export type OnlineLeagueTickGateState = {
   memberCount: number;
   readyCount: number;
   isReady: boolean;
+  remoteStudios: Array<{ userId: string; studioName: string; budget: number; reputation: number }>;
   setReady: (ready: boolean) => Promise<void>;
   forceAdvance: () => Promise<void>;
 };
@@ -55,6 +56,7 @@ export function useOnlineLeagueTickGate({
   const [memberCount, setMemberCount] = useState(0);
   const [readyCount, setReadyCount] = useState(0);
   const [isReady, setIsReady] = useState(false);
+  const [remoteStudios, setRemoteStudios] = useState<Array<{ userId: string; studioName: string; budget: number; reputation: number }>>([]);
 
   const isHost = !!userId && !!hostUserId && userId === hostUserId;
 
@@ -228,31 +230,47 @@ export function useOnlineLeagueTickGate({
         appliedTurnRef.current = nextTurn;
       }
 
-      const cutoffIso = new Date(Date.now() - 3 * 60 * 1000).toISOString();
-
-      const activeMembersRes = await supabase
+      const membersRes = await supabase
         .from('online_league_members')
-        .select('user_id')
-        .eq('league_id', leagueId)
-        .gte('last_seen_at', cutoffIso);
+        .select('user_id, studio_name')
+        .eq('league_id', leagueId);
 
-      const activeMemberIds = (activeMembersRes.data || []).map((m) => m.user_id);
-      setMemberCount(activeMemberIds.length);
+      const memberRows = membersRes.data || [];
+      setMemberCount(memberRows.length);
+
+      const snapshotsRes = await supabase
+        .from('online_league_snapshots')
+        .select('user_id, studio_name, budget, reputation')
+        .eq('league_id', leagueId);
+
+      const snapshotByUserId = new Map<string, { studio_name: string; budget: number; reputation: number }>();
+      for (const row of snapshotsRes.data || []) {
+        snapshotByUserId.set(row.user_id, { studio_name: row.studio_name, budget: row.budget, reputation: row.reputation });
+      }
+
+      const otherStudios = memberRows
+        .filter((m) => m.user_id !== userId)
+        .map((m) => {
+          const snap = snapshotByUserId.get(m.user_id);
+          return {
+            userId: m.user_id,
+            studioName: snap?.studio_name || m.studio_name,
+            budget: Number(snap?.budget ?? 0),
+            reputation: Number(snap?.reputation ?? 0),
+          };
+        });
+
+      setRemoteStudios(otherStudios);
 
       const nextReadyTurn = nextTurn + 1;
 
-      if (activeMemberIds.length > 0) {
-        const readyCountRes = await supabase
-          .from('online_league_ready')
-          .select('user_id')
-          .eq('league_id', leagueId)
-          .eq('ready_for_turn', nextReadyTurn)
-          .in('user_id', activeMemberIds);
+      const readyCountRes = await supabase
+        .from('online_league_ready')
+        .select('user_id', { count: 'exact', head: true })
+        .eq('league_id', leagueId)
+        .eq('ready_for_turn', nextReadyTurn);
 
-        setReadyCount(readyCountRes.data?.length ?? 0);
-      } else {
-        setReadyCount(0);
-      }
+      setReadyCount(readyCountRes.count ?? 0);
 
       // Self ready state
       const selfReadyRes = await supabase
@@ -336,6 +354,7 @@ export function useOnlineLeagueTickGate({
     memberCount,
     readyCount,
     isReady,
+    remoteStudios,
     setReady,
     forceAdvance,
   };

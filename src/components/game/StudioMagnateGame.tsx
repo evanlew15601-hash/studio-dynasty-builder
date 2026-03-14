@@ -1,4 +1,4 @@
-import React, { useEffect, useRef, useState, Suspense } from 'react';
+import React, { useEffect, useMemo, useRef, useState, Suspense } from 'react';
 import type { GameState, Studio, Project, Script, TalentPerson, Genre, MarketingStrategy, ReleaseStrategy, ProductionPhase, ScriptCharacter } from '@/types/game';
 import { useLoadingActions } from '@/contexts/LoadingContext';
 import { LOADING_OPERATIONS, delay } from '@/utils/loadingUtils';
@@ -456,6 +456,7 @@ export const StudioMagnateGame: React.FC<StudioMagnateGameProps> = ({
   onlineLeagueCode
 }) => {
   const { toast } = useToast();
+  const isOnlineMode = !!onlineLeagueCode?.trim();
   const { startOperation, updateOperation, completeOperation } = useLoadingActions();
   const weeklyProcessingRef = useRef(false);
   const aiSlateGeneratorRef = useRef<{ year: number; nextWeek: number; generator: StudioGenerator } | null>(null);
@@ -502,7 +503,8 @@ export const StudioMagnateGame: React.FC<StudioMagnateGameProps> = ({
           ? initialGameState.rngState
           : derivedUniverseSeed;
 
-      return primeCompetitorTelevision({ ...initialGameState, universeSeed: derivedUniverseSeed, rngState: derivedRngState });
+      const seeded = { ...initialGameState, universeSeed: derivedUniverseSeed, rngState: derivedRngState };
+      return isOnlineMode ? seeded : primeCompetitorTelevision(seeded);
     }
 
     // Lightweight placeholder so the LoadingOverlay can render before heavy init starts.
@@ -567,14 +569,16 @@ export const StudioMagnateGame: React.FC<StudioMagnateGameProps> = ({
         ? initialGameState.rngState
         : derivedUniverseSeed;
 
-    const primed = primeCompetitorTelevision({
+    const seeded = {
       ...initialGameState,
       universeSeed: derivedUniverseSeed,
       rngState: derivedRngState,
-    });
+    };
 
-    loadGameToStore(primed, primed.rngState ?? primed.universeSeed);
-  }, [storeGameState, initialGameState, loadGameToStore]);
+    const next = isOnlineMode ? seeded : primeCompetitorTelevision(seeded);
+
+    loadGameToStore(next, next.rngState ?? next.universeSeed);
+  }, [storeGameState, initialGameState, loadGameToStore, isOnlineMode]);
 
   // Generate a fresh world asynchronously so the loading overlay can appear immediately.
   const newGameInitStartedRef = useRef(false);
@@ -619,148 +623,157 @@ export const StudioMagnateGame: React.FC<StudioMagnateGameProps> = ({
         (t) => t.id
       );
 
-      updateOperation(LOADING_OPERATIONS.GAME_INIT.id, 25, 'Generating competitor studios...');
-      await delay(0);
+      let competitorStudios: Studio[] = [];
 
-      const studioGenerator = new StudioGenerator();
-      const competitorStudios = studioGenerator.generateCompetitorStudios();
+      if (!isOnlineMode) {
+        updateOperation(LOADING_OPERATIONS.GAME_INIT.id, 25, 'Generating competitor studios...');
+        await delay(0);
 
-      updateOperation(LOADING_OPERATIONS.GAME_INIT.id, 30, 'Seeding AI releases...');
-      await delay(0);
+        const studioGenerator = new StudioGenerator();
+        competitorStudios = studioGenerator.generateCompetitorStudios();
+      } else {
+        updateOperation(LOADING_OPERATIONS.GAME_INIT.id, 25, 'Online League: skipping AI studios...');
+        await delay(0);
+      }
 
-      const sg = new StudioGenerator();
-      const releases: Project[] = [];
-      const currentYear = new Date().getFullYear();
-      const yearsToSeed = [currentYear - 1, currentYear];
-      const totalWeeks = yearsToSeed.length * 52;
-      let processedWeeks = 0;
+      let releases: Project[] = [];
 
-      const yieldToBrowser = () => delay(0);
-      const YIELD_EVERY_OPS = 25;
-      let processedOps = 0;
+      if (!isOnlineMode) {
+        updateOperation(LOADING_OPERATIONS.GAME_INIT.id, 30, 'Seeding AI releases...');
+        await delay(0);
 
-      for (const year of yearsToSeed) {
-        for (let w = 1; w <= 52; w++) {
-          if (cancelled) return;
+        const sg = new StudioGenerator();
+        const currentYear = new Date().getFullYear();
+        const yearsToSeed = [currentYear - 1, currentYear];
+        const totalWeeks = yearsToSeed.length * 52;
+        let processedWeeks = 0;
 
-          processedWeeks += 1;
-          let releasesThisWeek = 0;
+        const yieldToBrowser = () => delay(0);
+        const YIELD_EVERY_OPS = 25;
+        let processedOps = 0;
 
-          for (const st of competitorStudios) {
+        for (const year of yearsToSeed) {
+          for (let w = 1; w <= 52; w++) {
             if (cancelled) return;
 
-            const profile = sg.getStudioProfile(st.name);
-            const rel = profile ? sg.generateStudioRelease(profile, w, year) : null;
-            if (rel) {
-              releases.push(rel);
-              releases[releases.length - 1] = attachBasicCastForAI(releases[releases.length - 1] as Project, generatedTalent);
-              releasesThisWeek += 1;
-            }
+            processedWeeks += 1;
+            let releasesThisWeek = 0;
 
-            processedOps += 1;
-            if (processedOps % YIELD_EVERY_OPS === 0) {
-              await yieldToBrowser();
-            }
-          }
+            for (const st of competitorStudios) {
+              if (cancelled) return;
 
-          if (releasesThisWeek === 0 && competitorStudios[0]) {
-            const fallback = sg.getStudioProfile(competitorStudios[0].name);
-            if (fallback) {
-              const rel = sg.generateStudioRelease(fallback, w, year);
+              const profile = sg.getStudioProfile(st.name);
+              const rel = profile ? sg.generateStudioRelease(profile, w, year) : null;
               if (rel) {
                 releases.push(rel);
                 releases[releases.length - 1] = attachBasicCastForAI(releases[releases.length - 1] as Project, generatedTalent);
-              } else {
-                // Guarantee at least one release per week: synthesize a small indie release
-                const genre = fallback.specialties[0] as Genre;
-                const script = {
-                  id: `script-${year}-${w}-${Math.random().toString(36).slice(2, 8)}`,
-                  title: sg.generateFilmTitle(genre, fallback.name),
-                  genre,
-                  logline: 'An indie story released to keep the slate full.',
-                  writer: 'Staff Writer',
-                  pages: 100,
-                  quality: 60,
-                  budget: 12000000,
-                  developmentStage: 'final',
-                  themes: ['indie', 'festival'],
-                  targetAudience: 'general',
-                  estimatedRuntime: 110,
-                  characteristics: {
-                    tone: 'balanced',
-                    pacing: 'steady',
-                    dialogue: 'naturalistic',
-                    visualStyle: 'realistic',
-                    commercialAppeal: 5,
-                    criticalPotential: 6,
-                    cgiIntensity: 'minimal',
-                  },
-                } as Script;
+                releasesThisWeek += 1;
+              }
 
-                releases.push({
-                  id: `ai-project-${year}-${w}-${Math.random().toString(36).slice(2, 6)}`,
-                  title: script.title,
-                  script,
-                  type: 'feature',
-                  currentPhase: 'release',
-                  status: 'released',
-                  phaseDuration: 0,
-                  contractedTalent: [],
-                  developmentProgress: {
-                    scriptCompletion: 100,
-                    budgetApproval: 100,
-                    talentAttached: 100,
-                    locationSecured: 100,
-                    completionThreshold: 100,
-                    issues: [],
-                  },
-                  budget: {
-                    total: script.budget,
-                    allocated: {
-                      aboveTheLine: script.budget * 0.2,
-                      belowTheLine: script.budget * 0.3,
-                      postProduction: script.budget * 0.15,
-                      marketing: script.budget * 0.25,
-                      distribution: script.budget * 0.1,
-                      contingency: 0,
+              processedOps += 1;
+              if (processedOps % YIELD_EVERY_OPS === 0) {
+                await yieldToBrowser();
+              }
+            }
+
+            if (releasesThisWeek === 0 && competitorStudios[0]) {
+              const fallback = sg.getStudioProfile(competitorStudios[0].name);
+              if (fallback) {
+                const rel = sg.generateStudioRelease(fallback, w, year);
+                if (rel) {
+                  releases.push(rel);
+                  releases[releases.length - 1] = attachBasicCastForAI(releases[releases.length - 1] as Project, generatedTalent);
+                } else {
+                  // Guarantee at least one release per week: synthesize a small indie release
+                  const genre = fallback.specialties[0] as Genre;
+                  const script = {
+                    id: `script-${year}-${w}-${Math.random().toString(36).slice(2, 8)}`,
+                    title: sg.generateFilmTitle(genre, fallback.name),
+                    genre,
+                    logline: 'An indie story released to keep the slate full.',
+                    writer: 'Staff Writer',
+                    pages: 100,
+                    quality: 60,
+                    budget: 12000000,
+                    developmentStage: 'final',
+                    themes: ['indie', 'festival'],
+                    targetAudience: 'general',
+                    estimatedRuntime: 110,
+                    characteristics: {
+                      tone: 'balanced',
+                      pacing: 'steady',
+                      dialogue: 'naturalistic',
+                      visualStyle: 'realistic',
+                      commercialAppeal: 5,
+                      criticalPotential: 6,
+                      cgiIntensity: 'minimal',
                     },
-                    spent: {
-                      aboveTheLine: script.budget * 0.2,
-                      belowTheLine: script.budget * 0.3,
-                      postProduction: script.budget * 0.15,
-                      marketing: script.budget * 0.25,
-                      distribution: script.budget * 0.1,
-                      contingency: 0,
+                  } as Script;
+
+                  releases.push({
+                    id: `ai-project-${year}-${w}-${Math.random().toString(36).slice(2, 6)}`,
+                    title: script.title,
+                    script,
+                    type: 'feature',
+                    currentPhase: 'release',
+                    status: 'released',
+                    phaseDuration: 0,
+                    contractedTalent: [],
+                    developmentProgress: {
+                      scriptCompletion: 100,
+                      budgetApproval: 100,
+                      talentAttached: 100,
+                      locationSecured: 100,
+                      completionThreshold: 100,
+                      issues: [],
                     },
-                    overages: {
-                      aboveTheLine: 0,
-                      belowTheLine: 0,
-                      postProduction: 0,
-                      marketing: 0,
-                      distribution: 0,
-                      contingency: 0,
+                    budget: {
+                      total: script.budget,
+                      allocated: {
+                        aboveTheLine: script.budget * 0.2,
+                        belowTheLine: script.budget * 0.3,
+                        postProduction: script.budget * 0.15,
+                        marketing: script.budget * 0.25,
+                        distribution: script.budget * 0.1,
+                        contingency: 0,
+                      },
+                      spent: {
+                        aboveTheLine: script.budget * 0.2,
+                        belowTheLine: script.budget * 0.3,
+                        postProduction: script.budget * 0.15,
+                        marketing: script.budget * 0.25,
+                        distribution: script.budget * 0.1,
+                        contingency: 0,
+                      },
+                      overages: {
+                        aboveTheLine: 0,
+                        belowTheLine: 0,
+                        postProduction: 0,
+                        marketing: 0,
+                        distribution: 0,
+                        contingency: 0,
+                      },
                     },
-                  },
-                  cast: [],
-                  crew: [],
-                  timeline: {
-                    preProduction: { start: new Date(), end: new Date() },
-                    principalPhotography: { start: new Date(), end: new Date() },
-                    postProduction: { start: new Date(), end: new Date() },
-                    release: new Date(),
-                    milestones: [],
-                  },
-                  locations: [],
-                  distributionStrategy: {
-                    primary: {
-                      platform: 'Theatrical',
-                      type: 'theatrical',
-                      revenue: { type: 'box-office', studioShare: 50 },
+                    cast: [],
+                    crew: [],
+                    timeline: {
+                      preProduction: { start: new Date(), end: new Date() },
+                      principalPhotography: { start: new Date(), end: new Date() },
+                      postProduction: { start: new Date(), end: new Date() },
+                      release: new Date(),
+                      milestones: [],
                     },
-                    international: [],
-                    windows: [],
-                    marketingBudget: script.budget * 0.25,
-                  },
+                    locations: [],
+                    distributionStrategy: {
+                      primary: {
+                        platform: 'Theatrical',
+                        type: 'theatrical',
+                        revenue: { type: 'box-office', studioShare: 50 },
+                      },
+                      international: [],
+                      windows: [],
+                      marketingBudget: script.budget * 0.25,
+                    },
                   metrics: {
                     inTheaters: true,
                     boxOfficeTotal: Math.floor(script.budget * 2.2),
@@ -847,10 +860,16 @@ export const StudioMagnateGame: React.FC<StudioMagnateGameProps> = ({
         aiStudioProjects: [] as Project[],
       };
 
-      updateOperation(LOADING_OPERATIONS.GAME_INIT.id, 82, 'Priming competitor television...');
+      updateOperation(
+        LOADING_OPERATIONS.GAME_INIT.id,
+        82,
+        isOnlineMode ? 'Online League: skipping competitor television...' : 'Priming competitor television...'
+      );
       await delay(0);
 
-      initialState = primeCompetitorTelevision(initialState);
+      if (!isOnlineMode) {
+        initialState = primeCompetitorTelevision(initialState);
+      }
 
       updateOperation(LOADING_OPERATIONS.GAME_INIT.id, 88, 'Seeding filmographies...');
       await delay(0);
@@ -2187,25 +2206,27 @@ export const StudioMagnateGame: React.FC<StudioMagnateGameProps> = ({
       }
       
       // Process AI studio timelines and potential new film starts
-      measure('ai', 'AI studios', () => {
-        try {
-          AIStudioManager.processWeeklyAIFilms(newTimeState.currentWeek, newTimeState.currentYear);
-          if (baseAfterEngine.competitorStudios.length > 0) {
-            const shouldStartAIFilm = (newTimeState.currentWeek % 4 === 1) || Math.random() < 0.35;
-            if (shouldStartAIFilm) {
-              const randomStudio = baseAfterEngine.competitorStudios[Math.floor(Math.random() * baseAfterEngine.competitorStudios.length)];
-              AIStudioManager.createAIFilm(
-                randomStudio,
-                newTimeState.currentWeek,
-                newTimeState.currentYear,
-                baseAfterEngine.talent.filter(t => t.contractStatus === 'available')
-              );
+      if (!isOnlineMode) {
+        measure('ai', 'AI studios', () => {
+          try {
+            AIStudioManager.processWeeklyAIFilms(newTimeState.currentWeek, newTimeState.currentYear);
+            if (baseAfterEngine.competitorStudios.length > 0) {
+              const shouldStartAIFilm = (newTimeState.currentWeek % 4 === 1) || Math.random() < 0.35;
+              if (shouldStartAIFilm) {
+                const randomStudio = baseAfterEngine.competitorStudios[Math.floor(Math.random() * baseAfterEngine.competitorStudios.length)];
+                AIStudioManager.createAIFilm(
+                  randomStudio,
+                  newTimeState.currentWeek,
+                  newTimeState.currentYear,
+                  baseAfterEngine.talent.filter(t => t.contractStatus === 'available')
+                );
+              }
             }
+          } catch (e) {
+            console.warn('AI Studio processing error', e);
           }
-        } catch (e) {
-          console.warn('AI Studio processing error', e);
-        }
-      });
+        });
+      }
       
       let updatedProjects = baseAfterEngine.projects;
 
@@ -2261,11 +2282,12 @@ export const StudioMagnateGame: React.FC<StudioMagnateGameProps> = ({
         updateOperation(LOADING_OPERATIONS.WEEKLY_PROCESSING.id, 90, 'Finalizing updates...');
       }
 
-      // If the simulation has advanced into a year without a pre-generated competitor slate,
-      // generate competitor releases incrementally (generating all 52 weeks in one tick can freeze the tab).
-      const hasAiSlateForYear = prev.allReleases.some(
-        (r): r is Project => 'script' in r && r.releaseYear === newTimeState.currentYear
-      );
+      if (!isOnlineMode) {
+        // If the simulation has advanced into a year without a pre-generated competitor slate,
+        // generate competitor releases incrementally (generating all 52 weeks in one tick can freeze the tab).
+        const hasAiSlateForYear = prev.allReleases.some(
+          (r): r is Project => 'script' in r && r.releaseYear === newTimeState.currentYear
+        );
 
       const slateYear = newTimeState.currentYear;
 
@@ -2425,19 +2447,22 @@ export const StudioMagnateGame: React.FC<StudioMagnateGameProps> = ({
           aiSlateGeneratorRef.current = null;
         }
       }
+      }
       
       // Process weekly costs and reputation with deep system
       const weeklyResults = measure('weeklyCosts', 'Weekly costs & debt', () => processWeeklyCosts(baseAfterEngine, updatedProjects, diagnosticsEnabled));
       
+      const competitorStudiosForWeek = isOnlineMode ? leagueCompetitorStudios : baseAfterEngine.competitorStudios;
+
       // Update industry context and calculate deep reputation
       const deepRepResult = measure('reputation', 'Reputation', () => {
-        DeepReputationSystem.updateIndustryContext([...baseAfterEngine.competitorStudios, baseAfterEngine.studio], newTimeState);
+        DeepReputationSystem.updateIndustryContext([...competitorStudiosForWeek, baseAfterEngine.studio], newTimeState);
         return DeepReputationSystem.calculateDeepReputation(
           weeklyResults.studio,
           updatedProjects,
           baseAfterEngine.talent,
           newTimeState,
-          baseAfterEngine.competitorStudios
+          competitorStudiosForWeek
         );
       });
       
@@ -2465,20 +2490,22 @@ export const StudioMagnateGame: React.FC<StudioMagnateGameProps> = ({
         return { ...t, contractStatus: status, busyUntilWeek: busyUntil };
       });
 
-      // Mark talent as busy if they're currently committed to an AI studio project
-      updatedTalent = updatedTalent.map(t => {
-        const commitment = AIStudioManager.getTalentCommitment(t.id, newTimeState.currentWeek, newTimeState.currentYear);
-        if (!commitment) return t;
+      if (!isOnlineMode) {
+        // Mark talent as busy if they're currently committed to an AI studio project
+        updatedTalent = updatedTalent.map(t => {
+          const commitment = AIStudioManager.getTalentCommitment(t.id, newTimeState.currentWeek, newTimeState.currentYear);
+          if (!commitment) return t;
 
-        const endAbsWeek = commitment.endAbsWeek;
-        const existingBusyUntil = typeof t.busyUntilWeek === 'number' ? t.busyUntilWeek : 0;
+          const endAbsWeek = commitment.endAbsWeek;
+          const existingBusyUntil = typeof t.busyUntilWeek === 'number' ? t.busyUntilWeek : 0;
 
-        return {
-          ...t,
-          contractStatus: 'busy',
-          busyUntilWeek: Math.max(existingBusyUntil, endAbsWeek)
-        };
-      });
+          return {
+            ...t,
+            contractStatus: 'busy',
+            busyUntilWeek: Math.max(existingBusyUntil, endAbsWeek)
+          };
+        });
+      }
 
       // Mark cast as busy for projects in production
       updatedProjects.forEach(p => {
@@ -2579,6 +2606,14 @@ export const StudioMagnateGame: React.FC<StudioMagnateGameProps> = ({
         return (currentAbsoluteWeek - releaseAbsWeek) <= MAX_RELEASE_AGE_WEEKS;
       });
 
+      const sanitizedReleases = isOnlineMode
+        ? prunedReleases.filter((release: any) => {
+            const studioName = release?.studioName;
+            if (!studioName) return true;
+            return studioName === enhancedStudio.name;
+          })
+        : prunedReleases;
+
       // Also prune old box office history if it exists
       const prunedBoxOfficeHistory = (baseAfterEngine.boxOfficeHistory || []).filter((entry: any) => {
         if (!entry.week || !entry.year) return true;
@@ -2597,10 +2632,13 @@ export const StudioMagnateGame: React.FC<StudioMagnateGameProps> = ({
         currentQuarter: newTimeState.currentQuarter,
         projects: updatedProjects,
         studio: enhancedStudio,
-        allReleases: prunedReleases,
-        aiStudioProjects: prunedReleases.filter(
-          (r): r is Project => 'script' in r && !!(r as any).studioName && (r as any).studioName !== enhancedStudio.name
-        ),
+        competitorStudios: competitorStudiosForWeek,
+        allReleases: sanitizedReleases,
+        aiStudioProjects: isOnlineMode
+          ? []
+          : sanitizedReleases.filter(
+              (r): r is Project => 'script' in r && !!(r as any).studioName && (r as any).studioName !== enhancedStudio.name
+            ),
         talent: updatedTalent,
         boxOfficeHistory: prunedBoxOfficeHistory,
         topFilmsHistory: prunedTopFilmsHistory,
@@ -2736,6 +2774,58 @@ export const StudioMagnateGame: React.FC<StudioMagnateGameProps> = ({
       advanceWeekCore({ suppressDiagnostics: true });
     },
   });
+
+  const leagueCompetitorStudios = useMemo(() => {
+    if (!isOnlineMode) return [] as Studio[];
+
+    return onlineTickGate.remoteStudios.map((remote) => ({
+      id: `league-${remote.userId}`,
+      name: remote.studioName,
+      reputation: remote.reputation,
+      budget: remote.budget,
+      founded: 1965,
+      specialties: ['drama'] as Genre[],
+    }));
+  }, [isOnlineMode, onlineTickGate.remoteStudios]);
+
+  useEffect(() => {
+    if (!isOnlineMode) return;
+
+    // Online leagues should only contain player-controlled studios.
+    AIStudioManager.resetAISystem();
+    aiSlateGeneratorRef.current = null;
+
+    const currentNames = (gameState.competitorStudios || []).map((s) => s.name).sort().join('|');
+    const nextNames = leagueCompetitorStudios.map((s) => s.name).sort().join('|');
+
+    const playerName = gameState.studio.name;
+    const existingReleases = gameState.allReleases || [];
+    const filteredReleases = existingReleases.filter((r: any) => {
+      const studioName = r?.studioName;
+      if (!studioName) return true;
+      return studioName === playerName;
+    });
+
+    const shouldUpdateCompetitors = currentNames !== nextNames;
+    const shouldFilterReleases = filteredReleases.length !== existingReleases.length;
+    const shouldClearAIProjects = (gameState.aiStudioProjects || []).length > 0;
+
+    if (shouldUpdateCompetitors || shouldFilterReleases || shouldClearAIProjects) {
+      mergeGameState({
+        competitorStudios: leagueCompetitorStudios,
+        allReleases: filteredReleases,
+        aiStudioProjects: [],
+      });
+    }
+  }, [
+    isOnlineMode,
+    leagueCompetitorStudios,
+    gameState.studio.name,
+    gameState.competitorStudios,
+    gameState.allReleases,
+    gameState.aiStudioProjects,
+    mergeGameState,
+  ]);
 
   const handleForceAdvanceWeek = () => {
     if (!onlineLeagueCode?.trim()) return;
