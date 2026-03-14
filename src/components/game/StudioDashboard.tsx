@@ -472,7 +472,7 @@ export const StudioDashboard: React.FC<StudioDashboardProps> = () => {
               }}
             >
               <div className="p-3 rounded-lg bg-gradient-to-r from-accent/10 to-primary/10 group-hover:from-accent/20 group-hover:to-primary/20 transition-all duration-300">
-                <CastingIcon className="text-accent" size={24} />
+                <CastingIcon className="text-primary" size={24} />
               </div>
               <span className="text-sm font-medium">Scout Talent</span>
             </Button>
@@ -482,7 +482,7 @@ export const StudioDashboard: React.FC<StudioDashboardProps> = () => {
               onClick={() => setPhase('production')}
             >
               <div className="p-3 rounded-lg bg-gradient-to-r from-secondary/10 to-muted/10 group-hover:from-secondary/20 group-hover:to-muted/20 transition-all duration-300">
-                <StudioIcon className="text-secondary-foreground" size={24} />
+                <StudioIcon className="text-primary" size={24} />
               </div>
               <span className="text-sm font-medium">Production</span>
             </Button>
@@ -516,7 +516,7 @@ export const StudioDashboard: React.FC<StudioDashboardProps> = () => {
               onClick={() => setPhase('loans')}
             >
               <div className="p-2 rounded-lg bg-gradient-to-r from-green-500/10 to-blue-500/10 group-hover:from-green-500/20 group-hover:to-blue-500/20 transition-all duration-300">
-                <BudgetIcon className="text-green-600" size={20} />
+                <BudgetIcon className="text-primary" size={20} />
               </div>
               <span className="text-sm font-medium">Manage Loans</span>
             </Button>
@@ -526,7 +526,7 @@ export const StudioDashboard: React.FC<StudioDashboardProps> = () => {
               onClick={() => setPhase('reputation')}
             >
               <div className="p-2 rounded-lg bg-gradient-to-r from-accent/10 to-primary/10 group-hover:from-accent/20 group-hover:to-primary/20 transition-all duration-300">
-                <ReputationIcon className="text-accent" size={20} />
+                <ReputationIcon className="text-primary" size={20} />
               </div>
               <span className="text-sm font-medium">Reputation Panel</span>
             </Button>
