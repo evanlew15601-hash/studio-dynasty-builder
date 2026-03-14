@@ -153,28 +153,21 @@ export class CalendarManager {
       };
     }
     
-    // Awards show cooldown and eligibility checks
+    // Awards show cooldown is advisory (do not block scheduling).
     const cooldown = isWithinAwardCooldown(targetWeek, targetYear, medium);
-    if (cooldown.within) {
-      const recommendedAbs = (targetYear * 52) + (cooldown.show!.ceremonyWeek + cooldown.show!.cooldownWeeks);
-      const recommended = absToWeekYear(recommendedAbs);
-
-      return {
-        canRelease: false,
-        reason: `Release falls within ${cooldown.show!.name} cooldown period (weeks ${cooldown.show!.ceremonyWeek}-${cooldown.show!.ceremonyWeek + cooldown.show!.cooldownWeeks - 1})`,
-        recommendedWeek: recommended.week,
-        recommendedYear: recommended.year,
-      };
-    }
 
     const qualifiesFor = getEarliestEligibleShowForRelease(targetWeek, targetYear, medium);
-    const awardEligibility = qualifiesFor 
+    const awardEligibility = qualifiesFor
       ? `Qualifies for ${qualifiesFor.name} Awards (ceremony week ${qualifiesFor.ceremonyWeek})`
       : "Does not qualify for current year's award shows";
-    
-    return { 
+
+    const cooldownNote = cooldown.within
+      ? ` (Note: ${cooldown.show!.name} Awards are happening around this time)`
+      : '';
+
+    return {
       canRelease: true,
-      awardEligibility
+      awardEligibility: `${awardEligibility}${cooldownNote}`
     };
   }
   
