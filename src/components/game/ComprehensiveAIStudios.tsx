@@ -79,7 +79,7 @@ export const ComprehensiveAIStudios: React.FC<ComprehensiveAIStudiosProps> = ({
   const initializeAIStudios = () => {
     const studioTemplates = [
       {
-        name: 'Paramount Pictures',
+        name: 'Pinnacle Pictures',
         reputation: 85,
         budget: 150000000,
         specialty: ['blockbuster', 'franchise'],
@@ -92,7 +92,7 @@ export const ComprehensiveAIStudios: React.FC<ComprehensiveAIStudiosProps> = ({
         }
       },
       {
-        name: 'A24',
+        name: 'Studio 24A',
         reputation: 78,
         budget: 50000000,
         specialty: ['indie', 'prestige'],
@@ -105,7 +105,7 @@ export const ComprehensiveAIStudios: React.FC<ComprehensiveAIStudiosProps> = ({
         }
       },
       {
-        name: 'Netflix Studios',
+        name: 'StreamFlix Studios',
         reputation: 72,
         budget: 300000000,
         specialty: ['streaming', 'volume'],
@@ -118,7 +118,7 @@ export const ComprehensiveAIStudios: React.FC<ComprehensiveAIStudiosProps> = ({
         }
       },
       {
-        name: 'Blumhouse Productions',
+        name: 'BloomHaus Productions',
         reputation: 70,
         budget: 40000000,
         specialty: ['horror', 'low-budget'],
@@ -131,7 +131,7 @@ export const ComprehensiveAIStudios: React.FC<ComprehensiveAIStudiosProps> = ({
         }
       },
       {
-        name: 'Searchlight Pictures',
+        name: 'Beaconlight Pictures',
         reputation: 82,
         budget: 80000000,
         specialty: ['prestige', 'awards'],
@@ -330,7 +330,7 @@ export const ComprehensiveAIStudios: React.FC<ComprehensiveAIStudiosProps> = ({
       ],
       comedy: [
         'Crazy Times', 'The Mix-Up', 'Laugh Track', 'Wild Card', 'Happy Accident',
-        'The Jokers', 'Comedy Central', 'Funny Business', 'The Laughing Game', 'Good Times',
+        'The Jokers', 'Comedy Capital', 'Funny Business', 'The Laughing Game', 'Good Times',
         'Lucky Break', 'The Misadventure', 'Silly Season', 'The Comedy Show', 'Fun House'
       ],
       romance: [

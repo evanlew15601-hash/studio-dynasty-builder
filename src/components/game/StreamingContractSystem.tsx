@@ -194,7 +194,7 @@ export const StreamingContractSystem: React.FC<StreamingContractSystemProps> = (
           minViewers: Math.floor(expectedViewers * 0.6),
           penaltyAmount: upfrontPayment * 0.25
         },
-        exclusivityClause: dealKind === 'streaming' ? platform.id !== 'hulu' : true,
+        exclusivityClause: dealKind === 'streaming' ? platform.id !== 'streamhub' : true,
         marketingSupport: Math.floor(upfrontPayment * (dealKind === 'cable' ? 0.12 : 0.2))
       };
     }

@@ -1,4 +1,4 @@
-import React, { useEffect, useRef, useState, Suspense } from 'react';
+import React, { useEffect, useMemo, useRef, useState, Suspense } from 'react';
 import type { GameState, Studio, Project, Script, TalentPerson, Genre, MarketingStrategy, ReleaseStrategy, ProductionPhase, ScriptCharacter } from '@/types/game';
 import { useLoadingActions } from '@/contexts/LoadingContext';
 import { LOADING_OPERATIONS, delay } from '@/utils/loadingUtils';
@@ -7,15 +7,19 @@ import { PublicDomainGenerator } from '@/data/PublicDomainGenerator';
 import { ScriptDevelopment } from './ScriptDevelopment';
 import { CastingBoard } from './CastingBoard';
 import { ProductionManagement } from './ProductionManagement';
-import { PostTheatricalManagement } from './PostTheatricalManagement';
+import { StreamingHub } from './StreamingHub';
+import { Metaboxd } from './Metaboxd';
+import { OnlineLeague } from './OnlineLeague';
 import { PostTheatricalSystem } from './PostTheatricalSystem';
 import { StudioDashboard } from './StudioDashboard';
 import { FinancialDashboard } from './FinancialDashboard';
 import { IntegrationMonitor } from './IntegrationMonitor';
 import { AIStudioManager } from './AIStudioManager';
 import { CompetitorMonitor } from './CompetitorMonitor';
+import { LeagueStandings } from './LeagueStandings';
 import { TimeSystem, TimeState } from './TimeSystem';
 import { BoxOfficeSystem } from './BoxOfficeSystem';
+import { StreamingFilmSystem } from './StreamingFilmSystem';
 import { TVRatingsSystem } from './TVRatingsSystem';
 import { TVEpisodeSystem } from './TVEpisodeSystem';
 import { FinancialEngine } from './FinancialEngine';
@@ -31,6 +35,7 @@ import { EnhancedAwardsSystem } from './EnhancedAwardsSystem';
 import { RoleBasedCasting } from './RoleBasedCasting';
 import { CharacterCastingSystem } from './CharacterCastingSystem';
 import { useAwardsEngine } from '@/hooks/useAwardsEngine';
+import { useOnlineLeagueTickGate } from '@/hooks/useOnlineLeagueTickGate';
 import { IndividualAwardShowModal, AwardShowCeremony } from './IndividualAwardShowModal';
 import { FirstWeekBoxOfficeModal } from './FirstWeekBoxOfficeModal';
 import { EnhancedLoanSystem } from './EnhancedLoanSystem';
@@ -435,6 +440,12 @@ interface StudioMagnateGameProps {
    * Prevents double-rewarding when rehydrating achievements on load.
    */
   initialUnlockedAchievements?: string[];
+
+  /**
+   * When provided, enables Online League features as a separate mode.
+   * Single-player gameplay does not depend on this.
+   */
+  onlineLeagueCode?: string;
 }
 
 export const StudioMagnateGame: React.FC<StudioMagnateGameProps> = ({
@@ -442,9 +453,11 @@ export const StudioMagnateGame: React.FC<StudioMagnateGameProps> = ({
   gameConfig,
   initialGameState,
   initialPhase,
-  initialUnlockedAchievements
+  initialUnlockedAchievements,
+  onlineLeagueCode
 }) => {
   const { toast } = useToast();
+  const isOnlineMode = !!onlineLeagueCode?.trim();
   const { startOperation, updateOperation, completeOperation } = useLoadingActions();
   const weeklyProcessingRef = useRef(false);
   const aiSlateGeneratorRef = useRef<{ year: number; nextWeek: number; generator: StudioGenerator } | null>(null);
@@ -491,7 +504,8 @@ export const StudioMagnateGame: React.FC<StudioMagnateGameProps> = ({
           ? initialGameState.rngState
           : derivedUniverseSeed;
 
-      return primeCompetitorTelevision({ ...initialGameState, universeSeed: derivedUniverseSeed, rngState: derivedRngState });
+      const seeded = { ...initialGameState, universeSeed: derivedUniverseSeed, rngState: derivedRngState };
+      return isOnlineMode ? seeded : primeCompetitorTelevision(seeded);
     }
 
     // Lightweight placeholder so the LoadingOverlay can render before heavy init starts.
@@ -556,18 +570,32 @@ export const StudioMagnateGame: React.FC<StudioMagnateGameProps> = ({
         ? initialGameState.rngState
         : derivedUniverseSeed;
 
-    const primed = primeCompetitorTelevision({
+    const seeded = {
       ...initialGameState,
       universeSeed: derivedUniverseSeed,
       rngState: derivedRngState,
-    });
+    };
 
-    loadGameToStore(primed, primed.rngState ?? primed.universeSeed);
-  }, [storeGameState, initialGameState, loadGameToStore]);
+    const next = isOnlineMode ? seeded : primeCompetitorTelevision(seeded);
+
+    loadGameToStore(next, next.rngState ?? next.universeSeed);
+  }, [storeGameState, initialGameState, loadGameToStore, isOnlineMode]);
 
   // Generate a fresh world asynchronously so the loading overlay can appear immediately.
   const newGameInitStartedRef = useRef(false);
   const [newGameInitAttempt, setNewGameInitAttempt] = useState(0);
+
+  const newGameInitEffectDeps = [
+    storeGameState,
+    initialGameState,
+    newGameInitAttempt,
+    gameConfig,
+    startOperation,
+    updateOperation,
+    completeOperation,
+    initGame,
+    toast,
+  ];
 
   useEffect(() => {
     if (storeGameState) return;
@@ -608,148 +636,157 @@ export const StudioMagnateGame: React.FC<StudioMagnateGameProps> = ({
         (t) => t.id
       );
 
-      updateOperation(LOADING_OPERATIONS.GAME_INIT.id, 25, 'Generating competitor studios...');
-      await delay(0);
+      let competitorStudios: Studio[] = [];
 
-      const studioGenerator = new StudioGenerator();
-      const competitorStudios = studioGenerator.generateCompetitorStudios();
+      if (!isOnlineMode) {
+        updateOperation(LOADING_OPERATIONS.GAME_INIT.id, 25, 'Generating competitor studios...');
+        await delay(0);
 
-      updateOperation(LOADING_OPERATIONS.GAME_INIT.id, 30, 'Seeding AI releases...');
-      await delay(0);
+        const studioGenerator = new StudioGenerator();
+        competitorStudios = studioGenerator.generateCompetitorStudios();
+      } else {
+        updateOperation(LOADING_OPERATIONS.GAME_INIT.id, 25, 'Online League: skipping AI studios...');
+        await delay(0);
+      }
 
-      const sg = new StudioGenerator();
-      const releases: Project[] = [];
-      const currentYear = new Date().getFullYear();
-      const yearsToSeed = [currentYear - 1, currentYear];
-      const totalWeeks = yearsToSeed.length * 52;
-      let processedWeeks = 0;
+      let releases: Project[] = [];
 
-      const yieldToBrowser = () => delay(0);
-      const YIELD_EVERY_OPS = 25;
-      let processedOps = 0;
+      if (!isOnlineMode) {
+        updateOperation(LOADING_OPERATIONS.GAME_INIT.id, 30, 'Seeding AI releases...');
+        await delay(0);
 
-      for (const year of yearsToSeed) {
-        for (let w = 1; w <= 52; w++) {
-          if (cancelled) return;
+        const sg = new StudioGenerator();
+        const currentYear = new Date().getFullYear();
+        const yearsToSeed = [currentYear - 1, currentYear];
+        const totalWeeks = yearsToSeed.length * 52;
+        let processedWeeks = 0;
 
-          processedWeeks += 1;
-          let releasesThisWeek = 0;
+        const yieldToBrowser = () => delay(0);
+        const YIELD_EVERY_OPS = 25;
+        let processedOps = 0;
 
-          for (const st of competitorStudios) {
+        for (const year of yearsToSeed) {
+          for (let w = 1; w <= 52; w++) {
             if (cancelled) return;
 
-            const profile = sg.getStudioProfile(st.name);
-            const rel = profile ? sg.generateStudioRelease(profile, w, year) : null;
-            if (rel) {
-              releases.push(rel);
-              releases[releases.length - 1] = attachBasicCastForAI(releases[releases.length - 1] as Project, generatedTalent);
-              releasesThisWeek += 1;
-            }
+            processedWeeks += 1;
+            let releasesThisWeek = 0;
 
-            processedOps += 1;
-            if (processedOps % YIELD_EVERY_OPS === 0) {
-              await yieldToBrowser();
-            }
-          }
+            for (const st of competitorStudios) {
+              if (cancelled) return;
 
-          if (releasesThisWeek === 0 && competitorStudios[0]) {
-            const fallback = sg.getStudioProfile(competitorStudios[0].name);
-            if (fallback) {
-              const rel = sg.generateStudioRelease(fallback, w, year);
+              const profile = sg.getStudioProfile(st.name);
+              const rel = profile ? sg.generateStudioRelease(profile, w, year) : null;
               if (rel) {
                 releases.push(rel);
                 releases[releases.length - 1] = attachBasicCastForAI(releases[releases.length - 1] as Project, generatedTalent);
-              } else {
-                // Guarantee at least one release per week: synthesize a small indie release
-                const genre = fallback.specialties[0] as Genre;
-                const script = {
-                  id: `script-${year}-${w}-${Math.random().toString(36).slice(2, 8)}`,
-                  title: sg.generateFilmTitle(genre, fallback.name),
-                  genre,
-                  logline: 'An indie story released to keep the slate full.',
-                  writer: 'Staff Writer',
-                  pages: 100,
-                  quality: 60,
-                  budget: 12000000,
-                  developmentStage: 'final',
-                  themes: ['indie', 'festival'],
-                  targetAudience: 'general',
-                  estimatedRuntime: 110,
-                  characteristics: {
-                    tone: 'balanced',
-                    pacing: 'steady',
-                    dialogue: 'naturalistic',
-                    visualStyle: 'realistic',
-                    commercialAppeal: 5,
-                    criticalPotential: 6,
-                    cgiIntensity: 'minimal',
-                  },
-                } as Script;
+                releasesThisWeek += 1;
+              }
 
-                releases.push({
-                  id: `ai-project-${year}-${w}-${Math.random().toString(36).slice(2, 6)}`,
-                  title: script.title,
-                  script,
-                  type: 'feature',
-                  currentPhase: 'release',
-                  status: 'released',
-                  phaseDuration: 0,
-                  contractedTalent: [],
-                  developmentProgress: {
-                    scriptCompletion: 100,
-                    budgetApproval: 100,
-                    talentAttached: 100,
-                    locationSecured: 100,
-                    completionThreshold: 100,
-                    issues: [],
-                  },
-                  budget: {
-                    total: script.budget,
-                    allocated: {
-                      aboveTheLine: script.budget * 0.2,
-                      belowTheLine: script.budget * 0.3,
-                      postProduction: script.budget * 0.15,
-                      marketing: script.budget * 0.25,
-                      distribution: script.budget * 0.1,
-                      contingency: 0,
+              processedOps += 1;
+              if (processedOps % YIELD_EVERY_OPS === 0) {
+                await yieldToBrowser();
+              }
+            }
+
+            if (releasesThisWeek === 0 && competitorStudios[0]) {
+              const fallback = sg.getStudioProfile(competitorStudios[0].name);
+              if (fallback) {
+                const rel = sg.generateStudioRelease(fallback, w, year);
+                if (rel) {
+                  releases.push(rel);
+                  releases[releases.length - 1] = attachBasicCastForAI(releases[releases.length - 1] as Project, generatedTalent);
+                } else {
+                  // Guarantee at least one release per week: synthesize a small indie release
+                  const genre = fallback.specialties[0] as Genre;
+                  const script = {
+                    id: `script-${year}-${w}-${Math.random().toString(36).slice(2, 8)}`,
+                    title: sg.generateFilmTitle(genre, fallback.name),
+                    genre,
+                    logline: 'An indie story released to keep the slate full.',
+                    writer: 'Staff Writer',
+                    pages: 100,
+                    quality: 60,
+                    budget: 12000000,
+                    developmentStage: 'final',
+                    themes: ['indie', 'festival'],
+                    targetAudience: 'general',
+                    estimatedRuntime: 110,
+                    characteristics: {
+                      tone: 'balanced',
+                      pacing: 'steady',
+                      dialogue: 'naturalistic',
+                      visualStyle: 'realistic',
+                      commercialAppeal: 5,
+                      criticalPotential: 6,
+                      cgiIntensity: 'minimal',
                     },
-                    spent: {
-                      aboveTheLine: script.budget * 0.2,
-                      belowTheLine: script.budget * 0.3,
-                      postProduction: script.budget * 0.15,
-                      marketing: script.budget * 0.25,
-                      distribution: script.budget * 0.1,
-                      contingency: 0,
+                  } as Script;
+
+                  releases.push({
+                    id: `ai-project-${year}-${w}-${Math.random().toString(36).slice(2, 6)}`,
+                    title: script.title,
+                    script,
+                    type: 'feature',
+                    currentPhase: 'release',
+                    status: 'released',
+                    phaseDuration: 0,
+                    contractedTalent: [],
+                    developmentProgress: {
+                      scriptCompletion: 100,
+                      budgetApproval: 100,
+                      talentAttached: 100,
+                      locationSecured: 100,
+                      completionThreshold: 100,
+                      issues: [],
                     },
-                    overages: {
-                      aboveTheLine: 0,
-                      belowTheLine: 0,
-                      postProduction: 0,
-                      marketing: 0,
-                      distribution: 0,
-                      contingency: 0,
+                    budget: {
+                      total: script.budget,
+                      allocated: {
+                        aboveTheLine: script.budget * 0.2,
+                        belowTheLine: script.budget * 0.3,
+                        postProduction: script.budget * 0.15,
+                        marketing: script.budget * 0.25,
+                        distribution: script.budget * 0.1,
+                        contingency: 0,
+                      },
+                      spent: {
+                        aboveTheLine: script.budget * 0.2,
+                        belowTheLine: script.budget * 0.3,
+                        postProduction: script.budget * 0.15,
+                        marketing: script.budget * 0.25,
+                        distribution: script.budget * 0.1,
+                        contingency: 0,
+                      },
+                      overages: {
+                        aboveTheLine: 0,
+                        belowTheLine: 0,
+                        postProduction: 0,
+                        marketing: 0,
+                        distribution: 0,
+                        contingency: 0,
+                      },
                     },
-                  },
-                  cast: [],
-                  crew: [],
-                  timeline: {
-                    preProduction: { start: new Date(), end: new Date() },
-                    principalPhotography: { start: new Date(), end: new Date() },
-                    postProduction: { start: new Date(), end: new Date() },
-                    release: new Date(),
-                    milestones: [],
-                  },
-                  locations: [],
-                  distributionStrategy: {
-                    primary: {
-                      platform: 'Theatrical',
-                      type: 'theatrical',
-                      revenue: { type: 'box-office', studioShare: 50 },
+                    cast: [],
+                    crew: [],
+                    timeline: {
+                      preProduction: { start: new Date(), end: new Date() },
+                      principalPhotography: { start: new Date(), end: new Date() },
+                      postProduction: { start: new Date(), end: new Date() },
+                      release: new Date(),
+                      milestones: [],
                     },
-                    international: [],
-                    windows: [],
-                    marketingBudget: script.budget * 0.25,
-                  },
+                    locations: [],
+                    distributionStrategy: {
+                      primary: {
+                        platform: 'Theatrical',
+                        type: 'theatrical',
+                        revenue: { type: 'box-office', studioShare: 50 },
+                      },
+                      international: [],
+                      windows: [],
+                      marketingBudget: script.budget * 0.25,
+                    },
                   metrics: {
                     inTheaters: true,
                     boxOfficeTotal: Math.floor(script.budget * 2.2),
@@ -836,10 +873,16 @@ export const StudioMagnateGame: React.FC<StudioMagnateGameProps> = ({
         aiStudioProjects: [] as Project[],
       };
 
-      updateOperation(LOADING_OPERATIONS.GAME_INIT.id, 82, 'Priming competitor television...');
+      updateOperation(
+        LOADING_OPERATIONS.GAME_INIT.id,
+        82,
+        isOnlineMode ? 'Online League: skipping competitor television...' : 'Priming competitor television...'
+      );
       await delay(0);
 
-      initialState = primeCompetitorTelevision(initialState);
+      if (!isOnlineMode) {
+        initialState = primeCompetitorTelevision(initialState);
+      }
 
       updateOperation(LOADING_OPERATIONS.GAME_INIT.id, 88, 'Seeding filmographies...');
       await delay(0);
@@ -906,24 +949,14 @@ export const StudioMagnateGame: React.FC<StudioMagnateGameProps> = ({
       cancelled = true;
       completeOperation(LOADING_OPERATIONS.GAME_INIT.id);
     };
-  }, [
-    storeGameState,
-    initialGameState,
-    newGameInitAttempt,
-    gameConfig,
-    startOperation,
-    updateOperation,
-    completeOperation,
-    initGame,
-    toast,
-  ]);
+  }, newGameInitEffectDeps);
 
   const gameState = storeGameState ?? bootstrapGameState;
 
   // Market dynamics hooks  
   const talentMarket = useTalentMarket(gameState.talent, gameState.currentWeek);
   const genreSaturation = useGenreSaturation(
-    gameState.allReleases.filter((item): item is Project => 'script' in item),
+    gameState.allReleases.filter((item) => 'script' in item) as any,
     gameState.currentWeek,
     gameState.currentYear
   );
@@ -933,7 +966,8 @@ export const StudioMagnateGame: React.FC<StudioMagnateGameProps> = ({
   const setSelectedProjectId = useUiStore((s) => s.setSelectedProjectId);
 
   const phaseInitRef = useRef(false);
-  const initialPhaseNormalized = (((initialPhase === 'financials' ? 'finance' : initialPhase) as any) || 'dashboard') as string;
+  const initialPhaseNormalizedRaw = (((initialPhase === 'financials' ? 'finance' : initialPhase) as any) || 'dashboard') as string;
+  const initialPhaseNormalized = !onlineLeagueCode && initialPhaseNormalizedRaw === 'online' ? 'dashboard' : initialPhaseNormalizedRaw;
 
   useEffect(() => {
     if (phaseInitRef.current) return;
@@ -1460,15 +1494,80 @@ export const StudioMagnateGame: React.FC<StudioMagnateGameProps> = ({
               updatedProject = TVEpisodeSystem.autoReleaseEpisodesIfDue(updatedProject, timeState.currentWeek, timeState.currentYear);
               updatedProject = TVEpisodeSystem.processWeeklyEpisodeDecay(updatedProject, timeState.currentWeek, timeState.currentYear);
             } else {
-              updatedProject = {
-                ...BoxOfficeSystem.initializeRelease(updatedProject, resolvedReleaseWeek, resolvedReleaseYear),
-                currentPhase: 'distribution' as const,
-                phaseDuration: -1,
-              };
+              const isPrimaryStreaming = updatedProject.releaseStrategy?.type === 'streaming';
 
-              openingWeekRevenue = updatedProject.metrics?.boxOfficeTotal || 0;
-              if (openingWeekRevenue > 0) {
-                studioRevenueDelta += openingWeekRevenue * 0.55;
+              if (isPrimaryStreaming) {
+                const premierePlatformLabel =
+                  updatedProject.distributionStrategy?.primary?.type === 'streaming'
+                    ? updatedProject.distributionStrategy.primary.platform
+                    : undefined;
+
+                updatedProject = StreamingFilmSystem.initializeRelease(
+                  updatedProject,
+                  resolvedReleaseWeek,
+                  resolvedReleaseYear,
+                  premierePlatformLabel
+                );
+
+                const alreadyHasStreamingWindow = (updatedProject.postTheatricalReleases || []).some(
+                  (r) => r.platform === 'streaming'
+                );
+
+                const critics = updatedProject.metrics?.criticsScore || 50;
+                const audience = updatedProject.metrics?.audienceScore || 50;
+                const avgScore = (critics + audience) / 2;
+
+                const buzz = updatedProject.marketingData?.currentBuzz ?? updatedProject.marketingCampaign?.buzz ?? 0;
+                const viewsFirstWeek = updatedProject.metrics?.streaming?.viewsFirstWeek || 0;
+
+                const scoreMultiplier = Math.min(1.4, Math.max(0.6, avgScore / 70));
+                const buzzMultiplier = 1 + Math.min(0.5, Math.max(0, buzz / 250));
+
+                const estimatedTotalRevenue = Math.max(
+                  100_000,
+                  Math.floor(viewsFirstWeek * 0.35 * scoreMultiplier * buzzMultiplier)
+                );
+
+                const durationWeeks = 26;
+                const weeklyRevenue = Math.max(10_000, Math.round(estimatedTotalRevenue / durationWeeks));
+
+                updatedProject = {
+                  ...updatedProject,
+                  postTheatricalEligible: true,
+                  theatricalEndDate: new Date(),
+                  postTheatricalReleases: alreadyHasStreamingWindow
+                    ? updatedProject.postTheatricalReleases
+                    : [
+                        ...(updatedProject.postTheatricalReleases || []),
+                        {
+                          id: `release-${Date.now()}`,
+                          projectId: updatedProject.id,
+                          platform: 'streaming',
+                          providerId:
+                            updatedProject.releaseStrategy?.streamingProviderId ||
+                            updatedProject.streamingPremiereDeal?.providerId ||
+                            undefined,
+                          releaseDate: new Date(),
+                          revenue: 0,
+                          weeklyRevenue,
+                          weeksActive: 0,
+                          status: 'planned',
+                          cost: 0,
+                          durationWeeks,
+                        },
+                      ],
+                };
+              } else {
+                updatedProject = {
+                  ...BoxOfficeSystem.initializeRelease(updatedProject, resolvedReleaseWeek, resolvedReleaseYear),
+                  currentPhase: 'distribution' as const,
+                  phaseDuration: -1,
+                };
+
+                openingWeekRevenue = updatedProject.metrics?.boxOfficeTotal || 0;
+                if (openingWeekRevenue > 0) {
+                  studioRevenueDelta += openingWeekRevenue * 0.55;
+                }
               }
             }
 
@@ -1502,7 +1601,7 @@ export const StudioMagnateGame: React.FC<StudioMagnateGameProps> = ({
       }
       
       // Process box office for released films (but skip on the week they just released)
-       if (project.status === 'released' && !justReleased) {
+       if (updatedProject.status === 'released' && !justReleased) {
          if (project.type === 'series' || project.type === 'limited-series') {
            if (diagnosticsEnabled) {
              console.log(`    PROCESSING TV RATINGS: ${project.title}`);
@@ -1518,35 +1617,47 @@ export const StudioMagnateGame: React.FC<StudioMagnateGameProps> = ({
              timeState.currentYear
            );
          } else {
-           if (diagnosticsEnabled) {
-             console.log(`    PROCESSING BOX OFFICE: ${project.title}`);
-             console.log(`    PRE-REVENUE: boxOfficeTotal = ${updatedProject.metrics?.boxOfficeTotal || 0}`);
-           }
-           
-           const previousTotal = updatedProject.metrics?.boxOfficeTotal || 0;
-           
-           updatedProject = BoxOfficeSystem.processWeeklyRevenue(
-             updatedProject, 
-             timeState.currentWeek, 
-             timeState.currentYear
-           );
-           
-           const newTotal = updatedProject.metrics?.boxOfficeTotal || 0;
-           const weeklyBoxOfficeRevenue = newTotal - previousTotal;
-           
-           if (diagnosticsEnabled) {
-             console.log(`    POST-REVENUE: boxOfficeTotal = ${newTotal}`);
-             console.log(`    WEEKLY BOX OFFICE EARNED: ${weeklyBoxOfficeRevenue.toLocaleString()}`);
-           }
-           
-           // Add box office revenue to studio budget (studio keeps percentage after exhibitor cut)
-           if (weeklyBoxOfficeRevenue > 0) {
-             const studioShare = weeklyBoxOfficeRevenue * 0.55; // Studios typically get 55% of domestic box office
+           if (updatedProject.releaseStrategy?.type === 'streaming') {
              if (diagnosticsEnabled) {
-                console.log(`    STUDIO SHARE (55%): ${studioShare.toLocaleString()}`);
-              }
+               console.log(`    PROCESSING STREAMING: ${project.title}`);
+             }
 
-             studioRevenueDelta += studioShare;
+             updatedProject = StreamingFilmSystem.processWeeklyPerformance(
+               updatedProject,
+               timeState.currentWeek,
+               timeState.currentYear
+             );
+           } else {
+             if (diagnosticsEnabled) {
+               console.log(`    PROCESSING BOX OFFICE: ${project.title}`);
+               console.log(`    PRE-REVENUE: boxOfficeTotal = ${updatedProject.metrics?.boxOfficeTotal || 0}`);
+             }
+             
+             const previousTotal = updatedProject.metrics?.boxOfficeTotal || 0;
+             
+             updatedProject = BoxOfficeSystem.processWeeklyRevenue(
+               updatedProject, 
+               timeState.currentWeek, 
+               timeState.currentYear
+             );
+             
+             const newTotal = updatedProject.metrics?.boxOfficeTotal || 0;
+             const weeklyBoxOfficeRevenue = newTotal - previousTotal;
+             
+             if (diagnosticsEnabled) {
+               console.log(`    POST-REVENUE: boxOfficeTotal = ${newTotal}`);
+               console.log(`    WEEKLY BOX OFFICE EARNED: ${weeklyBoxOfficeRevenue.toLocaleString()}`);
+             }
+             
+             // Add box office revenue to studio budget (studio keeps percentage after exhibitor cut)
+             if (weeklyBoxOfficeRevenue > 0) {
+               const studioShare = weeklyBoxOfficeRevenue * 0.55; // Studios typically get 55% of domestic box office
+               if (diagnosticsEnabled) {
+                  console.log(`    STUDIO SHARE (55%): ${studioShare.toLocaleString()}`);
+                }
+
+               studioRevenueDelta += studioShare;
+             }
            }
          }
        }
@@ -2032,7 +2143,7 @@ export const StudioMagnateGame: React.FC<StudioMagnateGameProps> = ({
     return { studio };
   };
 
-  const handleAdvanceWeek = (options?: { suppressToast?: boolean; suppressLoading?: boolean; suppressDiagnostics?: boolean; suppressRecap?: boolean }) => {
+  const advanceWeekCore = (options?: { suppressToast?: boolean; suppressLoading?: boolean; suppressDiagnostics?: boolean; suppressRecap?: boolean }) => {
     const diagnosticsEnabled = import.meta.env.DEV && !options?.suppressDiagnostics;
 
     if (diagnosticsEnabled) {
@@ -2098,25 +2209,27 @@ export const StudioMagnateGame: React.FC<StudioMagnateGameProps> = ({
       }
       
       // Process AI studio timelines and potential new film starts
-      measure('ai', 'AI studios', () => {
-        try {
-          AIStudioManager.processWeeklyAIFilms(newTimeState.currentWeek, newTimeState.currentYear);
-          if (baseAfterEngine.competitorStudios.length > 0) {
-            const shouldStartAIFilm = (newTimeState.currentWeek % 4 === 1) || Math.random() < 0.35;
-            if (shouldStartAIFilm) {
-              const randomStudio = baseAfterEngine.competitorStudios[Math.floor(Math.random() * baseAfterEngine.competitorStudios.length)];
-              AIStudioManager.createAIFilm(
-                randomStudio,
-                newTimeState.currentWeek,
-                newTimeState.currentYear,
-                baseAfterEngine.talent.filter(t => t.contractStatus === 'available')
-              );
+      if (!isOnlineMode) {
+        measure('ai', 'AI studios', () => {
+          try {
+            AIStudioManager.processWeeklyAIFilms(newTimeState.currentWeek, newTimeState.currentYear);
+            if (baseAfterEngine.competitorStudios.length > 0) {
+              const shouldStartAIFilm = (newTimeState.currentWeek % 4 === 1) || Math.random() < 0.35;
+              if (shouldStartAIFilm) {
+                const randomStudio = baseAfterEngine.competitorStudios[Math.floor(Math.random() * baseAfterEngine.competitorStudios.length)];
+                AIStudioManager.createAIFilm(
+                  randomStudio,
+                  newTimeState.currentWeek,
+                  newTimeState.currentYear,
+                  baseAfterEngine.talent.filter(t => t.contractStatus === 'available')
+                );
+              }
             }
+          } catch (e) {
+            console.warn('AI Studio processing error', e);
           }
-        } catch (e) {
-          console.warn('AI Studio processing error', e);
-        }
-      });
+        });
+      }
       
       let updatedProjects = baseAfterEngine.projects;
 
@@ -2172,11 +2285,12 @@ export const StudioMagnateGame: React.FC<StudioMagnateGameProps> = ({
         updateOperation(LOADING_OPERATIONS.WEEKLY_PROCESSING.id, 90, 'Finalizing updates...');
       }
 
-      // If the simulation has advanced into a year without a pre-generated competitor slate,
-      // generate competitor releases incrementally (generating all 52 weeks in one tick can freeze the tab).
-      const hasAiSlateForYear = prev.allReleases.some(
-        (r): r is Project => 'script' in r && r.releaseYear === newTimeState.currentYear
-      );
+      if (!isOnlineMode) {
+        // If the simulation has advanced into a year without a pre-generated competitor slate,
+        // generate competitor releases incrementally (generating all 52 weeks in one tick can freeze the tab).
+        const hasAiSlateForYear = prev.allReleases.some(
+          (r): r is Project => 'script' in r && r.releaseYear === newTimeState.currentYear
+        );
 
       const slateYear = newTimeState.currentYear;
 
@@ -2336,19 +2450,22 @@ export const StudioMagnateGame: React.FC<StudioMagnateGameProps> = ({
           aiSlateGeneratorRef.current = null;
         }
       }
+      }
       
       // Process weekly costs and reputation with deep system
       const weeklyResults = measure('weeklyCosts', 'Weekly costs & debt', () => processWeeklyCosts(baseAfterEngine, updatedProjects, diagnosticsEnabled));
       
+      const competitorStudiosForWeek = isOnlineMode ? leagueCompetitorStudios : baseAfterEngine.competitorStudios;
+
       // Update industry context and calculate deep reputation
       const deepRepResult = measure('reputation', 'Reputation', () => {
-        DeepReputationSystem.updateIndustryContext([...baseAfterEngine.competitorStudios, baseAfterEngine.studio], newTimeState);
+        DeepReputationSystem.updateIndustryContext([...competitorStudiosForWeek, baseAfterEngine.studio], newTimeState);
         return DeepReputationSystem.calculateDeepReputation(
           weeklyResults.studio,
           updatedProjects,
           baseAfterEngine.talent,
           newTimeState,
-          baseAfterEngine.competitorStudios
+          competitorStudiosForWeek
         );
       });
       
@@ -2376,20 +2493,22 @@ export const StudioMagnateGame: React.FC<StudioMagnateGameProps> = ({
         return { ...t, contractStatus: status, busyUntilWeek: busyUntil };
       });
 
-      // Mark talent as busy if they're currently committed to an AI studio project
-      updatedTalent = updatedTalent.map(t => {
-        const commitment = AIStudioManager.getTalentCommitment(t.id, newTimeState.currentWeek, newTimeState.currentYear);
-        if (!commitment) return t;
+      if (!isOnlineMode) {
+        // Mark talent as busy if they're currently committed to an AI studio project
+        updatedTalent = updatedTalent.map(t => {
+          const commitment = AIStudioManager.getTalentCommitment(t.id, newTimeState.currentWeek, newTimeState.currentYear);
+          if (!commitment) return t;
 
-        const endAbsWeek = commitment.endAbsWeek;
-        const existingBusyUntil = typeof t.busyUntilWeek === 'number' ? t.busyUntilWeek : 0;
+          const endAbsWeek = commitment.endAbsWeek;
+          const existingBusyUntil = typeof t.busyUntilWeek === 'number' ? t.busyUntilWeek : 0;
 
-        return {
-          ...t,
-          contractStatus: 'busy',
-          busyUntilWeek: Math.max(existingBusyUntil, endAbsWeek)
-        };
-      });
+          return {
+            ...t,
+            contractStatus: 'busy',
+            busyUntilWeek: Math.max(existingBusyUntil, endAbsWeek)
+          };
+        });
+      }
 
       // Mark cast as busy for projects in production
       updatedProjects.forEach(p => {
@@ -2490,6 +2609,14 @@ export const StudioMagnateGame: React.FC<StudioMagnateGameProps> = ({
         return (currentAbsoluteWeek - releaseAbsWeek) <= MAX_RELEASE_AGE_WEEKS;
       });
 
+      const sanitizedReleases = isOnlineMode
+        ? prunedReleases.filter((release: any) => {
+            const studioName = release?.studioName;
+            if (!studioName) return true;
+            return studioName === enhancedStudio.name;
+          })
+        : prunedReleases;
+
       // Also prune old box office history if it exists
       const prunedBoxOfficeHistory = (baseAfterEngine.boxOfficeHistory || []).filter((entry: any) => {
         if (!entry.week || !entry.year) return true;
@@ -2508,10 +2635,13 @@ export const StudioMagnateGame: React.FC<StudioMagnateGameProps> = ({
         currentQuarter: newTimeState.currentQuarter,
         projects: updatedProjects,
         studio: enhancedStudio,
-        allReleases: prunedReleases,
-        aiStudioProjects: prunedReleases.filter(
-          (r): r is Project => 'script' in r && !!(r as any).studioName && (r as any).studioName !== enhancedStudio.name
-        ),
+        competitorStudios: competitorStudiosForWeek,
+        allReleases: sanitizedReleases,
+        aiStudioProjects: isOnlineMode
+          ? []
+          : sanitizedReleases.filter(
+              (r): r is Project => 'script' in r && !!(r as any).studioName && (r as any).studioName !== enhancedStudio.name
+            ),
         talent: updatedTalent,
         boxOfficeHistory: prunedBoxOfficeHistory,
         topFilmsHistory: prunedTopFilmsHistory,
@@ -2639,7 +2769,168 @@ export const StudioMagnateGame: React.FC<StudioMagnateGameProps> = ({
     }
   };
 
+  const onlineTickGate = useOnlineLeagueTickGate({
+    enabled: !!onlineLeagueCode?.trim(),
+    leagueCode: onlineLeagueCode ?? '',
+    studioName: gameState.studio.name,
+    onRemoteAdvance: () => {
+      advanceWeekCore({ suppressDiagnostics: true });
+    },
+  });
+
+  const leagueCompetitorStudios = useMemo(() => {
+    if (!isOnlineMode) return [] as Studio[];
+
+    return onlineTickGate.remoteStudios.map((remote) => ({
+      id: `league-${remote.userId}`,
+      name: remote.studioName,
+      reputation: remote.reputation,
+      budget: remote.budget,
+      founded: 1965,
+      specialties: ['drama'] as Genre[],
+    }));
+  }, [isOnlineMode, onlineTickGate.remoteStudios]);
+
+  const leagueRoster = useMemo(() => {
+    if (!isOnlineMode) return [] as Array<{ id: string; name: string; budget: number; reputation: number; releasedTitles: number; week: number; year: number; updatedAt?: string; isYou: boolean }>;
+
+    const you = {
+      id: onlineTickGate.userId ?? gameState.studio.id,
+      name: gameState.studio.name,
+      budget: gameState.studio.budget,
+      reputation: gameState.studio.reputation,
+      releasedTitles: gameState.projects.filter((p) => p.status === 'released').length,
+      week: gameState.currentWeek,
+      year: gameState.currentYear,
+      updatedAt: new Date().toISOString(),
+      isYou: true,
+    };
+
+    const others = (onlineTickGate.remoteStudios || []).map((s) => ({
+      id: s.userId,
+      name: s.studioName,
+      budget: s.budget,
+      reputation: s.reputation,
+      releasedTitles: s.releasedTitles ?? 0,
+      week: s.week ?? 0,
+      year: s.year ?? 0,
+      updatedAt: s.updatedAt,
+      isYou: false,
+    }));
+
+    return [you, ...others].sort((a, b) => {
+      if (b.reputation !== a.reputation) return b.reputation - a.reputation;
+      if (b.releasedTitles !== a.releasedTitles) return b.releasedTitles - a.releasedTitles;
+      return b.budget - a.budget;
+    });
+  }, [isOnlineMode, onlineTickGate.userId, onlineTickGate.remoteStudios, gameState.studio.id, gameState.studio.name, gameState.studio.budget, gameState.studio.reputation, gameState.projects, gameState.currentWeek, gameState.currentYear]);
+
+  useEffect(() => {
+    if (!isOnlineMode) return;
+
+    // Online leagues should only contain player-controlled studios.
+    AIStudioManager.resetAISystem();
+    aiSlateGeneratorRef.current = null;
+
+    const currentNames = (gameState.competitorStudios || []).map((s) => s.name).sort().join('|');
+    const nextNames = leagueCompetitorStudios.map((s) => s.name).sort().join('|');
+
+    const playerName = gameState.studio.name;
+    const existingReleases = gameState.allReleases || [];
+    const filteredReleases = existingReleases.filter((r: any) => {
+      const studioName = r?.studioName;
+      if (!studioName) return true;
+      return studioName === playerName;
+    });
+
+    const shouldUpdateCompetitors = currentNames !== nextNames;
+    const shouldFilterReleases = filteredReleases.length !== existingReleases.length;
+    const shouldClearAIProjects = (gameState.aiStudioProjects || []).length > 0;
+
+    if (shouldUpdateCompetitors || shouldFilterReleases || shouldClearAIProjects) {
+      mergeGameState({
+        competitorStudios: leagueCompetitorStudios,
+        allReleases: filteredReleases,
+        aiStudioProjects: [],
+      });
+    }
+  }, [
+    isOnlineMode,
+    leagueCompetitorStudios,
+    gameState.studio.name,
+    gameState.competitorStudios,
+    gameState.allReleases,
+    gameState.aiStudioProjects,
+    mergeGameState,
+  ]);
+
+  const handleForceAdvanceWeek = () => {
+    if (!onlineLeagueCode?.trim()) return;
+
+    if (onlineTickGate.status !== 'ready') {
+      toast({
+        title: 'Online League',
+        description: onlineTickGate.error || 'Connecting to the online league...',
+        variant: 'destructive',
+      });
+      return;
+    }
+
+    if (!onlineTickGate.isHost) {
+      toast({
+        title: 'Online League',
+        description: 'Only the host can force-advance the week.',
+        variant: 'destructive',
+      });
+      return;
+    }
+
+    onlineTickGate.forceAdvance();
+
+    toast({
+      title: 'Online League',
+      description: 'Force-advance requested (host).',
+    });
+  };
+
+  const handleAdvanceWeek = (options?: { suppressToast?: boolean; suppressLoading?: boolean; suppressDiagnostics?: boolean; suppressRecap?: boolean }) => {
+    if (!onlineLeagueCode?.trim()) {
+      advanceWeekCore(options);
+      return;
+    }
+
+    if (onlineTickGate.status !== 'ready') {
+      toast({
+        title: 'Online League',
+        description: onlineTickGate.error || 'Connecting to the online league...',
+        variant: 'destructive',
+      });
+      return;
+    }
+
+    const nextReady = !onlineTickGate.isReady;
+    onlineTickGate.setReady(nextReady);
+
+    if (!options?.suppressToast) {
+      toast({
+        title: 'Online League',
+        description: nextReady
+          ? `Marked ready (${onlineTickGate.readyCount + 1}/${onlineTickGate.memberCount || '...'}). Waiting for others…`
+          : 'Not ready.',
+      });
+    }
+  };
+
   const handleAdvanceWeeks = (weeks: number) => {
+    if (onlineLeagueCode?.trim()) {
+      toast({
+        title: 'Online League',
+        description: 'Skipping multiple weeks at once is disabled in Online League mode.',
+        variant: 'destructive',
+      });
+      return;
+    }
+
     const totalWeeks = Math.floor(weeks);
     if (!Number.isFinite(totalWeeks) || totalWeeks <= 0) return;
 
@@ -2670,7 +2961,7 @@ export const StudioMagnateGame: React.FC<StudioMagnateGameProps> = ({
 
       isProcessing = true;
 
-      handleAdvanceWeek({ suppressToast: true, suppressLoading: true, suppressDiagnostics: true, suppressRecap: true });
+      advanceWeekCore({ suppressToast: true, suppressLoading: true, suppressDiagnostics: true, suppressRecap: true });
       remaining -= 1;
 
       const completed = totalWeeks - remaining;
@@ -2705,6 +2996,14 @@ export const StudioMagnateGame: React.FC<StudioMagnateGameProps> = ({
   };
 
   const handleAdvanceToDate = (targetWeek: number, targetYear: number) => {
+    if (onlineLeagueCode?.trim()) {
+      toast({
+        title: 'Online League',
+        description: 'Skipping ahead is disabled in Online League mode.',
+        variant: 'destructive',
+      });
+      return;
+    }
     const clampedWeek = TimeSystem.getWeekOfYear(targetWeek || 1);
     const year = targetYear || gameState.currentYear;
 
@@ -2855,8 +3154,23 @@ export const StudioMagnateGame: React.FC<StudioMagnateGameProps> = ({
                 className="btn-studio shadow-golden hover:animate-glow transition-all duration-300"
               >
                 <BudgetIcon className="mr-2" size={16} />
-                Advance Week
+                {onlineLeagueCode?.trim()
+                  ? onlineTickGate.isReady
+                    ? `Unready (${onlineTickGate.readyCount}/${onlineTickGate.memberCount || '?'})`
+                    : `Ready (${onlineTickGate.readyCount}/${onlineTickGate.memberCount || '?'})`
+                  : 'Advance Week'}
               </Button>
+
+              {onlineLeagueCode?.trim() && onlineTickGate.isHost && (
+                <Button
+                  size="sm"
+                  variant="outline"
+                  onClick={handleForceAdvanceWeek}
+                  className="mr-2"
+                >
+                  Force Advance
+                </Button>
+              )}
             </div>
           </div>
         </div>
@@ -2926,7 +3240,7 @@ export const StudioMagnateGame: React.FC<StudioMagnateGameProps> = ({
                 </DropdownMenuItem>
                 <DropdownMenuItem onClick={() => handlePhaseChange('competition')}>
                   <BarChartIcon className="mr-2" size={16} />
-                  AI Competition
+                  {onlineLeagueCode ? 'League Standings' : 'AI Competition'}
                 </DropdownMenuItem>
                 <DropdownMenuItem onClick={() => handlePhaseChange('market')}>
                   <BarChartIcon className="mr-2" size={16} />
@@ -2949,7 +3263,7 @@ export const StudioMagnateGame: React.FC<StudioMagnateGameProps> = ({
                 <Button
                   variant="ghost"
                   className={`rounded-none border-b-2 px-3 py-3 text-sm font-medium transition-all duration-300 border-transparent hover:border-primary/40 hover:bg-primary/5 btn-ghost-premium ${
-                     ['franchise', 'media', 'talent', 'database', 'awards', 'reputation', 'lore'].includes(currentPhase)
+                     ['franchise', 'media', 'metaboxd', ...(onlineLeagueCode ? ['online'] : []), 'talent', 'database', 'awards', 'reputation', 'lore'].includes(currentPhase)
                        ? 'border-primary bg-gradient-to-t from-primary/20 to-primary/10 text-primary shadow-lg' 
                        : ''
                    }`}
@@ -2968,6 +3282,16 @@ export const StudioMagnateGame: React.FC<StudioMagnateGameProps> = ({
                   <BarChartIcon className="mr-2" size={16} />
                   Media Relations
                 </DropdownMenuItem>
+                <DropdownMenuItem onClick={() => handlePhaseChange('metaboxd')}>
+                  <ClapperboardIcon className="mr-2" size={16} />
+                  Metaboxd Reviews
+                </DropdownMenuItem>
+                {onlineLeagueCode && (
+                  <DropdownMenuItem onClick={() => handlePhaseChange('online')}>
+                    <BarChartIcon className="mr-2" size={16} />
+                    Online League (Beta)
+                  </DropdownMenuItem>
+                )}
                  <DropdownMenuItem onClick={() => handlePhaseChange('talent')}>
                    <CastingIcon className="mr-2" size={16} />
                    Talent Management
@@ -3007,7 +3331,60 @@ export const StudioMagnateGame: React.FC<StudioMagnateGameProps> = ({
       {/* Main Content */}
       <div className="container mx-auto px-6 py-8 animate-slide-up">
         {currentPhase === 'dashboard' && (
-          <StudioDashboard />
+          <div className="space-y-6">
+            {isOnlineMode && (
+              <Card className="card-premium">
+                <CardContent className="pt-6">
+                  <div className="flex items-center justify-between gap-4">
+                    <div>
+                      <div className="text-sm font-semibold">League roster</div>
+                      <div className="text-xs text-muted-foreground">
+                        {onlineTickGate.leagueCode} • Ready {onlineTickGate.readyCount}/{onlineTickGate.memberCount || '?'}
+                      </div>
+                    </div>
+                    <Button size="sm" variant="outline" onClick={() => handlePhaseChange('competition')}>
+                      Open leaderboard
+                    </Button>
+                  </div>
+
+                  <div className="mt-4 space-y-2">
+                    {onlineTickGate.status !== 'ready' ? (
+                      <div className="text-sm text-muted-foreground">
+                        {onlineTickGate.error || 'Connecting to the league…'}
+                      </div>
+                    ) : (
+                      <>
+                        {leagueRoster.slice(0, 6).map((s, idx) => (
+                          <div key={s.id} className="flex items-center justify-between rounded-md border p-3">
+                            <div>
+                              <div className="text-sm font-medium">{idx + 1}. {s.name}{s.isYou ? ' (You)' : ''}</div>
+                              <div className="text-xs text-muted-foreground">
+                                {s.year && s.week ? `Week ${s.week}, ${s.year}` : 'Progress unknown'}
+                              </div>
+                            </div>
+                            <div className="text-right">
+                              <div className="text-sm">Rep {Math.round(s.reputation)}/100</div>
+                              <div className="text-xs text-muted-foreground">
+                                ${(s.budget / 1_000_000).toFixed(0)}M • {s.releasedTitles} released
+                              </div>
+                            </div>
+                          </div>
+                        ))}
+
+                        {leagueRoster.length === 0 && (
+                          <div className="text-sm text-muted-foreground">
+                            Waiting for league members…
+                          </div>
+                        )}
+                      </>
+                    )}
+                  </div>
+                </CardContent>
+              </Card>
+            )}
+
+            <StudioDashboard />
+          </div>
         )}
         
         {currentPhase === 'franchise' && (
@@ -3400,7 +3777,7 @@ export const StudioMagnateGame: React.FC<StudioMagnateGameProps> = ({
                     <div>
                       <p className="text-sm font-medium">Release Planning</p>
                       <p className="text-xs text-muted-foreground">
-                        Once marketing is in place, choose a theatrical release window for this film.
+                        Once marketing is in place, choose a release window (theatrical, festival, or direct-to-streaming).
                       </p>
                     </div>
                     <Button
@@ -3470,7 +3847,7 @@ export const StudioMagnateGame: React.FC<StudioMagnateGameProps> = ({
         )}
         
         {currentPhase === 'distribution' && (
-          <PostTheatricalManagement />
+          <StreamingHub />
         )}
         
         {currentPhase === 'finance' && (
@@ -3478,7 +3855,7 @@ export const StudioMagnateGame: React.FC<StudioMagnateGameProps> = ({
         )}
         
         {currentPhase === 'competition' && (
-          <CompetitorMonitor />
+          isOnlineMode ? <LeagueStandings tickGate={onlineTickGate} /> : <CompetitorMonitor />
         )}
         
         {currentPhase === 'awards' && (
@@ -3534,6 +3911,16 @@ export const StudioMagnateGame: React.FC<StudioMagnateGameProps> = ({
 
 {currentPhase === 'lore' && (
           <LoreHub />
+        )}
+
+        {currentPhase === 'metaboxd' && (
+          <div className="-mx-6 -my-8">
+            <Metaboxd />
+          </div>
+        )}
+
+        {currentPhase === 'online' && onlineLeagueCode && (
+          <OnlineLeague initialLeagueCode={onlineLeagueCode} />
         )}
       </div>
       

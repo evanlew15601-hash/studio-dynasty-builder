@@ -81,7 +81,7 @@ describe('script finalization', () => {
       creatorStudioId: 'studio-1',
       genre: ['sci-fi'],
       tone: 'epic',
-      parodySource: 'Star Wars',
+      parodySource: 'Star Saga',
       entries: [],
       status: 'active',
       franchiseTags: [],

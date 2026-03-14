@@ -6,18 +6,18 @@ import { getModBundle } from '@/utils/moddingStore';
 export type DealKind = 'streaming' | 'cable';
 
 export type ProviderId =
-  | 'netflix'
-  | 'amazon'
-  | 'hulu'
-  | 'disney'
-  | 'apple'
-  | 'hbo'
-  | 'amc'
-  | 'fx'
-  | 'tnt'
-  | 'usa'
-  | 'syfy'
-  | 'history';
+  | 'streamflix'
+  | 'primewave'
+  | 'streamhub'
+  | 'magicstream'
+  | 'orchardstream'
+  | 'premiumstream'
+  | 'amotion'
+  | 'flux'
+  | 'dynamite'
+  | 'unity'
+  | 'sciwave'
+  | 'chronicle';
 
 export interface ProviderDealProfile {
   id: ProviderId;
@@ -41,7 +41,7 @@ export interface ProviderDealProfile {
 
 export const PROVIDER_DEALS: ProviderDealProfile[] = [
   {
-    id: 'netflix',
+    id: 'streamflix',
     dealKind: 'streaming',
     name: 'StreamFlix',
     color: 'bg-red-600',
@@ -59,9 +59,9 @@ export const PROVIDER_DEALS: ProviderDealProfile[] = [
     }
   },
   {
-    id: 'amazon',
+    id: 'primewave',
     dealKind: 'streaming',
-    name: 'Prime Stream',
+    name: 'PrimeWave',
     color: 'bg-blue-600',
     marketShare: 20,
     averageRate: 2200000,
@@ -77,7 +77,7 @@ export const PROVIDER_DEALS: ProviderDealProfile[] = [
     }
   },
   {
-    id: 'hulu',
+    id: 'streamhub',
     dealKind: 'streaming',
     name: 'StreamHub',
     color: 'bg-green-600',
@@ -95,7 +95,7 @@ export const PROVIDER_DEALS: ProviderDealProfile[] = [
     }
   },
   {
-    id: 'disney',
+    id: 'magicstream',
     dealKind: 'streaming',
     name: 'Magic Stream',
     color: 'bg-purple-600',
@@ -113,9 +113,9 @@ export const PROVIDER_DEALS: ProviderDealProfile[] = [
     }
   },
   {
-    id: 'apple',
+    id: 'orchardstream',
     dealKind: 'streaming',
-    name: 'Apple Stream',
+    name: 'Orchard Stream',
     color: 'bg-gray-600',
     marketShare: 12,
     averageRate: 3200000,
@@ -131,7 +131,7 @@ export const PROVIDER_DEALS: ProviderDealProfile[] = [
     }
   },
   {
-    id: 'hbo',
+    id: 'premiumstream',
     dealKind: 'streaming',
     name: 'Premium Stream',
     color: 'bg-indigo-600',
@@ -149,9 +149,9 @@ export const PROVIDER_DEALS: ProviderDealProfile[] = [
     }
   },
   {
-    id: 'amc',
+    id: 'amotion',
     dealKind: 'cable',
-    name: 'American Movie Channel',
+    name: 'American Motion Channel',
     color: 'bg-zinc-700',
     marketShare: 7,
     averageRate: 1400000,
@@ -167,9 +167,9 @@ export const PROVIDER_DEALS: ProviderDealProfile[] = [
     }
   },
   {
-    id: 'fx',
+    id: 'flux',
     dealKind: 'cable',
-    name: 'FX Network',
+    name: 'Flux Network',
     color: 'bg-orange-600',
     marketShare: 6,
     averageRate: 1600000,
@@ -185,9 +185,9 @@ export const PROVIDER_DEALS: ProviderDealProfile[] = [
     }
   },
   {
-    id: 'tnt',
+    id: 'dynamite',
     dealKind: 'cable',
-    name: 'TNT Drama',
+    name: 'Dynamite Drama',
     color: 'bg-rose-600',
     marketShare: 8,
     averageRate: 1500000,
@@ -203,9 +203,9 @@ export const PROVIDER_DEALS: ProviderDealProfile[] = [
     }
   },
   {
-    id: 'usa',
+    id: 'unity',
     dealKind: 'cable',
-    name: 'USA Network',
+    name: 'Unity Network',
     color: 'bg-sky-600',
     marketShare: 7,
     averageRate: 1350000,
@@ -221,9 +221,9 @@ export const PROVIDER_DEALS: ProviderDealProfile[] = [
     }
   },
   {
-    id: 'syfy',
+    id: 'sciwave',
     dealKind: 'cable',
-    name: 'Syfy Channel',
+    name: 'SciWave Channel',
     color: 'bg-fuchsia-600',
     marketShare: 5,
     averageRate: 1250000,
@@ -239,9 +239,9 @@ export const PROVIDER_DEALS: ProviderDealProfile[] = [
     }
   },
   {
-    id: 'history',
+    id: 'chronicle',
     dealKind: 'cable',
-    name: 'History Network',
+    name: 'Chronicle Network',
     color: 'bg-amber-700',
     marketShare: 5,
     averageRate: 1100000,

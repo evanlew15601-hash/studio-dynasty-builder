@@ -1,4 +1,4 @@
-import { MediaSource, MediaItem, MediaEvent, MediaMemory, MediaCampaign, Genre } from '@/types/game';
+import type { Genre, MediaSource } from '@/types/game';
 import type { ModBundle } from '@/types/modding';
 import { applyPatchesByKey, getPatchesForEntity } from '@/utils/modding';
 import { getModBundle } from '@/utils/moddingStore';
@@ -12,7 +12,7 @@ export class MediaSourceGenerator {
     const mediaOutlets = [
       // Major Trade Publications
       {
-        name: "Variety",
+        name: "Showbiz Ledger",
         type: 'trade_publication' as const,
         credibility: 95,
         bias: 0,
@@ -21,7 +21,7 @@ export class MediaSourceGenerator {
         established: 1905
       },
       {
-        name: "The Hollywood Reporter",
+        name: "The Studio Reporter",
         type: 'trade_publication' as const,
         credibility: 92,
         bias: 5,
@@ -30,7 +30,7 @@ export class MediaSourceGenerator {
         established: 1930
       },
       {
-        name: "Deadline Hollywood",
+        name: "Deadline Daily",
         type: 'blog' as const,
         credibility: 88,
         bias: -5,
@@ -41,7 +41,7 @@ export class MediaSourceGenerator {
 
       // Mainstream Entertainment
       {
-        name: "Entertainment Weekly",
+        name: "Screen Weekly",
         type: 'magazine' as const,
         credibility: 78,
         bias: 10,
@@ -50,7 +50,7 @@ export class MediaSourceGenerator {
         established: 1990
       },
       {
-        name: "People Magazine",
+        name: "PopLife Magazine",
         type: 'magazine' as const,
         credibility: 65,
         bias: 15,
@@ -61,7 +61,7 @@ export class MediaSourceGenerator {
 
       // Newspapers
       {
-        name: "Los Angeles Times",
+        name: "Los Angeles Gazette",
         type: 'newspaper' as const,
         credibility: 85,
         bias: -10,
@@ -70,7 +70,7 @@ export class MediaSourceGenerator {
         established: 1881
       },
       {
-        name: "The New York Times",
+        name: "New York Ledger",
         type: 'newspaper' as const,
         credibility: 90,
         bias: -15,
@@ -81,7 +81,7 @@ export class MediaSourceGenerator {
 
       // Genre-Specific
       {
-        name: "Empire Magazine",
+        name: "Cine Empire",
         type: 'magazine' as const,
         credibility: 80,
         bias: 5,
@@ -90,7 +90,7 @@ export class MediaSourceGenerator {
         established: 1989
       },
       {
-        name: "Fangoria",
+        name: "Fangorama",
         type: 'magazine' as const,
         credibility: 75,
         bias: 20,
@@ -101,7 +101,7 @@ export class MediaSourceGenerator {
 
       // Digital & Social
       {
-        name: "The Wrap",
+        name: "The Industry Rundown",
         type: 'blog' as const,
         credibility: 82,
         bias: 0,
@@ -110,7 +110,7 @@ export class MediaSourceGenerator {
         established: 2009
       },
       {
-        name: "TMZ",
+        name: "BuzzWire",
         type: 'blog' as const,
         credibility: 45,
         bias: 25,
@@ -119,7 +119,7 @@ export class MediaSourceGenerator {
         established: 2005
       },
       {
-        name: "Screen Rant",
+        name: "Screen Rave",
         type: 'blog' as const,
         credibility: 70,
         bias: 10,
@@ -130,7 +130,7 @@ export class MediaSourceGenerator {
 
       // TV Networks
       {
-        name: "Entertainment Tonight",
+        name: "Entertainment After Hours",
         type: 'tv_network' as const,
         credibility: 68,
         bias: 20,
@@ -139,7 +139,7 @@ export class MediaSourceGenerator {
         established: 1981
       },
       {
-        name: "Access Hollywood", 
+        name: "Access Studio",
         type: 'tv_network' as const,
         credibility: 62,
         bias: 25,
@@ -150,7 +150,7 @@ export class MediaSourceGenerator {
 
       // Social Media Influencers
       {
-        name: "FilmTwitter Collective",
+        name: "FilmChirper Collective",
         type: 'social_media' as const,
         credibility: 55,
         bias: -5,
@@ -171,7 +171,7 @@ export class MediaSourceGenerator {
 
     this.sources = mediaOutlets.map((outlet, index) => ({
       id: `source_${index + 1}`,
-      ...outlet
+      ...outlet,
     }));
 
     return this.sources;
@@ -189,11 +189,11 @@ export class MediaSourceGenerator {
   }
 
   static getSourcesByType(type: MediaSource['type'], mods?: ModBundle): MediaSource[] {
-    return this.generateMediaSources(mods).filter(source => source.type === type);
+    return this.generateMediaSources(mods).filter((source) => source.type === type);
   }
 
   static getSourcesByCredibility(minCredibility: number, mods?: ModBundle): MediaSource[] {
-    return this.generateMediaSources(mods).filter(source => source.credibility >= minCredibility);
+    return this.generateMediaSources(mods).filter((source) => source.credibility >= minCredibility);
   }
 
   static getRandomSource(mods?: ModBundle): MediaSource {
@@ -201,38 +201,44 @@ export class MediaSourceGenerator {
     return sources[Math.floor(Math.random() * sources.length)];
   }
 
-  static getSourceForEvent(eventType: string, preferHighCredibility: boolean = false, mods?: ModBundle): MediaSource {
+  static getSourceForEvent(eventType: string, preferHighCredibility = false, mods?: ModBundle): MediaSource {
     const sources = this.generateMediaSources(mods);
-    
+
     if (preferHighCredibility) {
-      const credibleSources = sources.filter(s => s.credibility >= 80);
-      return credibleSources[Math.floor(Math.random() * credibleSources.length)];
+      const credibleSources = sources.filter((s) => s.credibility >= 80);
+      if (credibleSources.length) {
+        return credibleSources[Math.floor(Math.random() * credibleSources.length)];
+      }
     }
 
-    // Different sources for different types of stories
     switch (eventType) {
       case 'scandal':
       case 'rumor': {
-        const gossipSources = sources.filter(s => s.credibility < 70);
-        return gossipSources[Math.floor(Math.random() * gossipSources.length)];
+        const gossipSources = sources.filter((s) => s.credibility < 70);
+        if (gossipSources.length) {
+          return gossipSources[Math.floor(Math.random() * gossipSources.length)];
+        }
+        break;
       }
-      
       case 'award_win':
+      case 'award_nomination':
       case 'box_office': {
-        const tradeSources = sources.filter(s => s.type === 'trade_publication');
-        return tradeSources[Math.floor(Math.random() * tradeSources.length)];
+        const tradeSources = sources.filter((s) => s.type === 'trade_publication');
+        if (tradeSources.length) {
+          return tradeSources[Math.floor(Math.random() * tradeSources.length)];
+        }
+        break;
       }
-      
       case 'casting_announcement':
       case 'interview': {
-        const entertainmentSources = sources.filter(s => 
-          s.type === 'magazine' || s.type === 'blog'
-        );
-        return entertainmentSources[Math.floor(Math.random() * entertainmentSources.length)];
+        const entertainmentSources = sources.filter((s) => s.type === 'magazine' || s.type === 'blog');
+        if (entertainmentSources.length) {
+          return entertainmentSources[Math.floor(Math.random() * entertainmentSources.length)];
+        }
+        break;
       }
-      
-      default:
-        return this.getRandomSource();
     }
+
+    return this.getRandomSource(mods);
   }
 }

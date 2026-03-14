@@ -57,7 +57,7 @@ export const EnhancedMediaVariety: React.FC<EnhancedMediaVarietyProps> = ({
 
   const generateAwardsSeasonStories = (): MediaStory[] => {
     const stories: MediaStory[] = [];
-    const outlets = ['The Hollywood Reporter', 'Variety', 'Entertainment Weekly'];
+    const outlets = ['The Studio Reporter', 'Showbiz Ledger', 'Screen Weekly'];
     
     // Predictions and analysis
     if (Math.random() < 0.4) {
@@ -105,7 +105,7 @@ export const EnhancedMediaVariety: React.FC<EnhancedMediaVarietyProps> = ({
           id: `franchise-${Date.now()}-${Math.random()}`,
           headline: `${franchise.title} Universe Expands: What's Next for the Franchise?`,
           content: `With ${franchiseProjects.length} films in the ${franchise.title} series, industry insiders speculate about future installments and spin-offs.`,
-          outlet: 'The Hollywood Reporter',
+          outlet: 'The Studio Reporter',
           type: 'franchise',
           sentiment: 'positive',
           virality: 45 + Math.floor(Math.random() * 25),
@@ -129,7 +129,7 @@ export const EnhancedMediaVariety: React.FC<EnhancedMediaVarietyProps> = ({
         id: `market-${Date.now()}-${Math.random()}`,
         headline: `Market Report: ${trendingGenre.charAt(0).toUpperCase() + trendingGenre.slice(1)} Films Dominating Box Office`,
         content: `Latest box office trends show ${trendingGenre} films are resonating with audiences, leading to increased production in the genre.`,
-        outlet: 'Variety',
+        outlet: 'Showbiz Ledger',
         type: 'market',
         sentiment: 'neutral',
         virality: 35 + Math.floor(Math.random() * 20),
@@ -177,7 +177,7 @@ export const EnhancedMediaVariety: React.FC<EnhancedMediaVarietyProps> = ({
         id: `talent-${Date.now()}-${Math.random()}`,
         headline: selectedStory.headline,
         content: selectedStory.content,
-        outlet: 'Entertainment Weekly',
+        outlet: 'Screen Weekly',
         type: selectedStory.type,
         sentiment: selectedStory.sentiment,
         virality: Math.floor(talent.reputation * 0.8) + Math.floor(Math.random() * 20),
@@ -221,7 +221,7 @@ export const EnhancedMediaVariety: React.FC<EnhancedMediaVarietyProps> = ({
         id: `production-${Date.now()}-${Math.random()}`,
         headline: milestone.headline,
         content: milestone.content,
-        outlet: 'Deadline',
+        outlet: 'Deadline Daily',
         type: 'production',
         sentiment: milestone.sentiment,
         virality: 25 + Math.floor(Math.random() * 30),
@@ -267,7 +267,7 @@ export const EnhancedMediaVariety: React.FC<EnhancedMediaVarietyProps> = ({
           id: `boxoffice-${Date.now()}-${Math.random()}`,
           headline,
           content: `"${topProject.title}" earned $${(boxOffice / 1000000).toFixed(1)}M against its $${(budget / 1000000).toFixed(0)}M budget, ${sentiment === 'positive' ? 'proving the market appetite for quality ' + topProject.script.genre + ' films' : sentiment === 'neutral' ? 'demonstrating modest but reliable performance' : 'raising questions about genre saturation and marketing strategy'}.`,
-          outlet: 'Box Office Mojo',
+          outlet: 'Box Office Tracker',
           type: 'boxoffice',
           sentiment,
           virality: sentiment === 'positive' ? 70 : sentiment === 'negative' ? 85 : 40,

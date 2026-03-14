@@ -13,7 +13,7 @@ describe('Parody character names modding', () => {
           modId: 'm1',
           entityType: 'parodyCharacterNames',
           op: 'update',
-          target: 'Star Wars',
+          target: 'Star Saga',
           payload: {
             byCharacterId: {
               char_hero_pilot: 'Luke Patchwalker',
@@ -25,8 +25,8 @@ describe('Parody character names modding', () => {
 
     const map = getEffectiveParodyCharacterNameMap(mods);
 
-    expect(map['Star Wars']?.byCharacterId?.char_hero_pilot).toBe('Luke Patchwalker');
-    expect(map['Star Wars']?.byTemplateId?.lead_hero).toBe('Luke Starwalker');
+    expect(map['Star Saga']?.byCharacterId?.char_hero_pilot).toBe('Luke Patchwalker');
+    expect(map['Star Saga']?.byTemplateId?.lead_hero).toBe('Luke Starwalker');
   });
 
   it('supports deleting keys via null markers in patch payloads', () => {
@@ -39,7 +39,7 @@ describe('Parody character names modding', () => {
           modId: 'm1',
           entityType: 'parodyCharacterNames',
           op: 'update',
-          target: 'Star Wars',
+          target: 'Star Saga',
           payload: {
             byTemplateId: {
               lead_hero: null,
@@ -51,7 +51,7 @@ describe('Parody character names modding', () => {
 
     const map = getEffectiveParodyCharacterNameMap(mods);
 
-    expect(map['Star Wars']?.byTemplateId?.lead_hero).toBeUndefined();
-    expect(map['Star Wars']?.byTemplateId?.mentor_mystic).toBe('Obi-Juan Kenobi');
+    expect(map['Star Saga']?.byTemplateId?.lead_hero).toBeUndefined();
+    expect(map['Star Saga']?.byTemplateId?.mentor_mystic).toBe('Obi-Juan Kendar');
   });
 });

@@ -6,6 +6,7 @@ import { Suspense, lazy } from "react";
 import { BrowserRouter, Routes, Route } from "react-router-dom";
 
 const Index = lazy(() => import("./pages/Index"));
+const Online = lazy(() => import("./pages/Online"));
 const Help = lazy(() => import("./pages/Help"));
 const NotFound = lazy(() => import("./pages/NotFound"));
 
@@ -20,6 +21,7 @@ const App = () => (
         <Suspense fallback={<div className="p-6 text-sm text-muted-foreground">Loading…</div>}>
           <Routes>
             <Route path="/" element={<Index />} />
+            <Route path="/online" element={<Online />} />
             <Route path="/help" element={<Help />} />
             <Route path="*" element={<NotFound />} />
           </Routes>

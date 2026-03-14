@@ -32,11 +32,12 @@ export const StreamingAnalyticsDashboard: React.FC = () => {
 
   // Get streaming projects
   const getStreamingProjects = (): Project[] => {
-    return gameState.projects.filter(p => 
-      (p.type === 'series' || p.type === 'limited-series') &&
-      p.status === 'released' &&
-      p.metrics?.streaming
-    );
+    return gameState.projects.filter(p => {
+      const isTV = p.type === 'series' || p.type === 'limited-series';
+      const isStreamingFilm = (p.type === 'feature' || p.type === 'documentary') && p.releaseStrategy?.type === 'streaming';
+
+      return (isTV || isStreamingFilm) && p.status === 'released' && !!p.metrics?.streaming;
+    });
   };
 
   const streamingProjects = getStreamingProjects();
@@ -53,7 +54,7 @@ export const StreamingAnalyticsDashboard: React.FC = () => {
         </CardHeader>
         <CardContent>
           <p className="text-muted-foreground text-center py-8">
-            No streaming data available. Release a TV series to see analytics.
+            No streaming data available. Release a TV series or a direct-to-streaming film to see analytics.
           </p>
         </CardContent>
       </Card>
@@ -532,6 +533,19 @@ export const StreamingAnalyticsDashboard: React.FC = () => {
                       </div>
                     )}
                   </>
+                ) : project.releaseStrategy?.type === 'streaming' && project.streamingPremiereDeal ? (
+                  <div className="grid grid-cols-2 gap-4 text-sm">
+                    <div>
+                      <p className="text-muted-foreground mb-1">Premiere deal</p>
+                      <p className="font-semibold">{project.streamingPremiereDeal.providerId}</p>
+                    </div>
+                    <div>
+                      <p className="text-muted-foreground mb-1">Upfront payment</p>
+                      <p className="font-semibold">
+                        {(project.streamingPremiereDeal.upfrontPayment / 1000000).toFixed(1)}M
+                      </p>
+                    </div>
+                  </div>
                 ) : (
                   <p className="text-sm text-muted-foreground">
                     This series does not currently have a platform contract. Strong analytics make it easier

@@ -4,13 +4,13 @@ This application bundles open source software.
 
 ## Key dependencies
 
-- React — MIT — https://github.com/facebook/react
-- Vite — MIT — https://github.com/vitejs/vite
-- Tailwind CSS — MIT — https://github.com/tailwindlabs/tailwindcss
-- Radix UI — MIT — https://github.com/radix-ui/primitives
-- shadcn/ui — MIT — https://github.com/shadcn-ui/ui
-- Tauri — MIT OR Apache-2.0 — https://github.com/tauri-apps/tauri
-- Lucide Icons — ISC — https://github.com/lucide-icons/lucide
+- React — MIT — https://react.dev
+- Vite — MIT — https://vitejs.dev
+- Tailwind CSS — MIT — https://tailwindcss.com
+- Radix UI — MIT — https://www.radix-ui.com
+- shadcn/ui — MIT — https://ui.shadcn.com
+- Tauri — MIT OR Apache-2.0 — https://tauri.app
+- Lucide Icons — ISC — https://lucide.dev
 
 ## Full dependency tree
 

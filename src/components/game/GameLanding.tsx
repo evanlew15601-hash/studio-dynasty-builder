@@ -15,6 +15,10 @@ import { PremiumBackground } from '@/components/ui/premium-background';
 interface GameLandingProps {
   onStartGame: (config: GameConfig) => void;
   onLoadGame: () => void;
+  mode?: 'single' | 'online';
+  onlineLeagueCode?: string;
+  onOnlineLeagueCodeChange?: (code: string) => void;
+  onGenerateOnlineLeagueCode?: () => void;
 }
 
 interface GameConfig {
@@ -25,7 +29,14 @@ interface GameConfig {
   studioIcon: StudioIconConfig;
 }
 
-export const GameLanding: React.FC<GameLandingProps> = ({ onStartGame, onLoadGame }) => {
+export const GameLanding: React.FC<GameLandingProps> = ({
+  onStartGame,
+  onLoadGame,
+  mode = 'single',
+  onlineLeagueCode,
+  onOnlineLeagueCodeChange,
+  onGenerateOnlineLeagueCode,
+}) => {
   const [showCustomization, setShowCustomization] = useState(false);
   const [config, setConfig] = useState<GameConfig>({
     studioName: '',
@@ -50,6 +61,10 @@ export const GameLanding: React.FC<GameLandingProps> = ({ onStartGame, onLoadGam
   ];
 
   const handleStartGame = () => {
+    if (mode === 'online' && !onlineLeagueCode?.trim()) {
+      return;
+    }
+
     if (showCustomization) {
       if (!config.studioName.trim()) {
         return; // Require studio name
@@ -106,11 +121,48 @@ export const GameLanding: React.FC<GameLandingProps> = ({ onStartGame, onLoadGam
         {/* Main Menu */}
         {!showCustomization ? (
           <div className="space-y-6 animate-scale-in">
+            {mode === 'online' && (
+              <Card className="card-golden max-w-2xl mx-auto">
+                <CardHeader>
+                  <CardTitle className="text-xl text-foreground flex items-center">
+                    <Sparkles className="mr-2 text-primary" />
+                    Online League (Beta)
+                  </CardTitle>
+                </CardHeader>
+                <CardContent className="space-y-3">
+                  <p className="text-sm text-muted-foreground">
+                    Join friends with an invite code. This does not change single-player mechanics — it just enables live league snapshots.
+                  </p>
+                  <div className="flex gap-2">
+                    <Input
+                      value={onlineLeagueCode ?? ''}
+                      onChange={(e) => onOnlineLeagueCodeChange?.(e.target.value)}
+                      placeholder="Invite code"
+                      className="bg-input border-border"
+                    />
+                    <Button
+                      type="button"
+                      variant="secondary"
+                      onClick={() => onGenerateOnlineLeagueCode?.()}
+                    >
+                      Create
+                    </Button>
+                  </div>
+                  {!onlineLeagueCode?.trim() && (
+                    <div className="text-xs text-muted-foreground">
+                      Enter an invite code to join, or click Create to generate one.
+                    </div>
+                  )}
+                </CardContent>
+              </Card>
+            )}
+
             <div className="flex flex-col sm:flex-row gap-6 justify-center">
               <Button 
                 size="lg" 
                 className="btn-studio px-14 py-7 text-lg shadow-golden hover:shadow-golden/60 transition-all duration-500 hover:scale-[1.02]"
                 onClick={handleStartGame}
+                disabled={mode === 'online' && !onlineLeagueCode?.trim()}
               >
                 <Play className="mr-3" size={24} />
                 Quick Start
@@ -135,6 +187,29 @@ export const GameLanding: React.FC<GameLandingProps> = ({ onStartGame, onLoadGam
               >
                 Load Saved Game
               </Button>
+
+              {mode === 'single' ? (
+                <Button
+                  variant="ghost"
+                  className="text-muted-foreground hover:text-foreground hover:bg-accent/10 transition-all duration-300 px-6 py-3"
+                  asChild
+                >
+                  <Link to="/online">
+                    <Sparkles aria-hidden="true" />
+                    Online League (Beta)
+                  </Link>
+                </Button>
+              ) : (
+                <Button
+                  variant="ghost"
+                  className="text-muted-foreground hover:text-foreground hover:bg-accent/10 transition-all duration-300 px-6 py-3"
+                  asChild
+                >
+                  <Link to="/">
+                    Back to Single Player
+                  </Link>
+                </Button>
+              )}
 
               <Button
                 variant="ghost"
@@ -195,6 +270,26 @@ export const GameLanding: React.FC<GameLandingProps> = ({ onStartGame, onLoadGam
                 </CardTitle>
               </CardHeader>
               <CardContent className="space-y-6">
+                {mode === 'online' && (
+                  <div>
+                    <Label className="text-foreground text-base">Online League Invite Code</Label>
+                    <div className="mt-2 flex gap-2">
+                      <Input
+                        value={onlineLeagueCode ?? ''}
+                        onChange={(e) => onOnlineLeagueCodeChange?.(e.target.value)}
+                        placeholder="Invite code"
+                        className="bg-input border-border text-foreground placeholder:text-muted-foreground focus:border-primary"
+                      />
+                      <Button type="button" variant="secondary" onClick={() => onGenerateOnlineLeagueCode?.()}>
+                        Create
+                      </Button>
+                    </div>
+                    <p className="text-sm text-muted-foreground mt-1">
+                      Required for online mode.
+                    </p>
+                  </div>
+                )}
+
                 {/* Studio Name */}
                 <div>
                   <Label htmlFor="studioName" className="text-foreground text-base">Studio Name</Label>
@@ -278,7 +373,7 @@ export const GameLanding: React.FC<GameLandingProps> = ({ onStartGame, onLoadGam
                   <Button 
                     className="flex-1 btn-studio font-semibold transition-all duration-300 hover:scale-105"
                     onClick={handleStartGame}
-                    disabled={!config.studioName.trim()}
+                    disabled={!config.studioName.trim() || (mode === 'online' && !onlineLeagueCode?.trim())}
                   >
                     <Play className="mr-2" size={20} />
                     Start Game
