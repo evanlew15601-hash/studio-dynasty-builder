@@ -27,14 +27,16 @@ function formatAgo(iso?: string): string {
 
 type SortKey = 'reputation' | 'released' | 'budget';
 
+type LeagueRosterRow = OnlineLeagueTickGateRemoteStudio & { isYou?: boolean };
+
 export const LeagueStandings: React.FC<{ tickGate: OnlineLeagueTickGateState }> = ({ tickGate }) => {
   const gameState = useGameStore((s) => s.game);
   const [sortKey, setSortKey] = useState<SortKey>('reputation');
 
   const roster = useMemo(() => {
-    if (!gameState) return [] as Array<OnlineLeagueTickGateRemoteStudio & { isYou?: boolean }>;
+    if (!gameState) return [] as LeagueRosterRow[];
 
-    const you: OnlineLeagueTickGateRemoteStudio & { isYou: boolean } = {
+    const you: LeagueRosterRow = {
       userId: tickGate.userId ?? 'you',
       studioName: gameState.studio.name,
       budget: gameState.studio.budget,
@@ -46,7 +48,7 @@ export const LeagueStandings: React.FC<{ tickGate: OnlineLeagueTickGateState }> 
       isYou: true,
     };
 
-    const list = [you, ...(tickGate.remoteStudios || [])];
+    const list: LeagueRosterRow[] = [you, ...(tickGate.remoteStudios || [])];
 
     const sorted = list.slice().sort((a, b) => {
       if (sortKey === 'released') {
