@@ -42,6 +42,74 @@ function awardToTalentAward(talentId: string, a: NonNullable<WorldTalentBlueprin
   };
 }
 
+function generateImpliedWorldAwards(
+  b: WorldTalentBlueprint,
+  filmography: NonNullable<TalentPerson['filmography']>,
+  currentYear: number
+): NonNullable<WorldTalentBlueprint['awards']> {
+  const isMarquee = b.tier === 'marquee';
+  if (!isMarquee && b.reputation < 78) return [];
+
+  const maxCount = isMarquee ? 3 : 1;
+  const count = (() => {
+    if (!isMarquee) return 1;
+    if (b.reputation >= 88) return 3;
+    if (b.reputation >= 78) return 2;
+    return 1;
+  })();
+
+  const seed = `${b.slug}|impliedAwards`;
+  const eligibleEnd = Math.min(currentYear - 1, b.careerStartYear + stableInt(`${seed}|end`, 6, 26));
+  const eligibleStart = Math.max(b.careerStartYear + 1, eligibleEnd - 20);
+
+  if (eligibleEnd < eligibleStart) return [];
+
+  const ceremonies = (b.type === 'director'
+    ? (['Crown', 'Critics Circle', 'Directors Circle', 'Crystal Ring', 'Britannia Screen'] as const)
+    : (['Crown', 'Critics Circle', 'Performers Guild', 'Crystal Ring', 'Britannia Screen'] as const))
+    .slice(0);
+
+  const categories = (b.type === 'director'
+    ? ['Best Director', 'Directing Achievement', 'Vision in Direction']
+    : [
+        b.gender === 'Female' ? 'Best Actress' : 'Best Actor',
+        'Outstanding Performance',
+        'Breakthrough Performance',
+        'Ensemble Performance'
+      ]);
+
+  const prestigeMin = isMarquee ? 6 : 5;
+  const prestigeMax = isMarquee ? 10 : 7;
+
+  const pickProjectTitle = (year: number, suffix: string) => {
+    const candidates = filmography
+      .filter((c) => typeof c.year === 'number')
+      .filter((c) => (c.year as number) <= year);
+
+    const pool = candidates.length > 0 ? candidates : filmography;
+    const chosen = stablePick(pool, `${seed}|project|${suffix}|${year}`);
+    return chosen?.title || filmography[0]?.title || `${b.name.split(' ')[0]} Project`;
+  };
+
+  const out: NonNullable<WorldTalentBlueprint['awards']> = [];
+
+  for (let i = 0; i < Math.min(maxCount, count); i++) {
+    const year = stableInt(`${seed}|year|${i}`, eligibleStart, eligibleEnd);
+    const ceremony = stablePick(ceremonies as any, `${seed}|ceremony|${i}`) || ceremonies[0];
+    const category = stablePick(categories, `${seed}|category|${i}`) || categories[0];
+
+    out.push({
+      year,
+      ceremony,
+      category,
+      prestige: stableInt(`${seed}|prestige|${i}`, prestigeMin, prestigeMax),
+      projectTitle: pickProjectTitle(year, String(i)),
+    });
+  }
+
+  return out.sort((a, b) => a.year - b.year);
+}
+
 function relationshipToChemistry(type: NonNullable<TalentPerson['relationships']>[string]): number {
   switch (type) {
     case 'romantic':
@@ -203,7 +271,11 @@ function buildCoreTalent(currentYear: number): TalentPerson[] {
       boxOffice: f.boxOffice,
     }));
 
-    const awards = (b.awards || []).map((a) => awardToTalentAward(id, a));
+    const worldAwards = (b.awards && b.awards.length > 0)
+      ? b.awards
+      : generateImpliedWorldAwards(b, filmography, currentYear);
+
+    const awards = worldAwards.map((a) => awardToTalentAward(id, a));
 
     const baseBio = b.biography || buildCoreBiography(b);
 
@@ -308,7 +380,11 @@ export function buildCoreTalentDebutsForYear(year: number): TalentPerson[] {
         boxOffice: f.boxOffice,
       }));
 
-      const awards = (b.awards || []).map((a) => awardToTalentAward(id, a));
+      const worldAwards = (b.awards && b.awards.length > 0)
+        ? b.awards
+        : generateImpliedWorldAwards(b, filmography, year);
+
+      const awards = worldAwards.map((a) => awardToTalentAward(id, a));
 
       const baseBio = b.biography || buildCoreBiography(b);
 

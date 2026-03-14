@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useMemo, useState } from 'react';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { Badge } from '@/components/ui/badge';
@@ -22,36 +22,123 @@ export const FinancialDashboard: React.FC = () => {
   }
 
   const { currentWeek, currentYear, projects } = game;
-  
-  const summary = FinancialEngine.getFinancialSummary(currentWeek, currentYear, game.studio.budget);
-  const recentTransactions = FinancialEngine.getRecentTransactions(20);
-  
-  // Generate weekly financial data for charts
-  const getWeeklyData = () => {
-    const weeks = selectedTimeframe === '4weeks' ? 4 : selectedTimeframe === '12weeks' ? 12 : 52;
-    const data = [];
-    
-    for (let i = weeks - 1; i >= 0; i--) {
+
+  // Financial ledger contains system-wide entries. The Financials UI is meant to show the
+  // player's studio only, so filter out competitor/AI transactions.
+  const playerProjectIds = useMemo(() => new Set(projects.map(p => p.id)), [projects]);
+
+  const playerTransactions = useMemo(() => {
+    const studioPrefix = `Studio ${game.studio.name}`;
+    const ledger = FinancialEngine.exportLedger();
+
+    return ledger.filter((t) => {
+      if (t.filmId) return playerProjectIds.has(t.filmId);
+      if (t.category === 'overhead') return t.description.includes(studioPrefix);
+      return true;
+    });
+  }, [currentWeek, currentYear, game.studio.name, playerProjectIds]);
+
+  const getWeeklyFinancials = (week: number, year: number) => {
+    const weekTransactions = playerTransactions.filter(t => t.week === week && t.year === year);
+
+    const totalRevenue = weekTransactions
+      .filter(t => t.type === 'revenue')
+      .reduce((sum, t) => sum + t.amount, 0);
+
+    const totalExpenses = weekTransactions
+      .filter(t => t.type === 'expense')
+      .reduce((sum, t) => sum + t.amount, 0);
+
+    return {
+      totalRevenue,
+      totalExpenses,
+      netIncome: totalRevenue - totalExpenses,
+      transactions: weekTransactions,
+    };
+  };
+
+  const summary = useMemo(() => {
+    const allRevenue = playerTransactions
+      .filter(t => t.type === 'revenue')
+      .reduce((sum, t) => sum + t.amount, 0);
+
+    const allExpenses = playerTransactions
+      .filter(t => t.type === 'expense')
+      .reduce((sum, t) => sum + t.amount, 0);
+
+    let weeklyExpenses = 0;
+    for (let i = 0; i < 4; i++) {
       let week = currentWeek - i;
       let year = currentYear;
-      
       if (week <= 0) {
         week += 52;
         year -= 1;
       }
-      
-      const weeklyFinancials = FinancialEngine.getWeeklyFinancials(week, year);
+      weeklyExpenses += getWeeklyFinancials(week, year).totalExpenses;
+    }
+    const weeklyBurn = weeklyExpenses / 4;
+
+    const filmFinancials = new Map<string, { revenue: number; expenses: number }>();
+
+    playerTransactions.forEach(t => {
+      if (t.filmId) {
+        if (!filmFinancials.has(t.filmId)) {
+          filmFinancials.set(t.filmId, { revenue: 0, expenses: 0 });
+        }
+        const film = filmFinancials.get(t.filmId)!;
+        if (t.type === 'revenue') film.revenue += t.amount;
+        else film.expenses += t.amount;
+      }
+    });
+
+    const profitableFilms = Array.from(filmFinancials.values())
+      .filter(film => film.revenue > film.expenses).length;
+
+    const netProfit = allRevenue - allExpenses;
+
+    return {
+      totalRevenue: allRevenue,
+      totalExpenses: allExpenses,
+      netProfit,
+      cashOnHand: game.studio.budget,
+      weeklyBurn,
+      profitableFilms,
+      totalFilms: filmFinancials.size
+    };
+  }, [currentWeek, currentYear, game.studio.budget, playerTransactions]);
+
+  const recentTransactions = useMemo(() => {
+    return playerTransactions
+      .slice(-20)
+      .reverse();
+  }, [playerTransactions]);
+
+  // Generate weekly financial data for charts
+  const getWeeklyData = () => {
+    const weeks = selectedTimeframe === '4weeks' ? 4 : selectedTimeframe === '12weeks' ? 12 : 52;
+    const data: Array<{ week: string; revenue: number; expenses: number; profit: number; cumulativeProfit: number }> = [];
+
+    for (let i = weeks - 1; i >= 0; i--) {
+      let week = currentWeek - i;
+      let year = currentYear;
+
+      if (week <= 0) {
+        week += 52;
+        year -= 1;
+      }
+
+      const weeklyFinancials = getWeeklyFinancials(week, year);
       data.push({
         week: `Y${year}W${week}`,
         revenue: weeklyFinancials.totalRevenue,
         expenses: weeklyFinancials.totalExpenses,
         profit: weeklyFinancials.netIncome,
-        cumulativeProfit: data.length > 0 ? 
-          data[data.length - 1].cumulativeProfit + weeklyFinancials.netIncome : 
+        cumulativeProfit: data.length > 0 ?
+          data[data.length - 1].cumulativeProfit + weeklyFinancials.netIncome :
           weeklyFinancials.netIncome
       });
     }
-    
+
     return data;
   };
 
@@ -93,7 +180,7 @@ export const FinancialDashboard: React.FC = () => {
         week += 52;
         year -= 1;
       }
-      const wf = FinancialEngine.getWeeklyFinancials(week, year);
+      const wf = getWeeklyFinancials(week, year);
       const touring = wf.transactions.filter(t => t.category === 'touring');
       const rev = touring.filter(t => t.type === 'revenue').reduce((s, t) => s + t.amount, 0);
       const exp = touring.filter(t => t.type === 'expense').reduce((s, t) => s + t.amount, 0);

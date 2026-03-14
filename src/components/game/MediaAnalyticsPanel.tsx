@@ -217,7 +217,7 @@ export const MediaAnalyticsPanel: React.FC<MediaAnalyticsPanelProps> = ({ onNavi
             View Reputation Panel
           </Button>
           <Button size="sm" variant="outline" onClick={() => navigatePhase('awards')}>
-            Go to Awards Strategy
+            Go to Awards Campaigns
           </Button>
         </CardContent>
       </Card>
