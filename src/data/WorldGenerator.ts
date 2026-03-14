@@ -95,7 +95,7 @@ function generateImpliedWorldAwards(
 
   for (let i = 0; i < Math.min(maxCount, count); i++) {
     const year = stableInt(`${seed}|year|${i}`, eligibleStart, eligibleEnd);
-    const ceremony = stablePick(ceremonies as any, `${seed}|ceremony|${i}`) || ceremonies[0];
+    const ceremony = stablePick(ceremonies, `${seed}|ceremony|${i}`) || ceremonies[0];
     const category = stablePick(categories, `${seed}|category|${i}`) || categories[0];
 
     out.push({
