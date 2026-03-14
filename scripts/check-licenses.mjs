@@ -6,6 +6,7 @@ const npx = process.platform === 'win32' ? 'npx.cmd' : 'npx';
 const allowedExact = new Set([
   '0BSD',
   'Apache-2.0',
+  'BlueOak-1.0.0',
   'BSD',
   'BSD-2-Clause',
   'BSD-3-Clause',
@@ -68,6 +69,9 @@ const packages = JSON.parse(stdout);
 const violations = [];
 
 for (const [pkg, info] of Object.entries(packages)) {
+  // This check is for third-party deps; the root package is licensed via the repo LICENSE file.
+  if (pkg.startsWith('studio-magnate@')) continue;
+
   const licensesRaw = info?.licenses;
   const licenses = Array.isArray(licensesRaw) ? licensesRaw : [licensesRaw];
 
