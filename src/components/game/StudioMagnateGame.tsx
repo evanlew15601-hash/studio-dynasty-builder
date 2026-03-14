@@ -34,6 +34,7 @@ import { EnhancedAwardsSystem } from './EnhancedAwardsSystem';
 import { RoleBasedCasting } from './RoleBasedCasting';
 import { CharacterCastingSystem } from './CharacterCastingSystem';
 import { useAwardsEngine } from '@/hooks/useAwardsEngine';
+import { useOnlineLeagueTickGate } from '@/hooks/useOnlineLeagueTickGate';
 import { IndividualAwardShowModal, AwardShowCeremony } from './IndividualAwardShowModal';
 import { FirstWeekBoxOfficeModal } from './FirstWeekBoxOfficeModal';
 import { EnhancedLoanSystem } from './EnhancedLoanSystem';
@@ -2120,7 +2121,7 @@ export const StudioMagnateGame: React.FC<StudioMagnateGameProps> = ({
     return { studio };
   };
 
-  const handleAdvanceWeek = (options?: { suppressToast?: boolean; suppressLoading?: boolean; suppressDiagnostics?: boolean; suppressRecap?: boolean }) => {
+  const advanceWeekCore = (options?: { suppressToast?: boolean; suppressLoading?: boolean; suppressDiagnostics?: boolean; suppressRecap?: boolean }) => {
     const diagnosticsEnabled = import.meta.env.DEV && !options?.suppressDiagnostics;
 
     if (diagnosticsEnabled) {
@@ -2727,7 +2728,82 @@ export const StudioMagnateGame: React.FC<StudioMagnateGameProps> = ({
     }
   };
 
+  const onlineTickGate = useOnlineLeagueTickGate({
+    enabled: !!onlineLeagueCode?.trim(),
+    leagueCode: onlineLeagueCode ?? '',
+    studioName: gameState.studio.name,
+    onRemoteAdvance: () => {
+      advanceWeekCore({ suppressDiagnostics: true });
+    },
+  });
+
+  const handleForceAdvanceWeek = () => {
+    if (!onlineLeagueCode?.trim()) return;
+
+    if (onlineTickGate.status !== 'ready') {
+      toast({
+        title: 'Online League',
+        description: onlineTickGate.error || 'Connecting to the online league...',
+        variant: 'destructive',
+      });
+      return;
+    }
+
+    if (!onlineTickGate.isHost) {
+      toast({
+        title: 'Online League',
+        description: 'Only the host can force-advance the week.',
+        variant: 'destructive',
+      });
+      return;
+    }
+
+    onlineTickGate.forceAdvance();
+
+    toast({
+      title: 'Online League',
+      description: 'Force-advance requested (host).',
+    });
+  };
+
+  const handleAdvanceWeek = (options?: { suppressToast?: boolean; suppressLoading?: boolean; suppressDiagnostics?: boolean; suppressRecap?: boolean }) => {
+    if (!onlineLeagueCode?.trim()) {
+      advanceWeekCore(options);
+      return;
+    }
+
+    if (onlineTickGate.status !== 'ready') {
+      toast({
+        title: 'Online League',
+        description: onlineTickGate.error || 'Connecting to the online league...',
+        variant: 'destructive',
+      });
+      return;
+    }
+
+    const nextReady = !onlineTickGate.isReady;
+    onlineTickGate.setReady(nextReady);
+
+    if (!options?.suppressToast) {
+      toast({
+        title: 'Online League',
+        description: nextReady
+          ? `Marked ready (${onlineTickGate.readyCount + 1}/${onlineTickGate.memberCount || '...'}). Waiting for others…`
+          : 'Not ready.',
+      });
+    }
+  };
+
   const handleAdvanceWeeks = (weeks: number) => {
+    if (onlineLeagueCode?.trim()) {
+      toast({
+        title: 'Online League',
+        description: 'Skipping multiple weeks at once is disabled in Online League mode.',
+        variant: 'destructive',
+      });
+      return;
+    }
+
     const totalWeeks = Math.floor(weeks);
     if (!Number.isFinite(totalWeeks) || totalWeeks <= 0) return;
 
@@ -2758,7 +2834,7 @@ export const StudioMagnateGame: React.FC<StudioMagnateGameProps> = ({
 
       isProcessing = true;
 
-      handleAdvanceWeek({ suppressToast: true, suppressLoading: true, suppressDiagnostics: true, suppressRecap: true });
+      advanceWeekCore({ suppressToast: true, suppressLoading: true, suppressDiagnostics: true, suppressRecap: true });
       remaining -= 1;
 
       const completed = totalWeeks - remaining;
@@ -2793,6 +2869,14 @@ export const StudioMagnateGame: React.FC<StudioMagnateGameProps> = ({
   };
 
   const handleAdvanceToDate = (targetWeek: number, targetYear: number) => {
+    if (onlineLeagueCode?.trim()) {
+      toast({
+        title: 'Online League',
+        description: 'Skipping ahead is disabled in Online League mode.',
+        variant: 'destructive',
+      });
+      return;
+    }
     const clampedWeek = TimeSystem.getWeekOfYear(targetWeek || 1);
     const year = targetYear || gameState.currentYear;
 
@@ -2943,8 +3027,23 @@ export const StudioMagnateGame: React.FC<StudioMagnateGameProps> = ({
                 className="btn-studio shadow-golden hover:animate-glow transition-all duration-300"
               >
                 <BudgetIcon className="mr-2" size={16} />
-                Advance Week
+                {onlineLeagueCode?.trim()
+                  ? onlineTickGate.isReady
+                    ? `Unready (${onlineTickGate.readyCount}/${onlineTickGate.memberCount || '?'})`
+                    : `Ready (${onlineTickGate.readyCount}/${onlineTickGate.memberCount || '?'})`
+                  : 'Advance Week'}
               </Button>
+
+              {onlineLeagueCode?.trim() && onlineTickGate.isHost && (
+                <Button
+                  size="sm"
+                  variant="outline"
+                  onClick={handleForceAdvanceWeek}
+                  className="mr-2"
+                >
+                  Force Advance
+                </Button>
+              )}
             </div>
           </div>
         </div>
