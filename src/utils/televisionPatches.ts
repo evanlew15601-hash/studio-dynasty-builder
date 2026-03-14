@@ -89,13 +89,18 @@ export function primeCompetitorTelevision(gameState: GameState, opts?: { minAiri
       const studioIdx = stableInt(`${gameState.universeSeed ?? 0}|seedTv|studio|${i}`, 0, gameState.competitorStudios.length - 1);
       const studio = gameState.competitorStudios[studioIdx];
 
-      const backWeeks = stableInt(`${gameState.universeSeed ?? 0}|seedTv|backWeeks|${studio.name}|${i}`, 2, 8);
-      const premiere = absToWeekYear(currentAbs - backWeeks);
+      const desiredBackWeeks = stableInt(`${gameState.universeSeed ?? 0}|seedTv|backWeeks|${studio.name}|${i}`, 2, 8);
 
       const profile = sg.getStudioProfile(studio.name);
       if (!profile) continue;
 
-      let rel = sg.generateStudioTvRelease(profile, premiere.week, premiere.year);
+      // Generate first to know episode count, then clamp premiere so the show is mid-season (airing).
+      let rel = sg.generateStudioTvRelease(profile, gameState.currentWeek, gameState.currentYear);
+
+      const totalEpisodes = rel.episodeCount || 13;
+      const maxBackWeeks = Math.min(8, Math.max(0, totalEpisodes - 2));
+      const backWeeks = Math.min(desiredBackWeeks, maxBackWeeks);
+      const premiere = absToWeekYear(currentAbs - backWeeks);
 
       const stableId = `ai-tv-seed-${studio.id}-${premiere.year}-${premiere.week}-${i}`;
 
