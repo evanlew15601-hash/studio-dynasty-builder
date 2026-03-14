@@ -25,16 +25,33 @@ const stdout = execFileSync(
 );
 const packages = JSON.parse(stdout);
 
+function parsePackageKey(key) {
+  const s = String(key);
+
+  // license-checker keys look like:
+  //   react@18.3.1
+  //   @scope/pkg@1.2.3
+  const at = s.lastIndexOf('@');
+  if (at <= 0) return { name: s, version: '' };
+  return { name: s.slice(0, at), version: s.slice(at + 1) };
+}
+
 const rows = Object.entries(packages)
-  .map(([name, info]) => {
+  .map(([key, info]) => {
+    const { name } = parsePackageKey(key);
+
     const licensesRaw = info?.licenses;
     const licenses = Array.isArray(licensesRaw) ? licensesRaw : [licensesRaw];
     const license = licenses.map(normalizeLicense).filter(Boolean).join(', ');
 
-    const repo = info?.repository || info?.url || '';
-    return { name, license, repo };
+    // Avoid GitHub/Repository URLs entirely in the user-facing notices. The npm package
+    // page is a stable, non-repo URL that works for both scoped and unscoped packages.
+    const npmPath = encodeURIComponent(name).replace(/%2F/g, '/');
+    const homepage = `https://www.npmjs.com/package/${npmPath}`;
+
+    return { key, name, license, homepage };
   })
-  .sort((a, b) => a.name.localeCompare(b.name));
+  .sort((a, b) => a.key.localeCompare(b.key));
 
 const lines = [
   '# Third-party notices',
@@ -52,8 +69,7 @@ const lines = [
 ];
 
 for (const row of rows) {
-  const suffix = row.repo ? ` — ${row.repo}` : '';
-  lines.push(`- ${row.name} — ${row.license}${suffix}`);
+  lines.push(`- ${row.key} — ${row.license} — ${row.homepage}`);
 }
 
 lines.push('');

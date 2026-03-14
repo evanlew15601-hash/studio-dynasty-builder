@@ -11,7 +11,7 @@ export type ParodyCharacterNameMapEntry = {
 };
 
 export const PARODY_CHARACTER_NAME_MAP: Record<string, ParodyCharacterNameMapEntry> = {
-  'Star Wars': {
+  'Star Saga': {
     byCharacterId: {
       'char_hero_pilot': 'Luke Starwalker',
       'char_wise_mentor': 'Obi-Juan Kenobi',
@@ -23,7 +23,7 @@ export const PARODY_CHARACTER_NAME_MAP: Record<string, ParodyCharacterNameMapEnt
       'director': 'Director'
     }
   },
-  'Blade Runner': {
+  'Blade Chaser': {
     byCharacterId: {
       'char_detective': 'Rick Decker',
       'char_director': 'Director'
@@ -33,29 +33,29 @@ export const PARODY_CHARACTER_NAME_MAP: Record<string, ParodyCharacterNameMapEnt
       'director': 'Director'
     }
   },
-  'Alien': {
+  'Deep Space Horror': {
     byTemplateId: {
       'lead_hero': 'Ellen Riley',
       'director': 'Director'
     }
   },
-  'Lord of the Rings': {
+  'Rings of Destiny': {
     byTemplateId: {
       'lead_hero': 'Frodo Bagsworth',
       'mentor_mystic': 'Gandor',
       'director': 'Director'
     }
   },
-  'Harry Potter': {
+  'Wizard Academy': {
     byTemplateId: {
-      'young_wizard': 'Harry Potter-Smith',
+      'young_wizard': 'Harry Plotter-Smith',
       'mentor_mystic': 'Albus Dumbleton',
       'dark_wizard': 'Lord Voldermore',
       'best_friend': 'Ron Weaselby',
       'director': 'Director'
     }
   },
-  'The Godfather': {
+  'The Family Boss': {
     byTemplateId: {
       'patriarch': 'Vito Corelli',
       'heir': 'Michael Corelli',
@@ -63,20 +63,20 @@ export const PARODY_CHARACTER_NAME_MAP: Record<string, ParodyCharacterNameMapEnt
       'director': 'Director'
     }
   },
-  'Fast & Furious': {
+  'Fast Lane': {
     byTemplateId: {
-      'street_racer': 'Dominic Torretti',
+      'street_racer': 'Dominic Torrelly',
       'agent': 'Luke Hobson',
       'director': 'Director'
     }
   },
-  'Mission: Impossible': {
+  'Mission Critical': {
     byTemplateId: {
       'spy_lead': 'Ethan Hunter',
       'director': 'Director'
     }
   },
-  'Marvel/DC Superhero Universe': {
+  'Hero Collective Universe': {
     byTemplateId: {
       'team_leader': 'Steve Robertson',
       'billionaire_genius': 'Tony Starks',
@@ -85,24 +85,24 @@ export const PARODY_CHARACTER_NAME_MAP: Record<string, ParodyCharacterNameMapEnt
       'director': 'Director'
     }
   },
-  'A Nightmare on Elm Street': {
+  'Nightmare Street': {
     byTemplateId: {
-      'slasher_icon': 'Freddy Kruger',
-      'final_girl': 'Nancy Thomson',
+      'slasher_icon': 'Freddy Krugman',
+      'final_girl': 'Nancy Thomsen',
       'director': 'Director'
     }
   },
-  'Halloween': {
+  'Hallow Night': {
     byTemplateId: {
-      'slasher_icon': 'Michael Meyer',
-      'final_girl': 'Laurie Stride',
+      'slasher_icon': 'Michael Myer',
+      'final_girl': 'Laurie Strider',
       'director': 'Director'
     }
   },
-  'American Pie': {
+  'College Chaos': {
     byTemplateId: {
-      'awkward_teen': 'Jim Livingston',
-      'best_friend': 'Kevin Myer',
+      'awkward_teen': 'Jim Livingstone',
+      'best_friend': 'Kevin Myles',
       'director': 'Director'
     }
   }

@@ -33,7 +33,7 @@ const POST_THEATRICAL_OPTIONS = [
   {
     platform: 'digital',
     name: 'Digital Purchase/Rental',
-    description: 'Video-on-demand platforms (iTunes, Amazon, etc.)',
+    description: 'Video-on-demand platforms (TuneStore, RiverMart, etc.)',
     icon: PlayIcon,
     minimumWeeksAfterTheatrical: 8, // 2 months
     baseCost: 25000,

@@ -7,21 +7,19 @@ export interface StreamingContract {
    */
   dealKind: 'streaming' | 'cable';
   platform:
-    | 'netflix'
-    | 'amazon'
-    | 'hulu'
-    | 'disney'
-    | 'apple'
-    | 'hbo'
-    | 'paramount'
-    | 'peacock'
+    | 'streamflix'
+    | 'primewave'
+    | 'streamhub'
+    | 'magicstream'
+    | 'orchardstream'
+    | 'premiumstream'
     // Cable networks
-    | 'amc'
-    | 'fx'
-    | 'tnt'
-    | 'usa'
-    | 'syfy'
-    | 'history';
+    | 'amotion'
+    | 'flux'
+    | 'dynamite'
+    | 'unity'
+    | 'sciwave'
+    | 'chronicle';
   name: string;
   type: 'series' | 'film' | 'documentary' | 'limited-series';
   duration: number; // contract length in weeks

@@ -55,10 +55,10 @@ export const MarketingCampaignModal: React.FC<MarketingCampaignModalProps> = ({
     {
       type: 'digital',
       name: 'Social + Creator Push',
-      description: 'TikTok/IG reels, influencer watch parties, meme/hashtag challenges',
+      description: 'ClipTok/PhotoGram reels, creator watch parties, meme/hashtag challenges',
       cost: 'Medium',
       effectiveness: 'Highly Targeted',
-      channels: ['TikTok', 'Instagram', 'YouTube Shorts', 'Influencers']
+      channels: ['ClipTok', 'PhotoGram', 'ViewTube Shorts', 'Creators']
     },
     {
       type: 'grassroots',
@@ -91,7 +91,7 @@ export const MarketingCampaignModal: React.FC<MarketingCampaignModalProps> = ({
       description: 'Online-focused campaign with social media',
       cost: 'Medium',
       effectiveness: 'Targeted',
-      channels: ['Social Media', 'YouTube', 'Streaming Ads', 'Influencer Partnerships']
+      channels: ['Social Media', 'ViewTube', 'Streaming Ads', 'Creator Partnerships']
     },
     {
       type: 'grassroots',
