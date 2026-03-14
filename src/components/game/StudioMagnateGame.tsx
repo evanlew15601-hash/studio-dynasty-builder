@@ -585,18 +585,6 @@ export const StudioMagnateGame: React.FC<StudioMagnateGameProps> = ({
   const newGameInitStartedRef = useRef(false);
   const [newGameInitAttempt, setNewGameInitAttempt] = useState(0);
 
-  const newGameInitEffectDeps = [
-    storeGameState,
-    initialGameState,
-    newGameInitAttempt,
-    gameConfig,
-    startOperation,
-    updateOperation,
-    completeOperation,
-    initGame,
-    toast,
-  ];
-
   useEffect(() => {
     if (storeGameState) return;
     if (initialGameState) return;
@@ -787,30 +775,30 @@ export const StudioMagnateGame: React.FC<StudioMagnateGameProps> = ({
                       windows: [],
                       marketingBudget: script.budget * 0.25,
                     },
-                  metrics: {
-                    inTheaters: true,
-                    boxOfficeTotal: Math.floor(script.budget * 2.2),
-                    theaterCount: 1200,
-                    weeksSinceRelease: 0,
-                    criticsScore: 70,
-                    audienceScore: 72,
-                    boxOfficeStatus: 'Current',
-                    theatricalRunLocked: false,
-                    boxOffice: {
-                      openingWeekend: 0,
-                      domesticTotal: 0,
-                      internationalTotal: 0,
-                      production: script.budget,
-                      marketing: script.budget * 0.25,
-                      profit: 0,
-                      theaters: 1200,
-                      weeks: 0,
+                    metrics: {
+                      inTheaters: true,
+                      boxOfficeTotal: Math.floor(script.budget * 2.2),
+                      theaterCount: 1200,
+                      weeksSinceRelease: 0,
+                      criticsScore: 70,
+                      audienceScore: 72,
+                      boxOfficeStatus: 'Current',
+                      theatricalRunLocked: false,
+                      boxOffice: {
+                        openingWeekend: 0,
+                        domesticTotal: 0,
+                        internationalTotal: 0,
+                        production: script.budget,
+                        marketing: script.budget * 0.25,
+                        profit: 0,
+                        theaters: 1200,
+                        weeks: 0,
+                      },
                     },
-                  },
-                  releaseWeek: w,
-                  releaseYear: year,
-                  studioName: fallback.name,
-                } as Project);
+                    releaseWeek: w,
+                    releaseYear: year,
+                    studioName: fallback.name,
+                  } as Project);
 
                 releases[releases.length - 1] = attachBasicCastForAI(releases[releases.length - 1] as Project, generatedTalent);
               }
@@ -949,7 +937,17 @@ export const StudioMagnateGame: React.FC<StudioMagnateGameProps> = ({
       cancelled = true;
       completeOperation(LOADING_OPERATIONS.GAME_INIT.id);
     };
-  }, newGameInitEffectDeps);
+  }, [
+    storeGameState,
+    initialGameState,
+    newGameInitAttempt,
+    gameConfig,
+    startOperation,
+    updateOperation,
+    completeOperation,
+    initGame,
+    toast,
+  ]);
 
   const gameState = storeGameState ?? bootstrapGameState;
 
