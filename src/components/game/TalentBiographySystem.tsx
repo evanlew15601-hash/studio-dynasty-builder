@@ -276,20 +276,24 @@ export const TalentBiographySystem: React.FC<TalentBiographyProps> = ({ gameStat
       .sort((a, b) => (b.reputation || 0) - (a.reputation || 0))
       .slice(0, 50);
 
-    const newBiographies = new Map(talentBiographies);
-    topTalent.forEach(talent => {
-      if (!newBiographies.has(talent.id)) {
-        newBiographies.set(talent.id, generateTalentBiography(talent));
-      }
+    setTalentBiographies((prev) => {
+      const next = new Map(prev);
+      topTalent.forEach(talent => {
+        if (!next.has(talent.id)) {
+          next.set(talent.id, generateTalentBiography(talent));
+        }
+      });
+      return next;
     });
-    setTalentBiographies(newBiographies);
 
     // Generate studio lore
-    const newLore = new Map(studioLore);
-    if (!newLore.has(gameState.studio.id)) {
-      newLore.set(gameState.studio.id, generateStudioLore(gameState.studio));
-    }
-    setStudioLore(newLore);
+    setStudioLore((prev) => {
+      const next = new Map(prev);
+      if (!next.has(gameState.studio.id)) {
+        next.set(gameState.studio.id, generateStudioLore(gameState.studio));
+      }
+      return next;
+    });
   }, [gameState.talent, gameState.studio]);
 
   const getMostPopularActors = () => gameState.talent

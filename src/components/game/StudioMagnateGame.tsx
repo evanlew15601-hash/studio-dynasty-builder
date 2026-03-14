@@ -585,6 +585,7 @@ export const StudioMagnateGame: React.FC<StudioMagnateGameProps> = ({
   const newGameInitStartedRef = useRef(false);
   const [newGameInitAttempt, setNewGameInitAttempt] = useState(0);
 
+  // eslint-disable-next-line react-hooks/exhaustive-deps
   useEffect(() => {
     if (storeGameState) return;
     if (initialGameState) return;
@@ -937,7 +938,7 @@ export const StudioMagnateGame: React.FC<StudioMagnateGameProps> = ({
       cancelled = true;
       completeOperation(LOADING_OPERATIONS.GAME_INIT.id);
     };
-  }, [storeGameState, initialGameState, newGameInitAttempt, gameConfig, startOperation, updateOperation, completeOperation, initGame, toast]);
+  }, [newGameInitAttempt]);
 
   const gameState = storeGameState ?? bootstrapGameState;
 
