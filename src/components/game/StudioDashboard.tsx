@@ -464,24 +464,24 @@ export const StudioDashboard: React.FC<StudioDashboardProps> = () => {
             </Button>
             <Button 
               variant="outline" 
-              className="h-auto p-6 flex flex-col items-center space-y-3 btn-ghost-premium hover:border-accent/50 group"
+              className="h-auto p-6 flex flex-col items-center space-y-3 btn-ghost-premium hover:border-primary/50 group"
               onClick={() => {
                 const project = getBestProjectForCasting();
                 setSelectedProjectId(project?.id ?? null);
                 setPhase('casting');
               }}
             >
-              <div className="p-3 rounded-lg bg-gradient-to-r from-accent/10 to-primary/10 group-hover:from-accent/20 group-hover:to-primary/20 transition-all duration-300">
+              <div className="p-3 rounded-lg bg-gradient-to-r from-primary/10 to-accent/10 group-hover:from-primary/20 group-hover:to-accent/20 transition-all duration-300">
                 <CastingIcon className="text-primary" size={24} />
               </div>
               <span className="text-sm font-medium">Scout Talent</span>
             </Button>
             <Button 
               variant="outline" 
-              className="h-auto p-6 flex flex-col items-center space-y-3 btn-ghost-premium hover:border-secondary/50 group"
+              className="h-auto p-6 flex flex-col items-center space-y-3 btn-ghost-premium hover:border-primary/50 group"
               onClick={() => setPhase('production')}
             >
-              <div className="p-3 rounded-lg bg-gradient-to-r from-secondary/10 to-muted/10 group-hover:from-secondary/20 group-hover:to-muted/20 transition-all duration-300">
+              <div className="p-3 rounded-lg bg-gradient-to-r from-primary/10 to-accent/10 group-hover:from-primary/20 group-hover:to-accent/20 transition-all duration-300">
                 <StudioIcon className="text-primary" size={24} />
               </div>
               <span className="text-sm font-medium">Production</span>
@@ -512,20 +512,20 @@ export const StudioDashboard: React.FC<StudioDashboardProps> = () => {
             </Button>
             <Button 
               variant="outline" 
-              className="h-auto p-4 flex items-center space-x-3 btn-ghost-premium hover:border-green-500/50 group"
+              className="h-auto p-4 flex items-center space-x-3 btn-ghost-premium hover:border-primary/50 group"
               onClick={() => setPhase('loans')}
             >
-              <div className="p-2 rounded-lg bg-gradient-to-r from-green-500/10 to-blue-500/10 group-hover:from-green-500/20 group-hover:to-blue-500/20 transition-all duration-300">
+              <div className="p-2 rounded-lg bg-gradient-to-r from-primary/10 to-accent/10 group-hover:from-primary/20 group-hover:to-accent/20 transition-all duration-300">
                 <BudgetIcon className="text-primary" size={20} />
               </div>
               <span className="text-sm font-medium">Manage Loans</span>
             </Button>
             <Button 
               variant="outline" 
-              className="h-auto p-4 flex items-center space-x-3 btn-ghost-premium hover:border-accent/50 group"
+              className="h-auto p-4 flex items-center space-x-3 btn-ghost-premium hover:border-primary/50 group"
               onClick={() => setPhase('reputation')}
             >
-              <div className="p-2 rounded-lg bg-gradient-to-r from-accent/10 to-primary/10 group-hover:from-accent/20 group-hover:to-primary/20 transition-all duration-300">
+              <div className="p-2 rounded-lg bg-gradient-to-r from-primary/10 to-accent/10 group-hover:from-primary/20 group-hover:to-accent/20 transition-all duration-300">
                 <ReputationIcon className="text-primary" size={20} />
               </div>
               <span className="text-sm font-medium">Reputation Panel</span>
