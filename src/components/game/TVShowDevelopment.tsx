@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useCallback } from 'react';
 import { Script, Genre } from '@/types/game';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
@@ -155,7 +155,7 @@ export const TVShowDevelopment: React.FC<TVShowDevelopmentProps> = ({
   };
   
   // Auto-fill script based on selected franchise or PD for TV shows
-  const getInitialTVScript = (): Partial<Script> => {
+  const getInitialTVScript = useCallback((): Partial<Script> => {
     if (!gameState) {
       return {
         title: '',
@@ -264,7 +264,7 @@ export const TVShowDevelopment: React.FC<TVShowDevelopmentProps> = ({
         cgiIntensity: 'minimal'
       }
     };
-  };
+  }, [gameState, selectedFranchise, selectedPublicDomain]);
 
   const [newScript, setNewScript] = useState<Partial<Script>>({
     title: '',
@@ -331,7 +331,7 @@ export const TVShowDevelopment: React.FC<TVShowDevelopmentProps> = ({
     } else {
       setScriptCharacters([]);
     }
-  }, [selectedFranchise, selectedPublicDomain, gameStateReady]);
+  }, [selectedFranchise, selectedPublicDomain, gameStateReady, gameState, getInitialTVScript]);
 
   if (!gameState) {
     return <div className="p-6 text-sm text-muted-foreground">Loading TV show development...</div>;
