@@ -237,6 +237,36 @@ All colors MUST be HSL.
     50% { box-shadow: 0 0 40px hsl(42 88% 68% / 0.5), 0 0 60px hsl(42 88% 68% / 0.2); }
   }
 
+  @keyframes premium-spotlight-sweep {
+    0% {
+      transform: translate3d(-22%, -4%, 0) rotate(10deg);
+      opacity: 0;
+    }
+    12% {
+      opacity: 0.55;
+    }
+    50% {
+      opacity: 0.35;
+    }
+    88% {
+      opacity: 0.55;
+    }
+    100% {
+      transform: translate3d(22%, 4%, 0) rotate(10deg);
+      opacity: 0;
+    }
+  }
+
+  @keyframes premium-grain-shift {
+    0% { transform: translate3d(0, 0, 0) scale(1.6); }
+    100% { transform: translate3d(-8%, -6%, 0) scale(1.6); }
+  }
+
+  @keyframes premium-bokeh-float {
+    0%, 100% { transform: translate3d(-50%, -50%, 0); }
+    50% { transform: translate3d(-50%, calc(-50% + var(--premium-bokeh-drift-y)), 0); }
+  }
+
   @keyframes slide-up {
     from {
       opacity: 0;
@@ -245,6 +275,16 @@ All colors MUST be HSL.
     to {
       opacity: 1;
       transform: translateY(0);
+    }
+  }
+
+  @media (prefers-reduced-motion: reduce) {
+    .premium-background * {
+      animation: none !important;
+    }
+
+    .premium-background canvas {
+      display: none;
     }
   }
 

@@ -9,7 +9,8 @@ import { Badge } from '@/components/ui/badge';
 import { Separator } from '@/components/ui/separator';
 import { Play, Settings, Film, Star, Trophy, Sparkles, HelpCircle } from 'lucide-react';
 import { Genre } from '@/types/game';
-import { StudioIconCustomizer, StudioIconRenderer, DEFAULT_ICON, type StudioIconConfig } from './StudioIconCustomizer';
+import { StudioIconCustomizer, DEFAULT_ICON, type StudioIconConfig } from './StudioIconCustomizer';
+import { PremiumBackground } from '@/components/ui/premium-background';
 
 interface GameLandingProps {
   onStartGame: (config: GameConfig) => void;
@@ -72,62 +73,8 @@ export const GameLanding: React.FC<GameLandingProps> = ({ onStartGame, onLoadGam
   };
 
   return (
-    <div className="min-h-screen bg-gradient-to-br from-background via-card to-background relative overflow-hidden">
-      {/* Sophisticated Studio Lighting */}
-      <div className="absolute inset-0">
-        {/* Main cinematic spotlight using design system */}
-        <div className="absolute top-1/4 left-1/2 transform -translate-x-1/2 -translate-y-1/2 w-[1400px] h-[700px] bg-gradient-radial from-primary/12 via-primary/6 to-transparent rounded-full animate-[pulse_10s_ease-in-out_infinite] blur-3xl" />
-        
-        {/* Secondary warm accent light */}
-        <div className="absolute top-1/5 right-1/4 w-[500px] h-[500px] bg-gradient-radial from-accent/8 via-accent/4 to-transparent rounded-full animate-[pulse_8s_ease-in-out_infinite_2s] blur-3xl" />
-        
-        {/* Tertiary ambient glow */}
-        <div className="absolute bottom-1/4 left-1/6 w-96 h-96 bg-gradient-radial from-primary/6 via-primary/3 to-transparent rounded-full animate-[pulse_12s_ease-in-out_infinite_4s] blur-2xl" />
-        
-        {/* Fourth studio light */}
-        <div className="absolute top-2/3 right-1/6 w-80 h-80 bg-gradient-radial from-accent/5 via-accent/2 to-transparent rounded-full animate-[pulse_14s_ease-in-out_infinite_6s] blur-2xl" />
-        
-        {/* Premium edge gradient overlay */}
-        <div className="absolute inset-0 bg-gradient-to-br from-card/20 via-transparent to-background/40" />
-        
-        {/* Cinematic vignette with golden edges */}
-        <div className="absolute inset-0 bg-gradient-radial from-transparent 30% via-background/20 60% to-background/60" />
-        
-        {/* Professional film grain texture */}
-        <div 
-          className="absolute inset-0 opacity-30"
-          style={{
-            backgroundImage: `radial-gradient(circle at 25% 25%, hsl(var(--primary) / 0.08) 1px, transparent 1px),
-                             radial-gradient(circle at 75% 75%, hsl(var(--accent) / 0.04) 1px, transparent 1px)`,
-            backgroundSize: '6px 6px, 8px 8px',
-            mixBlendMode: 'overlay'
-          }}
-        />
-        
-        {/* Floating golden particles */}
-        <div className="absolute inset-0">
-          {[...Array(50)].map((_, i) => (
-            <div
-              key={i}
-              className="absolute w-[2px] h-[2px] bg-primary/40 rounded-full animate-pulse"
-              style={{
-                left: `${Math.random() * 100}%`,
-                top: `${Math.random() * 100}%`,
-                animationDelay: `${Math.random() * 8}s`,
-                animationDuration: `${6 + Math.random() * 8}s`,
-                filter: 'blur(0.5px)',
-                boxShadow: `0 0 4px hsl(var(--primary) / 0.4)`
-              }}
-            />
-          ))}
-        </div>
-        
-        {/* Subtle moving spotlights */}
-        <div className="absolute top-0 left-0 w-full h-full">
-          <div className="absolute top-1/3 left-1/3 w-[200px] h-[600px] bg-gradient-to-b from-primary/3 to-transparent transform rotate-12 animate-[pulse_16s_ease-in-out_infinite] blur-2xl" />
-          <div className="absolute top-1/2 right-1/3 w-[150px] h-[500px] bg-gradient-to-b from-accent/2 to-transparent transform -rotate-12 animate-[pulse_18s_ease-in-out_infinite_3s] blur-xl" />
-        </div>
-      </div>
+    <div className="min-h-screen bg-background relative overflow-hidden">
+      <PremiumBackground variant="landing" />
 
       <div className="relative z-10 flex flex-col items-center justify-center min-h-screen p-8">
         {/* Main Title */}
