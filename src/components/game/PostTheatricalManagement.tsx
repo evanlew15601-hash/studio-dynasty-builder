@@ -98,8 +98,9 @@ export const PostTheatricalManagement: React.FC<PostTheatricalManagementProps> =
     const releaseGameWeek = (project.releaseYear * 52) + project.releaseWeek;
     const weeksSinceRelease = currentGameWeek - releaseGameWeek;
     
-    // Assume theatrical run lasted the weeks since release from metrics
-    const theatricalRunWeeks = project.metrics.weeksSinceRelease || 0;
+    // Assume theatrical run lasted the weeks since release from metrics. For direct-to-streaming films,
+    // treat the theatrical run as 0 so secondary windows can unlock relative to the streaming premiere.
+    const theatricalRunWeeks = project.releaseStrategy?.type === 'streaming' ? 0 : (project.metrics.weeksSinceRelease || 0);
     const weeksSinceTheatricalEnd = Math.max(0, weeksSinceRelease - theatricalRunWeeks);
     
     if (diagnosticsEnabled) {
@@ -116,6 +117,11 @@ export const PostTheatricalManagement: React.FC<PostTheatricalManagementProps> =
 
   const calculatePostTheatricalRevenue = (project: Project, platform: string): number => {
     const boxOffice = project.metrics.boxOfficeTotal || 0;
+    const streamingViews = project.metrics?.streaming?.totalViews ?? project.metrics?.streamingViews ?? 0;
+
+    // For streaming-first films that never had a theatrical run, use a rough value proxy based on views.
+    const performanceBase = boxOffice > 0 ? boxOffice : Math.floor(streamingViews * 0.25);
+
     const performance = (project.metrics.criticsScore || 50) + (project.metrics.audienceScore || 50);
     const buzzBonus = (project.marketingCampaign?.buzz || 0) * 0.1;
 
@@ -140,7 +146,7 @@ export const PostTheatricalManagement: React.FC<PostTheatricalManagementProps> =
         break;
     }
 
-    if (revenueMultiplier === 0 || boxOffice <= 0) {
+    if (revenueMultiplier === 0 || performanceBase <= 0) {
       return 0;
     }
 
@@ -171,10 +177,14 @@ export const PostTheatricalManagement: React.FC<PostTheatricalManagementProps> =
     const finalMultiplier =
       revenueMultiplier * awardsMultiplier * reputationMultiplier * mediaMultiplier;
 
-    return Math.floor(boxOffice * finalMultiplier);
+    return Math.floor(performanceBase * finalMultiplier);
   };
 
   const canReleaseOnPlatform = (project: Project, option: any): { canRelease: boolean; reason: string } => {
+    if (project.releaseStrategy?.type === 'streaming' && option.platform === 'streaming') {
+      return { canRelease: false, reason: 'Primary streaming release' };
+    }
+
     const weeksSinceEnd = calculateWeeksSinceTheatricalEnd(project);
     
     if (weeksSinceEnd < option.minimumWeeksAfterTheatrical) {
@@ -427,7 +437,7 @@ export const PostTheatricalManagement: React.FC<PostTheatricalManagementProps> =
             </div>
             <h3 className="text-lg font-medium mb-2">No Films Ready</h3>
             <p className="text-sm text-muted-foreground">
-              Films become eligible for post-theatrical distribution after their theatrical run ends
+              Films become eligible for secondary distribution windows after their theatrical run (or streaming premiere) ends
             </p>
           </CardContent>
         </Card>

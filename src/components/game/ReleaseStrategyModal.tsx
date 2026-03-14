@@ -1,10 +1,10 @@
-import React, { useEffect, useState } from 'react';
+import React, { useEffect, useMemo, useState } from 'react';
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription } from '@/components/ui/dialog';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
 import { Calendar, DollarSign, TrendingUp } from 'lucide-react';
-import { Project } from '@/types/game';
+import type { Project, ReleaseStrategy } from '@/types/game';
 import { ReleaseSystem } from './ReleaseSystem';
 import { CalendarManager } from './CalendarManager';
 import { useToast } from '@/hooks/use-toast';
@@ -25,12 +25,14 @@ export const ReleaseStrategyModal: React.FC<ReleaseStrategyModalProps> = ({
   const updateProject = useGameStore((s) => s.updateProject);
   const { toast } = useToast();
   const [selectedDate, setSelectedDate] = useState<{ week: number; year: number } | null>(null);
+  const [selectedReleaseType, setSelectedReleaseType] = useState<ReleaseStrategy['type']>('wide');
 
   useEffect(() => {
     if (!isOpen) return;
 
     if (!project) {
       setSelectedDate(null);
+      setSelectedReleaseType('wide');
       return;
     }
 
@@ -39,7 +41,11 @@ export const ReleaseStrategyModal: React.FC<ReleaseStrategyModalProps> = ({
     } else {
       setSelectedDate(null);
     }
-  }, [isOpen, project?.id, project?.scheduledReleaseWeek, project?.scheduledReleaseYear]);
+
+    if (project.type !== 'series' && project.type !== 'limited-series') {
+      setSelectedReleaseType(project.releaseStrategy?.type || 'wide');
+    }
+  }, [isOpen, project?.id, project?.scheduledReleaseWeek, project?.scheduledReleaseYear, project?.releaseStrategy?.type, project?.type]);
 
   if (!project || !gameState) return null;
 
@@ -51,7 +57,54 @@ export const ReleaseStrategyModal: React.FC<ReleaseStrategyModalProps> = ({
 
   // Get optimal windows - different messaging for TV vs films
   const isTV = project.type === 'series' || project.type === 'limited-series';
+  const isStreamingFilm = !isTV && selectedReleaseType === 'streaming';
   const validation = ReleaseSystem.validateFilmForRelease(project);
+
+  const releaseTypeOptions = useMemo(
+    () =>
+      [
+        { type: 'wide' as const, label: 'Wide', description: 'Big opening with thousands of screens.' },
+        { type: 'limited' as const, label: 'Limited', description: 'Selective rollout for buzz and word-of-mouth.' },
+        { type: 'platform' as const, label: 'Platform', description: 'Start small, expand if reviews land.' },
+        { type: 'festival' as const, label: 'Festival', description: 'Premiere on the circuit, prestige-first.' },
+        { type: 'streaming' as const, label: 'Direct-to-Streaming', description: 'Premiere on a platform from day one.' },
+      ],
+    []
+  );
+
+  const buildReleaseStrategy = (week: number, year: number): ReleaseStrategy => {
+    const approxDate = new Date(year, 0, 1 + Math.max(0, week - 1) * 7);
+
+    const theatersCount = (() => {
+      switch (selectedReleaseType) {
+        case 'wide':
+          return 3200;
+        case 'limited':
+          return 600;
+        case 'platform':
+          return 150;
+        case 'festival':
+          return 80;
+        case 'streaming':
+        default:
+          return 0;
+      }
+    })();
+
+    return {
+      type: selectedReleaseType,
+      theatersCount,
+      premiereDate: approxDate,
+      rolloutPlan: [],
+      specialEvents: [],
+      pressStrategy: {
+        reviewScreenings: selectedReleaseType === 'festival' ? 6 : 2,
+        pressJunkets: selectedReleaseType === 'wide' ? 4 : 2,
+        interviews: selectedReleaseType === 'streaming' ? 2 : 3,
+        expectedCriticalReception: project.metrics?.criticsScore ?? project.script?.quality ?? 60,
+      },
+    };
+  };
 
   const marketingLeadWeeks = project.marketingCampaign
     ? Math.max(1, project.marketingCampaign.weeksRemaining)
@@ -165,6 +218,7 @@ export const ReleaseStrategyModal: React.FC<ReleaseStrategyModalProps> = ({
         project.marketingCampaign.weeksRemaining > 0;
 
       updateProject(project.id, {
+        releaseStrategy: isTV ? project.releaseStrategy : buildReleaseStrategy(result.releaseWeek, result.releaseYear),
         scheduledReleaseWeek: result.releaseWeek,
         scheduledReleaseYear: result.releaseYear,
         status: 'scheduled-for-release',
@@ -234,6 +288,33 @@ export const ReleaseStrategyModal: React.FC<ReleaseStrategyModalProps> = ({
             </CardContent>
           </Card>
 
+          {/* Release Type (Films) */}
+          {!isTV && (
+            <Card>
+              <CardHeader>
+                <CardTitle className="text-lg">Release Type</CardTitle>
+              </CardHeader>
+              <CardContent>
+                <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+                  {releaseTypeOptions.map((opt) => (
+                    <Button
+                      key={opt.type}
+                      type="button"
+                      variant={selectedReleaseType === opt.type ? 'default' : 'outline'}
+                      className="h-auto py-3 justify-start"
+                      onClick={() => setSelectedReleaseType(opt.type)}
+                    >
+                      <div className="text-left">
+                        <div className="font-semibold">{opt.label}</div>
+                        <div className="text-xs text-muted-foreground">{opt.description}</div>
+                      </div>
+                    </Button>
+                  ))}
+                </div>
+              </CardContent>
+            </Card>
+          )}
+
           {/* Readiness Issues */}
           {!validation.canRelease && (
             <Card className="border-destructive/20">
@@ -277,7 +358,7 @@ export const ReleaseStrategyModal: React.FC<ReleaseStrategyModalProps> = ({
                         </div>
                         <div className="text-right">
                           <Badge variant="outline">
-                            {window.multiplier}x {project.type === 'series' || project.type === 'limited-series' ? 'Viewership' : 'Box Office'}
+                            {window.multiplier}x {isTV || isStreamingFilm ? 'Viewership' : 'Box Office'}
                           </Badge>
                           <p className="text-xs text-muted-foreground mt-1">
                             {((window.year * 52 + window.week) - (gameState.currentYear * 52 + gameState.currentWeek))} weeks away

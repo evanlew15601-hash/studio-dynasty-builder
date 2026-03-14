@@ -12,13 +12,13 @@ export const StreamingHub: React.FC = () => {
           Streaming Hub
         </h2>
         <p className="text-muted-foreground">
-          Manage streaming contracts, track performance, and schedule post-theatrical releases.
+          Manage streaming contracts, track performance, and manage secondary distribution windows.
         </p>
       </div>
 
       <Tabs defaultValue="post" className="space-y-4">
         <TabsList>
-          <TabsTrigger value="post">Post‑Theatrical</TabsTrigger>
+          <TabsTrigger value="post">Secondary Windows</TabsTrigger>
           <TabsTrigger value="contracts">Contracts</TabsTrigger>
           <TabsTrigger value="analytics">Analytics</TabsTrigger>
         </TabsList>

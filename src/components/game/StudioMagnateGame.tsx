@@ -16,6 +16,7 @@ import { AIStudioManager } from './AIStudioManager';
 import { CompetitorMonitor } from './CompetitorMonitor';
 import { TimeSystem, TimeState } from './TimeSystem';
 import { BoxOfficeSystem } from './BoxOfficeSystem';
+import { StreamingFilmSystem } from './StreamingFilmSystem';
 import { TVRatingsSystem } from './TVRatingsSystem';
 import { TVEpisodeSystem } from './TVEpisodeSystem';
 import { FinancialEngine } from './FinancialEngine';
@@ -1460,15 +1461,66 @@ export const StudioMagnateGame: React.FC<StudioMagnateGameProps> = ({
               updatedProject = TVEpisodeSystem.autoReleaseEpisodesIfDue(updatedProject, timeState.currentWeek, timeState.currentYear);
               updatedProject = TVEpisodeSystem.processWeeklyEpisodeDecay(updatedProject, timeState.currentWeek, timeState.currentYear);
             } else {
-              updatedProject = {
-                ...BoxOfficeSystem.initializeRelease(updatedProject, resolvedReleaseWeek, resolvedReleaseYear),
-                currentPhase: 'distribution' as const,
-                phaseDuration: -1,
-              };
+              const isPrimaryStreaming = updatedProject.releaseStrategy?.type === 'streaming';
 
-              openingWeekRevenue = updatedProject.metrics?.boxOfficeTotal || 0;
-              if (openingWeekRevenue > 0) {
-                studioRevenueDelta += openingWeekRevenue * 0.55;
+              if (isPrimaryStreaming) {
+                updatedProject = StreamingFilmSystem.initializeRelease(updatedProject, resolvedReleaseWeek, resolvedReleaseYear);
+
+                const alreadyHasStreamingWindow = (updatedProject.postTheatricalReleases || []).some(
+                  (r) => r.platform === 'streaming'
+                );
+
+                const critics = updatedProject.metrics?.criticsScore || 50;
+                const audience = updatedProject.metrics?.audienceScore || 50;
+                const avgScore = (critics + audience) / 2;
+
+                const buzz = updatedProject.marketingData?.currentBuzz ?? updatedProject.marketingCampaign?.buzz ?? 0;
+                const viewsFirstWeek = updatedProject.metrics?.streaming?.viewsFirstWeek || 0;
+
+                const scoreMultiplier = Math.min(1.4, Math.max(0.6, avgScore / 70));
+                const buzzMultiplier = 1 + Math.min(0.5, Math.max(0, buzz / 250));
+
+                const estimatedTotalRevenue = Math.max(
+                  100_000,
+                  Math.floor(viewsFirstWeek * 0.35 * scoreMultiplier * buzzMultiplier)
+                );
+
+                const durationWeeks = 26;
+                const weeklyRevenue = Math.max(10_000, Math.round(estimatedTotalRevenue / durationWeeks));
+
+                updatedProject = {
+                  ...updatedProject,
+                  postTheatricalEligible: true,
+                  theatricalEndDate: new Date(),
+                  postTheatricalReleases: alreadyHasStreamingWindow
+                    ? updatedProject.postTheatricalReleases
+                    : [
+                        ...(updatedProject.postTheatricalReleases || []),
+                        {
+                          id: `release-${Date.now()}`,
+                          projectId: updatedProject.id,
+                          platform: 'streaming',
+                          releaseDate: new Date(),
+                          revenue: 0,
+                          weeklyRevenue,
+                          weeksActive: 0,
+                          status: 'planned',
+                          cost: 0,
+                          durationWeeks,
+                        },
+                      ],
+                };
+              } else {
+                updatedProject = {
+                  ...BoxOfficeSystem.initializeRelease(updatedProject, resolvedReleaseWeek, resolvedReleaseYear),
+                  currentPhase: 'distribution' as const,
+                  phaseDuration: -1,
+                };
+
+                openingWeekRevenue = updatedProject.metrics?.boxOfficeTotal || 0;
+                if (openingWeekRevenue > 0) {
+                  studioRevenueDelta += openingWeekRevenue * 0.55;
+                }
               }
             }
 
@@ -1502,7 +1554,7 @@ export const StudioMagnateGame: React.FC<StudioMagnateGameProps> = ({
       }
       
       // Process box office for released films (but skip on the week they just released)
-       if (project.status === 'released' && !justReleased) {
+       if (updatedProject.status === 'released' && !justReleased) {
          if (project.type === 'series' || project.type === 'limited-series') {
            if (diagnosticsEnabled) {
              console.log(`    PROCESSING TV RATINGS: ${project.title}`);
@@ -1518,35 +1570,47 @@ export const StudioMagnateGame: React.FC<StudioMagnateGameProps> = ({
              timeState.currentYear
            );
          } else {
-           if (diagnosticsEnabled) {
-             console.log(`    PROCESSING BOX OFFICE: ${project.title}`);
-             console.log(`    PRE-REVENUE: boxOfficeTotal = ${updatedProject.metrics?.boxOfficeTotal || 0}`);
-           }
-           
-           const previousTotal = updatedProject.metrics?.boxOfficeTotal || 0;
-           
-           updatedProject = BoxOfficeSystem.processWeeklyRevenue(
-             updatedProject, 
-             timeState.currentWeek, 
-             timeState.currentYear
-           );
-           
-           const newTotal = updatedProject.metrics?.boxOfficeTotal || 0;
-           const weeklyBoxOfficeRevenue = newTotal - previousTotal;
-           
-           if (diagnosticsEnabled) {
-             console.log(`    POST-REVENUE: boxOfficeTotal = ${newTotal}`);
-             console.log(`    WEEKLY BOX OFFICE EARNED: ${weeklyBoxOfficeRevenue.toLocaleString()}`);
-           }
-           
-           // Add box office revenue to studio budget (studio keeps percentage after exhibitor cut)
-           if (weeklyBoxOfficeRevenue > 0) {
-             const studioShare = weeklyBoxOfficeRevenue * 0.55; // Studios typically get 55% of domestic box office
+           if (updatedProject.releaseStrategy?.type === 'streaming') {
              if (diagnosticsEnabled) {
-                console.log(`    STUDIO SHARE (55%): ${studioShare.toLocaleString()}`);
-              }
+               console.log(`    PROCESSING STREAMING: ${project.title}`);
+             }
 
-             studioRevenueDelta += studioShare;
+             updatedProject = StreamingFilmSystem.processWeeklyPerformance(
+               updatedProject,
+               timeState.currentWeek,
+               timeState.currentYear
+             );
+           } else {
+             if (diagnosticsEnabled) {
+               console.log(`    PROCESSING BOX OFFICE: ${project.title}`);
+               console.log(`    PRE-REVENUE: boxOfficeTotal = ${updatedProject.metrics?.boxOfficeTotal || 0}`);
+             }
+             
+             const previousTotal = updatedProject.metrics?.boxOfficeTotal || 0;
+             
+             updatedProject = BoxOfficeSystem.processWeeklyRevenue(
+               updatedProject, 
+               timeState.currentWeek, 
+               timeState.currentYear
+             );
+             
+             const newTotal = updatedProject.metrics?.boxOfficeTotal || 0;
+             const weeklyBoxOfficeRevenue = newTotal - previousTotal;
+             
+             if (diagnosticsEnabled) {
+               console.log(`    POST-REVENUE: boxOfficeTotal = ${newTotal}`);
+               console.log(`    WEEKLY BOX OFFICE EARNED: ${weeklyBoxOfficeRevenue.toLocaleString()}`);
+             }
+             
+             // Add box office revenue to studio budget (studio keeps percentage after exhibitor cut)
+             if (weeklyBoxOfficeRevenue > 0) {
+               const studioShare = weeklyBoxOfficeRevenue * 0.55; // Studios typically get 55% of domestic box office
+               if (diagnosticsEnabled) {
+                  console.log(`    STUDIO SHARE (55%): ${studioShare.toLocaleString()}`);
+                }
+
+               studioRevenueDelta += studioShare;
+             }
            }
          }
        }
@@ -3400,7 +3464,7 @@ export const StudioMagnateGame: React.FC<StudioMagnateGameProps> = ({
                     <div>
                       <p className="text-sm font-medium">Release Planning</p>
                       <p className="text-xs text-muted-foreground">
-                        Once marketing is in place, choose a theatrical release window for this film.
+                        Once marketing is in place, choose a release window (theatrical, festival, or direct-to-streaming).
                       </p>
                     </div>
                     <Button
