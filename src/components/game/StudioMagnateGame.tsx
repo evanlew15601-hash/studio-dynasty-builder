@@ -438,6 +438,12 @@ interface StudioMagnateGameProps {
    * Prevents double-rewarding when rehydrating achievements on load.
    */
   initialUnlockedAchievements?: string[];
+
+  /**
+   * When provided, enables Online League features as a separate mode.
+   * Single-player gameplay does not depend on this.
+   */
+  onlineLeagueCode?: string;
 }
 
 export const StudioMagnateGame: React.FC<StudioMagnateGameProps> = ({
@@ -445,7 +451,8 @@ export const StudioMagnateGame: React.FC<StudioMagnateGameProps> = ({
   gameConfig,
   initialGameState,
   initialPhase,
-  initialUnlockedAchievements
+  initialUnlockedAchievements,
+  onlineLeagueCode
 }) => {
   const { toast } = useToast();
   const { startOperation, updateOperation, completeOperation } = useLoadingActions();
@@ -936,7 +943,8 @@ export const StudioMagnateGame: React.FC<StudioMagnateGameProps> = ({
   const setSelectedProjectId = useUiStore((s) => s.setSelectedProjectId);
 
   const phaseInitRef = useRef(false);
-  const initialPhaseNormalized = (((initialPhase === 'financials' ? 'finance' : initialPhase) as any) || 'dashboard') as string;
+  const initialPhaseNormalizedRaw = (((initialPhase === 'financials' ? 'finance' : initialPhase) as any) || 'dashboard') as string;
+  const initialPhaseNormalized = !onlineLeagueCode && initialPhaseNormalizedRaw === 'online' ? 'dashboard' : initialPhaseNormalizedRaw;
 
   useEffect(() => {
     if (phaseInitRef.current) return;
@@ -3029,7 +3037,7 @@ export const StudioMagnateGame: React.FC<StudioMagnateGameProps> = ({
                 <Button
                   variant="ghost"
                   className={`rounded-none border-b-2 px-3 py-3 text-sm font-medium transition-all duration-300 border-transparent hover:border-primary/40 hover:bg-primary/5 btn-ghost-premium ${
-                     ['franchise', 'media', 'metaboxd', 'online', 'talent', 'database', 'awards', 'reputation', 'lore'].includes(currentPhase)
+                     ['franchise', 'media', 'metaboxd', ...(onlineLeagueCode ? ['online'] : []), 'talent', 'database', 'awards', 'reputation', 'lore'].includes(currentPhase)
                        ? 'border-primary bg-gradient-to-t from-primary/20 to-primary/10 text-primary shadow-lg' 
                        : ''
                    }`}
@@ -3052,10 +3060,12 @@ export const StudioMagnateGame: React.FC<StudioMagnateGameProps> = ({
                   <ClapperboardIcon className="mr-2" size={16} />
                   Metaboxd Reviews
                 </DropdownMenuItem>
-                <DropdownMenuItem onClick={() => handlePhaseChange('online')}>
-                  <BarChartIcon className="mr-2" size={16} />
-                  Online League (Beta)
-                </DropdownMenuItem>
+                {onlineLeagueCode && (
+                  <DropdownMenuItem onClick={() => handlePhaseChange('online')}>
+                    <BarChartIcon className="mr-2" size={16} />
+                    Online League (Beta)
+                  </DropdownMenuItem>
+                )}
                  <DropdownMenuItem onClick={() => handlePhaseChange('talent')}>
                    <CastingIcon className="mr-2" size={16} />
                    Talent Management
@@ -3630,8 +3640,8 @@ export const StudioMagnateGame: React.FC<StudioMagnateGameProps> = ({
           </div>
         )}
 
-        {currentPhase === 'online' && (
-          <OnlineLeague />
+        {currentPhase === 'online' && onlineLeagueCode && (
+          <OnlineLeague initialLeagueCode={onlineLeagueCode} />
         )}
       </div>
       
