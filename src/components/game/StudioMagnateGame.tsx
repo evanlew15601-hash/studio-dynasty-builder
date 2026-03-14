@@ -580,7 +580,7 @@ export const StudioMagnateGame: React.FC<StudioMagnateGameProps> = ({
       startOperation(LOADING_OPERATIONS.GAME_INIT.id, LOADING_OPERATIONS.GAME_INIT.name, LOADING_OPERATIONS.GAME_INIT.estimatedTime);
       updateOperation(LOADING_OPERATIONS.GAME_INIT.id, 1, 'Preparing the world...');
 
-      await new Promise<void>((resolve) => requestAnimationFrame(() => resolve()));
+      await delay(0);
 
       const universeSeed = generateGameSeed();
 
@@ -623,7 +623,7 @@ export const StudioMagnateGame: React.FC<StudioMagnateGameProps> = ({
       const totalWeeks = yearsToSeed.length * 52;
       let processedWeeks = 0;
 
-      const yieldToBrowser = () => new Promise<void>((resolve) => requestAnimationFrame(() => resolve()));
+      const yieldToBrowser = () => delay(0);
       const YIELD_EVERY_OPS = 25;
       let processedOps = 0;
 
@@ -859,7 +859,7 @@ export const StudioMagnateGame: React.FC<StudioMagnateGameProps> = ({
           if (i % 25 === 0) {
             const p = 88 + (i / Math.max(1, total)) * 10;
             updateOperation(LOADING_OPERATIONS.GAME_INIT.id, Math.min(98, Math.round(p)), `Seeding filmographies... (${i}/${total})`);
-            await new Promise<void>((resolve) => requestAnimationFrame(() => resolve()));
+            await delay(0);
           }
         }
 
@@ -873,9 +873,9 @@ export const StudioMagnateGame: React.FC<StudioMagnateGameProps> = ({
       updateOperation(LOADING_OPERATIONS.GAME_INIT.id, 100, 'Finalizing...');
       initGame(initialState, initialState.universeSeed);
 
-      requestAnimationFrame(() => {
+      setTimeout(() => {
         completeOperation(LOADING_OPERATIONS.GAME_INIT.id);
-      });
+      }, 0);
     };
 
     run().catch((e) => {
