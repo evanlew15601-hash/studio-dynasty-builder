@@ -583,14 +583,12 @@ export const StudioMagnateGame: React.FC<StudioMagnateGameProps> = ({
 
   // Generate a fresh world asynchronously so the loading overlay can appear immediately.
   const newGameInitStartedRef = useRef(false);
-  const lastNewGameInitAttemptRef = useRef<number | null>(null);
   const [newGameInitAttempt, setNewGameInitAttempt] = useState(0);
 
+  // eslint-disable-next-line react-hooks/exhaustive-deps
   useEffect(() => {
     if (storeGameState) return;
     if (initialGameState) return;
-    if (lastNewGameInitAttemptRef.current === newGameInitAttempt) return;
-    lastNewGameInitAttemptRef.current = newGameInitAttempt;
     if (newGameInitStartedRef.current) return;
     newGameInitStartedRef.current = true;
 
@@ -940,7 +938,7 @@ export const StudioMagnateGame: React.FC<StudioMagnateGameProps> = ({
       cancelled = true;
       completeOperation(LOADING_OPERATIONS.GAME_INIT.id);
     };
-  });
+  }, [newGameInitAttempt]);
 
   const gameState = storeGameState ?? bootstrapGameState;
 
