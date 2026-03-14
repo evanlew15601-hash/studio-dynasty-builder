@@ -954,7 +954,7 @@ export const StudioMagnateGame: React.FC<StudioMagnateGameProps> = ({
   // Market dynamics hooks  
   const talentMarket = useTalentMarket(gameState.talent, gameState.currentWeek);
   const genreSaturation = useGenreSaturation(
-    gameState.allReleases.filter((item): item is Project => 'script' in item),
+    gameState.allReleases.filter((item) => 'script' in item) as Project[],
     gameState.currentWeek,
     gameState.currentYear
   );

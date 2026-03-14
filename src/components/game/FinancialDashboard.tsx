@@ -17,18 +17,19 @@ export const FinancialDashboard: React.FC = () => {
   const [selectedTimeframe, setSelectedTimeframe] = useState<'4weeks' | '12weeks' | '1year'>('12weeks');
   const game = useGameStore((s) => s.game);
 
-  if (!game) {
-    return <div className="p-6 text-sm text-muted-foreground">Loading financial dashboard...</div>;
-  }
-
-  const { currentWeek, currentYear, projects } = game;
+  const currentWeek = game?.currentWeek ?? 0;
+  const currentYear = game?.currentYear ?? 0;
+  const projects = game?.projects ?? [];
+  const studioName = game?.studio?.name ?? '';
 
   // Financial ledger contains system-wide entries. The Financials UI is meant to show the
   // player's studio only, so filter out competitor/AI transactions.
   const playerProjectIds = useMemo(() => new Set(projects.map(p => p.id)), [projects]);
 
   const playerTransactions = useMemo(() => {
-    const studioPrefix = `Studio ${game.studio.name}`;
+    if (!game) return [];
+
+    const studioPrefix = `Studio ${studioName}`;
     const ledger = FinancialEngine.exportLedger();
 
     return ledger.filter((t) => {
@@ -36,7 +37,7 @@ export const FinancialDashboard: React.FC = () => {
       if (t.category === 'overhead') return t.description.includes(studioPrefix);
       return true;
     });
-  }, [currentWeek, currentYear, game.studio.name, playerProjectIds]);
+  }, [currentWeek, currentYear, studioName, playerProjectIds, game]);
 
   const getWeeklyFinancials = (week: number, year: number) => {
     const weekTransactions = playerTransactions.filter(t => t.week === week && t.year === year);
@@ -100,12 +101,12 @@ export const FinancialDashboard: React.FC = () => {
       totalRevenue: allRevenue,
       totalExpenses: allExpenses,
       netProfit,
-      cashOnHand: game.studio.budget,
+      cashOnHand: game?.studio?.budget ?? 0,
       weeklyBurn,
       profitableFilms,
       totalFilms: filmFinancials.size
     };
-  }, [currentWeek, currentYear, game.studio.budget, playerTransactions]);
+  }, [currentWeek, currentYear, playerTransactions, game?.studio?.budget]);
 
   const recentTransactions = useMemo(() => {
     return playerTransactions
@@ -241,6 +242,10 @@ export const FinancialDashboard: React.FC = () => {
   };
 
   const health = getFinancialHealth();
+
+  if (!game) {
+    return <div className="p-6 text-sm text-muted-foreground">Loading financial dashboard...</div>;
+  }
 
   return (
     <div className="space-y-6">

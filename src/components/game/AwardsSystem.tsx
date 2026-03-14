@@ -45,6 +45,26 @@ export const AwardsSystem: React.FC<AwardsSystemProps> = ({
   const [seasonMomentum, setSeasonMomentum] = useState<Record<string, number>>({});
   const [seasonNominations, setSeasonNominations] = useState<Record<string, { year: number; categories: Record<string, Array<{ project: Project; score: number }>> }>>({});
 
+  const [contenderScope, setContenderScope] = useState<'player' | 'all'>('player');
+  const [page, setPage] = useState(0);
+
+  const currentYear = gameState?.currentYear ?? new Date().getFullYear();
+  const currentWeek = gameState?.currentWeek ?? 0;
+
+  const awardShows = useMemo(() => getAwardShowsForYear(currentYear), [currentYear]);
+
+  const lastCeremonyWeekFor = (medium: 'film' | 'tv') => {
+    const weeks = awardShows.filter(s => s.medium === medium).map(s => s.ceremonyWeek);
+    return weeks.length > 0 ? Math.max(...weeks) : 0;
+  };
+
+  const filmAwardsEndWeek = lastCeremonyWeekFor('film');
+  const tvAwardsEndWeek = lastCeremonyWeekFor('tv');
+
+  const filmCampaignWindowOpen = currentWeek >= 1 && currentWeek <= filmAwardsEndWeek;
+  const tvCampaignWindowOpen = currentWeek >= 1 && currentWeek <= tvAwardsEndWeek;
+  const isAnyCampaignWindowOpen = filmCampaignWindowOpen || tvCampaignWindowOpen;
+
   const isTvProject = useCallback(
     (project: Project) => project.type === 'series' || project.type === 'limited-series',
     []
@@ -58,42 +78,27 @@ export const AwardsSystem: React.FC<AwardsSystemProps> = ({
       setSeasonNominations({});
       setSeasonMomentum({});
     }
-  }, [gameState?.currentYear, gameState?.currentWeek]);
+  }, [gameState, currentYear, currentWeek]);
 
-  if (!gameState) {
-    return <div className="p-6 text-sm text-muted-foreground">Loading awards system...</div>;
-  }
+  const playerProjects = gameState?.projects ?? [];
+  const allReleases = gameState?.allReleases ?? [];
 
-  const awardShows = getAwardShowsForYear(gameState.currentYear);
-  const lastCeremonyWeekFor = (medium: 'film' | 'tv') => {
-    const weeks = awardShows.filter(s => s.medium === medium).map(s => s.ceremonyWeek);
-    return weeks.length > 0 ? Math.max(...weeks) : 0;
-  };
-
-  const filmAwardsEndWeek = lastCeremonyWeekFor('film');
-  const tvAwardsEndWeek = lastCeremonyWeekFor('tv');
-
-  const filmCampaignWindowOpen = gameState.currentWeek >= 1 && gameState.currentWeek <= filmAwardsEndWeek;
-  const tvCampaignWindowOpen = gameState.currentWeek >= 1 && gameState.currentWeek <= tvAwardsEndWeek;
-  const isAnyCampaignWindowOpen = filmCampaignWindowOpen || tvCampaignWindowOpen;
-
-  const [contenderScope, setContenderScope] = useState<'player' | 'all'>('player');
-  const [page, setPage] = useState(0);
-
-  const playerProjectIds = useMemo(() => new Set(gameState.projects.map(p => p.id)), [gameState.projects]);
+  const playerProjectIds = useMemo(() => new Set(playerProjects.map(p => p.id)), [playerProjects]);
   const isPlayerProject = (project: Project) => playerProjectIds.has(project.id);
 
   const eligibleProjectsAll = useMemo((): Project[] => {
-    const eligibleYear = gameState.currentYear - 1;
+    if (!gameState) return [];
 
-    const playerProjects = gameState.projects.filter(project => 
+    const eligibleYear = currentYear - 1;
+
+    const eligiblePlayer = playerProjects.filter(project => 
       project.status === 'released' &&
       project.releaseYear === eligibleYear &&
       project.metrics?.criticsScore &&
       project.metrics.criticsScore >= 45
     );
 
-    const aiProjects = gameState.allReleases.filter((release): release is Project => 
+    const eligibleAi = allReleases.filter((release): release is Project => 
       'script' in release &&
       release.status === 'released' &&
       release.releaseYear === eligibleYear &&
@@ -101,8 +106,8 @@ export const AwardsSystem: React.FC<AwardsSystemProps> = ({
       release.metrics.criticsScore >= 45
     );
 
-    return [...playerProjects, ...aiProjects];
-  }, [gameState.allReleases, gameState.currentYear, gameState.projects]);
+    return [...eligiblePlayer, ...eligibleAi];
+  }, [allReleases, currentYear, gameState, playerProjects]);
 
   const eligiblePlayerProjects = useMemo(
     () => eligibleProjectsAll.filter((p) => playerProjectIds.has(p.id)),
@@ -125,7 +130,7 @@ export const AwardsSystem: React.FC<AwardsSystemProps> = ({
       if (boxOffice > budget * 1.5) probability += 10;
 
       // Genre bonuses during the early-year film awards window
-      if (gameState.currentWeek >= 1 && gameState.currentWeek <= 12) {
+      if (currentWeek >= 1 && currentWeek <= 12) {
         if (project.script.genre === 'drama') probability += 15;
         if (project.script.genre === 'biography') probability += 10;
         if (project.script.genre === 'historical') probability += 8;
@@ -154,7 +159,7 @@ export const AwardsSystem: React.FC<AwardsSystemProps> = ({
     }
 
     return Math.min(100, Math.max(0, probability));
-  }, [gameState.currentWeek, isTvProject]);
+  }, [currentWeek, isTvProject]);
 
   // Start awards campaign
   const startAwardsCampaign = (project: Project, budget: number) => {
@@ -430,6 +435,10 @@ export const AwardsSystem: React.FC<AwardsSystemProps> = ({
     const start = currentPage * PAGE_SIZE;
     return contenders.slice(start, start + PAGE_SIZE);
   }, [PAGE_SIZE, contenders, currentPage]);
+
+  if (!gameState) {
+    return <div className="p-6 text-sm text-muted-foreground">Loading awards system...</div>;
+  }
 
   return (
     <div className="space-y-6">

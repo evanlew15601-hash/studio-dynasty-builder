@@ -58,6 +58,18 @@ export const ReleaseStrategyModal: React.FC<ReleaseStrategyModalProps> = ({
   const mods = useMemo(() => getModBundle(), []);
   const streamingProviders = useMemo(() => getStreamingProviders(mods), [mods]);
 
+  const releaseTypeOptions = useMemo(
+    () =>
+      [
+        { type: 'wide' as const, label: 'Wide', description: 'Big opening with thousands of screens.' },
+        { type: 'limited' as const, label: 'Limited', description: 'Selective rollout for buzz and word-of-mouth.' },
+        { type: 'platform' as const, label: 'Platform', description: 'Start small, expand if reviews land.' },
+        { type: 'festival' as const, label: 'Festival', description: 'Premiere on the circuit, prestige-first.' },
+        { type: 'streaming' as const, label: 'Direct-to-Streaming', description: 'Premiere on a platform from day one.' },
+      ],
+    []
+  );
+
   if (!project || !gameState) return null;
 
   const currentTime = {
@@ -166,18 +178,6 @@ export const ReleaseStrategyModal: React.FC<ReleaseStrategyModalProps> = ({
       description: `${provider.name} paid ${(terms.upfrontPayment / 1000000).toFixed(1)}M upfront for the premiere.`
     });
   };
-
-  const releaseTypeOptions = useMemo(
-    () =>
-      [
-        { type: 'wide' as const, label: 'Wide', description: 'Big opening with thousands of screens.' },
-        { type: 'limited' as const, label: 'Limited', description: 'Selective rollout for buzz and word-of-mouth.' },
-        { type: 'platform' as const, label: 'Platform', description: 'Start small, expand if reviews land.' },
-        { type: 'festival' as const, label: 'Festival', description: 'Premiere on the circuit, prestige-first.' },
-        { type: 'streaming' as const, label: 'Direct-to-Streaming', description: 'Premiere on a platform from day one.' },
-      ],
-    []
-  );
 
   const buildReleaseStrategy = (week: number, year: number): ReleaseStrategy => {
     const approxDate = new Date(year, 0, 1 + Math.max(0, week - 1) * 7);
