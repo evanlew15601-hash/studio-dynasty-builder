@@ -8,6 +8,8 @@ import { ScriptDevelopment } from './ScriptDevelopment';
 import { CastingBoard } from './CastingBoard';
 import { ProductionManagement } from './ProductionManagement';
 import { StreamingHub } from './StreamingHub';
+import { Metaboxd } from './Metaboxd';
+import { OnlineLeague } from './OnlineLeague';
 import { PostTheatricalSystem } from './PostTheatricalSystem';
 import { StudioDashboard } from './StudioDashboard';
 import { FinancialDashboard } from './FinancialDashboard';
@@ -3027,7 +3029,7 @@ export const StudioMagnateGame: React.FC<StudioMagnateGameProps> = ({
                 <Button
                   variant="ghost"
                   className={`rounded-none border-b-2 px-3 py-3 text-sm font-medium transition-all duration-300 border-transparent hover:border-primary/40 hover:bg-primary/5 btn-ghost-premium ${
-                     ['franchise', 'media', 'talent', 'database', 'awards', 'reputation', 'lore'].includes(currentPhase)
+                     ['franchise', 'media', 'metaboxd', 'online', 'talent', 'database', 'awards', 'reputation', 'lore'].includes(currentPhase)
                        ? 'border-primary bg-gradient-to-t from-primary/20 to-primary/10 text-primary shadow-lg' 
                        : ''
                    }`}
@@ -3045,6 +3047,14 @@ export const StudioMagnateGame: React.FC<StudioMagnateGameProps> = ({
                 <DropdownMenuItem onClick={() => handlePhaseChange('media')}>
                   <BarChartIcon className="mr-2" size={16} />
                   Media Relations
+                </DropdownMenuItem>
+                <DropdownMenuItem onClick={() => handlePhaseChange('metaboxd')}>
+                  <ClapperboardIcon className="mr-2" size={16} />
+                  Metaboxd Reviews
+                </DropdownMenuItem>
+                <DropdownMenuItem onClick={() => handlePhaseChange('online')}>
+                  <BarChartIcon className="mr-2" size={16} />
+                  Online League (Beta)
                 </DropdownMenuItem>
                  <DropdownMenuItem onClick={() => handlePhaseChange('talent')}>
                    <CastingIcon className="mr-2" size={16} />
@@ -3612,6 +3622,16 @@ export const StudioMagnateGame: React.FC<StudioMagnateGameProps> = ({
 
 {currentPhase === 'lore' && (
           <LoreHub />
+        )}
+
+        {currentPhase === 'metaboxd' && (
+          <div className="-mx-6 -my-8">
+            <Metaboxd />
+          </div>
+        )}
+
+        {currentPhase === 'online' && (
+          <OnlineLeague />
         )}
       </div>
       
