@@ -583,12 +583,15 @@ export const StudioMagnateGame: React.FC<StudioMagnateGameProps> = ({
 
   // Generate a fresh world asynchronously so the loading overlay can appear immediately.
   const newGameInitStartedRef = useRef(false);
+  const lastNewGameInitAttemptRef = useRef<number | null>(null);
   const [newGameInitAttempt, setNewGameInitAttempt] = useState(0);
 
   // eslint-disable-next-line react-hooks/exhaustive-deps
   useEffect(() => {
     if (storeGameState) return;
     if (initialGameState) return;
+    if (lastNewGameInitAttemptRef.current === newGameInitAttempt) return;
+    lastNewGameInitAttemptRef.current = newGameInitAttempt;
     if (newGameInitStartedRef.current) return;
     newGameInitStartedRef.current = true;
 
@@ -684,7 +687,6 @@ export const StudioMagnateGame: React.FC<StudioMagnateGameProps> = ({
                 const rel = sg.generateStudioRelease(fallback, w, year);
                 if (rel) {
                   releases.push(rel);
-                  releases[releases.length - 1] = attachBasicCastForAI(releases[releases.length - 1] as Project, generatedTalent);
                 } else {
                   // Guarantee at least one release per week: synthesize a small indie release
                   const genre = fallback.specialties[0] as Genre;
@@ -800,6 +802,7 @@ export const StudioMagnateGame: React.FC<StudioMagnateGameProps> = ({
                     releaseYear: year,
                     studioName: fallback.name,
                   } as Project);
+                }
 
                 releases[releases.length - 1] = attachBasicCastForAI(releases[releases.length - 1] as Project, generatedTalent);
               }
@@ -809,16 +812,16 @@ export const StudioMagnateGame: React.FC<StudioMagnateGameProps> = ({
             if (processedOps % YIELD_EVERY_OPS === 0) {
               await yieldToBrowser();
             }
-          }
 
-          if (processedWeeks % 2 === 0) {
-            const progress = 30 + (processedWeeks / totalWeeks) * 45;
-            updateOperation(
-              LOADING_OPERATIONS.GAME_INIT.id,
-              Math.min(75, Math.round(progress)),
-              `Seeding AI releases... (Y${year}W${w})`
-            );
-            await yieldToBrowser();
+            if (processedWeeks % 2 === 0) {
+              const progress = 30 + (processedWeeks / totalWeeks) * 45;
+              updateOperation(
+                LOADING_OPERATIONS.GAME_INIT.id,
+                Math.min(75, Math.round(progress)),
+                `Seeding AI releases... (Y${year}W${w})`
+              );
+              await yieldToBrowser();
+            }
           }
         }
       }
@@ -938,7 +941,7 @@ export const StudioMagnateGame: React.FC<StudioMagnateGameProps> = ({
       cancelled = true;
       completeOperation(LOADING_OPERATIONS.GAME_INIT.id);
     };
-  }, [newGameInitAttempt]);
+  });
 
   const gameState = storeGameState ?? bootstrapGameState;
 

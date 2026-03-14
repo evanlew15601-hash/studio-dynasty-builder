@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState } from 'react';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
@@ -30,31 +30,27 @@ interface TestResult {
 
 interface TelevisionSystemTestsProps {}
 
+const INITIAL_TESTS: TestResult[] = [
+  { id: 'tv-show-creation', name: 'TV Show Creation', status: 'pending' },
+  { id: 'network-creation', name: 'Network/Streaming Service Creation', status: 'pending' },
+  { id: 'talent-casting', name: 'Talent Casting for TV Shows', status: 'pending' },
+  { id: 'budget-allocation', name: 'Budget Allocation & Tracking', status: 'pending' },
+  { id: 'show-production', name: 'Show Production Workflow', status: 'pending' },
+  { id: 'ratings-tracking', name: 'Ratings & Performance Tracking', status: 'pending' },
+  { id: 'streaming-revenue', name: 'Streaming Revenue Calculation', status: 'pending' },
+  { id: 'season-management', name: 'Season Management', status: 'pending' },
+  { id: 'network-competition', name: 'Network Competition Logic', status: 'pending' },
+  { id: 'ui-integration', name: 'UI Integration & State Management', status: 'pending' }
+];
+
 export const TelevisionSystemTests: React.FC<TelevisionSystemTestsProps> = () => {
   const gameState = useGameStore((s) => s.game);
   const updateBudget = useGameStore((s) => s.updateBudget);
   const mergeGameState = useGameStore((s) => s.mergeGameState);
   const { toast } = useToast();
-  const [testResults, setTestResults] = useState<TestResult[]>([]);
+  const [testResults, setTestResults] = useState<TestResult[]>(INITIAL_TESTS);
   const [isRunning, setIsRunning] = useState(false);
   const [currentTest, setCurrentTest] = useState<string | null>(null);
-
-  const initialTests: TestResult[] = [
-    { id: 'tv-show-creation', name: 'TV Show Creation', status: 'pending' },
-    { id: 'network-creation', name: 'Network/Streaming Service Creation', status: 'pending' },
-    { id: 'talent-casting', name: 'Talent Casting for TV Shows', status: 'pending' },
-    { id: 'budget-allocation', name: 'Budget Allocation & Tracking', status: 'pending' },
-    { id: 'show-production', name: 'Show Production Workflow', status: 'pending' },
-    { id: 'ratings-tracking', name: 'Ratings & Performance Tracking', status: 'pending' },
-    { id: 'streaming-revenue', name: 'Streaming Revenue Calculation', status: 'pending' },
-    { id: 'season-management', name: 'Season Management', status: 'pending' },
-    { id: 'network-competition', name: 'Network Competition Logic', status: 'pending' },
-    { id: 'ui-integration', name: 'UI Integration & State Management', status: 'pending' }
-  ];
-
-  useEffect(() => {
-    setTestResults(initialTests);
-  }, []);
 
   if (!gameState) {
     return <div className="p-6 text-sm text-muted-foreground">Loading television tests...</div>;
@@ -609,7 +605,7 @@ export const TelevisionSystemTests: React.FC<TelevisionSystemTestsProps> = () =>
 
   const runAllTests = async () => {
     setIsRunning(true);
-    setTestResults(initialTests);
+    setTestResults(INITIAL_TESTS);
 
     const tests = [
       runTVShowCreationTest,
