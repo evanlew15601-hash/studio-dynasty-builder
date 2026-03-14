@@ -52,6 +52,6 @@ describe('Parody character names modding', () => {
     const map = getEffectiveParodyCharacterNameMap(mods);
 
     expect(map['Star Saga']?.byTemplateId?.lead_hero).toBeUndefined();
-    expect(map['Star Saga']?.byTemplateId?.mentor_mystic).toBe('Obi-Juan Kenobi');
+    expect(map['Star Saga']?.byTemplateId?.mentor_mystic).toBe('Obi-Juan Kendar');
   });
 });

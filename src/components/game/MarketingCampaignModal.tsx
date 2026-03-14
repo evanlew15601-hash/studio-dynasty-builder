@@ -63,10 +63,10 @@ export const MarketingCampaignModal: React.FC<MarketingCampaignModalProps> = ({
     {
       type: 'grassroots',
       name: 'Fandom Activation',
-      description: 'AMAs, subreddit takeovers, Discord server events, community screenings',
+      description: 'AMAs, forum takeovers, group-chat server events, community screenings',
       cost: 'Low',
       effectiveness: 'Authentic',
-      channels: ['Reddit AMA', 'Discord', 'Community Screenings', 'Fan Newsletters']
+      channels: ['Forum AMA', 'Community Chat', 'Community Screenings', 'Fan Newsletters']
     },
     {
       type: 'premium',

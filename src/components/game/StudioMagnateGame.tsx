@@ -7,7 +7,7 @@ import { PublicDomainGenerator } from '@/data/PublicDomainGenerator';
 import { ScriptDevelopment } from './ScriptDevelopment';
 import { CastingBoard } from './CastingBoard';
 import { ProductionManagement } from './ProductionManagement';
-import { PostTheatricalManagement } from './PostTheatricalManagement';
+import { StreamingHub } from './StreamingHub';
 import { PostTheatricalSystem } from './PostTheatricalSystem';
 import { StudioDashboard } from './StudioDashboard';
 import { FinancialDashboard } from './FinancialDashboard';
@@ -3470,7 +3470,7 @@ export const StudioMagnateGame: React.FC<StudioMagnateGameProps> = ({
         )}
         
         {currentPhase === 'distribution' && (
-          <PostTheatricalManagement />
+          <StreamingHub />
         )}
         
         {currentPhase === 'finance' && (

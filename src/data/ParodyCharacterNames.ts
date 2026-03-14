@@ -14,12 +14,12 @@ export const PARODY_CHARACTER_NAME_MAP: Record<string, ParodyCharacterNameMapEnt
   'Star Saga': {
     byCharacterId: {
       'char_hero_pilot': 'Luke Starwalker',
-      'char_wise_mentor': 'Obi-Juan Kenobi',
+      'char_wise_mentor': 'Obi-Juan Kendar',
       'char_director': 'Director'
     },
     byTemplateId: {
       'lead_hero': 'Luke Starwalker',
-      'mentor_mystic': 'Obi-Juan Kenobi',
+      'mentor_mystic': 'Obi-Juan Kendar',
       'director': 'Director'
     }
   },
@@ -48,54 +48,54 @@ export const PARODY_CHARACTER_NAME_MAP: Record<string, ParodyCharacterNameMapEnt
   },
   'Wizard Academy': {
     byTemplateId: {
-      'young_wizard': 'Harry Plotter-Smith',
-      'mentor_mystic': 'Albus Dumbleton',
-      'dark_wizard': 'Lord Voldermore',
-      'best_friend': 'Ron Weaselby',
+      'young_wizard': 'Harlan Wandsmith',
+      'mentor_mystic': 'Alden Brambleton',
+      'dark_wizard': 'Lord Malvermoor',
+      'best_friend': 'Ron Wexley',
       'director': 'Director'
     }
   },
   'The Family Boss': {
     byTemplateId: {
-      'patriarch': 'Vito Corelli',
-      'heir': 'Michael Corelli',
-      'advisor': 'Tom Hagan',
+      'patriarch': 'Vito Corvelli',
+      'heir': 'Michael Corvelli',
+      'advisor': 'Tom Harlan',
       'director': 'Director'
     }
   },
   'Fast Lane': {
     byTemplateId: {
-      'street_racer': 'Dominic Torrelly',
-      'agent': 'Luke Hobson',
+      'street_racer': 'Dominic Torrenti',
+      'agent': 'Lucas Hobson',
       'director': 'Director'
     }
   },
   'Mission Critical': {
     byTemplateId: {
-      'spy_lead': 'Ethan Hunter',
+      'spy_lead': 'Evan Hunter',
       'director': 'Director'
     }
   },
   'Hero Collective Universe': {
     byTemplateId: {
-      'team_leader': 'Steve Robertson',
-      'billionaire_genius': 'Tony Starks',
-      'demigod': 'Thorsen',
-      'dark_knight': 'Bruce Waynes',
+      'team_leader': 'Stefan Robertson',
+      'billionaire_genius': 'Toby Starkman',
+      'demigod': 'Thoren',
+      'dark_knight': 'Bruno Wayne',
       'director': 'Director'
     }
   },
   'Nightmare Street': {
     byTemplateId: {
-      'slasher_icon': 'Freddy Krugman',
-      'final_girl': 'Nancy Thomsen',
+      'slasher_icon': 'Freddy Kregman',
+      'final_girl': 'Nora Thorne',
       'director': 'Director'
     }
   },
   'Hallow Night': {
     byTemplateId: {
-      'slasher_icon': 'Michael Myer',
-      'final_girl': 'Laurie Strider',
+      'slasher_icon': 'Mason Myer',
+      'final_girl': 'Laura Strider',
       'director': 'Director'
     }
   },

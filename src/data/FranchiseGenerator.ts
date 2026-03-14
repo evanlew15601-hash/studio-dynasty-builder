@@ -23,7 +23,7 @@ const FRANCHISE_TEMPLATES: FranchiseTemplate[] = [
     tags: ['space', 'laser weapons', 'alien rebellion', 'chosen one'],
     culturalWeight: 92,
     description:
-      'Epic space opera featuring galactic conflicts, mystical powers, and the eternal struggle between good and evil across the cosmos.',
+      'A long-running space-fantasy saga built on clear heroes, iconic villains, and a galaxy that feels bigger than any one film. Fans expect swashbuckling dogfights, strange planets, and a mythic “power” that can be trained, inherited, or abused. It’s broadly accessible, but the audience will punish anything that feels cheap or cynical—this brand thrives on sincerity and spectacle.',
   },
   {
     titlePatterns: ['Future Shock', 'Cyber Knights', 'Digital Dawn', 'Neural Network'],
@@ -33,7 +33,7 @@ const FRANCHISE_TEMPLATES: FranchiseTemplate[] = [
     tags: ['cyberpunk', 'AI', 'dystopia', 'corporate conspiracy'],
     culturalWeight: 78,
     description:
-      'Cyberpunk thriller exploring a future where AI and humanity blur, set in neon-soaked cities ruled by mega-corporations.',
+      'A rain-slick, neon-noir thriller where corporate power is absolute and identity is always up for sale. The hook is moral ambiguity: detectives, defectors, and “manufactured people” all chasing the same fragile truth. Audiences show up for atmosphere—hard shadows, synth-scored dread, and slow-burn reveals—so a grounded tone and strong production design matter as much as action.',
   },
   {
     titlePatterns: ['Alien Hunter', 'Cosmic Horror', 'Deep Space', 'Void Walkers'],
@@ -43,7 +43,7 @@ const FRANCHISE_TEMPLATES: FranchiseTemplate[] = [
     tags: ['space horror', 'survival', 'isolation', 'alien threat'],
     culturalWeight: 85,
     description:
-      'Terrifying space horror where isolated crews face unknown threats in the vast emptiness of space with nowhere to run.',
+      'Claustrophobic sci-fi horror built around one promise: if something gets on board, you can’t outrun it. These stories thrive on tight corridors, failing systems, and a crew whose competence is tested by panic and paranoia. The fanbase loves practical tension over jump-scare spam—earned dread, brutal stakes, and a monster that feels intelligent even when unseen.',
   },
 
   // Fantasy
@@ -55,7 +55,7 @@ const FRANCHISE_TEMPLATES: FranchiseTemplate[] = [
     tags: ['medieval', 'magic', 'quest', 'dark lord'],
     culturalWeight: 95,
     description:
-      'Epic medieval fantasy following heroes on a grand quest to save their world from ancient evil, featuring rich mythology and magical realms.',
+      'A sweeping quest-fantasy with deep lore, ancient wars, and a sense of history baked into every location. The audience comes for fellowship dynamics, impossible odds, and the slow accumulation of meaning as the journey grinds heroes down and rebuilds them. It plays best when the world feels lived-in—songs, ruins, rival kingdoms—and when the magic is treated with reverence instead of convenience.',
   },
   {
     titlePatterns: ['Wizard Academy', 'Spell Casters', 'Magic School', 'Arcane Arts'],
@@ -65,7 +65,7 @@ const FRANCHISE_TEMPLATES: FranchiseTemplate[] = [
     tags: ['magic school', 'coming of age', 'friendship', 'dark wizard'],
     culturalWeight: 98,
     description:
-      'Coming-of-age magical adventure following young wizards learning their craft while facing dark forces threatening their world.',
+      'A cozy-but-dangerous coming‑of‑age series set inside a hidden school for spellcraft. The core appeal is the blend of wonder and routine—classes, rivalries, secret corridors—punctuated by escalating mysteries and a growing shadow in the wider world. Fans expect a strong ensemble, a clear “rulebook” for magic, and emotional payoffs that feel earned rather than purely plot-driven.',
   },
 
   // Superhero
@@ -77,7 +77,7 @@ const FRANCHISE_TEMPLATES: FranchiseTemplate[] = [
     tags: ['superheroes', 'team up', 'world threat', 'powers', 'interconnected'],
     culturalWeight: 95,
     description:
-      'A sprawling superhero universe featuring interconnected stories of heroes who must unite to face major threats while juggling personal struggles.',
+      'A shared‑universe of costumed heroes designed for crossovers, spin‑offs, and the occasional “event” sequel that tries to top the last one. The audience expects clear iconography, memorable power-sets, and a rotating mix of earnest character drama and crowd-pleasing spectacle. It can print money when continuity is handled cleanly, but fan sentiment turns fast if a release feels like homework.',
   },
 
   // Horror
@@ -89,7 +89,7 @@ const FRANCHISE_TEMPLATES: FranchiseTemplate[] = [
     tags: ['supernatural killer', 'dreams', 'teenagers', 'recurring villain'],
     culturalWeight: 76,
     description:
-      'Supernatural horror featuring an unstoppable killer who hunts victims through their dreams, blurring the line between nightmare and reality.',
+      'A supernatural slasher built around the scariest rule: sleep is not safe. The villain is more idea than person—an urban legend that gets stronger the more people fear it—and the set pieces lean surreal without losing cause-and-effect. The franchise’s fans care about inventive “dream logic” kills, but the emotional core is always the survivors trying to stay awake long enough to outsmart the myth.',
   },
   {
     titlePatterns: ['The Mask Killer', 'Silent Stalker', 'Harvest Terror', 'The Shape'],
@@ -99,7 +99,7 @@ const FRANCHISE_TEMPLATES: FranchiseTemplate[] = [
     tags: ['slasher', 'unstoppable killer', 'final survivor', 'holiday horror'],
     culturalWeight: 74,
     description:
-      'Classic slasher horror with a relentless masked killer stalking victims on specific nights, creating an atmosphere of dread and inevitability.',
+      'A seasonal slasher series with a simple engine: one quiet town, one night everyone dreads, and a masked presence that returns when people least want to believe. The best entries treat silence like a weapon—long stalking sequences, minimal dialogue, and violence that lands because it’s restrained. Audiences expect “final survivor” tension and a cold, inevitable mood rather than flashy gore.',
   },
 
   // Action
@@ -111,7 +111,7 @@ const FRANCHISE_TEMPLATES: FranchiseTemplate[] = [
     tags: ['cars', 'heists', 'family', 'impossible stunts'],
     culturalWeight: 83,
     description:
-      'High-octane action featuring street racers turned unlikely heroes, combining family bonds with spectacular car chases and impossible heists.',
+      'Stunt-forward action built on found-family loyalty, absurdly expensive vehicles, and set pieces that ignore physics with confidence. The tone is earnest even when the plot is ridiculous—rival crews become allies, heists become rescues, and every sequel tries to go “one notch bigger.” Fans will forgive anything except boredom, so momentum and spectacle are the point of the brand.',
   },
   {
     titlePatterns: ['Mission Critical', 'Impossible Task', 'Agent Protocol', 'Operation Ghost'],
@@ -121,7 +121,7 @@ const FRANCHISE_TEMPLATES: FranchiseTemplate[] = [
     tags: ['spy', 'gadgets', 'infiltration', 'death-defying stunts'],
     culturalWeight: 87,
     description:
-      'Spy thriller featuring elite agents using cutting-edge technology and death-defying stunts to complete seemingly impossible missions.',
+      'A sleek espionage franchise where elite agents race deadlines, betrayals, and impossible logistics with gadgets that are always one step ahead. The brand lives on precision: clean action choreography, globe-hopping locations, and set pieces that feel practical even when they’re insane. Fans want competence, tension, and that “plan within a plan” twist that makes the final act click.',
   },
 
   // Comedy
@@ -133,7 +133,7 @@ const FRANCHISE_TEMPLATES: FranchiseTemplate[] = [
     tags: ['coming of age', 'raunchy humor', 'teenagers', 'school'],
     culturalWeight: 65,
     description:
-      'Raunchy teen comedy exploring the awkward and hilarious journey of young adults navigating relationships, parties, and growing up.',
+      'An ensemble coming‑of‑age comedy built around bad plans, worse advice, and the panic of trying to be cool for the first time. The tone is messy but ultimately warm—friend groups fracture, reunite, and stumble toward adulthood one humiliation at a time. The audience expects quotable dialogue, escalating dares, and a surprisingly sincere ending that makes the chaos feel earned.',
   },
 
   // Crime
@@ -145,7 +145,7 @@ const FRANCHISE_TEMPLATES: FranchiseTemplate[] = [
     tags: ['organized crime', 'family loyalty', 'power struggle', 'corruption'],
     culturalWeight: 97,
     description:
-      'Epic crime saga exploring the complex dynamics of organized crime families, their codes of honor, and the price of power and loyalty.',
+      'A prestige crime dynasty saga where family loyalty is both shield and weapon. The hook is quiet power: deals in back rooms, betrayals dressed as tradition, and heirs who inherit both privilege and rot. Audiences come for operatic drama and moral consequence—every choice costs something, and the “business” always follows you home.',
   },
 ];
 
