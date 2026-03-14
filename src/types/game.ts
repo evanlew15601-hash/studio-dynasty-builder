@@ -341,6 +341,18 @@ export interface Project {
   episodeCount?: number;
   releaseFormat?: 'weekly' | 'binge' | 'batch';
   /**
+   * Optional streaming premiere deal information for direct-to-streaming film releases.
+   * This is signed before release and used to determine the launch platform and advance payment.
+   */
+  streamingPremiereDeal?: {
+    providerId: string;
+    signedWeek: number;
+    signedYear: number;
+    upfrontPayment: number;
+    marketingSupport: number;
+  };
+
+  /**
    * Optional streaming contract information for TV/streaming projects.
    * This is used by the StreamingContractSystem and saved as part of GameState.
    */
@@ -937,6 +949,8 @@ export interface MarketingImpact {
 export interface ReleaseStrategy {
   type: 'wide' | 'limited' | 'platform' | 'festival' | 'streaming';
   theatersCount?: number;
+  /** For direct-to-streaming premieres, identifies the platform selected via a premiere deal. */
+  streamingProviderId?: string;
   premiereDate: Date;
   rolloutPlan: ReleaseRollout[];
   specialEvents: SpecialEvent[];
@@ -981,6 +995,8 @@ export interface PostTheatricalRelease {
   id: string;
   projectId: string;
   platform: 'streaming' | 'digital' | 'physical' | 'tv-licensing';
+  /** Optional platform identifier for deals (e.g., streamflix) */
+  providerId?: string;
   releaseDate: Date;
   revenue: number;
   weeklyRevenue: number;

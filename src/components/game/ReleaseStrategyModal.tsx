@@ -9,6 +9,9 @@ import { ReleaseSystem } from './ReleaseSystem';
 import { CalendarManager } from './CalendarManager';
 import { useToast } from '@/hooks/use-toast';
 import { useGameStore } from '@/game/store';
+import { getStreamingProviders } from '@/data/ProviderDealsDatabase';
+import { getModBundle } from '@/utils/moddingStore';
+import { FinancialEngine } from './FinancialEngine';
 
 interface ReleaseStrategyModalProps {
   project: Project | null;
@@ -23,9 +26,11 @@ export const ReleaseStrategyModal: React.FC<ReleaseStrategyModalProps> = ({
 }) => {
   const gameState = useGameStore((s) => s.game);
   const updateProject = useGameStore((s) => s.updateProject);
+  const updateBudget = useGameStore((s) => s.updateBudget);
   const { toast } = useToast();
   const [selectedDate, setSelectedDate] = useState<{ week: number; year: number } | null>(null);
   const [selectedReleaseType, setSelectedReleaseType] = useState<ReleaseStrategy['type']>('wide');
+  const [selectedStreamingProviderId, setSelectedStreamingProviderId] = useState<string>('');
 
   useEffect(() => {
     if (!isOpen) return;
@@ -33,6 +38,7 @@ export const ReleaseStrategyModal: React.FC<ReleaseStrategyModalProps> = ({
     if (!project) {
       setSelectedDate(null);
       setSelectedReleaseType('wide');
+      setSelectedStreamingProviderId('');
       return;
     }
 
@@ -45,7 +51,12 @@ export const ReleaseStrategyModal: React.FC<ReleaseStrategyModalProps> = ({
     if (project.type !== 'series' && project.type !== 'limited-series') {
       setSelectedReleaseType(project.releaseStrategy?.type || 'wide');
     }
-  }, [isOpen, project?.id, project?.scheduledReleaseWeek, project?.scheduledReleaseYear, project?.releaseStrategy?.type, project?.type]);
+
+    setSelectedStreamingProviderId(project.streamingPremiereDeal?.providerId || '');
+  }, [isOpen, project?.id, project?.scheduledReleaseWeek, project?.scheduledReleaseYear, project?.releaseStrategy?.type, project?.streamingPremiereDeal?.providerId, project?.type]);
+
+  const mods = useMemo(() => getModBundle(), []);
+  const streamingProviders = useMemo(() => getStreamingProviders(mods), [mods]);
 
   if (!project || !gameState) return null;
 
@@ -59,6 +70,102 @@ export const ReleaseStrategyModal: React.FC<ReleaseStrategyModalProps> = ({
   const isTV = project.type === 'series' || project.type === 'limited-series';
   const isStreamingFilm = !isTV && selectedReleaseType === 'streaming';
   const validation = ReleaseSystem.validateFilmForRelease(project);
+
+  const signedStreamingDeal = project.streamingPremiereDeal;
+  const streamingDealMissing = isStreamingFilm && !signedStreamingDeal;
+
+  const computeStreamingPremiereDeal = (provider: (typeof streamingProviders)[number]) => {
+    const quality = project.script?.quality ?? 60;
+    const qualityMultiplier = quality / 60;
+    const genre = project.script?.genre || '';
+
+    const preferenceMultiplier = provider.requirements.preferredGenres?.includes(genre as any)
+      ? 1.08
+      : 0.95;
+
+    const blockbusterMultiplier = ['action', 'sci-fi', 'fantasy', 'superhero'].includes(genre) ? 1.12 : 1.0;
+
+    const licenseFeeMultiplier = 8;
+
+    const upfrontPayment = Math.floor(
+      provider.averageRate *
+        licenseFeeMultiplier *
+        qualityMultiplier *
+        preferenceMultiplier *
+        blockbusterMultiplier *
+        provider.bonusMultiplier
+    );
+
+    const marketingSupport = Math.floor(upfrontPayment * 0.15);
+
+    const expectedViewersBase = provider.marketShare * provider.expectations.viewersPerShare;
+    const expectedViewers = Math.floor(expectedViewersBase * 0.8 * qualityMultiplier * preferenceMultiplier);
+
+    return { upfrontPayment, marketingSupport, expectedViewers };
+  };
+
+  const signStreamingPremiereDeal = (providerId: string) => {
+    const provider = streamingProviders.find(p => p.id === providerId);
+    if (!provider) return;
+
+    const terms = computeStreamingPremiereDeal(provider);
+
+    updateProject(project.id, {
+      streamingPremiereDeal: {
+        providerId: provider.id,
+        signedWeek: gameState.currentWeek,
+        signedYear: gameState.currentYear,
+        upfrontPayment: terms.upfrontPayment,
+        marketingSupport: terms.marketingSupport
+      },
+      distributionStrategy: project.distributionStrategy
+        ? {
+            ...project.distributionStrategy,
+            primary: {
+              platform: provider.name,
+              type: 'streaming',
+              revenue: {
+                type: 'subscription-share',
+                studioShare: 75,
+                minimumGuarantee: terms.upfrontPayment
+              }
+            }
+          }
+        : {
+            primary: {
+              platform: provider.name,
+              type: 'streaming',
+              revenue: {
+                type: 'subscription-share',
+                studioShare: 75,
+                minimumGuarantee: terms.upfrontPayment
+              }
+            },
+            international: [],
+            windows: [],
+            marketingBudget: 0
+          }
+    });
+
+    updateBudget(terms.upfrontPayment);
+
+    FinancialEngine.recordTransaction(
+      'revenue',
+      'streaming',
+      terms.upfrontPayment,
+      gameState.currentWeek,
+      gameState.currentYear,
+      `Streaming premiere deal upfront - ${provider.name} - ${project.title}`,
+      project.id
+    );
+
+    setSelectedStreamingProviderId(provider.id);
+
+    toast({
+      title: 'Streaming Deal Signed',
+      description: `${provider.name} paid ${(terms.upfrontPayment / 1000000).toFixed(1)}M upfront for the premiere.`
+    });
+  };
 
   const releaseTypeOptions = useMemo(
     () =>
@@ -94,6 +201,8 @@ export const ReleaseStrategyModal: React.FC<ReleaseStrategyModalProps> = ({
     return {
       type: selectedReleaseType,
       theatersCount,
+      streamingProviderId:
+        selectedReleaseType === 'streaming' ? (project.streamingPremiereDeal?.providerId || undefined) : undefined,
       premiereDate: approxDate,
       rolloutPlan: [],
       specialEvents: [],
@@ -191,6 +300,15 @@ export const ReleaseStrategyModal: React.FC<ReleaseStrategyModalProps> = ({
       return;
     }
 
+    if (streamingDealMissing) {
+      toast({
+        title: 'Streaming Deal Required',
+        description: 'Direct-to-streaming premieres require signing a streaming premiere deal first.',
+        variant: 'destructive'
+      });
+      return;
+    }
+
     // Debug: capture state before attempting release
     console.log('RELEASE_MODAL: scheduling', {
       projectId: project.id,
@@ -223,6 +341,7 @@ export const ReleaseStrategyModal: React.FC<ReleaseStrategyModalProps> = ({
         scheduledReleaseYear: result.releaseYear,
         status: 'scheduled-for-release',
         readyForRelease: false,
+        ...(!isTV && selectedReleaseType !== 'streaming' ? { streamingPremiereDeal: undefined } : {}),
         ...(schedulingDuringMarketing
           ? {}
           : {
@@ -311,6 +430,102 @@ export const ReleaseStrategyModal: React.FC<ReleaseStrategyModalProps> = ({
                     </Button>
                   ))}
                 </div>
+              </CardContent>
+            </Card>
+          )}
+
+          {/* Streaming premiere deal (Direct-to-Streaming films) */}
+          {!isTV && selectedReleaseType === 'streaming' && (
+            <Card className={streamingDealMissing ? 'border-destructive/20' : undefined}>
+              <CardHeader>
+                <CardTitle className="text-lg">Streaming Premiere Deal</CardTitle>
+              </CardHeader>
+              <CardContent>
+                {signedStreamingDeal ? (
+                  <div className="space-y-2">
+                    <div className="flex items-start justify-between">
+                      <div>
+                        <div className="font-semibold">
+                          {streamingProviders.find(p => p.id === signedStreamingDeal.providerId)?.name ?? signedStreamingDeal.providerId}
+                        </div>
+                        <div className="text-xs text-muted-foreground">
+                          Signed Y{signedStreamingDeal.signedYear}W{signedStreamingDeal.signedWeek} • Upfront ${(signedStreamingDeal.upfrontPayment / 1000000).toFixed(1)}M
+                        </div>
+                      </div>
+                      <Badge variant="secondary">Signed</Badge>
+                    </div>
+                    <p className="text-xs text-muted-foreground">
+                      This deal determines your premiere platform. You can schedule the release once a date is selected.
+                    </p>
+                  </div>
+                ) : (
+                  <div className="space-y-3">
+                    <p className="text-sm text-muted-foreground">
+                      Direct-to-streaming releases require signing a premiere deal first.
+                    </p>
+                    <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+                      {streamingProviders.map((provider) => {
+                        const terms = computeStreamingPremiereDeal(provider);
+                        const issues: string[] = [];
+
+                        const quality = project.script?.quality ?? 60;
+                        if (quality < provider.requirements.minQuality) {
+                          issues.push(`Requires quality ${provider.requirements.minQuality}+`);
+                        }
+
+                        const minBudget = provider.requirements.minBudget;
+                        if (typeof minBudget === 'number' && project.budget.total < minBudget) {
+                          issues.push(`Requires budget ${(minBudget / 1000000).toFixed(0)}M+`);
+                        }
+
+                        const selected = selectedStreamingProviderId === provider.id;
+
+                        return (
+                          <Card
+                            key={provider.id}
+                            className={`transition-all ${selected ? 'ring-2 ring-primary bg-primary/5' : 'hover:bg-accent/50'}`}
+                          >
+                            <CardContent className="p-4 space-y-2">
+                              <div className="flex items-center gap-2">
+                                <div className={`w-3 h-3 rounded ${provider.color}`} />
+                                <div className="font-semibold">{provider.name}</div>
+                                <Badge variant="outline" className="ml-auto">
+                                  {provider.marketShare}% share
+                                </Badge>
+                              </div>
+
+                              <div className="grid grid-cols-2 gap-2 text-xs">
+                                <div>
+                                  <div className="text-muted-foreground">Upfront</div>
+                                  <div className="font-medium">${(terms.upfrontPayment / 1000000).toFixed(1)}M</div>
+                                </div>
+                                <div>
+                                  <div className="text-muted-foreground">Expected viewers</div>
+                                  <div className="font-medium">{(terms.expectedViewers / 1000000).toFixed(1)}M</div>
+                                </div>
+                              </div>
+
+                              {issues.length > 0 && (
+                                <div className="text-xs text-muted-foreground">{issues.join(' • ')}</div>
+                              )}
+
+                              <Button
+                                type="button"
+                                className="w-full"
+                                size="sm"
+                                variant={selected ? 'default' : 'outline'}
+                                disabled={issues.length > 0}
+                                onClick={() => signStreamingPremiereDeal(provider.id)}
+                              >
+                                Sign deal
+                              </Button>
+                            </CardContent>
+                          </Card>
+                        );
+                      })}
+                    </div>
+                  </div>
+                )}
               </CardContent>
             </Card>
           )}
@@ -413,7 +628,7 @@ export const ReleaseStrategyModal: React.FC<ReleaseStrategyModalProps> = ({
             </div>
             <Button 
               onClick={handleScheduleRelease}
-              disabled={!selectedDate || !validation.canRelease || !selectedCalendarValidation?.canRelease}
+              disabled={!selectedDate || !validation.canRelease || !selectedCalendarValidation?.canRelease || streamingDealMissing}
             >
               <Calendar className="mr-2 h-4 w-4" />
               {project.type === 'series' || project.type === 'limited-series' ? 'Schedule Air Date' : 'Schedule Release'}

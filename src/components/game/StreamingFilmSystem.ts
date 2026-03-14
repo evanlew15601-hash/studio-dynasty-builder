@@ -4,7 +4,12 @@ import { stableInt } from '@/utils/stableRandom';
 const clamp = (value: number, min: number, max: number) => Math.min(max, Math.max(min, value));
 
 export class StreamingFilmSystem {
-  static initializeRelease(project: Project, releaseWeek: number, releaseYear: number): Project {
+  static initializeRelease(
+    project: Project,
+    releaseWeek: number,
+    releaseYear: number,
+    platformLabel?: string
+  ): Project {
     const criticsScore =
       project.metrics?.criticsScore ?? stableInt(`${project.id}|critics|${releaseYear}|${releaseWeek}`, 50, 90);
 
@@ -43,7 +48,7 @@ export class StreamingFilmSystem {
         inTheaters: false,
         theaterCount: 0,
         theatricalRunLocked: true,
-        boxOfficeStatus: 'Streaming Premiere',
+        boxOfficeStatus: platformLabel ? `Streaming Premiere • ${platformLabel}` : 'Streaming Premiere',
         boxOfficeTotal: project.metrics?.boxOfficeTotal ?? 0,
         weeksSinceRelease: 0,
         streamingViews: totalViews,

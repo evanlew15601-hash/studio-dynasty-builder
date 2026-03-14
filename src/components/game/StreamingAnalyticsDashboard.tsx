@@ -533,6 +533,19 @@ export const StreamingAnalyticsDashboard: React.FC = () => {
                       </div>
                     )}
                   </>
+                ) : project.releaseStrategy?.type === 'streaming' && project.streamingPremiereDeal ? (
+                  <div className="grid grid-cols-2 gap-4 text-sm">
+                    <div>
+                      <p className="text-muted-foreground mb-1">Premiere deal</p>
+                      <p className="font-semibold">{project.streamingPremiereDeal.providerId}</p>
+                    </div>
+                    <div>
+                      <p className="text-muted-foreground mb-1">Upfront payment</p>
+                      <p className="font-semibold">
+                        {(project.streamingPremiereDeal.upfrontPayment / 1000000).toFixed(1)}M
+                      </p>
+                    </div>
+                  </div>
                 ) : (
                   <p className="text-sm text-muted-foreground">
                     This series does not currently have a platform contract. Strong analytics make it easier

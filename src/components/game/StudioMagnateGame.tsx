@@ -1464,7 +1464,17 @@ export const StudioMagnateGame: React.FC<StudioMagnateGameProps> = ({
               const isPrimaryStreaming = updatedProject.releaseStrategy?.type === 'streaming';
 
               if (isPrimaryStreaming) {
-                updatedProject = StreamingFilmSystem.initializeRelease(updatedProject, resolvedReleaseWeek, resolvedReleaseYear);
+                const premierePlatformLabel =
+                  updatedProject.distributionStrategy?.primary?.type === 'streaming'
+                    ? updatedProject.distributionStrategy.primary.platform
+                    : undefined;
+
+                updatedProject = StreamingFilmSystem.initializeRelease(
+                  updatedProject,
+                  resolvedReleaseWeek,
+                  resolvedReleaseYear,
+                  premierePlatformLabel
+                );
 
                 const alreadyHasStreamingWindow = (updatedProject.postTheatricalReleases || []).some(
                   (r) => r.platform === 'streaming'
@@ -1500,6 +1510,10 @@ export const StudioMagnateGame: React.FC<StudioMagnateGameProps> = ({
                           id: `release-${Date.now()}`,
                           projectId: updatedProject.id,
                           platform: 'streaming',
+                          providerId:
+                            updatedProject.releaseStrategy?.streamingProviderId ||
+                            updatedProject.streamingPremiereDeal?.providerId ||
+                            undefined,
                           releaseDate: new Date(),
                           revenue: 0,
                           weeklyRevenue,
