@@ -623,7 +623,7 @@ export const StudioMagnateGame: React.FC<StudioMagnateGameProps> = ({
     const run = async () => {
       startOperation(LOADING_OPERATIONS.GAME_LOAD.id, LOADING_OPERATIONS.GAME_LOAD.name, LOADING_OPERATIONS.GAME_LOAD.estimatedTime);
 
-      const yieldToBrowser = () => new Promise<void>((resolve) => requestAnimationFrame(() => resolve()));
+      const yieldToBrowser = () => delay(0);
 
       try {
         updateOperation(LOADING_OPERATIONS.GAME_LOAD.id, 5, 'Preparing save...');
@@ -867,6 +867,8 @@ export const StudioMagnateGame: React.FC<StudioMagnateGameProps> = ({
       if (cancelled) return;
 
       updateOperation(LOADING_OPERATIONS.GAME_INIT.id, 100, 'Finalizing...');
+      await delay(0);
+
       initCommitted = true;
       clearTimeout(failOpenTimer);
       initGame(initialState, initialState.universeSeed);

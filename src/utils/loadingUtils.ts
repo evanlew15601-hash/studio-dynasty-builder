@@ -48,6 +48,11 @@ export const LOADING_OPERATIONS = {
     name: 'Initializing Game',
     estimatedTime: 3,
   },
+  SNAPSHOT_LOAD: {
+    id: 'snapshot-load',
+    name: 'Reading Save',
+    estimatedTime: 1,
+  },
   GAME_LOAD: {
     id: 'game-load',
     name: 'Loading Saved Game',

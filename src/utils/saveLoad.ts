@@ -1,5 +1,6 @@
 import { GameState } from '@/types/game';
 import { isTauriRuntime, loadSlotJson, saveSlotJson } from '@/integrations/tauri/saves';
+import { parseJsonInWorker } from '@/game/worker/jsonParseClient';
 
 export interface SaveGameMeta {
   savedAt: string;
@@ -148,5 +149,29 @@ export async function loadGameAsync(slotId: string): Promise<SaveGameSnapshot | 
     }
   }
 
-  return loadGame(slotId);
+  if (typeof window === 'undefined' || typeof window.localStorage === 'undefined') {
+    return null;
+  }
+
+  try {
+    const key = `${SAVE_KEY_PREFIX}${slotId}`;
+    const raw = window.localStorage.getItem(key);
+    if (!raw) return null;
+
+    let parsed: SaveGameSnapshot;
+    try {
+      parsed = await parseJsonInWorker<SaveGameSnapshot>(raw);
+    } catch {
+      parsed = JSON.parse(raw) as SaveGameSnapshot;
+    }
+
+    if (!parsed || !parsed.gameState || !parsed.meta) {
+      return null;
+    }
+
+    return parsed;
+  } catch (error) {
+    console.error('Failed to load game snapshot', error);
+    return null;
+  }
 }
