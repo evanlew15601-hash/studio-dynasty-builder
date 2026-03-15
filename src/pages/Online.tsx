@@ -36,7 +36,7 @@ const Online = () => {
   const [loadedSnapshot, setLoadedSnapshot] = useState<SaveGameSnapshot | null>(null);
   const [saveDialogOpen, setSaveDialogOpen] = useState(false);
   const [onlineLeagueCode, setOnlineLeagueCode] = useState('');
-  const [onlineHostSync, setOnlineHostSync] = useState(true);
+  const [onlineHostSync, setOnlineHostSync] = useState(false);
   const [onlineSeasonYears, setOnlineSeasonYears] = useState(6);
 
   useEffect(() => {

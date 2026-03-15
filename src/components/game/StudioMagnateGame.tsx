@@ -3214,11 +3214,13 @@ export const StudioMagnateGame: React.FC<StudioMagnateGameProps> = ({
     const nextNames = leagueCompetitorStudios.map((s) => s.name).sort().join('|');
 
     const playerName = gameState.studio.name;
+    const leagueNames = new Set<string>([playerName, ...leagueCompetitorStudios.map((s) => s.name)]);
+
     const existingReleases = gameState.allReleases || [];
     const filteredReleases = existingReleases.filter((r: any) => {
       const studioName = r?.studioName;
       if (!studioName) return true;
-      return studioName === playerName;
+      return leagueNames.has(studioName);
     });
 
     const shouldUpdateCompetitors = currentNames !== nextNames;
@@ -3240,6 +3242,153 @@ export const StudioMagnateGame: React.FC<StudioMagnateGameProps> = ({
     gameState.allReleases,
     gameState.aiStudioProjects,
     mergeGameState,
+  ]);
+
+  // Online League (multi-studio): pull lightweight release details from all member submissions,
+  // and merge them into the shared "world" release feed.
+  useEffect(() => {
+    if (!isOnlineMode) return;
+    if (onlineHostSync) return;
+    if (onlineTickGate.status !== 'ready') return;
+    if (!onlineTickGate.leagueId) return;
+
+    const leagueId = onlineTickGate.leagueId;
+    const turn = onlineTickGate.turn;
+
+    void (async () => {
+      try {
+        const submissionsByUserId = await fetchOnlineLeagueTurnSubmissions({ leagueId, turn });
+
+        const incoming = Object.values(submissionsByUserId || {})
+          .flatMap((sub: any) => (sub?.state?.releasedProjects || []) as any[])
+          .filter((r) => r && typeof r.id === 'string' && typeof r.title === 'string' && typeof r.studioName === 'string');
+
+        if (incoming.length === 0) return;
+
+        const mkProject = (r: any): Project => {
+          const budgetTotal = typeof r.budgetTotal === 'number' ? r.budgetTotal : 0;
+          const genre = (r.genre as any) || 'drama';
+
+          const script = {
+            id: `league-script-${r.id}`,
+            title: r.title,
+            genre,
+            logline: '',
+            writer: 'Unknown',
+            pages: 0,
+            quality: 60,
+            budget: budgetTotal,
+            developmentStage: 'final',
+            themes: [],
+            targetAudience: 'general',
+            estimatedRuntime: 120,
+            characteristics: {
+              tone: 'balanced',
+              pacing: 'steady',
+              dialogue: 'naturalistic',
+              visualStyle: 'realistic',
+              commercialAppeal: 5,
+              criticalPotential: 5,
+              cgiIntensity: 'minimal',
+            },
+            franchiseId: r.franchiseId,
+            publicDomainId: r.publicDomainId,
+          } as any;
+
+          const now = new Date();
+
+          return {
+            id: r.id,
+            title: r.title,
+            studioName: r.studioName,
+            type: (r.type as any) || 'feature',
+            script,
+            currentPhase: 'release' as any,
+            status: 'released' as any,
+            phaseDuration: 0,
+            budget: {
+              total: budgetTotal,
+              allocated: { aboveTheLine: 0, belowTheLine: 0, postProduction: 0, marketing: 0, distribution: 0, contingency: 0 },
+              spent: { aboveTheLine: 0, belowTheLine: 0, postProduction: 0, marketing: 0, distribution: 0, contingency: 0 },
+              overages: { aboveTheLine: 0, belowTheLine: 0, postProduction: 0, marketing: 0, distribution: 0, contingency: 0 },
+            },
+            cast: [],
+            crew: [],
+            timeline: {
+              preProduction: { start: now, end: now } as any,
+              principalPhotography: { start: now, end: now } as any,
+              postProduction: { start: now, end: now } as any,
+              release: now,
+              milestones: [],
+            } as any,
+            locations: [],
+            distributionStrategy: {
+              primary: { platform: 'Theatrical', type: 'theatrical', revenue: { type: 'box-office', studioShare: 50 } },
+              international: [],
+              windows: [],
+              marketingBudget: 0,
+            } as any,
+            contractedTalent: [],
+            developmentProgress: {
+              scriptCompletion: 100,
+              budgetApproval: 100,
+              talentAttached: 100,
+              locationSecured: 100,
+              completionThreshold: 100,
+              issues: [],
+            } as any,
+            releaseWeek: typeof r.releaseWeek === 'number' ? r.releaseWeek : undefined,
+            releaseYear: typeof r.releaseYear === 'number' ? r.releaseYear : undefined,
+            metrics: {
+              criticsScore: typeof r.criticsScore === 'number' ? r.criticsScore : undefined,
+              audienceScore: typeof r.audienceScore === 'number' ? r.audienceScore : undefined,
+              boxOfficeTotal: typeof r.boxOfficeTotal === 'number' ? r.boxOfficeTotal : undefined,
+              lastWeeklyRevenue: typeof r.lastWeeklyRevenue === 'number' ? r.lastWeeklyRevenue : undefined,
+              weeksSinceRelease: typeof r.weeksSinceRelease === 'number' ? r.weeksSinceRelease : undefined,
+              inTheaters: typeof r.inTheaters === 'boolean' ? r.inTheaters : undefined,
+            },
+          } as any;
+        };
+
+        setGameState((prev) => {
+          const existing = prev.allReleases || [];
+
+          const byId = new Map<string, any>();
+          const order: string[] = [];
+
+          for (const rel of existing) {
+            const id = (rel as any)?.id;
+            if (!id || typeof id !== 'string') continue;
+            if (!byId.has(id)) order.push(id);
+            byId.set(id, rel);
+          }
+
+          for (const rel of incoming) {
+            const id = rel.id as string;
+            if (!byId.has(id)) order.push(id);
+            byId.set(id, mkProject(rel));
+          }
+
+          const merged = order.map((id) => byId.get(id)).filter(Boolean);
+
+          if (merged.length === existing.length && merged.every((v, i) => v === existing[i])) return prev;
+
+          return {
+            ...prev,
+            allReleases: merged as any,
+          } as any;
+        });
+      } catch (e) {
+        console.warn('Online League: failed to merge shared releases', e);
+      }
+    })();
+  }, [
+    isOnlineMode,
+    onlineHostSync,
+    onlineTickGate.status,
+    onlineTickGate.leagueId,
+    onlineTickGate.turn,
+    setGameState,
   ]);
 
   const handleForceAdvanceWeek = () => {

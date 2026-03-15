@@ -57,6 +57,8 @@ export const TopFilmsChart: React.FC = () => {
   };
 
   const determineStudioName = (project: Project): string => {
+    if (project.studioName) return project.studioName;
+
     // Check if it's an AI studio project
     if (project.id.startsWith('ai-project-')) {
       // Find the studio from competitor studios
@@ -67,7 +69,6 @@ export const TopFilmsChart: React.FC = () => {
       return studio?.name || 'Independent Studios';
     }
 
-    // Player's project
     return gameState.studio.name;
   };
 

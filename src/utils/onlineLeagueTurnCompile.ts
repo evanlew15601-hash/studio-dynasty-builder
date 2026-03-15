@@ -15,11 +15,29 @@ export type OnlineLeagueTurnSubmission = {
   submittedAt: string;
   studioName: string;
   commands: OnlineLeagueSignTalentCommand[];
-  // Optional: a small snapshot slice for debugging and nicer notifications.
+  // Optional: a small snapshot slice for debugging and for lightweight shared-world views.
   // Keep it JSON-serializable (avoid Dates/BigInt/functions from full game state).
   state?: {
     studio: { id: string; name: string } | null;
     projects: Array<{ id: string; title: string }>;
+    releasedProjects?: Array<{
+      id: string;
+      title: string;
+      studioName: string;
+      type: string;
+      genre?: string;
+      budgetTotal?: number;
+      releaseWeek?: number;
+      releaseYear?: number;
+      criticsScore?: number;
+      audienceScore?: number;
+      boxOfficeTotal?: number;
+      lastWeeklyRevenue?: number;
+      weeksSinceRelease?: number;
+      inTheaters?: boolean;
+      publicDomainId?: string;
+      franchiseId?: string;
+    }>;
   };
 };
 
@@ -78,6 +96,27 @@ export function buildOnlineLeagueTurnSubmission(params: {
     }
   }
 
+  const releasedProjects = (current.projects || [])
+    .filter((p) => p.status === 'released')
+    .map((p) => ({
+      id: p.id,
+      title: p.title,
+      studioName: current.studio?.name ?? 'Studio',
+      type: (p as any).type ?? 'feature',
+      genre: (p as any).script?.genre,
+      budgetTotal: (p as any).budget?.total,
+      releaseWeek: (p as any).releaseWeek,
+      releaseYear: (p as any).releaseYear,
+      criticsScore: (p as any).metrics?.criticsScore,
+      audienceScore: (p as any).metrics?.audienceScore,
+      boxOfficeTotal: (p as any).metrics?.boxOfficeTotal,
+      lastWeeklyRevenue: (p as any).metrics?.lastWeeklyRevenue,
+      weeksSinceRelease: (p as any).metrics?.weeksSinceRelease,
+      inTheaters: (p as any).metrics?.inTheaters,
+      publicDomainId: (p as any).script?.publicDomainId ?? (p as any).publicDomainId,
+      franchiseId: (p as any).script?.franchiseId ?? (p as any).franchiseId,
+    }));
+
   return {
     version: 'online-turn-submission-1',
     submittedAt: new Date().toISOString(),
@@ -86,6 +125,7 @@ export function buildOnlineLeagueTurnSubmission(params: {
     state: {
       studio: current.studio ? { id: current.studio.id, name: current.studio.name } : null,
       projects: (current.projects || []).map((p) => ({ id: p.id, title: p.title })),
+      releasedProjects,
     },
   };
 }

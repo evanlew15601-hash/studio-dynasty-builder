@@ -594,18 +594,42 @@ export const LoreHub: React.FC = () => {
 
   const studios = useMemo(() => {
     if (!gameState) return [] as Studio[];
-    return [gameState.studio, ...(gameState.competitorStudios || [])]
+
+    const byId = new Map<string, Studio>();
+    const order: string[] = [];
+
+    for (const s of [gameState.studio, ...(gameState.competitorStudios || [])]) {
+      if (!s?.id) continue;
+      if (!byId.has(s.id)) order.push(s.id);
+      byId.set(s.id, s);
+    }
+
+    return order
+      .map((id) => byId.get(id))
       .filter(Boolean)
-      .sort((a, b) => (b.reputation || 0) - (a.reputation || 0));
+      .sort((a, b) => (b!.reputation || 0) - (a!.reputation || 0)) as Studio[];
   }, [gameState]);
 
   if (!gameState) {
     return <div className="p-6 text-sm text-muted-foreground">Loading encyclopedia...</div>;
   }
 
-  const allTalent = gameState.talent || [];
-  const franchises = gameState.franchises || [];
-  const publicDomain = gameState.publicDomainIPs || [];
+  const uniqById = <T extends { id: string }>(items: T[]): T[] => {
+    const byId = new Map<string, T>();
+    const order: string[] = [];
+
+    for (const item of items) {
+      if (!item?.id) continue;
+      if (!byId.has(item.id)) order.push(item.id);
+      byId.set(item.id, item);
+    }
+
+    return order.map((id) => byId.get(id)!).filter(Boolean);
+  };
+
+  const allTalent = uniqById(gameState.talent || []);
+  const franchises = uniqById(gameState.franchises || []);
+  const publicDomain = uniqById(gameState.publicDomainIPs || []);
 
   return (
     <Tabs defaultValue="talent" className="space-y-4">

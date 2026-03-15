@@ -54,8 +54,6 @@ export function patchLoadedSnapshot(
   }
 
   // Online mode should only include player-controlled studios.
-  const playerStudioName = patchedGameState.studio?.name;
-
   return {
     ...snapshot,
     gameState: {
@@ -63,11 +61,6 @@ export function patchLoadedSnapshot(
       mode: 'online',
       competitorStudios: [],
       aiStudioProjects: [],
-      allReleases: (patchedGameState.allReleases || []).filter((r: any) => {
-        const studioName = r?.studioName;
-        if (!studioName) return true;
-        return studioName === playerStudioName;
-      }),
     },
   };
 }
