@@ -27,7 +27,7 @@ npm run check
 
 - [ ] Verify saving works on a clean machine (creates a save file on disk via the in-game Saves… dialog)
 - [ ] If shipping on Steam with Steam Cloud, confirm Steam Auto Cloud is configured to sync the save folder shown in the in-game Saves… dialog
-- [ ] If shipping on Steam with Achievements/Overlay integration, confirm Steamworks is enabled for the build (Cargo feature `steam`) and the correct Steam App ID + `steam_api64.dll` are present in the final depot
+- [ ] If shipping on Steam with Achievements/Overlay integration (once you have a Steam App ID), confirm Steamworks is enabled for the build (Cargo feature `steam`) and the correct Steam App ID + `steam_api64.dll` are present in the final depot
 
 ### Local
 
@@ -39,7 +39,7 @@ npm run tauri:build
 
 - [ ] Run the `windows-tauri-build` GitHub Actions workflow and download artifacts
 - [ ] Smoke test portable build (Steam-style): launch `studio-magnate.exe` from the extracted zip
-- [ ] Upload to Steam (SteamPipe): see `scripts/steam/README.md`
+- [ ] Upload to Steam (SteamPipe, once you have a Steam App ID): see `scripts/steam/README.md`
 - [ ] Smoke test installer(s): install, launch, uninstall, upgrade from previous beta
 
 ## 6) Open source compliance

@@ -4,6 +4,8 @@ This repo can produce a Steam-friendly portable build artifact (zip) via the `wi
 
 This folder contains a helper script to upload that build to Steam using `steamcmd`.
 
+If you don't have a Steam App ID yet, you can ignore this section until you're ready to set up Steamworks.
+
 ## Prereqs
 
 - Install the Steamworks SDK tools and locate `steamcmd.exe`.
