@@ -277,7 +277,7 @@ const StudioEncyclopedia: React.FC<{ studios: Studio[] }> = ({ studios }) => {
                   <div>
                     <div className="font-medium">{s.name}</div>
                     <div className="text-xs text-muted-foreground">
-                      Rep: {Math.round(s.reputation || 0)}/100 • Budget: {formatMoney(s.budget || 0)}
+                      Rep: {Math.round(s.reputation || 0)}/100 • Budget: {s.budget ? formatMoney(s.budget) : '—'}
                     </div>
                   </div>
                   {s.riskTolerance && (
@@ -310,7 +310,7 @@ const StudioEncyclopedia: React.FC<{ studios: Studio[] }> = ({ studios }) => {
                 <div className="flex flex-wrap gap-2">
                   <Badge variant="secondary">Rep: {Math.round(selected.reputation || 0)}/100</Badge>
                   <Badge variant="outline">Founded: {selected.founded || '—'}</Badge>
-                  <Badge variant="outline">Budget: {formatMoney(selected.budget || 0)}</Badge>
+                  <Badge variant="outline">Budget: {selected.budget ? formatMoney(selected.budget) : '—'}</Badge>
                   {selected.riskTolerance && (
                     <Badge variant="secondary" className="capitalize">{selected.riskTolerance} risk</Badge>
                   )}

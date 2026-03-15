@@ -292,7 +292,11 @@ function projectToMetaboxdTitle(gameState: GameState, project: Project): Metabox
   })();
 
   const runtimeMins = project.script?.estimatedRuntime;
-  const budget = project.script?.budget ?? project.budget?.total;
+  const budget = (() => {
+    const raw = project.script?.budget ?? project.budget?.total;
+    if (project.id.startsWith('league-')) return undefined;
+    return raw;
+  })();
 
   const boxOfficeTotal = project.metrics?.boxOfficeTotal;
   const streamingViews = project.metrics?.streamingViews ?? project.metrics?.streaming?.totalViews;

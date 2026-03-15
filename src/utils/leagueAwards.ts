@@ -3,7 +3,6 @@ import type { OnlineLeagueSnapshotRow } from '@/integrations/supabase/onlineLeag
 export type LeagueAwardsNominee = {
   userId: string;
   studioName: string;
-  budget: number;
   reputation: number;
   releasedTitles: number;
 };
@@ -22,14 +21,7 @@ export type LeagueAwardsCeremony = {
   categories: LeagueAwardsCategory[];
 };
 
-function parseBudget(value: number | string | null | undefined): number {
-  if (typeof value === 'number') return Number.isFinite(value) ? value : 0;
-  if (typeof value === 'string') {
-    const parsed = Number(value);
-    return Number.isFinite(parsed) ? parsed : 0;
-  }
-  return 0;
-}
+
 
 function stableTop(params: {
   nominees: LeagueAwardsNominee[];
@@ -61,7 +53,6 @@ export function computeLeagueAwardsCeremony(params: {
     .map((s) => ({
       userId: s.user_id,
       studioName: s.studio_name || 'Studio',
-      budget: parseBudget(s.budget),
       reputation: Number.isFinite(s.reputation) ? s.reputation : 0,
       releasedTitles: Number.isFinite(s.released_titles) ? s.released_titles : 0,
     }));

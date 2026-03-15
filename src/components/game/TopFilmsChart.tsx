@@ -3,8 +3,8 @@ import React, { useMemo, useState } from 'react';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
 import { Progress } from '@/components/ui/progress';
-import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle } from '@/components/ui/dialog';
 import { Project } from '@/types/game';
+import { ReleaseDetailsDialog } from './ReleaseDetailsDialog';
 import { TrendingIcon, StudioIcon, StarIcon } from '@/components/ui/icons';
 import { useGameStore } from '@/game/store';
 import { formatMoneyCompact } from '@/utils/money';
@@ -295,89 +295,14 @@ export const TopFilmsChart: React.FC = () => {
       </CardContent>
     </Card>
 
-    <Dialog
+    <ReleaseDetailsDialog
+      gameState={gameState}
+      project={activeRelease}
       open={!!activeRelease}
       onOpenChange={(open) => {
         if (!open) setActiveRelease(null);
       }}
-    >
-      <DialogContent className="max-w-2xl">
-        <DialogHeader>
-          <DialogTitle>{activeRelease?.title || 'Release'}</DialogTitle>
-          <DialogDescription>
-            {(activeRelease?.studioName?.trim() ? activeRelease.studioName : gameState.studio.name)}
-            {activeRelease ? ` • Week ${activeRelease.releaseWeek ?? '—'}, ${activeRelease.releaseYear ?? '—'}` : ''}
-          </DialogDescription>
-        </DialogHeader>
-
-        {activeRelease && (
-          <div className="space-y-4">
-            {(() => {
-              const source = getReleaseSource({ gameState, project: activeRelease });
-              const director = getReleaseDirectorName({ gameState, project: activeRelease });
-              const cast = getReleaseTopCastNames({ gameState, project: activeRelease, limit: 4 });
-              const peopleBits = [
-                source,
-                director ? `Dir. ${director}` : null,
-                cast.length ? `Cast: ${cast.join(', ')}` : null,
-              ].filter(Boolean);
-
-              const logline = activeRelease.script?.logline?.trim();
-
-              const showBudget = !activeRelease.id.startsWith('league-') || (activeRelease.studioName?.trim() ? activeRelease.studioName : gameState.studio.name) === gameState.studio.name;
-
-              const budget = showBudget ? Number(activeRelease.budget?.total ?? 0) : null;
-              const boxOffice = Number(activeRelease.metrics?.boxOfficeTotal ?? 0);
-              const weekly = Number(activeRelease.metrics?.lastWeeklyRevenue ?? 0);
-
-              return (
-                <>
-                  {peopleBits.length > 0 && (
-                    <div className="rounded-md border p-3 text-sm text-muted-foreground">
-                      {peopleBits.join(' • ')}
-                    </div>
-                  )}
-
-                  {logline && (
-                    <div className="rounded-md border p-3 text-sm text-muted-foreground">{logline}</div>
-                  )}
-
-                  <div className="grid gap-3 sm:grid-cols-2">
-                    <div className="rounded-md border p-3">
-                      <div className="text-xs text-muted-foreground">Critics</div>
-                      <div className="text-lg font-semibold">{Math.round(Number(activeRelease.metrics?.criticsScore ?? 0))}/100</div>
-                    </div>
-                    <div className="rounded-md border p-3">
-                      <div className="text-xs text-muted-foreground">Audience</div>
-                      <div className="text-lg font-semibold">{Math.round(Number(activeRelease.metrics?.audienceScore ?? 0))}/100</div>
-                    </div>
-                    <div className="rounded-md border p-3">
-                      <div className="text-xs text-muted-foreground">Total box office</div>
-                      <div className="text-lg font-semibold">{formatMoneyCompact(boxOffice)}</div>
-                    </div>
-                    <div className="rounded-md border p-3">
-                      <div className="text-xs text-muted-foreground">Budget</div>
-                      <div className="text-lg font-semibold">{budget !== null ? formatMoneyCompact(budget) : 'Hidden'}</div>
-                    </div>
-                  </div>
-
-                  <div className="grid gap-3 sm:grid-cols-2">
-                    <div className="rounded-md border p-3">
-                      <div className="text-xs text-muted-foreground">Last week</div>
-                      <div className="text-lg font-semibold">{formatMoneyCompact(weekly)}</div>
-                    </div>
-                    <div className="rounded-md border p-3">
-                      <div className="text-xs text-muted-foreground">In theaters</div>
-                      <div className="text-lg font-semibold">{activeRelease.metrics?.inTheaters ? 'Yes' : 'No'}</div>
-                    </div>
-                  </div>
-                </>
-              );
-            })()}
-          </div>
-        )}
-      </DialogContent>
-    </Dialog>
+    />
   </>
   );
 };

@@ -3124,19 +3124,18 @@ export const StudioMagnateGame: React.FC<StudioMagnateGameProps> = ({
       id: `league-${remote.userId}`,
       name: remote.studioName,
       reputation: remote.reputation,
-      budget: remote.budget,
+      budget: 0,
       founded: 1965,
       specialties: ['drama'] as Genre[],
     }));
   }, [isOnlineMode, onlineTickGate.remoteStudios]);
 
   const leagueRoster = useMemo(() => {
-    if (!isOnlineMode) return [] as Array<{ id: string; name: string; budget: number; reputation: number; releasedTitles: number; week: number; year: number; updatedAt?: string; isYou: boolean }>;
+    if (!isOnlineMode) return [] as Array<{ id: string; name: string; reputation: number; releasedTitles: number; week: number; year: number; updatedAt?: string; isYou: boolean }>;
 
     const you = {
       id: onlineTickGate.userId ?? gameState.studio.id,
       name: gameState.studio.name,
-      budget: gameState.studio.budget,
       reputation: gameState.studio.reputation,
       releasedTitles: gameState.projects.filter((p) => p.status === 'released').length,
       week: gameState.currentWeek,
@@ -3148,7 +3147,6 @@ export const StudioMagnateGame: React.FC<StudioMagnateGameProps> = ({
     const others = (onlineTickGate.remoteStudios || []).map((s) => ({
       id: s.userId,
       name: s.studioName,
-      budget: s.budget,
       reputation: s.reputation,
       releasedTitles: s.releasedTitles ?? 0,
       week: s.week ?? 0,
@@ -3160,9 +3158,9 @@ export const StudioMagnateGame: React.FC<StudioMagnateGameProps> = ({
     return [you, ...others].sort((a, b) => {
       if (b.reputation !== a.reputation) return b.reputation - a.reputation;
       if (b.releasedTitles !== a.releasedTitles) return b.releasedTitles - a.releasedTitles;
-      return b.budget - a.budget;
+      return a.name.localeCompare(b.name);
     });
-  }, [isOnlineMode, onlineTickGate.userId, onlineTickGate.remoteStudios, gameState.studio.id, gameState.studio.name, gameState.studio.budget, gameState.studio.reputation, gameState.projects, gameState.currentWeek, gameState.currentYear]);
+  }, [isOnlineMode, onlineTickGate.userId, onlineTickGate.remoteStudios, gameState.studio.id, gameState.studio.name, gameState.studio.reputation, gameState.projects, gameState.currentWeek, gameState.currentYear]);
 
   useEffect(() => {
     if (!isOnlineMode) return;
@@ -3886,7 +3884,7 @@ export const StudioMagnateGame: React.FC<StudioMagnateGameProps> = ({
                             <div className="text-right">
                               <div className="text-sm">Rep {Math.round(s.reputation)}/100</div>
                               <div className="text-xs text-muted-foreground">
-                                ${(s.budget / 1_000_000).toFixed(0)}M • {s.releasedTitles} released
+                                {s.releasedTitles} released
                               </div>
                             </div>
                           </div>

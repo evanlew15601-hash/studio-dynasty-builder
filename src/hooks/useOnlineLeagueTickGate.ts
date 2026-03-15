@@ -33,7 +33,6 @@ export type OnlineLeagueTickGateStatus =
 export type OnlineLeagueTickGateRemoteStudio = {
   userId: string;
   studioName: string;
-  budget: number;
   reputation: number;
   week?: number;
   year?: number;
@@ -287,14 +286,13 @@ export function useOnlineLeagueTickGate({
 
       const snapshotsRes = await supabase
         .from('online_league_snapshots')
-        .select('user_id, studio_name, budget, reputation, week, year, released_titles, updated_at')
+        .select('user_id, studio_name, reputation, week, year, released_titles, updated_at')
         .eq('league_id', leagueId);
 
-      const snapshotByUserId = new Map<string, { studio_name: string; budget: number; reputation: number; week?: number; year?: number; released_titles?: number; updated_at?: string }>();
+      const snapshotByUserId = new Map<string, { studio_name: string; reputation: number; week?: number; year?: number; released_titles?: number; updated_at?: string }>();
       for (const row of snapshotsRes.data || []) {
         snapshotByUserId.set(row.user_id, {
           studio_name: row.studio_name,
-          budget: row.budget,
           reputation: row.reputation,
           week: row.week,
           year: row.year,
@@ -310,7 +308,6 @@ export function useOnlineLeagueTickGate({
           return {
             userId: m.user_id,
             studioName: snap?.studio_name || m.studio_name,
-            budget: Number(snap?.budget ?? 0),
             reputation: Number(snap?.reputation ?? 0),
             week: snap?.week,
             year: snap?.year,

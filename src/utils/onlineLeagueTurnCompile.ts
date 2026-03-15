@@ -125,7 +125,6 @@ export function buildOnlineLeagueTurnSubmission(params: {
         studioName: current.studio?.name ?? 'Studio',
         type: p.type,
         genre: p.script?.genre,
-        budgetTotal: p.budget?.total,
         runtimeMins: p.script?.estimatedRuntime,
         releaseWeek: p.releaseWeek,
         releaseYear: p.releaseYear,

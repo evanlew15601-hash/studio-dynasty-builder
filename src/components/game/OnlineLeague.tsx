@@ -196,7 +196,7 @@ export const OnlineLeague: React.FC<OnlineLeagueProps> = ({ initialLeagueCode })
 
     const snapshot: PresenceStudioSnapshot = {
       studioName: gameState.studio.name,
-      budget: gameState.studio.budget,
+      budget: 0,
       reputation: gameState.studio.reputation,
       week: gameState.currentWeek,
       year: gameState.currentYear,
@@ -212,7 +212,7 @@ export const OnlineLeague: React.FC<OnlineLeagueProps> = ({ initialLeagueCode })
         league_id: activeLeagueId,
         user_id: userId,
         studio_name: snapshot.studioName,
-        budget: snapshot.budget,
+        budget: 0,
         reputation: Math.round(snapshot.reputation),
         week: snapshot.week,
         year: snapshot.year,
