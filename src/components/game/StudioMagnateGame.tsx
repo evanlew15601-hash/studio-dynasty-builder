@@ -3259,18 +3259,31 @@ export const StudioMagnateGame: React.FC<StudioMagnateGameProps> = ({
       try {
         const submissionsByUserId = await fetchOnlineLeagueTurnSubmissions({ leagueId, turn });
 
-        const incoming = Object.values(submissionsByUserId || {})
-          .flatMap((sub: any) => (sub?.state?.releasedProjects || []) as any[])
-          .filter((r) => r && typeof r.id === 'string' && typeof r.title === 'string' && typeof r.studioName === 'string');
+        const selfUserId = onlineTickGate.userId;
+
+        const incoming = Object.entries(submissionsByUserId || {})
+          .filter(([userId]) => userId && userId !== selfUserId)
+          .flatMap(([userId, sub]: any) =>
+            ((sub?.state?.releasedProjects || []) as any[]).map((r) => ({ ...r, __leagueUserId: userId }))
+          )
+          .filter(
+            (r) =>
+              r &&
+              typeof r.id === 'string' &&
+              typeof r.title === 'string' &&
+              typeof r.studioName === 'string' &&
+              typeof r.__leagueUserId === 'string'
+          );
 
         if (incoming.length === 0) return;
 
         const mkProject = (r: any): Project => {
+          const stableId = `league-${r.__leagueUserId}-${r.id}`;
           const budgetTotal = typeof r.budgetTotal === 'number' ? r.budgetTotal : 0;
           const genre = (r.genre as any) || 'drama';
 
           const script = {
-            id: `league-script-${r.id}`,
+            id: `league-script-${stableId}`,
             title: r.title,
             genre,
             logline: '',
@@ -3298,7 +3311,7 @@ export const StudioMagnateGame: React.FC<StudioMagnateGameProps> = ({
           const now = new Date();
 
           return {
-            id: r.id,
+            id: stableId,
             title: r.title,
             studioName: r.studioName,
             type: (r.type as any) || 'feature',
@@ -3364,9 +3377,22 @@ export const StudioMagnateGame: React.FC<StudioMagnateGameProps> = ({
           }
 
           for (const rel of incoming) {
-            const id = rel.id as string;
-            if (!byId.has(id)) order.push(id);
-            byId.set(id, mkProject(rel));
+            const stableId = `league-${rel.__leagueUserId}-${rel.id}`;
+
+            // If we previously stored this remote release under its raw project id,
+            // drop that legacy entry to avoid duplicate titles in the world feed.
+            const legacyId = rel.id as string;
+            if (legacyId && legacyId !== stableId && byId.has(legacyId)) {
+              const legacy = byId.get(legacyId) as any;
+              if (legacy?.studioName === rel.studioName && legacy?.studioName !== prev.studio.name) {
+                byId.delete(legacyId);
+                const idx = order.indexOf(legacyId);
+                if (idx >= 0) order.splice(idx, 1);
+              }
+            }
+
+            if (!byId.has(stableId)) order.push(stableId);
+            byId.set(stableId, mkProject(rel));
           }
 
           const merged = order.map((id) => byId.get(id)).filter(Boolean);
@@ -3388,6 +3414,7 @@ export const StudioMagnateGame: React.FC<StudioMagnateGameProps> = ({
     onlineTickGate.status,
     onlineTickGate.leagueId,
     onlineTickGate.turn,
+    onlineTickGate.userId,
     setGameState,
   ]);
 

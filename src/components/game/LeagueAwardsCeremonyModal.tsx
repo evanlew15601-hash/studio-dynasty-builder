@@ -8,12 +8,6 @@ import { TrophyIcon } from '@/components/ui/icons';
 import { X } from 'lucide-react';
 import type { LeagueAwardsCategory, LeagueAwardsCeremony, LeagueAwardsNominee } from '@/utils/leagueAwards';
 
-function formatMoney(amount: number): string {
-  if (!Number.isFinite(amount) || amount <= 0) return '$0';
-  if (amount >= 1_000_000_000) return `$${(amount / 1_000_000_000).toFixed(1)}B`;
-  return `$${(amount / 1_000_000).toFixed(0)}M`;
-}
-
 function getWinner(category: LeagueAwardsCategory): LeagueAwardsNominee | undefined {
   return (category.nominees || []).find((n) => n.userId === category.winnerUserId) || category.nominees?.[0];
 }
@@ -99,7 +93,7 @@ export const LeagueAwardsCeremonyModal: React.FC<LeagueAwardsCeremonyModalProps>
                             <div>
                               <div className="font-semibold">{nominee.studioName}</div>
                               <div className="text-sm text-muted-foreground">
-                                Rep {Math.round(nominee.reputation)} • Budget {formatMoney(nominee.budget)} • Releases {nominee.releasedTitles}
+                                Rep {Math.round(nominee.reputation)} • Releases {nominee.releasedTitles}
                               </div>
                             </div>
                             <Badge variant="outline">League Studio</Badge>
@@ -123,7 +117,7 @@ export const LeagueAwardsCeremonyModal: React.FC<LeagueAwardsCeremonyModalProps>
                         <div className="text-3xl font-bold text-yellow-600 mb-2">WINNER!</div>
                         <div className="text-2xl font-semibold mb-2">{currentWinner.studioName}</div>
                         <div className="text-lg text-muted-foreground">
-                          Rep {Math.round(currentWinner.reputation)} • Budget {formatMoney(currentWinner.budget)} • Releases {currentWinner.releasedTitles}
+                          Rep {Math.round(currentWinner.reputation)} • Releases {currentWinner.releasedTitles}
                         </div>
                       </CardContent>
                     </Card>
@@ -160,7 +154,7 @@ export const LeagueAwardsCeremonyModal: React.FC<LeagueAwardsCeremonyModalProps>
                     <CardContent>
                       <div className="font-semibold">{winner.studioName}</div>
                       <div className="text-sm text-muted-foreground">
-                        Rep {Math.round(winner.reputation)} • Budget {formatMoney(winner.budget)} • Releases {winner.releasedTitles}
+                        Rep {Math.round(winner.reputation)} • Releases {winner.releasedTitles}
                       </div>
                     </CardContent>
                   </Card>

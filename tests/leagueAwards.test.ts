@@ -13,7 +13,6 @@ describe('computeLeagueAwardsCeremony', () => {
     });
 
     expect(ceremony?.categories.find((c) => c.id === 'best-reputation')?.winnerUserId).toBe('a');
-    expect(ceremony?.categories.find((c) => c.id === 'biggest-budget')?.winnerUserId).toBe('a');
     expect(ceremony?.categories.find((c) => c.id === 'most-releases')?.winnerUserId).toBe('a');
   });
 });

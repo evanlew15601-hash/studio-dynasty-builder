@@ -38,16 +38,6 @@ function generateLeagueCode(): string {
   return out;
 }
 
-function formatMoney(amount: number): string {
-  return `$${(amount / 1_000_000).toFixed(0)}M`;
-}
-
-function parseBudget(value: number | string): number {
-  if (typeof value === 'number') return value;
-  const parsed = Number(value);
-  return Number.isFinite(parsed) ? parsed : 0;
-}
-
 function mapOnlineLeagueError(message: string): string {
   const normalized = (message || '').toLowerCase();
 
@@ -259,7 +249,8 @@ export const OnlineLeague: React.FC<OnlineLeagueProps> = ({ initialLeagueCode })
 
     return entries.sort((a, b) => {
       if (b.snapshot.reputation !== a.snapshot.reputation) return b.snapshot.reputation - a.snapshot.reputation;
-      return b.snapshot.budget - a.snapshot.budget;
+      if (b.snapshot.releasedTitles !== a.snapshot.releasedTitles) return b.snapshot.releasedTitles - a.snapshot.releasedTitles;
+      return a.snapshot.studioName.localeCompare(b.snapshot.studioName);
     });
   }, [presence]);
 
@@ -267,14 +258,14 @@ export const OnlineLeague: React.FC<OnlineLeagueProps> = ({ initialLeagueCode })
     const list = persistedSnapshots.slice();
     return list.sort((a, b) => {
       if (b.reputation !== a.reputation) return b.reputation - a.reputation;
-      return parseBudget(b.budget) - parseBudget(a.budget);
+      if (b.released_titles !== a.released_titles) return b.released_titles - a.released_titles;
+      return a.studio_name.localeCompare(b.studio_name);
     });
   }, [persistedSnapshots]);
 
   const leagueAwards = useMemo(() => {
     type Candidate = {
       studioName: string;
-      budget: number;
       reputation: number;
       releasedTitles: number;
     };
@@ -282,13 +273,11 @@ export const OnlineLeague: React.FC<OnlineLeagueProps> = ({ initialLeagueCode })
     const candidates: Candidate[] = members.length > 0
       ? members.map(({ snapshot }) => ({
         studioName: snapshot.studioName,
-        budget: snapshot.budget,
         reputation: snapshot.reputation,
         releasedTitles: snapshot.releasedTitles,
       }))
       : persistedMembers.map((m) => ({
         studioName: m.studio_name,
-        budget: parseBudget(m.budget),
         reputation: m.reputation,
         releasedTitles: m.released_titles,
       }));
@@ -314,7 +303,6 @@ export const OnlineLeague: React.FC<OnlineLeagueProps> = ({ initialLeagueCode })
     return [
       topBy('reputation', 'Top reputation', (c) => `${Math.round(c.reputation)}/100 rep`),
       topBy('releasedTitles', 'Most releases', (c) => `${c.releasedTitles} released`),
-      topBy('budget', 'Biggest budget', (c) => `${formatMoney(c.budget)}`),
     ];
   }, [members, persistedMembers]);
 
@@ -468,7 +456,7 @@ export const OnlineLeague: React.FC<OnlineLeagueProps> = ({ initialLeagueCode })
         </CardHeader>
         <CardContent className="space-y-3 text-sm text-muted-foreground">
           <div>
-            Online League shares only small “snapshot” stats (studio name, budget, reputation, week/year, released titles). Game simulation and saves stay local to your device.
+            Online League shares only small “snapshot” stats (studio name, reputation, week/year, released titles). Game simulation and saves stay local to your device.
           </div>
           <ul className="list-disc pl-5 space-y-1">
             <li><span className="font-medium text-foreground">League size:</span> up to 8 members.</li>
@@ -584,7 +572,7 @@ export const OnlineLeague: React.FC<OnlineLeagueProps> = ({ initialLeagueCode })
                       <Badge variant="outline">Week {gameState.currentWeek}, {gameState.currentYear}</Badge>
                     </div>
                     <div className="mt-2 text-sm text-muted-foreground">
-                      Budget {formatMoney(gameState.studio.budget)} • Reputation {Math.round(gameState.studio.reputation)}/100 • Released {gameState.projects.filter(p => p.status === 'released').length}
+                      Reputation {Math.round(gameState.studio.reputation)}/100 • Released {gameState.projects.filter(p => p.status === 'released').length}
                     </div>
                   </div>
                 )}
@@ -624,7 +612,7 @@ export const OnlineLeague: React.FC<OnlineLeagueProps> = ({ initialLeagueCode })
                     </div>
                     <div className="text-right">
                       <div className="text-sm">Rep {Math.round(snapshot.reputation)}/100</div>
-                      <div className="text-xs text-muted-foreground">{formatMoney(snapshot.budget)} • {snapshot.releasedTitles} released</div>
+                      <div className="text-xs text-muted-foreground">{snapshot.releasedTitles} released</div>
                     </div>
                   </div>
                 ))}
@@ -655,7 +643,7 @@ export const OnlineLeague: React.FC<OnlineLeagueProps> = ({ initialLeagueCode })
                     </div>
                     <div className="text-right">
                       <div className="text-sm">Rep {Math.round(m.reputation)}/100</div>
-                      <div className="text-xs text-muted-foreground">{formatMoney(parseBudget(m.budget))} • {m.released_titles} released</div>
+                      <div className="text-xs text-muted-foreground">{m.released_titles} released</div>
                     </div>
                   </div>
                 ))}

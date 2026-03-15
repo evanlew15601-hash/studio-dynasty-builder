@@ -71,14 +71,10 @@ export function computeLeagueAwardsCeremony(params: {
   const bestOverall = stableTop({
     nominees,
     max: 5,
-    score: (n) => {
-      const budgetScore = Math.min(40, Math.log10(Math.max(1, n.budget)) * 10);
-      return Math.round(n.reputation * 2 + n.releasedTitles * 15 + budgetScore);
-    },
+    score: (n) => Math.round(n.reputation * 2 + n.releasedTitles * 15),
   });
 
   const bestRep = stableTop({ nominees, max: 5, score: (n) => Math.round(n.reputation * 100) });
-  const bestBudget = stableTop({ nominees, max: 5, score: (n) => Math.round(n.budget) });
   const mostReleases = stableTop({ nominees, max: 5, score: (n) => n.releasedTitles });
 
   return {
@@ -98,12 +94,7 @@ export function computeLeagueAwardsCeremony(params: {
         nominees: bestRep,
         winnerUserId: bestRep[0].userId,
       },
-      {
-        id: 'biggest-budget',
-        name: 'Biggest War Chest',
-        nominees: bestBudget,
-        winnerUserId: bestBudget[0].userId,
-      },
+      
       {
         id: 'most-releases',
         name: 'Most Prolific Slate',

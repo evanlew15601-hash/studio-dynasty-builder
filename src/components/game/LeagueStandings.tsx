@@ -6,10 +6,6 @@ import { Separator } from '@/components/ui/separator';
 import { useGameStore } from '@/game/store';
 import type { OnlineLeagueTickGateState, OnlineLeagueTickGateRemoteStudio } from '@/hooks/useOnlineLeagueTickGate';
 
-function formatMoney(amount: number): string {
-  return `$${(amount / 1_000_000).toFixed(0)}M`;
-}
-
 function formatAgo(iso?: string): string {
   if (!iso) return '—';
   const ms = Date.now() - Date.parse(iso);
@@ -25,7 +21,7 @@ function formatAgo(iso?: string): string {
   return `${d}d ago`;
 }
 
-type SortKey = 'reputation' | 'released' | 'budget';
+type SortKey = 'reputation' | 'released';
 
 type LeagueRosterRow = OnlineLeagueTickGateRemoteStudio & { isYou?: boolean };
 
@@ -57,15 +53,11 @@ export const LeagueStandings: React.FC<{ tickGate: OnlineLeagueTickGateState }> 
         if (br !== ar) return br - ar;
       }
 
-      if (sortKey === 'budget') {
-        if (b.budget !== a.budget) return b.budget - a.budget;
-      }
-
       if (b.reputation !== a.reputation) return b.reputation - a.reputation;
       const br = b.releasedTitles ?? 0;
       const ar = a.releasedTitles ?? 0;
       if (br !== ar) return br - ar;
-      return b.budget - a.budget;
+      return a.studioName.localeCompare(b.studioName);
     });
 
     return sorted;
@@ -129,13 +121,7 @@ export const LeagueStandings: React.FC<{ tickGate: OnlineLeagueTickGateState }> 
               >
                 Released
               </Button>
-              <Button
-                size="sm"
-                variant={sortKey === 'budget' ? 'default' : 'outline'}
-                onClick={() => setSortKey('budget')}
-              >
-                Budget
-              </Button>
+              
             </div>
           </div>
 
@@ -154,7 +140,7 @@ export const LeagueStandings: React.FC<{ tickGate: OnlineLeagueTickGateState }> 
                 <div className="text-right">
                   <div className="text-sm">Rep {Math.round(row.reputation)}/100</div>
                   <div className="text-xs text-muted-foreground">
-                    {formatMoney(row.budget)} • {(row.releasedTitles ?? 0)} released
+                    {(row.releasedTitles ?? 0)} released
                   </div>
                 </div>
               </div>
