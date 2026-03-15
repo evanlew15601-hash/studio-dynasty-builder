@@ -405,7 +405,19 @@ export const Metaboxd: React.FC = () => {
       .filter((r: any): r is Project => !!r && typeof r === 'object' && 'script' in r)
       .filter((p: Project) => p.status === 'released');
 
-    const mapped = releases.map((p: Project) => projectToMetaboxdTitle(gameState, p));
+    const byId = new Map<string, Project>();
+    const order: string[] = [];
+
+    for (const p of releases) {
+      if (!p?.id) continue;
+      if (!byId.has(p.id)) order.push(p.id);
+      byId.set(p.id, p);
+    }
+
+    const mapped = order
+      .map((id) => byId.get(id))
+      .filter(Boolean)
+      .map((p) => projectToMetaboxdTitle(gameState, p as Project));
 
     return mapped
       .sort((a, b) => (b.indexScore - a.indexScore) || a.title.localeCompare(b.title));

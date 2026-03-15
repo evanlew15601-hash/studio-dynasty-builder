@@ -148,7 +148,7 @@ export const GameLanding: React.FC<GameLandingProps> = ({
                 </CardHeader>
                 <CardContent className="space-y-3">
                   <p className="text-sm text-muted-foreground">
-                    Join friends with an invite code. This does not change single-player mechanics — it just enables live league snapshots.
+                    Join friends with an invite code. Leagues run in lockstep: each week advances when everyone is ready.
                   </p>
 
                   {!hasOnlineConfig && (
@@ -197,8 +197,8 @@ export const GameLanding: React.FC<GameLandingProps> = ({
 
                   <div className="flex items-center justify-between rounded-md border border-border/50 bg-background/40 px-3 py-2">
                     <div className="space-y-0.5">
-                      <div className="text-sm font-medium text-foreground">Host sync (experimental)</div>
-                      <div className="text-xs text-muted-foreground">Mirror the host's game state each turn.</div>
+                      <div className="text-sm font-medium text-foreground">Shared state</div>
+                      <div className="text-xs text-muted-foreground">Everyone mirrors the host’s save each turn (recommended).</div>
                     </div>
                     <Switch
                       checked={!!onlineHostSync}
