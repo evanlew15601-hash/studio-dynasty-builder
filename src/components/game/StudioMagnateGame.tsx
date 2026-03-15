@@ -125,6 +125,8 @@ import {
   upsertOnlineLeagueTurnResolution,
   upsertOnlineLeagueTurnSubmission,
 } from '@/integrations/supabase/onlineLeagueTurnCompile';
+import { mergeLeagueReleaseSnapshotsIntoAllReleases } from '@/utils/leagueReleases';
+import type { LeagueReleasedProjectSnapshot } from '@/types/onlineLeague';
 import {
   applyOnlineLeagueTalentResolution,
   buildOnlineLeagueTurnSubmission,
@@ -3263,151 +3265,30 @@ export const StudioMagnateGame: React.FC<StudioMagnateGameProps> = ({
 
         const incoming = Object.entries(submissionsByUserId || {})
           .filter(([userId]) => userId && userId !== selfUserId)
-          .flatMap(([userId, sub]: any) =>
-            ((sub?.state?.releasedProjects || []) as any[]).map((r) => ({ ...r, __leagueUserId: userId }))
-          )
-          .filter(
-            (r) =>
-              r &&
-              typeof r.id === 'string' &&
-              typeof r.title === 'string' &&
-              typeof r.studioName === 'string' &&
-              typeof r.__leagueUserId === 'string'
-          );
+          .flatMap(([userId, sub]) => {
+            const released = sub?.state?.releasedProjects || [];
+            return released.map((snapshot) => ({ leagueUserId: userId, snapshot }));
+          })
+          .filter((entry): entry is { leagueUserId: string; snapshot: LeagueReleasedProjectSnapshot } => {
+            if (!entry) return false;
+            if (typeof entry.leagueUserId !== 'string' || !entry.leagueUserId) return false;
+            const s = entry.snapshot as any;
+            return !!s && typeof s.id === 'string' && typeof s.title === 'string' && typeof s.studioName === 'string';
+          });
 
         if (incoming.length === 0) return;
 
-        const mkProject = (r: any): Project => {
-          const stableId = `league-${r.__leagueUserId}-${r.id}`;
-          const budgetTotal = typeof r.budgetTotal === 'number' ? r.budgetTotal : 0;
-          const genre = (r.genre as any) || 'drama';
-
-          const script = {
-            id: `league-script-${stableId}`,
-            title: r.title,
-            genre,
-            logline: typeof r.logline === 'string' ? r.logline : '',
-            writer: 'Unknown',
-            pages: 0,
-            quality: 60,
-            budget: budgetTotal,
-            developmentStage: 'final',
-            themes: [],
-            targetAudience: 'general',
-            estimatedRuntime: typeof r.runtimeMins === 'number' ? r.runtimeMins : 120,
-            characteristics: {
-              tone: 'balanced',
-              pacing: 'steady',
-              dialogue: 'naturalistic',
-              visualStyle: 'realistic',
-              commercialAppeal: 5,
-              criticalPotential: 5,
-              cgiIntensity: 'minimal',
-            },
-            franchiseId: r.franchiseId,
-            publicDomainId: r.publicDomainId,
-          } as any;
-
-          const now = new Date();
-
-          return {
-            id: stableId,
-            title: r.title,
-            studioName: r.studioName,
-            type: (r.type as any) || 'feature',
-            script,
-            currentPhase: 'release' as any,
-            status: 'released' as any,
-            phaseDuration: 0,
-            budget: {
-              total: budgetTotal,
-              allocated: { aboveTheLine: 0, belowTheLine: 0, postProduction: 0, marketing: 0, distribution: 0, contingency: 0 },
-              spent: { aboveTheLine: 0, belowTheLine: 0, postProduction: 0, marketing: 0, distribution: 0, contingency: 0 },
-              overages: { aboveTheLine: 0, belowTheLine: 0, postProduction: 0, marketing: 0, distribution: 0, contingency: 0 },
-            },
-            cast: [],
-            crew: [],
-            timeline: {
-              preProduction: { start: now, end: now } as any,
-              principalPhotography: { start: now, end: now } as any,
-              postProduction: { start: now, end: now } as any,
-              release: now,
-              milestones: [],
-            } as any,
-            locations: [],
-            distributionStrategy: {
-              primary: { platform: 'Theatrical', type: 'theatrical', revenue: { type: 'box-office', studioShare: 50 } },
-              international: [],
-              windows: [],
-              marketingBudget: 0,
-            } as any,
-            contractedTalent: [],
-            developmentProgress: {
-              scriptCompletion: 100,
-              budgetApproval: 100,
-              talentAttached: 100,
-              locationSecured: 100,
-              completionThreshold: 100,
-              issues: [],
-            } as any,
-            releaseWeek: typeof r.releaseWeek === 'number' ? r.releaseWeek : undefined,
-            releaseYear: typeof r.releaseYear === 'number' ? r.releaseYear : undefined,
-            metrics: {
-              criticsScore: typeof r.criticsScore === 'number' ? r.criticsScore : undefined,
-              audienceScore: typeof r.audienceScore === 'number' ? r.audienceScore : undefined,
-              boxOfficeTotal: typeof r.boxOfficeTotal === 'number' ? r.boxOfficeTotal : undefined,
-              lastWeeklyRevenue: typeof r.lastWeeklyRevenue === 'number' ? r.lastWeeklyRevenue : undefined,
-              weeksSinceRelease: typeof r.weeksSinceRelease === 'number' ? r.weeksSinceRelease : undefined,
-              inTheaters: typeof r.inTheaters === 'boolean' ? r.inTheaters : undefined,
-              boxOfficeStatus: typeof r.releaseLabel === 'string' ? r.releaseLabel : undefined,
-              sharedDirectorName: typeof r.director === 'string' ? r.director : undefined,
-              sharedTopCastNames: Array.isArray(r.topCast) ? r.topCast : undefined,
-              sharedFranchiseTitle: typeof r.franchiseTitle === 'string' ? r.franchiseTitle : undefined,
-              sharedPublicDomainName: typeof r.publicDomainName === 'string' ? r.publicDomainName : undefined,
-            } as any,
-          } as any;
-        };
-
         setGameState((prev) => {
           const existing = prev.allReleases || [];
-
-          const byId = new Map<string, any>();
-          const order: string[] = [];
-
-          for (const rel of existing) {
-            const id = (rel as any)?.id;
-            if (!id || typeof id !== 'string') continue;
-            if (!byId.has(id)) order.push(id);
-            byId.set(id, rel);
-          }
-
-          for (const rel of incoming) {
-            const stableId = `league-${rel.__leagueUserId}-${rel.id}`;
-
-            // If we previously stored this remote release under its raw project id,
-            // drop that legacy entry to avoid duplicate titles in the world feed.
-            const legacyId = rel.id as string;
-            if (legacyId && legacyId !== stableId && byId.has(legacyId)) {
-              const legacy = byId.get(legacyId) as any;
-              if (legacy?.studioName === rel.studioName && legacy?.studioName !== prev.studio.name) {
-                byId.delete(legacyId);
-                const idx = order.indexOf(legacyId);
-                if (idx >= 0) order.splice(idx, 1);
-              }
-            }
-
-            if (!byId.has(stableId)) order.push(stableId);
-            byId.set(stableId, mkProject(rel));
-          }
-
-          const merged = order.map((id) => byId.get(id)).filter(Boolean);
+          const merged = mergeLeagueReleaseSnapshotsIntoAllReleases({
+            prevAllReleases: existing,
+            incoming,
+            localStudioName: prev.studio.name,
+          });
 
           if (merged.length === existing.length && merged.every((v, i) => v === existing[i])) return prev;
 
-          return {
-            ...prev,
-            allReleases: merged as any,
-          } as any;
+          return { ...prev, allReleases: merged };
         });
       } catch (e) {
         console.warn('Online League: failed to merge shared releases', e);

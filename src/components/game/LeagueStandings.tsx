@@ -6,6 +6,7 @@ import { Separator } from '@/components/ui/separator';
 import { useGameStore } from '@/game/store';
 import type { OnlineLeagueTickGateState, OnlineLeagueTickGateRemoteStudio } from '@/hooks/useOnlineLeagueTickGate';
 import type { Project } from '@/types/game';
+import { getReleaseStudioName } from '@/utils/leagueReleases';
 
 function formatAgo(iso?: string): string {
   if (!iso) return '—';
@@ -72,9 +73,8 @@ export const LeagueStandings: React.FC<{ tickGate: OnlineLeagueTickGateState }> 
     const all = (gameState.allReleases || []) as any[];
 
     const studioNameFor = (p: any): string | undefined => {
-      if (typeof p?.studioName === 'string' && p.studioName.trim()) return p.studioName;
-      if (gameState.projects.some((x) => x.id === p?.id)) return gameState.studio.name;
-      return undefined;
+      const studioName = getReleaseStudioName({ gameState, release: p as any });
+      return studioName || undefined;
     };
 
     const releases = all
@@ -233,7 +233,7 @@ export const LeagueStandings: React.FC<{ tickGate: OnlineLeagueTickGateState }> 
                   <div key={p.id} className="flex items-center justify-between rounded-md border p-3">
                     <div>
                       <div className="font-medium">{p.title}</div>
-                      <div className="text-xs text-muted-foreground">{(typeof (p as any).studioName === 'string' && (p as any).studioName.trim()) ? (p as any).studioName : (gameState.projects.some((x) => x.id === p.id) ? gameState.studio.name : 'Studio')}</div>
+                      <div className="text-xs text-muted-foreground">{getReleaseStudioName({ gameState, release: p as any }) || 'Studio'}</div>
                     </div>
                     <div className="text-right text-sm">
                       {Math.round(Number(p.metrics?.criticsScore ?? 0))}/100
@@ -253,7 +253,7 @@ export const LeagueStandings: React.FC<{ tickGate: OnlineLeagueTickGateState }> 
                   <div key={p.id} className="flex items-center justify-between rounded-md border p-3">
                     <div>
                       <div className="font-medium">{p.title}</div>
-                      <div className="text-xs text-muted-foreground">{(typeof (p as any).studioName === 'string' && (p as any).studioName.trim()) ? (p as any).studioName : (gameState.projects.some((x) => x.id === p.id) ? gameState.studio.name : 'Studio')}</div>
+                      <div className="text-xs text-muted-foreground">{getReleaseStudioName({ gameState, release: p as any }) || 'Studio'}</div>
                     </div>
                     <div className="text-right text-sm">
                       {Math.round(Number(p.metrics?.audienceScore ?? 0))}/100
@@ -277,7 +277,7 @@ export const LeagueStandings: React.FC<{ tickGate: OnlineLeagueTickGateState }> 
                   <div>
                     <div className="font-medium">{p.title}</div>
                     <div className="text-xs text-muted-foreground">
-                      {((typeof (p as any).studioName === 'string' && (p as any).studioName.trim()) ? (p as any).studioName : (gameState.projects.some((x) => x.id === p.id) ? gameState.studio.name : 'Studio'))} • Week {p.releaseWeek ?? '—'}, {p.releaseYear ?? '—'}
+                      {(getReleaseStudioName({ gameState, release: p as any }) || 'Studio')} • Week {p.releaseWeek ?? '—'}, {p.releaseYear ?? '—'}
                     </div>
                   </div>
                   <div className="text-right text-xs text-muted-foreground">

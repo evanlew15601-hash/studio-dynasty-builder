@@ -72,6 +72,65 @@ export const TopFilmsChart: React.FC = () => {
     return gameState.studio.name;
   };
 
+  const determineSource = (project: Project): string | null => {
+    const sharedPd = project.metrics?.sharedPublicDomainName;
+    if (sharedPd) return `Public domain: ${sharedPd}`;
+
+    const sharedFranchise = project.metrics?.sharedFranchiseTitle;
+    if (sharedFranchise) return `Franchise: ${sharedFranchise}`;
+
+    const publicDomainId = project.script?.publicDomainId ?? project.publicDomainId;
+    if (publicDomainId) {
+      const local = gameState.publicDomainIPs.find((ip) => ip.id === publicDomainId)?.name;
+      if (local) return `Public domain: ${local}`;
+    }
+
+    const franchiseId = project.script?.franchiseId ?? project.franchiseId;
+    if (franchiseId) {
+      const local = gameState.franchises.find((f) => f.id === franchiseId)?.title;
+      if (local) return `Franchise: ${local}`;
+    }
+
+    return null;
+  };
+
+  const determineDirectorAndCast = (project: Project): { director?: string; topCast?: string[] } => {
+    if (project.metrics?.sharedDirectorName || project.metrics?.sharedTopCastNames?.length) {
+      return {
+        director: project.metrics.sharedDirectorName,
+        topCast: project.metrics.sharedTopCastNames,
+      };
+    }
+
+    const director = (() => {
+      const roles = [...(project.crew || []), ...(project.cast || [])];
+      const dir = roles.find((r) => r.role?.toLowerCase().includes('director'));
+      if (!dir?.talentId) return undefined;
+      return gameState.talent.find((t) => t.id === dir.talentId)?.name;
+    })();
+
+    const topCast = (() => {
+      const roles = (project.cast || [])
+        .filter((r) => !!r.talentId)
+        .slice();
+
+      const sorted = roles
+        .sort((a, b) => {
+          const aLead = a.role?.toLowerCase().includes('lead') ? 1 : 0;
+          const bLead = b.role?.toLowerCase().includes('lead') ? 1 : 0;
+          if (aLead !== bLead) return bLead - aLead;
+          return (b.salary || 0) - (a.salary || 0);
+        })
+        .slice(0, 3)
+        .map((r) => gameState.talent.find((t) => t.id === r.talentId)?.name)
+        .filter(Boolean) as string[];
+
+      return sorted.length > 0 ? sorted : undefined;
+    })();
+
+    return { director, topCast };
+  };
+
   const createTopFilmEntries = (): TopFilmEntry[] => {
     const currentReleases = allReleases.filter(project =>
       project.metrics?.inTheaters &&
@@ -155,29 +214,42 @@ export const TopFilmsChart: React.FC = () => {
           </div>
         ) : (
           <div className="space-y-3">
-            {topFilms.map((entry) => (
-              <div
-                key={entry.project.id}
-                className={`p-4 rounded-lg border transition-all duration-200 hover:shadow-md ${
-                  entry.studioName === gameState.studio.name
-                    ? 'bg-primary/5 border-primary/20'
-                    : 'bg-card hover:bg-accent/5'
-                }`}
-              >
-                <div className="flex items-start justify-between">
-                  <div className="flex-1">
-                    <div className="flex items-center gap-3 mb-2">
-                      <div className="flex items-center gap-2">
-                        <span className="text-2xl font-bold text-primary">#{entry.position}</span>
-                        {getTrendIcon(entry.trend)}
+            {topFilms.map((entry) => {
+              const source = determineSource(entry.project);
+              const people = determineDirectorAndCast(entry.project);
+              const peopleBits = [
+                people.director ? `Dir. ${people.director}` : null,
+                people.topCast?.length ? `Cast: ${people.topCast.join(', ')}` : null,
+              ].filter(Boolean);
+
+              return (
+                <div
+                  key={entry.project.id}
+                  className={`p-4 rounded-lg border transition-all duration-200 hover:shadow-md ${
+                    entry.studioName === gameState.studio.name
+                      ? 'bg-primary/5 border-primary/20'
+                      : 'bg-card hover:bg-accent/5'
+                  }`}
+                >
+                  <div className="flex items-start justify-between">
+                    <div className="flex-1">
+                      <div className="flex items-center gap-3 mb-2">
+                        <div className="flex items-center gap-2">
+                          <span className="text-2xl font-bold text-primary">#{entry.position}</span>
+                          {getTrendIcon(entry.trend)}
+                        </div>
+                        <div className="flex-1">
+                          <h3 className="font-bold text-lg">{entry.project.title}</h3>
+                          <p className="text-sm text-muted-foreground">
+                            {entry.studioName} • {entry.project.script?.genre || 'Unknown'}
+                          </p>
+                          {(source || peopleBits.length > 0) && (
+                            <p className="text-xs text-muted-foreground">
+                              {[source, ...peopleBits].filter(Boolean).join(' • ')}
+                            </p>
+                          )}
+                        </div>
                       </div>
-                      <div className="flex-1">
-                        <h3 className="font-bold text-lg">{entry.project.title}</h3>
-                        <p className="text-sm text-muted-foreground">
-                          {entry.studioName} • {entry.project.script?.genre || 'Unknown'}
-                        </p>
-                      </div>
-                    </div>
 
                     <div className="grid grid-cols-2 gap-4 mb-3">
                       <div>
@@ -228,7 +300,8 @@ export const TopFilmsChart: React.FC = () => {
                   </div>
                 </div>
               </div>
-            ))}
+            );
+          })}
           </div>
         )}
 

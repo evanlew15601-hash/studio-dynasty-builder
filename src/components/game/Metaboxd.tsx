@@ -256,7 +256,7 @@ function projectToMetaboxdTitle(gameState: GameState, project: Project): Metabox
 
   const directorName = (() => {
     if (!isPlayerProject) {
-      const shared = (project.metrics as any)?.sharedDirectorName;
+      const shared = project.metrics?.sharedDirectorName;
       if (typeof shared === 'string' && shared.trim()) return shared;
     }
 
@@ -268,8 +268,8 @@ function projectToMetaboxdTitle(gameState: GameState, project: Project): Metabox
 
   const topCast = (() => {
     if (!isPlayerProject) {
-      const shared = (project.metrics as any)?.sharedTopCastNames;
-      if (Array.isArray(shared) && shared.length) return shared.filter((x: any) => typeof x === 'string') as string[];
+      const shared = project.metrics?.sharedTopCastNames;
+      if (Array.isArray(shared) && shared.length) return shared.filter((x) => typeof x === 'string') as string[];
     }
 
     const roles = (project.cast || [])
@@ -301,8 +301,8 @@ function projectToMetaboxdTitle(gameState: GameState, project: Project): Metabox
   const logline = project.script?.logline;
 
   const source = (() => {
-    const sharedFranchiseTitle = (project.metrics as any)?.sharedFranchiseTitle;
-    const sharedPublicDomainName = (project.metrics as any)?.sharedPublicDomainName;
+    const sharedFranchiseTitle = project.metrics?.sharedFranchiseTitle;
+    const sharedPublicDomainName = project.metrics?.sharedPublicDomainName;
 
     if (typeof sharedPublicDomainName === 'string' && sharedPublicDomainName.trim()) {
       return `Public domain: ${sharedPublicDomainName}`;

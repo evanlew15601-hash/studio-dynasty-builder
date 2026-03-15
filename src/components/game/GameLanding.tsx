@@ -183,6 +183,12 @@ export const GameLanding: React.FC<GameLandingProps> = ({
                       onCheckedChange={(checked) => onOnlineHostSyncChange?.(!!checked)}
                     />
                   </div>
+
+                  <div className="flex items-center justify-between rounded-md border border-border/50 bg-background/40 px-3 py-2">
+                    <div className="space-y-0.5">
+                      <div className="text-sm font-medium text-foreground">Season length</div>
+                      <div className="text-xs text-muted-foreground">How many years until the league resets.</div>
+                    </div>
                     <Select
                       value={String(onlineSeasonYears ?? 6)}
                       onValueChange={(v) => onOnlineSeasonYearsChange?.(Number.parseInt(v, 10))}
@@ -198,17 +204,6 @@ export const GameLanding: React.FC<GameLandingProps> = ({
                         ))}
                       </SelectContent>
                     </Select>
-                  </div>
-
-                  <div className="flex items-center justify-between rounded-md border border-border/50 bg-background/40 px-3 py-2">
-                    <div className="space-y-0.5">
-                      <div className="text-sm font-medium text-foreground">Host mirror (experimental)</div>
-                      <div className="text-xs text-muted-foreground">Mirror the host’s game state each turn.</div>
-                    </div>
-                    <Switch
-                      checked={!!onlineHostSync}
-                      onCheckedChange={(checked) => onOnlineHostSyncChange?.(!!checked)}
-                    />
                   </div>
 
                   {!onlineLeagueCode?.trim() && (

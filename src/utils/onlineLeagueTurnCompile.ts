@@ -1,4 +1,5 @@
 import type { GameState, TalentPerson } from '@/types/game';
+import type { LeagueReleasedProjectSnapshot, OnlineLeagueTurnStateSlice } from '@/types/onlineLeague';
 
 export type OnlineLeagueSignTalentCommand = {
   type: 'SIGN_TALENT';
@@ -17,35 +18,7 @@ export type OnlineLeagueTurnSubmission = {
   commands: OnlineLeagueSignTalentCommand[];
   // Optional: a small snapshot slice for debugging and for lightweight shared-world views.
   // Keep it JSON-serializable (avoid Dates/BigInt/functions from full game state).
-  state?: {
-    studio: { id: string; name: string } | null;
-    projects: Array<{ id: string; title: string }>;
-    releasedProjects?: Array<{
-      id: string;
-      title: string;
-      studioName: string;
-      type: string;
-      genre?: string;
-      budgetTotal?: number;
-      runtimeMins?: number;
-      releaseWeek?: number;
-      releaseYear?: number;
-      releaseLabel?: string;
-      logline?: string;
-      director?: string;
-      topCast?: string[];
-      criticsScore?: number;
-      audienceScore?: number;
-      boxOfficeTotal?: number;
-      lastWeeklyRevenue?: number;
-      weeksSinceRelease?: number;
-      inTheaters?: boolean;
-      publicDomainId?: string;
-      publicDomainName?: string;
-      franchiseId?: string;
-      franchiseTitle?: string;
-    }>;
-  };
+  state?: OnlineLeagueTurnStateSlice;
 };
 
 export type OnlineLeagueTurnBaseline = {
@@ -103,66 +76,69 @@ export function buildOnlineLeagueTurnSubmission(params: {
     }
   }
 
-  const releasedProjects = (current.projects || [])
+  const releasedProjects: LeagueReleasedProjectSnapshot[] = (current.projects || [])
     .filter((p) => p.status === 'released')
     .map((p) => {
-      const franchiseId = (p as any).script?.franchiseId ?? (p as any).franchiseId;
-      const publicDomainId = (p as any).script?.publicDomainId ?? (p as any).publicDomainId;
+      const franchiseId = p.script?.franchiseId ?? p.franchiseId;
+      const publicDomainId = p.script?.publicDomainId ?? p.publicDomainId;
 
       const franchiseTitle = franchiseId
-        ? (current.franchises || []).find((f: any) => f.id === franchiseId)?.title
+        ? current.franchises.find((f) => f.id === franchiseId)?.title
         : undefined;
 
       const publicDomainName = publicDomainId
-        ? (current.publicDomainIPs || []).find((ip: any) => ip.id === publicDomainId)?.name
+        ? current.publicDomainIPs.find((ip) => ip.id === publicDomainId)?.name
         : undefined;
 
       const director = (() => {
-        const roles = [...((p as any).crew || []), ...((p as any).cast || [])];
-        const dir = roles.find((r: any) => r.role?.toLowerCase().includes('director'));
+        const roles = [...(p.crew || []), ...(p.cast || [])];
+        const dir = roles.find((r) => r.role?.toLowerCase().includes('director'));
         if (!dir?.talentId) return undefined;
-        return (current.talent || []).find((t: any) => t.id === dir.talentId)?.name;
+        return current.talent.find((t) => t.id === dir.talentId)?.name;
       })();
 
       const topCast = (() => {
-        const roles = ((p as any).cast || []).filter((r: any) => !!r.talentId).slice();
+        const roles = (p.cast || [])
+          .filter((r) => !!r.talentId)
+          .slice();
+
         const sorted = roles
-          .sort((a: any, b: any) => {
+          .sort((a, b) => {
             const aLead = a.role?.toLowerCase().includes('lead') ? 1 : 0;
             const bLead = b.role?.toLowerCase().includes('lead') ? 1 : 0;
             if (aLead !== bLead) return bLead - aLead;
             return (b.salary || 0) - (a.salary || 0);
           })
           .slice(0, 4)
-          .map((r: any) => (current.talent || []).find((t: any) => t.id === r.talentId)?.name)
+          .map((r) => current.talent.find((t) => t.id === r.talentId)?.name)
           .filter(Boolean) as string[];
 
         return sorted.length > 0 ? sorted : undefined;
       })();
 
       const releaseLabel =
-        (p as any).metrics?.boxOfficeStatus || ((p as any).releaseStrategy?.type === 'streaming' ? 'Streaming Premiere' : undefined);
+        p.metrics?.boxOfficeStatus || (p.releaseStrategy?.type === 'streaming' ? 'Streaming Premiere' : undefined);
 
       return {
         id: p.id,
         title: p.title,
         studioName: current.studio?.name ?? 'Studio',
-        type: (p as any).type ?? 'feature',
-        genre: (p as any).script?.genre,
-        budgetTotal: (p as any).budget?.total,
-        runtimeMins: (p as any).script?.estimatedRuntime,
-        releaseWeek: (p as any).releaseWeek,
-        releaseYear: (p as any).releaseYear,
+        type: p.type,
+        genre: p.script?.genre,
+        budgetTotal: p.budget?.total,
+        runtimeMins: p.script?.estimatedRuntime,
+        releaseWeek: p.releaseWeek,
+        releaseYear: p.releaseYear,
         releaseLabel,
-        logline: (p as any).script?.logline,
+        logline: p.script?.logline,
         director,
         topCast,
-        criticsScore: (p as any).metrics?.criticsScore,
-        audienceScore: (p as any).metrics?.audienceScore,
-        boxOfficeTotal: (p as any).metrics?.boxOfficeTotal,
-        lastWeeklyRevenue: (p as any).metrics?.lastWeeklyRevenue,
-        weeksSinceRelease: (p as any).metrics?.weeksSinceRelease,
-        inTheaters: (p as any).metrics?.inTheaters,
+        criticsScore: p.metrics?.criticsScore,
+        audienceScore: p.metrics?.audienceScore,
+        boxOfficeTotal: p.metrics?.boxOfficeTotal,
+        lastWeeklyRevenue: p.metrics?.lastWeeklyRevenue,
+        weeksSinceRelease: p.metrics?.weeksSinceRelease,
+        inTheaters: p.metrics?.inTheaters,
         publicDomainId,
         publicDomainName,
         franchiseId,

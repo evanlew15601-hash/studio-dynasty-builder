@@ -457,6 +457,11 @@ export interface ProjectMetrics {
   totalRevenue?: number;
   // Enhanced financial tracking
   financials?: ProjectFinancials;
+  // Optional: lightweight public-facing metadata for league-shared releases.
+  sharedDirectorName?: string;
+  sharedTopCastNames?: string[];
+  sharedFranchiseTitle?: string;
+  sharedPublicDomainName?: string;
 }
 
 export interface ProjectFinancials {
