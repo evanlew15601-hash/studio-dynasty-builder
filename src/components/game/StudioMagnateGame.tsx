@@ -110,6 +110,23 @@ import { syncAndPersistIndustryDatabase } from '@/utils/industryDatabase';
 import { applyPatchesByKey, getPatchesForEntity } from '@/utils/modding';
 import { getModBundle } from '@/utils/moddingStore';
 import { fetchOnlineLeagueTurnSnapshot, upsertOnlineLeagueTurnSnapshot } from '@/integrations/supabase/onlineLeagueTurnState';
+import {
+  fetchOnlineLeagueMemberStudioNames,
+  fetchOnlineLeagueReadyOrder,
+  fetchOnlineLeagueTurnResolution,
+  fetchOnlineLeagueTurnSubmissions,
+  fetchUnreadOnlineLeagueMessages,
+  insertOnlineLeagueMessages,
+  markOnlineLeagueMessagesRead,
+  upsertOnlineLeagueTurnResolution,
+  upsertOnlineLeagueTurnSubmission,
+} from '@/integrations/supabase/onlineLeagueTurnCompile';
+import {
+  applyOnlineLeagueTalentResolution,
+  buildOnlineLeagueTurnSubmission,
+  createOnlineLeagueTurnBaseline,
+  resolveOnlineLeagueTalentConflicts,
+} from '@/utils/onlineLeagueTurnCompile';
 import { DebugControlPanel } from './DebugControlPanel';
 import { IndustryDatabasePanel } from './IndustryDatabasePanel';
 import { LoreHub } from './LoreHub';
@@ -2802,6 +2819,17 @@ export const StudioMagnateGame: React.FC<StudioMagnateGameProps> = ({
   const initialOnlinePublishRef = useRef(false);
   const onlineSyncToastTurnRef = useRef<number | null>(null);
 
+  // End-of-turn compilation baseline: used to compute what changed during the current turn
+  // so we can submit a minimal intent list when the player readies up.
+  const onlineTurnBaselineRef = useRef<ReturnType<typeof createOnlineLeagueTurnBaseline> | null>(null);
+  const appliedOnlineResolutionTurnRef = useRef<number | null>(null);
+  const onlineSelfUserIdRef = useRef<string | null>(null);
+
+  useEffect(() => {
+    if (!isOnlineMode) return;
+    onlineTurnBaselineRef.current = createOnlineLeagueTurnBaseline(gameState);
+  }, [isOnlineMode, gameState.currentWeek, gameState.currentYear]);
+
   const syncFromHostTurn = async (leagueId: string, turn: number) => {
     if (onlineSyncBusyRef.current) return;
     onlineSyncBusyRef.current = true;
@@ -2860,25 +2888,162 @@ export const StudioMagnateGame: React.FC<StudioMagnateGameProps> = ({
     }
   };
 
+  const ensureOnlineTurnResolution = async (leagueId: string, turn: number, isHost: boolean) => {
+    try {
+      const existing = await fetchOnlineLeagueTurnResolution({ leagueId, turn });
+      if (existing) return existing;
+
+      if (!isHost) return null;
+
+      const studioNameByUserId = await fetchOnlineLeagueMemberStudioNames({ leagueId });
+      const readyOrderUserIds = await fetchOnlineLeagueReadyOrder({ leagueId, turn });
+      const submissionsByUserId = await fetchOnlineLeagueTurnSubmissions({ leagueId, turn });
+
+      const initiallyTakenTalentIds = new Set(
+        (gameState.talent || []).filter((t) => t.contractStatus !== 'available').map((t) => t.id)
+      );
+
+      const resolution = resolveOnlineLeagueTalentConflicts({
+        turn,
+        readyOrderUserIds,
+        submissionsByUserId,
+        initiallyTakenTalentIds,
+      });
+
+      await upsertOnlineLeagueTurnResolution({ leagueId, turn, resolution });
+
+      const messages: Array<{ userId: string; turn: number; title: string; body: string }> = [];
+
+      for (const [loserUserId, talentIds] of Object.entries(resolution.rejectedTalentIdsByUserId || {})) {
+        const submission = submissionsByUserId[loserUserId];
+
+        for (const talentId of talentIds || []) {
+          const winnerUserId = resolution.winnerUserIdByTalentId[talentId];
+          const winnerName = (winnerUserId && studioNameByUserId[winnerUserId]) || 'another studio';
+          const talentName = gameState.talent.find((t) => t.id === talentId)?.name || 'a rival star';
+
+          const cmd = submission?.commands?.find((c) => c.type === 'SIGN_TALENT' && c.payload?.talentId === talentId);
+          const projectTitle = cmd?.payload?.projectId
+            ? submission?.state?.projects?.find((p) => p.id === cmd.payload.projectId)?.title
+            : undefined;
+          const role = cmd?.payload?.role;
+
+          const roleLine = projectTitle
+            ? `The ${role || 'role'} on “${projectTitle}” is now unfilled.`
+            : 'You will need to line up a replacement.';
+
+          messages.push({
+            userId: loserUserId,
+            turn,
+            title: `${talentName} signed elsewhere`,
+            body:
+              `Your agent called before dawn: ${talentName} countersigned with ${winnerName} while your paperwork was still in transit.\n\n${roleLine}`,
+          });
+        }
+      }
+
+      await insertOnlineLeagueMessages({ leagueId, messages });
+
+      return resolution;
+    } catch (e) {
+      console.warn('Online League: failed to resolve turn conflicts', e);
+      return null;
+    }
+  };
+
+  const applyOnlineTurnResolution = async (
+    leagueId: string,
+    turn: number,
+    selfUserId: string | null,
+    resolution?: ReturnType<typeof resolveOnlineLeagueTalentConflicts> | null
+  ) => {
+    if (appliedOnlineResolutionTurnRef.current === turn) return;
+
+    let res = resolution ?? null;
+
+    if (!res) {
+      const timeoutMs = 12_000;
+      const startedAt = Date.now();
+
+      while (Date.now() - startedAt < timeoutMs) {
+        try {
+          const existing = await fetchOnlineLeagueTurnResolution({ leagueId, turn });
+          if (existing) {
+            res = existing;
+            break;
+          }
+        } catch {
+          // ignore and retry
+        }
+
+        await delay(400);
+      }
+    }
+
+    if (!res) return;
+
+    appliedOnlineResolutionTurnRef.current = turn;
+
+    setGameState((prev) => {
+      const applied = applyOnlineLeagueTalentResolution({ prev, selfUserId, resolution: res });
+      return applied.next;
+    });
+
+    try {
+      const messages = await fetchUnreadOnlineLeagueMessages({ leagueId });
+      if (messages.length > 0) {
+        const toShow = messages.slice(0, 3);
+        toShow.forEach((m) => {
+          toast({
+            title: m.title,
+            description: m.body,
+          });
+        });
+
+        if (messages.length > toShow.length) {
+          toast({
+            title: 'More messages from your agents',
+            description: `${messages.length - toShow.length} additional update${messages.length - toShow.length === 1 ? '' : 's'} in your inbox.`,
+          });
+        }
+
+        await markOnlineLeagueMessagesRead({ messageIds: messages.map((m) => m.id) });
+      }
+    } catch (e) {
+      console.warn('Online League: failed to fetch/ack messages', e);
+    }
+  };
+
   const onlineTickGate = useOnlineLeagueTickGate({
     enabled: !!onlineLeagueCode?.trim(),
     leagueCode: onlineLeagueCode ?? '',
     studioName: gameState.studio.name,
     onTurnAdvanced: (turn, info) => {
-      if (info.isHost) {
-        pendingOnlineTurnPublishRef.current = { leagueId: info.leagueId, turn };
+      void (async () => {
+        const leagueId = info.leagueId;
+        const selfUserId = onlineSelfUserIdRef.current;
+
+        const resolution = await ensureOnlineTurnResolution(leagueId, turn, info.isHost);
+
+        if (!info.isHost && onlineHostSync) {
+          await syncFromHostTurn(leagueId, turn);
+          return;
+        }
+
+        await applyOnlineTurnResolution(leagueId, turn, selfUserId, resolution);
+
+        if (info.isHost) {
+          pendingOnlineTurnPublishRef.current = { leagueId, turn };
+        }
+
         advanceWeekCore({ suppressDiagnostics: true });
-        return;
-      }
-
-      if (onlineHostSync) {
-        void syncFromHostTurn(info.leagueId, turn);
-        return;
-      }
-
-      advanceWeekCore({ suppressDiagnostics: true });
+      })();
     },
   });
+
+  useEffect(() => {
+    onlineSelfUserIdRef.current = onlineTickGate.userId;
+  }, [onlineTickGate.userId]);
 
   useEffect(() => {
     if (!onlineLeagueCode?.trim()) return;
@@ -3039,7 +3204,7 @@ export const StudioMagnateGame: React.FC<StudioMagnateGameProps> = ({
     });
   };
 
-  const handleAdvanceWeek = (options?: { suppressToast?: boolean; suppressLoading?: boolean; suppressDiagnostics?: boolean; suppressRecap?: boolean }) => {
+  const handleAdvanceWeek = async (options?: { suppressToast?: boolean; suppressLoading?: boolean; suppressDiagnostics?: boolean; suppressRecap?: boolean }) => {
     if (!onlineLeagueCode?.trim()) {
       advanceWeekCore(options);
       return;
@@ -3054,8 +3219,41 @@ export const StudioMagnateGame: React.FC<StudioMagnateGameProps> = ({
       return;
     }
 
+    if (!onlineTickGate.leagueId) {
+      toast({
+        title: 'Online League',
+        description: 'League is still initializing. Try again in a moment.',
+        variant: 'destructive',
+      });
+      return;
+    }
+
     const nextReady = !onlineTickGate.isReady;
-    onlineTickGate.setReady(nextReady);
+
+    if (nextReady) {
+      try {
+        const submission = buildOnlineLeagueTurnSubmission({
+          baseline: onlineTurnBaselineRef.current,
+          current: gameState,
+        });
+
+        await upsertOnlineLeagueTurnSubmission({
+          leagueId: onlineTickGate.leagueId,
+          turn: onlineTickGate.turn + 1,
+          submission,
+        });
+      } catch (e) {
+        console.warn('Online League: failed to submit turn intents', e);
+        toast({
+          title: 'Online League',
+          description: 'Failed to submit your turn actions. Try again.',
+          variant: 'destructive',
+        });
+        return;
+      }
+    }
+
+    await onlineTickGate.setReady(nextReady);
 
     if (!options?.suppressToast) {
       toast({

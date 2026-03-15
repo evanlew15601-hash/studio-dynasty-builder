@@ -128,6 +128,146 @@ export type Database = {
           },
         ]
       }
+      online_league_ready_events: {
+        Row: {
+          league_id: string
+          turn: number
+          user_id: string
+          ready_at: string
+        }
+        Insert: {
+          league_id: string
+          turn: number
+          user_id: string
+          ready_at?: string
+        }
+        Update: {
+          league_id?: string
+          turn?: number
+          user_id?: string
+          ready_at?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "online_league_ready_events_league_id_fkey"
+            columns: ["league_id"]
+            isOneToOne: false
+            referencedRelation: "online_leagues"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      online_league_turn_submissions: {
+        Row: {
+          league_id: string
+          turn: number
+          user_id: string
+          submission_json: string
+          created_at: string
+          updated_at: string
+        }
+        Insert: {
+          league_id: string
+          turn: number
+          user_id: string
+          submission_json: string
+          created_at?: string
+          updated_at?: string
+        }
+        Update: {
+          league_id?: string
+          turn?: number
+          user_id?: string
+          submission_json?: string
+          created_at?: string
+          updated_at?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "online_league_turn_submissions_league_id_fkey"
+            columns: ["league_id"]
+            isOneToOne: false
+            referencedRelation: "online_leagues"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      online_league_turn_resolutions: {
+        Row: {
+          league_id: string
+          turn: number
+          resolution_json: string
+          resolved_by: string
+          created_at: string
+          updated_at: string
+        }
+        Insert: {
+          league_id: string
+          turn: number
+          resolution_json: string
+          resolved_by: string
+          created_at?: string
+          updated_at?: string
+        }
+        Update: {
+          league_id?: string
+          turn?: number
+          resolution_json?: string
+          resolved_by?: string
+          created_at?: string
+          updated_at?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "online_league_turn_resolutions_league_id_fkey"
+            columns: ["league_id"]
+            isOneToOne: false
+            referencedRelation: "online_leagues"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      online_league_messages: {
+        Row: {
+          id: string
+          league_id: string
+          user_id: string
+          turn: number
+          title: string
+          body: string
+          created_at: string
+          read_at: string | null
+        }
+        Insert: {
+          id?: string
+          league_id: string
+          user_id: string
+          turn: number
+          title: string
+          body: string
+          created_at?: string
+          read_at?: string | null
+        }
+        Update: {
+          id?: string
+          league_id?: string
+          user_id?: string
+          turn?: number
+          title?: string
+          body?: string
+          created_at?: string
+          read_at?: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "online_league_messages_league_id_fkey"
+            columns: ["league_id"]
+            isOneToOne: false
+            referencedRelation: "online_leagues"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       online_league_snapshots: {
         Row: {
           league_id: string
