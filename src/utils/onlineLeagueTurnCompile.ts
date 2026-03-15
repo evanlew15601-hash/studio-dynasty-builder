@@ -15,11 +15,11 @@ export type OnlineLeagueTurnSubmission = {
   submittedAt: string;
   studioName: string;
   commands: OnlineLeagueSignTalentCommand[];
-  // Optional: a snapshot slice for future reconciliation / debugging.
-  // Not used for the MVP conflict resolver.
+  // Optional: a small snapshot slice for debugging and nicer notifications.
+  // Keep it JSON-serializable (avoid Dates/BigInt/functions from full game state).
   state?: {
-    studio: GameState['studio'];
-    projects: GameState['projects'];
+    studio: { id: string; name: string } | null;
+    projects: Array<{ id: string; title: string }>;
   };
 };
 
@@ -84,8 +84,8 @@ export function buildOnlineLeagueTurnSubmission(params: {
     studioName: current.studio?.name ?? 'Studio',
     commands,
     state: {
-      studio: current.studio,
-      projects: current.projects,
+      studio: current.studio ? { id: current.studio.id, name: current.studio.name } : null,
+      projects: (current.projects || []).map((p) => ({ id: p.id, title: p.title })),
     },
   };
 }
