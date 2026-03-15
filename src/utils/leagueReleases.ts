@@ -157,3 +157,76 @@ export function getReleaseStudioName(params: {
 
   return null;
 }
+
+export function getReleaseSource(params: {
+  gameState: GameState;
+  project: Project;
+}): string | null {
+  const { gameState, project } = params;
+
+  const sharedPd = project.metrics?.sharedPublicDomainName;
+  if (typeof sharedPd === 'string' && sharedPd.trim()) return `Public domain: ${sharedPd}`;
+
+  const sharedFranchise = project.metrics?.sharedFranchiseTitle;
+  if (typeof sharedFranchise === 'string' && sharedFranchise.trim()) return `Franchise: ${sharedFranchise}`;
+
+  const publicDomainId = project.script?.publicDomainId ?? project.publicDomainId;
+  if (typeof publicDomainId === 'string' && publicDomainId) {
+    const local = (gameState.publicDomainIPs || []).find((ip) => ip.id === publicDomainId)?.name;
+    if (local) return `Public domain: ${local}`;
+  }
+
+  const franchiseId = project.script?.franchiseId ?? project.franchiseId;
+  if (typeof franchiseId === 'string' && franchiseId) {
+    const local = (gameState.franchises || []).find((f) => f.id === franchiseId)?.title;
+    if (local) return `Franchise: ${local}`;
+  }
+
+  return null;
+}
+
+export function getReleaseDirectorName(params: {
+  gameState: GameState;
+  project: Project;
+}): string | null {
+  const { gameState, project } = params;
+
+  const shared = project.metrics?.sharedDirectorName;
+  if (typeof shared === 'string' && shared.trim()) return shared;
+
+  const roles = [...(project.crew || []), ...(project.cast || [])];
+  const dir = roles.find((r) => r.role?.toLowerCase().includes('director'));
+  if (!dir?.talentId) return null;
+
+  return (gameState.talent || []).find((t) => t.id === dir.talentId)?.name || null;
+}
+
+export function getReleaseTopCastNames(params: {
+  gameState: GameState;
+  project: Project;
+  limit?: number;
+}): string[] {
+  const { gameState, project, limit = 3 } = params;
+
+  const shared = project.metrics?.sharedTopCastNames;
+  if (Array.isArray(shared) && shared.length) {
+    return shared.filter((x) => typeof x === 'string').slice(0, limit);
+  }
+
+  const roles = (project.cast || [])
+    .filter((r) => !!r.talentId)
+    .slice();
+
+  const sorted = roles
+    .sort((a, b) => {
+      const aLead = a.role?.toLowerCase().includes('lead') ? 1 : 0;
+      const bLead = b.role?.toLowerCase().includes('lead') ? 1 : 0;
+      if (aLead !== bLead) return bLead - aLead;
+      return (b.salary || 0) - (a.salary || 0);
+    })
+    .slice(0, limit)
+    .map((r) => (gameState.talent || []).find((t) => t.id === r.talentId)?.name)
+    .filter(Boolean) as string[];
+
+  return sorted;
+}

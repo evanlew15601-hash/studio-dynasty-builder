@@ -1,12 +1,14 @@
 // Top Films of the Week - Box Office Performance Chart
-import React, { useMemo } from 'react';
+import React, { useMemo, useState } from 'react';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
 import { Progress } from '@/components/ui/progress';
+import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle } from '@/components/ui/dialog';
 import { Project } from '@/types/game';
 import { TrendingIcon, StudioIcon, StarIcon } from '@/components/ui/icons';
 import { useGameStore } from '@/game/store';
 import { formatMoneyCompact } from '@/utils/money';
+import { getReleaseDirectorName, getReleaseSource, getReleaseTopCastNames } from '@/utils/leagueReleases';
 
 interface TopFilmEntry {
   project: Project;
@@ -21,6 +23,7 @@ interface TopFilmEntry {
 
 export const TopFilmsChart: React.FC = () => {
   const gameState = useGameStore((s) => s.game);
+  const [activeRelease, setActiveRelease] = useState<Project | null>(null);
 
   const allReleases = useMemo(() => {
     if (!gameState) return [] as Project[];
@@ -72,64 +75,7 @@ export const TopFilmsChart: React.FC = () => {
     return gameState.studio.name;
   };
 
-  const determineSource = (project: Project): string | null => {
-    const sharedPd = project.metrics?.sharedPublicDomainName;
-    if (sharedPd) return `Public domain: ${sharedPd}`;
-
-    const sharedFranchise = project.metrics?.sharedFranchiseTitle;
-    if (sharedFranchise) return `Franchise: ${sharedFranchise}`;
-
-    const publicDomainId = project.script?.publicDomainId ?? project.publicDomainId;
-    if (publicDomainId) {
-      const local = gameState.publicDomainIPs.find((ip) => ip.id === publicDomainId)?.name;
-      if (local) return `Public domain: ${local}`;
-    }
-
-    const franchiseId = project.script?.franchiseId ?? project.franchiseId;
-    if (franchiseId) {
-      const local = gameState.franchises.find((f) => f.id === franchiseId)?.title;
-      if (local) return `Franchise: ${local}`;
-    }
-
-    return null;
-  };
-
-  const determineDirectorAndCast = (project: Project): { director?: string; topCast?: string[] } => {
-    if (project.metrics?.sharedDirectorName || project.metrics?.sharedTopCastNames?.length) {
-      return {
-        director: project.metrics.sharedDirectorName,
-        topCast: project.metrics.sharedTopCastNames,
-      };
-    }
-
-    const director = (() => {
-      const roles = [...(project.crew || []), ...(project.cast || [])];
-      const dir = roles.find((r) => r.role?.toLowerCase().includes('director'));
-      if (!dir?.talentId) return undefined;
-      return gameState.talent.find((t) => t.id === dir.talentId)?.name;
-    })();
-
-    const topCast = (() => {
-      const roles = (project.cast || [])
-        .filter((r) => !!r.talentId)
-        .slice();
-
-      const sorted = roles
-        .sort((a, b) => {
-          const aLead = a.role?.toLowerCase().includes('lead') ? 1 : 0;
-          const bLead = b.role?.toLowerCase().includes('lead') ? 1 : 0;
-          if (aLead !== bLead) return bLead - aLead;
-          return (b.salary || 0) - (a.salary || 0);
-        })
-        .slice(0, 3)
-        .map((r) => gameState.talent.find((t) => t.id === r.talentId)?.name)
-        .filter(Boolean) as string[];
-
-      return sorted.length > 0 ? sorted : undefined;
-    })();
-
-    return { director, topCast };
-  };
+  
 
   const createTopFilmEntries = (): TopFilmEntry[] => {
     const currentReleases = allReleases.filter(project =>
@@ -195,41 +141,52 @@ export const TopFilmsChart: React.FC = () => {
   const topFilms = createTopFilmEntries();
 
   return (
-    <Card className="card-premium">
-      <CardHeader className="pb-4">
-        <CardTitle className="flex items-center text-xl">
-          <StudioIcon className="mr-3 text-primary" size={24} />
-          Top Films This Week
-          <Badge variant="outline" className="ml-auto">
-            Week {gameState.currentWeek}, {gameState.currentYear}
-          </Badge>
-        </CardTitle>
-      </CardHeader>
+    <>
+      <Card className="card-premium">
+        <CardHeader className="pb-4">
+          <CardTitle className="flex items-center text-xl">
+            <StudioIcon className="mr-3 text-primary" size={24} />
+            Top Films This Week
+            <Badge variant="outline" className="ml-auto">
+              Week {gameState.currentWeek}, {gameState.currentYear}
+            </Badge>
+          </CardTitle>
+        </CardHeader>
 
-      <CardContent className="space-y-4">
-        {topFilms.length === 0 ? (
-          <div className="text-center py-8 text-muted-foreground">
-            <StudioIcon className="mx-auto mb-4" size={48} />
-            <p>No films currently in theaters</p>
-          </div>
-        ) : (
-          <div className="space-y-3">
+        <CardContent className="space-y-4">
+          {topFilms.length === 0 ? (
+            <div className="text-center py-8 text-muted-foreground">
+              <StudioIcon className="mx-auto mb-4" size={48} />
+              <p>No films currently in theaters</p>
+            </div>
+          ) : (
+            <div className="space-y-3">
             {topFilms.map((entry) => {
-              const source = determineSource(entry.project);
-              const people = determineDirectorAndCast(entry.project);
+              const source = getReleaseSource({ gameState, project: entry.project });
+              const director = getReleaseDirectorName({ gameState, project: entry.project });
+              const topCast = getReleaseTopCastNames({ gameState, project: entry.project, limit: 3 });
               const peopleBits = [
-                people.director ? `Dir. ${people.director}` : null,
-                people.topCast?.length ? `Cast: ${people.topCast.join(', ')}` : null,
+                director ? `Dir. ${director}` : null,
+                topCast.length ? `Cast: ${topCast.join(', ')}` : null,
               ].filter(Boolean);
 
               return (
                 <div
                   key={entry.project.id}
-                  className={`p-4 rounded-lg border transition-all duration-200 hover:shadow-md ${
+                  className={`cursor-pointer p-4 rounded-lg border transition-all duration-200 hover:shadow-md ${
                     entry.studioName === gameState.studio.name
                       ? 'bg-primary/5 border-primary/20'
                       : 'bg-card hover:bg-accent/5'
                   }`}
+                  role="button"
+                  tabIndex={0}
+                  onClick={() => setActiveRelease(entry.project)}
+                  onKeyDown={(e) => {
+                    if (e.key === 'Enter' || e.key === ' ') {
+                      e.preventDefault();
+                      setActiveRelease(entry.project);
+                    }
+                  }}
                 >
                   <div className="flex items-start justify-between">
                     <div className="flex-1">
@@ -331,5 +288,88 @@ export const TopFilmsChart: React.FC = () => {
         </div>
       </CardContent>
     </Card>
+
+    <Dialog
+      open={!!activeRelease}
+      onOpenChange={(open) => {
+        if (!open) setActiveRelease(null);
+      }}
+    >
+      <DialogContent className="max-w-2xl">
+        <DialogHeader>
+          <DialogTitle>{activeRelease?.title || 'Release'}</DialogTitle>
+          <DialogDescription>
+            {(activeRelease?.studioName?.trim() ? activeRelease.studioName : gameState.studio.name)}
+            {activeRelease ? ` • Week ${activeRelease.releaseWeek ?? '—'}, ${activeRelease.releaseYear ?? '—'}` : ''}
+          </DialogDescription>
+        </DialogHeader>
+
+        {activeRelease && (
+          <div className="space-y-4">
+            {(() => {
+              const source = getReleaseSource({ gameState, project: activeRelease });
+              const director = getReleaseDirectorName({ gameState, project: activeRelease });
+              const cast = getReleaseTopCastNames({ gameState, project: activeRelease, limit: 4 });
+              const peopleBits = [
+                source,
+                director ? `Dir. ${director}` : null,
+                cast.length ? `Cast: ${cast.join(', ')}` : null,
+              ].filter(Boolean);
+
+              const logline = activeRelease.script?.logline?.trim();
+
+              const budget = Number(activeRelease.budget?.total ?? 0);
+              const boxOffice = Number(activeRelease.metrics?.boxOfficeTotal ?? 0);
+              const weekly = Number(activeRelease.metrics?.lastWeeklyRevenue ?? 0);
+
+              return (
+                <>
+                  {peopleBits.length > 0 && (
+                    <div className="rounded-md border p-3 text-sm text-muted-foreground">
+                      {peopleBits.join(' • ')}
+                    </div>
+                  )}
+
+                  {logline && (
+                    <div className="rounded-md border p-3 text-sm text-muted-foreground">{logline}</div>
+                  )}
+
+                  <div className="grid gap-3 sm:grid-cols-2">
+                    <div className="rounded-md border p-3">
+                      <div className="text-xs text-muted-foreground">Critics</div>
+                      <div className="text-lg font-semibold">{Math.round(Number(activeRelease.metrics?.criticsScore ?? 0))}/100</div>
+                    </div>
+                    <div className="rounded-md border p-3">
+                      <div className="text-xs text-muted-foreground">Audience</div>
+                      <div className="text-lg font-semibold">{Math.round(Number(activeRelease.metrics?.audienceScore ?? 0))}/100</div>
+                    </div>
+                    <div className="rounded-md border p-3">
+                      <div className="text-xs text-muted-foreground">Total box office</div>
+                      <div className="text-lg font-semibold">{formatMoneyCompact(boxOffice)}</div>
+                    </div>
+                    <div className="rounded-md border p-3">
+                      <div className="text-xs text-muted-foreground">Budget</div>
+                      <div className="text-lg font-semibold">{formatMoneyCompact(budget)}</div>
+                    </div>
+                  </div>
+
+                  <div className="grid gap-3 sm:grid-cols-2">
+                    <div className="rounded-md border p-3">
+                      <div className="text-xs text-muted-foreground">Last week</div>
+                      <div className="text-lg font-semibold">{formatMoneyCompact(weekly)}</div>
+                    </div>
+                    <div className="rounded-md border p-3">
+                      <div className="text-xs text-muted-foreground">In theaters</div>
+                      <div className="text-lg font-semibold">{activeRelease.metrics?.inTheaters ? 'Yes' : 'No'}</div>
+                    </div>
+                  </div>
+                </>
+              );
+            })()}
+          </div>
+        )}
+      </DialogContent>
+    </Dialog>
+  </>
   );
 };
