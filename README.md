@@ -47,6 +47,9 @@ cp .env.example .env
 
 Notes:
 - `.env` is gitignored to avoid committing secrets.
+- The Supabase migrations include basic retention helpers:
+  - completed/inactive leagues can be deleted via `select public.cleanup_online_leagues();`
+  - turn-scoped rows are pruned automatically as leagues advance
 
 ## Open source & compliance
 
