@@ -7,8 +7,8 @@ describe('computeLeagueAwardsCeremony', () => {
       year: 2000,
       ceremonyName: 'League Crown',
       snapshots: [
-        { league_id: 'l', user_id: 'b', studio_name: 'B', budget: 10_000_000, reputation: 60, week: 1, year: 2000, released_titles: 2, updated_at: '' },
-        { league_id: 'l', user_id: 'a', studio_name: 'A', budget: 10_000_000, reputation: 60, week: 1, year: 2000, released_titles: 2, updated_at: '' },
+        { league_id: 'l', user_id: 'b', studio_name: 'B', reputation: 60, week: 1, year: 2000, released_titles: 2, updated_at: '' },
+        { league_id: 'l', user_id: 'a', studio_name: 'A', reputation: 60, week: 1, year: 2000, released_titles: 2, updated_at: '' },
       ] as any,
     });
 

@@ -9,7 +9,6 @@ import { getSupabaseClient } from '@/integrations/supabase/client';
 
 type PresenceStudioSnapshot = {
   studioName: string;
-  budget: number;
   reputation: number;
   week: number;
   year: number;
@@ -21,7 +20,6 @@ type PersistedLeagueSnapshot = {
   league_id: string;
   user_id: string;
   studio_name: string;
-  budget: number | string;
   reputation: number;
   week: number;
   year: number;
@@ -196,7 +194,6 @@ export const OnlineLeague: React.FC<OnlineLeagueProps> = ({ initialLeagueCode })
 
     const snapshot: PresenceStudioSnapshot = {
       studioName: gameState.studio.name,
-      budget: 0,
       reputation: gameState.studio.reputation,
       week: gameState.currentWeek,
       year: gameState.currentYear,
@@ -229,7 +226,7 @@ export const OnlineLeague: React.FC<OnlineLeagueProps> = ({ initialLeagueCode })
   }, [
     gameState?.currentWeek,
     gameState?.currentYear,
-    gameState?.studio?.budget,
+    
     gameState?.studio?.reputation,
     gameState?.projects,
     activeLeagueCode,
@@ -311,7 +308,7 @@ export const OnlineLeague: React.FC<OnlineLeagueProps> = ({ initialLeagueCode })
 
     const { data, error: loadError } = await supabase
       .from('online_league_snapshots')
-      .select('*')
+      .select('league_id, user_id, studio_name, reputation, week, year, released_titles, updated_at')
       .eq('league_id', leagueId);
 
     if (loadError) return;

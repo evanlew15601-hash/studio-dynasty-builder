@@ -36,8 +36,35 @@ export const OwnedFranchiseManager: React.FC<OwnedFranchiseManagerProps> = ({
     return <div className="p-6 text-sm text-muted-foreground">Loading franchises...</div>;
   }
 
-  // Get franchises owned by the player
-  const ownedFranchises = gameState.franchises.filter(f => f.creatorStudioId === gameState.studio.id);
+  const uniqById = <T extends { id: string }>(items: T[]): T[] => {
+    const byId = new Map<string, T>();
+    const order: string[] = [];
+
+    for (const item of items) {
+      if (!item?.id) continue;
+      if (!byId.has(item.id)) order.push(item.id);
+      byId.set(item.id, item);
+    }
+
+    return order.map((id) => byId.get(id)!).filter(Boolean);
+  };
+
+  const franchises = uniqById(gameState.franchises || []);
+
+  // Get franchises owned by the player (deduped by id + title)
+  const ownedFranchises = (() => {
+    const seenTitles = new Set<string>();
+
+    return franchises
+      .filter(f => f.creatorStudioId === gameState.studio.id)
+      .filter((f) => {
+        const key = (f.title || '').trim().toLowerCase();
+        if (!key) return false;
+        if (seenTitles.has(key)) return false;
+        seenTitles.add(key);
+        return true;
+      });
+  })();
 
   // Calculate franchise metrics
   const getFranchiseMetrics = (franchise: Franchise) => {
