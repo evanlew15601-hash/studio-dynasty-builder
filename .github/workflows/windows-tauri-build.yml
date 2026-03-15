@@ -30,6 +30,30 @@ jobs:
       - name: Build Tauri bundles (NSIS + MSI)
         run: npm run tauri:build
 
+      - name: Create portable zip (for Steam)
+        shell: bash
+        run: |
+          set -euo pipefail
+          shopt -s nullglob
+
+          rm -rf portable
+          mkdir -p portable
+
+          cp src-tauri/target/release/*.exe portable/
+          cp src-tauri/target/release/*.dll portable/ || true
+
+          if [ -d src-tauri/target/release/resources ]; then
+            cp -R src-tauri/target/release/resources portable/
+          fi
+
+          tar -a -c -f studio-magnate-windows-portable.zip -C portable .
+
+      - name: Upload portable zip
+        uses: actions/upload-artifact@v6
+        with:
+          name: studio-magnate-windows-portable
+          path: studio-magnate-windows-portable.zip
+
       - name: Upload NSIS installer
         uses: actions/upload-artifact@v6
         with:

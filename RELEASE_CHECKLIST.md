@@ -38,6 +38,8 @@ npm run tauri:build
 ### CI (Windows)
 
 - [ ] Run the `windows-tauri-build` GitHub Actions workflow and download artifacts
+- [ ] Smoke test portable build (Steam-style): launch `studio-magnate.exe` from the extracted zip
+- [ ] Upload to Steam (SteamPipe): see `scripts/steam/README.md`
 - [ ] Smoke test installer(s): install, launch, uninstall, upgrade from previous beta
 
 ## 6) Open source compliance

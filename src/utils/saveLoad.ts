@@ -1,5 +1,7 @@
 import { GameState } from '@/types/game';
 import { isTauriRuntime, loadSlotJson, saveSlotJson, listSlots, deleteSlot, getSavesDir } from '@/integrations/tauri/saves';
+import { CURRENT_SAVE_VERSION } from '@/utils/saveVersion';
+import { migrateSnapshot, validateSnapshot } from '@/game/persistence/migrations';
 
 export interface SaveGameMeta {
   savedAt: string;
@@ -27,8 +29,6 @@ const ACTIVE_SLOT_KEY = 'studio-magnate-active-save-slot';
 
 export const DEFAULT_SAVE_SLOT_ID = 'slot1';
 export const AUTO_LOAD_SLOT_KEY = 'studio-magnate-auto-load-slot';
-
-const CURRENT_SAVE_VERSION = 'alpha-1';
 
 export function getActiveSaveSlotId(): string {
   if (typeof window === 'undefined' || typeof window.localStorage === 'undefined') {
@@ -166,14 +166,11 @@ export function loadGame(slotId: string): SaveGameSnapshot | null {
     const raw = window.localStorage.getItem(key);
     if (!raw) return null;
 
-    const parsed = JSON.parse(raw) as SaveGameSnapshot;
+    const parsed = JSON.parse(raw) as unknown;
+    const validated = validateSnapshot(parsed);
+    if (!validated) return null;
 
-    // Basic shape check
-    if (!parsed || !parsed.gameState || !parsed.meta) {
-      return null;
-    }
-
-    return parsed;
+    return migrateSnapshot(validated);
   } catch (error) {
     console.error('Failed to load game snapshot', error);
     return null;
@@ -185,13 +182,11 @@ export async function loadGameAsync(slotId: string): Promise<SaveGameSnapshot | 
     try {
       const raw = await loadSlotJson(slotId);
       if (!raw) return null;
-      const parsed = JSON.parse(raw) as SaveGameSnapshot;
+      const parsed = JSON.parse(raw) as unknown;
+      const validated = validateSnapshot(parsed);
+      if (!validated) return null;
 
-      if (!parsed || !parsed.gameState || !parsed.meta) {
-        return null;
-      }
-
-      return parsed;
+      return migrateSnapshot(validated);
     } catch (error) {
       console.error('Failed to load game snapshot', error);
       return null;
