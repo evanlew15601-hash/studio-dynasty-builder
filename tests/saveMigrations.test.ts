@@ -1,6 +1,10 @@
+import { readFileSync } from 'node:fs';
+import { fileURLToPath } from 'node:url';
+import { dirname, join } from 'node:path';
+
 import { beforeEach, describe, expect, it } from 'vitest';
 
-import { loadGame, type SaveGameSnapshot } from '@/utils/saveLoad';
+import { loadGame } from '@/utils/saveLoad';
 
 type LocalStorageMock = {
   length: number;
@@ -36,34 +40,10 @@ function createLocalStorageMock(): LocalStorageMock {
   };
 }
 
-function makeAlpha0Snapshot(): SaveGameSnapshot {
-  return {
-    meta: { savedAt: '2027-01-01T00:00:00.000Z' } as any,
-    gameState: {
-      studio: { id: 'player', name: 'Test Studio', reputation: 50, budget: 1_000_000, founded: 2000, specialties: ['drama'], debt: 0, lastProjectWeek: 0, weeksSinceLastProject: 0 },
-      currentYear: 2027,
-      currentWeek: 1,
-      currentQuarter: 1,
-      marketConditions: {
-        trendingGenres: ['drama'],
-        audiencePreferences: [],
-        economicClimate: 'stable',
-        technologicalAdvances: [],
-        regulatoryChanges: [],
-        seasonalTrends: [],
-        competitorReleases: [],
-        awardsSeasonActive: false,
-      },
-      eventQueue: [],
-      boxOfficeHistory: [],
-      awardsCalendar: [],
-      industryTrends: [],
-      allReleases: [],
-      topFilmsHistory: [],
-      universeSeed: 123,
-      rngState: 123,
-    } as any,
-  };
+function loadFixture(name: string): unknown {
+  const baseDir = dirname(fileURLToPath(import.meta.url));
+  const path = join(baseDir, 'fixtures', 'snapshots', name);
+  return JSON.parse(readFileSync(path, 'utf8')) as unknown;
 }
 
 describe('save-game migrations', () => {
@@ -72,8 +52,8 @@ describe('save-game migrations', () => {
     (globalThis as any).window = { localStorage };
   });
 
-  it('upgrades missing-version snapshots to the current version on load', () => {
-    const snapshot = makeAlpha0Snapshot();
+  it('upgrades fixture snapshots to the current version on load', () => {
+    const snapshot = loadFixture('alpha-0.json');
     (globalThis as any).window.localStorage.setItem('studio-magnate-save-slot1', JSON.stringify(snapshot));
 
     const loaded = loadGame('slot1');
