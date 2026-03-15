@@ -1,7 +1,7 @@
 import { describe, expect, it } from 'vitest';
 import type { GameState } from '@/types/game';
 import type { LeagueReleasedProjectSnapshot } from '@/types/onlineLeague';
-import { getReleaseStudioName, mergeLeagueReleaseSnapshotsIntoAllReleases, stableLeagueReleaseId, toLeagueReleaseProject } from '@/utils/leagueReleases';
+import { getReleaseDirectorName, getReleaseSource, getReleaseStudioName, getReleaseTopCastNames, mergeLeagueReleaseSnapshotsIntoAllReleases, stableLeagueReleaseId, toLeagueReleaseProject } from '@/utils/leagueReleases';
 
 function makeBaseGameState(): GameState {
   return {
@@ -111,5 +111,28 @@ describe('leagueReleases', () => {
     } as any;
 
     expect(getReleaseStudioName({ gameState: withLocal, release: { id: 'local-p', title: 'Local', status: 'released' } as any })).toBe('You');
+  });
+
+  it('getReleaseSource / getReleaseDirectorName / getReleaseTopCastNames prefer shared metadata when present', () => {
+    const gameState = makeBaseGameState();
+
+    const project = {
+      id: 'league-u2-p1',
+      title: 'Remote Hit',
+      studioName: 'Other Studio',
+      status: 'released',
+      script: { id: 's', title: 'Remote Hit', genre: 'drama' },
+      cast: [],
+      crew: [],
+      metrics: {
+        sharedPublicDomainName: 'Old Tale',
+        sharedDirectorName: 'Director Name',
+        sharedTopCastNames: ['Star 1', 'Star 2'],
+      },
+    } as any;
+
+    expect(getReleaseSource({ gameState, project })).toBe('Public domain: Old Tale');
+    expect(getReleaseDirectorName({ gameState, project })).toBe('Director Name');
+    expect(getReleaseTopCastNames({ gameState, project, limit: 3 })).toEqual(['Star 1', 'Star 2']);
   });
 });

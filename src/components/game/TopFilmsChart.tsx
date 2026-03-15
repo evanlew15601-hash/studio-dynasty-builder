@@ -220,16 +220,22 @@ export const TopFilmsChart: React.FC = () => {
                     </div>
 
                     {/* Performance Bar */}
-                    <div className="mb-3">
-                      <div className="flex justify-between text-xs text-muted-foreground mb-1">
-                        <span>vs Budget ({formatMoneyCompact(entry.project.budget?.total || 0)})</span>
-                        <span>{((entry.totalGross / (entry.project.budget?.total || 1)) * 100).toFixed(0)}%</span>
+                    {(!entry.project.id.startsWith('league-') || entry.studioName === gameState.studio.name) ? (
+                      <div className="mb-3">
+                        <div className="flex justify-between text-xs text-muted-foreground mb-1">
+                          <span>vs Budget ({formatMoneyCompact(entry.project.budget?.total || 0)})</span>
+                          <span>{((entry.totalGross / (entry.project.budget?.total || 1)) * 100).toFixed(0)}%</span>
+                        </div>
+                        <Progress
+                          value={Math.min(100, (entry.totalGross / (entry.project.budget?.total || 1)) * 100)}
+                          className="h-2"
+                        />
                       </div>
-                      <Progress
-                        value={Math.min(100, (entry.totalGross / (entry.project.budget?.total || 1)) * 100)}
-                        className="h-2"
-                      />
-                    </div>
+                    ) : (
+                      <div className="mb-3 text-xs text-muted-foreground">
+                        Budget hidden for other studios in Online League.
+                      </div>
+                    )}
 
                     {/* Reception Tags */}
                     {entry.receptionTags.length > 0 && (
@@ -318,7 +324,9 @@ export const TopFilmsChart: React.FC = () => {
 
               const logline = activeRelease.script?.logline?.trim();
 
-              const budget = Number(activeRelease.budget?.total ?? 0);
+              const showBudget = !activeRelease.id.startsWith('league-') || (activeRelease.studioName?.trim() ? activeRelease.studioName : gameState.studio.name) === gameState.studio.name;
+
+              const budget = showBudget ? Number(activeRelease.budget?.total ?? 0) : null;
               const boxOffice = Number(activeRelease.metrics?.boxOfficeTotal ?? 0);
               const weekly = Number(activeRelease.metrics?.lastWeeklyRevenue ?? 0);
 
@@ -349,7 +357,7 @@ export const TopFilmsChart: React.FC = () => {
                     </div>
                     <div className="rounded-md border p-3">
                       <div className="text-xs text-muted-foreground">Budget</div>
-                      <div className="text-lg font-semibold">{formatMoneyCompact(budget)}</div>
+                      <div className="text-lg font-semibold">{budget !== null ? formatMoneyCompact(budget) : 'Hidden'}</div>
                     </div>
                   </div>
 

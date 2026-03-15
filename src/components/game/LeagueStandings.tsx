@@ -537,7 +537,10 @@ export const LeagueStandings: React.FC<{ tickGate: OnlineLeagueTickGateState }> 
 
                 const logline = activeRelease.script?.logline?.trim();
 
-                const budget = Number(activeRelease.budget?.total ?? 0);
+                const studioName = getReleaseStudioName({ gameState, release: activeRelease }) || '';
+                const showBudget = studioName === gameState.studio.name;
+
+                const budget = showBudget ? Number(activeRelease.budget?.total ?? 0) : null;
                 const boxOffice = Number(activeRelease.metrics?.boxOfficeTotal ?? 0);
                 const weekly = Number(activeRelease.metrics?.lastWeeklyRevenue ?? 0);
 
@@ -570,7 +573,7 @@ export const LeagueStandings: React.FC<{ tickGate: OnlineLeagueTickGateState }> 
                       </div>
                       <div className="rounded-md border p-3">
                         <div className="text-xs text-muted-foreground">Budget</div>
-                        <div className="text-lg font-semibold">{formatMoneyCompact(budget)}</div>
+                        <div className="text-lg font-semibold">{budget !== null ? formatMoneyCompact(budget) : 'Hidden'}</div>
                       </div>
                     </div>
 
