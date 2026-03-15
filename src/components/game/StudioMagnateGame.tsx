@@ -109,6 +109,7 @@ import { AUTO_LOAD_SLOT_KEY, getActiveSaveSlotId, saveGameAsync } from '@/utils/
 import { syncAndPersistIndustryDatabase } from '@/utils/industryDatabase';
 import { applyPatchesByKey, getPatchesForEntity } from '@/utils/modding';
 import { getModBundle } from '@/utils/moddingStore';
+import { fetchOnlineLeagueTurnSnapshot, upsertOnlineLeagueTurnSnapshot } from '@/integrations/supabase/onlineLeagueTurnState';
 import { DebugControlPanel } from './DebugControlPanel';
 import { IndustryDatabasePanel } from './IndustryDatabasePanel';
 import { LoreHub } from './LoreHub';
@@ -447,6 +448,12 @@ interface StudioMagnateGameProps {
    * Single-player gameplay does not depend on this.
    */
   onlineLeagueCode?: string;
+
+  /**
+   * Online League (Option B): non-host clients mirror the host's game state each turn.
+   * This is experimental and primarily intended for testing shared-session flows.
+   */
+  onlineHostSync?: boolean;
 }
 
 export const StudioMagnateGame: React.FC<StudioMagnateGameProps> = ({
@@ -455,7 +462,8 @@ export const StudioMagnateGame: React.FC<StudioMagnateGameProps> = ({
   initialGameState,
   initialPhase,
   initialUnlockedAchievements,
-  onlineLeagueCode
+  onlineLeagueCode,
+  onlineHostSync = false,
 }) => {
   const { toast } = useToast();
   const isOnlineMode = !!onlineLeagueCode?.trim();
@@ -979,6 +987,7 @@ export const StudioMagnateGame: React.FC<StudioMagnateGameProps> = ({
   // and executed after the state commit (never as an ambient effect of mounting UI panels).
   const pendingPostTickStateRef = useRef<GameState | null>(null);
   const pendingPostTickPersistRef = useRef(false);
+  const pendingOnlineTurnPublishRef = useRef<{ leagueId: string; turn: number } | null>(null);
 
   // First week box office modal state
   const [firstWeekModalProject, setFirstWeekModalProject] = useState<Project | null>(null);
@@ -1032,6 +1041,31 @@ export const StudioMagnateGame: React.FC<StudioMagnateGameProps> = ({
         syncAndPersistIndustryDatabase(getActiveSaveSlotId(), gameState);
       } catch (e) {
         console.warn('Failed to persist industry database', e);
+      }
+
+      // Online League (Option B): the host publishes an authoritative state for this turn.
+      const pendingOnline = pendingOnlineTurnPublishRef.current;
+      if (pendingOnline) {
+        pendingOnlineTurnPublishRef.current = null;
+
+        void upsertOnlineLeagueTurnSnapshot({
+          leagueId: pendingOnline.leagueId,
+          turn: pendingOnline.turn,
+          snapshot: {
+            gameState,
+            meta: {
+              savedAt: new Date().toISOString(),
+              version: 'online-1',
+            },
+          },
+        }).catch((e) => {
+          console.warn('Failed to publish online league turn snapshot', e);
+          toast({
+            title: 'Online League',
+            description: 'Failed to publish host state for the new turn.',
+            variant: 'destructive',
+          });
+        });
       }
 
       pendingPostTickStateRef.current = null;
@@ -2763,14 +2797,132 @@ export const StudioMagnateGame: React.FC<StudioMagnateGameProps> = ({
     }
   };
 
+  const onlineSyncBusyRef = useRef(false);
+  const initialOnlineSyncRef = useRef(false);
+  const initialOnlinePublishRef = useRef(false);
+  const onlineSyncToastTurnRef = useRef<number | null>(null);
+
+  const syncFromHostTurn = async (leagueId: string, turn: number) => {
+    if (onlineSyncBusyRef.current) return;
+    onlineSyncBusyRef.current = true;
+
+    try {
+      if (onlineSyncToastTurnRef.current !== turn) {
+        onlineSyncToastTurnRef.current = turn;
+        toast({
+          title: 'Online League',
+          description: `Syncing from host (turn ${turn})...`,
+        });
+      }
+
+      const timeoutMs = 35_000;
+      const startedAt = Date.now();
+
+      while (Date.now() - startedAt < timeoutMs) {
+        const snap = await fetchOnlineLeagueTurnSnapshot({ leagueId, turn });
+        if (snap?.gameState) {
+          const incoming = snap.gameState;
+
+          const derivedUniverseSeed =
+            typeof incoming.universeSeed === 'number'
+              ? incoming.universeSeed
+              : seedFromString(`${incoming.studio?.id ?? 'studio'}`);
+
+          const derivedRngState = typeof incoming.rngState === 'number' ? incoming.rngState : derivedUniverseSeed;
+
+          const seeded = {
+            ...incoming,
+            universeSeed: derivedUniverseSeed,
+            rngState: derivedRngState,
+          };
+
+          loadGameToStore(seeded, seeded.rngState ?? seeded.universeSeed);
+          return;
+        }
+
+        await delay(600);
+      }
+
+      toast({
+        title: 'Online League',
+        description: 'Timed out waiting for host state. Try again in a moment.',
+        variant: 'destructive',
+      });
+    } catch (e) {
+      console.warn('Online league sync failed', e);
+      toast({
+        title: 'Online League',
+        description: 'Failed to sync from host.',
+        variant: 'destructive',
+      });
+    } finally {
+      onlineSyncBusyRef.current = false;
+    }
+  };
+
   const onlineTickGate = useOnlineLeagueTickGate({
     enabled: !!onlineLeagueCode?.trim(),
     leagueCode: onlineLeagueCode ?? '',
     studioName: gameState.studio.name,
-    onRemoteAdvance: () => {
+    onTurnAdvanced: (turn, info) => {
+      if (info.isHost) {
+        pendingOnlineTurnPublishRef.current = { leagueId: info.leagueId, turn };
+        advanceWeekCore({ suppressDiagnostics: true });
+        return;
+      }
+
+      if (onlineHostSync) {
+        void syncFromHostTurn(info.leagueId, turn);
+        return;
+      }
+
       advanceWeekCore({ suppressDiagnostics: true });
     },
   });
+
+  useEffect(() => {
+    if (!onlineLeagueCode?.trim()) return;
+    if (onlineTickGate.status !== 'ready') return;
+    if (!onlineTickGate.leagueId) return;
+
+    if (onlineTickGate.isHost) {
+      if (initialOnlinePublishRef.current) return;
+      if (!storeGameState) return;
+
+      initialOnlinePublishRef.current = true;
+
+      void upsertOnlineLeagueTurnSnapshot({
+        leagueId: onlineTickGate.leagueId,
+        turn: onlineTickGate.turn,
+        snapshot: {
+          gameState: storeGameState,
+          meta: {
+            savedAt: new Date().toISOString(),
+            version: 'online-1',
+          },
+        },
+      }).catch((e) => {
+        console.warn('Failed to publish initial online league snapshot', e);
+        initialOnlinePublishRef.current = false;
+      });
+
+      return;
+    }
+
+    if (!onlineHostSync) return;
+
+    if (initialOnlineSyncRef.current) return;
+    initialOnlineSyncRef.current = true;
+    void syncFromHostTurn(onlineTickGate.leagueId, onlineTickGate.turn);
+  }, [
+    onlineLeagueCode,
+    onlineTickGate.status,
+    onlineTickGate.isHost,
+    onlineTickGate.leagueId,
+    onlineTickGate.turn,
+    onlineHostSync,
+    storeGameState,
+  ]);
 
   const leagueCompetitorStudios = useMemo(() => {
     if (!isOnlineMode) return [] as Studio[];

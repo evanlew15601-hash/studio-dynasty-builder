@@ -172,6 +172,41 @@ export type Database = {
           },
         ]
       }
+      online_league_turn_states: {
+        Row: {
+          league_id: string
+          turn: number
+          snapshot_json: string
+          created_by: string
+          created_at: string
+          updated_at: string
+        }
+        Insert: {
+          league_id: string
+          turn: number
+          snapshot_json: string
+          created_by: string
+          created_at?: string
+          updated_at?: string
+        }
+        Update: {
+          league_id?: string
+          turn?: number
+          snapshot_json?: string
+          created_by?: string
+          created_at?: string
+          updated_at?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "online_league_turn_states_league_id_fkey"
+            columns: ["league_id"]
+            isOneToOne: false
+            referencedRelation: "online_leagues"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
     }
     Views: {
       [_ in never]: never

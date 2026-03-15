@@ -42,14 +42,14 @@ type Params = {
   enabled: boolean;
   leagueCode: string;
   studioName: string;
-  onRemoteAdvance: () => void;
+  onTurnAdvanced: (turn: number, info: { leagueId: string; isHost: boolean }) => void;
 };
 
 export function useOnlineLeagueTickGate({
   enabled,
   leagueCode,
   studioName,
-  onRemoteAdvance,
+  onTurnAdvanced,
 }: Params): OnlineLeagueTickGateState {
   const code = (leagueCode || '').trim().toUpperCase();
 
@@ -311,7 +311,7 @@ export function useOnlineLeagueTickGate({
       // Apply remote turn advancement (at most one step per poll cycle)
       if (appliedTurnRef.current !== null && nextTurn > appliedTurnRef.current) {
         appliedTurnRef.current += 1;
-        onRemoteAdvance();
+        onTurnAdvanced(appliedTurnRef.current, { leagueId, isHost });
       }
     };
 
@@ -325,7 +325,7 @@ export function useOnlineLeagueTickGate({
         pollRef.current = null;
       }
     };
-  }, [enabled, supabase, leagueId, status, userId, onRemoteAdvance]);
+  }, [enabled, supabase, leagueId, status, userId, isHost, onTurnAdvanced]);
 
   const setReady = async (ready: boolean) => {
     if (!enabled) return;

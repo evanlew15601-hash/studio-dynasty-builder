@@ -36,11 +36,15 @@ const Online = () => {
   const [loadedSnapshot, setLoadedSnapshot] = useState<SaveGameSnapshot | null>(null);
   const [saveDialogOpen, setSaveDialogOpen] = useState(false);
   const [onlineLeagueCode, setOnlineLeagueCode] = useState('');
+  const [onlineHostSync, setOnlineHostSync] = useState(false);
 
   useEffect(() => {
     if (typeof window === 'undefined') return;
     const last = window.localStorage.getItem('studio-magnate-online-last-league');
     if (last) setOnlineLeagueCode(last);
+
+    const hostSync = window.localStorage.getItem('studio-magnate-online-host-sync');
+    if (hostSync) setOnlineHostSync(hostSync === '1');
   }, []);
 
   const handleStartGame = (config: GameConfig) => {
@@ -94,6 +98,13 @@ const Online = () => {
     }
   };
 
+  const handleOnlineHostSyncChange = (enabled: boolean) => {
+    setOnlineHostSync(enabled);
+    if (typeof window !== 'undefined') {
+      window.localStorage.setItem('studio-magnate-online-host-sync', enabled ? '1' : '0');
+    }
+  };
+
   return (
     <LoadingProvider>
       <GlobalLoadingOverlay />
@@ -104,6 +115,8 @@ const Online = () => {
             onlineLeagueCode={onlineLeagueCode}
             onOnlineLeagueCodeChange={handleLeagueCodeChange}
             onGenerateOnlineLeagueCode={handleGenerateLeagueCode}
+            onlineHostSync={onlineHostSync}
+            onOnlineHostSyncChange={handleOnlineHostSyncChange}
             onStartGame={handleStartGame}
             onLoadGame={handleLoadGame}
           />
@@ -122,6 +135,7 @@ const Online = () => {
             initialPhase={loadedSnapshot?.meta.currentPhase}
             initialUnlockedAchievements={loadedSnapshot?.unlockedAchievements}
             onlineLeagueCode={onlineLeagueCode.trim()}
+            onlineHostSync={onlineHostSync}
           />
         </Suspense>
       )}
