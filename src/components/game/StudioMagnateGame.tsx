@@ -105,7 +105,7 @@ import { CrisisManagement } from './CrisisManagement';
 import { MediaRelationships } from './MediaRelationships';
 import { SystemIntegration } from './SystemIntegration';
 import { useGameStore } from '@/game/store';
-import { saveGameAsync } from '@/utils/saveLoad';
+import { AUTO_LOAD_SLOT_KEY, getActiveSaveSlotId, saveGameAsync } from '@/utils/saveLoad';
 import { syncAndPersistIndustryDatabase } from '@/utils/industryDatabase';
 import { applyPatchesByKey, getPatchesForEntity } from '@/utils/modding';
 import { getModBundle } from '@/utils/moddingStore';
@@ -114,6 +114,7 @@ import { IndustryDatabasePanel } from './IndustryDatabasePanel';
 import { LoreHub } from './LoreHub';
 import { TalentProfileDialog } from './TalentProfileDialog';
 import { StudioIconRenderer as StudioIconRendererLazy } from './StudioIconCustomizer';
+import { SaveLoadDialog } from './SaveLoadDialog';
 
 // Ensure AI films have credited talent so awards/filmographies have real people to reference
 function attachBasicCastForAI(project: Project, talentPool: TalentPerson[]): Project {
@@ -971,6 +972,7 @@ export const StudioMagnateGame: React.FC<StudioMagnateGameProps> = ({
   const [selectedFranchise, setSelectedFranchise] = useState<string | null>(null);
   const [selectedPublicDomain, setSelectedPublicDomain] = useState<string | null>(null);
   const [filmReleaseProject, setFilmReleaseProject] = useState<Project | null>(null);
+  const [saveDialogOpen, setSaveDialogOpen] = useState(false);
 
   // Post-tick persistence (strict single-button progression contract):
   // Any persistence that should happen "because a week advanced" is scheduled by the tick
@@ -1027,7 +1029,7 @@ export const StudioMagnateGame: React.FC<StudioMagnateGameProps> = ({
       // This is separate from the save-game snapshot and continues to accrue even if the in-memory
       // simulation prunes older releases for performance.
       try {
-        syncAndPersistIndustryDatabase('slot1', gameState);
+        syncAndPersistIndustryDatabase(getActiveSaveSlotId(), gameState);
       } catch (e) {
         console.warn('Failed to persist industry database', e);
       }
@@ -1064,13 +1066,16 @@ export const StudioMagnateGame: React.FC<StudioMagnateGameProps> = ({
   const handleSaveGame = async () => {
     try {
       const unlockedIds = achievements.getUnlockedAchievements().map(a => a.id);
-      await saveGameAsync('slot1', gameState, {
+      const slotId = getActiveSaveSlotId();
+
+      await saveGameAsync(slotId, gameState, {
         currentPhase,
         unlockedAchievementIds: unlockedIds
       });
+
       toast({
         title: 'Game Saved',
-        description: 'Your progress has been saved.',
+        description: `Saved to ${slotId}.`,
       });
     } catch (error) {
       console.error('Failed to save game', error);
@@ -3035,6 +3040,20 @@ export const StudioMagnateGame: React.FC<StudioMagnateGameProps> = ({
         onOpenChange={setShowWeekRecap}
         report={lastTickReport}
       />
+      <SaveLoadDialog
+        open={saveDialogOpen}
+        onOpenChange={setSaveDialogOpen}
+        mode={isOnlineMode ? 'online' : 'single'}
+        currentGameState={gameState}
+        currentPhase={currentPhase}
+        unlockedAchievementIds={achievements.getUnlockedAchievements().map((a) => a.id)}
+        onLoaded={() => {
+          if (typeof window !== 'undefined') {
+            window.localStorage.setItem(AUTO_LOAD_SLOT_KEY, getActiveSaveSlotId());
+            window.location.reload();
+          }
+        }}
+      />
       <div className="min-h-screen bg-background font-studio relative">
       <PremiumBackground variant="game" />
       <div className="relative z-10">
@@ -3125,6 +3144,15 @@ export const StudioMagnateGame: React.FC<StudioMagnateGameProps> = ({
                 onClick={handleSaveGame}
               >
                 Save Game
+              </Button>
+
+              <Button
+                size="sm"
+                variant="outline"
+                className="mr-2"
+                onClick={() => setSaveDialogOpen(true)}
+              >
+                Saves…
               </Button>
 
               <Button
@@ -3743,7 +3771,7 @@ export const StudioMagnateGame: React.FC<StudioMagnateGameProps> = ({
         )}
 
         {currentPhase === 'database' && (
-          <IndustryDatabasePanel slotId="slot1" />
+          <IndustryDatabasePanel slotId={getActiveSaveSlotId()} />
         )}
         
         {currentPhase === 'production' && (

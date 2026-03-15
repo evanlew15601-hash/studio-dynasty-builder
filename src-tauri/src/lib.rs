@@ -6,7 +6,7 @@ use tauri::Manager;
 
 fn sanitize_slot_id(raw: &str) -> String {
   raw.chars()
-    .filter(|c| c.is_ascii_alphanumeric() || *c == '-' || *c == '_' )
+    .filter(|c| c.is_ascii_alphanumeric() || *c == '-' || *c == '_')
     .collect::<String>()
 }
 
@@ -19,6 +19,13 @@ fn slot_path(app: &tauri::AppHandle, slot_id: &str) -> Result<PathBuf, String> {
   let slot = sanitize_slot_id(slot_id);
   let dir = saves_dir(app)?;
   Ok(dir.join(format!("{}.json", slot)))
+}
+
+#[tauri::command]
+fn get_saves_dir(app: tauri::AppHandle) -> Result<String, String> {
+  let dir = saves_dir(&app)?;
+  fs::create_dir_all(&dir).map_err(|e| e.to_string())?;
+  Ok(dir.to_string_lossy().to_string())
 }
 
 #[tauri::command(rename_all = "camelCase")]
@@ -83,7 +90,13 @@ fn delete_slot(app: tauri::AppHandle, slot_id: String) -> Result<(), String> {
 #[cfg_attr(mobile, tauri::mobile_entry_point)]
 pub fn run() {
   tauri::Builder::default()
-    .invoke_handler(tauri::generate_handler![save_slot, load_slot, list_slots, delete_slot])
+    .invoke_handler(tauri::generate_handler![
+      get_saves_dir,
+      save_slot,
+      load_slot,
+      list_slots,
+      delete_slot
+    ])
     .run(tauri::generate_context!())
     .expect("error while running tauri application");
 }

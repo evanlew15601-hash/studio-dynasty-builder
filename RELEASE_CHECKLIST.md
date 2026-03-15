@@ -25,6 +25,9 @@ npm run check
 
 ## 5) Desktop builds (Tauri)
 
+- [ ] Verify saving works on a clean machine (creates a save file on disk via the in-game Saves… dialog)
+- [ ] If shipping on Steam with Steam Cloud, confirm Steam Auto Cloud is configured to sync the save folder shown in the in-game Saves… dialog
+
 ### Local
 
 ```sh
