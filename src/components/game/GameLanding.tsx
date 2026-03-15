@@ -55,6 +55,10 @@ export const GameLanding: React.FC<GameLandingProps> = ({
     studioIcon: { ...DEFAULT_ICON },
   });
 
+  const hasOnlineConfig =
+    mode !== 'online' ||
+    (!!import.meta.env.VITE_SUPABASE_URL && !!import.meta.env.VITE_SUPABASE_ANON_KEY);
+
   const difficultySettings = {
     easy: { budget: 15000000, description: 'More budget, forgiving market' },
     normal: { budget: 10000000, description: 'Balanced experience' },
@@ -71,6 +75,10 @@ export const GameLanding: React.FC<GameLandingProps> = ({
 
   const handleStartGame = () => {
     if (mode === 'online' && !onlineLeagueCode?.trim()) {
+      return;
+    }
+
+    if (mode === 'online' && !hasOnlineConfig) {
       return;
     }
 
@@ -142,6 +150,13 @@ export const GameLanding: React.FC<GameLandingProps> = ({
                   <p className="text-sm text-muted-foreground">
                     Join friends with an invite code. This does not change single-player mechanics — it just enables live league snapshots.
                   </p>
+
+                  {!hasOnlineConfig && (
+                    <div className="rounded-md border border-destructive/40 bg-destructive/5 p-3 text-xs text-destructive">
+                      Online mode is not configured. Copy <span className="font-mono">.env.example</span> to <span className="font-mono">.env</span> and set <span className="font-mono">VITE_SUPABASE_URL</span> + <span className="font-mono">VITE_SUPABASE_ANON_KEY</span>.
+                    </div>
+                  )}
+
                   <div className="flex gap-2">
                     <Input
                       value={onlineLeagueCode ?? ''}
@@ -205,7 +220,7 @@ export const GameLanding: React.FC<GameLandingProps> = ({
                 size="lg" 
                 className="btn-studio px-14 py-7 text-lg shadow-golden hover:shadow-golden/60 transition-all duration-500 hover:scale-[1.02]"
                 onClick={handleStartGame}
-                disabled={mode === 'online' && !onlineLeagueCode?.trim()}
+                disabled={mode === 'online' && (!onlineLeagueCode?.trim() || !hasOnlineConfig)}
               >
                 <Play className="mr-3" size={24} />
                 Quick Start
@@ -330,6 +345,12 @@ export const GameLanding: React.FC<GameLandingProps> = ({
                     <p className="text-sm text-muted-foreground mt-1">
                       Required for online mode.
                     </p>
+
+                    {!hasOnlineConfig && (
+                      <p className="text-sm text-destructive mt-2">
+                        Online mode is not configured. Copy <span className="font-mono">.env.example</span> to <span className="font-mono">.env</span> and set <span className="font-mono">VITE_SUPABASE_URL</span> + <span className="font-mono">VITE_SUPABASE_ANON_KEY</span>.
+                      </p>
+                    )}
                   </div>
                 )}
 
@@ -416,7 +437,7 @@ export const GameLanding: React.FC<GameLandingProps> = ({
                   <Button 
                     className="flex-1 btn-studio font-semibold transition-all duration-300 hover:scale-105"
                     onClick={handleStartGame}
-                    disabled={!config.studioName.trim() || (mode === 'online' && !onlineLeagueCode?.trim())}
+                    disabled={!config.studioName.trim() || (mode === 'online' && (!onlineLeagueCode?.trim() || !hasOnlineConfig))}
                   >
                     <Play className="mr-2" size={20} />
                     Start Game
