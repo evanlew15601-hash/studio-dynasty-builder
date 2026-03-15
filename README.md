@@ -31,6 +31,20 @@ npm run tauri:build
 
 No environment variables are required to run the base game.
 
+### Optional: Online League (Supabase)
+
+Online League mode requires a Supabase project (hosted or local) and these Vite env vars:
+
+- `VITE_SUPABASE_URL`
+- `VITE_SUPABASE_ANON_KEY`
+
+Setup:
+
+```sh
+cp .env.example .env
+# edit .env and set VITE_SUPABASE_URL + VITE_SUPABASE_ANON_KEY
+```
+
 Notes:
 - `.env` is gitignored to avoid committing secrets.
 

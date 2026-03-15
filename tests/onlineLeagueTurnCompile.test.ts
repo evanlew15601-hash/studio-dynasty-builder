@@ -89,6 +89,28 @@ describe('onlineLeagueTurnCompile', () => {
     expect(submission.commands[0].payload.projectId).toBe('p1');
   });
 
+  it('buildOnlineLeagueTurnSubmission supports an empty turn (no new commands)', () => {
+    const base = makeBaseGameState();
+
+    const baseline = createOnlineLeagueTurnBaseline({
+      ...base,
+      projects: [
+        {
+          id: 'p1',
+          title: 'Film',
+          contractedTalent: [],
+          cast: [],
+          crew: [],
+          script: { id: 's1', title: 'Film', genre: 'drama' } as any,
+        } as any,
+      ],
+    });
+
+    const submission = buildOnlineLeagueTurnSubmission({ baseline, current: base });
+    expect(submission.commands).toHaveLength(0);
+    expect(submission.state?.projects).toBeDefined();
+  });
+
   it('resolveOnlineLeagueTalentConflicts uses ready order (first ready wins)', () => {
     const res = resolveOnlineLeagueTalentConflicts({
       turn: 2,

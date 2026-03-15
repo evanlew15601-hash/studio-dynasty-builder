@@ -3260,25 +3260,31 @@ export const StudioMagnateGame: React.FC<StudioMagnateGameProps> = ({
     const nextReady = !onlineTickGate.isReady;
 
     if (nextReady) {
-      try {
-        const submission = buildOnlineLeagueTurnSubmission({
-          baseline: onlineTurnBaselineRef.current,
-          current: gameState,
-        });
+      const submission = buildOnlineLeagueTurnSubmission({
+        baseline: onlineTurnBaselineRef.current,
+        current: gameState,
+      });
 
+      try {
         await upsertOnlineLeagueTurnSubmission({
           leagueId: onlineTickGate.leagueId,
           turn: onlineTickGate.turn + 1,
           submission,
         });
       } catch (e) {
-        console.warn('Online League: failed to submit turn intents', e);
-        toast({
-          title: 'Online League',
-          description: 'Failed to submit your turn actions. Try again.',
-          variant: 'destructive',
-        });
-        return;
+        // If the player took no conflicting actions this turn, we can still mark them ready.
+        // (The host conflict resolver treats missing submissions as "no actions".)
+        if ((submission.commands || []).length === 0) {
+          console.warn('Online League: failed to submit turn intents (empty submission)', e);
+        } else {
+          console.warn('Online League: failed to submit turn intents', e);
+          toast({
+            title: 'Online League',
+            description: 'Failed to submit your turn actions. Try again.',
+            variant: 'destructive',
+          });
+          return;
+        }
       }
     }
 
