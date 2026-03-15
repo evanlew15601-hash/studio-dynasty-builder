@@ -1,17 +1,12 @@
 import { GameLanding } from '@/components/game/GameLanding';
+import { SaveLoadDialog } from '@/components/game/SaveLoadDialog';
 import { GlobalLoadingOverlay } from '@/components/ui/global-loading-overlay';
 import { LoadingProvider } from '@/contexts/LoadingContext';
-import { Suspense, lazy, useState } from 'react';
-import { loadGameAsync, SaveGameSnapshot } from '@/utils/saveLoad';
-import { ensureGameStateRoleGenders, ensureTalentDemographics } from '@/utils/demographics';
-import { ensureGameStateFictionalAwardNames } from '@/utils/awardsNaming';
-import { ensureCompetitorStudiosLore } from '@/utils/competitorStudiosPatches';
-import { ensureTalentLore } from '@/utils/talentLorePatches';
-import { primeCompetitorTelevision } from '@/utils/televisionPatches';
+import { Suspense, lazy, useEffect, useState } from 'react';
+import { AUTO_LOAD_SLOT_KEY, loadGameAsync, type SaveGameSnapshot } from '@/utils/saveLoad';
+import { patchLoadedSnapshot } from '@/utils/snapshotPatches';
 import { Genre } from '@/types/game';
 import type { StudioIconConfig } from '@/components/game/StudioIconCustomizer';
-import { getModBundle } from '@/utils/moddingStore';
-import { applyPatchesByKey, getPatchesForEntity } from '@/utils/modding';
 
 const StudioMagnateGame = lazy(() =>
   import('@/components/game/StudioMagnateGame').then((m) => ({ default: m.StudioMagnateGame }))
@@ -29,6 +24,7 @@ const Index = () => {
   const [gameStarted, setGameStarted] = useState(false);
   const [gameConfig, setGameConfig] = useState<GameConfig | null>(null);
   const [loadedSnapshot, setLoadedSnapshot] = useState<SaveGameSnapshot | null>(null);
+  const [saveDialogOpen, setSaveDialogOpen] = useState(false);
 
   const handleStartGame = (config: GameConfig) => {
     // Starting a fresh game clears any loaded snapshot
@@ -37,51 +33,49 @@ const Index = () => {
     setGameStarted(true);
   };
 
-  const handleLoadGame = async () => {
-    const snapshot = await loadGameAsync('slot1');
+  const handleLoadGame = () => {
+    setSaveDialogOpen(true);
+  };
 
-    if (!snapshot) {
-      // Basic fallback messaging; main toasts live inside the game shell
-      // so we keep this simple on the landing screen.
-      if (typeof window !== 'undefined') {
-        window.alert('No saved game found in this browser yet. Start a new game first, then use the in-game Save button.');
-      }
-      return;
-    }
-
-    const mods = getModBundle();
-
-    const patchedTalent = applyPatchesByKey(snapshot.gameState.talent || [], getPatchesForEntity(mods, 'talent'), (t) => t.id);
-
-    const patchedGameState = primeCompetitorTelevision(
-      ensureCompetitorStudiosLore(
-        ensureTalentLore(
-          ensureGameStateFictionalAwardNames(
-            ensureGameStateRoleGenders({
-              ...snapshot.gameState,
-              talent: ensureTalentDemographics(patchedTalent),
-              franchises: applyPatchesByKey(snapshot.gameState.franchises || [], getPatchesForEntity(mods, 'franchise'), (f) => f.id),
-              publicDomainIPs: applyPatchesByKey(
-                snapshot.gameState.publicDomainIPs || [],
-                getPatchesForEntity(mods, 'publicDomainIP'),
-                (p) => p.id
-              ),
-            })
-          )
-        )
-      )
-    );
-
-    setLoadedSnapshot({ ...snapshot, gameState: patchedGameState });
+  const handleLoadedSnapshot = (snapshot: SaveGameSnapshot) => {
+    const patched = patchLoadedSnapshot(snapshot, { mode: 'single' });
+    setLoadedSnapshot(patched);
     setGameConfig(null);
     setGameStarted(true);
   };
+
+  useEffect(() => {
+    if (typeof window === 'undefined') return;
+    if (gameStarted) return;
+
+    const slot = window.localStorage.getItem(AUTO_LOAD_SLOT_KEY);
+    if (!slot) return;
+
+    window.localStorage.removeItem(AUTO_LOAD_SLOT_KEY);
+
+    void (async () => {
+      const snapshot = await loadGameAsync(slot);
+      if (!snapshot) return;
+      const patched = patchLoadedSnapshot(snapshot, { mode: 'single' });
+      setLoadedSnapshot(patched);
+      setGameConfig(null);
+      setGameStarted(true);
+    })();
+  }, [gameStarted]);
 
   return (
     <LoadingProvider>
       <GlobalLoadingOverlay />
       {!gameStarted ? (
-        <GameLanding onStartGame={handleStartGame} onLoadGame={handleLoadGame} />
+        <>
+          <GameLanding onStartGame={handleStartGame} onLoadGame={handleLoadGame} />
+          <SaveLoadDialog
+            open={saveDialogOpen}
+            onOpenChange={setSaveDialogOpen}
+            mode="single"
+            onLoaded={handleLoadedSnapshot}
+          />
+        </>
       ) : (
         <Suspense fallback={<div className="p-6 text-sm text-muted-foreground">Loading game...</div>}>
           <StudioMagnateGame

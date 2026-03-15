@@ -10,6 +10,10 @@ async function invokeTauri<T>(cmd: string, args?: Record<string, unknown>): Prom
   return await invoke<T>(cmd, args as any);
 }
 
+export async function getSavesDir(): Promise<string> {
+  return await invokeTauri<string>('get_saves_dir');
+}
+
 export async function saveSlotJson(slotId: string, snapshotJson: string): Promise<void> {
   await invokeTauri('save_slot', { slotId, snapshotJson });
 }

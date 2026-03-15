@@ -1,17 +1,13 @@
 import { GameLanding } from '@/components/game/GameLanding';
+import { SaveLoadDialog } from '@/components/game/SaveLoadDialog';
 import { GlobalLoadingOverlay } from '@/components/ui/global-loading-overlay';
 import { LoadingProvider } from '@/contexts/LoadingContext';
 import { Suspense, lazy, useEffect, useState } from 'react';
-import { loadGameAsync, SaveGameSnapshot } from '@/utils/saveLoad';
-import { ensureGameStateRoleGenders, ensureTalentDemographics } from '@/utils/demographics';
-import { ensureGameStateFictionalAwardNames } from '@/utils/awardsNaming';
-import { ensureCompetitorStudiosLore } from '@/utils/competitorStudiosPatches';
-import { ensureTalentLore } from '@/utils/talentLorePatches';
+import { AUTO_LOAD_SLOT_KEY, loadGameAsync, type SaveGameSnapshot } from '@/utils/saveLoad';
+import { patchLoadedSnapshot } from '@/utils/snapshotPatches';
 
 import { Genre } from '@/types/game';
 import type { StudioIconConfig } from '@/components/game/StudioIconCustomizer';
-import { getModBundle } from '@/utils/moddingStore';
-import { applyPatchesByKey, getPatchesForEntity } from '@/utils/modding';
 
 const StudioMagnateGame = lazy(() =>
   import('@/components/game/StudioMagnateGame').then((m) => ({ default: m.StudioMagnateGame }))
@@ -38,12 +34,24 @@ const Online = () => {
   const [gameStarted, setGameStarted] = useState(false);
   const [gameConfig, setGameConfig] = useState<GameConfig | null>(null);
   const [loadedSnapshot, setLoadedSnapshot] = useState<SaveGameSnapshot | null>(null);
+  const [saveDialogOpen, setSaveDialogOpen] = useState(false);
   const [onlineLeagueCode, setOnlineLeagueCode] = useState('');
+  const [onlineHostSync, setOnlineHostSync] = useState(false);
+  const [onlineSeasonYears, setOnlineSeasonYears] = useState(6);
 
   useEffect(() => {
     if (typeof window === 'undefined') return;
     const last = window.localStorage.getItem('studio-magnate-online-last-league');
     if (last) setOnlineLeagueCode(last);
+
+    const hostSync = window.localStorage.getItem('studio-magnate-online-host-sync');
+    if (hostSync) setOnlineHostSync(hostSync === '1');
+
+    const seasonYears = window.localStorage.getItem('studio-magnate-online-season-years');
+    if (seasonYears) {
+      const parsed = Number.parseInt(seasonYears, 10);
+      if (Number.isFinite(parsed) && parsed > 0) setOnlineSeasonYears(parsed);
+    }
   }, []);
 
   const handleStartGame = (config: GameConfig) => {
@@ -59,56 +67,35 @@ const Online = () => {
     }
   };
 
-  const handleLoadGame = async () => {
-    const snapshot = await loadGameAsync('slot1');
+  const handleLoadGame = () => {
+    setSaveDialogOpen(true);
+  };
 
-    if (!snapshot) {
-      if (typeof window !== 'undefined') {
-        window.alert('No saved game found in this browser yet. Start a new game first, then use the in-game Save button.');
-      }
-      return;
-    }
-
-    const mods = getModBundle();
-
-    const patchedTalent = applyPatchesByKey(snapshot.gameState.talent || [], getPatchesForEntity(mods, 'talent'), (t) => t.id);
-
-    const patchedGameStateRaw = ensureCompetitorStudiosLore(
-      ensureTalentLore(
-        ensureGameStateFictionalAwardNames(
-          ensureGameStateRoleGenders({
-            ...snapshot.gameState,
-            talent: ensureTalentDemographics(patchedTalent),
-            franchises: applyPatchesByKey(snapshot.gameState.franchises || [], getPatchesForEntity(mods, 'franchise'), (f) => f.id),
-            publicDomainIPs: applyPatchesByKey(
-              snapshot.gameState.publicDomainIPs || [],
-              getPatchesForEntity(mods, 'publicDomainIP'),
-              (p) => p.id
-            ),
-          })
-        )
-      )
-    );
-
-    // Online mode should only include player-controlled studios.
-    const playerStudioName = patchedGameStateRaw.studio?.name;
-    const cleanedGameState = {
-      ...patchedGameStateRaw,
-      competitorStudios: [],
-      aiStudioProjects: [],
-      allReleases: (patchedGameStateRaw.allReleases || []).filter((r: any) => {
-        const studioName = r?.studioName;
-        if (!studioName) return true;
-        return studioName === playerStudioName;
-      }),
-    };
-
-    const patchedGameState = cleanedGameState;
-
-    setLoadedSnapshot({ ...snapshot, gameState: patchedGameState });
+  const handleLoadedSnapshot = (snapshot: SaveGameSnapshot) => {
+    const patched = patchLoadedSnapshot(snapshot, { mode: 'online' });
+    setLoadedSnapshot(patched);
     setGameConfig(null);
     setGameStarted(true);
   };
+
+  useEffect(() => {
+    if (typeof window === 'undefined') return;
+    if (gameStarted) return;
+
+    const slot = window.localStorage.getItem(AUTO_LOAD_SLOT_KEY);
+    if (!slot) return;
+
+    window.localStorage.removeItem(AUTO_LOAD_SLOT_KEY);
+
+    void (async () => {
+      const snapshot = await loadGameAsync(slot);
+      if (!snapshot) return;
+      const patched = patchLoadedSnapshot(snapshot, { mode: 'online' });
+      setLoadedSnapshot(patched);
+      setGameConfig(null);
+      setGameStarted(true);
+    })();
+  }, [gameStarted]);
 
   const handleGenerateLeagueCode = () => {
     const next = generateLeagueCode();
@@ -118,28 +105,60 @@ const Online = () => {
     }
   };
 
+  const handleOnlineHostSyncChange = (enabled: boolean) => {
+    setOnlineHostSync(enabled);
+    if (typeof window !== 'undefined') {
+      window.localStorage.setItem('studio-magnate-online-host-sync', enabled ? '1' : '0');
+    }
+  };
+
+  const handleOnlineSeasonYearsChange = (years: number) => {
+    const normalized = Math.max(1, Math.min(20, Math.floor(years)));
+    setOnlineSeasonYears(normalized);
+    if (typeof window !== 'undefined') {
+      window.localStorage.setItem('studio-magnate-online-season-years', String(normalized));
+    }
+  };
+
   return (
     <LoadingProvider>
       <GlobalLoadingOverlay />
       {!gameStarted ? (
-        <GameLanding
-          mode="online"
-          onlineLeagueCode={onlineLeagueCode}
-          onOnlineLeagueCodeChange={handleLeagueCodeChange}
-          onGenerateOnlineLeagueCode={handleGenerateLeagueCode}
-          onStartGame={handleStartGame}
-          onLoadGame={handleLoadGame}
-        />
-      ) : (
-        <Suspense fallback={<div className="p-6 text-sm text-muted-foreground">Loading game...</div>}>
-          <StudioMagnateGame
-            gameConfig={gameConfig ?? undefined}
-            initialGameState={loadedSnapshot?.gameState}
-            initialPhase={loadedSnapshot?.meta.currentPhase}
-            initialUnlockedAchievements={loadedSnapshot?.unlockedAchievements}
-            onlineLeagueCode={onlineLeagueCode.trim()}
+        <>
+          <GameLanding
+            mode="online"
+            onlineLeagueCode={onlineLeagueCode}
+            onOnlineLeagueCodeChange={handleLeagueCodeChange}
+            onGenerateOnlineLeagueCode={handleGenerateLeagueCode}
+            onlineHostSync={onlineHostSync}
+            onOnlineHostSyncChange={handleOnlineHostSyncChange}
+            onlineSeasonYears={onlineSeasonYears}
+            onOnlineSeasonYearsChange={handleOnlineSeasonYearsChange}
+            onStartGame={handleStartGame}
+            onLoadGame={handleLoadGame}
           />
-        </Suspense>
+          <SaveLoadDialog
+            open={saveDialogOpen}
+            onOpenChange={setSaveDialogOpen}
+            mode="online"
+            onLoaded={handleLoadedSnapshot}
+          />
+        </>
+      ) : (
+        <Suspense fallback={null}>
+            <StudioMagnateGame
+              gameConfig={gameConfig ?? undefined}
+              initialGameState={loadedSnapshot?.gameState}
+              initialPhase={loadedSnapshot?.meta.currentPhase}
+              initialUnlockedAchievements={loadedSnapshot?.unlockedAchievements}
+              onlineLeagueCode={onlineLeagueCode}
+              onlineSeasonYears={onlineSeasonYears}
+              onlineHostSync={onlineHostSync}
+              onPhaseChange={(phase) => {
+                if (loadedSnapshot) setLoadedSnapshot({ ...loadedSnapshot, meta: { ...loadedSnapshot.meta, currentPhase: phase } });
+              }}
+            />
+          </Suspense>
       )}
     </LoadingProvider>
   );

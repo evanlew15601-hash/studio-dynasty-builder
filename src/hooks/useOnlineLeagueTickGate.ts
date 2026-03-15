@@ -34,6 +34,10 @@ export type OnlineLeagueTickGateState = {
   readyCount: number;
   isReady: boolean;
   remoteStudios: OnlineLeagueTickGateRemoteStudio[];
+  startYear: number | null;
+  seasonYears: number | null;
+  maxTurn: number | null;
+  seasonEnded: boolean;
   setReady: (ready: boolean) => Promise<void>;
   forceAdvance: () => Promise<void>;
 };
@@ -42,14 +46,16 @@ type Params = {
   enabled: boolean;
   leagueCode: string;
   studioName: string;
-  onRemoteAdvance: () => void;
+  seasonYears?: number;
+  onTurnAdvanced: (turn: number, info: { leagueId: string; isHost: boolean }) => void;
 };
 
 export function useOnlineLeagueTickGate({
   enabled,
   leagueCode,
   studioName,
-  onRemoteAdvance,
+  seasonYears,
+  onTurnAdvanced,
 }: Params): OnlineLeagueTickGateState {
   const code = (leagueCode || '').trim().toUpperCase();
 
@@ -61,6 +67,8 @@ export function useOnlineLeagueTickGate({
   const [userId, setUserId] = useState<string | null>(null);
   const [leagueId, setLeagueId] = useState<string | null>(null);
   const [hostUserId, setHostUserId] = useState<string | null>(null);
+  const [startYear, setStartYear] = useState<number | null>(null);
+  const [seasonYearsValue, setSeasonYearsValue] = useState<number | null>(null);
 
   const [turn, setTurn] = useState(0);
   const appliedTurnRef = useRef<number | null>(null);
@@ -71,6 +79,9 @@ export function useOnlineLeagueTickGate({
   const [remoteStudios, setRemoteStudios] = useState<OnlineLeagueTickGateRemoteStudio[]>([]);
 
   const isHost = !!userId && !!hostUserId && userId === hostUserId;
+
+  const maxTurn = seasonYearsValue ? (seasonYearsValue * 52) - 1 : null;
+  const seasonEnded = maxTurn !== null ? turn >= maxTurn : false;
 
   const pollRef = useRef<number | null>(null);
   const lastSeenUpdateRef = useRef(0);
@@ -171,6 +182,7 @@ export function useOnlineLeagueTickGate({
           league_code: code,
           league_name: `${studioName || 'Studio'} League`,
           studio_name: studioName || 'Studio',
+          season_years: seasonYears,
         });
 
         if (cancelled) return;
@@ -194,12 +206,14 @@ export function useOnlineLeagueTickGate({
 
       const leagueRes = await supabase
         .from('online_leagues')
-        .select('owner_user_id')
+        .select('owner_user_id, start_year, season_years')
         .eq('id', id)
         .maybeSingle();
 
       if (!cancelled) {
         setHostUserId(leagueRes.data?.owner_user_id ?? null);
+        setStartYear(typeof leagueRes.data?.start_year === 'number' ? leagueRes.data.start_year : null);
+        setSeasonYearsValue(typeof leagueRes.data?.season_years === 'number' ? leagueRes.data.season_years : null);
         setStatus('ready');
       }
     })();
@@ -207,7 +221,7 @@ export function useOnlineLeagueTickGate({
     return () => {
       cancelled = true;
     };
-  }, [enabled, supabase, userId, code, studioName]);
+  }, [enabled, supabase, userId, code, studioName, seasonYears]);
 
   useEffect(() => {
     if (!enabled) return;
@@ -311,7 +325,7 @@ export function useOnlineLeagueTickGate({
       // Apply remote turn advancement (at most one step per poll cycle)
       if (appliedTurnRef.current !== null && nextTurn > appliedTurnRef.current) {
         appliedTurnRef.current += 1;
-        onRemoteAdvance();
+        onTurnAdvanced(appliedTurnRef.current, { leagueId, isHost });
       }
     };
 
@@ -325,13 +339,14 @@ export function useOnlineLeagueTickGate({
         pollRef.current = null;
       }
     };
-  }, [enabled, supabase, leagueId, status, userId, onRemoteAdvance]);
+  }, [enabled, supabase, leagueId, status, userId, isHost, onTurnAdvanced]);
 
   const setReady = async (ready: boolean) => {
     if (!enabled) return;
     if (!supabase) return;
     if (!code) return;
     if (status !== 'ready') return;
+    if (seasonEnded) return;
 
     const { data, error: rpcError } = await supabase.rpc('set_online_league_ready', {
       league_code: code,
@@ -352,6 +367,7 @@ export function useOnlineLeagueTickGate({
     if (!supabase) return;
     if (!code) return;
     if (status !== 'ready') return;
+    if (seasonEnded) return;
 
     const { data, error: rpcError } = await supabase.rpc('set_online_league_ready', {
       league_code: code,
@@ -380,6 +396,10 @@ export function useOnlineLeagueTickGate({
     readyCount,
     isReady,
     remoteStudios,
+    startYear,
+    seasonYears: seasonYearsValue,
+    maxTurn,
+    seasonEnded,
     setReady,
     forceAdvance,
   };

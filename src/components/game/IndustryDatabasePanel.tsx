@@ -13,6 +13,7 @@ import { Button } from '@/components/ui/button';
 import { useToast } from '@/hooks/use-toast';
 import { ModsPanel } from './ModsPanel';
 import { useGameStore } from '@/game/store';
+import { getActiveSaveSlotId } from '@/utils/saveLoad';
 
 interface IndustryDatabasePanelProps {
   slotId?: string;
@@ -61,7 +62,7 @@ const ALL_GENRES: Genre[] = [
 export const IndustryDatabasePanel: React.FC<IndustryDatabasePanelProps> = ({ slotId }) => {
   const gameState = useGameStore((s) => s.game);
   const { toast } = useToast();
-  const slot = slotId || 'slot1';
+  const slot = slotId || getActiveSaveSlotId();
 
   const [db, setDb] = useState<IndustryDatabase>(() => {
     if (typeof window === 'undefined') return createEmptyIndustryDatabase();

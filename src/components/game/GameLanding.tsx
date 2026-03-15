@@ -7,6 +7,7 @@ import { Label } from '@/components/ui/label';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { Badge } from '@/components/ui/badge';
 import { Separator } from '@/components/ui/separator';
+import { Switch } from '@/components/ui/switch';
 import { Play, Settings, Film, Star, Trophy, Sparkles, HelpCircle } from 'lucide-react';
 import { Genre } from '@/types/game';
 import { StudioIconCustomizer, DEFAULT_ICON, type StudioIconConfig } from './StudioIconCustomizer';
@@ -19,6 +20,10 @@ interface GameLandingProps {
   onlineLeagueCode?: string;
   onOnlineLeagueCodeChange?: (code: string) => void;
   onGenerateOnlineLeagueCode?: () => void;
+  onlineHostSync?: boolean;
+  onOnlineHostSyncChange?: (enabled: boolean) => void;
+  onlineSeasonYears?: number;
+  onOnlineSeasonYearsChange?: (years: number) => void;
 }
 
 interface GameConfig {
@@ -36,6 +41,10 @@ export const GameLanding: React.FC<GameLandingProps> = ({
   onlineLeagueCode,
   onOnlineLeagueCodeChange,
   onGenerateOnlineLeagueCode,
+  onlineHostSync,
+  onOnlineHostSyncChange,
+  onlineSeasonYears,
+  onOnlineSeasonYearsChange,
 }) => {
   const [showCustomization, setShowCustomization] = useState(false);
   const [config, setConfig] = useState<GameConfig>({
@@ -148,6 +157,40 @@ export const GameLanding: React.FC<GameLandingProps> = ({
                       Create
                     </Button>
                   </div>
+
+                  <div className="flex items-center justify-between rounded-md border border-border/50 bg-background/40 px-3 py-2">
+                    <div className="space-y-0.5">
+                      <div className="text-sm font-medium text-foreground">Season length</div>
+                      <div className="text-xs text-muted-foreground">Used when creating a new league (fixed start year: 2026).</div>
+                    </div>
+                    <Select
+                      value={String(onlineSeasonYears ?? 6)}
+                      onValueChange={(v) => onOnlineSeasonYearsChange?.(Number.parseInt(v, 10))}
+                    >
+                      <SelectTrigger className="w-[120px]">
+                        <SelectValue placeholder="Years" />
+                      </SelectTrigger>
+                      <SelectContent>
+                        {[5, 6, 7, 8].map((y) => (
+                          <SelectItem key={y} value={String(y)}>
+                            {y} years
+                          </SelectItem>
+                        ))}
+                      </SelectContent>
+                    </Select>
+                  </div>
+
+                  <div className="flex items-center justify-between rounded-md border border-border/50 bg-background/40 px-3 py-2">
+                    <div className="space-y-0.5">
+                      <div className="text-sm font-medium text-foreground">Host sync (experimental)</div>
+                      <div className="text-xs text-muted-foreground">Mirror the host's game state each turn.</div>
+                    </div>
+                    <Switch
+                      checked={!!onlineHostSync}
+                      onCheckedChange={(checked) => onOnlineHostSyncChange?.(!!checked)}
+                    />
+                  </div>
+
                   {!onlineLeagueCode?.trim() && (
                     <div className="text-xs text-muted-foreground">
                       Enter an invite code to join, or click Create to generate one.
