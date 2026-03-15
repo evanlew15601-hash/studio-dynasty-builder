@@ -374,6 +374,10 @@ export const Metaboxd: React.FC = () => {
   const [query, setQuery] = useState('');
   const [selectedId, setSelectedId] = useState<string | null>(null);
 
+  const INITIAL_GRID_LIMIT = 18;
+  const GRID_PAGE_SIZE = 18;
+  const [gridLimit, setGridLimit] = useState(INITIAL_GRID_LIMIT);
+
   const [criticFilter, setCriticFilter] = useState<'all' | 'raves' | 'mixed' | 'pans'>('all');
   const [criticSort, setCriticSort] = useState<'helpful' | 'score'>('helpful');
   const [memberFilter, setMemberFilter] = useState<'all' | 'high' | 'mid' | 'low'>('all');
@@ -385,6 +389,14 @@ export const Metaboxd: React.FC = () => {
     setMemberFilter('all');
     setMemberSort('helpful');
   }, [selectedId]);
+
+  useEffect(() => {
+    if (!selectedId) setGridLimit(INITIAL_GRID_LIMIT);
+  }, [selectedId, INITIAL_GRID_LIMIT]);
+
+  useEffect(() => {
+    setGridLimit(INITIAL_GRID_LIMIT);
+  }, [activeTab, scope, sortMode, query, INITIAL_GRID_LIMIT]);
 
   const titles = useMemo(() => {
     if (!gameState) return [] as MetaboxdTitle[];
@@ -433,6 +445,14 @@ export const Metaboxd: React.FC = () => {
   }, [filtered, sortMode]);
 
   const spotlight = visible[0] || null;
+  const spotlightId = spotlight?.id ?? null;
+
+  const gridTitles = useMemo(() => {
+    if (!spotlightId) return visible;
+    return visible.filter((t) => t.id !== spotlightId);
+  }, [visible, spotlightId]);
+
+  const gridVisible = useMemo(() => gridTitles.slice(0, gridLimit), [gridTitles, gridLimit]);
 
   const selected = useMemo(
     () => (selectedId ? titles.find((t) => t.id === selectedId) || null : null),
@@ -603,6 +623,10 @@ export const Metaboxd: React.FC = () => {
       .slice(0, 6);
   }, [titles]);
 
+  const gridShownCount = gridVisible.length + (spotlightId ? 1 : 0);
+  const canLoadMore = gridLimit < gridTitles.length;
+  const canCollapse = gridLimit > INITIAL_GRID_LIMIT;
+
   if (!gameState) {
     return <div className="p-6 text-sm text-muted-foreground">Loading Metaboxd…</div>;
   }
@@ -660,7 +684,7 @@ export const Metaboxd: React.FC = () => {
                   {activeTab === 'all' ? 'Trending in your market' : activeTab === 'film' ? 'Films' : 'Shows'}
                 </div>
                 <div className="metaboxd-panel-subtitle">
-                  {visible.length} title{visible.length === 1 ? '' : 's'} • ranked by Index
+                  Showing {gridShownCount} of {visible.length} title{visible.length === 1 ? '' : 's'} • ranked by Index
                 </div>
               </div>
 
@@ -726,7 +750,7 @@ export const Metaboxd: React.FC = () => {
             )}
 
             <div className="metaboxd-grid">
-              {visible.map((t) => (
+              {gridVisible.map((t) => (
                 <button
                   key={t.id}
                   type="button"
@@ -753,6 +777,35 @@ export const Metaboxd: React.FC = () => {
                 </button>
               ))}
             </div>
+
+            {(canLoadMore || canCollapse) && (
+              <div className="metaboxd-grid-footer" aria-label="Metaboxd listings pagination">
+                <div className="metaboxd-grid-footer-left">
+                  Showing {gridShownCount} / {visible.length}
+                </div>
+
+                <div className="metaboxd-grid-footer-actions">
+                  {canCollapse && (
+                    <button
+                      type="button"
+                      className="metaboxd-btn metaboxd-btn-ghost"
+                      onClick={() => setGridLimit(INITIAL_GRID_LIMIT)}
+                    >
+                      Show fewer
+                    </button>
+                  )}
+                  {canLoadMore && (
+                    <button
+                      type="button"
+                      className="metaboxd-btn metaboxd-btn-secondary"
+                      onClick={() => setGridLimit((n) => Math.min(n + GRID_PAGE_SIZE, gridTitles.length))}
+                    >
+                      Load more
+                    </button>
+                  )}
+                </div>
+              </div>
+            )}
           </section>
 
           <aside className="metaboxd-sidebar" aria-label="Metaboxd sidebar">
@@ -1177,7 +1230,7 @@ export const Metaboxd: React.FC = () => {
           </section>
 
           <aside className="metaboxd-sidebar">
-            <div className="metaboxd-panel">
+            <div className="metaboxd-panel metaboxd-sidebar-sticky">
               <div className="metaboxd-panel-header">
                 <div>
                   <div className="metaboxd-panel-title">Related</div>

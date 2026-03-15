@@ -114,7 +114,7 @@
   display: flex;
   align-items: center;
   justify-content: space-between;
-  padding: 12px 14px;
+  padding: 10px 12px;
   border-bottom: 1px solid var(--mb-border);
 }
 
@@ -138,14 +138,33 @@
 
 @media (min-width: 720px) {
   .metaboxd-grid {
+    grid-template-columns: repeat(3, 1fr);
+  }
+}
+
+@media (min-width: 980px) {
+  .metaboxd-grid {
     grid-template-columns: repeat(4, 1fr);
   }
 }
 
-@media (min-width: 1140px) {
-  .metaboxd-grid {
-    grid-template-columns: repeat(5, 1fr);
-  }
+.metaboxd-grid-footer {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  padding: 0 12px 12px;
+}
+
+.metaboxd-grid-footer-left {
+  font-size: 12px;
+  color: var(--mb-muted);
+}
+
+.metaboxd-grid-footer-actions {
+  display: inline-flex;
+  gap: 8px;
+  align-items: center;
 }
 
 .metaboxd-poster {
@@ -167,6 +186,18 @@
   background: radial-gradient(circle at 30% 20%, rgba(64, 188, 244, 0.24), transparent 55%),
     radial-gradient(circle at 80% 70%, rgba(0, 192, 48, 0.24), transparent 55%),
     linear-gradient(145deg, rgba(255, 255, 255, 0.06), rgba(255, 255, 255, 0.02));
+  transition: transform 160ms ease, box-shadow 160ms ease, border-color 160ms ease;
+}
+
+.metaboxd-poster:hover .metaboxd-poster-box {
+  transform: translateY(-2px);
+  box-shadow: 0 16px 32px rgba(0, 0, 0, 0.35);
+  border-color: rgba(64, 188, 244, 0.28);
+}
+
+.metaboxd-poster:focus-visible .metaboxd-poster-box {
+  border-color: rgba(64, 188, 244, 0.6);
+  box-shadow: 0 0 0 3px rgba(64, 188, 244, 0.18), 0 16px 32px rgba(0, 0, 0, 0.35);
 }
 
 .metaboxd-poster-initials {
@@ -356,7 +387,7 @@
 
 .metaboxd-sidebar {
   display: grid;
-  gap: 14px;
+  gap: 10px;
 }
 
 .metaboxd-sidebar-sticky {
@@ -365,15 +396,15 @@
 }
 
 .metaboxd-list {
-  padding: 10px 12px 14px;
+  padding: 8px 10px 12px;
   display: grid;
-  gap: 10px;
+  gap: 8px;
 }
 
 .metaboxd-list-item {
   border: 1px solid var(--mb-border);
   border-radius: 10px;
-  padding: 10px 12px;
+  padding: 8px 10px;
   background: rgba(0, 0, 0, 0.2);
 }
 
@@ -563,6 +594,26 @@
 
 .metaboxd-btn:hover {
   background: rgba(64, 188, 244, 0.18);
+}
+
+.metaboxd-btn.metaboxd-btn-secondary {
+  border-color: rgba(255, 255, 255, 0.16);
+  background: rgba(255, 255, 255, 0.05);
+}
+
+.metaboxd-btn.metaboxd-btn-secondary:hover {
+  background: rgba(255, 255, 255, 0.08);
+}
+
+.metaboxd-btn.metaboxd-btn-ghost {
+  border-color: transparent;
+  background: transparent;
+  color: rgba(255, 255, 255, 0.62);
+}
+
+.metaboxd-btn.metaboxd-btn-ghost:hover {
+  background: rgba(255, 255, 255, 0.06);
+  color: rgba(255, 255, 255, 0.88);
 }
 
 .metaboxd-poster-your {

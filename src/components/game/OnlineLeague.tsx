@@ -271,6 +271,53 @@ export const OnlineLeague: React.FC<OnlineLeagueProps> = ({ initialLeagueCode })
     });
   }, [persistedSnapshots]);
 
+  const leagueAwards = useMemo(() => {
+    type Candidate = {
+      studioName: string;
+      budget: number;
+      reputation: number;
+      releasedTitles: number;
+    };
+
+    const candidates: Candidate[] = members.length > 0
+      ? members.map(({ snapshot }) => ({
+        studioName: snapshot.studioName,
+        budget: snapshot.budget,
+        reputation: snapshot.reputation,
+        releasedTitles: snapshot.releasedTitles,
+      }))
+      : persistedMembers.map((m) => ({
+        studioName: m.studio_name,
+        budget: parseBudget(m.budget),
+        reputation: m.reputation,
+        releasedTitles: m.released_titles,
+      }));
+
+    if (candidates.length === 0) return [] as Array<{ title: string; winner: string; detail: string }>;
+
+    const topBy = <T extends keyof Candidate>(key: T, label: string, fmt: (c: Candidate) => string) => {
+      const sorted = candidates.slice().sort((a, b) => {
+        const av = Number(a[key] ?? 0);
+        const bv = Number(b[key] ?? 0);
+        if (bv !== av) return bv - av;
+        return a.studioName.localeCompare(b.studioName);
+      });
+
+      const winner = sorted[0];
+      return {
+        title: label,
+        winner: winner.studioName,
+        detail: fmt(winner),
+      };
+    };
+
+    return [
+      topBy('reputation', 'Top reputation', (c) => `${Math.round(c.reputation)}/100 rep`),
+      topBy('releasedTitles', 'Most releases', (c) => `${c.releasedTitles} released`),
+      topBy('budget', 'Biggest budget', (c) => `${formatMoney(c.budget)}`),
+    ];
+  }, [members, persistedMembers]);
+
   const refreshSnapshots = async (leagueId: string) => {
     if (!supabase) return;
 
@@ -414,6 +461,26 @@ export const OnlineLeague: React.FC<OnlineLeagueProps> = ({ initialLeagueCode })
           Lightweight online mode powered by Supabase Realtime. Join friends with an invite code and compare studio progress.
         </p>
       </div>
+
+      <Card>
+        <CardHeader>
+          <CardTitle>Rules & expectations</CardTitle>
+        </CardHeader>
+        <CardContent className="space-y-3 text-sm text-muted-foreground">
+          <div>
+            Online League shares only small “snapshot” stats (studio name, budget, reputation, week/year, released titles). Game simulation and saves stay local to your device.
+          </div>
+          <ul className="list-disc pl-5 space-y-1">
+            <li><span className="font-medium text-foreground">League size:</span> up to 8 members.</li>
+            <li><span className="font-medium text-foreground">Inactivity cleanup:</span> leagues can be deleted after 14 days with no members checking in (<code>last_seen_at</code>).</li>
+            <li><span className="font-medium text-foreground">Season cleanup:</span> after a season ends, leagues can be deleted after 7 days.</li>
+            <li><span className="font-medium text-foreground">Leaving:</span> “Leave” just disconnects this screen; it doesn’t currently remove you from the league on the server.</li>
+          </ul>
+          <div className="text-xs text-muted-foreground">
+            Note: cleanup runs opportunistically when leagues are created/joined (or if an admin runs <code>cleanup_online_leagues()</code>).
+          </div>
+        </CardContent>
+      </Card>
 
       {!canUseOnline && (
         <Card>
@@ -589,6 +656,31 @@ export const OnlineLeague: React.FC<OnlineLeagueProps> = ({ initialLeagueCode })
                     <div className="text-right">
                       <div className="text-sm">Rep {Math.round(m.reputation)}/100</div>
                       <div className="text-xs text-muted-foreground">{formatMoney(parseBudget(m.budget))} • {m.released_titles} released</div>
+                    </div>
+                  </div>
+                ))}
+              </div>
+
+              <Separator />
+
+              <div className="space-y-2">
+                <div className="text-sm font-medium">League awards (beta)</div>
+                <div className="text-sm text-muted-foreground">
+                  Lightweight, leaderboard-style awards based on the latest stats. In-game award ceremonies are still local/offline for now.
+                </div>
+
+                {leagueAwards.length === 0 && (
+                  <div className="text-sm text-muted-foreground">No awards yet — join a league and start sharing snapshots.</div>
+                )}
+
+                {leagueAwards.map((a) => (
+                  <div key={a.title} className="flex items-center justify-between rounded-md border p-3">
+                    <div>
+                      <div className="font-medium">{a.title}</div>
+                      <div className="text-xs text-muted-foreground">{a.winner}</div>
+                    </div>
+                    <div className="text-right">
+                      <div className="text-sm">{a.detail}</div>
                     </div>
                   </div>
                 ))}
