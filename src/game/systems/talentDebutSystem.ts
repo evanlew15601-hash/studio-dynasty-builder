@@ -19,13 +19,18 @@ export const TalentDebutSystem: TickSystem = {
     const existingIds = new Set((state.talent || []).map((t) => t.id));
 
     const handcraftedDebuts = buildCoreTalentDebutsForYear(year).filter((t) => !existingIds.has(t.id));
-    const rookieDebuts = generateProceduralDebuts({
-      existingTalent: state.talent || [],
-      year,
-      actorCount: 8,
-      directorCount: 2,
-      seed: `rookies:${state.universeSeed ?? 0}:${year}`,
-    });
+
+    // Online League: keep the talent pool strictly core + handcrafted debuts.
+    // Procedural rookies are intentionally disabled to ensure every player shares the exact same talent IDs.
+    const rookieDebuts = state.mode === 'online'
+      ? []
+      : generateProceduralDebuts({
+          existingTalent: state.talent || [],
+          year,
+          actorCount: 8,
+          directorCount: 2,
+          seed: `rookies:${state.universeSeed ?? 0}:${year}`,
+        });
 
     const incoming = [...handcraftedDebuts, ...rookieDebuts];
     if (incoming.length === 0) return state;

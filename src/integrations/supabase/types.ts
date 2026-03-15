@@ -20,6 +20,8 @@ export type Database = {
           code: string
           name: string
           owner_user_id: string
+          start_year: number
+          season_years: number
           created_at: string
         }
         Insert: {
@@ -27,6 +29,8 @@ export type Database = {
           code: string
           name: string
           owner_user_id: string
+          start_year?: number
+          season_years?: number
           created_at?: string
         }
         Update: {
@@ -34,6 +38,8 @@ export type Database = {
           code?: string
           name?: string
           owner_user_id?: string
+          start_year?: number
+          season_years?: number
           created_at?: string
         }
         Relationships: []
@@ -357,6 +363,7 @@ export type Database = {
           league_code: string
           league_name: string
           studio_name: string
+          season_years?: number
         }
         Returns: string
       }

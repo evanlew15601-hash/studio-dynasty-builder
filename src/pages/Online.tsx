@@ -37,6 +37,7 @@ const Online = () => {
   const [saveDialogOpen, setSaveDialogOpen] = useState(false);
   const [onlineLeagueCode, setOnlineLeagueCode] = useState('');
   const [onlineHostSync, setOnlineHostSync] = useState(false);
+  const [onlineSeasonYears, setOnlineSeasonYears] = useState(6);
 
   useEffect(() => {
     if (typeof window === 'undefined') return;
@@ -45,6 +46,12 @@ const Online = () => {
 
     const hostSync = window.localStorage.getItem('studio-magnate-online-host-sync');
     if (hostSync) setOnlineHostSync(hostSync === '1');
+
+    const seasonYears = window.localStorage.getItem('studio-magnate-online-season-years');
+    if (seasonYears) {
+      const parsed = Number.parseInt(seasonYears, 10);
+      if (Number.isFinite(parsed) && parsed > 0) setOnlineSeasonYears(parsed);
+    }
   }, []);
 
   const handleStartGame = (config: GameConfig) => {
@@ -105,6 +112,14 @@ const Online = () => {
     }
   };
 
+  const handleOnlineSeasonYearsChange = (years: number) => {
+    const normalized = Math.max(1, Math.min(20, Math.floor(years)));
+    setOnlineSeasonYears(normalized);
+    if (typeof window !== 'undefined') {
+      window.localStorage.setItem('studio-magnate-online-season-years', String(normalized));
+    }
+  };
+
   return (
     <LoadingProvider>
       <GlobalLoadingOverlay />
@@ -117,6 +132,8 @@ const Online = () => {
             onGenerateOnlineLeagueCode={handleGenerateLeagueCode}
             onlineHostSync={onlineHostSync}
             onOnlineHostSyncChange={handleOnlineHostSyncChange}
+            onlineSeasonYears={onlineSeasonYears}
+            onOnlineSeasonYearsChange={handleOnlineSeasonYearsChange}
             onStartGame={handleStartGame}
             onLoadGame={handleLoadGame}
           />
@@ -128,16 +145,20 @@ const Online = () => {
           />
         </>
       ) : (
-        <Suspense fallback={<div className="p-6 text-sm text-muted-foreground">Loading game...</div>}>
-          <StudioMagnateGame
-            gameConfig={gameConfig ?? undefined}
-            initialGameState={loadedSnapshot?.gameState}
-            initialPhase={loadedSnapshot?.meta.currentPhase}
-            initialUnlockedAchievements={loadedSnapshot?.unlockedAchievements}
-            onlineLeagueCode={onlineLeagueCode.trim()}
-            onlineHostSync={onlineHostSync}
-          />
-        </Suspense>
+        <Suspense fallback={null}>
+            <StudioMagnateGame
+              gameConfig={gameConfig ?? undefined}
+              initialGameState={loadedSnapshot?.gameState}
+              initialPhase={loadedSnapshot?.currentPhase}
+              initialUnlockedAchievements={loadedSnapshot?.unlockedAchievementIds}
+              onlineLeagueCode={onlineLeagueCode}
+              onlineSeasonYears={onlineSeasonYears}
+              onlineHostSync={onlineHostSync}
+              onPhaseChange={(phase) => {
+                if (loadedSnapshot) setLoadedSnapshot({ ...loadedSnapshot, currentPhase: phase });
+              }}
+            />
+          </Suspense>
       )}
     </LoadingProvider>
   );

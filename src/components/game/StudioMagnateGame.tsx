@@ -467,6 +467,12 @@ interface StudioMagnateGameProps {
   onlineLeagueCode?: string;
 
   /**
+   * Desired season length in years when creating a new online league.
+   * Ignored when joining an existing league.
+   */
+  onlineSeasonYears?: number;
+
+  /**
    * Online League (Option B): non-host clients mirror the host's game state each turn.
    * This is experimental and primarily intended for testing shared-session flows.
    */
@@ -480,10 +486,12 @@ export const StudioMagnateGame: React.FC<StudioMagnateGameProps> = ({
   initialPhase,
   initialUnlockedAchievements,
   onlineLeagueCode,
+  onlineSeasonYears,
   onlineHostSync = false,
 }) => {
   const { toast } = useToast();
   const isOnlineMode = !!onlineLeagueCode?.trim();
+  const ONLINE_LEAGUE_START_YEAR = 2026;
   const { startOperation, updateOperation, completeOperation } = useLoadingActions();
   const weeklyProcessingRef = useRef(false);
   const aiSlateGeneratorRef = useRef<{ year: number; nextWeek: number; generator: StudioGenerator } | null>(null);
@@ -541,6 +549,7 @@ export const StudioMagnateGame: React.FC<StudioMagnateGameProps> = ({
     return {
       universeSeed,
       rngState: universeSeed,
+      mode: isOnlineMode ? 'online' : 'single',
       studio: {
         id: 'player-studio',
         name: gameConfig?.studioName || 'Untitled Pictures',
@@ -552,7 +561,7 @@ export const StudioMagnateGame: React.FC<StudioMagnateGameProps> = ({
         lastProjectWeek: 0,
         weeksSinceLastProject: 0,
       },
-      currentYear: new Date().getFullYear(),
+      currentYear: isOnlineMode ? ONLINE_LEAGUE_START_YEAR : new Date().getFullYear(),
       currentWeek: 1,
       currentQuarter: 1,
       projects: [],
@@ -645,8 +654,10 @@ export const StudioMagnateGame: React.FC<StudioMagnateGameProps> = ({
       updateOperation(LOADING_OPERATIONS.GAME_INIT.id, 10, 'Generating talent pool...');
       await delay(0);
 
+      const worldStartYear = isOnlineMode ? ONLINE_LEAGUE_START_YEAR : new Date().getFullYear();
+
       const generatedTalent = applyPatchesByKey(
-        generateInitialTalentPool({ currentYear: new Date().getFullYear() }),
+        generateInitialTalentPool({ currentYear: worldStartYear }),
         getPatchesForEntity(mods, 'talent'),
         (t) => t.id
       );
@@ -855,8 +866,9 @@ export const StudioMagnateGame: React.FC<StudioMagnateGameProps> = ({
       let initialState: GameState = {
         universeSeed,
         rngState: universeSeed,
+        mode: isOnlineMode ? 'online' : 'single',
         studio,
-        currentYear: new Date().getFullYear(),
+        currentYear: worldStartYear,
         currentWeek: 1,
         currentQuarter: 1,
         projects: [],
@@ -3018,6 +3030,7 @@ export const StudioMagnateGame: React.FC<StudioMagnateGameProps> = ({
     enabled: !!onlineLeagueCode?.trim(),
     leagueCode: onlineLeagueCode ?? '',
     studioName: gameState.studio.name,
+    seasonYears: onlineSeasonYears,
     onTurnAdvanced: (turn, info) => {
       void (async () => {
         const leagueId = info.leagueId;
@@ -3187,6 +3200,14 @@ export const StudioMagnateGame: React.FC<StudioMagnateGameProps> = ({
       return;
     }
 
+    if (onlineTickGate.seasonEnded) {
+      toast({
+        title: 'Online League',
+        description: 'Season concluded. No further turns can be advanced.',
+      });
+      return;
+    }
+
     if (!onlineTickGate.isHost) {
       toast({
         title: 'Online League',
@@ -3224,6 +3245,14 @@ export const StudioMagnateGame: React.FC<StudioMagnateGameProps> = ({
         title: 'Online League',
         description: 'League is still initializing. Try again in a moment.',
         variant: 'destructive',
+      });
+      return;
+    }
+
+    if (onlineTickGate.seasonEnded) {
+      toast({
+        title: 'Online League',
+        description: 'Season concluded. No further turns can be advanced.',
       });
       return;
     }
@@ -3518,13 +3547,16 @@ export const StudioMagnateGame: React.FC<StudioMagnateGameProps> = ({
               <Button 
                 size="sm" 
                 onClick={() => handleAdvanceWeek({ suppressDiagnostics: true })}
+                disabled={!!onlineLeagueCode?.trim() && onlineTickGate.seasonEnded}
                 className="btn-studio shadow-golden hover:animate-glow transition-all duration-300"
               >
                 <BudgetIcon className="mr-2" size={16} />
                 {onlineLeagueCode?.trim()
-                  ? onlineTickGate.isReady
-                    ? `Unready (${onlineTickGate.readyCount}/${onlineTickGate.memberCount || '?'})`
-                    : `Ready (${onlineTickGate.readyCount}/${onlineTickGate.memberCount || '?'})`
+                  ? onlineTickGate.seasonEnded
+                    ? 'Season Complete'
+                    : onlineTickGate.isReady
+                      ? `Unready (${onlineTickGate.readyCount}/${onlineTickGate.memberCount || '?'})`
+                      : `Ready (${onlineTickGate.readyCount}/${onlineTickGate.memberCount || '?'})`
                   : 'Advance Week'}
               </Button>
 

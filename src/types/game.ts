@@ -774,6 +774,8 @@ export interface GameState {
   universeSeed?: number;
   /** Current PRNG state for deterministic simulation (if using the engine tick pipeline). */
   rngState?: number;
+  /** Optional: identifies how this state was created (useful for Online League rules). */
+  mode?: 'single' | 'online';
   studio: Studio;
   currentYear: number;
   currentWeek: number;
