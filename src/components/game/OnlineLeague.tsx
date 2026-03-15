@@ -48,6 +48,22 @@ function parseBudget(value: number | string): number {
   return Number.isFinite(parsed) ? parsed : 0;
 }
 
+function mapOnlineLeagueError(message: string): string {
+  const normalized = (message || '').toLowerCase();
+
+  if (normalized.includes('league is full')) return 'This league is full.';
+  if (normalized.includes('no league spots')) return 'Online leagues are at capacity right now. Try again later.';
+  if (normalized.includes('invalid league code')) return 'Invalid league code.';
+  if (normalized.includes('invalid studio name')) return 'Invalid studio name.';
+  if (normalized.includes('league not found')) return 'League not found.';
+
+  if (normalized.includes('too many requests') || normalized.includes('rate limit')) {
+    return 'Online league is busy right now. Try again in a moment.';
+  }
+
+  return 'Online league request failed.';
+}
+
 interface OnlineLeagueProps {
   initialLeagueCode?: string;
 }
@@ -295,6 +311,8 @@ export const OnlineLeague: React.FC<OnlineLeagueProps> = ({ initialLeagueCode })
     const studioName = gameState.studio.name;
     const leagueName = leagueNameInput.trim() || `${studioName} League`;
 
+    let lastErrorMessage = '';
+
     for (let attempt = 0; attempt < 5; attempt += 1) {
       const code = generateLeagueCode();
 
@@ -316,10 +334,13 @@ export const OnlineLeague: React.FC<OnlineLeagueProps> = ({ initialLeagueCode })
         setLeagueBusy(false);
         return;
       }
+
+      lastErrorMessage = rpcError?.message || '';
+      if (lastErrorMessage.toLowerCase().includes('no league spots')) break;
     }
 
     setLeagueBusy(false);
-    setError('Unable to create a league right now. Try again.');
+    setError(mapOnlineLeagueError(lastErrorMessage));
   };
 
   const handleJoinLeague = async () => {
@@ -340,7 +361,7 @@ export const OnlineLeague: React.FC<OnlineLeagueProps> = ({ initialLeagueCode })
 
     if (rpcError || !data) {
       setLeagueBusy(false);
-      setError('League not found (or you do not have access).');
+      setError(mapOnlineLeagueError(rpcError?.message || ''));
       return;
     }
 

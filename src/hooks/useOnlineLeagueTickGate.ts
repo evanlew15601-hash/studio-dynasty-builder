@@ -1,6 +1,27 @@
 import { useEffect, useMemo, useRef, useState } from 'react';
 import { getSupabaseClient } from '@/integrations/supabase/client';
 
+function mapOnlineLeagueError(message: string): string {
+  const normalized = (message || '').toLowerCase();
+
+  if (normalized.includes('league is full')) return 'This league is full.';
+  if (normalized.includes('no league spots')) return 'Online leagues are at capacity right now. Try again later.';
+  if (normalized.includes('invalid league code')) return 'Invalid league code.';
+  if (normalized.includes('invalid studio name')) return 'Invalid studio name.';
+  if (normalized.includes('league not found')) return 'League not found.';
+  if (normalized.includes('not a member')) return 'You are not a member of this league.';
+
+  if (normalized.includes('too many requests') || normalized.includes('rate limit')) {
+    return 'Online league is busy right now. Try again in a moment.';
+  }
+
+  if (normalized.includes('timeout') || normalized.includes('timed out') || normalized.includes('connection')) {
+    return 'Online league connection failed. Try again in a moment.';
+  }
+
+  return 'Online league request failed.';
+}
+
 export type OnlineLeagueTickGateStatus =
   | 'disabled'
   | 'not_configured'
@@ -174,7 +195,7 @@ export function useOnlineLeagueTickGate({
 
         if (!notFound) {
           setStatus('error');
-          setError('Unable to join online league.');
+          setError(mapOnlineLeagueError(message));
           return;
         }
 
@@ -189,7 +210,7 @@ export function useOnlineLeagueTickGate({
 
         if (createRes.error || !createRes.data) {
           setStatus('error');
-          setError('Unable to create online league.');
+          setError(mapOnlineLeagueError(createRes.error?.message || ''));
           return;
         }
 
@@ -198,7 +219,7 @@ export function useOnlineLeagueTickGate({
 
       if (!id) {
         setStatus('error');
-        setError('Unable to join online league.');
+        setError(mapOnlineLeagueError(''));
         return;
       }
 
@@ -355,7 +376,7 @@ export function useOnlineLeagueTickGate({
     });
 
     if (rpcError) {
-      setError('Online league request failed.');
+      setError(mapOnlineLeagueError(rpcError.message || ''));
       return;
     }
 
@@ -376,7 +397,7 @@ export function useOnlineLeagueTickGate({
     });
 
     if (rpcError) {
-      setError('Online league request failed.');
+      setError(mapOnlineLeagueError(rpcError.message || ''));
       return;
     }
 
