@@ -22,6 +22,7 @@ type MetaboxdTitle = {
   logline?: string;
   director?: string;
   topCast?: string[];
+  source?: string;
 
   criticsScore: number;
   audienceScore: number;
@@ -254,6 +255,11 @@ function projectToMetaboxdTitle(gameState: GameState, project: Project): Metabox
     : (isPlayerProject ? gameState.studio.name : 'Unknown Studio');
 
   const directorName = (() => {
+    if (!isPlayerProject) {
+      const shared = (project.metrics as any)?.sharedDirectorName;
+      if (typeof shared === 'string' && shared.trim()) return shared;
+    }
+
     const roles = [...(project.crew || []), ...(project.cast || [])];
     const dir = roles.find((r) => r.role?.toLowerCase().includes('director'));
     const t = dir ? gameState.talent.find((x) => x.id === dir.talentId) : undefined;
@@ -261,6 +267,11 @@ function projectToMetaboxdTitle(gameState: GameState, project: Project): Metabox
   })();
 
   const topCast = (() => {
+    if (!isPlayerProject) {
+      const shared = (project.metrics as any)?.sharedTopCastNames;
+      if (Array.isArray(shared) && shared.length) return shared.filter((x: any) => typeof x === 'string') as string[];
+    }
+
     const roles = (project.cast || [])
       .filter((r) => !!r.talentId)
       .slice();
@@ -289,6 +300,33 @@ function projectToMetaboxdTitle(gameState: GameState, project: Project): Metabox
   const releaseLabel = project.metrics?.boxOfficeStatus || (project.releaseStrategy?.type === 'streaming' ? 'Streaming Premiere' : undefined);
   const logline = project.script?.logline;
 
+  const source = (() => {
+    const sharedFranchiseTitle = (project.metrics as any)?.sharedFranchiseTitle;
+    const sharedPublicDomainName = (project.metrics as any)?.sharedPublicDomainName;
+
+    if (typeof sharedPublicDomainName === 'string' && sharedPublicDomainName.trim()) {
+      return `Public domain: ${sharedPublicDomainName}`;
+    }
+
+    if (typeof sharedFranchiseTitle === 'string' && sharedFranchiseTitle.trim()) {
+      return `Franchise: ${sharedFranchiseTitle}`;
+    }
+
+    const publicDomainId = project.script?.publicDomainId ?? project.publicDomainId;
+    if (publicDomainId) {
+      const local = (gameState.publicDomainIPs || []).find((ip) => ip.id === publicDomainId)?.name;
+      if (local) return `Public domain: ${local}`;
+    }
+
+    const franchiseId = project.script?.franchiseId ?? project.franchiseId;
+    if (franchiseId) {
+      const local = (gameState.franchises || []).find((f) => f.id === franchiseId)?.title;
+      if (local) return `Franchise: ${local}`;
+    }
+
+    return undefined;
+  })();
+
   const playerReview = isPlayerProject
     ? derivePlayerReview(project, stars, criticsScore, audienceScore, seed)
     : undefined;
@@ -308,6 +346,7 @@ function projectToMetaboxdTitle(gameState: GameState, project: Project): Metabox
     logline,
     director: directorName,
     topCast,
+    source,
     criticsScore,
     audienceScore,
     indexScore,
@@ -1072,6 +1111,10 @@ export const Metaboxd: React.FC = () => {
                     <div className="metaboxd-fact">
                       <div className="metaboxd-fact-label">Top cast</div>
                       <div className="metaboxd-fact-value">{selected.topCast?.length ? selected.topCast.join(', ') : '—'}</div>
+                    </div>
+                    <div className="metaboxd-fact">
+                      <div className="metaboxd-fact-label">Source</div>
+                      <div className="metaboxd-fact-value">{selected.source || '—'}</div>
                     </div>
                     <div className="metaboxd-fact">
                       <div className="metaboxd-fact-label">Budget</div>

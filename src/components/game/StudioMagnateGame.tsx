@@ -3286,7 +3286,7 @@ export const StudioMagnateGame: React.FC<StudioMagnateGameProps> = ({
             id: `league-script-${stableId}`,
             title: r.title,
             genre,
-            logline: '',
+            logline: typeof r.logline === 'string' ? r.logline : '',
             writer: 'Unknown',
             pages: 0,
             quality: 60,
@@ -3294,7 +3294,7 @@ export const StudioMagnateGame: React.FC<StudioMagnateGameProps> = ({
             developmentStage: 'final',
             themes: [],
             targetAudience: 'general',
-            estimatedRuntime: 120,
+            estimatedRuntime: typeof r.runtimeMins === 'number' ? r.runtimeMins : 120,
             characteristics: {
               tone: 'balanced',
               pacing: 'steady',
@@ -3359,7 +3359,12 @@ export const StudioMagnateGame: React.FC<StudioMagnateGameProps> = ({
               lastWeeklyRevenue: typeof r.lastWeeklyRevenue === 'number' ? r.lastWeeklyRevenue : undefined,
               weeksSinceRelease: typeof r.weeksSinceRelease === 'number' ? r.weeksSinceRelease : undefined,
               inTheaters: typeof r.inTheaters === 'boolean' ? r.inTheaters : undefined,
-            },
+              boxOfficeStatus: typeof r.releaseLabel === 'string' ? r.releaseLabel : undefined,
+              sharedDirectorName: typeof r.director === 'string' ? r.director : undefined,
+              sharedTopCastNames: Array.isArray(r.topCast) ? r.topCast : undefined,
+              sharedFranchiseTitle: typeof r.franchiseTitle === 'string' ? r.franchiseTitle : undefined,
+              sharedPublicDomainName: typeof r.publicDomainName === 'string' ? r.publicDomainName : undefined,
+            } as any,
           } as any;
         };
 

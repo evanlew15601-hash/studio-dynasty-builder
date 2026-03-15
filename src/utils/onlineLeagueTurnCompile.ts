@@ -27,8 +27,13 @@ export type OnlineLeagueTurnSubmission = {
       type: string;
       genre?: string;
       budgetTotal?: number;
+      runtimeMins?: number;
       releaseWeek?: number;
       releaseYear?: number;
+      releaseLabel?: string;
+      logline?: string;
+      director?: string;
+      topCast?: string[];
       criticsScore?: number;
       audienceScore?: number;
       boxOfficeTotal?: number;
@@ -36,7 +41,9 @@ export type OnlineLeagueTurnSubmission = {
       weeksSinceRelease?: number;
       inTheaters?: boolean;
       publicDomainId?: string;
+      publicDomainName?: string;
       franchiseId?: string;
+      franchiseTitle?: string;
     }>;
   };
 };
@@ -98,24 +105,70 @@ export function buildOnlineLeagueTurnSubmission(params: {
 
   const releasedProjects = (current.projects || [])
     .filter((p) => p.status === 'released')
-    .map((p) => ({
-      id: p.id,
-      title: p.title,
-      studioName: current.studio?.name ?? 'Studio',
-      type: (p as any).type ?? 'feature',
-      genre: (p as any).script?.genre,
-      budgetTotal: (p as any).budget?.total,
-      releaseWeek: (p as any).releaseWeek,
-      releaseYear: (p as any).releaseYear,
-      criticsScore: (p as any).metrics?.criticsScore,
-      audienceScore: (p as any).metrics?.audienceScore,
-      boxOfficeTotal: (p as any).metrics?.boxOfficeTotal,
-      lastWeeklyRevenue: (p as any).metrics?.lastWeeklyRevenue,
-      weeksSinceRelease: (p as any).metrics?.weeksSinceRelease,
-      inTheaters: (p as any).metrics?.inTheaters,
-      publicDomainId: (p as any).script?.publicDomainId ?? (p as any).publicDomainId,
-      franchiseId: (p as any).script?.franchiseId ?? (p as any).franchiseId,
-    }));
+    .map((p) => {
+      const franchiseId = (p as any).script?.franchiseId ?? (p as any).franchiseId;
+      const publicDomainId = (p as any).script?.publicDomainId ?? (p as any).publicDomainId;
+
+      const franchiseTitle = franchiseId
+        ? (current.franchises || []).find((f: any) => f.id === franchiseId)?.title
+        : undefined;
+
+      const publicDomainName = publicDomainId
+        ? (current.publicDomainIPs || []).find((ip: any) => ip.id === publicDomainId)?.name
+        : undefined;
+
+      const director = (() => {
+        const roles = [...((p as any).crew || []), ...((p as any).cast || [])];
+        const dir = roles.find((r: any) => r.role?.toLowerCase().includes('director'));
+        if (!dir?.talentId) return undefined;
+        return (current.talent || []).find((t: any) => t.id === dir.talentId)?.name;
+      })();
+
+      const topCast = (() => {
+        const roles = ((p as any).cast || []).filter((r: any) => !!r.talentId).slice();
+        const sorted = roles
+          .sort((a: any, b: any) => {
+            const aLead = a.role?.toLowerCase().includes('lead') ? 1 : 0;
+            const bLead = b.role?.toLowerCase().includes('lead') ? 1 : 0;
+            if (aLead !== bLead) return bLead - aLead;
+            return (b.salary || 0) - (a.salary || 0);
+          })
+          .slice(0, 4)
+          .map((r: any) => (current.talent || []).find((t: any) => t.id === r.talentId)?.name)
+          .filter(Boolean) as string[];
+
+        return sorted.length > 0 ? sorted : undefined;
+      })();
+
+      const releaseLabel =
+        (p as any).metrics?.boxOfficeStatus || ((p as any).releaseStrategy?.type === 'streaming' ? 'Streaming Premiere' : undefined);
+
+      return {
+        id: p.id,
+        title: p.title,
+        studioName: current.studio?.name ?? 'Studio',
+        type: (p as any).type ?? 'feature',
+        genre: (p as any).script?.genre,
+        budgetTotal: (p as any).budget?.total,
+        runtimeMins: (p as any).script?.estimatedRuntime,
+        releaseWeek: (p as any).releaseWeek,
+        releaseYear: (p as any).releaseYear,
+        releaseLabel,
+        logline: (p as any).script?.logline,
+        director,
+        topCast,
+        criticsScore: (p as any).metrics?.criticsScore,
+        audienceScore: (p as any).metrics?.audienceScore,
+        boxOfficeTotal: (p as any).metrics?.boxOfficeTotal,
+        lastWeeklyRevenue: (p as any).metrics?.lastWeeklyRevenue,
+        weeksSinceRelease: (p as any).metrics?.weeksSinceRelease,
+        inTheaters: (p as any).metrics?.inTheaters,
+        publicDomainId,
+        publicDomainName,
+        franchiseId,
+        franchiseTitle,
+      };
+    });
 
   return {
     version: 'online-turn-submission-1',
