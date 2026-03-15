@@ -36,6 +36,10 @@ import { RoleBasedCasting } from './RoleBasedCasting';
 import { CharacterCastingSystem } from './CharacterCastingSystem';
 import { useAwardsEngine } from '@/hooks/useAwardsEngine';
 import { useOnlineLeagueTickGate } from '@/hooks/useOnlineLeagueTickGate';
+import { getAwardShowsForYear } from '@/data/AwardsSchedule';
+import { fetchOnlineLeagueSnapshots } from '@/integrations/supabase/onlineLeagueSnapshots';
+import { computeLeagueAwardsCeremony, type LeagueAwardsCeremony } from '@/utils/leagueAwards';
+import { LeagueAwardsCeremonyModal } from './LeagueAwardsCeremonyModal';
 import { IndividualAwardShowModal, AwardShowCeremony } from './IndividualAwardShowModal';
 import { FirstWeekBoxOfficeModal } from './FirstWeekBoxOfficeModal';
 import { EnhancedLoanSystem } from './EnhancedLoanSystem';
@@ -1050,6 +1054,11 @@ export const StudioMagnateGame: React.FC<StudioMagnateGameProps> = ({
   const [currentAwardShow, setCurrentAwardShow] = useState<AwardShowCeremony | null>(null);
   const [showAwardModal, setShowAwardModal] = useState(false);
 
+  // Online League shared "League Awards" ceremony (synchronized via league snapshots)
+  const [leagueAwardsCeremony, setLeagueAwardsCeremony] = useState<LeagueAwardsCeremony | null>(null);
+  const [showLeagueAwardsModal, setShowLeagueAwardsModal] = useState(false);
+  const lastLeagueAwardsKeyRef = useRef<string>('');
+
   // Week Recap (Tick Report)
   const pendingTickReportRef = useRef<TickReport | null>(null);
   const pendingTickReportOpenRef = useRef(false);
@@ -1346,6 +1355,10 @@ export const StudioMagnateGame: React.FC<StudioMagnateGameProps> = ({
 
   // Handle award show triggers
   const handleAwardShow = (ceremony: AwardShowCeremony) => {
+    // In Online League mode (without host-sync), award ceremonies are not shared across members.
+    // Suppress the local award show modal and instead surface a synchronized "League Awards" gala.
+    if (isOnlineMode && !onlineHostSync) return;
+
     setCurrentAwardShow(ceremony);
     setShowAwardModal(true);
   };
@@ -3151,6 +3164,47 @@ export const StudioMagnateGame: React.FC<StudioMagnateGameProps> = ({
 
   useEffect(() => {
     if (!isOnlineMode) return;
+    if (onlineHostSync) return;
+    if (onlineTickGate.status !== 'ready') return;
+    if (!onlineTickGate.leagueId) return;
+
+    const crownWeek =
+      getAwardShowsForYear(gameState.currentYear).find((s) => s.id === 'crown' && s.medium === 'film')?.ceremonyWeek ?? 10;
+
+    if (gameState.currentWeek !== crownWeek) return;
+
+    const key = `${onlineTickGate.leagueId}|${gameState.currentYear}|${gameState.currentWeek}`;
+    if (key === lastLeagueAwardsKeyRef.current) return;
+
+    lastLeagueAwardsKeyRef.current = key;
+
+    void (async () => {
+      try {
+        const snapshots = await fetchOnlineLeagueSnapshots({ leagueId: onlineTickGate.leagueId! });
+        const ceremony = computeLeagueAwardsCeremony({
+          year: gameState.currentYear,
+          ceremonyName: 'League Crown',
+          snapshots,
+        });
+        if (!ceremony) return;
+
+        setLeagueAwardsCeremony(ceremony);
+        setShowLeagueAwardsModal(true);
+      } catch (e) {
+        console.warn('Online League: failed to fetch league awards ceremony', e);
+      }
+    })();
+  }, [
+    isOnlineMode,
+    onlineHostSync,
+    onlineTickGate.status,
+    onlineTickGate.leagueId,
+    gameState.currentWeek,
+    gameState.currentYear,
+  ]);
+
+  useEffect(() => {
+    if (!isOnlineMode) return;
 
     // Online leagues should only contain player-controlled studios.
     AIStudioManager.resetAISystem();
@@ -4355,6 +4409,22 @@ export const StudioMagnateGame: React.FC<StudioMagnateGameProps> = ({
             setCurrentAwardShow(null);
           }}
           ceremony={currentAwardShow}
+        />
+      )}
+
+      {/* Online League: shared League Awards ceremony */}
+      {leagueAwardsCeremony && (
+        <LeagueAwardsCeremonyModal
+          isOpen={showLeagueAwardsModal}
+          onClose={() => {
+            setShowLeagueAwardsModal(false);
+            setLeagueAwardsCeremony(null);
+          }}
+          onSkip={() => {
+            setShowLeagueAwardsModal(false);
+            setLeagueAwardsCeremony(null);
+          }}
+          ceremony={leagueAwardsCeremony}
         />
       )}
 
