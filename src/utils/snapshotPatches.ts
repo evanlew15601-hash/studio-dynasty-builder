@@ -43,7 +43,10 @@ export function patchLoadedSnapshot(
   if (opts.mode === 'single') {
     return {
       ...snapshot,
-      gameState: primeCompetitorTelevision(patchedGameStateRaw),
+      gameState: {
+        ...primeCompetitorTelevision(patchedGameStateRaw),
+        mode: 'single',
+      },
     };
   }
 
@@ -54,6 +57,7 @@ export function patchLoadedSnapshot(
     ...snapshot,
     gameState: {
       ...patchedGameStateRaw,
+      mode: 'online',
       competitorStudios: [],
       aiStudioProjects: [],
       allReleases: (patchedGameStateRaw.allReleases || []).filter((r: any) => {

@@ -149,13 +149,13 @@ const Online = () => {
             <StudioMagnateGame
               gameConfig={gameConfig ?? undefined}
               initialGameState={loadedSnapshot?.gameState}
-              initialPhase={loadedSnapshot?.currentPhase}
-              initialUnlockedAchievements={loadedSnapshot?.unlockedAchievementIds}
+              initialPhase={loadedSnapshot?.meta.currentPhase}
+              initialUnlockedAchievements={loadedSnapshot?.unlockedAchievements}
               onlineLeagueCode={onlineLeagueCode}
               onlineSeasonYears={onlineSeasonYears}
               onlineHostSync={onlineHostSync}
               onPhaseChange={(phase) => {
-                if (loadedSnapshot) setLoadedSnapshot({ ...loadedSnapshot, currentPhase: phase });
+                if (loadedSnapshot) setLoadedSnapshot({ ...loadedSnapshot, meta: { ...loadedSnapshot.meta, currentPhase: phase } });
               }}
             />
           </Suspense>
