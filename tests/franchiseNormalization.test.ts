@@ -1,0 +1,79 @@
+import { describe, expect, it } from 'vitest';
+import { normalizeFranchises, normalizeFranchisesState } from '@/utils/franchiseNormalization';
+
+describe('normalizeFranchises', () => {
+  it('dedupes franchise ids and unions entries (stable order)', () => {
+    const input = [
+      {
+        id: 'f-1',
+        title: 'First',
+        entries: ['p1', 'p2', 'p2'],
+      },
+      {
+        id: 'f-2',
+        title: 'Second',
+        entries: ['x', 'x'],
+      },
+      {
+        id: 'f-1',
+        title: 'First (updated)',
+        entries: ['p2', 'p3'],
+      },
+    ] as any;
+
+    const out = normalizeFranchises(input);
+
+    expect(out).toHaveLength(2);
+    expect(out[0].id).toBe('f-1');
+    expect(out[1].id).toBe('f-2');
+
+    expect(out[0].title).toBe('First (updated)');
+    expect(out[0].entries).toEqual(['p1', 'p2', 'p3']);
+
+    expect(out[1].entries).toEqual(['x']);
+  });
+
+  it('handles null/undefined input', () => {
+    expect(normalizeFranchises(undefined)).toEqual([]);
+    expect(normalizeFranchises(null)).toEqual([]);
+  });
+});
+
+describe('normalizeFranchisesState', () => {
+  it('merges player-owned duplicate franchises by title and rewrites project references', () => {
+    const base = {
+      universeSeed: 1,
+      rngState: 1,
+      studio: { id: 'studio-1', name: 'You' },
+      currentYear: 2000,
+      currentWeek: 1,
+      currentQuarter: 1,
+      projects: [
+        { id: 'p1', franchiseId: 'f-a', script: { id: 's1', title: 'A', franchiseId: 'f-a' } },
+        { id: 'p2', franchiseId: 'f-b', script: { id: 's2', title: 'B', franchiseId: 'f-b' } },
+      ],
+      scripts: [
+        { id: 's1', title: 'A', franchiseId: 'f-a' },
+        { id: 's2', title: 'B', franchiseId: 'f-b' },
+      ],
+      franchises: [
+        { id: 'f-a', title: 'My Universe', creatorStudioId: 'studio-1', entries: ['p1'] },
+        { id: 'f-b', title: 'My Universe', creatorStudioId: 'studio-1', entries: ['p2'] },
+      ],
+    } as any;
+
+    const normalized = normalizeFranchisesState(base);
+
+    expect(normalized.franchises).toHaveLength(1);
+    expect(normalized.franchises[0].id).toBe('f-a');
+    expect(normalized.franchises[0].entries).toEqual(['p1', 'p2']);
+
+    expect(normalized.projects[0].script.franchiseId).toBe('f-a');
+    expect(normalized.projects[1].script.franchiseId).toBe('f-a');
+    expect(normalized.projects[0].franchiseId).toBe('f-a');
+    expect(normalized.projects[1].franchiseId).toBe('f-a');
+
+    expect(normalized.scripts[0].franchiseId).toBe('f-a');
+    expect(normalized.scripts[1].franchiseId).toBe('f-a');
+  });
+});

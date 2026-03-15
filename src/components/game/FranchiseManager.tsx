@@ -1,5 +1,4 @@
 import React, { useState } from 'react';
-import { Franchise, PublicDomainIP } from '@/types/game';
 import { useGameStore } from '@/game/store';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
@@ -26,28 +25,66 @@ export const FranchiseManager: React.FC<FranchiseManagerProps> = ({
     return <div className="p-6 text-sm text-muted-foreground">Loading franchise marketplace...</div>;
   }
 
+  const uniqById = <T extends { id: string }>(items: T[]): T[] => {
+    const byId = new Map<string, T>();
+    const order: string[] = [];
+
+    for (const item of items) {
+      if (!item?.id) continue;
+      if (!byId.has(item.id)) order.push(item.id);
+      byId.set(item.id, item);
+    }
+
+    return order.map((id) => byId.get(id)!).filter(Boolean);
+  };
+
+  const franchises = uniqById(gameState.franchises || []);
+  const publicDomainIPs = uniqById(gameState.publicDomainIPs || []);
+
   // Check which franchises are owned by player
-  const ownedFranchiseIds = gameState.franchises
+  const ownedFranchiseIds = franchises
     .filter(f => f.creatorStudioId === gameState.studio.id)
     .map(f => f.id);
 
   // Filter franchises (exclude owned ones from purchase list)
-  const filteredFranchises = gameState.franchises.filter(franchise => {
-    if (ownedFranchiseIds.includes(franchise.id)) return false; // Don't show owned franchises in purchase list
-    const matchesSearch = franchise.title.toLowerCase().includes(searchTerm.toLowerCase()) ||
-                         franchise.franchiseTags.some(tag => tag.toLowerCase().includes(searchTerm.toLowerCase()));
-    const matchesGenre = selectedGenre === 'all' || franchise.genre.includes(selectedGenre as any);
-    return matchesSearch && matchesGenre;
-  });
+  const filteredFranchises = (() => {
+    const seen = new Set<string>();
+
+    return franchises
+      .filter(franchise => {
+        if (ownedFranchiseIds.includes(franchise.id)) return false; // Don't show owned franchises in purchase list
+        const matchesSearch = franchise.title.toLowerCase().includes(searchTerm.toLowerCase()) ||
+                             franchise.franchiseTags.some(tag => tag.toLowerCase().includes(searchTerm.toLowerCase()));
+        const matchesGenre = selectedGenre === 'all' || franchise.genre.includes(selectedGenre as any);
+        return matchesSearch && matchesGenre;
+      })
+      .filter((franchise) => {
+        const key = franchise.title.trim().toLowerCase();
+        if (seen.has(key)) return false;
+        seen.add(key);
+        return true;
+      });
+  })();
 
   // Filter public domain IPs
-  const filteredPublicDomain = gameState.publicDomainIPs.filter(ip => {
-    const matchesSearch = ip.name.toLowerCase().includes(searchTerm.toLowerCase()) ||
-                         ip.coreElements.some(element => element.toLowerCase().includes(searchTerm.toLowerCase()));
-    const matchesGenre = selectedGenre === 'all' || ip.genreFlexibility.includes(selectedGenre as any);
-    const matchesDomain = selectedDomain === 'all' || ip.domainType === selectedDomain;
-    return matchesSearch && matchesGenre && matchesDomain;
-  });
+  const filteredPublicDomain = (() => {
+    const seen = new Set<string>();
+
+    return publicDomainIPs
+      .filter(ip => {
+        const matchesSearch = ip.name.toLowerCase().includes(searchTerm.toLowerCase()) ||
+                             ip.coreElements.some(element => element.toLowerCase().includes(searchTerm.toLowerCase()));
+        const matchesGenre = selectedGenre === 'all' || ip.genreFlexibility.includes(selectedGenre as any);
+        const matchesDomain = selectedDomain === 'all' || ip.domainType === selectedDomain;
+        return matchesSearch && matchesGenre && matchesDomain;
+      })
+      .filter((ip) => {
+        const key = ip.name.trim().toLowerCase();
+        if (seen.has(key)) return false;
+        seen.add(key);
+        return true;
+      });
+  })();
 
   const getFranchiseStatusColor = (status: string) => {
     switch (status) {
@@ -131,7 +168,7 @@ export const FranchiseManager: React.FC<FranchiseManagerProps> = ({
       <Tabs defaultValue="franchises" className="space-y-4">
         <TabsList>
           <TabsTrigger value="franchises">Available Franchises ({filteredFranchises.length})</TabsTrigger>
-          <TabsTrigger value="public-domain">Public Domain ({gameState.publicDomainIPs.length})</TabsTrigger>
+          <TabsTrigger value="public-domain">Public Domain ({publicDomainIPs.length})</TabsTrigger>
         </TabsList>
 
         <TabsContent value="franchises" className="space-y-4">

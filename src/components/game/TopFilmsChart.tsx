@@ -1,12 +1,14 @@
 // Top Films of the Week - Box Office Performance Chart
-import React, { useMemo } from 'react';
+import React, { useMemo, useState } from 'react';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
 import { Progress } from '@/components/ui/progress';
 import { Project } from '@/types/game';
+import { ReleaseDetailsDialog } from './ReleaseDetailsDialog';
 import { TrendingIcon, StudioIcon, StarIcon } from '@/components/ui/icons';
 import { useGameStore } from '@/game/store';
 import { formatMoneyCompact } from '@/utils/money';
+import { getReleaseDirectorName, getReleaseSource, getReleaseTopCastNames } from '@/utils/leagueReleases';
 
 interface TopFilmEntry {
   project: Project;
@@ -21,6 +23,7 @@ interface TopFilmEntry {
 
 export const TopFilmsChart: React.FC = () => {
   const gameState = useGameStore((s) => s.game);
+  const [activeRelease, setActiveRelease] = useState<Project | null>(null);
 
   const allReleases = useMemo(() => {
     if (!gameState) return [] as Project[];
@@ -57,6 +60,8 @@ export const TopFilmsChart: React.FC = () => {
   };
 
   const determineStudioName = (project: Project): string => {
+    if (project.studioName) return project.studioName;
+
     // Check if it's an AI studio project
     if (project.id.startsWith('ai-project-')) {
       // Find the studio from competitor studios
@@ -67,9 +72,10 @@ export const TopFilmsChart: React.FC = () => {
       return studio?.name || 'Independent Studios';
     }
 
-    // Player's project
     return gameState.studio.name;
   };
+
+  
 
   const createTopFilmEntries = (): TopFilmEntry[] => {
     const currentReleases = allReleases.filter(project =>
@@ -135,48 +141,72 @@ export const TopFilmsChart: React.FC = () => {
   const topFilms = createTopFilmEntries();
 
   return (
-    <Card className="card-premium">
-      <CardHeader className="pb-4">
-        <CardTitle className="flex items-center text-xl">
-          <StudioIcon className="mr-3 text-primary" size={24} />
-          Top Films This Week
-          <Badge variant="outline" className="ml-auto">
-            Week {gameState.currentWeek}, {gameState.currentYear}
-          </Badge>
-        </CardTitle>
-      </CardHeader>
+    <>
+      <Card className="card-premium">
+        <CardHeader className="pb-4">
+          <CardTitle className="flex items-center text-xl">
+            <StudioIcon className="mr-3 text-primary" size={24} />
+            Top Films This Week
+            <Badge variant="outline" className="ml-auto">
+              Week {gameState.currentWeek}, {gameState.currentYear}
+            </Badge>
+          </CardTitle>
+        </CardHeader>
 
-      <CardContent className="space-y-4">
-        {topFilms.length === 0 ? (
-          <div className="text-center py-8 text-muted-foreground">
-            <StudioIcon className="mx-auto mb-4" size={48} />
-            <p>No films currently in theaters</p>
-          </div>
-        ) : (
-          <div className="space-y-3">
-            {topFilms.map((entry) => (
-              <div
-                key={entry.project.id}
-                className={`p-4 rounded-lg border transition-all duration-200 hover:shadow-md ${
-                  entry.studioName === gameState.studio.name
-                    ? 'bg-primary/5 border-primary/20'
-                    : 'bg-card hover:bg-accent/5'
-                }`}
-              >
-                <div className="flex items-start justify-between">
-                  <div className="flex-1">
-                    <div className="flex items-center gap-3 mb-2">
-                      <div className="flex items-center gap-2">
-                        <span className="text-2xl font-bold text-primary">#{entry.position}</span>
-                        {getTrendIcon(entry.trend)}
+        <CardContent className="space-y-4">
+          {topFilms.length === 0 ? (
+            <div className="text-center py-8 text-muted-foreground">
+              <StudioIcon className="mx-auto mb-4" size={48} />
+              <p>No films currently in theaters</p>
+            </div>
+          ) : (
+            <div className="space-y-3">
+            {topFilms.map((entry) => {
+              const source = getReleaseSource({ gameState, project: entry.project });
+              const director = getReleaseDirectorName({ gameState, project: entry.project });
+              const topCast = getReleaseTopCastNames({ gameState, project: entry.project, limit: 3 });
+              const peopleBits = [
+                director ? `Dir. ${director}` : null,
+                topCast.length ? `Cast: ${topCast.join(', ')}` : null,
+              ].filter(Boolean);
+
+              return (
+                <div
+                  key={entry.project.id}
+                  className={`cursor-pointer p-4 rounded-lg border transition-all duration-200 hover:shadow-md ${
+                    entry.studioName === gameState.studio.name
+                      ? 'bg-primary/5 border-primary/20'
+                      : 'bg-card hover:bg-accent/5'
+                  }`}
+                  role="button"
+                  tabIndex={0}
+                  onClick={() => setActiveRelease(entry.project)}
+                  onKeyDown={(e) => {
+                    if (e.key === 'Enter' || e.key === ' ') {
+                      e.preventDefault();
+                      setActiveRelease(entry.project);
+                    }
+                  }}
+                >
+                  <div className="flex items-start justify-between">
+                    <div className="flex-1">
+                      <div className="flex items-center gap-3 mb-2">
+                        <div className="flex items-center gap-2">
+                          <span className="text-2xl font-bold text-primary">#{entry.position}</span>
+                          {getTrendIcon(entry.trend)}
+                        </div>
+                        <div className="flex-1">
+                          <h3 className="font-bold text-lg">{entry.project.title}</h3>
+                          <p className="text-sm text-muted-foreground">
+                            {entry.studioName} • {entry.project.script?.genre || 'Unknown'}
+                          </p>
+                          {(source || peopleBits.length > 0) && (
+                            <p className="text-xs text-muted-foreground">
+                              {[source, ...peopleBits].filter(Boolean).join(' • ')}
+                            </p>
+                          )}
+                        </div>
                       </div>
-                      <div className="flex-1">
-                        <h3 className="font-bold text-lg">{entry.project.title}</h3>
-                        <p className="text-sm text-muted-foreground">
-                          {entry.studioName} • {entry.project.script?.genre || 'Unknown'}
-                        </p>
-                      </div>
-                    </div>
 
                     <div className="grid grid-cols-2 gap-4 mb-3">
                       <div>
@@ -190,16 +220,22 @@ export const TopFilmsChart: React.FC = () => {
                     </div>
 
                     {/* Performance Bar */}
-                    <div className="mb-3">
-                      <div className="flex justify-between text-xs text-muted-foreground mb-1">
-                        <span>vs Budget ({formatMoneyCompact(entry.project.budget?.total || 0)})</span>
-                        <span>{((entry.totalGross / (entry.project.budget?.total || 1)) * 100).toFixed(0)}%</span>
+                    {(!entry.project.id.startsWith('league-') || entry.studioName === gameState.studio.name) ? (
+                      <div className="mb-3">
+                        <div className="flex justify-between text-xs text-muted-foreground mb-1">
+                          <span>vs Budget ({formatMoneyCompact(entry.project.budget?.total || 0)})</span>
+                          <span>{((entry.totalGross / (entry.project.budget?.total || 1)) * 100).toFixed(0)}%</span>
+                        </div>
+                        <Progress
+                          value={Math.min(100, (entry.totalGross / (entry.project.budget?.total || 1)) * 100)}
+                          className="h-2"
+                        />
                       </div>
-                      <Progress
-                        value={Math.min(100, (entry.totalGross / (entry.project.budget?.total || 1)) * 100)}
-                        className="h-2"
-                      />
-                    </div>
+                    ) : (
+                      <div className="mb-3 text-xs text-muted-foreground">
+                        Budget hidden for other studios in Online League.
+                      </div>
+                    )}
 
                     {/* Reception Tags */}
                     {entry.receptionTags.length > 0 && (
@@ -227,7 +263,8 @@ export const TopFilmsChart: React.FC = () => {
                   </div>
                 </div>
               </div>
-            ))}
+            );
+          })}
           </div>
         )}
 
@@ -257,5 +294,15 @@ export const TopFilmsChart: React.FC = () => {
         </div>
       </CardContent>
     </Card>
+
+    <ReleaseDetailsDialog
+      gameState={gameState}
+      project={activeRelease}
+      open={!!activeRelease}
+      onOpenChange={(open) => {
+        if (!open) setActiveRelease(null);
+      }}
+    />
+  </>
   );
 };

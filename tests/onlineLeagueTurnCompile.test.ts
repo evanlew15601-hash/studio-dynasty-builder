@@ -111,6 +111,71 @@ describe('onlineLeagueTurnCompile', () => {
     expect(submission.state?.projects).toBeDefined();
   });
 
+  it('buildOnlineLeagueTurnSubmission emits releasedProjects with lightweight public metadata', () => {
+    const base = makeBaseGameState();
+
+    const current: GameState = {
+      ...base,
+      talent: [
+        { id: 't-dir', name: 'D. Director', type: 'director', contractStatus: 'available' } as any,
+        { id: 't-lead', name: 'A. Star', type: 'actor', contractStatus: 'available' } as any,
+        { id: 't-sup', name: 'B. Support', type: 'actor', contractStatus: 'available' } as any,
+      ],
+      franchises: [
+        { id: 'f1', title: 'Mega Saga', creatorStudioId: 'other', genre: ['drama'], tone: 'serious', entries: [], status: 'active', franchiseTags: [], culturalWeight: 50, cost: 0, originDate: '2000-01-01' } as any,
+      ],
+      publicDomainIPs: [
+        { id: 'pd1', name: 'Legend of Something', domainType: 'folklore', dateEnteredDomain: '1900-01-01', coreElements: [], genreFlexibility: ['drama'], notableAdaptations: [], reputationScore: 70, cost: 0 } as any,
+      ],
+      projects: [
+        {
+          id: 'p1',
+          title: 'The Big Release',
+          type: 'feature',
+          status: 'released',
+          releaseWeek: 2,
+          releaseYear: 2000,
+          budget: { total: 55_000_000 } as any,
+          cast: [
+            { talentId: 't-lead', role: 'Lead Actor', salary: 5_000_000 } as any,
+            { talentId: 't-sup', role: 'Supporting Actor', salary: 1_000_000 } as any,
+          ],
+          crew: [{ talentId: 't-dir', role: 'Director', salary: 2_000_000 } as any],
+          script: {
+            id: 's1',
+            title: 'The Big Release',
+            genre: 'drama',
+            logline: 'A studio fights the odds.',
+            estimatedRuntime: 131,
+            franchiseId: 'f1',
+            publicDomainId: 'pd1',
+          } as any,
+          metrics: {
+            criticsScore: 82,
+            audienceScore: 77,
+            boxOfficeTotal: 123_000_000,
+            boxOfficeStatus: 'Wide Release',
+          } as any,
+          contractedTalent: [],
+        } as any,
+      ],
+    } as any;
+
+    const submission = buildOnlineLeagueTurnSubmission({ baseline: null, current });
+    expect(submission.state?.releasedProjects?.length).toBe(1);
+
+    const r = submission.state!.releasedProjects![0];
+    expect(r.id).toBe('p1');
+    expect(r.title).toBe('The Big Release');
+    expect(r.releaseLabel).toBe('Wide Release');
+    expect(r.runtimeMins).toBe(131);
+    expect(r.logline).toBe('A studio fights the odds.');
+    expect(r.director).toBe('D. Director');
+    expect(r.topCast).toEqual(['A. Star', 'B. Support']);
+    expect(r.franchiseTitle).toBe('Mega Saga');
+    expect(r.publicDomainName).toBe('Legend of Something');
+  });
+
   it('resolveOnlineLeagueTalentConflicts uses ready order (first ready wins)', () => {
     const res = resolveOnlineLeagueTalentConflicts({
       turn: 2,

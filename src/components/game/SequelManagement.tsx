@@ -38,6 +38,7 @@ export const SequelManagement: React.FC<SequelManagementProps> = ({
 }) => {
   const gameState = useGameStore((s) => s.game);
   const replaceProject = useGameStore((s) => s.replaceProject);
+  const appendFranchiseEntry = useGameStore((s) => s.appendFranchiseEntry);
   const { toast } = useToast();
   const [selectedProject, setSelectedProject] = useState<Project | null>(null);
   const [sequelPlan, setSequelPlan] = useState<SequelPlan | null>(null);
@@ -198,26 +199,38 @@ export const SequelManagement: React.FC<SequelManagementProps> = ({
     // Ensure franchise exists or create one
     let franchiseId = selectedProject.script?.franchiseId;
     if (!franchiseId) {
-      // Create franchise from successful original
-      franchiseId = `franchise-${selectedProject.id}-${Date.now()}`;
-      const newFranchise: Franchise = {
-        id: franchiseId,
-        title: `${selectedProject.title} Universe`,
-        description: `Franchise based on the successful film "${selectedProject.title}"`,
-        originDate: new Date().toISOString().split('T')[0],
-        creatorStudioId: gameState.studio.id,
-        genre: selectedProject.script?.genre ? [selectedProject.script.genre] : ['action'],
-        tone: 'light', // Convert to valid franchise tone
-        entries: [selectedProject.id],
-        status: 'active',
-        franchiseTags: ['sequel-ready', 'successful'],
-        culturalWeight: Math.min(90, 50 + ((selectedProject.metrics?.criticsScore || 0) / 2)),
-        cost: 0
-      };
-      
-    // Add franchise to game state and update original project if callback provided
-      onCreateFranchise?.(newFranchise);
-      
+      const expectedTitle = `${selectedProject.title} Universe`;
+
+      const existing = gameState.franchises.find((f) =>
+        f.creatorStudioId === gameState.studio.id &&
+        (f.title === expectedTitle || (f.entries || []).includes(selectedProject.id))
+      );
+
+      if (existing) {
+        franchiseId = existing.id;
+        appendFranchiseEntry(existing.id, selectedProject.id);
+      } else {
+        // Create franchise from successful original
+        franchiseId = `franchise-${selectedProject.id}-${Date.now()}`;
+        const newFranchise: Franchise = {
+          id: franchiseId,
+          title: expectedTitle,
+          description: `Franchise based on the successful film "${selectedProject.title}"`,
+          originDate: new Date().toISOString().split('T')[0],
+          creatorStudioId: gameState.studio.id,
+          genre: selectedProject.script?.genre ? [selectedProject.script.genre] : ['action'],
+          tone: 'light', // Convert to valid franchise tone
+          entries: [selectedProject.id],
+          status: 'active',
+          franchiseTags: ['sequel-ready', 'successful'],
+          culturalWeight: Math.min(90, 50 + ((selectedProject.metrics?.criticsScore || 0) / 2)),
+          cost: 0
+        };
+        
+        // Add franchise to game state and update original project if callback provided
+        onCreateFranchise?.(newFranchise);
+      }
+
       // Update original project to include franchise connection
       const updatedOriginalProject = {
         ...selectedProject,

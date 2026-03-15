@@ -3,6 +3,7 @@ import { ensureGameStateFictionalAwardNames } from '@/utils/awardsNaming';
 import { ensureCompetitorStudiosLore } from '@/utils/competitorStudiosPatches';
 import { ensureTalentLore } from '@/utils/talentLorePatches';
 import { primeCompetitorTelevision } from '@/utils/televisionPatches';
+import { normalizeFranchisesState } from '@/utils/franchiseNormalization';
 import { getModBundle } from '@/utils/moddingStore';
 import { applyPatchesByKey, getPatchesForEntity } from '@/utils/modding';
 import type { SaveGameSnapshot } from '@/utils/saveLoad';
@@ -40,31 +41,26 @@ export function patchLoadedSnapshot(
     )
   );
 
+  const patchedGameState = normalizeFranchisesState(patchedGameStateRaw as any);
+
   if (opts.mode === 'single') {
     return {
       ...snapshot,
       gameState: {
-        ...primeCompetitorTelevision(patchedGameStateRaw),
+        ...primeCompetitorTelevision(patchedGameState),
         mode: 'single',
       },
     };
   }
 
   // Online mode should only include player-controlled studios.
-  const playerStudioName = patchedGameStateRaw.studio?.name;
-
   return {
     ...snapshot,
     gameState: {
-      ...patchedGameStateRaw,
+      ...patchedGameState,
       mode: 'online',
       competitorStudios: [],
       aiStudioProjects: [],
-      allReleases: (patchedGameStateRaw.allReleases || []).filter((r: any) => {
-        const studioName = r?.studioName;
-        if (!studioName) return true;
-        return studioName === playerStudioName;
-      }),
     },
   };
 }

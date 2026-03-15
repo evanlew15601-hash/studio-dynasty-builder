@@ -22,6 +22,7 @@ type MetaboxdTitle = {
   logline?: string;
   director?: string;
   topCast?: string[];
+  source?: string;
 
   criticsScore: number;
   audienceScore: number;
@@ -254,6 +255,11 @@ function projectToMetaboxdTitle(gameState: GameState, project: Project): Metabox
     : (isPlayerProject ? gameState.studio.name : 'Unknown Studio');
 
   const directorName = (() => {
+    if (!isPlayerProject) {
+      const shared = project.metrics?.sharedDirectorName;
+      if (typeof shared === 'string' && shared.trim()) return shared;
+    }
+
     const roles = [...(project.crew || []), ...(project.cast || [])];
     const dir = roles.find((r) => r.role?.toLowerCase().includes('director'));
     const t = dir ? gameState.talent.find((x) => x.id === dir.talentId) : undefined;
@@ -261,6 +267,11 @@ function projectToMetaboxdTitle(gameState: GameState, project: Project): Metabox
   })();
 
   const topCast = (() => {
+    if (!isPlayerProject) {
+      const shared = project.metrics?.sharedTopCastNames;
+      if (Array.isArray(shared) && shared.length) return shared.filter((x) => typeof x === 'string') as string[];
+    }
+
     const roles = (project.cast || [])
       .filter((r) => !!r.talentId)
       .slice();
@@ -281,13 +292,44 @@ function projectToMetaboxdTitle(gameState: GameState, project: Project): Metabox
   })();
 
   const runtimeMins = project.script?.estimatedRuntime;
-  const budget = project.script?.budget ?? project.budget?.total;
+  const budget = (() => {
+    const raw = project.script?.budget ?? project.budget?.total;
+    if (project.id.startsWith('league-')) return undefined;
+    return raw;
+  })();
 
   const boxOfficeTotal = project.metrics?.boxOfficeTotal;
   const streamingViews = project.metrics?.streamingViews ?? project.metrics?.streaming?.totalViews;
 
   const releaseLabel = project.metrics?.boxOfficeStatus || (project.releaseStrategy?.type === 'streaming' ? 'Streaming Premiere' : undefined);
   const logline = project.script?.logline;
+
+  const source = (() => {
+    const sharedFranchiseTitle = project.metrics?.sharedFranchiseTitle;
+    const sharedPublicDomainName = project.metrics?.sharedPublicDomainName;
+
+    if (typeof sharedPublicDomainName === 'string' && sharedPublicDomainName.trim()) {
+      return `Public domain: ${sharedPublicDomainName}`;
+    }
+
+    if (typeof sharedFranchiseTitle === 'string' && sharedFranchiseTitle.trim()) {
+      return `Franchise: ${sharedFranchiseTitle}`;
+    }
+
+    const publicDomainId = project.script?.publicDomainId ?? project.publicDomainId;
+    if (publicDomainId) {
+      const local = (gameState.publicDomainIPs || []).find((ip) => ip.id === publicDomainId)?.name;
+      if (local) return `Public domain: ${local}`;
+    }
+
+    const franchiseId = project.script?.franchiseId ?? project.franchiseId;
+    if (franchiseId) {
+      const local = (gameState.franchises || []).find((f) => f.id === franchiseId)?.title;
+      if (local) return `Franchise: ${local}`;
+    }
+
+    return undefined;
+  })();
 
   const playerReview = isPlayerProject
     ? derivePlayerReview(project, stars, criticsScore, audienceScore, seed)
@@ -308,6 +350,7 @@ function projectToMetaboxdTitle(gameState: GameState, project: Project): Metabox
     logline,
     director: directorName,
     topCast,
+    source,
     criticsScore,
     audienceScore,
     indexScore,
@@ -374,6 +417,10 @@ export const Metaboxd: React.FC = () => {
   const [query, setQuery] = useState('');
   const [selectedId, setSelectedId] = useState<string | null>(null);
 
+  const INITIAL_GRID_LIMIT = 18;
+  const GRID_PAGE_SIZE = 18;
+  const [gridLimit, setGridLimit] = useState(INITIAL_GRID_LIMIT);
+
   const [criticFilter, setCriticFilter] = useState<'all' | 'raves' | 'mixed' | 'pans'>('all');
   const [criticSort, setCriticSort] = useState<'helpful' | 'score'>('helpful');
   const [memberFilter, setMemberFilter] = useState<'all' | 'high' | 'mid' | 'low'>('all');
@@ -386,6 +433,14 @@ export const Metaboxd: React.FC = () => {
     setMemberSort('helpful');
   }, [selectedId]);
 
+  useEffect(() => {
+    if (!selectedId) setGridLimit(INITIAL_GRID_LIMIT);
+  }, [selectedId, INITIAL_GRID_LIMIT]);
+
+  useEffect(() => {
+    setGridLimit(INITIAL_GRID_LIMIT);
+  }, [activeTab, scope, sortMode, query, INITIAL_GRID_LIMIT]);
+
   const titles = useMemo(() => {
     if (!gameState) return [] as MetaboxdTitle[];
 
@@ -393,7 +448,19 @@ export const Metaboxd: React.FC = () => {
       .filter((r: any): r is Project => !!r && typeof r === 'object' && 'script' in r)
       .filter((p: Project) => p.status === 'released');
 
-    const mapped = releases.map((p: Project) => projectToMetaboxdTitle(gameState, p));
+    const byId = new Map<string, Project>();
+    const order: string[] = [];
+
+    for (const p of releases) {
+      if (!p?.id) continue;
+      if (!byId.has(p.id)) order.push(p.id);
+      byId.set(p.id, p);
+    }
+
+    const mapped = order
+      .map((id) => byId.get(id))
+      .filter(Boolean)
+      .map((p) => projectToMetaboxdTitle(gameState, p as Project));
 
     return mapped
       .sort((a, b) => (b.indexScore - a.indexScore) || a.title.localeCompare(b.title));
@@ -433,6 +500,14 @@ export const Metaboxd: React.FC = () => {
   }, [filtered, sortMode]);
 
   const spotlight = visible[0] || null;
+  const spotlightId = spotlight?.id ?? null;
+
+  const gridTitles = useMemo(() => {
+    if (!spotlightId) return visible;
+    return visible.filter((t) => t.id !== spotlightId);
+  }, [visible, spotlightId]);
+
+  const gridVisible = useMemo(() => gridTitles.slice(0, gridLimit), [gridTitles, gridLimit]);
 
   const selected = useMemo(
     () => (selectedId ? titles.find((t) => t.id === selectedId) || null : null),
@@ -603,6 +678,10 @@ export const Metaboxd: React.FC = () => {
       .slice(0, 6);
   }, [titles]);
 
+  const gridShownCount = gridVisible.length + (spotlightId ? 1 : 0);
+  const canLoadMore = gridLimit < gridTitles.length;
+  const canCollapse = gridLimit > INITIAL_GRID_LIMIT;
+
   if (!gameState) {
     return <div className="p-6 text-sm text-muted-foreground">Loading Metaboxd…</div>;
   }
@@ -660,7 +739,7 @@ export const Metaboxd: React.FC = () => {
                   {activeTab === 'all' ? 'Trending in your market' : activeTab === 'film' ? 'Films' : 'Shows'}
                 </div>
                 <div className="metaboxd-panel-subtitle">
-                  {visible.length} title{visible.length === 1 ? '' : 's'} • ranked by Index
+                  Showing {gridShownCount} of {visible.length} title{visible.length === 1 ? '' : 's'} • ranked by Index
                 </div>
               </div>
 
@@ -726,7 +805,7 @@ export const Metaboxd: React.FC = () => {
             )}
 
             <div className="metaboxd-grid">
-              {visible.map((t) => (
+              {gridVisible.map((t) => (
                 <button
                   key={t.id}
                   type="button"
@@ -753,6 +832,35 @@ export const Metaboxd: React.FC = () => {
                 </button>
               ))}
             </div>
+
+            {(canLoadMore || canCollapse) && (
+              <div className="metaboxd-grid-footer" aria-label="Metaboxd listings pagination">
+                <div className="metaboxd-grid-footer-left">
+                  Showing {gridShownCount} / {visible.length}
+                </div>
+
+                <div className="metaboxd-grid-footer-actions">
+                  {canCollapse && (
+                    <button
+                      type="button"
+                      className="metaboxd-btn metaboxd-btn-ghost"
+                      onClick={() => setGridLimit(INITIAL_GRID_LIMIT)}
+                    >
+                      Show fewer
+                    </button>
+                  )}
+                  {canLoadMore && (
+                    <button
+                      type="button"
+                      className="metaboxd-btn metaboxd-btn-secondary"
+                      onClick={() => setGridLimit((n) => Math.min(n + GRID_PAGE_SIZE, gridTitles.length))}
+                    >
+                      Load more
+                    </button>
+                  )}
+                </div>
+              </div>
+            )}
           </section>
 
           <aside className="metaboxd-sidebar" aria-label="Metaboxd sidebar">
@@ -1009,6 +1117,10 @@ export const Metaboxd: React.FC = () => {
                       <div className="metaboxd-fact-value">{selected.topCast?.length ? selected.topCast.join(', ') : '—'}</div>
                     </div>
                     <div className="metaboxd-fact">
+                      <div className="metaboxd-fact-label">Source</div>
+                      <div className="metaboxd-fact-value">{selected.source || '—'}</div>
+                    </div>
+                    <div className="metaboxd-fact">
                       <div className="metaboxd-fact-label">Budget</div>
                       <div className="metaboxd-fact-value">
                         {typeof selected.budget === 'number' ? '\u0024' + (selected.budget / 1_000_000).toFixed(0) + 'M' : '—'}
@@ -1177,7 +1289,7 @@ export const Metaboxd: React.FC = () => {
           </section>
 
           <aside className="metaboxd-sidebar">
-            <div className="metaboxd-panel">
+            <div className="metaboxd-panel metaboxd-sidebar-sticky">
               <div className="metaboxd-panel-header">
                 <div>
                   <div className="metaboxd-panel-title">Related</div>

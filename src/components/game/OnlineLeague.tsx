@@ -9,7 +9,6 @@ import { getSupabaseClient } from '@/integrations/supabase/client';
 
 type PresenceStudioSnapshot = {
   studioName: string;
-  budget: number;
   reputation: number;
   week: number;
   year: number;
@@ -21,7 +20,6 @@ type PersistedLeagueSnapshot = {
   league_id: string;
   user_id: string;
   studio_name: string;
-  budget: number | string;
   reputation: number;
   week: number;
   year: number;
@@ -36,16 +34,6 @@ function generateLeagueCode(): string {
     out += alphabet[Math.floor(Math.random() * alphabet.length)];
   }
   return out;
-}
-
-function formatMoney(amount: number): string {
-  return `$${(amount / 1_000_000).toFixed(0)}M`;
-}
-
-function parseBudget(value: number | string): number {
-  if (typeof value === 'number') return value;
-  const parsed = Number(value);
-  return Number.isFinite(parsed) ? parsed : 0;
 }
 
 function mapOnlineLeagueError(message: string): string {
@@ -206,7 +194,6 @@ export const OnlineLeague: React.FC<OnlineLeagueProps> = ({ initialLeagueCode })
 
     const snapshot: PresenceStudioSnapshot = {
       studioName: gameState.studio.name,
-      budget: gameState.studio.budget,
       reputation: gameState.studio.reputation,
       week: gameState.currentWeek,
       year: gameState.currentYear,
@@ -222,7 +209,7 @@ export const OnlineLeague: React.FC<OnlineLeagueProps> = ({ initialLeagueCode })
         league_id: activeLeagueId,
         user_id: userId,
         studio_name: snapshot.studioName,
-        budget: snapshot.budget,
+        budget: 0,
         reputation: Math.round(snapshot.reputation),
         week: snapshot.week,
         year: snapshot.year,
@@ -239,7 +226,7 @@ export const OnlineLeague: React.FC<OnlineLeagueProps> = ({ initialLeagueCode })
   }, [
     gameState?.currentWeek,
     gameState?.currentYear,
-    gameState?.studio?.budget,
+    
     gameState?.studio?.reputation,
     gameState?.projects,
     activeLeagueCode,
@@ -259,7 +246,8 @@ export const OnlineLeague: React.FC<OnlineLeagueProps> = ({ initialLeagueCode })
 
     return entries.sort((a, b) => {
       if (b.snapshot.reputation !== a.snapshot.reputation) return b.snapshot.reputation - a.snapshot.reputation;
-      return b.snapshot.budget - a.snapshot.budget;
+      if (b.snapshot.releasedTitles !== a.snapshot.releasedTitles) return b.snapshot.releasedTitles - a.snapshot.releasedTitles;
+      return a.snapshot.studioName.localeCompare(b.snapshot.studioName);
     });
   }, [presence]);
 
@@ -267,16 +255,60 @@ export const OnlineLeague: React.FC<OnlineLeagueProps> = ({ initialLeagueCode })
     const list = persistedSnapshots.slice();
     return list.sort((a, b) => {
       if (b.reputation !== a.reputation) return b.reputation - a.reputation;
-      return parseBudget(b.budget) - parseBudget(a.budget);
+      if (b.released_titles !== a.released_titles) return b.released_titles - a.released_titles;
+      return a.studio_name.localeCompare(b.studio_name);
     });
   }, [persistedSnapshots]);
+
+  const leagueAwards = useMemo(() => {
+    type Candidate = {
+      studioName: string;
+      reputation: number;
+      releasedTitles: number;
+    };
+
+    const candidates: Candidate[] = members.length > 0
+      ? members.map(({ snapshot }) => ({
+        studioName: snapshot.studioName,
+        reputation: snapshot.reputation,
+        releasedTitles: snapshot.releasedTitles,
+      }))
+      : persistedMembers.map((m) => ({
+        studioName: m.studio_name,
+        reputation: m.reputation,
+        releasedTitles: m.released_titles,
+      }));
+
+    if (candidates.length === 0) return [] as Array<{ title: string; winner: string; detail: string }>;
+
+    const topBy = <T extends keyof Candidate>(key: T, label: string, fmt: (c: Candidate) => string) => {
+      const sorted = candidates.slice().sort((a, b) => {
+        const av = Number(a[key] ?? 0);
+        const bv = Number(b[key] ?? 0);
+        if (bv !== av) return bv - av;
+        return a.studioName.localeCompare(b.studioName);
+      });
+
+      const winner = sorted[0];
+      return {
+        title: label,
+        winner: winner.studioName,
+        detail: fmt(winner),
+      };
+    };
+
+    return [
+      topBy('reputation', 'Top reputation', (c) => `${Math.round(c.reputation)}/100 rep`),
+      topBy('releasedTitles', 'Most releases', (c) => `${c.releasedTitles} released`),
+    ];
+  }, [members, persistedMembers]);
 
   const refreshSnapshots = async (leagueId: string) => {
     if (!supabase) return;
 
     const { data, error: loadError } = await supabase
       .from('online_league_snapshots')
-      .select('*')
+      .select('league_id, user_id, studio_name, reputation, week, year, released_titles, updated_at')
       .eq('league_id', leagueId);
 
     if (loadError) return;
@@ -415,6 +447,26 @@ export const OnlineLeague: React.FC<OnlineLeagueProps> = ({ initialLeagueCode })
         </p>
       </div>
 
+      <Card>
+        <CardHeader>
+          <CardTitle>Rules & expectations</CardTitle>
+        </CardHeader>
+        <CardContent className="space-y-3 text-sm text-muted-foreground">
+          <div>
+            Online League shares only small “snapshot” stats (studio name, reputation, week/year, released titles). Game simulation and saves stay local to your device.
+          </div>
+          <ul className="list-disc pl-5 space-y-1">
+            <li><span className="font-medium text-foreground">League size:</span> up to 8 members.</li>
+            <li><span className="font-medium text-foreground">Inactivity cleanup:</span> leagues can be deleted after 14 days with no members checking in (<code>last_seen_at</code>).</li>
+            <li><span className="font-medium text-foreground">Season cleanup:</span> after a season ends, leagues can be deleted after 7 days.</li>
+            <li><span className="font-medium text-foreground">Leaving:</span> “Leave” just disconnects this screen; it doesn’t currently remove you from the league on the server.</li>
+          </ul>
+          <div className="text-xs text-muted-foreground">
+            Note: cleanup runs opportunistically when leagues are created/joined (or if an admin runs <code>cleanup_online_leagues()</code>).
+          </div>
+        </CardContent>
+      </Card>
+
       {!canUseOnline && (
         <Card>
           <CardHeader>
@@ -517,7 +569,7 @@ export const OnlineLeague: React.FC<OnlineLeagueProps> = ({ initialLeagueCode })
                       <Badge variant="outline">Week {gameState.currentWeek}, {gameState.currentYear}</Badge>
                     </div>
                     <div className="mt-2 text-sm text-muted-foreground">
-                      Budget {formatMoney(gameState.studio.budget)} • Reputation {Math.round(gameState.studio.reputation)}/100 • Released {gameState.projects.filter(p => p.status === 'released').length}
+                      Reputation {Math.round(gameState.studio.reputation)}/100 • Released {gameState.projects.filter(p => p.status === 'released').length}
                     </div>
                   </div>
                 )}
@@ -557,7 +609,7 @@ export const OnlineLeague: React.FC<OnlineLeagueProps> = ({ initialLeagueCode })
                     </div>
                     <div className="text-right">
                       <div className="text-sm">Rep {Math.round(snapshot.reputation)}/100</div>
-                      <div className="text-xs text-muted-foreground">{formatMoney(snapshot.budget)} • {snapshot.releasedTitles} released</div>
+                      <div className="text-xs text-muted-foreground">{snapshot.releasedTitles} released</div>
                     </div>
                   </div>
                 ))}
@@ -588,7 +640,32 @@ export const OnlineLeague: React.FC<OnlineLeagueProps> = ({ initialLeagueCode })
                     </div>
                     <div className="text-right">
                       <div className="text-sm">Rep {Math.round(m.reputation)}/100</div>
-                      <div className="text-xs text-muted-foreground">{formatMoney(parseBudget(m.budget))} • {m.released_titles} released</div>
+                      <div className="text-xs text-muted-foreground">{m.released_titles} released</div>
+                    </div>
+                  </div>
+                ))}
+              </div>
+
+              <Separator />
+
+              <div className="space-y-2">
+                <div className="text-sm font-medium">League awards (beta)</div>
+                <div className="text-sm text-muted-foreground">
+                  Lightweight, leaderboard-style awards based on the latest stats. In Online League mode, the core award shows still resolve locally, but a shared League Crown ceremony appears on the Crown week so everyone sees the same results.
+                </div>
+
+                {leagueAwards.length === 0 && (
+                  <div className="text-sm text-muted-foreground">No awards yet — join a league and start sharing snapshots.</div>
+                )}
+
+                {leagueAwards.map((a) => (
+                  <div key={a.title} className="flex items-center justify-between rounded-md border p-3">
+                    <div>
+                      <div className="font-medium">{a.title}</div>
+                      <div className="text-xs text-muted-foreground">{a.winner}</div>
+                    </div>
+                    <div className="text-right">
+                      <div className="text-sm">{a.detail}</div>
                     </div>
                   </div>
                 ))}

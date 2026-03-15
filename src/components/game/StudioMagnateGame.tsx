@@ -36,6 +36,10 @@ import { RoleBasedCasting } from './RoleBasedCasting';
 import { CharacterCastingSystem } from './CharacterCastingSystem';
 import { useAwardsEngine } from '@/hooks/useAwardsEngine';
 import { useOnlineLeagueTickGate } from '@/hooks/useOnlineLeagueTickGate';
+import { getAwardShowsForYear } from '@/data/AwardsSchedule';
+import { fetchOnlineLeagueSnapshots } from '@/integrations/supabase/onlineLeagueSnapshots';
+import { computeLeagueAwardsCeremony, type LeagueAwardsCeremony } from '@/utils/leagueAwards';
+import { LeagueAwardsCeremonyModal } from './LeagueAwardsCeremonyModal';
 import { IndividualAwardShowModal, AwardShowCeremony } from './IndividualAwardShowModal';
 import { FirstWeekBoxOfficeModal } from './FirstWeekBoxOfficeModal';
 import { EnhancedLoanSystem } from './EnhancedLoanSystem';
@@ -121,6 +125,8 @@ import {
   upsertOnlineLeagueTurnResolution,
   upsertOnlineLeagueTurnSubmission,
 } from '@/integrations/supabase/onlineLeagueTurnCompile';
+import { mergeLeagueReleaseSnapshotsIntoAllReleases } from '@/utils/leagueReleases';
+import type { LeagueReleasedProjectSnapshot } from '@/types/onlineLeague';
 import {
   applyOnlineLeagueTalentResolution,
   buildOnlineLeagueTurnSubmission,
@@ -1050,6 +1056,11 @@ export const StudioMagnateGame: React.FC<StudioMagnateGameProps> = ({
   const [currentAwardShow, setCurrentAwardShow] = useState<AwardShowCeremony | null>(null);
   const [showAwardModal, setShowAwardModal] = useState(false);
 
+  // Online League shared "League Awards" ceremony (synchronized via league snapshots)
+  const [leagueAwardsCeremony, setLeagueAwardsCeremony] = useState<LeagueAwardsCeremony | null>(null);
+  const [showLeagueAwardsModal, setShowLeagueAwardsModal] = useState(false);
+  const lastLeagueAwardsKeyRef = useRef<string>('');
+
   // Week Recap (Tick Report)
   const pendingTickReportRef = useRef<TickReport | null>(null);
   const pendingTickReportOpenRef = useRef(false);
@@ -1346,6 +1357,10 @@ export const StudioMagnateGame: React.FC<StudioMagnateGameProps> = ({
 
   // Handle award show triggers
   const handleAwardShow = (ceremony: AwardShowCeremony) => {
+    // In Online League mode (without host-sync), award ceremonies are not shared across members.
+    // Suppress the local award show modal and instead surface a synchronized "League Awards" gala.
+    if (isOnlineMode && !onlineHostSync) return;
+
     setCurrentAwardShow(ceremony);
     setShowAwardModal(true);
   };
@@ -3109,19 +3124,18 @@ export const StudioMagnateGame: React.FC<StudioMagnateGameProps> = ({
       id: `league-${remote.userId}`,
       name: remote.studioName,
       reputation: remote.reputation,
-      budget: remote.budget,
+      budget: 0,
       founded: 1965,
       specialties: ['drama'] as Genre[],
     }));
   }, [isOnlineMode, onlineTickGate.remoteStudios]);
 
   const leagueRoster = useMemo(() => {
-    if (!isOnlineMode) return [] as Array<{ id: string; name: string; budget: number; reputation: number; releasedTitles: number; week: number; year: number; updatedAt?: string; isYou: boolean }>;
+    if (!isOnlineMode) return [] as Array<{ id: string; name: string; reputation: number; releasedTitles: number; week: number; year: number; updatedAt?: string; isYou: boolean }>;
 
     const you = {
       id: onlineTickGate.userId ?? gameState.studio.id,
       name: gameState.studio.name,
-      budget: gameState.studio.budget,
       reputation: gameState.studio.reputation,
       releasedTitles: gameState.projects.filter((p) => p.status === 'released').length,
       week: gameState.currentWeek,
@@ -3133,7 +3147,6 @@ export const StudioMagnateGame: React.FC<StudioMagnateGameProps> = ({
     const others = (onlineTickGate.remoteStudios || []).map((s) => ({
       id: s.userId,
       name: s.studioName,
-      budget: s.budget,
       reputation: s.reputation,
       releasedTitles: s.releasedTitles ?? 0,
       week: s.week ?? 0,
@@ -3145,9 +3158,50 @@ export const StudioMagnateGame: React.FC<StudioMagnateGameProps> = ({
     return [you, ...others].sort((a, b) => {
       if (b.reputation !== a.reputation) return b.reputation - a.reputation;
       if (b.releasedTitles !== a.releasedTitles) return b.releasedTitles - a.releasedTitles;
-      return b.budget - a.budget;
+      return a.name.localeCompare(b.name);
     });
-  }, [isOnlineMode, onlineTickGate.userId, onlineTickGate.remoteStudios, gameState.studio.id, gameState.studio.name, gameState.studio.budget, gameState.studio.reputation, gameState.projects, gameState.currentWeek, gameState.currentYear]);
+  }, [isOnlineMode, onlineTickGate.userId, onlineTickGate.remoteStudios, gameState.studio.id, gameState.studio.name, gameState.studio.reputation, gameState.projects, gameState.currentWeek, gameState.currentYear]);
+
+  useEffect(() => {
+    if (!isOnlineMode) return;
+    if (onlineHostSync) return;
+    if (onlineTickGate.status !== 'ready') return;
+    if (!onlineTickGate.leagueId) return;
+
+    const crownWeek =
+      getAwardShowsForYear(gameState.currentYear).find((s) => s.id === 'crown' && s.medium === 'film')?.ceremonyWeek ?? 10;
+
+    if (gameState.currentWeek !== crownWeek) return;
+
+    const key = `${onlineTickGate.leagueId}|${gameState.currentYear}|${gameState.currentWeek}`;
+    if (key === lastLeagueAwardsKeyRef.current) return;
+
+    lastLeagueAwardsKeyRef.current = key;
+
+    void (async () => {
+      try {
+        const snapshots = await fetchOnlineLeagueSnapshots({ leagueId: onlineTickGate.leagueId! });
+        const ceremony = computeLeagueAwardsCeremony({
+          year: gameState.currentYear,
+          ceremonyName: 'League Crown',
+          snapshots,
+        });
+        if (!ceremony) return;
+
+        setLeagueAwardsCeremony(ceremony);
+        setShowLeagueAwardsModal(true);
+      } catch (e) {
+        console.warn('Online League: failed to fetch league awards ceremony', e);
+      }
+    })();
+  }, [
+    isOnlineMode,
+    onlineHostSync,
+    onlineTickGate.status,
+    onlineTickGate.leagueId,
+    gameState.currentWeek,
+    gameState.currentYear,
+  ]);
 
   useEffect(() => {
     if (!isOnlineMode) return;
@@ -3160,11 +3214,13 @@ export const StudioMagnateGame: React.FC<StudioMagnateGameProps> = ({
     const nextNames = leagueCompetitorStudios.map((s) => s.name).sort().join('|');
 
     const playerName = gameState.studio.name;
+    const leagueNames = new Set<string>([playerName, ...leagueCompetitorStudios.map((s) => s.name)]);
+
     const existingReleases = gameState.allReleases || [];
     const filteredReleases = existingReleases.filter((r: any) => {
       const studioName = r?.studioName;
       if (!studioName) return true;
-      return studioName === playerName;
+      return leagueNames.has(studioName);
     });
 
     const shouldUpdateCompetitors = currentNames !== nextNames;
@@ -3186,6 +3242,64 @@ export const StudioMagnateGame: React.FC<StudioMagnateGameProps> = ({
     gameState.allReleases,
     gameState.aiStudioProjects,
     mergeGameState,
+  ]);
+
+  // Online League (multi-studio): pull lightweight release details from all member submissions,
+  // and merge them into the shared "world" release feed.
+  useEffect(() => {
+    if (!isOnlineMode) return;
+    if (onlineHostSync) return;
+    if (onlineTickGate.status !== 'ready') return;
+    if (!onlineTickGate.leagueId) return;
+
+    const leagueId = onlineTickGate.leagueId;
+    const turn = onlineTickGate.turn;
+
+    void (async () => {
+      try {
+        const submissionsByUserId = await fetchOnlineLeagueTurnSubmissions({ leagueId, turn });
+
+        const selfUserId = onlineTickGate.userId;
+
+        const incoming = Object.entries(submissionsByUserId || {})
+          .filter(([userId]) => userId && userId !== selfUserId)
+          .flatMap(([userId, sub]) => {
+            const released = sub?.state?.releasedProjects || [];
+            return released.map((snapshot) => ({ leagueUserId: userId, snapshot }));
+          })
+          .filter((entry): entry is { leagueUserId: string; snapshot: LeagueReleasedProjectSnapshot } => {
+            if (!entry) return false;
+            if (typeof entry.leagueUserId !== 'string' || !entry.leagueUserId) return false;
+            const s = entry.snapshot as any;
+            return !!s && typeof s.id === 'string' && typeof s.title === 'string' && typeof s.studioName === 'string';
+          });
+
+        if (incoming.length === 0) return;
+
+        setGameState((prev) => {
+          const existing = prev.allReleases || [];
+          const merged = mergeLeagueReleaseSnapshotsIntoAllReleases({
+            prevAllReleases: existing,
+            incoming,
+            localStudioName: prev.studio.name,
+          });
+
+          if (merged.length === existing.length && merged.every((v, i) => v === existing[i])) return prev;
+
+          return { ...prev, allReleases: merged };
+        });
+      } catch (e) {
+        console.warn('Online League: failed to merge shared releases', e);
+      }
+    })();
+  }, [
+    isOnlineMode,
+    onlineHostSync,
+    onlineTickGate.status,
+    onlineTickGate.leagueId,
+    onlineTickGate.turn,
+    onlineTickGate.userId,
+    setGameState,
   ]);
 
   const handleForceAdvanceWeek = () => {
@@ -3770,7 +3884,7 @@ export const StudioMagnateGame: React.FC<StudioMagnateGameProps> = ({
                             <div className="text-right">
                               <div className="text-sm">Rep {Math.round(s.reputation)}/100</div>
                               <div className="text-xs text-muted-foreground">
-                                ${(s.budget / 1_000_000).toFixed(0)}M • {s.releasedTitles} released
+                                {s.releasedTitles} released
                               </div>
                             </div>
                           </div>
@@ -4355,6 +4469,22 @@ export const StudioMagnateGame: React.FC<StudioMagnateGameProps> = ({
             setCurrentAwardShow(null);
           }}
           ceremony={currentAwardShow}
+        />
+      )}
+
+      {/* Online League: shared League Awards ceremony */}
+      {leagueAwardsCeremony && (
+        <LeagueAwardsCeremonyModal
+          isOpen={showLeagueAwardsModal}
+          onClose={() => {
+            setShowLeagueAwardsModal(false);
+            setLeagueAwardsCeremony(null);
+          }}
+          onSkip={() => {
+            setShowLeagueAwardsModal(false);
+            setLeagueAwardsCeremony(null);
+          }}
+          ceremony={leagueAwardsCeremony}
         />
       )}
 

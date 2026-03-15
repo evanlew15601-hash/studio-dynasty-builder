@@ -1,4 +1,5 @@
 import type { GameState, TalentPerson } from '@/types/game';
+import type { LeagueReleasedProjectSnapshot, OnlineLeagueTurnStateSlice } from '@/types/onlineLeague';
 
 export type OnlineLeagueSignTalentCommand = {
   type: 'SIGN_TALENT';
@@ -15,12 +16,9 @@ export type OnlineLeagueTurnSubmission = {
   submittedAt: string;
   studioName: string;
   commands: OnlineLeagueSignTalentCommand[];
-  // Optional: a small snapshot slice for debugging and nicer notifications.
+  // Optional: a small snapshot slice for debugging and for lightweight shared-world views.
   // Keep it JSON-serializable (avoid Dates/BigInt/functions from full game state).
-  state?: {
-    studio: { id: string; name: string } | null;
-    projects: Array<{ id: string; title: string }>;
-  };
+  state?: OnlineLeagueTurnStateSlice;
 };
 
 export type OnlineLeagueTurnBaseline = {
@@ -78,6 +76,75 @@ export function buildOnlineLeagueTurnSubmission(params: {
     }
   }
 
+  const releasedProjects: LeagueReleasedProjectSnapshot[] = (current.projects || [])
+    .filter((p) => p.status === 'released')
+    .map((p) => {
+      const franchiseId = p.script?.franchiseId ?? p.franchiseId;
+      const publicDomainId = p.script?.publicDomainId ?? p.publicDomainId;
+
+      const franchiseTitle = franchiseId
+        ? current.franchises.find((f) => f.id === franchiseId)?.title
+        : undefined;
+
+      const publicDomainName = publicDomainId
+        ? current.publicDomainIPs.find((ip) => ip.id === publicDomainId)?.name
+        : undefined;
+
+      const director = (() => {
+        const roles = [...(p.crew || []), ...(p.cast || [])];
+        const dir = roles.find((r) => r.role?.toLowerCase().includes('director'));
+        if (!dir?.talentId) return undefined;
+        return current.talent.find((t) => t.id === dir.talentId)?.name;
+      })();
+
+      const topCast = (() => {
+        const roles = (p.cast || [])
+          .filter((r) => !!r.talentId)
+          .slice();
+
+        const sorted = roles
+          .sort((a, b) => {
+            const aLead = a.role?.toLowerCase().includes('lead') ? 1 : 0;
+            const bLead = b.role?.toLowerCase().includes('lead') ? 1 : 0;
+            if (aLead !== bLead) return bLead - aLead;
+            return (b.salary || 0) - (a.salary || 0);
+          })
+          .slice(0, 4)
+          .map((r) => current.talent.find((t) => t.id === r.talentId)?.name)
+          .filter(Boolean) as string[];
+
+        return sorted.length > 0 ? sorted : undefined;
+      })();
+
+      const releaseLabel =
+        p.metrics?.boxOfficeStatus || (p.releaseStrategy?.type === 'streaming' ? 'Streaming Premiere' : undefined);
+
+      return {
+        id: p.id,
+        title: p.title,
+        studioName: current.studio?.name ?? 'Studio',
+        type: p.type,
+        genre: p.script?.genre,
+        runtimeMins: p.script?.estimatedRuntime,
+        releaseWeek: p.releaseWeek,
+        releaseYear: p.releaseYear,
+        releaseLabel,
+        logline: p.script?.logline,
+        director,
+        topCast,
+        criticsScore: p.metrics?.criticsScore,
+        audienceScore: p.metrics?.audienceScore,
+        boxOfficeTotal: p.metrics?.boxOfficeTotal,
+        lastWeeklyRevenue: p.metrics?.lastWeeklyRevenue,
+        weeksSinceRelease: p.metrics?.weeksSinceRelease,
+        inTheaters: p.metrics?.inTheaters,
+        publicDomainId,
+        publicDomainName,
+        franchiseId,
+        franchiseTitle,
+      };
+    });
+
   return {
     version: 'online-turn-submission-1',
     submittedAt: new Date().toISOString(),
@@ -86,6 +153,7 @@ export function buildOnlineLeagueTurnSubmission(params: {
     state: {
       studio: current.studio ? { id: current.studio.id, name: current.studio.name } : null,
       projects: (current.projects || []).map((p) => ({ id: p.id, title: p.title })),
+      releasedProjects,
     },
   };
 }

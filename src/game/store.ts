@@ -14,6 +14,7 @@ import { create } from 'zustand';
 import { immer } from 'zustand/middleware/immer';
 import type { WritableDraft } from 'immer';
 import type { Franchise, GameState, Project, Script, Studio, StudioAward, TalentPerson } from '@/types/game';
+import { normalizeFranchisesState } from '@/utils/franchiseNormalization';
 import type { TickReport } from '@/types/tickReport';
 import type { ModBundle } from '@/types/modding';
 import type { SeededRng } from './core/rng';
@@ -157,7 +158,8 @@ export const useGameStore: import('zustand').UseBoundStore<import('zustand').Sto
     initGame: (state, seed) => {
       const gameSeed = seed ?? generateGameSeed();
       set((s) => {
-        s.game = { ...state, universeSeed: state.universeSeed ?? gameSeed, rngState: state.rngState ?? gameSeed };
+        const next = { ...state, universeSeed: state.universeSeed ?? gameSeed, rngState: state.rngState ?? gameSeed };
+        s.game = normalizeFranchisesState(next);
         s.seed = gameSeed;
         s.rng = createRng(gameSeed);
         s.initialized = true;
@@ -177,11 +179,12 @@ export const useGameStore: import('zustand').UseBoundStore<import('zustand').Sto
       const gameSeed = seed ?? derivedRngState;
 
       set((s) => {
-        s.game = {
+        const next = {
           ...state,
           universeSeed: typeof state.universeSeed === 'number' ? state.universeSeed : derivedUniverseSeed,
           rngState: typeof state.rngState === 'number' ? state.rngState : derivedRngState,
         };
+        s.game = normalizeFranchisesState(next);
         s.seed = gameSeed;
         s.rng = createRng(gameSeed);
         s.initialized = true;
@@ -214,11 +217,12 @@ export const useGameStore: import('zustand').UseBoundStore<import('zustand').Sto
       };
 
       set((s) => {
-        s.game = {
+        const next = {
           ...(result.nextState as any),
           universeSeed: (s.game as any)?.universeSeed,
           rngState: rng.state,
         };
+        s.game = normalizeFranchisesState(next);
         // Persist the PRNG state ("seed" here is treated as current RNG state).
         s.seed = rng.state;
         s.rng = createRng(rng.state);
@@ -267,11 +271,12 @@ export const useGameStore: import('zustand').UseBoundStore<import('zustand').Sto
       };
 
       set((s) => {
-        s.game = {
+        const next = {
           ...(result.nextState as any),
           universeSeed: (s.game as any)?.universeSeed,
           rngState,
         };
+        s.game = normalizeFranchisesState(next);
         s.seed = rngState;
         s.rng = createRng(rngState);
         s.lastTickReport = report as any;
@@ -285,6 +290,9 @@ export const useGameStore: import('zustand').UseBoundStore<import('zustand').Sto
       set((s) => {
         if (!s.game) return;
         Object.assign(s.game as any, updates);
+        if ('franchises' in updates) {
+          s.game = normalizeFranchisesState(s.game as any) as any;
+        }
       });
     },
 
@@ -435,6 +443,7 @@ export const useGameStore: import('zustand').UseBoundStore<import('zustand').Sto
         } else {
           s.game.franchises.push(franchise as any);
         }
+        s.game = normalizeFranchisesState(s.game as any) as any;
       });
     },
 
@@ -466,7 +475,7 @@ export const useGameStore: import('zustand').UseBoundStore<import('zustand').Sto
       set((s) => {
         if (!s.game) return;
         const next = updater(s.game as GameState);
-        s.game = next as any;
+        s.game = normalizeFranchisesState(next) as any;
       });
     },
 
