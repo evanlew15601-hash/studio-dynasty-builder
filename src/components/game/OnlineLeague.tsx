@@ -666,7 +666,7 @@ export const OnlineLeague: React.FC<OnlineLeagueProps> = ({ initialLeagueCode })
               <div className="space-y-2">
                 <div className="text-sm font-medium">League awards (beta)</div>
                 <div className="text-sm text-muted-foreground">
-                  Lightweight, leaderboard-style awards based on the latest stats. In-game award ceremonies are still local/offline for now.
+                  Lightweight, leaderboard-style awards based on the latest stats. Award shows still run locally in your save, but they aren’t synchronized between league members.
                 </div>
 
                 {leagueAwards.length === 0 && (

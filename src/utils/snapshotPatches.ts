@@ -3,6 +3,7 @@ import { ensureGameStateFictionalAwardNames } from '@/utils/awardsNaming';
 import { ensureCompetitorStudiosLore } from '@/utils/competitorStudiosPatches';
 import { ensureTalentLore } from '@/utils/talentLorePatches';
 import { primeCompetitorTelevision } from '@/utils/televisionPatches';
+import { normalizeFranchises } from '@/utils/franchiseNormalization';
 import { getModBundle } from '@/utils/moddingStore';
 import { applyPatchesByKey, getPatchesForEntity } from '@/utils/modding';
 import type { SaveGameSnapshot } from '@/utils/saveLoad';
@@ -25,10 +26,12 @@ export function patchLoadedSnapshot(
         ensureGameStateRoleGenders({
           ...snapshot.gameState,
           talent: ensureTalentDemographics(patchedTalent),
-          franchises: applyPatchesByKey(
-            snapshot.gameState.franchises || [],
-            getPatchesForEntity(mods, 'franchise'),
-            (f) => f.id
+          franchises: normalizeFranchises(
+            applyPatchesByKey(
+              snapshot.gameState.franchises || [],
+              getPatchesForEntity(mods, 'franchise'),
+              (f) => f.id
+            )
           ),
           publicDomainIPs: applyPatchesByKey(
             snapshot.gameState.publicDomainIPs || [],
