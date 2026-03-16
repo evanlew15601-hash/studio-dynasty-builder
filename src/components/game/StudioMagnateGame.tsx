@@ -81,6 +81,7 @@ import { OwnedFranchiseManager } from './OwnedFranchiseManager';
 import { FranchiseProjectCreator } from './FranchiseProjectCreator';
 
 import { EnhancedMarketingSystem } from './EnhancedMarketingSystem';
+import { PlayerCirclePanel } from './PlayerCirclePanel';
 
 import { ReleaseStrategyModal } from './ReleaseStrategyModal';
 import { ComprehensiveTelevisionSystem } from './ComprehensiveTelevisionSystem';
@@ -3787,7 +3788,7 @@ export const StudioMagnateGame: React.FC<StudioMagnateGameProps> = ({
                 <Button
                   variant="ghost"
                   className={`rounded-none border-b-2 px-3 py-3 text-sm font-medium transition-all duration-300 border-transparent hover:border-primary/40 hover:bg-primary/5 btn-ghost-premium ${
-                     ['franchise', 'media', 'metaboxd', ...(onlineLeagueCode ? ['online'] : []), 'talent', 'database', 'awards', 'reputation', 'lore'].includes(currentPhase)
+                     ['franchise', 'media', 'metaboxd', ...(onlineLeagueCode ? ['online'] : []), 'talent', 'database', 'awards', 'reputation', 'lore', 'circle'].includes(currentPhase)
                        ? 'border-primary bg-gradient-to-t from-primary/20 to-primary/10 text-primary shadow-lg' 
                        : ''
                    }`}
@@ -3809,6 +3810,10 @@ export const StudioMagnateGame: React.FC<StudioMagnateGameProps> = ({
                 <DropdownMenuItem onClick={() => handlePhaseChange('metaboxd')}>
                   <ClapperboardIcon className="mr-2" size={16} />
                   Metaboxd Reviews
+                </DropdownMenuItem>
+                <DropdownMenuItem onClick={() => handlePhaseChange('circle')}>
+                  <ReputationIcon className="mr-2" size={16} />
+                  Inner Circle
                 </DropdownMenuItem>
                 {onlineLeagueCode && (
                   <DropdownMenuItem onClick={() => handlePhaseChange('online')}>
@@ -4368,6 +4373,10 @@ export const StudioMagnateGame: React.FC<StudioMagnateGameProps> = ({
               </TabsContent>
             </Tabs>
           </Suspense>
+        )}
+
+        {currentPhase === 'circle' && (
+          <PlayerCirclePanel />
         )}
         
         {currentPhase === 'distribution' && (
