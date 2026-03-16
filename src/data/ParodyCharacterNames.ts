@@ -33,7 +33,7 @@ export const PARODY_CHARACTER_NAME_MAP: Record<string, ParodyCharacterNameMapEnt
       'director': 'Director'
     }
   },
-  'Deep Space Horror': {
+  'Voidborne': {
     byTemplateId: {
       'lead_hero': 'Ellen Riley',
       'director': 'Director'

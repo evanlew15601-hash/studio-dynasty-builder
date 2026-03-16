@@ -21,7 +21,25 @@ function normalizeTitle(value: unknown): string {
 }
 
 function normalizeParodySource(value: unknown): string {
-  return typeof value === 'string' ? value.trim().toLowerCase() : '';
+  const normalized = typeof value === 'string' ? value.trim().toLowerCase() : '';
+
+  // Canonicalize legacy/internal keys (keeps old saves + mods stable even if we rename catalog keys).
+  if (normalized === 'deep space horror') return 'voidborne';
+
+  return normalized;
+}
+
+function canonicalizeParodySource(value: unknown): string | undefined {
+  if (typeof value !== 'string') return undefined;
+
+  const trimmed = value.trim();
+  if (!trimmed) return undefined;
+
+  const normalized = trimmed.toLowerCase();
+  if (normalized === 'deep space horror') return 'Voidborne';
+  if (normalized === 'voidborne') return 'Voidborne';
+
+  return trimmed;
 }
 
 const STATUS_RANK: Record<Franchise['status'], number> = {
@@ -122,6 +140,7 @@ export function normalizeFranchisesState(state: GameState): GameState {
   const playerStudioId = state.studio?.id;
 
   let mergedByTitle = false;
+  let canonicalizedParodySource = false;
 
   const canonicalById = new Map<string, string>();
   const keyOrder: string[] = [];
@@ -131,32 +150,36 @@ export function normalizeFranchisesState(state: GameState): GameState {
     const ownedByPlayer = !!playerStudioId && franchise.creatorStudioId === playerStudioId;
     const isWorld = franchise.creatorStudioId === 'world';
 
+    const canonicalParodySource = isWorld ? canonicalizeParodySource(franchise.parodySource) : franchise.parodySource;
+    const canonical = canonicalParodySource && canonicalParodySource !== franchise.parodySource ? { ...franchise, parodySource: canonicalParodySource } : franchise;
+    if (canonical !== franchise) canonicalizedParodySource = true;
+
     // Marketplace franchises should be stable per underlying property.
     // If we ever accumulate duplicates (e.g., from older saves/mods), merge them.
-    const worldParodyKey = isWorld ? normalizeParodySource(franchise.parodySource) : '';
-    const worldTitleKey = isWorld ? normalizeTitle(franchise.title) : '';
+    const worldParodyKey = isWorld ? normalizeParodySource(canonical.parodySource) : '';
+    const worldTitleKey = isWorld ? normalizeTitle(canonical.title) : '';
 
     const key = ownedByPlayer
-      ? `${franchise.creatorStudioId}::${normalizeTitle(franchise.title)}`
+      ? `${canonical.creatorStudioId}::${normalizeTitle(canonical.title)}`
       : isWorld && worldParodyKey
       ? `world::parody::${worldParodyKey}`
       : isWorld && worldTitleKey
       ? `world::title::${worldTitleKey}`
-      : `id::${franchise.id}`;
+      : `id::${canonical.id}`;
 
     const existing = byKey.get(key);
 
     if (!existing) {
       keyOrder.push(key);
-      byKey.set(key, franchise);
-      canonicalById.set(franchise.id, franchise.id);
+      byKey.set(key, canonical);
+      canonicalById.set(canonical.id, canonical.id);
       continue;
     }
 
     mergedByTitle = true;
-    canonicalById.set(franchise.id, existing.id);
+    canonicalById.set(canonical.id, existing.id);
 
-    byKey.set(key, mergeFranchise(existing, franchise));
+    byKey.set(key, mergeFranchise(existing, canonical));
   }
 
   const mapId = (id: string | null | undefined): string | null | undefined => {
@@ -235,7 +258,7 @@ export function normalizeFranchisesState(state: GameState): GameState {
     baseFranchises.length !== inputFranchises.length ||
     baseFranchises.some((f, i) => inputFranchises[i]?.id !== f.id);
 
-  const franchisesTouched = dedupeChanged || mergedByTitle || entriesTouched;
+  const franchisesTouched = dedupeChanged || mergedByTitle || entriesTouched || canonicalizedParodySource;
 
   if (!franchisesTouched && !projectsTouched && !scriptsTouched) return state;
 

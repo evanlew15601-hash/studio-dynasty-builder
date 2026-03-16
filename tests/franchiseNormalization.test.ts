@@ -113,4 +113,25 @@ describe('normalizeFranchisesState', () => {
     expect(normalized.scripts[0].franchiseId).toBe('w-1');
     expect(normalized.scripts[1].franchiseId).toBe('w-1');
   });
+
+  it('canonicalizes legacy parodySource keys on world franchises', () => {
+    const base = {
+      universeSeed: 1,
+      rngState: 1,
+      studio: { id: 'studio-1', name: 'You' },
+      currentYear: 2000,
+      currentWeek: 1,
+      currentQuarter: 1,
+      projects: [],
+      scripts: [],
+      franchises: [
+        { id: 'w-1', title: 'Voidborne', creatorStudioId: 'world', parodySource: 'Deep Space Horror', entries: [] },
+      ],
+    } as any;
+
+    const normalized = normalizeFranchisesState(base);
+
+    expect(normalized.franchises).toHaveLength(1);
+    expect(normalized.franchises[0].parodySource).toBe('Voidborne');
+  });
 });
