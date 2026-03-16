@@ -115,7 +115,7 @@ export function useOnlineLeagueTickGate({
 
     if (!supabase) {
       setStatus('not_configured');
-      setError('Online mode is not configured. Copy .env.example to .env and set VITE_SUPABASE_URL + VITE_SUPABASE_ANON_KEY.');
+      setError('Online League isn’t configured. Set your Supabase URL + anon key from the main menu (Online -> Configure…).');
       return;
     }
 

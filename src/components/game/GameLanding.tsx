@@ -13,6 +13,8 @@ import { Genre } from '@/types/game';
 import { StudioIconCustomizer, DEFAULT_ICON, type StudioIconConfig } from './StudioIconCustomizer';
 import { PremiumBackground } from '@/components/ui/premium-background';
 import { DatabaseManagerDialog } from '@/components/game/DatabaseManagerDialog';
+import { SupabaseConfigDialog } from '@/components/game/SupabaseConfigDialog';
+import { getSupabaseConfigStatus } from '@/integrations/supabase/client';
 import { getActiveModSlot, listModSlots, setActiveModSlot } from '@/utils/moddingStore';
 
 interface GameLandingProps {
@@ -51,6 +53,7 @@ export const GameLanding: React.FC<GameLandingProps> = ({
   const [showCustomization, setShowCustomization] = useState(false);
   const [databaseSlot, setDatabaseSlot] = useState(() => getActiveModSlot());
   const [dbManagerOpen, setDbManagerOpen] = useState(false);
+  const [supabaseConfigOpen, setSupabaseConfigOpen] = useState(false);
   const [config, setConfig] = useState<GameConfig>({
     studioName: '',
     specialties: ['drama'],
@@ -66,9 +69,7 @@ export const GameLanding: React.FC<GameLandingProps> = ({
     }
   }, [databaseSlot]);
 
-  const hasOnlineConfig =
-    mode !== 'online' ||
-    (!!import.meta.env.VITE_SUPABASE_URL && !!import.meta.env.VITE_SUPABASE_ANON_KEY);
+  const hasOnlineConfig = mode !== 'online' || getSupabaseConfigStatus().configured;
 
   const difficultySettings = {
     easy: { budget: 15000000, description: 'More budget, forgiving market' },
@@ -195,6 +196,9 @@ export const GameLanding: React.FC<GameLandingProps> = ({
                   <Button size="sm" variant="secondary" onClick={() => setDbManagerOpen(true)}>
                     Manage…
                   </Button>
+                  <Button size="sm" variant="secondary" asChild>
+                    <Link to="/mods">Edit mods…</Link>
+                  </Button>
                 </div>
               </CardContent>
             </Card>
@@ -214,9 +218,15 @@ export const GameLanding: React.FC<GameLandingProps> = ({
 
                   {!hasOnlineConfig && (
                     <div className="rounded-md border border-destructive/40 bg-destructive/5 p-3 text-xs text-destructive">
-                      Online mode is not configured. Copy <span className="font-mono">.env.example</span> to <span className="font-mono">.env</span> and set <span className="font-mono">VITE_SUPABASE_URL</span> + <span className="font-mono">VITE_SUPABASE_ANON_KEY</span>.
+                      Online League isn’t configured on this device. Click <span className="font-medium">Configure…</span> to set your Supabase URL + anon key (or build with <span className="font-mono">VITE_SUPABASE_URL</span> and <span className="font-mono">VITE_SUPABASE_ANON_KEY</span>).
                     </div>
                   )}
+
+                  <div className="flex flex-wrap gap-2">
+                    <Button size="sm" variant="secondary" onClick={() => setSupabaseConfigOpen(true)}>
+                      Configure…
+                    </Button>
+                  </div>
 
                   <div className="flex gap-2">
                     <Input
@@ -408,6 +418,9 @@ export const GameLanding: React.FC<GameLandingProps> = ({
                     <Button size="sm" variant="secondary" onClick={() => setDbManagerOpen(true)}>
                       Manage…
                     </Button>
+                    <Button size="sm" variant="secondary" asChild>
+                      <Link to="/mods">Edit mods…</Link>
+                    </Button>
                   </div>
 
                   <p className="text-sm text-muted-foreground mt-2">
@@ -433,9 +446,14 @@ export const GameLanding: React.FC<GameLandingProps> = ({
                     </p>
 
                     {!hasOnlineConfig && (
-                      <p className="text-sm text-destructive mt-2">
-                        Online mode is not configured. Copy <span className="font-mono">.env.example</span> to <span className="font-mono">.env</span> and set <span className="font-mono">VITE_SUPABASE_URL</span> + <span className="font-mono">VITE_SUPABASE_ANON_KEY</span>.
-                      </p>
+                      <div className="mt-2 space-y-2">
+                        <p className="text-sm text-destructive">
+                          Online League isn’t configured on this device. Click Configure… to set your Supabase URL + anon key.
+                        </p>
+                        <Button size="sm" variant="secondary" onClick={() => setSupabaseConfigOpen(true)}>
+                          Configure…
+                        </Button>
+                      </div>
                     )}
                   </div>
                 )}
