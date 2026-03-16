@@ -3,6 +3,20 @@ import react from "@vitejs/plugin-react-swc";
 import path from "path";
 import { componentTagger } from "lovable-tagger";
 
+function normalizeBase(base: string): string {
+  const trimmed = base.trim();
+  if (trimmed.length === 0) {
+    return "/";
+  }
+
+  if (trimmed === "/" || trimmed === "./") {
+    return trimmed;
+  }
+
+  const withLeadingSlash = trimmed.startsWith("/") ? trimmed : `/${trimmed}`;
+  return withLeadingSlash.endsWith("/") ? withLeadingSlash : `${withLeadingSlash}/`;
+}
+
 // https://vitejs.dev/config/
 export default defineConfig(({ mode }) => {
   const env = loadEnv(mode, process.cwd(), "");
@@ -13,13 +27,15 @@ export default defineConfig(({ mode }) => {
       : `/${repoName}/`
     : null;
 
-  const base = (process.env.VITE_BASE && process.env.VITE_BASE.length > 0)
-    ? process.env.VITE_BASE
-    : (env.VITE_BASE && env.VITE_BASE.length > 0)
-      ? env.VITE_BASE
+  const configuredBase = (env.VITE_BASE && env.VITE_BASE.length > 0)
+    ? env.VITE_BASE
+    : (process.env.VITE_BASE && process.env.VITE_BASE.length > 0)
+      ? process.env.VITE_BASE
       : (process.env.GITHUB_ACTIONS === "true" && mode === "production" && ghPagesBase)
         ? ghPagesBase
         : "/";
+
+  const base = normalizeBase(configuredBase);
 
   return {
     base,
