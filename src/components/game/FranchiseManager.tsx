@@ -52,6 +52,7 @@ export const FranchiseManager: React.FC<FranchiseManagerProps> = ({
 
     return franchises
       .filter(franchise => {
+        if (franchise.creatorStudioId !== 'world') return false; // Marketplace is a fixed world catalog
         if (ownedFranchiseIds.includes(franchise.id)) return false; // Don't show owned franchises in purchase list
         const matchesSearch = franchise.title.toLowerCase().includes(searchTerm.toLowerCase()) ||
                              franchise.franchiseTags.some(tag => tag.toLowerCase().includes(searchTerm.toLowerCase()));
@@ -59,7 +60,7 @@ export const FranchiseManager: React.FC<FranchiseManagerProps> = ({
         return matchesSearch && matchesGenre;
       })
       .filter((franchise) => {
-        const key = franchise.title.trim().toLowerCase();
+        const key = (franchise.parodySource || franchise.id).trim().toLowerCase();
         if (seen.has(key)) return false;
         seen.add(key);
         return true;
@@ -180,7 +181,7 @@ export const FranchiseManager: React.FC<FranchiseManagerProps> = ({
                     <div>
                       <CardTitle className="text-lg">{franchise.title}</CardTitle>
                       <CardDescription className="mt-1">
-                        {franchise.parodySource && `Inspired by ${franchise.parodySource}`}
+                        {franchise.inspirationLabel && `Inspired by ${franchise.inspirationLabel}`}
                       </CardDescription>
                     </div>
                     <Badge className={`${getFranchiseStatusColor(franchise.status)} text-white`}>

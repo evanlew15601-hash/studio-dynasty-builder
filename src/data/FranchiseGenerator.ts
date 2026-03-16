@@ -6,6 +6,7 @@ interface FranchiseTemplate {
   genre: Genre[];
   tone: Franchise['tone'];
   parodySource: string;
+  inspirationLabel?: string;
   tags: string[];
   culturalWeight: number;
   description: string;
@@ -396,6 +397,7 @@ function buildFranchise(template: FranchiseTemplate, index: number): Franchise {
     genre: template.genre,
     tone: template.tone,
     parodySource: template.parodySource,
+    inspirationLabel: template.inspirationLabel,
     entries: [],
     status: franchiseStatusFromAge(ageYears),
     franchiseTags: [...template.tags],
@@ -405,7 +407,22 @@ function buildFranchise(template: FranchiseTemplate, index: number): Franchise {
   };
 }
 
-const FRANCHISE_CATALOG: Franchise[] = FRANCHISE_TEMPLATES.map((template, index) =>
+function uniqueTemplatesByParodySource(templates: FranchiseTemplate[]): FranchiseTemplate[] {
+  const out: FranchiseTemplate[] = [];
+  const seen = new Set<string>();
+
+  for (const t of templates) {
+    const key = t.parodySource.trim().toLowerCase();
+    if (!key) continue;
+    if (seen.has(key)) continue;
+    seen.add(key);
+    out.push(t);
+  }
+
+  return out;
+}
+
+const FRANCHISE_CATALOG: Franchise[] = uniqueTemplatesByParodySource(FRANCHISE_TEMPLATES).map((template, index) =>
   buildFranchise(template, index),
 );
 

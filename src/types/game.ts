@@ -10,7 +10,9 @@ export interface Franchise {
   creatorStudioId: string;
   genre: Genre[];
   tone: 'dark' | 'light' | 'pulpy' | 'serious' | 'comedic' | 'epic';
-  parodySource?: string; // What real-world IP this parodies
+  parodySource?: string; // Internal identity key for role sets + dedupe (not necessarily player-facing)
+  /** Optional, player-facing "Inspired by …" label. If absent, UI should not display inspiration info. */
+  inspirationLabel?: string;
   entries: string[]; // Film IDs in this franchise
   status: 'active' | 'dormant' | 'rebooted' | 'retired';
   franchiseTags: string[];
