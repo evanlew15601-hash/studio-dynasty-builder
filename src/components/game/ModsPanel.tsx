@@ -2416,7 +2416,7 @@ export const ModsPanel: React.FC = () => {
             <Label className="text-xs text-muted-foreground">Database</Label>
             <Input value={activeSlot} readOnly />
             <div className="text-xs text-muted-foreground">
-              To switch/rename/delete databases, use the main menu: <span className="font-medium">Database -> Manage…</span>
+              To switch/rename/delete databases, use the main menu: <span className="font-medium">Database {'->'} Manage…</span>
             </div>
           </div>
 

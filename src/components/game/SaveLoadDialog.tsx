@@ -462,7 +462,7 @@ export function SaveLoadDialog(props: {
                   {activeModSlot}
                 </div>
                 <div className="text-xs text-muted-foreground">
-                  TEW-style: saves are separated per database. Change databases from the main menu (Database -> Manage…).
+                  TEW-style: saves are separated per database. Change databases from the main menu (Database {'->'} Manage…).
                 </div>
               </div>
 
