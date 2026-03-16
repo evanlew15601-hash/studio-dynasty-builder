@@ -1,4 +1,4 @@
-@import url('https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800;900&display=swap');
+@import url('https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800;900&family=JetBrains+Mono:wght@400;500;600;700&family=Cormorant+Garamond:wght@400;600;700&family=Orbitron:wght@400;500;600;700&family=Oswald:wght@400;500;600;700&family=Special+Elite&display=swap');
 @tailwind base;
 @tailwind components;
 @tailwind utilities;
@@ -12,6 +12,18 @@ All colors MUST be HSL.
     /* Premium Studio Magnate Theme - Dark Charcoal Base */
     --background: 220 15% 8%;
     --foreground: 45 12% 88%;
+
+    --font-body: 'Inter', system-ui, -apple-system, sans-serif;
+    --font-title: var(--font-body);
+    --font-ui: var(--font-body);
+    --font-mono: 'JetBrains Mono', 'Fira Code', 'Consolas', monospace;
+
+    --app-bg-image:
+      radial-gradient(ellipse at top left, hsl(220 15% 12% / 0.3) 0%, transparent 50%),
+      radial-gradient(ellipse at bottom right, hsl(42 88% 68% / 0.05) 0%, transparent 50%);
+
+    --premium-depth: 220 18% 12%;
+    --premium-grain-opacity: 0.06;
 
     --card: 220 18% 10%;
     --card-foreground: 45 12% 88%;
@@ -54,6 +66,10 @@ All colors MUST be HSL.
     --shadow-golden: 0 0 60px hsl(42 88% 68% / 0.25), 0 8px 32px hsl(42 88% 68% / 0.15);
     --shadow-crimson: 0 0 40px hsl(0 65% 48% / 0.3), 0 4px 24px hsl(0 65% 48% / 0.2);
     --shadow-navy: 0 12px 24px hsl(230 25% 12% / 0.8), 0 0 0 1px hsl(230 25% 18% / 0.8);
+
+    --card-premium-bg: linear-gradient(135deg, hsl(220 18% 10% / 0.9), hsl(220 15% 8% / 0.95));
+    --card-golden-bg: linear-gradient(135deg, hsl(220 18% 10%), hsl(42 88% 68% / 0.05));
+    --card-navy-bg: var(--gradient-navy);
     
     /* Success & Status Colors */
     --success: 142 71% 45%;
@@ -80,21 +96,250 @@ All colors MUST be HSL.
 
     --radius: 0.625rem;
 
-    --sidebar-background: 0 0% 98%;
+    --sidebar-background: var(--card);
 
-    --sidebar-foreground: 240 5.3% 26.1%;
+    --sidebar-foreground: var(--card-foreground);
 
-    --sidebar-primary: 240 5.9% 10%;
+    --sidebar-primary: var(--primary);
 
-    --sidebar-primary-foreground: 0 0% 98%;
+    --sidebar-primary-foreground: var(--primary-foreground);
 
-    --sidebar-accent: 240 4.8% 95.9%;
+    --sidebar-accent: var(--secondary);
 
-    --sidebar-accent-foreground: 240 5.9% 10%;
+    --sidebar-accent-foreground: var(--secondary-foreground);
 
-    --sidebar-border: 220 13% 91%;
+    --sidebar-border: var(--border);
 
-    --sidebar-ring: 217.2 91.2% 59.8%;
+    --sidebar-ring: var(--ring);
+  }
+
+  :root[data-skin="noir"] {
+    --background: 220 10% 6%;
+    --foreground: 40 10% 92%;
+
+    --font-title: 'Cormorant Garamond', Georgia, serif;
+    --font-ui: 'Oswald', 'Inter', system-ui, -apple-system, sans-serif;
+
+    --app-bg-image:
+      radial-gradient(ellipse at top left, hsl(220 10% 14% / 0.34) 0%, transparent 54%),
+      radial-gradient(ellipse at bottom right, hsl(195 80% 60% / 0.04) 0%, transparent 55%);
+
+    --premium-depth: 220 10% 10%;
+    --premium-grain-opacity: 0.09;
+
+    --card: 220 10% 9%;
+    --card-foreground: 40 10% 92%;
+
+    --popover: 220 10% 12%;
+    --popover-foreground: 40 10% 92%;
+
+    --primary: 45 15% 82%;
+    --primary-foreground: 220 10% 6%;
+
+    --secondary: 220 10% 16%;
+    --secondary-foreground: 40 10% 92%;
+
+    --muted: 220 8% 14%;
+    --muted-foreground: 40 6% 72%;
+
+    --accent: 195 80% 60%;
+    --accent-foreground: 220 10% 6%;
+
+    --destructive: 0 60% 46%;
+    --destructive-foreground: 40 10% 92%;
+
+    --border: 220 8% 22%;
+    --input: 220 8% 12%;
+    --ring: 195 80% 60%;
+
+    --gradient-golden: linear-gradient(135deg, hsl(45 15% 86%), hsl(40 6% 70%), hsl(200 60% 38%));
+    --gradient-silver: linear-gradient(135deg, hsl(220 6% 70%), hsl(220 6% 55%), hsl(220 6% 38%));
+    --gradient-spotlight: linear-gradient(135deg, hsl(195 80% 60%), hsl(45 15% 82%), hsl(220 6% 60%));
+    --gradient-navy: linear-gradient(135deg, hsl(220 10% 14%), hsl(220 10% 8%));
+    --gradient-crimson: linear-gradient(135deg, hsl(0 60% 46%), hsl(350 50% 40%), hsl(220 10% 12%));
+
+    --shadow-studio: 0 25px 50px -15px hsl(220 12% 2% / 0.9), 0 0 0 1px hsl(220 8% 22% / 0.7);
+    --shadow-golden: 0 0 70px hsl(195 80% 60% / 0.16), 0 8px 30px hsl(45 15% 82% / 0.10);
+    --shadow-crimson: 0 0 46px hsl(0 60% 46% / 0.22), 0 4px 24px hsl(0 60% 46% / 0.12);
+    --shadow-navy: 0 12px 24px hsl(220 10% 5% / 0.9), 0 0 0 1px hsl(220 10% 14% / 0.9);
+
+    --card-premium-bg: linear-gradient(135deg, hsl(220 10% 10% / 0.92), hsl(220 10% 6% / 0.98));
+    --card-golden-bg: linear-gradient(135deg, hsl(220 10% 9%), hsl(195 80% 60% / 0.06));
+    --card-navy-bg: var(--gradient-navy);
+
+    --radius: 0.45rem;
+  }
+
+  :root[data-skin="silent-era"] {
+    --background: 35 30% 92%;
+    --foreground: 28 25% 18%;
+
+    --font-body: 'Cormorant Garamond', Georgia, serif;
+    --font-title: 'Cormorant Garamond', Georgia, serif;
+    --font-ui: 'Oswald', 'Inter', system-ui, -apple-system, sans-serif;
+
+    --app-bg-image:
+      radial-gradient(ellipse at top left, hsl(35 45% 86% / 0.55) 0%, transparent 55%),
+      radial-gradient(ellipse at bottom right, hsl(28 54% 32% / 0.10) 0%, transparent 58%);
+
+    --premium-depth: 35 22% 80%;
+    --premium-grain-opacity: 0.04;
+
+    --card: 35 35% 96%;
+    --card-foreground: 28 25% 18%;
+
+    --popover: 35 40% 98%;
+    --popover-foreground: 28 25% 18%;
+
+    --primary: 28 54% 32%;
+    --primary-foreground: 35 30% 94%;
+
+    --secondary: 35 22% 88%;
+    --secondary-foreground: 28 25% 18%;
+
+    --muted: 35 25% 85%;
+    --muted-foreground: 28 20% 30%;
+
+    --accent: 42 60% 45%;
+    --accent-foreground: 35 30% 94%;
+
+    --destructive: 0 55% 38%;
+    --destructive-foreground: 35 30% 94%;
+
+    --border: 30 18% 70%;
+    --input: 35 22% 90%;
+    --ring: 28 54% 32%;
+
+    --gradient-golden: linear-gradient(135deg, hsl(35 65% 78%), hsl(28 54% 45%), hsl(20 45% 32%));
+    --gradient-silver: linear-gradient(135deg, hsl(35 18% 70%), hsl(28 14% 55%), hsl(28 12% 42%));
+    --gradient-spotlight: linear-gradient(135deg, hsl(42 60% 52%), hsl(35 65% 78%), hsl(28 54% 45%));
+    --gradient-navy: linear-gradient(135deg, hsl(35 22% 88%), hsl(35 30% 92%));
+    --gradient-crimson: linear-gradient(135deg, hsl(0 55% 38%), hsl(15 50% 34%), hsl(28 30% 20%));
+
+    --shadow-studio: 0 18px 34px -20px hsl(28 30% 10% / 0.22), 0 0 0 1px hsl(30 18% 70% / 0.95);
+    --shadow-golden: 0 0 54px hsl(42 60% 45% / 0.18), 0 10px 30px hsl(28 54% 32% / 0.10);
+    --shadow-crimson: 0 0 42px hsl(0 55% 38% / 0.18), 0 8px 22px hsl(0 55% 38% / 0.10);
+    --shadow-navy: 0 18px 34px -22px hsl(28 30% 10% / 0.18), 0 0 0 1px hsl(30 18% 70% / 0.90);
+
+    --card-premium-bg: linear-gradient(135deg, hsl(35 35% 96% / 0.96), hsl(35 30% 92% / 0.98));
+    --card-golden-bg: linear-gradient(135deg, hsl(35 35% 96%), hsl(42 60% 45% / 0.10));
+    --card-navy-bg: var(--gradient-navy);
+
+    --radius: 0.3rem;
+  }
+
+  :root[data-skin="sci-fi"] {
+    --background: 230 35% 7%;
+    --foreground: 210 40% 96%;
+
+    --font-title: 'Orbitron', 'Inter', system-ui, -apple-system, sans-serif;
+    --font-ui: 'Orbitron', 'Inter', system-ui, -apple-system, sans-serif;
+
+    --app-bg-image:
+      radial-gradient(ellipse at top left, hsl(185 92% 55% / 0.10) 0%, transparent 56%),
+      radial-gradient(ellipse at bottom right, hsl(300 92% 62% / 0.08) 0%, transparent 58%);
+
+    --premium-depth: 230 30% 14%;
+    --premium-grain-opacity: 0.05;
+
+    --card: 230 28% 10%;
+    --card-foreground: 210 40% 96%;
+
+    --popover: 230 30% 12%;
+    --popover-foreground: 210 40% 96%;
+
+    --primary: 185 92% 55%;
+    --primary-foreground: 230 35% 7%;
+
+    --secondary: 240 30% 18%;
+    --secondary-foreground: 210 40% 96%;
+
+    --muted: 230 26% 14%;
+    --muted-foreground: 215 20% 72%;
+
+    --accent: 300 92% 62%;
+    --accent-foreground: 230 35% 7%;
+
+    --destructive: 0 72% 56%;
+    --destructive-foreground: 210 40% 96%;
+
+    --border: 230 24% 22%;
+    --input: 230 26% 12%;
+    --ring: 185 92% 55%;
+
+    --gradient-golden: linear-gradient(135deg, hsl(185 92% 55%), hsl(220 92% 65%), hsl(300 92% 62%));
+    --gradient-silver: linear-gradient(135deg, hsl(220 25% 55%), hsl(230 24% 36%), hsl(230 28% 18%));
+    --gradient-spotlight: linear-gradient(135deg, hsl(185 92% 55%), hsl(300 92% 62%), hsl(220 92% 65%));
+    --gradient-navy: linear-gradient(135deg, hsl(240 30% 18%), hsl(230 35% 7%));
+    --gradient-crimson: linear-gradient(135deg, hsl(0 72% 56%), hsl(300 92% 62%), hsl(185 92% 55%));
+
+    --shadow-studio: 0 26px 54px -18px hsl(230 50% 3% / 0.88), 0 0 0 1px hsl(230 24% 22% / 0.8);
+    --shadow-golden: 0 0 80px hsl(185 92% 55% / 0.20), 0 0 50px hsl(300 92% 62% / 0.12);
+    --shadow-crimson: 0 0 50px hsl(0 72% 56% / 0.22), 0 0 30px hsl(300 92% 62% / 0.14);
+    --shadow-navy: 0 16px 30px hsl(230 50% 3% / 0.85), 0 0 0 1px hsl(240 30% 18% / 0.9);
+
+    --card-premium-bg: linear-gradient(135deg, hsl(230 28% 10% / 0.92), hsl(230 35% 7% / 0.98));
+    --card-golden-bg: linear-gradient(135deg, hsl(230 28% 10%), hsl(185 92% 55% / 0.06));
+    --card-navy-bg: var(--gradient-navy);
+
+    --radius: 0.5rem;
+  }
+
+  :root[data-skin="horror"] {
+    --background: 120 12% 6%;
+    --foreground: 40 15% 88%;
+
+    --font-title: 'Special Elite', 'Inter', system-ui, -apple-system, sans-serif;
+    --font-ui: 'Special Elite', 'Inter', system-ui, -apple-system, sans-serif;
+
+    --app-bg-image:
+      radial-gradient(ellipse at top left, hsl(95 35% 45% / 0.08) 0%, transparent 54%),
+      radial-gradient(ellipse at bottom right, hsl(0 72% 52% / 0.06) 0%, transparent 56%);
+
+    --premium-depth: 120 14% 12%;
+    --premium-grain-opacity: 0.10;
+
+    --card: 120 14% 9%;
+    --card-foreground: 40 15% 88%;
+
+    --popover: 120 14% 11%;
+    --popover-foreground: 40 15% 88%;
+
+    --primary: 0 72% 52%;
+    --primary-foreground: 40 15% 88%;
+
+    --secondary: 120 18% 14%;
+    --secondary-foreground: 40 15% 88%;
+
+    --muted: 120 10% 12%;
+    --muted-foreground: 40 10% 72%;
+
+    --accent: 95 35% 45%;
+    --accent-foreground: 120 12% 6%;
+
+    --destructive: 0 72% 52%;
+    --destructive-foreground: 40 15% 88%;
+
+    --border: 120 12% 20%;
+    --input: 120 12% 12%;
+    --ring: 0 72% 52%;
+
+    --gradient-golden: linear-gradient(135deg, hsl(0 72% 52%), hsl(350 65% 42%), hsl(120 18% 14%));
+    --gradient-silver: linear-gradient(135deg, hsl(40 6% 70%), hsl(120 8% 28%), hsl(120 10% 14%));
+    --gradient-spotlight: linear-gradient(135deg, hsl(95 35% 45%), hsl(0 72% 52%), hsl(350 65% 42%));
+    --gradient-navy: linear-gradient(135deg, hsl(120 18% 14%), hsl(120 12% 6%));
+    --gradient-crimson: linear-gradient(135deg, hsl(0 72% 52%), hsl(350 65% 42%), hsl(0 62% 34%));
+
+    --shadow-studio: 0 26px 54px -18px hsl(120 20% 2% / 0.90), 0 0 0 1px hsl(120 12% 20% / 0.72);
+    --shadow-golden: 0 0 70px hsl(0 72% 52% / 0.22), 0 0 45px hsl(95 35% 45% / 0.12);
+    --shadow-crimson: 0 0 55px hsl(0 72% 52% / 0.26), 0 4px 24px hsl(0 72% 52% / 0.12);
+    --shadow-navy: 0 14px 26px hsl(120 20% 2% / 0.88), 0 0 0 1px hsl(120 18% 14% / 0.88);
+
+    --card-premium-bg: linear-gradient(135deg, hsl(120 14% 9% / 0.92), hsl(120 12% 6% / 0.98));
+    --card-golden-bg: linear-gradient(135deg, hsl(120 14% 9%), hsl(0 72% 52% / 0.06));
+    --card-navy-bg: var(--gradient-navy);
+
+    --radius: 0.4rem;
   }
 
   .dark {
@@ -147,21 +392,20 @@ All colors MUST be HSL.
   }
 
   body {
-    @apply bg-background text-foreground font-sans antialiased;
-    background-image: 
-      radial-gradient(ellipse at top left, hsl(220 15% 12% / 0.3) 0%, transparent 50%),
-      radial-gradient(ellipse at bottom right, hsl(42 88% 68% / 0.05) 0%, transparent 50%);
+    @apply bg-background text-foreground antialiased;
+    font-family: var(--font-body);
+    background-image: var(--app-bg-image);
   }
 
   /* Premium Typography */
   .studio-title {
-    font-family: 'Inter', system-ui, -apple-system, sans-serif;
+    font-family: var(--font-title);
     font-weight: 700;
     letter-spacing: -0.02em;
   }
 
   .studio-mono {
-    font-family: 'JetBrains Mono', 'Fira Code', 'Consolas', monospace;
+    font-family: var(--font-mono);
     font-variant-numeric: tabular-nums;
   }
 
@@ -233,8 +477,8 @@ All colors MUST be HSL.
   }
 
   @keyframes glow-pulse {
-    0%, 100% { box-shadow: 0 0 20px hsl(42 88% 68% / 0.3); }
-    50% { box-shadow: 0 0 40px hsl(42 88% 68% / 0.5), 0 0 60px hsl(42 88% 68% / 0.2); }
+    0%, 100% { box-shadow: 0 0 20px hsl(var(--primary) / 0.3); }
+    50% { box-shadow: 0 0 40px hsl(var(--primary) / 0.5), 0 0 60px hsl(var(--primary) / 0.2); }
   }
 
   @keyframes premium-spotlight-sweep {
@@ -289,7 +533,7 @@ All colors MUST be HSL.
   }
 
   .animate-shimmer {
-    background: linear-gradient(90deg, transparent, hsl(42 88% 68% / 0.1), transparent);
+    background: linear-gradient(90deg, transparent, hsl(var(--primary) / 0.12), transparent);
     background-size: 200% 100%;
     animation: shimmer 2s infinite;
   }
@@ -305,17 +549,17 @@ All colors MUST be HSL.
   /* Premium Card Styles */
   .card-premium {
     @apply bg-card border border-border/50 shadow-studio backdrop-blur-sm;
-    background-image: linear-gradient(135deg, hsl(220 18% 10% / 0.9), hsl(220 15% 8% / 0.95));
+    background-image: var(--card-premium-bg);
   }
 
   .card-golden {
     @apply border-primary/30 shadow-golden;
-    background: linear-gradient(135deg, hsl(220 18% 10%), hsl(42 88% 68% / 0.05));
+    background: var(--card-golden-bg);
   }
 
   .card-navy {
     @apply border-secondary/40 shadow-navy;
-    background: var(--gradient-navy);
+    background: var(--card-navy-bg);
   }
 
   /* Button Variants */
@@ -324,7 +568,7 @@ All colors MUST be HSL.
            shadow-golden hover:shadow-golden border-0 backdrop-blur-sm 
            transition-all duration-500 hover:scale-[1.02] tracking-wide
            relative overflow-hidden;
-    font-family: 'Inter', system-ui, -apple-system, sans-serif;
+    font-family: var(--font-ui);
     font-weight: 800;
     letter-spacing: 0.05em;
     text-transform: uppercase;
@@ -350,7 +594,7 @@ All colors MUST be HSL.
     @apply border-2 border-primary/60 hover:border-primary text-foreground hover:text-primary
            backdrop-blur-sm transition-all duration-500 hover:scale-[1.02]
            shadow-lg relative overflow-hidden;
-    font-family: 'Inter', system-ui, -apple-system, sans-serif;
+    font-family: var(--font-ui);
     font-weight: 700;
     letter-spacing: 0.03em;
     text-transform: uppercase;

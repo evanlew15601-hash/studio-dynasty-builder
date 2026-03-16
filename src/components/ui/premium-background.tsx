@@ -91,13 +91,13 @@ export const PremiumBackground: React.FC<PremiumBackgroundProps> = ({ variant = 
           'radial-gradient(1400px 720px at 50% 14%, hsl(var(--primary) / 0.14), transparent 62%)',
           'radial-gradient(980px 720px at 18% 70%, hsl(var(--accent) / 0.06), transparent 70%)',
           'radial-gradient(980px 720px at 82% 70%, hsl(var(--primary) / 0.05), transparent 70%)',
-          'linear-gradient(180deg, hsl(220 18% 10% / 0.55) 0%, transparent 45%)',
+          'linear-gradient(180deg, hsl(var(--premium-depth) / 0.55) 0%, transparent 45%)',
         ].join(', ')
       : [
           'radial-gradient(1200px 600px at 50% 12%, hsl(var(--primary) / 0.10), transparent 62%)',
           'radial-gradient(980px 640px at 16% 78%, hsl(var(--accent) / 0.05), transparent 70%)',
           'radial-gradient(900px 620px at 86% 74%, hsl(var(--primary) / 0.05), transparent 70%)',
-          'radial-gradient(740px 560px at 70% 28%, hsl(220 18% 14% / 0.55), transparent 72%)',
+          'radial-gradient(740px 560px at 70% 28%, hsl(var(--premium-depth) / 0.55), transparent 72%)',
         ].join(', ');
 
   const spotlightOpacity = variant === 'landing' ? 0.14 : 0.18;
@@ -159,9 +159,10 @@ export const PremiumBackground: React.FC<PremiumBackgroundProps> = ({ variant = 
       {/* Film grain */}
       <canvas
         ref={grainRef}
-        className="absolute inset-0 h-full w-full opacity-[0.06] mix-blend-overlay"
+        className="absolute inset-0 h-full w-full mix-blend-overlay"
         style={{
           imageRendering: 'pixelated',
+          opacity: 'var(--premium-grain-opacity)',
           transform: 'translate3d(0,0,0) scale(1.6)',
           animation: 'premium-grain-shift 18s linear infinite',
         }}

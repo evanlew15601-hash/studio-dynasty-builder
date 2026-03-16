@@ -8,7 +8,7 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@
 import { Badge } from '@/components/ui/badge';
 import { Separator } from '@/components/ui/separator';
 import { Switch } from '@/components/ui/switch';
-import { Play, Settings, Sparkles, HelpCircle } from 'lucide-react';
+import { Play, Settings, Sparkles, HelpCircle, Palette } from 'lucide-react';
 import { Genre } from '@/types/game';
 import { StudioIconCustomizer, DEFAULT_ICON, type StudioIconConfig } from './StudioIconCustomizer';
 import { PremiumBackground } from '@/components/ui/premium-background';
@@ -17,6 +17,7 @@ import { SupabaseConfigDialog } from '@/components/game/SupabaseConfigDialog';
 import { getSupabaseConfigStatus } from '@/integrations/supabase/client';
 import { cn } from '@/lib/utils';
 import { getActiveModSlot, listModSlots, setActiveModSlot } from '@/utils/moddingStore';
+import { getStoredUiSkinId, setUiSkin, UI_SKINS, type UiSkinId } from '@/utils/uiSkins';
 
 interface GameLandingProps {
   onStartGame: (config: GameConfig) => void;
@@ -57,6 +58,7 @@ export const GameLanding: React.FC<GameLandingProps> = ({
   const [databaseSlot, setDatabaseSlot] = useState(() => getActiveModSlot());
   const [dbManagerOpen, setDbManagerOpen] = useState(false);
   const [supabaseConfigOpen, setSupabaseConfigOpen] = useState(false);
+  const [uiSkin, setUiSkinState] = useState<UiSkinId>(() => getStoredUiSkinId());
   const [config, setConfig] = useState<GameConfig>({
     studioName: '',
     specialties: ['drama'],
@@ -93,7 +95,10 @@ export const GameLanding: React.FC<GameLandingProps> = ({
     setDatabaseSlot(getActiveModSlot());
   };
 
-  
+  const handleUiSkinChange = (skinId: UiSkinId) => {
+    setUiSkin(skinId);
+    setUiSkinState(skinId);
+  };
 
   const handleStartGame = () => {
     if (mode === 'online' && !onlineLeagueCode?.trim()) {
@@ -309,6 +314,70 @@ export const GameLanding: React.FC<GameLandingProps> = ({
               </Card>
             )}
 
+            <Card className="card-golden max-w-2xl mx-auto">
+              <CardHeader className={cn(compactLanding ? 'py-4' : '')}>
+                <CardTitle className={cn('text-foreground flex items-center', compactLanding ? 'text-lg' : 'text-xl')}>
+                  <Palette className="mr-2 text-primary" />
+                  UI Skin
+                </CardTitle>
+              </CardHeader>
+              <CardContent className="space-y-3">
+                <p className="text-xs text-muted-foreground">
+                  Applies instantly and carries into gameplay.
+                </p>
+
+                <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-3">
+                  {UI_SKINS.map((skin) => (
+                    <button
+                      key={skin.id}
+                      type="button"
+                      onClick={() => handleUiSkinChange(skin.id)}
+                      aria-pressed={uiSkin === skin.id}
+                      className={cn(
+                        'group rounded-lg border bg-background/30 backdrop-blur-sm p-3 text-left transition-all duration-300',
+                        uiSkin === skin.id
+                          ? 'border-primary/70 shadow-[0_0_0_1px_hsl(var(--primary)/0.25),0_0_50px_hsl(var(--primary)/0.10)]'
+                          : 'border-border/50 hover:border-primary/40'
+                      )}
+                    >
+                      <div
+                        className="h-10 w-full rounded-md border border-border/40"
+                        style={{ backgroundImage: skin.preview.backgroundImage }}
+                      />
+                      <div className="mt-2 flex items-start justify-between gap-2">
+                        <div>
+                          <div className="text-sm font-semibold text-foreground leading-tight">{skin.name}</div>
+                          <div className="mt-0.5 text-[11px] text-muted-foreground leading-snug">{skin.description}</div>
+                        </div>
+                        {uiSkin === skin.id && (
+                          <Badge variant="outline" className="border-primary/50 text-primary">
+                            Active
+                          </Badge>
+                        )}
+                      </div>
+                      <div className="mt-2 flex gap-1.5">
+                        {skin.preview.swatches.map((c, idx) => (
+                          <span
+                            key={idx}
+                            className="h-2.5 w-2.5 rounded-full border border-black/20"
+                            style={{ backgroundColor: c }}
+                          />
+                        ))}
+                      </div>
+                    </button>
+                  ))}
+                </div>
+
+                {uiSkin !== 'studio' && (
+                  <div>
+                    <Button size="sm" variant="secondary" onClick={() => handleUiSkinChange('studio')}>
+                      Reset to default
+                    </Button>
+                  </div>
+                )}
+              </CardContent>
+            </Card>
+
             <div className={cn('flex flex-col sm:flex-row justify-center', compactLanding ? 'gap-4' : 'gap-6')}>
               <Button
                 size="lg"
@@ -432,6 +501,60 @@ export const GameLanding: React.FC<GameLandingProps> = ({
                     Saves are separated per database.
                   </p>
                 </div>
+
+                <div>
+                  <Label className="text-foreground text-sm">UI Skin</Label>
+                  <div className="mt-2 grid grid-cols-1 sm:grid-cols-2 gap-3">
+                    {UI_SKINS.map((skin) => (
+                      <button
+                        key={skin.id}
+                        type="button"
+                        onClick={() => handleUiSkinChange(skin.id)}
+                        aria-pressed={uiSkin === skin.id}
+                        className={cn(
+                          'group rounded-lg border bg-background/30 backdrop-blur-sm p-3 text-left transition-all duration-300',
+                          uiSkin === skin.id
+                            ? 'border-primary/70 shadow-[0_0_0_1px_hsl(var(--primary)/0.25),0_0_50px_hsl(var(--primary)/0.10)]'
+                            : 'border-border/50 hover:border-primary/40'
+                        )}
+                      >
+                        <div
+                          className="h-10 w-full rounded-md border border-border/40"
+                          style={{ backgroundImage: skin.preview.backgroundImage }}
+                        />
+                        <div className="mt-2 flex items-start justify-between gap-2">
+                          <div>
+                            <div className="text-sm font-semibold text-foreground leading-tight">{skin.name}</div>
+                            <div className="mt-0.5 text-[11px] text-muted-foreground leading-snug">{skin.description}</div>
+                          </div>
+                          {uiSkin === skin.id && (
+                            <Badge variant="outline" className="border-primary/50 text-primary">
+                              Active
+                            </Badge>
+                          )}
+                        </div>
+                        <div className="mt-2 flex gap-1.5">
+                          {skin.preview.swatches.map((c, idx) => (
+                            <span
+                              key={idx}
+                              className="h-2.5 w-2.5 rounded-full border border-black/20"
+                              style={{ backgroundColor: c }}
+                            />
+                          ))}
+                        </div>
+                      </button>
+                    ))}
+                  </div>
+
+                  {uiSkin !== 'studio' && (
+                    <div className="mt-3">
+                      <Button size="sm" variant="secondary" onClick={() => handleUiSkinChange('studio')}>
+                        Reset to default
+                      </Button>
+                    </div>
+                  )}
+                </div>
+
                 {mode === 'online' && (
                   <div>
                     <Label className="text-foreground text-sm">Online League Invite Code</Label>
