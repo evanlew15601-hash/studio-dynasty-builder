@@ -4,6 +4,7 @@ import { ensureCompetitorStudiosLore } from '@/utils/competitorStudiosPatches';
 import { ensureTalentLore } from '@/utils/talentLorePatches';
 import { primeCompetitorTelevision } from '@/utils/televisionPatches';
 import { normalizeFranchisesState } from '@/utils/franchiseNormalization';
+import { normalizePublicDomainState } from '@/utils/publicDomainNormalization';
 import { getModBundle } from '@/utils/moddingStore';
 import { applyPatchesByKey, getPatchesForEntity } from '@/utils/modding';
 import type { SaveGameSnapshot } from '@/utils/saveLoad';
@@ -41,7 +42,7 @@ export function patchLoadedSnapshot(
     )
   );
 
-  const patchedGameState = normalizeFranchisesState(patchedGameStateRaw as any);
+  const patchedGameState = normalizePublicDomainState(normalizeFranchisesState(patchedGameStateRaw as any) as any);
 
   if (opts.mode === 'single') {
     return {

@@ -20,6 +20,78 @@ function normalizeTitle(value: unknown): string {
   return typeof value === 'string' ? value.trim().toLowerCase() : '';
 }
 
+function normalizeParodySource(value: unknown): string {
+  const normalized = typeof value === 'string' ? value.trim().toLowerCase() : '';
+
+  // Canonicalize legacy/internal keys (keeps old saves + mods stable even if we rename catalog keys).
+  if (normalized === 'deep space horror') return 'voidborne';
+
+  return normalized;
+}
+
+function canonicalizeParodySource(value: unknown): string | undefined {
+  if (typeof value !== 'string') return undefined;
+
+  const trimmed = value.trim();
+  if (!trimmed) return undefined;
+
+  const normalized = trimmed.toLowerCase();
+  if (normalized === 'deep space horror') return 'Voidborne';
+  if (normalized === 'voidborne') return 'Voidborne';
+
+  return trimmed;
+}
+
+const STATUS_RANK: Record<Franchise['status'], number> = {
+  retired: 0,
+  dormant: 1,
+  rebooted: 2,
+  active: 3,
+};
+
+function pickBetterStatus(a: Franchise['status'] | undefined, b: Franchise['status'] | undefined): Franchise['status'] {
+  if (!a) return b ?? 'active';
+  if (!b) return a;
+  return (STATUS_RANK[b] ?? 0) > (STATUS_RANK[a] ?? 0) ? b : a;
+}
+
+function pickEarlierIsoDate(a: string | undefined, b: string | undefined): string | undefined {
+  if (!a) return b;
+  if (!b) return a;
+  return a <= b ? a : b;
+}
+
+function mergeFranchise(existing: Franchise, incoming: Franchise): Franchise {
+  const mergedEntries = uniqStrings([...(existing.entries || []), ...(incoming.entries || [])]);
+  const mergedTags = uniqStrings([...(existing.franchiseTags || []), ...(incoming.franchiseTags || [])]);
+  const mergedGenre = uniqStrings([...(existing.genre || []), ...(incoming.genre || [])]) as any;
+
+  const title = existing.title?.trim() ? existing.title : incoming.title;
+  const parodySource = existing.parodySource?.trim() ? existing.parodySource : incoming.parodySource;
+  const inspirationLabel = existing.inspirationLabel?.trim() ? existing.inspirationLabel : incoming.inspirationLabel;
+  const originMedium = existing.originMedium ?? incoming.originMedium;
+
+  return {
+    ...existing,
+    ...incoming,
+    // Keep the canonical identity
+    id: existing.id,
+    creatorStudioId: existing.creatorStudioId,
+    title,
+    parodySource,
+    inspirationLabel,
+    originMedium,
+    originDate: pickEarlierIsoDate(existing.originDate, incoming.originDate) || existing.originDate || incoming.originDate || '2000-01-01',
+    tone: (existing.tone ?? incoming.tone ?? 'light') as Franchise['tone'],
+    status: pickBetterStatus(existing.status, incoming.status),
+    culturalWeight: Math.max(existing.culturalWeight ?? 0, incoming.culturalWeight ?? 0),
+    cost: Math.max(existing.cost ?? 0, incoming.cost ?? 0),
+    genre: mergedGenre,
+    franchiseTags: mergedTags,
+    entries: mergedEntries,
+  };
+}
+
 /**
  * Best-effort normalization for franchise arrays.
  *
@@ -68,6 +140,7 @@ export function normalizeFranchisesState(state: GameState): GameState {
   const playerStudioId = state.studio?.id;
 
   let mergedByTitle = false;
+  let canonicalizedParodySource = false;
 
   const canonicalById = new Map<string, string>();
   const keyOrder: string[] = [];
@@ -75,29 +148,38 @@ export function normalizeFranchisesState(state: GameState): GameState {
 
   for (const franchise of baseFranchises) {
     const ownedByPlayer = !!playerStudioId && franchise.creatorStudioId === playerStudioId;
+    const isWorld = franchise.creatorStudioId === 'world';
+
+    const canonicalParodySource = isWorld ? canonicalizeParodySource(franchise.parodySource) : franchise.parodySource;
+    const canonical = canonicalParodySource && canonicalParodySource !== franchise.parodySource ? { ...franchise, parodySource: canonicalParodySource } : franchise;
+    if (canonical !== franchise) canonicalizedParodySource = true;
+
+    // Marketplace franchises should be stable per underlying property.
+    // If we ever accumulate duplicates (e.g., from older saves/mods), merge them.
+    const worldParodyKey = isWorld ? normalizeParodySource(canonical.parodySource) : '';
+    const worldTitleKey = isWorld ? normalizeTitle(canonical.title) : '';
 
     const key = ownedByPlayer
-      ? `${franchise.creatorStudioId}::${normalizeTitle(franchise.title)}`
-      : `id::${franchise.id}`;
+      ? `${canonical.creatorStudioId}::${normalizeTitle(canonical.title)}`
+      : isWorld && worldParodyKey
+      ? `world::parody::${worldParodyKey}`
+      : isWorld && worldTitleKey
+      ? `world::title::${worldTitleKey}`
+      : `id::${canonical.id}`;
 
     const existing = byKey.get(key);
 
     if (!existing) {
       keyOrder.push(key);
-      byKey.set(key, franchise);
-      canonicalById.set(franchise.id, franchise.id);
+      byKey.set(key, canonical);
+      canonicalById.set(canonical.id, canonical.id);
       continue;
     }
 
     mergedByTitle = true;
-    canonicalById.set(franchise.id, existing.id);
+    canonicalById.set(canonical.id, existing.id);
 
-    byKey.set(key, {
-      ...existing,
-      ...franchise,
-      id: existing.id,
-      entries: uniqStrings([...(existing.entries || []), ...(franchise.entries || [])]),
-    });
+    byKey.set(key, mergeFranchise(existing, canonical));
   }
 
   const mapId = (id: string | null | undefined): string | null | undefined => {
@@ -176,7 +258,7 @@ export function normalizeFranchisesState(state: GameState): GameState {
     baseFranchises.length !== inputFranchises.length ||
     baseFranchises.some((f, i) => inputFranchises[i]?.id !== f.id);
 
-  const franchisesTouched = dedupeChanged || mergedByTitle || entriesTouched;
+  const franchisesTouched = dedupeChanged || mergedByTitle || entriesTouched || canonicalizedParodySource;
 
   if (!franchisesTouched && !projectsTouched && !scriptsTouched) return state;
 

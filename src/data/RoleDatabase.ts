@@ -20,7 +20,7 @@ export const FRANCHISE_ROLE_SETS: Record<string, ScriptCharacter[]> = {
     { id: 'cameo-anchor', name: 'City News Anchor (Cameo)', importance: 'minor', description: 'Atmospheric news hit', requiredType: 'actor', ageRange: [25, 65] },
     { id: 'director', name: 'Director', importance: 'crew', description: 'Film director', requiredType: 'director' }
   ],
-  'Deep Space Horror': [
+  'Voidborne': [
     { id: 'warrant', name: 'Warrant Officer', importance: 'lead', description: 'Capable survivor', requiredType: 'actor', ageRange: [25, 50] },
     { id: 'captain', name: 'Ship Captain', importance: 'supporting', description: 'Ship leader with tough calls', requiredType: 'actor', ageRange: [35, 65] },
     { id: 'android', name: 'Synthetic Crew Member', importance: 'supporting', description: 'Mysterious corporate asset', requiredType: 'actor', ageRange: [25, 50] },

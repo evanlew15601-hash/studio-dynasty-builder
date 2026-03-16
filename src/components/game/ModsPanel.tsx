@@ -22,7 +22,7 @@ import {
 } from '@/components/ui/alert-dialog';
 import { PROVIDER_DEALS, type ProviderDealProfile, type ProviderId } from '@/data/ProviderDealsDatabase';
 import { PublicDomainGenerator } from '@/data/PublicDomainGenerator';
-import { FranchiseGenerator } from '@/data/FranchiseGenerator';
+import { getWorldFranchiseCatalog } from '@/data/FranchiseCatalog';
 import { STUDIO_PROFILES, type StudioProfile } from '@/data/StudioGenerator';
 import { MediaSourceGenerator } from '@/data/MediaSourceGenerator';
 import { MediaContentGenerator } from '@/data/MediaContentGenerator';
@@ -256,7 +256,7 @@ export const ModsPanel: React.FC = () => {
   const [isEditorDataReady, setIsEditorDataReady] = useState(false);
 
   const basePublicDomainIPs = useMemo(() => PublicDomainGenerator.getBasePublicDomainIPs(20), []);
-  const baseFranchises = useMemo(() => FranchiseGenerator.generateInitialFranchises(30), []);
+  const baseFranchises = useMemo(() => getWorldFranchiseCatalog(999), []);
   const baseCoreTalent = useMemo(() => {
     const all = generateInitialTalentPool({ currentYear: 2024, actorCount: 0, directorCount: 0 });
     return all.filter((t) => t.id.startsWith('core:'));

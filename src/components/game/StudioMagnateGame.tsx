@@ -2,7 +2,7 @@ import React, { useEffect, useMemo, useRef, useState, Suspense } from 'react';
 import type { GameState, Studio, Project, Script, TalentPerson, Genre, MarketingStrategy, ReleaseStrategy, ProductionPhase, ScriptCharacter } from '@/types/game';
 import { useLoadingActions } from '@/contexts/LoadingContext';
 import { LOADING_OPERATIONS, delay } from '@/utils/loadingUtils';
-import { FranchiseGenerator } from '@/data/FranchiseGenerator';
+import { getWorldFranchiseCatalog } from '@/data/FranchiseCatalog';
 import { PublicDomainGenerator } from '@/data/PublicDomainGenerator';
 import { ScriptDevelopment } from './ScriptDevelopment';
 import { CastingBoard } from './CastingBoard';
@@ -900,7 +900,7 @@ export const StudioMagnateGame: React.FC<StudioMagnateGameProps> = ({
         allReleases: releases,
         topFilmsHistory: [],
         franchises: applyPatchesByKey(
-          FranchiseGenerator.generateInitialFranchises(30),
+          getWorldFranchiseCatalog(999),
           getPatchesForEntity(mods, 'franchise'),
           (f) => f.id
         ),
