@@ -444,9 +444,11 @@ export const Metaboxd: React.FC = () => {
   const titles = useMemo(() => {
     if (!gameState) return [] as MetaboxdTitle[];
 
-    const releases = (gameState.allReleases || [])
-      .filter((r: any): r is Project => !!r && typeof r === 'object' && 'script' in r)
-      .filter((p: Project) => p.status === 'released');
+    const releases = [
+      ...(gameState.allReleases || [])
+        .filter((r: any): r is Project => !!r && typeof r === 'object' && 'script' in r),
+      ...(gameState.projects || []).filter((p: Project) => !!p && typeof p === 'object'),
+    ].filter((p: Project) => p.status === 'released');
 
     const byId = new Map<string, Project>();
     const order: string[] = [];
