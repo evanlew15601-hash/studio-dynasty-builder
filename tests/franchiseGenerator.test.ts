@@ -2,14 +2,20 @@ import { describe, expect, it } from 'vitest';
 import { FranchiseGenerator } from '@/data/FranchiseGenerator';
 
 describe('FranchiseGenerator', () => {
-  it('generateInitialFranchises is deterministic for the same inputs', () => {
-    const a = FranchiseGenerator.generateInitialFranchises(30);
-    const b = FranchiseGenerator.generateInitialFranchises(30);
+  it('generateInitialFranchises returns a fixed catalog (seed-independent)', () => {
+    const a = FranchiseGenerator.generateInitialFranchises(30, 'seed:a');
+    const b = FranchiseGenerator.generateInitialFranchises(30, 'seed:b');
     expect(a).toEqual(b);
+  });
 
-    const c = FranchiseGenerator.generateInitialFranchises(12, 'seed:test');
-    const d = FranchiseGenerator.generateInitialFranchises(12, 'seed:test');
-    expect(c).toEqual(d);
+  it('generateInitialFranchises does not produce duplicates', () => {
+    const list = FranchiseGenerator.generateInitialFranchises(30);
+
+    const ids = list.map(f => f.id);
+    expect(new Set(ids).size).toBe(ids.length);
+
+    const sources = list.map(f => f.parodySource);
+    expect(new Set(sources).size).toBe(sources.length);
   });
 
   it('generateInitialFranchises does not depend on this binding', () => {

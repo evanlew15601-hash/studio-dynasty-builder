@@ -900,7 +900,7 @@ export const StudioMagnateGame: React.FC<StudioMagnateGameProps> = ({
         allReleases: releases,
         topFilmsHistory: [],
         franchises: applyPatchesByKey(
-          FranchiseGenerator.generateInitialFranchises(30),
+          FranchiseGenerator.generateInitialFranchises(999),
           getPatchesForEntity(mods, 'franchise'),
           (f) => f.id
         ),

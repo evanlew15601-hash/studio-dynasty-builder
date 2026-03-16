@@ -256,7 +256,7 @@ export const ModsPanel: React.FC = () => {
   const [isEditorDataReady, setIsEditorDataReady] = useState(false);
 
   const basePublicDomainIPs = useMemo(() => PublicDomainGenerator.getBasePublicDomainIPs(20), []);
-  const baseFranchises = useMemo(() => FranchiseGenerator.generateInitialFranchises(30), []);
+  const baseFranchises = useMemo(() => FranchiseGenerator.generateInitialFranchises(999), []);
   const baseCoreTalent = useMemo(() => {
     const all = generateInitialTalentPool({ currentYear: 2024, actorCount: 0, directorCount: 0 });
     return all.filter((t) => t.id.startsWith('core:'));

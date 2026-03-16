@@ -1,7 +1,5 @@
 // Franchise Generation System
 import type { Franchise, Genre } from '@/types/game';
-import { stablePick } from '@/utils/stablePick';
-import { stableFloat01, stableInt } from '@/utils/stableRandom';
 
 interface FranchiseTemplate {
   titlePatterns: string[];
@@ -355,29 +353,25 @@ const FRANCHISE_TEMPLATES: FranchiseTemplate[] = [
   },
 ];
 
-function generateRandomDate(startYear: number, endYear: number, seed: string): string {
-  const year = stableInt(`${seed}|year`, startYear, endYear);
-  const month = stableInt(`${seed}|month`, 1, 12);
-  const day = stableInt(`${seed}|day`, 1, 28);
+function slugifyId(input: string): string {
+  return input
+    .toLowerCase()
+    .replace(/[^a-z0-9]+/g, '-')
+    .replace(/(^-|-$)/g, '');
+}
+
+function originDateForIndex(index: number): string {
+  const year = 1980 + (index % 40);
+  const month = ((index * 7) % 12) + 1;
+  const day = ((index * 13) % 28) + 1;
   return `${year}-${String(month).padStart(2, '0')}-${String(day).padStart(2, '0')}`;
 }
 
-function generateTitle(template: FranchiseTemplate, seed: string): string {
-  const picked = stablePick(template.titlePatterns, `${seed}|title`) ?? template.titlePatterns[0];
-  const useSubtitle = stableFloat01(`${seed}|subtitle`) > 0.6;
-  if (!useSubtitle) return picked;
-
-  const subtitles = ['Legacy', 'Reborn', 'Returns', 'Awakens', 'Rising', 'Forever', 'Destiny'];
-  const subtitle = stablePick(subtitles, `${seed}|subtitlePick`);
-  return subtitle ? `${picked}: ${subtitle}` : picked;
-}
-
-function franchiseStatusFromAge(ageYears: number, seed: string): Franchise['status'] {
-  const r = stableFloat01(`${seed}|status`);
-  if (ageYears <= 3) return 'active';
-  if (ageYears <= 8) return r > 0.15 ? 'active' : 'dormant';
-  if (ageYears <= 20) return r > 0.35 ? 'dormant' : 'rebooted';
-  return r > 0.55 ? 'retired' : 'rebooted';
+function franchiseStatusFromAge(ageYears: number): Franchise['status'] {
+  if (ageYears <= 5) return 'active';
+  if (ageYears <= 15) return 'dormant';
+  if (ageYears <= 30) return 'rebooted';
+  return 'retired';
 }
 
 function estimateFranchiseCost(culturalWeight: number): number {
@@ -386,24 +380,24 @@ function estimateFranchiseCost(culturalWeight: number): number {
   return Math.round((weight / 100) * 80_000_000);
 }
 
-function buildFranchise(template: FranchiseTemplate, index: number, seed: string): Franchise {
-  const originYear = stableInt(`${seed}|originYear`, 1980, 2023);
-  const originDate = generateRandomDate(originYear, originYear, `${seed}|originDate`);
+function buildFranchise(template: FranchiseTemplate, index: number): Franchise {
+  const originDate = originDateForIndex(index);
+  const originYear = Number(originDate.slice(0, 4));
   const ageYears = 2024 - originYear;
+  const culturalWeight = Math.max(10, Math.min(100, template.culturalWeight));
 
-  const culturalJitter = stableInt(`${seed}|culturalJitter`, -6, 6);
-  const culturalWeight = Math.max(10, Math.min(100, template.culturalWeight + culturalJitter));
+  const title = template.titlePatterns[0] ?? 'Untitled Franchise';
 
   return {
-    id: `franchise-${index}-${stableInt(`${seed}|id`, 1000, 9999)}`,
-    title: generateTitle(template, `${seed}|title`),
+    id: `franchise-world-${slugifyId(template.parodySource)}`,
+    title,
     originDate,
     creatorStudioId: 'world',
     genre: template.genre,
     tone: template.tone,
     parodySource: template.parodySource,
     entries: [],
-    status: franchiseStatusFromAge(ageYears, `${seed}|status`),
+    status: franchiseStatusFromAge(ageYears),
     franchiseTags: [...template.tags],
     culturalWeight,
     description: template.description,
@@ -411,31 +405,14 @@ function buildFranchise(template: FranchiseTemplate, index: number, seed: string
   };
 }
 
+const FRANCHISE_CATALOG: Franchise[] = FRANCHISE_TEMPLATES.map((template, index) =>
+  buildFranchise(template, index),
+);
+
 export const FranchiseGenerator = {
-  generateInitialFranchises(count: number, seed = 'seed:franchises'): Franchise[] {
+  // Seed is intentionally ignored: the initial world franchises are a fixed catalog.
+  generateInitialFranchises(count: number, _seed = 'seed:franchises'): Franchise[] {
     const desired = Math.max(0, Math.floor(count));
-    const out: Franchise[] = [];
-
-    const templates = [...FRANCHISE_TEMPLATES];
-
-    for (let i = 0; i < desired; i++) {
-      const idx = stableInt(`${seed}|template|${i}`, 0, templates.length - 1);
-      const template = templates[idx] ?? FRANCHISE_TEMPLATES[0];
-
-      // Prefer unique parody sources early on.
-      if (templates.length > 1) {
-        templates.splice(idx, 1);
-      }
-
-      const franchise = buildFranchise(template, i, `${seed}|franchise|${i}|${template.parodySource}`);
-      out.push(franchise);
-
-      // If we consumed all templates but still need more franchises, start recycling.
-      if (templates.length === 0 && out.length < desired) {
-        templates.push(...FRANCHISE_TEMPLATES);
-      }
-    }
-
-    return out;
+    return FRANCHISE_CATALOG.slice(0, Math.min(desired, FRANCHISE_CATALOG.length));
   },
 };
