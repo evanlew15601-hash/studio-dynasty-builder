@@ -18,6 +18,10 @@ All colors MUST be HSL.
     --font-ui: var(--font-body);
     --font-mono: 'JetBrains Mono', 'Fira Code', 'Consolas', monospace;
 
+    --ui-scale: 1;
+    --ui-leading: 1.42;
+    --ui-body-weight: 400;
+
     --app-bg-image:
       radial-gradient(ellipse at top left, hsl(220 15% 12% / 0.3) 0%, transparent 50%),
       radial-gradient(ellipse at bottom right, hsl(42 88% 68% / 0.05) 0%, transparent 50%);
@@ -184,8 +188,11 @@ All colors MUST be HSL.
     --background: 35 30% 92%;
     --foreground: 28 25% 18%;
 
-    --font-body: 'Cormorant Garamond', Georgia, serif;
-    --font-title: var(--font-body);
+    --ui-scale: 0.965;
+    --ui-leading: 1.38;
+    --ui-body-weight: 450;
+
+    --font-title: 'Cormorant Garamond', Georgia, serif;
     --font-ui: 'Oswald', 'Inter', system-ui, -apple-system, sans-serif;
 
     --app-bg-image:
@@ -371,6 +378,10 @@ All colors MUST be HSL.
     --background: 38 28% 92%;
     --foreground: 220 15% 10%;
 
+    --ui-scale: 0.965;
+    --ui-leading: 1.38;
+    --ui-body-weight: 450;
+
     --font-title: 'Oswald', 'Inter', system-ui, -apple-system, sans-serif;
     --font-ui: 'Oswald', 'Inter', system-ui, -apple-system, sans-serif;
 
@@ -432,6 +443,10 @@ All colors MUST be HSL.
   :root[data-skin="retro-synth"] {
     --background: 255 55% 10%;
     --foreground: 210 40% 96%;
+
+    --ui-scale: 0.985;
+    --ui-leading: 1.40;
+    --ui-body-weight: 420;
 
     --font-title: 'Orbitron', 'Inter', system-ui, -apple-system, sans-serif;
     --font-ui: 'Orbitron', 'Inter', system-ui, -apple-system, sans-serif;
@@ -540,9 +555,15 @@ All colors MUST be HSL.
     @apply border-border;
   }
 
+  html {
+    font-size: calc(16px * var(--ui-scale));
+  }
+
   body {
     @apply bg-background text-foreground antialiased;
     font-family: var(--font-body);
+    font-weight: var(--ui-body-weight);
+    line-height: var(--ui-leading);
     background-image: var(--app-bg-image);
     transition: background-color 250ms ease, color 250ms ease;
   }
