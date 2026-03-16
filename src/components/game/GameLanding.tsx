@@ -8,7 +8,7 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@
 import { Badge } from '@/components/ui/badge';
 import { Separator } from '@/components/ui/separator';
 import { Switch } from '@/components/ui/switch';
-import { Play, Settings, Film, Star, Trophy, Sparkles, HelpCircle } from 'lucide-react';
+import { Play, Settings, Sparkles, HelpCircle } from 'lucide-react';
 import { Genre } from '@/types/game';
 import { StudioIconCustomizer, DEFAULT_ICON, type StudioIconConfig } from './StudioIconCustomizer';
 import { PremiumBackground } from '@/components/ui/premium-background';
@@ -235,7 +235,7 @@ export const GameLanding: React.FC<GameLandingProps> = ({
                   </CardTitle>
                 </CardHeader>
                 <CardContent className="space-y-3">
-                  <p className="text-sm text-muted-foreground">
+                  <p className="text-xs text-muted-foreground">
                     Join friends with an invite code. Leagues run in lockstep: each week advances when everyone is ready.
                   </p>
 
@@ -391,43 +391,7 @@ export const GameLanding: React.FC<GameLandingProps> = ({
               </Button>
             </div>
 
-            {/* Feature Highlights */}
-            {!compactLanding && (
-              <div className="mt-20 grid grid-cols-1 md:grid-cols-3 gap-8 max-w-6xl">
-              <Card className="group card-golden hover:scale-105 transition-all duration-700 hover:shadow-golden">
-                <CardContent className="p-12 text-center">
-                  <div className="relative mb-10">
-                    <div className="absolute inset-0 bg-primary/15 rounded-full blur-xl group-hover:bg-primary/25 transition-all duration-700" />
-                    <Film className="relative mx-auto text-primary group-hover:text-accent transition-all duration-500" size={64} />
-                  </div>
-                  <h3 className="text-xl font-bold text-foreground mb-4 group-hover:text-primary transition-colors duration-500 studio-title">Create Blockbusters</h3>
-                  <p className="text-muted-foreground leading-relaxed group-hover:text-foreground/90 transition-colors duration-500">Develop scripts, cast talent, and produce films that captivate audiences worldwide.</p>
-                </CardContent>
-              </Card>
-
-              <Card className="group card-golden hover:scale-105 transition-all duration-700 hover:shadow-golden">
-                <CardContent className="p-12 text-center">
-                  <div className="relative mb-10">
-                    <div className="absolute inset-0 bg-primary/15 rounded-full blur-xl group-hover:bg-primary/25 transition-all duration-700" />
-                    <Star className="relative mx-auto text-primary group-hover:text-accent transition-all duration-500" size={64} />
-                  </div>
-                  <h3 className="text-xl font-bold text-foreground mb-4 group-hover:text-primary transition-colors duration-500 studio-title">Manage Talent</h3>
-                  <p className="text-muted-foreground leading-relaxed group-hover:text-foreground/90 transition-colors duration-500">Discover rising stars, negotiate contracts, and build lasting relationships with A-list celebrities.</p>
-                </CardContent>
-              </Card>
-
-              <Card className="group card-golden hover:scale-105 transition-all duration-700 hover:shadow-golden">
-                <CardContent className="p-12 text-center">
-                  <div className="relative mb-10">
-                    <div className="absolute inset-0 bg-primary/15 rounded-full blur-xl group-hover:bg-primary/25 transition-all duration-700" />
-                    <Trophy className="relative mx-auto text-primary group-hover:text-accent transition-all duration-500" size={64} />
-                  </div>
-                  <h3 className="text-xl font-bold text-foreground mb-4 group-hover:text-primary transition-colors duration-500 studio-title">Win Awards</h3>
-                  <p className="text-muted-foreground leading-relaxed group-hover:text-foreground/90 transition-colors duration-500">Compete for prestigious awards and build your studio's reputation in the industry.</p>
-                </CardContent>
-              </Card>
-            </div>
-            )}
+            
           </div>
         ) : (
           /* Studio Customization */
@@ -441,7 +405,7 @@ export const GameLanding: React.FC<GameLandingProps> = ({
               </CardHeader>
               <CardContent className={cn(compactLanding ? 'space-y-4' : 'space-y-6')}>
                 <div>
-                  <Label className="text-foreground text-base">Database</Label>
+                  <Label className="text-foreground text-sm">Database</Label>
                   <Select value={databaseSlot} onValueChange={handleDatabaseChange}>
                     <SelectTrigger className="mt-2 bg-input border-border text-foreground focus:border-primary">
                       <SelectValue placeholder="Select database" />
@@ -470,7 +434,7 @@ export const GameLanding: React.FC<GameLandingProps> = ({
                 </div>
                 {mode === 'online' && (
                   <div>
-                    <Label className="text-foreground text-base">Online League Invite Code</Label>
+                    <Label className="text-foreground text-sm">Online League Invite Code</Label>
                     <div className="mt-2 flex gap-2">
                       <Input
                         value={onlineLeagueCode ?? ''}
@@ -482,13 +446,13 @@ export const GameLanding: React.FC<GameLandingProps> = ({
                         Create
                       </Button>
                     </div>
-                    <p className="text-sm text-muted-foreground mt-1">
+                    <p className="text-xs text-muted-foreground mt-1">
                       Required for online mode.
                     </p>
 
                     {!hasOnlineConfig && (
                       <div className="mt-2 space-y-2">
-                        <p className="text-sm text-destructive">
+                        <p className="text-xs text-destructive">
                           Online League isn’t configured on this device. Click Configure… to set your Supabase URL + anon key.
                         </p>
                         <Button size="sm" variant="secondary" onClick={() => setSupabaseConfigOpen(true)}>
@@ -501,7 +465,7 @@ export const GameLanding: React.FC<GameLandingProps> = ({
 
                 {/* Studio Name */}
                 <div>
-                  <Label htmlFor="studioName" className="text-foreground text-base">Studio Name</Label>
+                  <Label htmlFor="studioName" className="text-foreground text-sm">Studio Name</Label>
                   <Input
                     id="studioName"
                     value={config.studioName}
@@ -513,7 +477,7 @@ export const GameLanding: React.FC<GameLandingProps> = ({
 
                 {/* Difficulty */}
                 <div>
-                  <Label className="text-foreground text-base">Difficulty</Label>
+                  <Label className="text-foreground text-sm">Difficulty</Label>
                   <Select 
                     value={config.difficulty} 
                     onValueChange={(value: any) => setConfig(prev => ({ ...prev, difficulty: value }))}
@@ -534,14 +498,14 @@ export const GameLanding: React.FC<GameLandingProps> = ({
                       ))}
                     </SelectContent>
                   </Select>
-                  <p className="text-sm text-muted-foreground mt-1">
+                  <p className="text-xs text-muted-foreground mt-1">
                     {difficultySettings[config.difficulty].description}
                   </p>
                 </div>
 
                 {/* Studio Specialties */}
                 <div>
-                  <Label className="text-foreground text-base">Studio Specialties (Choose up to 3)</Label>
+                  <Label className="text-foreground text-sm">Studio Specialties (Choose up to 3)</Label>
                   <div className="mt-2 grid grid-cols-3 sm:grid-cols-4 gap-2 max-h-40 overflow-y-auto">
                     {genres.map(genre => (
                       <Badge
@@ -579,8 +543,9 @@ export const GameLanding: React.FC<GameLandingProps> = ({
 
                 {/* Action Buttons */}
                 <div className="flex flex-col sm:flex-row gap-3">
-                  <Button 
-                    className="flex-1 btn-studio font-semibold transition-all duration-300 hover:scale-105"
+                  <Button
+                    size="lg"
+                    className="flex-1 btn-studio px-10 py-5 text-base shadow-golden hover:shadow-golden/60 transition-all duration-500 hover:scale-[1.02]"
                     onClick={handleStartGame}
                     disabled={!config.studioName.trim() || (mode === 'online' && (!onlineLeagueCode?.trim() || !hasOnlineConfig))}
                   >
@@ -588,9 +553,10 @@ export const GameLanding: React.FC<GameLandingProps> = ({
                     Start Game
                   </Button>
                   
-                  <Button 
-                    variant="outline" 
-                    className="btn-ghost-premium transition-all duration-300"
+                  <Button
+                    size="lg"
+                    variant="outline"
+                    className="btn-ghost-premium px-10 py-5 text-base transition-all duration-500 hover:scale-[1.02]"
                     onClick={() => setShowCustomization(false)}
                   >
                     Back to Menu
