@@ -17,6 +17,7 @@ import type { Franchise, GameState, Project, Script, Studio, StudioAward, Talent
 import { normalizeFranchisesState } from '@/utils/franchiseNormalization';
 import { normalizePublicDomainState } from '@/utils/publicDomainNormalization';
 import type { TickReport } from '@/types/tickReport';
+import { createTickReport } from '@/utils/tickReport';
 import type { ModBundle } from '@/types/modding';
 import type { SeededRng } from './core/rng';
 import { createRng, generateGameSeed, seedFromString } from './core/rng';
@@ -203,19 +204,15 @@ export const useGameStore: import('zustand').UseBoundStore<import('zustand').Sto
         debug: import.meta.env.DEV,
       });
 
-      const report: TickReport = {
-        week: result.nextState.currentWeek,
-        year: result.nextState.currentYear,
+      const report: TickReport = createTickReport({
+        prev: game,
+        next: result.nextState,
+        systems: result.systems,
+        recap: result.recap,
         startedAtIso: result.startedAtIso,
         finishedAtIso: result.finishedAtIso,
         totalMs: result.totalMs,
-        systems: result.systems,
-        recap: result.recap,
-        summary: {
-          budgetDelta: (result.nextState.studio.budget ?? 0) - (game.studio.budget ?? 0),
-          reputationDelta: (result.nextState.studio.reputation ?? 0) - (game.studio.reputation ?? 0),
-        },
-      };
+      });
 
       set((s) => {
         const next = {
@@ -257,19 +254,15 @@ export const useGameStore: import('zustand').UseBoundStore<import('zustand').Sto
 
       const { result, rngState } = workerResult;
 
-      const report: TickReport = {
-        week: result.nextState.currentWeek,
-        year: result.nextState.currentYear,
+      const report: TickReport = createTickReport({
+        prev: game,
+        next: result.nextState,
+        systems: result.systems,
+        recap: result.recap,
         startedAtIso: result.startedAtIso,
         finishedAtIso: result.finishedAtIso,
         totalMs: result.totalMs,
-        systems: result.systems,
-        recap: result.recap,
-        summary: {
-          budgetDelta: (result.nextState.studio.budget ?? 0) - (game.studio.budget ?? 0),
-          reputationDelta: (result.nextState.studio.reputation ?? 0) - (game.studio.reputation ?? 0),
-        },
-      };
+      });
 
       set((s) => {
         const next = {
