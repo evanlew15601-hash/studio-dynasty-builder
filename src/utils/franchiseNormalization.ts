@@ -51,6 +51,7 @@ function mergeFranchise(existing: Franchise, incoming: Franchise): Franchise {
   const title = existing.title?.trim() ? existing.title : incoming.title;
   const parodySource = existing.parodySource?.trim() ? existing.parodySource : incoming.parodySource;
   const inspirationLabel = existing.inspirationLabel?.trim() ? existing.inspirationLabel : incoming.inspirationLabel;
+  const originMedium = existing.originMedium ?? incoming.originMedium;
 
   return {
     ...existing,
@@ -61,6 +62,7 @@ function mergeFranchise(existing: Franchise, incoming: Franchise): Franchise {
     title,
     parodySource,
     inspirationLabel,
+    originMedium,
     originDate: pickEarlierIsoDate(existing.originDate, incoming.originDate) || existing.originDate || incoming.originDate || '2000-01-01',
     tone: (existing.tone ?? incoming.tone ?? 'light') as Franchise['tone'],
     status: pickBetterStatus(existing.status, incoming.status),

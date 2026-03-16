@@ -181,7 +181,12 @@ export const FranchiseManager: React.FC<FranchiseManagerProps> = ({
                     <div>
                       <CardTitle className="text-lg">{franchise.title}</CardTitle>
                       <CardDescription className="mt-1">
-                        {franchise.inspirationLabel && `Inspired by ${franchise.inspirationLabel}`}
+                        {franchise.inspirationLabel && <span>{`Inspired by ${franchise.inspirationLabel}`}</span>}
+                        {franchise.originMedium && (
+                          <span className={`capitalize ${franchise.inspirationLabel ? 'block' : ''}`}>
+                            Origin: {franchise.originMedium}
+                          </span>
+                        )}
                       </CardDescription>
                     </div>
                     <Badge className={`${getFranchiseStatusColor(franchise.status)} text-white`}>

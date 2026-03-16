@@ -7,6 +7,7 @@ interface FranchiseTemplate {
   tone: Franchise['tone'];
   parodySource: string;
   inspirationLabel?: string;
+  originMedium?: Franchise['originMedium'];
   tags: string[];
   culturalWeight: number;
   description: string;
@@ -15,30 +16,33 @@ interface FranchiseTemplate {
 const FRANCHISE_TEMPLATES: FranchiseTemplate[] = [
   // Sci-Fi
   {
-    titlePatterns: ['Star Enforcers', 'Galactic Guardians', 'Space Riders', 'Quantum Rebels'],
+    titlePatterns: ['Starlight Rebellion', 'Galactic Guardians', 'Space Riders', 'Quantum Rebels'],
     genre: ['sci-fi', 'action'],
     tone: 'pulpy',
     parodySource: 'Star Saga',
+    originMedium: 'film',
     tags: ['space', 'laser weapons', 'alien rebellion', 'chosen one'],
     culturalWeight: 92,
     description:
       'A long-running space-fantasy saga built on clear heroes, iconic villains, and a galaxy that feels bigger than any one film. Fans expect swashbuckling dogfights, strange planets, and a mythic “power” that can be trained, inherited, or abused. It’s broadly accessible, but the audience will punish anything that feels cheap or cynical—this brand thrives on sincerity and spectacle.',
   },
   {
-    titlePatterns: ['Future Shock', 'Cyber Knights', 'Digital Dawn', 'Neural Network'],
+    titlePatterns: ['Neon Dominion', 'Cyber Knights', 'Digital Dawn', 'Neural Network'],
     genre: ['sci-fi', 'thriller'],
     tone: 'dark',
     parodySource: 'Blade Chaser',
+    originMedium: 'film',
     tags: ['cyberpunk', 'AI', 'dystopia', 'corporate conspiracy'],
     culturalWeight: 78,
     description:
       'A rain-slick, neon-noir thriller where corporate power is absolute and identity is always up for sale. The hook is moral ambiguity: detectives, defectors, and “manufactured people” all chasing the same fragile truth. Audiences show up for atmosphere—hard shadows, synth-scored dread, and slow-burn reveals—so a grounded tone and strong production design matter as much as action.',
   },
   {
-    titlePatterns: ['Alien Hunter', 'Cosmic Horror', 'Deep Space', 'Void Walkers'],
+    titlePatterns: ['Voidborne', 'Cosmic Horror', 'Deep Space', 'Void Walkers'],
     genre: ['sci-fi', 'horror'],
     tone: 'dark',
     parodySource: 'Deep Space Horror',
+    originMedium: 'film',
     tags: ['space horror', 'survival', 'isolation', 'alien threat'],
     culturalWeight: 85,
     description:
@@ -47,20 +51,22 @@ const FRANCHISE_TEMPLATES: FranchiseTemplate[] = [
 
   // Fantasy
   {
-    titlePatterns: ['Ring of Destiny', 'Crown Bearers', 'The Last Kingdom', 'Shadow Realm'],
+    titlePatterns: ['The Wyrd Ring', 'Crown Bearers', 'The Last Kingdom', 'Shadow Realm'],
     genre: ['fantasy', 'adventure'],
     tone: 'epic',
     parodySource: 'Rings of Destiny',
+    originMedium: 'novel',
     tags: ['medieval', 'magic', 'quest', 'dark lord'],
     culturalWeight: 95,
     description:
       'A sweeping quest-fantasy with deep lore, ancient wars, and a sense of history baked into every location. The audience comes for fellowship dynamics, impossible odds, and the slow accumulation of meaning as the journey grinds heroes down and rebuilds them. It plays best when the world feels lived-in—songs, ruins, rival kingdoms—and when the magic is treated with reverence instead of convenience.',
   },
   {
-    titlePatterns: ['Wizard Academy', 'Spell Casters', 'Magic School', 'Arcane Arts'],
+    titlePatterns: ['Academy of Arcana', 'Spell Casters', 'Magic School', 'Arcane Arts'],
     genre: ['fantasy', 'family'],
     tone: 'light',
     parodySource: 'Wizard Academy',
+    originMedium: 'novel',
     tags: ['magic school', 'coming of age', 'friendship', 'dark wizard'],
     culturalWeight: 98,
     description:
@@ -69,10 +75,11 @@ const FRANCHISE_TEMPLATES: FranchiseTemplate[] = [
 
   // Superhero
   {
-    titlePatterns: ['Hero Collective', 'Champions Universe', 'Legendary Alliance', 'Guardian Legacy'],
+    titlePatterns: ['Aegis Assembly', 'Champions Universe', 'Legendary Alliance', 'Guardian Legacy'],
     genre: ['action', 'adventure'],
     tone: 'pulpy',
     parodySource: 'Hero Collective Universe',
+    originMedium: 'comic',
     tags: ['superheroes', 'team up', 'world threat', 'powers', 'interconnected'],
     culturalWeight: 95,
     description:
@@ -81,20 +88,22 @@ const FRANCHISE_TEMPLATES: FranchiseTemplate[] = [
 
   // Horror
   {
-    titlePatterns: ['Nightmare Street', 'Terror Lane', 'Fear Drive', 'Horror Heights'],
+    titlePatterns: ['Dreamstalker', 'Terror Lane', 'Fear Drive', 'Horror Heights'],
     genre: ['horror'],
     tone: 'dark',
     parodySource: 'Nightmare Street',
+    originMedium: 'film',
     tags: ['supernatural killer', 'dreams', 'teenagers', 'recurring villain'],
     culturalWeight: 76,
     description:
       'A supernatural slasher built around the scariest rule: sleep is not safe. The villain is more idea than person—an urban legend that gets stronger the more people fear it—and the set pieces lean surreal without losing cause-and-effect. The franchise’s fans care about inventive “dream logic” kills, but the emotional core is always the survivors trying to stay awake long enough to outsmart the myth.',
   },
   {
-    titlePatterns: ['The Mask Killer', 'Silent Stalker', 'Harvest Terror', 'The Shape'],
+    titlePatterns: ['Hallowmoor', 'Silent Stalker', 'Harvest Terror', 'The Shape'],
     genre: ['horror', 'thriller'],
     tone: 'dark',
     parodySource: 'Hallow Night',
+    originMedium: 'film',
     tags: ['slasher', 'unstoppable killer', 'final survivor', 'holiday horror'],
     culturalWeight: 74,
     description:
@@ -103,20 +112,22 @@ const FRANCHISE_TEMPLATES: FranchiseTemplate[] = [
 
   // Action
   {
-    titlePatterns: ['Speed Racers', 'Fast Lane', 'Velocity', 'Turbo Squad'],
+    titlePatterns: ['Midnight Velocity', 'Fast Lane', 'Velocity', 'Turbo Squad'],
     genre: ['action', 'crime'],
     tone: 'pulpy',
     parodySource: 'Fast Lane',
+    originMedium: 'film',
     tags: ['cars', 'heists', 'family', 'impossible stunts'],
     culturalWeight: 83,
     description:
       'Stunt-forward action built on found-family loyalty, absurdly expensive vehicles, and set pieces that ignore physics with confidence. The tone is earnest even when the plot is ridiculous—rival crews become allies, heists become rescues, and every sequel tries to go “one notch bigger.” Fans will forgive anything except boredom, so momentum and spectacle are the point of the brand.',
   },
   {
-    titlePatterns: ['Mission Critical', 'Impossible Task', 'Agent Protocol', 'Operation Ghost'],
+    titlePatterns: ['Impossible Directive', 'Impossible Task', 'Agent Protocol', 'Operation Ghost'],
     genre: ['action', 'thriller'],
     tone: 'serious',
     parodySource: 'Mission Critical',
+    originMedium: 'film',
     tags: ['spy', 'gadgets', 'infiltration', 'death-defying stunts'],
     culturalWeight: 87,
     description:
@@ -125,10 +136,11 @@ const FRANCHISE_TEMPLATES: FranchiseTemplate[] = [
 
   // Comedy
   {
-    titlePatterns: ['Campus Comedy', 'College Chaos', 'Dorm Life', 'Party Animals'],
+    titlePatterns: ['Freshman Frenzy', 'College Chaos', 'Dorm Life', 'Party Animals'],
     genre: ['comedy'],
     tone: 'comedic',
     parodySource: 'College Chaos',
+    originMedium: 'film',
     tags: ['coming of age', 'raunchy humor', 'teenagers', 'school'],
     culturalWeight: 65,
     description:
@@ -137,10 +149,11 @@ const FRANCHISE_TEMPLATES: FranchiseTemplate[] = [
 
   // Crime
   {
-    titlePatterns: ['Family Business', 'The Brotherhood', 'Honor Code', 'Blood Ties'],
+    titlePatterns: ['The Family Ledger', 'The Brotherhood', 'Honor Code', 'Blood Ties'],
     genre: ['crime', 'drama'],
     tone: 'serious',
     parodySource: 'The Family Boss',
+    originMedium: 'film',
     tags: ['organized crime', 'family loyalty', 'power struggle', 'corruption'],
     culturalWeight: 97,
     description:
@@ -149,52 +162,57 @@ const FRANCHISE_TEMPLATES: FranchiseTemplate[] = [
 
   // Adventure
   {
-    titlePatterns: ['Dino Park', 'Primeval Resort', 'Jurassic Frontier', 'The Lost Exhibit'],
+    titlePatterns: ['Primeval Breakout', 'Primeval Resort', 'Jurassic Frontier', 'The Lost Exhibit'],
     genre: ['adventure', 'thriller'],
     tone: 'pulpy',
     parodySource: 'Dino Park',
+    originMedium: 'novel',
     tags: ['dinosaurs', 'theme park', 'survival', 'science gone wrong'],
     culturalWeight: 93,
     description:
       'A high-concept adventure where wonder turns to panic the moment the fences fail. The audience comes for escalating set pieces—containment breaches, clever improvisation, and humans discovering they are not the apex predator. The brand works best when it balances awe with consequences and treats every “upgrade” as a new problem, not a bigger gun.',
   },
   {
-    titlePatterns: ['Black Flag Shores', 'Pirate Kings', 'Cursed Compass', 'Sea of Thieves'],
+    titlePatterns: ['Cursed Tide', 'Pirate Kings', 'Cursed Compass', 'Sea of Thieves'],
     genre: ['adventure', 'action'],
     tone: 'pulpy',
     parodySource: 'Pirate Seas',
+    originMedium: 'film',
     tags: ['pirates', 'curses', 'treasure', 'naval battles'],
     culturalWeight: 84,
     description:
       'A swashbuckling adventure series built on rogues, cursed gold, and impossible sea battles. Fans want charm-forward leads, outrageous betrayals, and a supernatural hook that justifies the spectacle. The tone should feel like a campfire legend told with modern production values—breezy until it gets scary, then back to fun.',
   },
   {
-    titlePatterns: ['Deep Blue Quest', 'Abyssal Gate', 'Trench Raiders', 'Ocean Unknown'],
+    titlePatterns: ['Abyssal Signal', 'Abyssal Gate', 'Trench Raiders', 'Ocean Unknown'],
     genre: ['adventure', 'sci-fi'],
     tone: 'serious',
     parodySource: 'Abyss Expedition',
+    originMedium: 'tv',
     tags: ['deep sea', 'ancient ruins', 'pressure', 'unknown life'],
     culturalWeight: 71,
     description:
-      'A deep-ocean adventure where the environment is as hostile as any monster. The franchise lives on discovery—forgotten structures, strange signals, and moral choices made under crushing pressure. Audiences show up for atmosphere and “hard survival” problem-solving, so tight rules and credible logistics matter more than quips.',
+      'A deep-ocean adventure where the environment is as hostile as any monster. The franchise lives on discovery—forgotten structures, strange signals, moral choices made under crushing pressure. Audiences show up for atmosphere and “hard survival” problem-solving, so tight rules and credible logistics matter more than quips.',
   },
 
   // Animation
   {
-    titlePatterns: ['Toy Friends', 'Playroom Patrol', 'Shelf Life', 'The Lost Plush'],
+    titlePatterns: ['Toybox Confidential', 'Playroom Patrol', 'Shelf Life', 'The Lost Plush'],
     genre: ['animation', 'comedy'],
     tone: 'light',
     parodySource: 'Toy Friends',
+    originMedium: 'toyline',
     tags: ['toys', 'friendship', 'growing up', 'secret life'],
     culturalWeight: 90,
     description:
       'A heart-forward animated franchise about loyalty, change, and the private world that exists when humans aren’t watching. The hook is emotional clarity: jokes land because the characters mean what they say, and the stakes are small but real. Fans expect warmth, memorable sidekicks, and a few scenes that unexpectedly devastate adults.',
   },
   {
-    titlePatterns: ['Green Ogre', 'Swamp Tales', 'Fairyland Fiasco', 'Once Upon a Mess'],
+    titlePatterns: ['Swamp & Swagger', 'Swamp Tales', 'Fairyland Fiasco', 'Once Upon a Mess'],
     genre: ['animation', 'comedy'],
     tone: 'comedic',
     parodySource: 'Swamp Ogre',
+    originMedium: 'animation',
     tags: ['fairy tales', 'parody', 'odd couple', 'road trip'],
     culturalWeight: 82,
     description:
@@ -203,10 +221,11 @@ const FRANCHISE_TEMPLATES: FranchiseTemplate[] = [
 
   // Sci-Fi / Action
   {
-    titlePatterns: ['Time Runner', 'Chrono Hunter', 'Future War', 'The Last Protocol'],
+    titlePatterns: ['Chrono Run', 'Chrono Hunter', 'Future War', 'The Last Protocol'],
     genre: ['sci-fi', 'action'],
     tone: 'serious',
     parodySource: 'Time Runner',
+    originMedium: 'film',
     tags: ['time travel', 'assassins', 'doomsday', 'paradox'],
     culturalWeight: 88,
     description:
@@ -217,6 +236,7 @@ const FRANCHISE_TEMPLATES: FranchiseTemplate[] = [
     genre: ['sci-fi', 'action'],
     tone: 'pulpy',
     parodySource: 'Auto Titans',
+    originMedium: 'toyline',
     tags: ['robots', 'alien war', 'transforming machines', 'spectacle'],
     culturalWeight: 80,
     description:
@@ -227,6 +247,7 @@ const FRANCHISE_TEMPLATES: FranchiseTemplate[] = [
     genre: ['sci-fi', 'action'],
     tone: 'dark',
     parodySource: 'Star Infantry',
+    originMedium: 'novel',
     tags: ['space marines', 'alien swarms', 'propaganda', 'survival'],
     culturalWeight: 73,
     description:
@@ -235,10 +256,11 @@ const FRANCHISE_TEMPLATES: FranchiseTemplate[] = [
 
   // Horror / Thriller
   {
-    titlePatterns: ['Kaiju Clash', 'City Breaker', 'Titanfall', 'Monster Horizon'],
+    titlePatterns: ['Monsterfall', 'City Breaker', 'Titanfall', 'Monster Horizon'],
     genre: ['sci-fi', 'horror'],
     tone: 'epic',
     parodySource: 'Kaiju Clash',
+    originMedium: 'film',
     tags: ['giant monsters', 'city destruction', 'ancient threats', 'military'],
     culturalWeight: 79,
     description:
@@ -249,6 +271,7 @@ const FRANCHISE_TEMPLATES: FranchiseTemplate[] = [
     genre: ['action', 'thriller'],
     tone: 'dark',
     parodySource: 'Wasteland Road',
+    originMedium: 'film',
     tags: ['post-apocalypse', 'convoys', 'scarcity', 'war rigs'],
     culturalWeight: 86,
     description:
@@ -259,6 +282,7 @@ const FRANCHISE_TEMPLATES: FranchiseTemplate[] = [
     genre: ['comedy', 'horror'],
     tone: 'comedic',
     parodySource: 'Specter Squad',
+    originMedium: 'film',
     tags: ['ghosts', 'gadgets', 'team comedy', 'city hauntings'],
     culturalWeight: 77,
     description:
@@ -269,6 +293,7 @@ const FRANCHISE_TEMPLATES: FranchiseTemplate[] = [
     genre: ['horror', 'thriller'],
     tone: 'dark',
     parodySource: 'Zombie Day',
+    originMedium: 'tv',
     tags: ['zombies', 'outbreak', 'survivors', 'siege'],
     culturalWeight: 69,
     description:
@@ -277,20 +302,22 @@ const FRANCHISE_TEMPLATES: FranchiseTemplate[] = [
 
   // Thriller / Crime
   {
-    titlePatterns: ['Casino Caper', 'Ocean Crew', 'The Big Score', 'Perfect Heist'],
+    titlePatterns: ['The Velvet Heist', 'Ocean Crew', 'The Big Score', 'Perfect Heist'],
     genre: ['crime', 'thriller'],
     tone: 'light',
     parodySource: 'Casino Caper',
+    originMedium: 'film',
     tags: ['heists', 'teams', 'cons', 'twists'],
     culturalWeight: 75,
     description:
       'A slick heist franchise where competence is the fantasy: elaborate plans, stylish outfits, and a twist you only see in hindsight. The audience shows up for chemistry, banter, and the “reveal” montage that makes the whole plot click. Stakes can be high, but the tone should feel like a fun puzzle rather than misery.',
   },
   {
-    titlePatterns: ['Consulting Detective', 'Baker Street', 'The Great Deduction', 'Casefile Zero'],
+    titlePatterns: ['The Consulting Detective', 'Baker Street', 'The Great Deduction', 'Casefile Zero'],
     genre: ['crime', 'drama'],
     tone: 'serious',
     parodySource: 'Consulting Detective',
+    originMedium: 'novel',
     tags: ['mystery', 'genius detective', 'cases', 'rival'],
     culturalWeight: 81,
     description:
@@ -303,6 +330,7 @@ const FRANCHISE_TEMPLATES: FranchiseTemplate[] = [
     genre: ['romance', 'fantasy'],
     tone: 'serious',
     parodySource: 'Midnight Hearts',
+    originMedium: 'novel',
     tags: ['vampires', 'romance', 'teen drama', 'forbidden love'],
     culturalWeight: 68,
     description:
@@ -313,6 +341,7 @@ const FRANCHISE_TEMPLATES: FranchiseTemplate[] = [
     genre: ['thriller', 'drama'],
     tone: 'serious',
     parodySource: 'Arena Trials',
+    originMedium: 'novel',
     tags: ['dystopia', 'survival games', 'rebellion', 'media spectacle'],
     culturalWeight: 82,
     description:
@@ -325,6 +354,7 @@ const FRANCHISE_TEMPLATES: FranchiseTemplate[] = [
     genre: ['action', 'crime'],
     tone: 'dark',
     parodySource: 'Dark Vigil',
+    originMedium: 'comic',
     tags: ['vigilante', 'city crime', 'gadgets', 'mythic hero'],
     culturalWeight: 91,
     description:
@@ -337,6 +367,7 @@ const FRANCHISE_TEMPLATES: FranchiseTemplate[] = [
     genre: ['fantasy', 'adventure'],
     tone: 'light',
     parodySource: 'Olympian Bloodlines',
+    originMedium: 'novel',
     tags: ['mythology', 'teen heroes', 'quests', 'prophecies'],
     culturalWeight: 70,
     description:
@@ -347,10 +378,68 @@ const FRANCHISE_TEMPLATES: FranchiseTemplate[] = [
     genre: ['thriller', 'drama'],
     tone: 'serious',
     parodySource: 'Frozen Edge',
+    originMedium: 'tv',
     tags: ['survival', 'isolation', 'mystery', 'extreme cold'],
     culturalWeight: 66,
     description:
       'A survival-thriller franchise where the environment is the antagonist and every decision has a cost. The appeal is pressure: limited supplies, unreliable communication, and mysteries that get worse the more you dig. Fans want grounded tactics, slow dread, and a payoff that feels inevitable rather than random.',
+  },
+
+  // New ideas (games / books)
+  {
+    titlePatterns: ['Neon Canopy', 'City Ghosts', 'Signal Hijack', 'Gridwalkers'],
+    genre: ['thriller', 'crime'],
+    tone: 'serious',
+    parodySource: 'Watch Dogs',
+    originMedium: 'game',
+    tags: ['hackers', 'surveillance', 'open world', 'vigilantes'],
+    culturalWeight: 72,
+    description:
+      'A modern techno-thriller about surveillance states, urban decay, and vigilantes who weaponize data. The appeal is contemporary tension: social engineering, close-call escapes, and the feeling that the city itself is a system you can exploit—or be trapped by.',
+  },
+  {
+    titlePatterns: ['Revelation Horizon', 'Sunfall Archive', 'The Inhibitor War', 'Lighthuggers'],
+    genre: ['sci-fi', 'thriller'],
+    tone: 'serious',
+    parodySource: 'Revelation Space',
+    originMedium: 'novel',
+    tags: ['hard sci-fi', 'ancient artifacts', 'posthuman', 'deep time'],
+    culturalWeight: 74,
+    description:
+      'A hard sci-fi franchise built on deep time, unsettling mysteries, and high-concept archaeology among the stars. Fans expect dense worldbuilding, morally gray factions, and cosmic threats that feel discovered rather than invented.',
+  },
+  {
+    titlePatterns: ['Omerta City', 'Made Men', 'Empire of Silence', 'The Old Neighborhood'],
+    genre: ['crime', 'drama'],
+    tone: 'serious',
+    parodySource: 'Mafia',
+    originMedium: 'game',
+    tags: ['prohibition', 'organized crime', 'period drama', 'loyalty'],
+    culturalWeight: 70,
+    description:
+      'A period crime saga about loyalty, ambition, and the long shadow of organized crime. The hook is atmosphere and consequence—every favor has a price, and every promotion creates a new enemy.',
+  },
+  {
+    titlePatterns: ['Callisto Blacksite', 'Red Moon Protocol', 'Containment Ward', 'Prison Orbit'],
+    genre: ['sci-fi', 'horror'],
+    tone: 'dark',
+    parodySource: 'The Callisto Protocol',
+    originMedium: 'game',
+    tags: ['space prison', 'body horror', 'outbreak', 'survival'],
+    culturalWeight: 67,
+    description:
+      'A brutal sci-fi horror franchise set in an off-world facility where containment fails and survival becomes the only objective. The audience expects relentless pressure, scarce resources, and visceral, close-quarters terror.',
+  },
+  {
+    titlePatterns: ['Jade Signal', 'Beyond the Veil', 'Conspiracy at Dawn', 'The Hybrid Truth'],
+    genre: ['adventure', 'sci-fi'],
+    tone: 'serious',
+    parodySource: 'Beyond Good & Evil',
+    originMedium: 'game',
+    tags: ['investigation', 'aliens', 'conspiracy', 'resistance'],
+    culturalWeight: 64,
+    description:
+      'A sci-fi adventure franchise about uncovering conspiracies, exposing propaganda, and assembling a ragtag resistance. The tone mixes danger with wonder—big mysteries, memorable allies, and a world that feels politically alive.',
   },
 ];
 
@@ -398,6 +487,7 @@ function buildFranchise(template: FranchiseTemplate, index: number): Franchise {
     tone: template.tone,
     parodySource: template.parodySource,
     inspirationLabel: template.inspirationLabel,
+    originMedium: template.originMedium,
     entries: [],
     status: franchiseStatusFromAge(ageYears),
     franchiseTags: [...template.tags],
