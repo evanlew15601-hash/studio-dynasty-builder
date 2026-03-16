@@ -15,6 +15,10 @@ This is a lightweight checklist to help ensure builds are reproducible and artif
 ## 3) Security
 
 - [ ] Review `src-tauri/tauri.conf.json` CSP (keep it as strict as possible)
+- [ ] Confirm debug/test UI is hidden in production builds
+  - Optional QA override: set `localStorage["studio-magnate-debug-ui"] = "1"`
+- [ ] Confirm noisy console logging is suppressed in production builds
+  - Optional QA override: set `localStorage["studio-magnate-verbose-logs"] = "1"`
 
 ## 4) Preflight
 

@@ -8,6 +8,7 @@ import { AIStudioManager, AIFilmProject, TalentCommitment } from './AIStudioMana
 import { AIStudioIntegrationTests } from './AIStudioIntegrationTests';
 import { Building, Film, Users, TrendingUp, Play, TestTube } from 'lucide-react';
 import { useGameStore } from '@/game/store';
+import { isDebugUiEnabled } from '@/utils/debugFlags';
 
 export const CompetitorMonitor: React.FC = () => {
   const [aiFilms, setAIFilms] = useState<AIFilmProject[]>([]);
@@ -27,12 +28,14 @@ export const CompetitorMonitor: React.FC = () => {
     setCommitments(AIStudioManager.getAllCommitments());
   }, [currentWeek, currentYear]);
 
-  // Auto-run tests once on mount to surface issues early (dev only)
+  const debugUiEnabled = isDebugUiEnabled();
+
+  // Auto-run tests once on mount to surface issues early (debug only)
   useEffect(() => {
-    if (!import.meta.env.DEV) return;
+    if (!debugUiEnabled) return;
     const results = AIStudioIntegrationTests.runAllTests();
     setTestResults(results);
-  }, []);
+  }, [debugUiEnabled]);
 
   const getStudioAIFilms = (studioId: string) => {
     return aiFilms.filter(f => f.studioId === studioId);
@@ -99,11 +102,11 @@ export const CompetitorMonitor: React.FC = () => {
       </Card>
 
       <Tabs defaultValue="studios">
-        <TabsList className="grid w-full grid-cols-4">
+        <TabsList className={`grid w-full ${debugUiEnabled ? 'grid-cols-4' : 'grid-cols-3'}`}>
           <TabsTrigger value="studios">Studios</TabsTrigger>
           <TabsTrigger value="films">AI Films</TabsTrigger>
           <TabsTrigger value="talent">Talent Activity</TabsTrigger>
-          <TabsTrigger value="testing">System Tests</TabsTrigger>
+          {debugUiEnabled && <TabsTrigger value="testing">System Tests</TabsTrigger>}
         </TabsList>
 
         <TabsContent value="studios" className="space-y-4">
@@ -336,92 +339,94 @@ export const CompetitorMonitor: React.FC = () => {
           </Card>
         </TabsContent>
 
-        <TabsContent value="testing" className="space-y-4">
-          <Card className="card-premium">
-            <CardHeader>
-              <CardTitle className="flex items-center">
-                <TestTube className="mr-2" size={20} />
-                AI Studio System Testing
-              </CardTitle>
-            </CardHeader>
-            <CardContent>
-              <div className="space-y-4">
-                <div className="flex items-center justify-between">
-                  <div>
-                    <h3 className="font-semibold">Integration Tests</h3>
-                    <p className="text-sm text-muted-foreground">
-                      Verify AI Studio system functionality
-                    </p>
+        {debugUiEnabled && (
+          <TabsContent value="testing" className="space-y-4">
+            <Card className="card-premium">
+              <CardHeader>
+                <CardTitle className="flex items-center">
+                  <TestTube className="mr-2" size={20} />
+                  AI Studio System Testing
+                </CardTitle>
+              </CardHeader>
+              <CardContent>
+                <div className="space-y-4">
+                  <div className="flex items-center justify-between">
+                    <div>
+                      <h3 className="font-semibold">Integration Tests</h3>
+                      <p className="text-sm text-muted-foreground">
+                        Verify AI Studio system functionality
+                      </p>
+                    </div>
+                    <Button onClick={runIntegrationTests} className="flex items-center gap-2">
+                      <Play size={16} />
+                      Run Tests
+                    </Button>
                   </div>
-                  <Button onClick={runIntegrationTests} className="flex items-center gap-2">
-                    <Play size={16} />
-                    Run Tests
-                  </Button>
-                </div>
 
-                {testResults && (
-                  <div className="p-4 rounded-lg border">
-                    <div className="flex items-center justify-between mb-3">
-                      <h4 className="font-semibold">Test Results</h4>
-                      <Badge variant={testResults.success ? 'default' : 'destructive'}>
-                        {testResults.passed}/{testResults.total} Passed
-                      </Badge>
-                    </div>
-                    
-                    <div className="text-sm">
-                      {testResults.success ? (
-                        <div className="text-green-600">
-                          All tests passed. AI Studio system is functioning correctly.
-                        </div>
-                      ) : (
-                        <div className="text-red-600">
-                          Some tests failed. Check console for details.
-                        </div>
-                      )}
-                    </div>
-                  </div>
-                )}
+                  {testResults && (
+                    <div className="p-4 rounded-lg border">
+                      <div className="flex items-center justify-between mb-3">
+                        <h4 className="font-semibold">Test Results</h4>
+                        <Badge variant={testResults.success ? 'default' : 'destructive'}>
+                          {testResults.passed}/{testResults.total} Passed
+                        </Badge>
+                      </div>
 
-                <div className="grid grid-cols-2 gap-4 text-sm">
-                  <div>
-                    <div className="font-medium mb-2">System Stats:</div>
-                    <div className="space-y-1 text-muted-foreground">
-                      <div>Total AI Films: {aiFilms.length}</div>
-                      <div>Active Commitments: {getActiveCommitments().length}</div>
-                      <div>Studios with Films: {new Set(aiFilms.map(f => f.studioId)).size}</div>
+                      <div className="text-sm">
+                        {testResults.success ? (
+                          <div className="text-green-600">
+                            All tests passed. AI Studio system is functioning correctly.
+                          </div>
+                        ) : (
+                          <div className="text-red-600">
+                            Some tests failed. Check console for details.
+                          </div>
+                        )}
+                      </div>
                     </div>
-                  </div>
-                  <div>
-                    <div className="font-medium mb-2">Quick Actions:</div>
-                    <div className="space-y-2">
-                      <Button 
-                        size="sm" 
-                        variant="outline" 
-                        onClick={() => {
-                          console.log('AI Films:', AIStudioManager.getAllAIFilms());
-                          console.log('Commitments:', AIStudioManager.getAllCommitments());
-                        }}
-                      >
-                        Log System Data
-                      </Button>
-                      <Button 
-                        size="sm" 
-                        variant="outline"
-                        onClick={() => {
-                          AIStudioManager.resetAISystem();
-                          setAIFilms([]);
-                          setCommitments([]);
-                        }}
-                      >
-                        Reset System
-                      </Button>
+                  )}
+
+                  <div className="grid grid-cols-2 gap-4 text-sm">
+                    <div>
+                      <div className="font-medium mb-2">System Stats:</div>
+                      <div className="space-y-1 text-muted-foreground">
+                        <div>Total AI Films: {aiFilms.length}</div>
+                        <div>Active Commitments: {getActiveCommitments().length}</div>
+                        <div>Studios with Films: {new Set(aiFilms.map(f => f.studioId)).size}</div>
+                      </div>
+                    </div>
+                    <div>
+                      <div className="font-medium mb-2">Quick Actions:</div>
+                      <div className="space-y-2">
+                        <Button
+                          size="sm"
+                          variant="outline"
+                          onClick={() => {
+                            console.log('AI Films:', AIStudioManager.getAllAIFilms());
+                            console.log('Commitments:', AIStudioManager.getAllCommitments());
+                          }}
+                        >
+                          Log System Data
+                        </Button>
+                        <Button
+                          size="sm"
+                          variant="outline"
+                          onClick={() => {
+                            AIStudioManager.resetAISystem();
+                            setAIFilms([]);
+                            setCommitments([]);
+                          }}
+                        >
+                          Reset System
+                        </Button>
+                      </div>
                     </div>
                   </div>
                 </div>
-              </div>
-            </CardContent>
-          </Card>
-        </TabsContent>
+              </CardContent>
+            </Card>
+          </TabsContent>
+        )}
       </Tabs>
     </div>
   );

@@ -105,6 +105,7 @@ export function useOnlineLeagueTickGate({
 
   const pollRef = useRef<number | null>(null);
   const lastSeenUpdateRef = useRef(0);
+  const pollFailureCountRef = useRef(0);
 
   useEffect(() => {
     if (!enabled) {
@@ -250,100 +251,129 @@ export function useOnlineLeagueTickGate({
     if (status !== 'ready') return;
 
     const poll = async () => {
-      const now = Date.now();
+      try {
+        const now = Date.now();
 
-      if (now - lastSeenUpdateRef.current > 15_000) {
-        lastSeenUpdateRef.current = now;
-        supabase
-          .from('online_league_members')
-          .update({ last_seen_at: new Date().toISOString() })
+        if (now - lastSeenUpdateRef.current > 15_000) {
+          lastSeenUpdateRef.current = now;
+          supabase
+            .from('online_league_members')
+            .update({ last_seen_at: new Date().toISOString() })
+            .eq('league_id', leagueId)
+            .eq('user_id', userId);
+        }
+
+        const clockRes = await supabase
+          .from('online_league_clock')
+          .select('turn')
           .eq('league_id', leagueId)
-          .eq('user_id', userId);
-      }
+          .maybeSingle();
 
-      const clockRes = await supabase
-        .from('online_league_clock')
-        .select('turn')
-        .eq('league_id', leagueId)
-        .maybeSingle();
+        if (clockRes.error || !clockRes.data) {
+          throw new Error(clockRes.error?.message || 'clock poll failed');
+        }
 
-      if (clockRes.error || !clockRes.data) return;
+        const nextTurn = clockRes.data.turn ?? 0;
+        setTurn(nextTurn);
 
-      const nextTurn = clockRes.data.turn ?? 0;
-      setTurn(nextTurn);
+        if (appliedTurnRef.current === null) {
+          appliedTurnRef.current = nextTurn;
+        }
 
-      if (appliedTurnRef.current === null) {
-        appliedTurnRef.current = nextTurn;
-      }
+        const membersRes = await supabase
+          .from('online_league_members')
+          .select('user_id, studio_name, last_seen_at')
+          .eq('league_id', leagueId);
 
-      const membersRes = await supabase
-        .from('online_league_members')
-        .select('user_id, studio_name, last_seen_at')
-        .eq('league_id', leagueId);
+        if (membersRes.error) {
+          throw new Error(membersRes.error.message || 'members poll failed');
+        }
 
-      const memberRows = membersRes.data || [];
-      setMemberCount(memberRows.length);
+        const memberRows = membersRes.data || [];
+        setMemberCount(memberRows.length);
 
-      const snapshotsRes = await supabase
-        .from('online_league_snapshots')
-        .select('user_id, studio_name, reputation, week, year, released_titles, updated_at')
-        .eq('league_id', leagueId);
+        const snapshotsRes = await supabase
+          .from('online_league_snapshots')
+          .select('user_id, studio_name, reputation, week, year, released_titles, updated_at')
+          .eq('league_id', leagueId);
 
-      const snapshotByUserId = new Map<string, { studio_name: string; reputation: number; week?: number; year?: number; released_titles?: number; updated_at?: string }>();
-      for (const row of snapshotsRes.data || []) {
-        snapshotByUserId.set(row.user_id, {
-          studio_name: row.studio_name,
-          reputation: row.reputation,
-          week: row.week,
-          year: row.year,
-          released_titles: row.released_titles,
-          updated_at: row.updated_at,
-        });
-      }
+        if (snapshotsRes.error) {
+          throw new Error(snapshotsRes.error.message || 'snapshots poll failed');
+        }
 
-      const otherStudios: OnlineLeagueTickGateRemoteStudio[] = memberRows
-        .filter((m) => m.user_id !== userId)
-        .map((m) => {
-          const snap = snapshotByUserId.get(m.user_id);
-          return {
-            userId: m.user_id,
-            studioName: snap?.studio_name || m.studio_name,
-            reputation: Number(snap?.reputation ?? 0),
-            week: snap?.week,
-            year: snap?.year,
-            releasedTitles: Number(snap?.released_titles ?? 0),
-            updatedAt: snap?.updated_at,
-            lastSeenAt: m.last_seen_at,
-          };
-        });
+        const snapshotByUserId = new Map<string, { studio_name: string; reputation: number; week?: number; year?: number; released_titles?: number; updated_at?: string }>();
+        for (const row of snapshotsRes.data || []) {
+          snapshotByUserId.set(row.user_id, {
+            studio_name: row.studio_name,
+            reputation: row.reputation,
+            week: row.week,
+            year: row.year,
+            released_titles: row.released_titles,
+            updated_at: row.updated_at,
+          });
+        }
 
-      setRemoteStudios(otherStudios);
+        const otherStudios: OnlineLeagueTickGateRemoteStudio[] = memberRows
+          .filter((m) => m.user_id !== userId)
+          .map((m) => {
+            const snap = snapshotByUserId.get(m.user_id);
+            return {
+              userId: m.user_id,
+              studioName: snap?.studio_name || m.studio_name,
+              reputation: Number(snap?.reputation ?? 0),
+              week: snap?.week,
+              year: snap?.year,
+              releasedTitles: Number(snap?.released_titles ?? 0),
+              updatedAt: snap?.updated_at,
+              lastSeenAt: m.last_seen_at,
+            };
+          });
 
-      const nextReadyTurn = nextTurn + 1;
+        setRemoteStudios(otherStudios);
 
-      const readyCountRes = await supabase
-        .from('online_league_ready')
-        .select('user_id', { count: 'exact', head: true })
-        .eq('league_id', leagueId)
-        .eq('ready_for_turn', nextReadyTurn);
+        const nextReadyTurn = nextTurn + 1;
 
-      setReadyCount(readyCountRes.count ?? 0);
+        const readyCountRes = await supabase
+          .from('online_league_ready')
+          .select('user_id', { count: 'exact', head: true })
+          .eq('league_id', leagueId)
+          .eq('ready_for_turn', nextReadyTurn);
 
-      // Self ready state
-      const selfReadyRes = await supabase
-        .from('online_league_ready')
-        .select('ready_for_turn')
-        .eq('league_id', leagueId)
-        .eq('user_id', userId)
-        .maybeSingle();
+        if (readyCountRes.error) {
+          throw new Error(readyCountRes.error.message || 'ready count poll failed');
+        }
 
-      const selfReadyForTurn = selfReadyRes.data?.ready_for_turn ?? 0;
-      setIsReady(selfReadyForTurn === nextReadyTurn);
+        setReadyCount(readyCountRes.count ?? 0);
 
-      // Apply remote turn advancement (at most one step per poll cycle)
-      if (appliedTurnRef.current !== null && nextTurn > appliedTurnRef.current) {
-        appliedTurnRef.current += 1;
-        onTurnAdvanced(appliedTurnRef.current, { leagueId, isHost });
+        // Self ready state
+        const selfReadyRes = await supabase
+          .from('online_league_ready')
+          .select('ready_for_turn')
+          .eq('league_id', leagueId)
+          .eq('user_id', userId)
+          .maybeSingle();
+
+        if (selfReadyRes.error) {
+          throw new Error(selfReadyRes.error.message || 'self ready poll failed');
+        }
+
+        const selfReadyForTurn = selfReadyRes.data?.ready_for_turn ?? 0;
+        setIsReady(selfReadyForTurn === nextReadyTurn);
+
+        pollFailureCountRef.current = 0;
+        setError((prev) => (prev === 'Online league connection failed. Try again in a moment.' ? null : prev));
+
+        // Apply remote turn advancement (at most one step per poll cycle)
+        if (appliedTurnRef.current !== null && nextTurn > appliedTurnRef.current) {
+          appliedTurnRef.current += 1;
+          onTurnAdvanced(appliedTurnRef.current, { leagueId, isHost });
+        }
+      } catch (e) {
+        pollFailureCountRef.current += 1;
+
+        if (pollFailureCountRef.current >= 3) {
+          setError('Online league connection failed. Try again in a moment.');
+        }
       }
     };
 
