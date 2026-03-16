@@ -3,6 +3,16 @@ import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
+import {
+  AlertDialog,
+  AlertDialogAction,
+  AlertDialogCancel,
+  AlertDialogContent,
+  AlertDialogDescription,
+  AlertDialogFooter,
+  AlertDialogHeader,
+  AlertDialogTitle,
+} from '@/components/ui/alert-dialog';
 import { ScrollArea } from '@/components/ui/scroll-area';
 import { AIStudioManager, AIFilmProject, TalentCommitment } from './AIStudioManager';
 import { AIStudioIntegrationTests } from './AIStudioIntegrationTests';
@@ -14,6 +24,7 @@ export const CompetitorMonitor: React.FC = () => {
   const [aiFilms, setAIFilms] = useState<AIFilmProject[]>([]);
   const [commitments, setCommitments] = useState<TalentCommitment[]>([]);
   const [testResults, setTestResults] = useState<any>(null);
+  const [resetAiConfirmOpen, setResetAiConfirmOpen] = useState(false);
 
   const game = useGameStore((s) => s.game);
 
@@ -58,7 +69,33 @@ export const CompetitorMonitor: React.FC = () => {
   }
 
   return (
-    <div className="space-y-6">
+    <>
+      <AlertDialog open={resetAiConfirmOpen} onOpenChange={setResetAiConfirmOpen}>
+        <AlertDialogContent>
+          <AlertDialogHeader>
+            <AlertDialogTitle>Reset AI system?</AlertDialogTitle>
+            <AlertDialogDescription>
+              This clears AI studios, films, and talent commitments for this session.
+            </AlertDialogDescription>
+          </AlertDialogHeader>
+          <AlertDialogFooter>
+            <AlertDialogCancel>Cancel</AlertDialogCancel>
+            <AlertDialogAction
+              className="bg-destructive text-destructive-foreground hover:bg-destructive/90"
+              onClick={() => {
+                setResetAiConfirmOpen(false);
+                AIStudioManager.resetAISystem();
+                setAIFilms([]);
+                setCommitments([]);
+              }}
+            >
+              Reset
+            </AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
+
+      <div className="space-y-6">
       {/* **CHECKPOINT 3**: System Overview */}
       <Card className="card-premium">
         <CardHeader>
@@ -411,11 +448,7 @@ export const CompetitorMonitor: React.FC = () => {
                         <Button
                           size="sm"
                           variant="outline"
-                          onClick={() => {
-                            AIStudioManager.resetAISystem();
-                            setAIFilms([]);
-                            setCommitments([]);
-                          }}
+                          onClick={() => setResetAiConfirmOpen(true)}
                         >
                           Reset System
                         </Button>
@@ -428,6 +461,7 @@ export const CompetitorMonitor: React.FC = () => {
           </TabsContent>
         )}
       </Tabs>
-    </div>
+      </div>
+    </>
   );
 };

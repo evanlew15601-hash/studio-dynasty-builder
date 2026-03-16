@@ -3,6 +3,16 @@ import React, { useState, useEffect } from 'react';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
+import {
+  AlertDialog,
+  AlertDialogAction,
+  AlertDialogCancel,
+  AlertDialogContent,
+  AlertDialogDescription,
+  AlertDialogFooter,
+  AlertDialogHeader,
+  AlertDialogTitle,
+} from '@/components/ui/alert-dialog';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { Switch } from '@/components/ui/switch';
 import { AIStudioManager, TalentCommitment } from './AIStudioManager';
@@ -27,6 +37,7 @@ export const TalentMarketplace: React.FC<TalentMarketplaceProps> = ({
   const [showAvailableOnly, setShowAvailableOnly] = useState(false);
   const [selectedRole, setSelectedRole] = useState<string>('all');
   const [commitments, setCommitments] = useState<TalentCommitment[]>([]);
+  const [resetAiConfirmOpen, setResetAiConfirmOpen] = useState(false);
 
   // **CHECKPOINT 2 TEST**: Load talent commitments
   useEffect(() => {
@@ -87,7 +98,32 @@ export const TalentMarketplace: React.FC<TalentMarketplaceProps> = ({
   const filteredTalent = getFilteredTalent();
 
   return (
-    <div className="space-y-6">
+    <>
+      <AlertDialog open={resetAiConfirmOpen} onOpenChange={setResetAiConfirmOpen}>
+        <AlertDialogContent>
+          <AlertDialogHeader>
+            <AlertDialogTitle>Reset AI system?</AlertDialogTitle>
+            <AlertDialogDescription>
+              This clears AI studios, films, and talent commitments for this session.
+            </AlertDialogDescription>
+          </AlertDialogHeader>
+          <AlertDialogFooter>
+            <AlertDialogCancel>Cancel</AlertDialogCancel>
+            <AlertDialogAction
+              className="bg-destructive text-destructive-foreground hover:bg-destructive/90"
+              onClick={() => {
+                setResetAiConfirmOpen(false);
+                AIStudioManager.resetAISystem();
+                setCommitments([]);
+              }}
+            >
+              Reset
+            </AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
+
+      <div className="space-y-6">
       {/* **CHECKPOINT 2 TEST**: Market controls */}
       <Card className="card-premium">
         <CardHeader>
@@ -283,10 +319,7 @@ export const TalentMarketplace: React.FC<TalentMarketplaceProps> = ({
               <Button 
                 size="sm" 
                 variant="outline"
-                onClick={() => {
-                  AIStudioManager.resetAISystem();
-                  setCommitments([]);
-                }}
+                onClick={() => setResetAiConfirmOpen(true)}
               >
                 Reset AI System
               </Button>
@@ -294,6 +327,7 @@ export const TalentMarketplace: React.FC<TalentMarketplaceProps> = ({
           </CardContent>
         </Card>
       )}
-    </div>
+      </div>
+    </>
   );
 };

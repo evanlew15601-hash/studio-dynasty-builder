@@ -87,6 +87,10 @@ export function SaveLoadDialog(props: {
   const [deleteConfirmOpen, setDeleteConfirmOpen] = useState(false);
   const [deleteSlotId, setDeleteSlotId] = useState<string>('');
 
+  const [importOverwriteOpen, setImportOverwriteOpen] = useState(false);
+  const [importOverwriteTarget, setImportOverwriteTarget] = useState<string>('');
+  const pendingImportFileRef = useRef<File | null>(null);
+
   const importFileRef = useRef<HTMLInputElement | null>(null);
 
   const normalizedActiveSlot = useMemo(
@@ -130,6 +134,9 @@ export function SaveLoadDialog(props: {
     if (!props.open) {
       setDeleteConfirmOpen(false);
       setDeleteSlotId('');
+      setImportOverwriteOpen(false);
+      setImportOverwriteTarget('');
+      pendingImportFileRef.current = null;
       return;
     }
 
@@ -284,11 +291,7 @@ export function SaveLoadDialog(props: {
     downloadJson(`studio-magnate-${activeModSlot}-${normalized}.json`, JSON.stringify(snapshot, null, 2));
   };
 
-  const handleImportFilePicked = async (file: File | null) => {
-    if (!file) return;
-
-    const targetSlot = normalizeSlotId(newSlotId) || normalizedActiveSlot;
-
+  const importSnapshotFromFile = async (file: File, targetSlot: string) => {
     try {
       const raw = await file.text();
       const parsed = JSON.parse(raw) as SaveGameSnapshot;
@@ -354,6 +357,40 @@ export function SaveLoadDialog(props: {
     }
   };
 
+  const handleImportFilePicked = async (file: File | null) => {
+    if (!file) return;
+
+    const targetSlot = normalizeSlotId(newSlotId) || normalizedActiveSlot;
+    const alreadyExists = slots.some((s) => s.slotId === targetSlot);
+
+    if (alreadyExists) {
+      pendingImportFileRef.current = file;
+      setImportOverwriteTarget(targetSlot);
+      setImportOverwriteOpen(true);
+      return;
+    }
+
+    await importSnapshotFromFile(file, targetSlot);
+  };
+
+  const handleConfirmImportOverwrite = async () => {
+    const file = pendingImportFileRef.current;
+    const target = importOverwriteTarget;
+
+    setImportOverwriteOpen(false);
+    setImportOverwriteTarget('');
+    pendingImportFileRef.current = null;
+
+    if (!file || !target) return;
+    await importSnapshotFromFile(file, target);
+  };
+
+  const handleCancelImportOverwrite = () => {
+    setImportOverwriteOpen(false);
+    setImportOverwriteTarget('');
+    pendingImportFileRef.current = null;
+  };
+
   return (
     <>
       <AlertDialog open={deleteConfirmOpen} onOpenChange={setDeleteConfirmOpen}>
@@ -371,6 +408,35 @@ export function SaveLoadDialog(props: {
               onClick={() => void handleConfirmDelete()}
             >
               Delete
+            </AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
+
+      <AlertDialog
+        open={importOverwriteOpen}
+        onOpenChange={(open) => {
+          if (!open) {
+            handleCancelImportOverwrite();
+            return;
+          }
+          setImportOverwriteOpen(true);
+        }}
+      >
+        <AlertDialogContent>
+          <AlertDialogHeader>
+            <AlertDialogTitle>Overwrite save slot?</AlertDialogTitle>
+            <AlertDialogDescription>
+              Importing will overwrite the existing save slot "{importOverwriteTarget}" (DB: {activeModSlot}).
+            </AlertDialogDescription>
+          </AlertDialogHeader>
+          <AlertDialogFooter>
+            <AlertDialogCancel onClick={handleCancelImportOverwrite}>Cancel</AlertDialogCancel>
+            <AlertDialogAction
+              className="bg-destructive text-destructive-foreground hover:bg-destructive/90"
+              onClick={() => void handleConfirmImportOverwrite()}
+            >
+              Overwrite
             </AlertDialogAction>
           </AlertDialogFooter>
         </AlertDialogContent>
