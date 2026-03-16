@@ -4,6 +4,7 @@ import { Button } from '@/components/ui/button';
 import { Card, CardContent } from '@/components/ui/card';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle } from '@/components/ui/dialog';
 import { ScrollArea } from '@/components/ui/scroll-area';
 import { useToast } from '@/hooks/use-toast';
@@ -30,6 +31,7 @@ type SaveSlotRow = {
   week?: number;
   year?: number;
   version?: string;
+  modSlotId?: string;
 };
 
 function formatSlotLabel(row: SaveSlotRow): string {
@@ -64,7 +66,8 @@ export function SaveLoadDialog(props: {
 }) {
   const { toast } = useToast();
 
-  const [activeSlot, setActiveSlot] = useState(getActiveSaveSlotId());
+  const [activeModSlot, setActiveModSlotState] = useState(getActiveModSlot());
+  const [activeSlot, setActiveSlot] = useState(getActiveSaveSlotId(activeModSlot));
   const [newSlotId, setNewSlotId] = useState('');
   const [savesDir, setSavesDir] = useState<string | null>(null);
 
@@ -73,18 +76,23 @@ export function SaveLoadDialog(props: {
 
   const importFileRef = useRef<HTMLInputElement | null>(null);
 
-  const normalizedActiveSlot = useMemo(() => normalizeSlotId(activeSlot) || getActiveSaveSlotId(), [activeSlot]);
+  const normalizedActiveSlot = useMemo(
+    () => normalizeSlotId(activeSlot) || getActiveSaveSlotId(activeModSlot),
+    [activeSlot, activeModSlot]
+  );
 
-  const refreshSlots = async () => {
+  const refreshSlots = async (modSlotOverride?: string) => {
+    const modSlot = modSlotOverride ?? activeModSlot;
+
     setLoading(true);
     try {
-      const slotIds = await listSaveSlotsAsync();
+      const slotIds = await listSaveSlotsAsync(modSlot);
       const rows: SaveSlotRow[] = [];
 
       for (const slotId of slotIds) {
-        const snapshot = await loadGameAsync(slotId);
+        const snapshot = await loadGameAsync(slotId, modSlot);
         if (!snapshot) {
-          rows.push({ slotId });
+          rows.push({ slotId, modSlotId: modSlot });
           continue;
         }
 
@@ -92,7 +100,7 @@ export function SaveLoadDialog(props: {
           slotId,
           savedAt: snapshot.meta?.savedAt,
           version: snapshot.meta?.version,
-          modSlotId: snapshot.meta?.modSlotId,
+          modSlotId: snapshot.meta?.modSlotId ?? modSlot,
           studioName: snapshot.gameState?.studio?.name,
           week: snapshot.gameState?.currentWeek,
           year: snapshot.gameState?.currentYear,
@@ -108,8 +116,10 @@ export function SaveLoadDialog(props: {
   useEffect(() => {
     if (!props.open) return;
 
-    setActiveSlot(getActiveSaveSlotId());
-    void refreshSlots();
+    const slot = getActiveModSlot();
+    setActiveModSlotState(slot);
+    setActiveSlot(getActiveSaveSlotId(slot));
+    void refreshSlots(slot);
 
     void (async () => {
       const dir = await getSavesDirAsync();
@@ -118,11 +128,28 @@ export function SaveLoadDialog(props: {
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [props.open]);
 
+  const handleModSlotChange = (slotId: string) => {
+    if (props.currentGameState) return;
+
+    setActiveModSlot(slotId);
+    setActiveModSlotState(slotId);
+
+    const slot = getActiveSaveSlotId(slotId);
+    setActiveSlot(slot);
+
+    void refreshSlots(slotId);
+
+    toast({
+      title: 'Database selected',
+      description: `Now viewing saves for "${slotId}".`,
+    });
+  };
+
   const handleSetActiveSlot = (slotId: string) => {
     const normalized = normalizeSlotId(slotId);
     if (!normalized) return;
 
-    setActiveSaveSlotId(normalized);
+    setActiveSaveSlotId(normalized, activeModSlot);
     setActiveSlot(normalized);
 
     toast({
@@ -138,13 +165,18 @@ export function SaveLoadDialog(props: {
     if (!normalized) return;
 
     try {
-      setActiveSaveSlotId(normalized);
+      setActiveSaveSlotId(normalized, activeModSlot);
       setActiveSlot(normalized);
 
-      await saveGameAsync(normalized, props.currentGameState, {
-        currentPhase: props.currentPhase,
-        unlockedAchievementIds: props.unlockedAchievementIds,
-      });
+      await saveGameAsync(
+        normalized,
+        props.currentGameState,
+        {
+          currentPhase: props.currentPhase,
+          unlockedAchievementIds: props.unlockedAchievementIds,
+        },
+        activeModSlot
+      );
 
       toast({ title: 'Game Saved', description: `Saved to "${normalized}".` });
       await refreshSlots();
@@ -162,7 +194,7 @@ export function SaveLoadDialog(props: {
     const normalized = normalizeSlotId(slotId);
     if (!normalized) return;
 
-    const snapshot = await loadGameAsync(normalized);
+    const snapshot = await loadGameAsync(normalized, activeModSlot);
     if (!snapshot) {
       toast({
         title: 'No save found',
@@ -187,6 +219,7 @@ export function SaveLoadDialog(props: {
         }
 
         setActiveModSlot(requiredModSlot);
+        setActiveModSlotState(requiredModSlot);
         toast({
           title: 'Mod database switched',
           description: `Now using mod slot "${requiredModSlot}".`,
@@ -203,7 +236,9 @@ export function SaveLoadDialog(props: {
       });
     }
 
-    setActiveSaveSlotId(normalized);
+    const saveModSlot = requiredModSlot || activeModSlot;
+
+    setActiveSaveSlotId(normalized, saveModSlot);
     setActiveSlot(normalized);
 
     props.onLoaded(snapshot);
@@ -214,10 +249,10 @@ export function SaveLoadDialog(props: {
     const normalized = normalizeSlotId(slotId);
     if (!normalized) return;
 
-    await deleteGameAsync(normalized);
+    await deleteGameAsync(normalized, activeModSlot);
 
     if (normalized === normalizedActiveSlot) {
-      setActiveSaveSlotId(DEFAULT_SAVE_SLOT_ID);
+      setActiveSaveSlotId(DEFAULT_SAVE_SLOT_ID, activeModSlot);
       setActiveSlot(DEFAULT_SAVE_SLOT_ID);
     }
 
@@ -229,7 +264,7 @@ export function SaveLoadDialog(props: {
     const normalized = normalizeSlotId(slotId);
     if (!normalized) return;
 
-    const snapshot = await loadGameAsync(normalized);
+    const snapshot = await loadGameAsync(normalized, activeModSlot);
     if (!snapshot) {
       toast({
         title: 'No save found',
@@ -239,7 +274,7 @@ export function SaveLoadDialog(props: {
       return;
     }
 
-    downloadJson(`studio-magnate-${normalized}.json`, JSON.stringify(snapshot, null, 2));
+    downloadJson(`studio-magnate-${activeModSlot}-${normalized}.json`, JSON.stringify(snapshot, null, 2));
   };
 
   const handleImportFilePicked = async (file: File | null) => {
@@ -260,17 +295,34 @@ export function SaveLoadDialog(props: {
         return;
       }
 
-      await saveSnapshotAsync(targetSlot, parsed);
-      setActiveSaveSlotId(targetSlot);
+      const importModSlot = parsed.meta?.modSlotId || activeModSlot;
+
+      if (parsed.meta?.modSlotId) {
+        const available = listModSlots();
+        if (!available.includes(importModSlot)) {
+          toast({
+            title: 'Missing mod database',
+            description: `This save belongs to mod slot "${importModSlot}", but that slot doesn't exist on this device. Import/create it in Mods first.`,
+            variant: 'destructive',
+          });
+          return;
+        }
+
+        setActiveModSlot(importModSlot);
+        setActiveModSlotState(importModSlot);
+      }
+
+      await saveSnapshotAsync(targetSlot, parsed, importModSlot);
+      setActiveSaveSlotId(targetSlot, importModSlot);
       setActiveSlot(targetSlot);
 
       toast({
         title: 'Imported',
-        description: `Imported into "${targetSlot}".`,
+        description: `Imported into "${targetSlot}" (DB: ${importModSlot}).`,
       });
 
       setNewSlotId('');
-      await refreshSlots();
+      await refreshSlots(importModSlot);
     } catch (error) {
       console.error('Import failed', error);
       toast({
@@ -296,6 +348,25 @@ export function SaveLoadDialog(props: {
         <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
           <Card className="card-premium">
             <CardContent className="pt-6 space-y-3">
+              <div className="space-y-2">
+                <Label>Database</Label>
+                <Select value={activeModSlot} onValueChange={handleModSlotChange}>
+                  <SelectTrigger disabled={!!props.currentGameState}>
+                    <SelectValue placeholder="Select database" />
+                  </SelectTrigger>
+                  <SelectContent>
+                    {listModSlots().map((slot) => (
+                      <SelectItem key={slot} value={slot}>
+                        {slot}
+                      </SelectItem>
+                    ))}
+                  </SelectContent>
+                </Select>
+                <div className="text-xs text-muted-foreground">
+                  TEW-style: saves are separated per database.
+                </div>
+              </div>
+
               <div className="space-y-2">
                 <Label htmlFor="active-slot">Active slot</Label>
                 <div className="flex gap-2">
@@ -413,7 +484,7 @@ export function SaveLoadDialog(props: {
             <CardContent className="pt-6 space-y-3">
               <div className="flex items-center justify-between">
                 <div className="text-sm font-semibold">Existing saves</div>
-                <Button type="button" size="sm" variant="secondary" disabled={loading} onClick={() => void refreshSlots()}>
+                <Button type="button" size="sm" variant="secondary" disabled={loading} onClick={() => void refreshSlots(activeModSlot)}>
                   Refresh
                 </Button>
               </div>

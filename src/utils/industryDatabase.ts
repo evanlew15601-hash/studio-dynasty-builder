@@ -8,6 +8,9 @@ import type {
   TvShowDbRecord,
 } from '@/types/industryDatabase';
 
+import { getActiveModSlot } from '@/utils/moddingStore';
+import { normalizeSlotId } from '@/utils/saveLoad';
+
 export interface StorageLike {
   getItem(key: string): string | null;
   setItem(key: string, value: string): void;
@@ -16,7 +19,11 @@ export interface StorageLike {
 
 const DB_VERSION = 2 as const;
 
-const keyForSlot = (slotId: string) => `studio-magnate-industry-db-${DB_VERSION}-${slotId}`;
+const keyForSlot = (slotId: string, modSlotId?: string) => {
+  const db = normalizeSlotId(modSlotId ?? getActiveModSlot()) || 'default';
+  const slot = normalizeSlotId(slotId);
+  return `studio-magnate-industry-db-${DB_VERSION}-${db}-${slot}`;
+};
 
 export function createEmptyIndustryDatabase(): IndustryDatabase {
   return {

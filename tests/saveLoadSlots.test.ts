@@ -11,7 +11,7 @@ import {
   setActiveSaveSlotId,
   type SaveGameSnapshot,
 } from '@/utils/saveLoad';
-import { invalidateModBundleCache } from '@/utils/moddingStore';
+import { invalidateModBundleCache, setActiveModSlot } from '@/utils/moddingStore';
 
 type LocalStorageMock = {
   length: number;
@@ -121,5 +121,27 @@ describe('saveLoad slots', () => {
 
     expect(loaded?.meta.modSlotId).toBe('default');
     expect(loaded?.meta.modBundleHash).toMatch(/^[0-9a-f]{8}$/);
+  });
+
+  it('partitions saves by mod slot (database)', async () => {
+    const a = makeSnapshot();
+    a.gameState.studio.name = 'DB-A';
+    await saveSnapshotAsync('slot1', a);
+
+    setActiveModSlot('my-mod');
+    invalidateModBundleCache();
+
+    const b = makeSnapshot();
+    b.gameState.studio.name = 'DB-B';
+    await saveSnapshotAsync('slot1', b);
+
+    expect(await listSaveSlotsAsync()).toEqual(['slot1']);
+    expect(await listSaveSlotsAsync('default')).toEqual(['slot1']);
+
+    const loadedA = loadGame('slot1', 'default');
+    const loadedB = loadGame('slot1', 'my-mod');
+
+    expect(loadedA?.gameState.studio.name).toBe('DB-A');
+    expect(loadedB?.gameState.studio.name).toBe('DB-B');
   });
 });

@@ -6,6 +6,7 @@ import { useToast } from '@/hooks/use-toast';
 import { AwardShowCeremony } from '@/components/game/IndividualAwardShowModal';
 import { stablePick } from '@/utils/stablePick';
 import { MediaEngine } from '@/components/game/MediaEngine';
+import { logDebug } from '@/utils/logger';
 
 // Headless awards season engine: runs nominations and ceremonies regardless of UI phase
 export function useAwardsEngine(
@@ -277,7 +278,7 @@ export function useAwardsEngine(
       MediaEngine.processMediaEvents(gameState);
     }
 
-    console.log(`[AwardsEngine] ${show.name} nominations announced for Y${gameState.currentYear}`);
+    logDebug(`[AwardsEngine] ${show.name} nominations announced for Y${gameState.currentYear}`);
     toast({
       title: `${show.name} Nominations Announced`,
       description: `Top contenders selected across ${categories.length} categories.`,
@@ -502,7 +503,7 @@ export function useAwardsEngine(
         });
       }
 
-      console.log(
+      logDebug(
         `[AwardsEngine] ${ceremonyName} ceremony processed for Y${gameState.currentYear} (awards: ${flatForModal.length})`
       );
       toast({
@@ -518,7 +519,7 @@ export function useAwardsEngine(
       setProcessedCeremonies(new Set());
       setSeasonNominations({});
       setSeasonMomentum({});
-      console.log(`[AwardsEngine] Reset season state for Y${gameState.currentYear}`);
+      logDebug(`[AwardsEngine] Reset season state for Y${gameState.currentYear}`);
     }
   }, [gameState.currentYear, gameState.currentWeek]);
 
