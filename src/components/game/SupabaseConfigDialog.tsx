@@ -104,7 +104,7 @@ export function SupabaseConfigDialog(props: { open: boolean; onOpenChange: (open
               type="password"
             />
             <div className="text-xs text-muted-foreground">
-              This is the public anon key from your Supabase project (Settings -> API).
+              This is the public anon key from your Supabase project (Settings -{'>'} API).
             </div>
           </div>
         </div>

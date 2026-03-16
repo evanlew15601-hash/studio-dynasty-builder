@@ -526,7 +526,7 @@ export const OnlineLeague: React.FC<OnlineLeagueProps> = ({ initialLeagueCode })
               Online League requires Supabase settings.
             </p>
             <p>
-              If you’re running the desktop app, configure it from the main menu (Online -> Configure…). If you’re developing locally, you can also set <code>VITE_SUPABASE_URL</code> and <code>VITE_SUPABASE_ANON_KEY</code> in <code>.env</code>.
+              If you’re running the desktop app, configure it from the main menu (Online -{'>'} Configure…). If you’re developing locally, you can also set <code>VITE_SUPABASE_URL</code> and <code>VITE_SUPABASE_ANON_KEY</code> in <code>.env</code>.
             </p>
           </CardContent>
         </Card>
