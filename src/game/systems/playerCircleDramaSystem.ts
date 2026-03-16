@@ -1,5 +1,6 @@
 import type { GameEvent, GameState, Project, TalentPerson } from '@/types/game';
 import type { TickSystem } from '../core/types';
+import { MediaSourceGenerator } from '@/data/MediaSourceGenerator';
 
 function clamp(value: number, min: number, max: number): number {
   return Math.max(min, Math.min(max, value));
@@ -84,6 +85,15 @@ function formatDollars(amount: number): string {
   return `${sign}\u0024${withCommas}`;
 }
 
+function getTopTradeOutletName(): string {
+  const sources = MediaSourceGenerator.getBaseMediaSources();
+  if (!sources || sources.length === 0) return 'the trades';
+  return [...sources]
+    .sort((a, b) => (b.credibility || 0) - (a.credibility || 0))
+    .map((s) => s.name)
+    .find(Boolean) || 'the trades';
+}
+
 function buildPoachingEvent(
   state: GameState,
   weekAbs: number,
@@ -94,14 +104,21 @@ function buildPoachingEvent(
 ): GameEvent {
   const studioId = state.studio.id;
   const loyalty = clamp(talent.studioLoyalty?.[studioId] ?? 50, 0, 100);
-  const cost = Math.max(50_000, Math.round((talent.marketValue || 1_000_000) * 0.035));
+
+  const agentLabel = talent.agent ? `${talent.agent.name} at ${talent.agent.agency}` : 'their agent';
+  const agentPower = clamp(talent.agent?.powerLevel ?? 5, 1, 10);
+
+  const baseCost = (talent.marketValue || 1_000_000) * 0.03;
+  const cost = Math.max(50_000, Math.round(baseCost * (1 + (agentPower - 5) * 0.06)));
+
+  const outlet = getTopTradeOutletName();
 
   return {
     id: `circle:${weekAbs}:poach:${talent.id}:${rivalStudioId}`,
     title: `${talent.name} gets a poaching offer`,
     description:
-      `${talent.name}'s agent is fielding a serious offer from a rival studio. ` +
-      `Their loyalty to ${state.studio.name} is shaky (${Math.round(loyalty)}/100).`,
+      `${agentLabel} is fielding a serious offer for ${talent.name} from a rival studio. ` +
+      `Their loyalty to ${state.studio.name} is shaky (${Math.round(loyalty)}/100) and ${outlet} is sniffing around.`,
     type: 'talent',
     triggerDate: weekStartDate(week, year),
     data: { kind: 'circle:poach', talentId: talent.id, rivalStudioId },
@@ -146,7 +163,7 @@ function buildPoachingEvent(
             impact: -20,
             description: 'Loyalty collapses.'
           },
-          { type: 'reputation', impact: -1, description: 'Reputation takes a small hit.' },
+          { type: 'reputation', impact: -1, description: `A trade story in ${outlet} dents your reputation.` },
         ],
       },
     ],
@@ -164,7 +181,9 @@ function buildFeudEvent(
   chemistry: number
 ): GameEvent {
   const studioId = state.studio.id;
-  const cost = 125_000;
+  const outlet = getTopTradeOutletName();
+
+  const cost = chemistry <= -75 ? 175_000 : 125_000;
   const severityLabel = chemistry <= -75 ? 'explosive' : chemistry <= -60 ? 'serious' : 'tense';
 
   return {
@@ -172,7 +191,7 @@ function buildFeudEvent(
     title: `On-set conflict turns ${severityLabel}`,
     description:
       `${a.name} and ${b.name} are clashing on ${project.title}. ` +
-      `Chemistry is at ${Math.round(chemistry)}/100 and it's starting to slow the shoot.`,
+      `Chemistry is at ${Math.round(chemistry)}/100, the shoot is slowing, and a tip is circulating at ${outlet}.`,
     type: 'crisis',
     triggerDate: weekStartDate(week, year),
     data: { kind: 'circle:feud', projectId: project.id, talentAId: a.id, talentBId: b.id },
@@ -223,14 +242,14 @@ function buildFeudEvent(
             impact: -14,
             description: `${b.name} feels slighted.`
           },
-          { type: 'reputation', impact: -1, description: 'The crew senses favoritism.' },
+          { type: 'reputation', impact: chemistry <= -75 ? -2 : -1, description: 'The crew senses favoritism.' },
         ],
       },
       {
         id: 'replace-b',
         text: `Replace ${b.name}`,
         consequences: [
-          { type: 'reputation', impact: -2, description: 'Press sniffs instability.' },
+          { type: 'reputation', impact: chemistry <= -75 ? -3 : -2, description: `Press sniffs instability (and ${outlet} runs with it).` },
           {
             type: 'talent-relationship',
             relationship: 'loyalty',
