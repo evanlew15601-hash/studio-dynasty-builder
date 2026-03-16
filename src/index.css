@@ -342,18 +342,18 @@ All colors MUST be HSL.
   }
 
   :root[data-skin="horror"] {
-    --background: 140 14% 5%;
+    --background: 240 16% 5%;
     --foreground: 45 18% 90%;
 
     --font-title: 'Cormorant Garamond', Georgia, serif;
     --font-ui: 'Oswald', 'Inter', system-ui, -apple-system, sans-serif;
 
     --app-bg-image:
-      radial-gradient(ellipse at top left, hsl(88 22% 44% / 0.09) 0%, transparent 55%),
+      radial-gradient(ellipse at top left, hsl(268 25% 44% / 0.09) 0%, transparent 55%),
       radial-gradient(ellipse at bottom right, hsl(358 60% 42% / 0.07) 0%, transparent 60%),
-      radial-gradient(ellipse at 50% 110%, hsl(140 16% 10% / 0.65) 0%, transparent 55%);
+      radial-gradient(ellipse at 50% 110%, hsl(240 18% 10% / 0.65) 0%, transparent 55%);
 
-    --premium-depth: 140 16% 10%;
+    --premium-depth: 240 18% 10%;
     --premium-grain-opacity: 0.11;
     --premium-bokeh-opacity: 0.15;
     --premium-spotlight-opacity: 0.5;
@@ -368,49 +368,49 @@ All colors MUST be HSL.
     --premium-scanlines-color: var(--foreground);
     --premium-flicker-opacity: 0.07;
 
-    --card: 140 14% 8%;
+    --card: 240 16% 8%;
     --card-foreground: 45 18% 90%;
 
-    --popover: 140 16% 11%;
+    --popover: 240 18% 11%;
     --popover-foreground: 45 18% 90%;
 
     --primary: 358 60% 42%;
     --primary-foreground: 45 18% 90%;
 
-    --secondary: 140 18% 14%;
+    --secondary: 240 20% 14%;
     --secondary-foreground: 45 18% 90%;
 
-    --muted: 140 10% 12%;
+    --muted: 240 12% 12%;
     --muted-foreground: 45 10% 74%;
 
-    --accent: 88 22% 44%;
-    --accent-foreground: 140 14% 5%;
+    --accent: 268 25% 44%;
+    --accent-foreground: 45 18% 90%;
 
     --destructive: 0 64% 38%;
     --destructive-foreground: 45 18% 90%;
 
-    --border: 140 10% 18%;
-    --input: 140 12% 11%;
+    --border: 240 10% 18%;
+    --input: 240 12% 11%;
     --ring: 358 60% 42%;
 
-    --gradient-golden: linear-gradient(135deg, hsl(358 60% 42%), hsl(350 55% 34%), hsl(140 18% 14%));
-    --gradient-silver: linear-gradient(135deg, hsl(45 10% 76%), hsl(140 8% 26%), hsl(140 10% 14%));
-    --gradient-spotlight: linear-gradient(135deg, hsl(88 22% 44%), hsl(358 60% 42%), hsl(350 55% 34%));
-    --gradient-navy: linear-gradient(135deg, hsl(140 18% 14%), hsl(140 14% 5%));
+    --gradient-golden: linear-gradient(135deg, hsl(358 60% 42%), hsl(350 55% 34%), hsl(240 20% 14%));
+    --gradient-silver: linear-gradient(135deg, hsl(45 10% 76%), hsl(240 10% 26%), hsl(240 12% 14%));
+    --gradient-spotlight: linear-gradient(135deg, hsl(268 25% 44%), hsl(358 60% 42%), hsl(350 55% 34%));
+    --gradient-navy: linear-gradient(135deg, hsl(240 20% 14%), hsl(240 16% 5%));
     --gradient-crimson: linear-gradient(135deg, hsl(358 60% 42%), hsl(0 64% 38%), hsl(350 55% 30%));
 
-    --shadow-studio: 0 28px 56px -20px hsl(140 20% 2% / 0.92), 0 0 0 1px hsl(140 10% 18% / 0.72);
-    --shadow-golden: 0 0 70px hsl(358 60% 42% / 0.16), 0 0 46px hsl(88 22% 44% / 0.10);
+    --shadow-studio: 0 28px 56px -20px hsl(240 20% 2% / 0.92), 0 0 0 1px hsl(240 10% 18% / 0.72);
+    --shadow-golden: 0 0 70px hsl(358 60% 42% / 0.16), 0 0 46px hsl(268 25% 44% / 0.10);
     --shadow-crimson: 0 0 56px hsl(358 60% 42% / 0.20), 0 6px 26px hsl(358 60% 42% / 0.10);
-    --shadow-navy: 0 16px 30px hsl(140 20% 2% / 0.90), 0 0 0 1px hsl(140 18% 14% / 0.88);
+    --shadow-navy: 0 16px 30px hsl(240 20% 2% / 0.90), 0 0 0 1px hsl(240 20% 14% / 0.88);
 
     --card-pattern:
       repeating-linear-gradient(110deg, hsl(var(--foreground) / 0.016) 0 1px, transparent 1px 18px),
       repeating-linear-gradient(15deg, hsl(var(--accent) / 0.018) 0 1px, transparent 1px 40px),
       radial-gradient(900px 640px at 14% 18%, hsl(var(--primary) / 0.06), transparent 68%);
 
-    --card-premium-bg: linear-gradient(135deg, hsl(140 14% 9% / 0.92), hsl(140 14% 5% / 0.98));
-    --card-golden-bg: linear-gradient(135deg, hsl(140 14% 9%), hsl(358 60% 42% / 0.05));
+    --card-premium-bg: linear-gradient(135deg, hsl(240 16% 9% / 0.92), hsl(240 16% 5% / 0.98));
+    --card-golden-bg: linear-gradient(135deg, hsl(240 16% 9%), hsl(358 60% 42% / 0.05));
     --card-navy-bg: var(--gradient-navy);
 
     --radius: 0.4rem;
