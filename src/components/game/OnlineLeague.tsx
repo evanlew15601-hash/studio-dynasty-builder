@@ -43,6 +43,8 @@ function mapOnlineLeagueError(message: string): string {
   if (normalized.includes('no league spots')) return 'Online leagues are at capacity right now. Try again later.';
   if (normalized.includes('invalid league code')) return 'Invalid league code.';
   if (normalized.includes('invalid studio name')) return 'Invalid studio name.';
+  if (normalized.includes('studio name already taken')) return 'That studio name is already taken in this league.';
+  if (normalized.includes('online_league_members_league_studio_name_uniq')) return 'That studio name is already taken in this league.';
   if (normalized.includes('league not found')) return 'League not found.';
 
   if (normalized.includes('too many requests') || normalized.includes('rate limit')) {
@@ -63,6 +65,7 @@ export const OnlineLeague: React.FC<OnlineLeagueProps> = ({ initialLeagueCode })
   const [leagueNameInput, setLeagueNameInput] = useState('');
   const [activeLeagueCode, setActiveLeagueCode] = useState<string | null>(null);
   const [activeLeagueId, setActiveLeagueId] = useState<string | null>(null);
+  const [leagueStudioName, setLeagueStudioName] = useState<string | null>(null);
   const [status, setStatus] = useState<'idle' | 'connecting' | 'connected' | 'error'>('idle');
   const [authStatus, setAuthStatus] = useState<'idle' | 'signing-in' | 'ready' | 'error'>('idle');
   const [userId, setUserId] = useState<string | null>(null);
@@ -97,6 +100,12 @@ export const OnlineLeague: React.FC<OnlineLeagueProps> = ({ initialLeagueCode })
     const fallback = gameState?.studio?.name ? `${gameState.studio.name} League` : '';
     if (fallback) setLeagueNameInput(fallback);
   }, [gameState?.studio?.name, leagueNameInput]);
+
+  useEffect(() => {
+    if (leagueStudioName?.trim()) return;
+    if (!gameState?.studio?.name) return;
+    setLeagueStudioName(gameState.studio.name);
+  }, [gameState?.studio?.name, leagueStudioName]);
 
   useEffect(() => {
     if (!supabase) return;
@@ -199,7 +208,7 @@ export const OnlineLeague: React.FC<OnlineLeagueProps> = ({ initialLeagueCode })
     if (!channel) return;
 
     const snapshot: PresenceStudioSnapshot = {
-      studioName: gameState.studio.name,
+      studioName: (leagueStudioName ?? gameState.studio.name).trim(),
       reputation: gameState.studio.reputation,
       week: gameState.currentWeek,
       year: gameState.currentYear,
@@ -228,13 +237,21 @@ export const OnlineLeague: React.FC<OnlineLeagueProps> = ({ initialLeagueCode })
       .from('online_league_members')
       .update({ last_seen_at: new Date().toISOString(), studio_name: snapshot.studioName })
       .eq('league_id', activeLeagueId)
-      .eq('user_id', userId);
+      .eq('user_id', userId)
+      .then(({ error: memberError }) => {
+        if (!memberError) return;
+        const msg = mapOnlineLeagueError(memberError.message);
+        if (msg !== 'Online league request failed.') {
+          setError(msg);
+        }
+      });
   }, [
     gameState?.currentWeek,
     gameState?.currentYear,
     
     gameState?.studio?.reputation,
     gameState?.projects,
+    leagueStudioName,
     activeLeagueCode,
     activeLeagueId,
     supabase,
@@ -321,6 +338,20 @@ export const OnlineLeague: React.FC<OnlineLeagueProps> = ({ initialLeagueCode })
     setPersistedSnapshots((data || []) as any);
   };
 
+  const resolveLeagueStudioName = async (leagueId: string, fallback: string) => {
+    if (!supabase) return fallback;
+    if (!userId) return fallback;
+
+    const { data } = await supabase
+      .from('online_league_members')
+      .select('studio_name')
+      .eq('league_id', leagueId)
+      .eq('user_id', userId)
+      .maybeSingle();
+
+    return (data?.studio_name || fallback).trim();
+  };
+
   useEffect(() => {
     if (!activeLeagueId) {
       setPersistedSnapshots([]);
@@ -346,7 +377,7 @@ export const OnlineLeague: React.FC<OnlineLeagueProps> = ({ initialLeagueCode })
     setLeagueBusy(true);
     setError(null);
 
-    const studioName = gameState.studio.name;
+    const studioName = (leagueStudioName ?? gameState.studio.name).trim();
     const leagueName = leagueNameInput.trim() || `${studioName} League`;
 
     let lastErrorMessage = '';
@@ -366,6 +397,8 @@ export const OnlineLeague: React.FC<OnlineLeagueProps> = ({ initialLeagueCode })
           window.localStorage.setItem('studio-magnate-online-last-league', code);
         }
 
+        const effectiveStudioName = await resolveLeagueStudioName(data, studioName);
+        setLeagueStudioName(effectiveStudioName);
         setActiveLeagueCode(code);
         setActiveLeagueId(data);
         await refreshSnapshots(data);
@@ -392,9 +425,11 @@ export const OnlineLeague: React.FC<OnlineLeagueProps> = ({ initialLeagueCode })
     setLeagueBusy(true);
     setError(null);
 
+    const studioName = (leagueStudioName ?? gameState.studio.name).trim();
+
     const { data, error: rpcError } = await supabase.rpc('join_online_league', {
       league_code: code,
-      studio_name: gameState.studio.name,
+      studio_name: studioName,
     });
 
     if (rpcError || !data) {
@@ -407,6 +442,8 @@ export const OnlineLeague: React.FC<OnlineLeagueProps> = ({ initialLeagueCode })
       window.localStorage.setItem('studio-magnate-online-last-league', code);
     }
 
+    const effectiveStudioName = await resolveLeagueStudioName(data, studioName);
+    setLeagueStudioName(effectiveStudioName);
     setActiveLeagueCode(code);
     setActiveLeagueId(data);
     await refreshSnapshots(data);
@@ -431,13 +468,19 @@ export const OnlineLeague: React.FC<OnlineLeagueProps> = ({ initialLeagueCode })
 
     setLeagueCodeInput(code);
 
+    const studioName = (leagueStudioName ?? gameState.studio.name).trim();
+
     supabase
       .rpc('join_online_league', {
         league_code: code,
-        studio_name: gameState.studio.name,
+        studio_name: studioName,
       })
-      .then(({ data }) => {
-        if (!data) return;
+      .then(({ data, error: rpcError }) => {
+        if (rpcError || !data) {
+          setError(mapOnlineLeagueError(rpcError?.message || ''));
+          return;
+        }
+        resolveLeagueStudioName(data, studioName).then(setLeagueStudioName);
         setActiveLeagueCode(code);
         setActiveLeagueId(data);
         refreshSnapshots(data);
@@ -530,7 +573,16 @@ export const OnlineLeague: React.FC<OnlineLeagueProps> = ({ initialLeagueCode })
                   disabled={!!activeLeagueCode}
                 />
                 {!activeLeagueCode ? (
-                  <Button onClick={handleJoinLeague} disabled={!leagueCodeInput.trim() || authStatus !== 'ready' || !gameState || leagueBusy}>
+                  <Button
+                    onClick={handleJoinLeague}
+                    disabled={
+                      !leagueCodeInput.trim() ||
+                      !(leagueStudioName ?? gameState?.studio?.name ?? '').trim() ||
+                      authStatus !== 'ready' ||
+                      !gameState ||
+                      leagueBusy
+                    }
+                  >
                     Join
                   </Button>
                 ) : (
@@ -542,7 +594,16 @@ export const OnlineLeague: React.FC<OnlineLeagueProps> = ({ initialLeagueCode })
 
               <div className="flex items-center gap-2">
                 {!activeLeagueCode ? (
-                  <Button variant="secondary" onClick={handleCreateLeague} disabled={authStatus !== 'ready' || !gameState || leagueBusy}>
+                  <Button
+                    variant="secondary"
+                    onClick={handleCreateLeague}
+                    disabled={
+                      !(leagueStudioName ?? gameState?.studio?.name ?? '').trim() ||
+                      authStatus !== 'ready' ||
+                      !gameState ||
+                      leagueBusy
+                    }
+                  >
                     {leagueBusy ? 'Working…' : 'Create League'}
                   </Button>
                 ) : (
@@ -565,13 +626,26 @@ export const OnlineLeague: React.FC<OnlineLeagueProps> = ({ initialLeagueCode })
               <Separator />
 
               <div className="space-y-2">
+                <div className="text-sm font-medium">Studio name (Online League)</div>
+                <Input
+                  value={(leagueStudioName ?? gameState?.studio?.name ?? '')}
+                  onChange={(e) => setLeagueStudioName(e.target.value)}
+                  placeholder="Unique within the league"
+                  disabled={!!activeLeagueCode}
+                />
+                <div className="text-xs text-muted-foreground">
+                  Studio names must be unique within a league.
+                </div>
+              </div>
+
+              <div className="space-y-2">
                 <div className="text-sm font-medium">Your snapshot</div>
                 {!gameState ? (
                   <div className="text-sm text-muted-foreground">Game state not loaded.</div>
                 ) : (
                   <div className="rounded-md border p-3">
                     <div className="flex items-center justify-between">
-                      <div className="font-medium">{gameState.studio.name}</div>
+                      <div className="font-medium">{(leagueStudioName ?? gameState.studio.name).trim()}</div>
                       <Badge variant="outline">Week {gameState.currentWeek}, {gameState.currentYear}</Badge>
                     </div>
                     <div className="mt-2 text-sm text-muted-foreground">
