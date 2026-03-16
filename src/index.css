@@ -342,68 +342,75 @@ All colors MUST be HSL.
   }
 
   :root[data-skin="horror"] {
-    --background: 120 12% 6%;
-    --foreground: 40 15% 88%;
+    --background: 140 14% 5%;
+    --foreground: 45 18% 90%;
 
-    --font-title: 'Special Elite', 'Inter', system-ui, -apple-system, sans-serif;
-    --font-ui: 'Special Elite', 'Inter', system-ui, -apple-system, sans-serif;
+    --font-title: 'Cormorant Garamond', Georgia, serif;
+    --font-ui: 'Oswald', 'Inter', system-ui, -apple-system, sans-serif;
 
     --app-bg-image:
-      radial-gradient(ellipse at top left, hsl(95 35% 45% / 0.08) 0%, transparent 54%),
-      radial-gradient(ellipse at bottom right, hsl(0 72% 52% / 0.06) 0%, transparent 56%);
+      radial-gradient(ellipse at top left, hsl(88 22% 44% / 0.09) 0%, transparent 55%),
+      radial-gradient(ellipse at bottom right, hsl(358 60% 42% / 0.07) 0%, transparent 60%),
+      radial-gradient(ellipse at 50% 110%, hsl(140 16% 10% / 0.65) 0%, transparent 55%);
 
-    --premium-depth: 120 14% 12%;
-    --premium-grain-opacity: 0.10;
-    --premium-bokeh-opacity: 0.2;
-    --premium-spotlight-opacity: 0.55;
-    --premium-bg-strength: 1;
-    --premium-vignette-strength: 1;
-    --premium-overlay-opacity: 0;
-    --premium-overlay-image: none;
-    --premium-scanlines-opacity: 0.02;
-    --premium-scanlines-color: var(--accent);
-    --premium-flicker-opacity: 0.05;
+    --premium-depth: 140 16% 10%;
+    --premium-grain-opacity: 0.11;
+    --premium-bokeh-opacity: 0.15;
+    --premium-spotlight-opacity: 0.5;
+    --premium-bg-strength: 1.08;
+    --premium-vignette-strength: 1.15;
+    --premium-overlay-opacity: 0.22;
+    --premium-overlay-image:
+      radial-gradient(1100px 680px at 58% 8%, hsl(var(--primary) / 0.11), transparent 64%),
+      radial-gradient(980px 720px at 22% 82%, hsl(var(--accent) / 0.10), transparent 72%),
+      radial-gradient(720px 520px at 82% 78%, hsl(var(--primary) / 0.06), transparent 74%);
+    --premium-scanlines-opacity: 0.03;
+    --premium-scanlines-color: var(--foreground);
+    --premium-flicker-opacity: 0.07;
 
-    --card: 120 14% 9%;
-    --card-foreground: 40 15% 88%;
+    --card: 140 14% 8%;
+    --card-foreground: 45 18% 90%;
 
-    --popover: 120 14% 11%;
-    --popover-foreground: 40 15% 88%;
+    --popover: 140 16% 11%;
+    --popover-foreground: 45 18% 90%;
 
-    --primary: 0 72% 52%;
-    --primary-foreground: 40 15% 88%;
+    --primary: 358 60% 42%;
+    --primary-foreground: 45 18% 90%;
 
-    --secondary: 120 18% 14%;
-    --secondary-foreground: 40 15% 88%;
+    --secondary: 140 18% 14%;
+    --secondary-foreground: 45 18% 90%;
 
-    --muted: 120 10% 12%;
-    --muted-foreground: 40 10% 72%;
+    --muted: 140 10% 12%;
+    --muted-foreground: 45 10% 74%;
 
-    --accent: 95 35% 45%;
-    --accent-foreground: 120 12% 6%;
+    --accent: 88 22% 44%;
+    --accent-foreground: 140 14% 5%;
 
-    --destructive: 0 72% 52%;
-    --destructive-foreground: 40 15% 88%;
+    --destructive: 0 64% 38%;
+    --destructive-foreground: 45 18% 90%;
 
-    --border: 120 12% 20%;
-    --input: 120 12% 12%;
-    --ring: 0 72% 52%;
+    --border: 140 10% 18%;
+    --input: 140 12% 11%;
+    --ring: 358 60% 42%;
 
-    --gradient-golden: linear-gradient(135deg, hsl(0 72% 52%), hsl(350 65% 42%), hsl(120 18% 14%));
-    --gradient-silver: linear-gradient(135deg, hsl(40 6% 70%), hsl(120 8% 28%), hsl(120 10% 14%));
-    --gradient-spotlight: linear-gradient(135deg, hsl(95 35% 45%), hsl(0 72% 52%), hsl(350 65% 42%));
-    --gradient-navy: linear-gradient(135deg, hsl(120 18% 14%), hsl(120 12% 6%));
-    --gradient-crimson: linear-gradient(135deg, hsl(0 72% 52%), hsl(350 65% 42%), hsl(0 62% 34%));
+    --gradient-golden: linear-gradient(135deg, hsl(358 60% 42%), hsl(350 55% 34%), hsl(140 18% 14%));
+    --gradient-silver: linear-gradient(135deg, hsl(45 10% 76%), hsl(140 8% 26%), hsl(140 10% 14%));
+    --gradient-spotlight: linear-gradient(135deg, hsl(88 22% 44%), hsl(358 60% 42%), hsl(350 55% 34%));
+    --gradient-navy: linear-gradient(135deg, hsl(140 18% 14%), hsl(140 14% 5%));
+    --gradient-crimson: linear-gradient(135deg, hsl(358 60% 42%), hsl(0 64% 38%), hsl(350 55% 30%));
 
-    --shadow-studio: 0 26px 54px -18px hsl(120 20% 2% / 0.90), 0 0 0 1px hsl(120 12% 20% / 0.72);
-    --shadow-golden: 0 0 70px hsl(0 72% 52% / 0.22), 0 0 45px hsl(95 35% 45% / 0.12);
-    --shadow-crimson: 0 0 55px hsl(0 72% 52% / 0.26), 0 4px 24px hsl(0 72% 52% / 0.12);
-    --shadow-navy: 0 14px 26px hsl(120 20% 2% / 0.88), 0 0 0 1px hsl(120 18% 14% / 0.88);
+    --shadow-studio: 0 28px 56px -20px hsl(140 20% 2% / 0.92), 0 0 0 1px hsl(140 10% 18% / 0.72);
+    --shadow-golden: 0 0 70px hsl(358 60% 42% / 0.16), 0 0 46px hsl(88 22% 44% / 0.10);
+    --shadow-crimson: 0 0 56px hsl(358 60% 42% / 0.20), 0 6px 26px hsl(358 60% 42% / 0.10);
+    --shadow-navy: 0 16px 30px hsl(140 20% 2% / 0.90), 0 0 0 1px hsl(140 18% 14% / 0.88);
 
-    --card-pattern: none;
+    --card-pattern:
+      repeating-linear-gradient(110deg, hsl(var(--foreground) / 0.016) 0 1px, transparent 1px 18px),
+      repeating-linear-gradient(15deg, hsl(var(--accent) / 0.018) 0 1px, transparent 1px 40px),
+      radial-gradient(900px 640px at 14% 18%, hsl(var(--primary) / 0.06), transparent 68%);
 
-    --card-premium-bg: linear-gradient(135deg, hsl(120 14% 9% / 0.92), hsl(120 12% 6% / 0.98));
-    --card-golden-bg: linear-gradient(135deg, hsl(120 14% 9%), hsl(0 72% 52% / 0.06));
+    --card-premium-bg: linear-gradient(135deg, hsl(140 14% 9% / 0.92), hsl(140 14% 5% / 0.98));
+    --card-golden-bg: linear-gradient(135deg, hsl(140 14% 9%), hsl(358 60% 42% / 0.05));
     --card-navy-bg: var(--gradient-navy);
 
     --radius: 0.4rem;
