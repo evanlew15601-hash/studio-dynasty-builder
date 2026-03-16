@@ -484,7 +484,7 @@ export const IndustryDatabasePanel: React.FC<IndustryDatabasePanelProps> = ({ sl
             <Textarea
               value={importText}
               onChange={(e) => setImportText(e.target.value)}
-              placeholder="{\n  \"version\": 1,\n  ...\n}"
+              placeholder={'{\n  "version": 1,\n  ...\n}'}
               className="min-h-[240px] font-mono text-xs"
             />
           </div>
