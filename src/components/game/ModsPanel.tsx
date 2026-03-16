@@ -239,6 +239,17 @@ export const ModsPanel: React.FC = () => {
 
   const [clearConfirmOpen, setClearConfirmOpen] = useState(false);
 
+  type ConfirmState = {
+    title: string;
+    description: string;
+    actionLabel: string;
+    destructive?: boolean;
+  };
+
+  const [confirmOpen, setConfirmOpen] = useState(false);
+  const [confirmState, setConfirmState] = useState<ConfirmState | null>(null);
+  const confirmActionRef = useRef<(() => void) | null>(null);
+
   // Editor
   const [editorModId, setEditorModId] = useState('my-mod');
   const [newModId, setNewModId] = useState('');
@@ -2304,6 +2315,36 @@ export const ModsPanel: React.FC = () => {
     });
   };
 
+  const openConfirm = (state: ConfirmState, onConfirm: () => void) => {
+    confirmActionRef.current = onConfirm;
+    setConfirmState(state);
+    setConfirmOpen(true);
+  };
+
+  const closeConfirm = () => {
+    setConfirmOpen(false);
+    setConfirmState(null);
+    confirmActionRef.current = null;
+  };
+
+  const handleConfirm = () => {
+    const action = confirmActionRef.current;
+    closeConfirm();
+    action?.();
+  };
+
+  const confirmDelete = (description: string, onConfirm: () => void, title: string = 'Delete?', actionLabel: string = 'Delete') => {
+    openConfirm(
+      {
+        title,
+        description,
+        actionLabel,
+        destructive: true,
+      },
+      onConfirm
+    );
+  };
+
   return (
     <>
       <AlertDialog open={clearConfirmOpen} onOpenChange={setClearConfirmOpen}>
@@ -2324,6 +2365,37 @@ export const ModsPanel: React.FC = () => {
               }}
             >
               Clear
+            </AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
+
+      <AlertDialog
+        open={confirmOpen}
+        onOpenChange={(open) => {
+          if (!open) {
+            closeConfirm();
+            return;
+          }
+          setConfirmOpen(true);
+        }}
+      >
+        <AlertDialogContent>
+          <AlertDialogHeader>
+            <AlertDialogTitle>{confirmState?.title ?? 'Confirm'}</AlertDialogTitle>
+            <AlertDialogDescription>{confirmState?.description ?? ''}</AlertDialogDescription>
+          </AlertDialogHeader>
+          <AlertDialogFooter>
+            <AlertDialogCancel onClick={closeConfirm}>Cancel</AlertDialogCancel>
+            <AlertDialogAction
+              className={
+                confirmState?.destructive
+                  ? 'bg-destructive text-destructive-foreground hover:bg-destructive/90'
+                  : undefined
+              }
+              onClick={handleConfirm}
+            >
+              {confirmState?.actionLabel ?? 'Confirm'}
             </AlertDialogAction>
           </AlertDialogFooter>
         </AlertDialogContent>
@@ -2754,7 +2826,13 @@ export const ModsPanel: React.FC = () => {
                               <Button size="sm" variant="ghost" onClick={() => handleResetPublicDomainRow(row.id)}>
                                 Reset
                               </Button>
-                              <Button size="sm" variant="ghost" onClick={() => handleDeletePublicDomainIP(row.id)}>
+                              <Button
+                                size="sm"
+                                variant="ghost"
+                                onClick={() =>
+                                  confirmDelete(`Delete public domain IP "${row.id}"?`, () => handleDeletePublicDomainIP(row.id))
+                                }
+                              >
                                 Delete
                               </Button>
                             </div>
@@ -2887,7 +2965,11 @@ export const ModsPanel: React.FC = () => {
                             />
                           </TableCell>
                           <TableCell className="p-2">
-                            <Button size="sm" variant="ghost" onClick={() => handleDeletePublicDomainCharacterRow(idx)}>
+                            <Button
+                              size="sm"
+                              variant="ghost"
+                              onClick={() => confirmDelete('Delete this character row?', () => handleDeletePublicDomainCharacterRow(idx))}
+                            >
                               Delete
                             </Button>
                           </TableCell>
@@ -3004,7 +3086,11 @@ export const ModsPanel: React.FC = () => {
                             />
                           </TableCell>
                           <TableCell className="p-2">
-                            <Button size="sm" variant="ghost" onClick={() => handleDeleteRoleRow(idx)}>
+                            <Button
+                              size="sm"
+                              variant="ghost"
+                              onClick={() => confirmDelete('Delete this role row?', () => handleDeleteRoleRow(idx))}
+                            >
                               Delete
                             </Button>
                           </TableCell>
@@ -3110,7 +3196,11 @@ export const ModsPanel: React.FC = () => {
                           </div>
                         </TableCell>
                         <TableCell className="p-2">
-                          <Button size="sm" variant="ghost" onClick={() => handleDeleteCharacterRow(idx)}>
+                          <Button
+                            size="sm"
+                            variant="ghost"
+                            onClick={() => confirmDelete('Delete this character row?', () => handleDeleteCharacterRow(idx))}
+                          >
                             Delete
                           </Button>
                         </TableCell>
@@ -3356,7 +3446,9 @@ export const ModsPanel: React.FC = () => {
                       size="sm"
                       variant="secondary"
                       disabled={!awardShowKey}
-                      onClick={() => handleDeleteAwardShow(awardShowKey)}
+                      onClick={() =>
+                        confirmDelete(`Delete award show "${awardShowKey}"?`, () => handleDeleteAwardShow(awardShowKey), 'Delete award show?', 'Delete show')
+                      }
                     >
                       Delete show
                     </Button>
@@ -3435,7 +3527,13 @@ export const ModsPanel: React.FC = () => {
                               </Select>
                             </TableCell>
                             <TableCell className="p-2">
-                              <Button size="sm" variant="ghost" onClick={() => handleDeleteAwardCategory(awardShowKey, idx)}>
+                              <Button
+                                size="sm"
+                                variant="ghost"
+                                onClick={() =>
+                                  confirmDelete(`Delete award category "${c.id}"?`, () => handleDeleteAwardCategory(awardShowKey, idx))
+                                }
+                              >
                                 Delete
                               </Button>
                             </TableCell>
@@ -3567,7 +3665,11 @@ export const ModsPanel: React.FC = () => {
                               <Button size="sm" variant="ghost" onClick={() => handleResetStudioRow(row.name)}>
                                 Reset
                               </Button>
-                              <Button size="sm" variant="ghost" onClick={() => handleDeleteStudioProfile(row.name)}>
+                              <Button
+                                size="sm"
+                                variant="ghost"
+                                onClick={() => confirmDelete(`Delete studio profile "${row.name}"?`, () => handleDeleteStudioProfile(row.name))}
+                              >
                                 Delete
                               </Button>
                             </div>
@@ -3706,7 +3808,11 @@ export const ModsPanel: React.FC = () => {
                               <Button size="sm" variant="ghost" onClick={() => handleResetMediaSourceRow(row.id)}>
                                 Reset
                               </Button>
-                              <Button size="sm" variant="ghost" onClick={() => handleDeleteMediaSource(row.id)}>
+                              <Button
+                                size="sm"
+                                variant="ghost"
+                                onClick={() => confirmDelete(`Delete media source "${row.id}"?`, () => handleDeleteMediaSource(row.id))}
+                              >
                                 Delete
                               </Button>
                             </div>
@@ -3779,7 +3885,14 @@ export const ModsPanel: React.FC = () => {
                           (baseMediaHeadlineTemplates as any)[mediaTemplateKey] !== undefined ||
                           (baseMediaContentTemplates as any)[mediaTemplateKey] !== undefined
                         }
-                        onClick={() => handleDeleteMediaTemplateType(mediaTemplateKey)}
+                        onClick={() =>
+                          confirmDelete(
+                            `Delete media template event type "${mediaTemplateKey}"?`,
+                            () => handleDeleteMediaTemplateType(mediaTemplateKey),
+                            'Delete event type?',
+                            'Delete type'
+                          )
+                        }
                       >
                         Delete type
                       </Button>
@@ -3828,7 +3941,12 @@ export const ModsPanel: React.FC = () => {
                                 <Button
                                   size="sm"
                                   variant="ghost"
-                                  onClick={() => handleDeleteMediaTemplateRow('headline', mediaTemplateKey, idx)}
+                                  onClick={() =>
+                                    confirmDelete(
+                                      `Delete headline template row #${idx + 1}?`,
+                                      () => handleDeleteMediaTemplateRow('headline', mediaTemplateKey, idx)
+                                    )
+                                  }
                                 >
                                   Delete
                                 </Button>
@@ -3866,7 +3984,16 @@ export const ModsPanel: React.FC = () => {
                                 />
                               </TableCell>
                               <TableCell className="p-2">
-                                <Button size="sm" variant="ghost" onClick={() => handleDeleteMediaTemplateRow('content', mediaTemplateKey, idx)}>
+                                <Button
+                                  size="sm"
+                                  variant="ghost"
+                                  onClick={() =>
+                                    confirmDelete(
+                                      `Delete content template row #${idx + 1}?`,
+                                      () => handleDeleteMediaTemplateRow('content', mediaTemplateKey, idx)
+                                    )
+                                  }
+                                >
                                   Delete
                                 </Button>
                               </TableCell>
@@ -3944,7 +4071,11 @@ export const ModsPanel: React.FC = () => {
                               <Input className="h-8" value={r.value} onChange={(e) => updateParodyByCharacterIdRow(idx, { value: e.target.value })} />
                             </TableCell>
                             <TableCell className="p-2">
-                              <Button size="sm" variant="ghost" onClick={() => handleDeleteParodyByCharacterIdRow(idx)}>
+                              <Button
+                                size="sm"
+                                variant="ghost"
+                                onClick={() => confirmDelete('Delete this mapping row?', () => handleDeleteParodyByCharacterIdRow(idx))}
+                              >
                                 Delete
                               </Button>
                             </TableCell>
@@ -3979,7 +4110,11 @@ export const ModsPanel: React.FC = () => {
                               <Input className="h-8" value={r.value} onChange={(e) => updateParodyByTemplateIdRow(idx, { value: e.target.value })} />
                             </TableCell>
                             <TableCell className="p-2">
-                              <Button size="sm" variant="ghost" onClick={() => handleDeleteParodyByTemplateIdRow(idx)}>
+                              <Button
+                                size="sm"
+                                variant="ghost"
+                                onClick={() => confirmDelete('Delete this mapping row?', () => handleDeleteParodyByTemplateIdRow(idx))}
+                              >
                                 Delete
                               </Button>
                             </TableCell>
