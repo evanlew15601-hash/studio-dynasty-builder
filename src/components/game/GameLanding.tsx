@@ -12,7 +12,16 @@ import { Play, Settings, Film, Star, Trophy, Sparkles, HelpCircle } from 'lucide
 import { Genre } from '@/types/game';
 import { StudioIconCustomizer, DEFAULT_ICON, type StudioIconConfig } from './StudioIconCustomizer';
 import { PremiumBackground } from '@/components/ui/premium-background';
-import { getActiveModSlot, listModSlots, setActiveModSlot } from '@/utils/moddingStore';
+import { useToast } from '@/hooks/use-toast';
+import {
+  deleteModSlot,
+  getActiveModSlot,
+  listModSlots,
+  loadModBundleSlot,
+  saveModBundleToSlot,
+  setActiveModSlot,
+} from '@/utils/moddingStore';
+import { deleteDatabaseSavesAsync, moveDatabaseSavesAsync } from '@/utils/saveLoad';
 
 interface GameLandingProps {
   onStartGame: (config: GameConfig) => void;
@@ -47,8 +56,11 @@ export const GameLanding: React.FC<GameLandingProps> = ({
   onlineSeasonYears,
   onOnlineSeasonYearsChange,
 }) => {
+  const { toast } = useToast();
+
   const [showCustomization, setShowCustomization] = useState(false);
   const [databaseSlot, setDatabaseSlot] = useState(() => getActiveModSlot());
+  const [dbWorking, setDbWorking] = useState(false);
   const [config, setConfig] = useState<GameConfig>({
     studioName: '',
     specialties: ['drama'],
@@ -62,7 +74,7 @@ export const GameLanding: React.FC<GameLandingProps> = ({
     if (databaseSlot !== current) {
       setDatabaseSlot(current);
     }
-  }, [databaseSlot]);
+  });
 
   const hasOnlineConfig =
     mode !== 'online' ||
@@ -85,6 +97,159 @@ export const GameLanding: React.FC<GameLandingProps> = ({
   const handleDatabaseChange = (slotId: string) => {
     setActiveModSlot(slotId);
     setDatabaseSlot(getActiveModSlot());
+  };
+
+  const resolveDbName = (promptText: string, suggested: string): string => {
+    if (typeof window === 'undefined') return '';
+    return (window.prompt(promptText, suggested) || '').trim();
+  };
+
+  const handleCreateDatabase = async () => {
+    const picked = resolveDbName('Create database (name):', 'my-mod-db');
+    if (!picked) return;
+
+    if (picked === 'default') {
+      toast({ title: 'Invalid database name', description: '"default" is reserved. Pick a different name.', variant: 'destructive' });
+      return;
+    }
+
+    const existing = listModSlots();
+    if (existing.includes(picked) && typeof window !== 'undefined') {
+      const ok = window.confirm(`Database "${picked}" already exists. Overwrite it and delete ALL saves for it?`);
+      if (!ok) return;
+    }
+
+    setDbWorking(true);
+    try {
+      if (existing.includes(picked)) {
+        await deleteDatabaseSavesAsync(picked);
+      }
+
+      const base = loadModBundleSlot('default');
+      saveModBundleToSlot(picked, base);
+
+      setActiveModSlot(picked);
+      setDatabaseSlot(getActiveModSlot());
+
+      toast({ title: 'Database created', description: `Active database is now "${picked}".` });
+    } catch (error) {
+      console.error('Failed to create database', error);
+      toast({ title: 'Create failed', description: 'Could not create that database.', variant: 'destructive' });
+    } finally {
+      setDbWorking(false);
+    }
+  };
+
+  const handleDuplicateDatabase = async () => {
+    const from = databaseSlot;
+    const suggested = from === 'default' ? 'my-mod-db' : `${from}-copy`;
+    const picked = resolveDbName('Duplicate database as (new name):', suggested);
+    if (!picked) return;
+
+    if (picked === 'default') {
+      toast({ title: 'Invalid database name', description: '"default" is reserved. Pick a different name.', variant: 'destructive' });
+      return;
+    }
+
+    const existing = listModSlots();
+    if (existing.includes(picked) && typeof window !== 'undefined') {
+      const ok = window.confirm(`Database "${picked}" already exists. Overwrite it and delete ALL saves for it?`);
+      if (!ok) return;
+    }
+
+    setDbWorking(true);
+    try {
+      if (existing.includes(picked)) {
+        await deleteDatabaseSavesAsync(picked);
+      }
+
+      const bundle = loadModBundleSlot(from);
+      saveModBundleToSlot(picked, bundle);
+
+      setActiveModSlot(picked);
+      setDatabaseSlot(getActiveModSlot());
+
+      toast({ title: 'Database duplicated', description: `Duplicated "${from}" -> "${picked}".` });
+    } catch (error) {
+      console.error('Failed to duplicate database', error);
+      toast({ title: 'Duplicate failed', description: 'Could not duplicate that database.', variant: 'destructive' });
+    } finally {
+      setDbWorking(false);
+    }
+  };
+
+  const handleRenameDatabase = async () => {
+    const from = databaseSlot;
+    if (from === 'default') {
+      toast({ title: 'Read-only', description: 'The default database cannot be renamed. Duplicate it instead.' });
+      return;
+    }
+
+    const picked = resolveDbName('Rename database to (new name):', from);
+    if (!picked || picked === from) return;
+
+    if (picked === 'default') {
+      toast({ title: 'Invalid database name', description: '"default" is reserved. Pick a different name.', variant: 'destructive' });
+      return;
+    }
+
+    const existing = listModSlots();
+    if (existing.includes(picked) && typeof window !== 'undefined') {
+      const ok = window.confirm(`Database "${picked}" already exists. Overwrite it and delete ALL saves for it?`);
+      if (!ok) return;
+    }
+
+    setDbWorking(true);
+    try {
+      if (existing.includes(picked)) {
+        await deleteDatabaseSavesAsync(picked);
+      }
+
+      const bundle = loadModBundleSlot(from);
+      saveModBundleToSlot(picked, bundle);
+
+      const moved = await moveDatabaseSavesAsync(from, picked);
+
+      deleteModSlot(from);
+      setActiveModSlot(picked);
+      setDatabaseSlot(getActiveModSlot());
+
+      toast({ title: 'Database renamed', description: `Renamed "${from}" -> "${picked}" (${moved} save(s) moved).` });
+    } catch (error) {
+      console.error('Failed to rename database', error);
+      toast({ title: 'Rename failed', description: 'Could not rename that database.', variant: 'destructive' });
+    } finally {
+      setDbWorking(false);
+    }
+  };
+
+  const handleDeleteDatabase = async () => {
+    const slot = databaseSlot;
+    if (slot === 'default') {
+      toast({ title: 'Read-only', description: 'The default database cannot be deleted. Duplicate it instead.' });
+      return;
+    }
+
+    if (typeof window !== 'undefined') {
+      const ok = window.confirm(`Delete database "${slot}" and ALL saves for it?\n\nThis cannot be undone.`);
+      if (!ok) return;
+    }
+
+    setDbWorking(true);
+    try {
+      const deleted = await deleteDatabaseSavesAsync(slot);
+
+      deleteModSlot(slot);
+      const next = getActiveModSlot();
+      setDatabaseSlot(next);
+
+      toast({ title: 'Database deleted', description: `Deleted "${slot}" (${deleted} save(s) removed).` });
+    } catch (error) {
+      console.error('Failed to delete database', error);
+      toast({ title: 'Delete failed', description: 'Could not delete that database.', variant: 'destructive' });
+    } finally {
+      setDbWorking(false);
+    }
   };
 
   const handleStartGame = () => {
@@ -159,12 +324,12 @@ export const GameLanding: React.FC<GameLandingProps> = ({
                   Database
                 </CardTitle>
               </CardHeader>
-              <CardContent className="space-y-2">
+              <CardContent className="space-y-3">
                 <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
                   <div className="space-y-1">
                     <Label className="text-xs text-muted-foreground">Active database</Label>
                     <Select value={databaseSlot} onValueChange={handleDatabaseChange}>
-                      <SelectTrigger>
+                      <SelectTrigger disabled={dbWorking}>
                         <SelectValue placeholder="Select database" />
                       </SelectTrigger>
                       <SelectContent>
@@ -179,6 +344,31 @@ export const GameLanding: React.FC<GameLandingProps> = ({
                   <div className="text-xs text-muted-foreground sm:pt-6">
                     TEW-style: saves are separated per database.
                   </div>
+                </div>
+
+                <div className="flex flex-wrap gap-2">
+                  <Button size="sm" variant="secondary" disabled={dbWorking} onClick={() => void handleCreateDatabase()}>
+                    New…
+                  </Button>
+                  <Button size="sm" variant="secondary" disabled={dbWorking} onClick={() => void handleDuplicateDatabase()}>
+                    Duplicate…
+                  </Button>
+                  <Button
+                    size="sm"
+                    variant="secondary"
+                    disabled={dbWorking || databaseSlot === 'default'}
+                    onClick={() => void handleRenameDatabase()}
+                  >
+                    Rename…
+                  </Button>
+                  <Button
+                    size="sm"
+                    variant="destructive"
+                    disabled={dbWorking || databaseSlot === 'default'}
+                    onClick={() => void handleDeleteDatabase()}
+                  >
+                    Delete
+                  </Button>
                 </div>
               </CardContent>
             </Card>
@@ -376,7 +566,7 @@ export const GameLanding: React.FC<GameLandingProps> = ({
                 <div>
                   <Label className="text-foreground text-base">Database</Label>
                   <Select value={databaseSlot} onValueChange={handleDatabaseChange}>
-                    <SelectTrigger className="mt-2 bg-input border-border text-foreground focus:border-primary">
+                    <SelectTrigger className="mt-2 bg-input border-border text-foreground focus:border-primary" disabled={dbWorking}>
                       <SelectValue placeholder="Select database" />
                     </SelectTrigger>
                     <SelectContent className="bg-popover border-border">
@@ -387,7 +577,33 @@ export const GameLanding: React.FC<GameLandingProps> = ({
                       ))}
                     </SelectContent>
                   </Select>
-                  <p className="text-sm text-muted-foreground mt-1">
+
+                  <div className="mt-2 flex flex-wrap gap-2">
+                    <Button size="sm" variant="secondary" disabled={dbWorking} onClick={() => void handleCreateDatabase()}>
+                      New…
+                    </Button>
+                    <Button size="sm" variant="secondary" disabled={dbWorking} onClick={() => void handleDuplicateDatabase()}>
+                      Duplicate…
+                    </Button>
+                    <Button
+                      size="sm"
+                      variant="secondary"
+                      disabled={dbWorking || databaseSlot === 'default'}
+                      onClick={() => void handleRenameDatabase()}
+                    >
+                      Rename…
+                    </Button>
+                    <Button
+                      size="sm"
+                      variant="destructive"
+                      disabled={dbWorking || databaseSlot === 'default'}
+                      onClick={() => void handleDeleteDatabase()}
+                    >
+                      Delete
+                    </Button>
+                  </div>
+
+                  <p className="text-sm text-muted-foreground mt-2">
                     Saves are separated per database.
                   </p>
                 </div>
