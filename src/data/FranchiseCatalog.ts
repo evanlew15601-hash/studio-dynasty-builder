@@ -1,4 +1,4 @@
-// Franchise Generation System
+// Curated franchise catalog (fixed list, no per-run generation)
 import type { Franchise, Genre } from '@/types/game';
 
 interface FranchiseTemplate {
@@ -422,14 +422,12 @@ function uniqueTemplatesByParodySource(templates: FranchiseTemplate[]): Franchis
   return out;
 }
 
-const FRANCHISE_CATALOG: Franchise[] = uniqueTemplatesByParodySource(FRANCHISE_TEMPLATES).map((template, index) =>
-  buildFranchise(template, index),
+export const BASE_WORLD_FRANCHISE_CATALOG: ReadonlyArray<Franchise> = uniqueTemplatesByParodySource(FRANCHISE_TEMPLATES).map(
+  (template, index) => buildFranchise(template, index),
 );
 
-export const FranchiseGenerator = {
-  // Seed is intentionally ignored: the initial world franchises are a fixed catalog.
-  generateInitialFranchises(count: number, _seed = 'seed:franchises'): Franchise[] {
-    const desired = Math.max(0, Math.floor(count));
-    return FRANCHISE_CATALOG.slice(0, Math.min(desired, FRANCHISE_CATALOG.length));
-  },
-};
+export function getWorldFranchiseCatalog(count?: number): Franchise[] {
+  if (typeof count !== 'number') return [...BASE_WORLD_FRANCHISE_CATALOG];
+  const desired = Math.max(0, Math.floor(count));
+  return BASE_WORLD_FRANCHISE_CATALOG.slice(0, Math.min(desired, BASE_WORLD_FRANCHISE_CATALOG.length));
+}
