@@ -5,6 +5,7 @@
  * an upgraded version. Migrations are applied in order.
  */
 
+import { CURRENT_SAVE_VERSION } from '@/utils/saveVersion';
 import type { SaveGameSnapshot } from '@/utils/saveLoad';
 
 export type MigrationFn = (snapshot: SaveGameSnapshot) => SaveGameSnapshot;
@@ -18,26 +19,32 @@ interface MigrationEntry {
   migrate: MigrationFn;
 }
 
-const CURRENT_VERSION = 'alpha-1';
+const CURRENT_VERSION = CURRENT_SAVE_VERSION;
 
 const migrations: MigrationEntry[] = [
-  // Add migrations here as the save format evolves.
-  // Example:
-  // {
-  //   from: 'alpha-1',
-  //   to: 'alpha-2',
-  //   migrate: (snapshot) => {
-  //     // Add new field with default
-  //     return {
-  //       ...snapshot,
-  //       gameState: {
-  //         ...snapshot.gameState,
-  //         newField: defaultValue,
-  //       },
-  //       meta: { ...snapshot.meta, version: 'alpha-2' },
-  //     };
-  //   },
-  // },
+  {
+    from: 'alpha-0',
+    to: 'alpha-1',
+    migrate: (snapshot) => {
+      return {
+        ...snapshot,
+        gameState: {
+          ...snapshot.gameState,
+          projects: snapshot.gameState.projects ?? [],
+          talent: snapshot.gameState.talent ?? [],
+          scripts: snapshot.gameState.scripts ?? [],
+          competitorStudios: snapshot.gameState.competitorStudios ?? [],
+          franchises: snapshot.gameState.franchises ?? [],
+          publicDomainIPs: snapshot.gameState.publicDomainIPs ?? [],
+          aiStudioProjects: snapshot.gameState.aiStudioProjects ?? [],
+        } as any,
+        meta: {
+          ...snapshot.meta,
+          version: 'alpha-1',
+        },
+      };
+    },
+  },
 ];
 
 /**

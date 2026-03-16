@@ -3,8 +3,10 @@ import { SaveLoadDialog } from '@/components/game/SaveLoadDialog';
 import { GlobalLoadingOverlay } from '@/components/ui/global-loading-overlay';
 import { LoadingProvider } from '@/contexts/LoadingContext';
 import { Suspense, lazy, useEffect, useState } from 'react';
-import { AUTO_LOAD_SLOT_KEY, loadGameAsync, type SaveGameSnapshot } from '@/utils/saveLoad';
+import { AUTO_LOAD_SLOT_KEY, decodeAutoLoadTarget, loadGameAsync, type SaveGameSnapshot } from '@/utils/saveLoad';
 import { patchLoadedSnapshot } from '@/utils/snapshotPatches';
+import { useToast } from '@/hooks/use-toast';
+import { getActiveModSlot, listModSlots } from '@/utils/moddingStore';
 import { Genre } from '@/types/game';
 import type { StudioIconConfig } from '@/components/game/StudioIconCustomizer';
 
@@ -21,6 +23,7 @@ type GameConfig = {
 };
 
 const Index = () => {
+  const { toast } = useToast();
   const [gameStarted, setGameStarted] = useState(false);
   const [gameConfig, setGameConfig] = useState<GameConfig | null>(null);
   const [loadedSnapshot, setLoadedSnapshot] = useState<SaveGameSnapshot | null>(null);
@@ -48,20 +51,39 @@ const Index = () => {
     if (typeof window === 'undefined') return;
     if (gameStarted) return;
 
-    const slot = window.localStorage.getItem(AUTO_LOAD_SLOT_KEY);
-    if (!slot) return;
+    const raw = window.localStorage.getItem(AUTO_LOAD_SLOT_KEY);
+    if (!raw) return;
 
     window.localStorage.removeItem(AUTO_LOAD_SLOT_KEY);
 
+    const decoded = decodeAutoLoadTarget(raw);
+    if (!decoded) return;
+
     void (async () => {
-      const snapshot = await loadGameAsync(slot);
+      const current = getActiveModSlot();
+      if (current !== decoded.modSlotId) {
+        const available = listModSlots();
+        const isMissing = !available.includes(decoded.modSlotId);
+
+        toast({
+          title: isMissing ? 'Missing mod database' : 'Wrong database selected',
+          description: isMissing
+            ? `Auto-load save requires DB "${decoded.modSlotId}", but that database doesn't exist on this device.`
+            : `Auto-load save requires DB "${decoded.modSlotId}". Select that database on the main menu first, then load.`,
+          variant: 'destructive',
+        });
+        return;
+      }
+
+      const snapshot = await loadGameAsync(decoded.slotId, decoded.modSlotId);
       if (!snapshot) return;
+
       const patched = patchLoadedSnapshot(snapshot, { mode: 'single' });
       setLoadedSnapshot(patched);
       setGameConfig(null);
       setGameStarted(true);
     })();
-  }, [gameStarted]);
+  }, [gameStarted, toast]);
 
   return (
     <LoadingProvider>

@@ -19,6 +19,7 @@
     "licenses:check": "node scripts/check-licenses.mjs",
     "licenses:generate": "node scripts/generate-third-party-notices.mjs",
     "sbom:generate": "node scripts/generate-sbom.mjs",
+    "smoke:save-migrations": "node scripts/smoke-save-migrations.mjs",
     "tauri": "tauri",
     "tauri:dev": "tauri dev",
     "tauri:build": "tauri build"

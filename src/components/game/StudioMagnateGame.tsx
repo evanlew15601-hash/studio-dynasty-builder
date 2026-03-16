@@ -109,7 +109,7 @@ import { CrisisManagement } from './CrisisManagement';
 import { MediaRelationships } from './MediaRelationships';
 import { SystemIntegration } from './SystemIntegration';
 import { useGameStore } from '@/game/store';
-import { AUTO_LOAD_SLOT_KEY, getActiveSaveSlotId, saveGameAsync } from '@/utils/saveLoad';
+import { getActiveSaveSlotId, saveGameAsync, setAutoLoadTarget } from '@/utils/saveLoad';
 import { syncAndPersistIndustryDatabase } from '@/utils/industryDatabase';
 import { applyPatchesByKey, getPatchesForEntity } from '@/utils/modding';
 import { getModBundle } from '@/utils/moddingStore';
@@ -3548,7 +3548,7 @@ export const StudioMagnateGame: React.FC<StudioMagnateGameProps> = ({
         unlockedAchievementIds={achievements.getUnlockedAchievements().map((a) => a.id)}
         onLoaded={() => {
           if (typeof window !== 'undefined') {
-            window.localStorage.setItem(AUTO_LOAD_SLOT_KEY, getActiveSaveSlotId());
+            setAutoLoadTarget(getActiveSaveSlotId());
             window.location.reload();
           }
         }}

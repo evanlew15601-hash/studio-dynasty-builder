@@ -4,7 +4,18 @@ import { Button } from '@/components/ui/button';
 import { Card, CardContent } from '@/components/ui/card';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
+
 import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle } from '@/components/ui/dialog';
+import {
+  AlertDialog,
+  AlertDialogAction,
+  AlertDialogCancel,
+  AlertDialogContent,
+  AlertDialogDescription,
+  AlertDialogFooter,
+  AlertDialogHeader,
+  AlertDialogTitle,
+} from '@/components/ui/alert-dialog';
 import { ScrollArea } from '@/components/ui/scroll-area';
 import { useToast } from '@/hooks/use-toast';
 import {
@@ -20,6 +31,8 @@ import {
   setActiveSaveSlotId,
   type SaveGameSnapshot,
 } from '@/utils/saveLoad';
+import { getActiveModSlot, listModSlots } from '@/utils/moddingStore';
+import { getModMismatchWarning } from '@/utils/modFingerprint';
 
 type SaveSlotRow = {
   slotId: string;
@@ -28,12 +41,14 @@ type SaveSlotRow = {
   week?: number;
   year?: number;
   version?: string;
+  modSlotId?: string;
 };
 
 function formatSlotLabel(row: SaveSlotRow): string {
   const parts: string[] = [];
   if (row.studioName) parts.push(row.studioName);
-  if (row.year && row.week) parts.push(`W${row.week}, ${row.year}`);
+  if (row.year != null && row.week != null) parts.push(`W${row.week}, ${row.year}`);
+  if (row.modSlotId) parts.push(`DB: ${row.modSlotId}`);
   if (row.savedAt) parts.push(new Date(row.savedAt).toLocaleString());
   return parts.join(' • ');
 }
@@ -61,27 +76,40 @@ export function SaveLoadDialog(props: {
 }) {
   const { toast } = useToast();
 
-  const [activeSlot, setActiveSlot] = useState(getActiveSaveSlotId());
+  const [activeModSlot, setActiveModSlotState] = useState(getActiveModSlot());
+  const [activeSlot, setActiveSlot] = useState(getActiveSaveSlotId(activeModSlot));
   const [newSlotId, setNewSlotId] = useState('');
   const [savesDir, setSavesDir] = useState<string | null>(null);
 
   const [loading, setLoading] = useState(false);
   const [slots, setSlots] = useState<SaveSlotRow[]>([]);
 
+  const [deleteConfirmOpen, setDeleteConfirmOpen] = useState(false);
+  const [deleteSlotId, setDeleteSlotId] = useState<string>('');
+
+  const [importOverwriteOpen, setImportOverwriteOpen] = useState(false);
+  const [importOverwriteTarget, setImportOverwriteTarget] = useState<string>('');
+  const pendingImportFileRef = useRef<File | null>(null);
+
   const importFileRef = useRef<HTMLInputElement | null>(null);
 
-  const normalizedActiveSlot = useMemo(() => normalizeSlotId(activeSlot) || getActiveSaveSlotId(), [activeSlot]);
+  const normalizedActiveSlot = useMemo(
+    () => normalizeSlotId(activeSlot) || getActiveSaveSlotId(activeModSlot),
+    [activeSlot, activeModSlot]
+  );
 
-  const refreshSlots = async () => {
+  const refreshSlots = async (modSlotOverride?: string) => {
+    const modSlot = modSlotOverride ?? activeModSlot;
+
     setLoading(true);
     try {
-      const slotIds = await listSaveSlotsAsync();
+      const slotIds = await listSaveSlotsAsync(modSlot);
       const rows: SaveSlotRow[] = [];
 
       for (const slotId of slotIds) {
-        const snapshot = await loadGameAsync(slotId);
+        const snapshot = await loadGameAsync(slotId, modSlot);
         if (!snapshot) {
-          rows.push({ slotId });
+          rows.push({ slotId, modSlotId: modSlot });
           continue;
         }
 
@@ -89,6 +117,7 @@ export function SaveLoadDialog(props: {
           slotId,
           savedAt: snapshot.meta?.savedAt,
           version: snapshot.meta?.version,
+          modSlotId: snapshot.meta?.modSlotId ?? modSlot,
           studioName: snapshot.gameState?.studio?.name,
           week: snapshot.gameState?.currentWeek,
           year: snapshot.gameState?.currentYear,
@@ -102,15 +131,21 @@ export function SaveLoadDialog(props: {
   };
 
   useEffect(() => {
-    if (!props.open) return;
+    if (!props.open) {
+      setDeleteConfirmOpen(false);
+      setDeleteSlotId('');
+      setImportOverwriteOpen(false);
+      setImportOverwriteTarget('');
+      pendingImportFileRef.current = null;
+      return;
+    }
 
-    setActiveSlot(getActiveSaveSlotId());
-    void refreshSlots();
+    const slot = getActiveModSlot();
+    setActiveModSlotState(slot);
+    setActiveSlot(getActiveSaveSlotId(slot));
 
-    void (async () => {
-      const dir = await getSavesDirAsync();
-      setSavesDir(dir);
-    })();
+    void refreshSlots(slot);
+    void getSavesDirAsync().then(setSavesDir);
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [props.open]);
 
@@ -118,7 +153,7 @@ export function SaveLoadDialog(props: {
     const normalized = normalizeSlotId(slotId);
     if (!normalized) return;
 
-    setActiveSaveSlotId(normalized);
+    setActiveSaveSlotId(normalized, activeModSlot);
     setActiveSlot(normalized);
 
     toast({
@@ -134,13 +169,18 @@ export function SaveLoadDialog(props: {
     if (!normalized) return;
 
     try {
-      setActiveSaveSlotId(normalized);
+      setActiveSaveSlotId(normalized, activeModSlot);
       setActiveSlot(normalized);
 
-      await saveGameAsync(normalized, props.currentGameState, {
-        currentPhase: props.currentPhase,
-        unlockedAchievementIds: props.unlockedAchievementIds,
-      });
+      await saveGameAsync(
+        normalized,
+        props.currentGameState,
+        {
+          currentPhase: props.currentPhase,
+          unlockedAchievementIds: props.unlockedAchievementIds,
+        },
+        activeModSlot
+      );
 
       toast({ title: 'Game Saved', description: `Saved to "${normalized}".` });
       await refreshSlots();
@@ -158,7 +198,7 @@ export function SaveLoadDialog(props: {
     const normalized = normalizeSlotId(slotId);
     if (!normalized) return;
 
-    const snapshot = await loadGameAsync(normalized);
+    const snapshot = await loadGameAsync(normalized, activeModSlot);
     if (!snapshot) {
       toast({
         title: 'No save found',
@@ -168,7 +208,36 @@ export function SaveLoadDialog(props: {
       return;
     }
 
-    setActiveSaveSlotId(normalized);
+    const requiredModSlot = snapshot.meta?.modSlotId;
+    if (requiredModSlot && requiredModSlot !== activeModSlot) {
+      const available = listModSlots();
+      if (!available.includes(requiredModSlot)) {
+        toast({
+          title: 'Missing mod database',
+          description: `This save belongs to DB "${requiredModSlot}", but that database doesn't exist on this device. Import/create it first.`,
+          variant: 'destructive',
+        });
+        return;
+      }
+
+      toast({
+        title: 'Wrong database selected',
+        description: `This save belongs to DB "${requiredModSlot}". Close this window and select that database on the main menu first.`,
+        variant: 'destructive',
+      });
+      return;
+    }
+
+    const modWarning = getModMismatchWarning(snapshot.meta);
+    if (modWarning) {
+      toast({
+        title: 'Mod mismatch',
+        description: modWarning,
+        variant: 'destructive',
+      });
+    }
+
+    setActiveSaveSlotId(normalized, activeModSlot);
     setActiveSlot(normalized);
 
     props.onLoaded(snapshot);
@@ -179,10 +248,10 @@ export function SaveLoadDialog(props: {
     const normalized = normalizeSlotId(slotId);
     if (!normalized) return;
 
-    await deleteGameAsync(normalized);
+    await deleteGameAsync(normalized, activeModSlot);
 
     if (normalized === normalizedActiveSlot) {
-      setActiveSaveSlotId(DEFAULT_SAVE_SLOT_ID);
+      setActiveSaveSlotId(DEFAULT_SAVE_SLOT_ID, activeModSlot);
       setActiveSlot(DEFAULT_SAVE_SLOT_ID);
     }
 
@@ -190,11 +259,26 @@ export function SaveLoadDialog(props: {
     await refreshSlots();
   };
 
+  const requestDelete = (slotId: string) => {
+    const normalized = normalizeSlotId(slotId);
+    if (!normalized) return;
+    setDeleteSlotId(normalized);
+    setDeleteConfirmOpen(true);
+  };
+
+  const handleConfirmDelete = async () => {
+    const slotId = deleteSlotId;
+    setDeleteConfirmOpen(false);
+    setDeleteSlotId('');
+    if (!slotId) return;
+    await handleDelete(slotId);
+  };
+
   const handleExport = async (slotId: string) => {
     const normalized = normalizeSlotId(slotId);
     if (!normalized) return;
 
-    const snapshot = await loadGameAsync(normalized);
+    const snapshot = await loadGameAsync(normalized, activeModSlot);
     if (!snapshot) {
       toast({
         title: 'No save found',
@@ -204,14 +288,10 @@ export function SaveLoadDialog(props: {
       return;
     }
 
-    downloadJson(`studio-magnate-${normalized}.json`, JSON.stringify(snapshot, null, 2));
+    downloadJson(`studio-magnate-${activeModSlot}-${normalized}.json`, JSON.stringify(snapshot, null, 2));
   };
 
-  const handleImportFilePicked = async (file: File | null) => {
-    if (!file) return;
-
-    const targetSlot = normalizeSlotId(newSlotId) || normalizedActiveSlot;
-
+  const importSnapshotFromFile = async (file: File, targetSlot: string) => {
     try {
       const raw = await file.text();
       const parsed = JSON.parse(raw) as SaveGameSnapshot;
@@ -225,17 +305,48 @@ export function SaveLoadDialog(props: {
         return;
       }
 
-      await saveSnapshotAsync(targetSlot, parsed);
-      setActiveSaveSlotId(targetSlot);
+      const declaredModSlot = parsed.meta?.modSlotId;
+
+      if (declaredModSlot && declaredModSlot !== activeModSlot) {
+        const available = listModSlots();
+        if (!available.includes(declaredModSlot)) {
+          toast({
+            title: 'Missing mod database',
+            description: `This save belongs to DB "${declaredModSlot}", but that database doesn't exist on this device. Import/create it first.`,
+            variant: 'destructive',
+          });
+          return;
+        }
+
+        toast({
+          title: 'Wrong database selected',
+          description: `This save belongs to DB "${declaredModSlot}". Close this window and select that database on the main menu first.`,
+          variant: 'destructive',
+        });
+        return;
+      }
+
+      const next: SaveGameSnapshot = declaredModSlot
+        ? parsed
+        : {
+            ...parsed,
+            meta: {
+              ...parsed.meta,
+              modSlotId: activeModSlot,
+            },
+          };
+
+      await saveSnapshotAsync(targetSlot, next, activeModSlot);
+      setActiveSaveSlotId(targetSlot, activeModSlot);
       setActiveSlot(targetSlot);
 
       toast({
         title: 'Imported',
-        description: `Imported into "${targetSlot}".`,
+        description: `Imported into "${targetSlot}" (DB: ${activeModSlot}).`,
       });
 
       setNewSlotId('');
-      await refreshSlots();
+      await refreshSlots(activeModSlot);
     } catch (error) {
       console.error('Import failed', error);
       toast({
@@ -246,8 +357,92 @@ export function SaveLoadDialog(props: {
     }
   };
 
+  const handleImportFilePicked = async (file: File | null) => {
+    if (!file) return;
+
+    const targetSlot = normalizeSlotId(newSlotId) || normalizedActiveSlot;
+    const alreadyExists = slots.some((s) => s.slotId === targetSlot);
+
+    if (alreadyExists) {
+      pendingImportFileRef.current = file;
+      setImportOverwriteTarget(targetSlot);
+      setImportOverwriteOpen(true);
+      return;
+    }
+
+    await importSnapshotFromFile(file, targetSlot);
+  };
+
+  const handleConfirmImportOverwrite = async () => {
+    const file = pendingImportFileRef.current;
+    const target = importOverwriteTarget;
+
+    setImportOverwriteOpen(false);
+    setImportOverwriteTarget('');
+    pendingImportFileRef.current = null;
+
+    if (!file || !target) return;
+    await importSnapshotFromFile(file, target);
+  };
+
+  const handleCancelImportOverwrite = () => {
+    setImportOverwriteOpen(false);
+    setImportOverwriteTarget('');
+    pendingImportFileRef.current = null;
+  };
+
   return (
-    <Dialog open={props.open} onOpenChange={props.onOpenChange}>
+    <>
+      <AlertDialog open={deleteConfirmOpen} onOpenChange={setDeleteConfirmOpen}>
+        <AlertDialogContent>
+          <AlertDialogHeader>
+            <AlertDialogTitle>Delete save?</AlertDialogTitle>
+            <AlertDialogDescription>
+              This will permanently delete the save slot "{deleteSlotId}" (DB: {activeModSlot}).
+            </AlertDialogDescription>
+          </AlertDialogHeader>
+          <AlertDialogFooter>
+            <AlertDialogCancel>Cancel</AlertDialogCancel>
+            <AlertDialogAction
+              className="bg-destructive text-destructive-foreground hover:bg-destructive/90"
+              onClick={() => void handleConfirmDelete()}
+            >
+              Delete
+            </AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
+
+      <AlertDialog
+        open={importOverwriteOpen}
+        onOpenChange={(open) => {
+          if (!open) {
+            handleCancelImportOverwrite();
+            return;
+          }
+          setImportOverwriteOpen(true);
+        }}
+      >
+        <AlertDialogContent>
+          <AlertDialogHeader>
+            <AlertDialogTitle>Overwrite save slot?</AlertDialogTitle>
+            <AlertDialogDescription>
+              Importing will overwrite the existing save slot "{importOverwriteTarget}" (DB: {activeModSlot}).
+            </AlertDialogDescription>
+          </AlertDialogHeader>
+          <AlertDialogFooter>
+            <AlertDialogCancel onClick={handleCancelImportOverwrite}>Cancel</AlertDialogCancel>
+            <AlertDialogAction
+              className="bg-destructive text-destructive-foreground hover:bg-destructive/90"
+              onClick={() => void handleConfirmImportOverwrite()}
+            >
+              Overwrite
+            </AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
+
+      <Dialog open={props.open} onOpenChange={props.onOpenChange}>
       <DialogContent className="max-w-3xl max-h-[85vh] flex flex-col">
         <DialogHeader>
           <DialogTitle>Save & Load</DialogTitle>
@@ -261,6 +456,16 @@ export function SaveLoadDialog(props: {
         <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
           <Card className="card-premium">
             <CardContent className="pt-6 space-y-3">
+              <div className="space-y-2">
+                <Label>Database</Label>
+                <div className="rounded-md border bg-background/40 px-3 py-2 text-sm">
+                  {activeModSlot}
+                </div>
+                <div className="text-xs text-muted-foreground">
+                  TEW-style: saves are separated per database. Change databases from the main menu (Database -> Manage…).
+                </div>
+              </div>
+
               <div className="space-y-2">
                 <Label htmlFor="active-slot">Active slot</Label>
                 <div className="flex gap-2">
@@ -378,7 +583,7 @@ export function SaveLoadDialog(props: {
             <CardContent className="pt-6 space-y-3">
               <div className="flex items-center justify-between">
                 <div className="text-sm font-semibold">Existing saves</div>
-                <Button type="button" size="sm" variant="secondary" disabled={loading} onClick={() => void refreshSlots()}>
+                <Button type="button" size="sm" variant="secondary" disabled={loading} onClick={() => void refreshSlots(activeModSlot)}>
                   Refresh
                 </Button>
               </div>
@@ -406,7 +611,7 @@ export function SaveLoadDialog(props: {
                               type="button"
                               size="sm"
                               variant="destructive"
-                              onClick={() => void handleDelete(row.slotId)}
+                              onClick={() => requestDelete(row.slotId)}
                             >
                               Delete
                             </Button>
@@ -428,5 +633,6 @@ export function SaveLoadDialog(props: {
         </DialogFooter>
       </DialogContent>
     </Dialog>
+    </>
   );
 }

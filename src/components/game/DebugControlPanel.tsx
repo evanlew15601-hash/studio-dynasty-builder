@@ -1,5 +1,6 @@
 import React, { useEffect, useState } from 'react';
 import { Card, CardHeader, CardTitle, CardContent } from '@/components/ui/card';
+import { isDebugUiEnabled } from '@/utils/debugFlags';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Slider } from '@/components/ui/slider';
@@ -22,6 +23,7 @@ export const DebugControlPanel: React.FC<DebugControlPanelProps> = ({
   onAdvanceWeeks,
   onAdvanceToDate,
 }) => {
+  const debugUiEnabled = isDebugUiEnabled();
   const gameState = useGameStore((s) => s.game);
   const updateStudio = useGameStore((s) => s.updateStudio);
   const replaceProject = useGameStore((s) => s.replaceProject);
@@ -290,6 +292,8 @@ export const DebugControlPanel: React.FC<DebugControlPanelProps> = ({
     const updated = createSeasonWithEpisodes(selectedProject, episodeCount);
     replaceProject(updated);
   };
+
+  if (!debugUiEnabled) return null;
 
   return (
     <Card className="card-premium border border-dashed border-primary/30 bg-background/80">

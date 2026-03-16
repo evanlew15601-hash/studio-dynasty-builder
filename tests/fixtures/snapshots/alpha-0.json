@@ -1,0 +1,15 @@
+{
+  "meta": {
+    "savedAt": "2027-01-01T00:00:00.000Z"
+  },
+  "gameState": {
+    "studio": {
+      "id": "player",
+      "name": "Test Studio",
+      "reputation": 50,
+      "budget": 1000000
+    },
+    "currentYear": 2027,
+    "currentWeek": 1
+  }
+}

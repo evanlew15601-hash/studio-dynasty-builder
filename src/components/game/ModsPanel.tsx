@@ -10,6 +10,16 @@ import { Separator } from '@/components/ui/separator';
 import { Switch } from '@/components/ui/switch';
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
+import {
+  AlertDialog,
+  AlertDialogAction,
+  AlertDialogCancel,
+  AlertDialogContent,
+  AlertDialogDescription,
+  AlertDialogFooter,
+  AlertDialogHeader,
+  AlertDialogTitle,
+} from '@/components/ui/alert-dialog';
 import { PROVIDER_DEALS, type ProviderDealProfile, type ProviderId } from '@/data/ProviderDealsDatabase';
 import { PublicDomainGenerator } from '@/data/PublicDomainGenerator';
 import { FranchiseGenerator } from '@/data/FranchiseGenerator';
@@ -26,15 +36,7 @@ import type { ModBundle, ModInfo, ModOp, ModPatch } from '@/types/modding';
 import { useToast } from '@/hooks/use-toast';
 import { applyPatchesByKey, applyPatchesToRecord, getPatchesForEntity, normalizeModBundle } from '@/utils/modding';
 import { parseCsv, toCsv } from '@/utils/csv';
-import {
-  clearModBundle,
-  deleteModSlot,
-  getActiveModSlot,
-  getModBundle,
-  listModSlots,
-  saveModBundle,
-  setActiveModSlot,
-} from '@/utils/moddingStore';
+import { clearModBundle, getActiveModSlot, getModBundle, saveModBundle } from '@/utils/moddingStore';
 
 const ENTITY_TYPES = [
   'talent',
@@ -232,11 +234,21 @@ export const ModsPanel: React.FC = () => {
   const [savedRaw, setSavedRaw] = useState<string>(() => JSON.stringify(getModBundle(), null, 2));
 
   const [activeSlot, setActiveSlot] = useState<string>(() => getActiveModSlot());
-  const [newSlotName, setNewSlotName] = useState('');
-
-  const slots = useMemo(() => listModSlots(), [activeSlot]);
 
   const isDirty = useMemo(() => raw !== savedRaw, [raw, savedRaw]);
+
+  const [clearConfirmOpen, setClearConfirmOpen] = useState(false);
+
+  type ConfirmState = {
+    title: string;
+    description: string;
+    actionLabel: string;
+    destructive?: boolean;
+  };
+
+  const [confirmOpen, setConfirmOpen] = useState(false);
+  const [confirmState, setConfirmState] = useState<ConfirmState | null>(null);
+  const confirmActionRef = useRef<(() => void) | null>(null);
 
   // Editor
   const [editorModId, setEditorModId] = useState('my-mod');
@@ -323,48 +335,31 @@ export const ModsPanel: React.FC = () => {
     syncFromBundle(b, true);
   };
 
-  const resolveNewSlotName = (promptText: string, suggested: string): string => {
-    const proposed = newSlotName.trim();
-    if (proposed) return proposed;
-    if (typeof window === 'undefined') return '';
-    return (window.prompt(promptText, suggested) || '').trim();
-  };
+  useEffect(() => {
+    const current = getActiveModSlot();
+    if (activeSlot !== current) {
+      setActiveSlot(current);
+      const b = getModBundle();
+      syncFromBundle(b, true);
+    }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [activeSlot]);
 
   const handleSave = () => {
     const normalized = parseFromRawOrToast();
     if (!normalized) return;
 
     if (activeSlot === 'default') {
-      const picked = resolveNewSlotName('Save As (new slot name):', 'my-mod-db');
-      if (!picked) {
-        toast({ title: 'Not saved', description: 'Default slot is read-only. Create a new slot to save changes.' });
-        return;
-      }
-      if (picked === 'default') {
-        toast({ title: 'Invalid slot name', description: '"default" is reserved. Pick a different name.' });
-        return;
-      }
-
-      const existing = listModSlots();
-      if (existing.includes(picked) && typeof window !== 'undefined') {
-        const ok = window.confirm(`Slot "${picked}" already exists. Overwrite it?`);
-        if (!ok) return;
-      }
-
-      setActiveModSlot(picked);
-      const nextSlot = getActiveModSlot();
-      setActiveSlot(nextSlot);
-      setNewSlotName('');
-
-      saveModBundle(normalized);
-      syncFromBundle(normalized, true);
-      toast({ title: 'Mods saved', description: `Saved to new slot "${nextSlot}".` });
+      toast({
+        title: 'Read-only database',
+        description: 'The default database is read-only. Duplicate it from the main menu (Database -> Manage…) to save changes.',
+      });
       return;
     }
 
     saveModBundle(normalized);
     syncFromBundle(normalized, true);
-    toast({ title: 'Mods saved', description: `Saved to slot "${getActiveModSlot()}".` });
+    toast({ title: 'Mods saved', description: `Saved to database "${getActiveModSlot()}".` });
   };
 
   const handleCopyJson = async () => {
@@ -422,144 +417,26 @@ export const ModsPanel: React.FC = () => {
     reader.readAsText(file);
   };
 
-  const handleSwitchSlot = (slotId: string) => {
-    if (slotId === activeSlot) return;
-    if (isDirty && typeof window !== 'undefined') {
-      const ok = window.confirm('You have unsaved changes. Switch slots anyway?');
-      if (!ok) return;
-    }
+  
 
-    setActiveModSlot(slotId);
-    const nextSlot = getActiveModSlot();
-    setActiveSlot(nextSlot);
+  const doClearMods = () => {
+    clearModBundle();
     handleReload();
-  };
-
-  const handleCreateSlot = () => {
-    const next = newSlotName.trim();
-    if (!next) return;
-
-    if (next === 'default') {
-      toast({ title: 'Invalid slot name', description: '"default" is reserved. Pick a different name.' });
-      return;
-    }
-
-    const existing = listModSlots();
-    if (existing.includes(next) && typeof window !== 'undefined') {
-      const ok = window.confirm(`Slot "${next}" already exists. Overwrite it?`);
-      if (!ok) return;
-    }
-
-    setActiveModSlot(next);
-    const nextSlot = getActiveModSlot();
-    setActiveSlot(nextSlot);
-    setNewSlotName('');
-
-    const normalized = parseFromRawOrToast();
-    const start = normalized ?? { version: 1, mods: [], patches: [] };
-    saveModBundle(start);
-    syncFromBundle(start, true);
-
-    toast({ title: 'Slot created', description: `Active slot is now "${nextSlot}".` });
-  };
-
-  const handleDeleteSlot = () => {
-    if (activeSlot === 'default') return;
-
-    if (isDirty && typeof window !== 'undefined') {
-      const ok = window.confirm('You have unsaved changes. Delete this slot anyway?');
-      if (!ok) return;
-    }
-
-    const old = activeSlot;
-    deleteModSlot(old);
-    const nextSlot = getActiveModSlot();
-    setActiveSlot(nextSlot);
-    handleReload();
-    toast({ title: 'Slot deleted', description: `Deleted slot "${old}".` });
-  };
-
-  const handleDuplicateSlot = () => {
-    const normalized = parseFromRawOrToast();
-    if (!normalized) return;
-
-    const suggested = activeSlot === 'default' ? 'my-mod-db' : `${activeSlot}-copy`;
-    const picked = resolveNewSlotName('Duplicate slot as (new slot name):', suggested);
-    if (!picked) return;
-
-    if (picked === 'default') {
-      toast({ title: 'Invalid slot name', description: '"default" is reserved. Pick a different name.' });
-      return;
-    }
-
-    const existing = listModSlots();
-    if (existing.includes(picked) && typeof window !== 'undefined') {
-      const ok = window.confirm(`Slot "${picked}" already exists. Overwrite it?`);
-      if (!ok) return;
-    }
-
-    setActiveModSlot(picked);
-    const nextSlot = getActiveModSlot();
-    setActiveSlot(nextSlot);
-    setNewSlotName('');
-
-    saveModBundle(normalized);
-    syncFromBundle(normalized, true);
-
-    toast({ title: 'Slot duplicated', description: `Duplicated into slot "${nextSlot}".` });
-  };
-
-  const handleRenameSlot = () => {
-    if (activeSlot === 'default') return;
-
-    const normalized = parseFromRawOrToast();
-    if (!normalized) return;
-
-    const picked = resolveNewSlotName('Rename slot to (new slot name):', activeSlot);
-    if (!picked) return;
-
-    if (picked === 'default') {
-      toast({ title: 'Invalid slot name', description: '"default" is reserved. Pick a different name.' });
-      return;
-    }
-
-    if (picked === activeSlot) return;
-
-    const existing = listModSlots();
-    if (existing.includes(picked) && typeof window !== 'undefined') {
-      const ok = window.confirm(`Slot "${picked}" already exists. Overwrite it?`);
-      if (!ok) return;
-    }
-
-    const old = activeSlot;
-
-    setActiveModSlot(picked);
-    const nextSlot = getActiveModSlot();
-    setActiveSlot(nextSlot);
-    setNewSlotName('');
-
-    saveModBundle(normalized);
-    syncFromBundle(normalized, true);
-
-    deleteModSlot(old);
-
-    toast({ title: 'Slot renamed', description: `Renamed "${old}" -> "${nextSlot}".` });
+    toast({ title: 'Cleared', description: `Cleared mods for database "${getActiveModSlot()}".` });
   };
 
   const handleClear = () => {
     if (activeSlot === 'default') {
-      toast({ title: 'Read-only', description: 'Default slot cannot be cleared. Create a new slot instead.' });
+      toast({ title: 'Read-only', description: 'The default database is read-only. Duplicate it from the main menu (Database -> Manage…) to edit mods.' });
       return;
     }
 
-    if (isDirty && typeof window !== 'undefined') {
-      const ok = window.confirm('You have unsaved changes. Clear this slot anyway?');
-      if (!ok) return;
+    if (isDirty) {
+      setClearConfirmOpen(true);
+      return;
     }
 
-    clearModBundle();
-    handleReload();
-    toast({ title: 'Cleared', description: `Cleared slot "${getActiveModSlot()}".` });
+    doClearMods();
   };
 
   const selectedMod = useMemo(() => {
@@ -2438,8 +2315,93 @@ export const ModsPanel: React.FC = () => {
     });
   };
 
+  const openConfirm = (state: ConfirmState, onConfirm: () => void) => {
+    confirmActionRef.current = onConfirm;
+    setConfirmState(state);
+    setConfirmOpen(true);
+  };
+
+  const closeConfirm = () => {
+    setConfirmOpen(false);
+    setConfirmState(null);
+    confirmActionRef.current = null;
+  };
+
+  const handleConfirm = () => {
+    const action = confirmActionRef.current;
+    closeConfirm();
+    action?.();
+  };
+
+  const confirmDelete = (description: string, onConfirm: () => void, title: string = 'Delete?', actionLabel: string = 'Delete') => {
+    openConfirm(
+      {
+        title,
+        description,
+        actionLabel,
+        destructive: true,
+      },
+      onConfirm
+    );
+  };
+
   return (
-    <Card>
+    <>
+      <AlertDialog open={clearConfirmOpen} onOpenChange={setClearConfirmOpen}>
+        <AlertDialogContent>
+          <AlertDialogHeader>
+            <AlertDialogTitle>Clear unsaved changes?</AlertDialogTitle>
+            <AlertDialogDescription>
+              You have unsaved changes. Clearing will discard your edits for database "{activeSlot}".
+            </AlertDialogDescription>
+          </AlertDialogHeader>
+          <AlertDialogFooter>
+            <AlertDialogCancel>Cancel</AlertDialogCancel>
+            <AlertDialogAction
+              className="bg-destructive text-destructive-foreground hover:bg-destructive/90"
+              onClick={() => {
+                setClearConfirmOpen(false);
+                doClearMods();
+              }}
+            >
+              Clear
+            </AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
+
+      <AlertDialog
+        open={confirmOpen}
+        onOpenChange={(open) => {
+          if (!open) {
+            closeConfirm();
+            return;
+          }
+          setConfirmOpen(true);
+        }}
+      >
+        <AlertDialogContent>
+          <AlertDialogHeader>
+            <AlertDialogTitle>{confirmState?.title ?? 'Confirm'}</AlertDialogTitle>
+            <AlertDialogDescription>{confirmState?.description ?? ''}</AlertDialogDescription>
+          </AlertDialogHeader>
+          <AlertDialogFooter>
+            <AlertDialogCancel onClick={closeConfirm}>Cancel</AlertDialogCancel>
+            <AlertDialogAction
+              className={
+                confirmState?.destructive
+                  ? 'bg-destructive text-destructive-foreground hover:bg-destructive/90'
+                  : undefined
+              }
+              onClick={handleConfirm}
+            >
+              {confirmState?.actionLabel ?? 'Confirm'}
+            </AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
+
+      <Card>
       <CardHeader className="space-y-2">
         <div className="flex flex-wrap items-center justify-between gap-2">
           <CardTitle>Mods</CardTitle>
@@ -2451,49 +2413,22 @@ export const ModsPanel: React.FC = () => {
 
         <div className="grid grid-cols-1 lg:grid-cols-3 gap-3">
           <div className="space-y-1">
-            <Label className="text-xs text-muted-foreground">Slot</Label>
-            <Select value={activeSlot} onValueChange={handleSwitchSlot}>
-              <SelectTrigger>
-                <SelectValue placeholder="Select slot" />
-              </SelectTrigger>
-              <SelectContent>
-                {slots.map((s) => (
-                  <SelectItem key={s} value={s}>
-                    {s}
-                  </SelectItem>
-                ))}
-              </SelectContent>
-            </Select>
-          </div>
-
-          <div className="space-y-1">
-            <Label className="text-xs text-muted-foreground">Create slot</Label>
-            <div className="flex gap-2">
-              <Input value={newSlotName} onChange={(e) => setNewSlotName(e.target.value)} placeholder="e.g. my-mod-db" />
-              <Button size="sm" variant="secondary" onClick={handleCreateSlot}>
-                Create
-              </Button>
+            <Label className="text-xs text-muted-foreground">Database</Label>
+            <Input value={activeSlot} readOnly />
+            <div className="text-xs text-muted-foreground">
+              To switch/rename/delete databases, use the main menu: <span className="font-medium">Database -> Manage…</span>
             </div>
           </div>
 
-          <div className="flex flex-wrap items-end justify-end gap-2">
+          <div className="flex flex-wrap items-end justify-end gap-2 lg:col-span-2">
             <Button size="sm" variant="secondary" onClick={handleReload}>
               Reload
             </Button>
-            <Button size="sm" onClick={handleSave}>
-              {activeSlot === 'default' ? 'Save As…' : 'Save'}
-            </Button>
-            <Button size="sm" variant="secondary" onClick={handleDuplicateSlot}>
-              Duplicate
-            </Button>
-            <Button size="sm" variant="secondary" disabled={activeSlot === 'default'} onClick={handleRenameSlot}>
-              Rename
+            <Button size="sm" onClick={handleSave} disabled={activeSlot === 'default'}>
+              Save
             </Button>
             <Button size="sm" variant="secondary" disabled={activeSlot === 'default'} onClick={handleClear}>
               Clear
-            </Button>
-            <Button size="sm" variant="destructive" disabled={activeSlot === 'default'} onClick={handleDeleteSlot}>
-              Delete slot
             </Button>
           </div>
         </div>
@@ -2891,7 +2826,13 @@ export const ModsPanel: React.FC = () => {
                               <Button size="sm" variant="ghost" onClick={() => handleResetPublicDomainRow(row.id)}>
                                 Reset
                               </Button>
-                              <Button size="sm" variant="ghost" onClick={() => handleDeletePublicDomainIP(row.id)}>
+                              <Button
+                                size="sm"
+                                variant="ghost"
+                                onClick={() =>
+                                  confirmDelete(`Delete public domain IP "${row.id}"?`, () => handleDeletePublicDomainIP(row.id))
+                                }
+                              >
                                 Delete
                               </Button>
                             </div>
@@ -3024,7 +2965,11 @@ export const ModsPanel: React.FC = () => {
                             />
                           </TableCell>
                           <TableCell className="p-2">
-                            <Button size="sm" variant="ghost" onClick={() => handleDeletePublicDomainCharacterRow(idx)}>
+                            <Button
+                              size="sm"
+                              variant="ghost"
+                              onClick={() => confirmDelete('Delete this character row?', () => handleDeletePublicDomainCharacterRow(idx))}
+                            >
                               Delete
                             </Button>
                           </TableCell>
@@ -3141,7 +3086,11 @@ export const ModsPanel: React.FC = () => {
                             />
                           </TableCell>
                           <TableCell className="p-2">
-                            <Button size="sm" variant="ghost" onClick={() => handleDeleteRoleRow(idx)}>
+                            <Button
+                              size="sm"
+                              variant="ghost"
+                              onClick={() => confirmDelete('Delete this role row?', () => handleDeleteRoleRow(idx))}
+                            >
                               Delete
                             </Button>
                           </TableCell>
@@ -3247,7 +3196,11 @@ export const ModsPanel: React.FC = () => {
                           </div>
                         </TableCell>
                         <TableCell className="p-2">
-                          <Button size="sm" variant="ghost" onClick={() => handleDeleteCharacterRow(idx)}>
+                          <Button
+                            size="sm"
+                            variant="ghost"
+                            onClick={() => confirmDelete('Delete this character row?', () => handleDeleteCharacterRow(idx))}
+                          >
                             Delete
                           </Button>
                         </TableCell>
@@ -3493,7 +3446,9 @@ export const ModsPanel: React.FC = () => {
                       size="sm"
                       variant="secondary"
                       disabled={!awardShowKey}
-                      onClick={() => handleDeleteAwardShow(awardShowKey)}
+                      onClick={() =>
+                        confirmDelete(`Delete award show "${awardShowKey}"?`, () => handleDeleteAwardShow(awardShowKey), 'Delete award show?', 'Delete show')
+                      }
                     >
                       Delete show
                     </Button>
@@ -3572,7 +3527,13 @@ export const ModsPanel: React.FC = () => {
                               </Select>
                             </TableCell>
                             <TableCell className="p-2">
-                              <Button size="sm" variant="ghost" onClick={() => handleDeleteAwardCategory(awardShowKey, idx)}>
+                              <Button
+                                size="sm"
+                                variant="ghost"
+                                onClick={() =>
+                                  confirmDelete(`Delete award category "${c.id}"?`, () => handleDeleteAwardCategory(awardShowKey, idx))
+                                }
+                              >
                                 Delete
                               </Button>
                             </TableCell>
@@ -3704,7 +3665,11 @@ export const ModsPanel: React.FC = () => {
                               <Button size="sm" variant="ghost" onClick={() => handleResetStudioRow(row.name)}>
                                 Reset
                               </Button>
-                              <Button size="sm" variant="ghost" onClick={() => handleDeleteStudioProfile(row.name)}>
+                              <Button
+                                size="sm"
+                                variant="ghost"
+                                onClick={() => confirmDelete(`Delete studio profile "${row.name}"?`, () => handleDeleteStudioProfile(row.name))}
+                              >
                                 Delete
                               </Button>
                             </div>
@@ -3843,7 +3808,11 @@ export const ModsPanel: React.FC = () => {
                               <Button size="sm" variant="ghost" onClick={() => handleResetMediaSourceRow(row.id)}>
                                 Reset
                               </Button>
-                              <Button size="sm" variant="ghost" onClick={() => handleDeleteMediaSource(row.id)}>
+                              <Button
+                                size="sm"
+                                variant="ghost"
+                                onClick={() => confirmDelete(`Delete media source "${row.id}"?`, () => handleDeleteMediaSource(row.id))}
+                              >
                                 Delete
                               </Button>
                             </div>
@@ -3916,7 +3885,14 @@ export const ModsPanel: React.FC = () => {
                           (baseMediaHeadlineTemplates as any)[mediaTemplateKey] !== undefined ||
                           (baseMediaContentTemplates as any)[mediaTemplateKey] !== undefined
                         }
-                        onClick={() => handleDeleteMediaTemplateType(mediaTemplateKey)}
+                        onClick={() =>
+                          confirmDelete(
+                            `Delete media template event type "${mediaTemplateKey}"?`,
+                            () => handleDeleteMediaTemplateType(mediaTemplateKey),
+                            'Delete event type?',
+                            'Delete type'
+                          )
+                        }
                       >
                         Delete type
                       </Button>
@@ -3965,7 +3941,12 @@ export const ModsPanel: React.FC = () => {
                                 <Button
                                   size="sm"
                                   variant="ghost"
-                                  onClick={() => handleDeleteMediaTemplateRow('headline', mediaTemplateKey, idx)}
+                                  onClick={() =>
+                                    confirmDelete(
+                                      `Delete headline template row #${idx + 1}?`,
+                                      () => handleDeleteMediaTemplateRow('headline', mediaTemplateKey, idx)
+                                    )
+                                  }
                                 >
                                   Delete
                                 </Button>
@@ -4003,7 +3984,16 @@ export const ModsPanel: React.FC = () => {
                                 />
                               </TableCell>
                               <TableCell className="p-2">
-                                <Button size="sm" variant="ghost" onClick={() => handleDeleteMediaTemplateRow('content', mediaTemplateKey, idx)}>
+                                <Button
+                                  size="sm"
+                                  variant="ghost"
+                                  onClick={() =>
+                                    confirmDelete(
+                                      `Delete content template row #${idx + 1}?`,
+                                      () => handleDeleteMediaTemplateRow('content', mediaTemplateKey, idx)
+                                    )
+                                  }
+                                >
                                   Delete
                                 </Button>
                               </TableCell>
@@ -4081,7 +4071,11 @@ export const ModsPanel: React.FC = () => {
                               <Input className="h-8" value={r.value} onChange={(e) => updateParodyByCharacterIdRow(idx, { value: e.target.value })} />
                             </TableCell>
                             <TableCell className="p-2">
-                              <Button size="sm" variant="ghost" onClick={() => handleDeleteParodyByCharacterIdRow(idx)}>
+                              <Button
+                                size="sm"
+                                variant="ghost"
+                                onClick={() => confirmDelete('Delete this mapping row?', () => handleDeleteParodyByCharacterIdRow(idx))}
+                              >
                                 Delete
                               </Button>
                             </TableCell>
@@ -4116,7 +4110,11 @@ export const ModsPanel: React.FC = () => {
                               <Input className="h-8" value={r.value} onChange={(e) => updateParodyByTemplateIdRow(idx, { value: e.target.value })} />
                             </TableCell>
                             <TableCell className="p-2">
-                              <Button size="sm" variant="ghost" onClick={() => handleDeleteParodyByTemplateIdRow(idx)}>
+                              <Button
+                                size="sm"
+                                variant="ghost"
+                                onClick={() => confirmDelete('Delete this mapping row?', () => handleDeleteParodyByTemplateIdRow(idx))}
+                              >
                                 Delete
                               </Button>
                             </TableCell>
@@ -4217,5 +4215,6 @@ export const ModsPanel: React.FC = () => {
         </Tabs>
       </CardContent>
     </Card>
+    </>
   );
 };

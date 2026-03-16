@@ -6,6 +6,7 @@ import { FinancialEngine } from './FinancialEngine';
 import { ReleaseSystem } from './ReleaseSystem';
 import { ReputationSystem } from './ReputationSystem';
 import { formatMoneyCompact } from '@/utils/money';
+import { logDebug } from '@/utils/logger';
 
 export interface SystemHealthCheck {
   system: string;
@@ -286,29 +287,29 @@ export class SystemIntegration {
   static runDiagnostics(gameState: GameState): void {
     if (!import.meta.env.DEV) return;
 
-    console.log('=== SYSTEM INTEGRATION DIAGNOSTICS ===');
+    logDebug('=== SYSTEM INTEGRATION DIAGNOSTICS ===');
 
     const validation = this.validateGameState(gameState);
 
-    console.log(`System Health: ${validation.isValid ? 'HEALTHY' : 'ISSUES DETECTED'}`);
+    logDebug(`System Health: ${validation.isValid ? 'HEALTHY' : 'ISSUES DETECTED'}`);
 
     if (validation.errors.length > 0) {
-      console.log('ERRORS:');
-      validation.errors.forEach(error => console.log(`  ERR ${error}`));
+      logDebug('ERRORS:');
+      validation.errors.forEach((error) => logDebug(`  ERR ${error}`));
     }
 
     if (validation.warnings.length > 0) {
-      console.log('WARNINGS:');
-      validation.warnings.forEach(warning => console.log(`  WARN ${warning}`));
+      logDebug('WARNINGS:');
+      validation.warnings.forEach((warning) => logDebug(`  WARN ${warning}`));
     }
 
-    console.log('HEALTH CHECKS:');
-    validation.healthChecks.forEach(check => {
+    logDebug('HEALTH CHECKS:');
+    validation.healthChecks.forEach((check) => {
       const status = check.status === 'healthy' ? 'OK' : check.status === 'warning' ? 'WARN' : 'ERR';
-      console.log(`  ${status} ${check.system}: ${check.message}`);
+      logDebug(`  ${status} ${check.system}: ${check.message}`);
     });
 
-    console.log('=== END DIAGNOSTICS ===');
+    logDebug('=== END DIAGNOSTICS ===');
   }
   
   static fixCommonIssues(gameState: GameState): GameState {
@@ -359,7 +360,7 @@ export class SystemIntegration {
         })(project.currentPhase);
         
         if (!allowedStatusesForPhase.includes(project.status)) {
-          console.log(`FIXING: Syncing ${project.title} status to match phase ${project.currentPhase}`);
+          logDebug(`FIXING: Syncing ${project.title} status to match phase ${project.currentPhase}`);
           return {
             ...project,
             status: project.currentPhase as any

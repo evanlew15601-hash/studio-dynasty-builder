@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useEffect, useState } from 'react';
 import { Link } from 'react-router-dom';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
@@ -12,6 +12,8 @@ import { Play, Settings, Film, Star, Trophy, Sparkles, HelpCircle } from 'lucide
 import { Genre } from '@/types/game';
 import { StudioIconCustomizer, DEFAULT_ICON, type StudioIconConfig } from './StudioIconCustomizer';
 import { PremiumBackground } from '@/components/ui/premium-background';
+import { DatabaseManagerDialog } from '@/components/game/DatabaseManagerDialog';
+import { getActiveModSlot, listModSlots, setActiveModSlot } from '@/utils/moddingStore';
 
 interface GameLandingProps {
   onStartGame: (config: GameConfig) => void;
@@ -47,6 +49,8 @@ export const GameLanding: React.FC<GameLandingProps> = ({
   onOnlineSeasonYearsChange,
 }) => {
   const [showCustomization, setShowCustomization] = useState(false);
+  const [databaseSlot, setDatabaseSlot] = useState(() => getActiveModSlot());
+  const [dbManagerOpen, setDbManagerOpen] = useState(false);
   const [config, setConfig] = useState<GameConfig>({
     studioName: '',
     specialties: ['drama'],
@@ -54,6 +58,13 @@ export const GameLanding: React.FC<GameLandingProps> = ({
     startingBudget: 10000000,
     studioIcon: { ...DEFAULT_ICON },
   });
+
+  useEffect(() => {
+    const current = getActiveModSlot();
+    if (databaseSlot !== current) {
+      setDatabaseSlot(current);
+    }
+  }, [databaseSlot]);
 
   const hasOnlineConfig =
     mode !== 'online' ||
@@ -72,6 +83,13 @@ export const GameLanding: React.FC<GameLandingProps> = ({
     'musical', 'western', 'war', 'biography', 'crime', 'mystery',
     'superhero', 'family', 'sports', 'historical'
   ];
+
+  const handleDatabaseChange = (slotId: string) => {
+    setActiveModSlot(slotId);
+    setDatabaseSlot(getActiveModSlot());
+  };
+
+  
 
   const handleStartGame = () => {
     if (mode === 'online' && !onlineLeagueCode?.trim()) {
@@ -108,6 +126,12 @@ export const GameLanding: React.FC<GameLandingProps> = ({
     <div className="min-h-screen bg-background relative overflow-hidden">
       <PremiumBackground variant="landing" />
 
+      <DatabaseManagerDialog
+        open={dbManagerOpen}
+        onOpenChange={setDbManagerOpen}
+        onDatabaseChanged={(db) => setDatabaseSlot(db)}
+      />
+
       <div className="relative z-10 flex flex-col items-center justify-center min-h-screen p-8">
         {/* Main Title */}
         <div className="text-center mb-16 animate-fade-in">
@@ -138,6 +162,43 @@ export const GameLanding: React.FC<GameLandingProps> = ({
         {/* Main Menu */}
         {!showCustomization ? (
           <div className="space-y-6 animate-scale-in">
+            <Card className="card-golden max-w-2xl mx-auto">
+              <CardHeader>
+                <CardTitle className="text-xl text-foreground flex items-center">
+                  <Sparkles className="mr-2 text-primary" />
+                  Database
+                </CardTitle>
+              </CardHeader>
+              <CardContent className="space-y-3">
+                <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+                  <div className="space-y-1">
+                    <Label className="text-xs text-muted-foreground">Active database</Label>
+                    <Select value={databaseSlot} onValueChange={handleDatabaseChange}>
+                      <SelectTrigger>
+                        <SelectValue placeholder="Select database" />
+                      </SelectTrigger>
+                      <SelectContent>
+                        {listModSlots().map((slot) => (
+                          <SelectItem key={slot} value={slot}>
+                            {slot}
+                          </SelectItem>
+                        ))}
+                      </SelectContent>
+                    </Select>
+                  </div>
+                  <div className="text-xs text-muted-foreground sm:pt-6">
+                    TEW-style: saves are separated per database.
+                  </div>
+                </div>
+
+                <div className="flex flex-wrap gap-2">
+                  <Button size="sm" variant="secondary" onClick={() => setDbManagerOpen(true)}>
+                    Manage…
+                  </Button>
+                </div>
+              </CardContent>
+            </Card>
+
             {mode === 'online' && (
               <Card className="card-golden max-w-2xl mx-auto">
                 <CardHeader>
@@ -328,6 +389,31 @@ export const GameLanding: React.FC<GameLandingProps> = ({
                 </CardTitle>
               </CardHeader>
               <CardContent className="space-y-6">
+                <div>
+                  <Label className="text-foreground text-base">Database</Label>
+                  <Select value={databaseSlot} onValueChange={handleDatabaseChange}>
+                    <SelectTrigger className="mt-2 bg-input border-border text-foreground focus:border-primary">
+                      <SelectValue placeholder="Select database" />
+                    </SelectTrigger>
+                    <SelectContent className="bg-popover border-border">
+                      {listModSlots().map((slot) => (
+                        <SelectItem key={slot} value={slot} className="text-foreground hover:bg-accent/20">
+                          {slot}
+                        </SelectItem>
+                      ))}
+                    </SelectContent>
+                  </Select>
+
+                  <div className="mt-2 flex flex-wrap gap-2">
+                    <Button size="sm" variant="secondary" onClick={() => setDbManagerOpen(true)}>
+                      Manage…
+                    </Button>
+                  </div>
+
+                  <p className="text-sm text-muted-foreground mt-2">
+                    Saves are separated per database.
+                  </p>
+                </div>
                 {mode === 'online' && (
                   <div>
                     <Label className="text-foreground text-base">Online League Invite Code</Label>

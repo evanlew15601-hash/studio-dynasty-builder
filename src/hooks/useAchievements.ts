@@ -1,5 +1,6 @@
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useRef } from 'react';
 import { GameState } from '@/types/game';
+import { unlockSteamAchievementForInGameId } from '@/integrations/steam/achievements';
 
 export type AchievementIcon = "dollar" | "film" | "star" | "trophy" | "award";
 
@@ -135,6 +136,7 @@ export const useAchievements = (gameState: GameState, initialUnlockedIds?: strin
     );
   });
   const [recentUnlocks, setRecentUnlocks] = useState<Achievement[]>([]);
+  const steamReportedRef = useRef(new Set<string>());
 
   useEffect(() => {
     setAchievements(prev => {
@@ -156,6 +158,15 @@ export const useAchievements = (gameState: GameState, initialUnlockedIds?: strin
       return updated;
     });
   }, [gameState]);
+
+  useEffect(() => {
+    for (const achievement of recentUnlocks) {
+      if (!achievement.id) continue;
+      if (steamReportedRef.current.has(achievement.id)) continue;
+      steamReportedRef.current.add(achievement.id);
+      void unlockSteamAchievementForInGameId(achievement.id);
+    }
+  }, [recentUnlocks, unlockSteamAchievementForInGameId]);
 
   const getUnlockedAchievements = () => achievements.filter(a => a.unlocked);
   const getLockedAchievements = () => achievements.filter(a => !a.unlocked);

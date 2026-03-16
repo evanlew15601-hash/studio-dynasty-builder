@@ -1,0 +1,13 @@
+[[permission]]
+identifier = "steam-default"
+description = "Allow the frontend to interact with Steamworks (Steam achievements + overlay)."
+commands.allow = [
+  "steam_is_available",
+  "steamIsAvailable",
+  "steam_get_persona_name",
+  "steamGetPersonaName",
+  "steam_unlock_achievement",
+  "steamUnlockAchievement",
+  "steam_open_overlay",
+  "steamOpenOverlay"
+]

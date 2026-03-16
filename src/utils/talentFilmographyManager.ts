@@ -1,5 +1,6 @@
 // Talent Filmography Management
 import { GameState, TalentPerson, Project } from '@/types/game';
+import { logDebug } from '@/utils/logger';
 
 export const TalentFilmographyManager = {
   /**
@@ -111,9 +112,9 @@ export const TalentFilmographyManager = {
 
       const newFame = Math.max(0, Math.min(100, (talent.fame || 0) + fameBoost));
 
-      if (import.meta.env.DEV) {
-        console.log(`📽️ FILMOGRAPHY UPDATE: ${talent.name} in "${project.title}" as ${role}. Fame: ${talent.fame || 0} → ${newFame}`);
-      }
+      logDebug(
+        `[Filmography] ${talent.name} in "${project.title}" as ${role}. Fame: ${talent.fame || 0} -> ${newFame}`
+      );
 
       return {
         ...talent,
