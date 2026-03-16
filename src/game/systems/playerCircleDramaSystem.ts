@@ -110,6 +110,7 @@ function buildPoachingEvent(
 
   const baseCost = (talent.marketValue || 1_000_000) * 0.03;
   const cost = Math.max(50_000, Math.round(baseCost * (1 + (agentPower - 5) * 0.06)));
+  const prCost = Math.max(75_000, Math.round(cost * 0.55));
 
   const outlet = getTopTradeOutletName();
 
@@ -126,6 +127,7 @@ function buildPoachingEvent(
       {
         id: 'match',
         text: `Match the offer (${formatDollars(cost)})`,
+        requirements: [{ type: 'budget', threshold: cost, description: 'Not enough budget to match the offer.' }],
         consequences: [
           { type: 'budget', impact: -cost, description: 'Pay a retention bonus to hold the line.' },
           {
@@ -136,6 +138,22 @@ function buildPoachingEvent(
             description: 'Loyalty improves.'
           },
           { type: 'reputation', impact: 1, description: 'Industry sees you protect your people.' },
+        ],
+      },
+      {
+        id: 'pr-spin',
+        text: `Launch a damage-control PR push (${formatDollars(prCost)})`,
+        requirements: [{ type: 'budget', threshold: prCost, description: 'Not enough budget for a PR push.' }],
+        consequences: [
+          { type: 'budget', impact: -prCost, description: 'Pay for damage control and friendly access.' },
+          {
+            type: 'talent-relationship',
+            relationship: 'loyalty',
+            target: { talentId: talent.id, studioId },
+            impact: 10,
+            description: 'Loyalty improves.'
+          },
+          { type: 'reputation', impact: 2, description: `You contain the story before ${outlet} turns it into a cycle.` },
         ],
       },
       {
@@ -184,6 +202,7 @@ function buildFeudEvent(
   const outlet = getTopTradeOutletName();
 
   const cost = chemistry <= -75 ? 175_000 : 125_000;
+  const prCost = chemistry <= -75 ? 250_000 : 150_000;
   const severityLabel = chemistry <= -75 ? 'explosive' : chemistry <= -60 ? 'serious' : 'tense';
 
   return {
@@ -199,6 +218,7 @@ function buildFeudEvent(
       {
         id: 'mediate',
         text: `Bring in a mediator (${formatDollars(cost)})`,
+        requirements: [{ type: 'budget', threshold: cost, description: 'Not enough budget to bring in a mediator.' }],
         consequences: [
           { type: 'budget', impact: -cost, description: 'Pay for mediation + schedule smoothing.' },
           {
@@ -221,6 +241,29 @@ function buildFeudEvent(
             target: { talentId: b.id, studioId },
             impact: 4,
             description: 'Loyalty improves.'
+          },
+        ],
+      },
+      {
+        id: 'pr-shield',
+        text: `Run damage control with the trades (${formatDollars(prCost)})`,
+        requirements: [{ type: 'budget', threshold: prCost, description: 'Not enough budget for damage control.' }],
+        consequences: [
+          { type: 'budget', impact: -prCost, description: 'Pay for crisis comms + controlled access.' },
+          { type: 'reputation', impact: chemistry <= -75 ? 2 : 1, description: `You blunt the worst headlines at ${outlet}.` },
+          {
+            type: 'talent-relationship',
+            relationship: 'loyalty',
+            target: { talentId: a.id, studioId },
+            impact: 2,
+            description: `${a.name} appreciates the cover.`
+          },
+          {
+            type: 'talent-relationship',
+            relationship: 'loyalty',
+            target: { talentId: b.id, studioId },
+            impact: 2,
+            description: `${b.name} appreciates the cover.`
           },
         ],
       },

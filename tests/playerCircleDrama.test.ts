@@ -244,6 +244,38 @@ describe('resolveGameEvent (store)', () => {
     expect(state.talent[0].studioLoyalty?.['studio-1']).toBe(15);
   });
 
+  it('supports PR-style choices via budget + reputation consequences', () => {
+    const event: GameEvent = {
+      id: 'event-pr',
+      title: 'PR Test',
+      description: '...',
+      type: 'crisis',
+      triggerDate: new Date('2027-01-01T00:00:00.000Z'),
+      choices: [
+        {
+          id: 'pr-spin',
+          text: 'Run damage control',
+          consequences: [
+            { type: 'budget', impact: -200_000, description: 'Pay for PR.' },
+            { type: 'reputation', impact: 2, description: 'Reputation recovers.' },
+          ],
+        },
+      ],
+    };
+
+    useGameStore.getState().mergeGameState({
+      eventQueue: [event],
+      studio: { ...useGameStore.getState().game!.studio, budget: 1_000_000, reputation: 50 },
+    });
+
+    useGameStore.getState().resolveGameEvent('event-pr', 'pr-spin');
+
+    const state = useGameStore.getState().game!;
+    expect(state.eventQueue.length).toBe(0);
+    expect(state.studio.budget).toBe(800_000);
+    expect(state.studio.reputation).toBe(52);
+  });
+
   it('handles replace-b for circle:feud by removing the talent from the project', () => {
     const projectId = 'project-x';
 
