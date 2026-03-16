@@ -92,8 +92,8 @@ export default {
 				'navy': 'var(--shadow-navy)'
 			},
 			fontFamily: {
-				'studio': ['Inter', 'system-ui', 'sans-serif'],
-				'mono': ['JetBrains Mono', 'Fira Code', 'Consolas', 'monospace']
+				'studio': ['var(--font-body)', 'Inter', 'system-ui', 'sans-serif'],
+				'mono': ['var(--font-mono)', 'JetBrains Mono', 'Fira Code', 'Consolas', 'monospace']
 			},
 			borderRadius: {
 				lg: 'var(--radius)',

@@ -24,6 +24,9 @@ All colors MUST be HSL.
 
     --premium-depth: 220 18% 12%;
     --premium-grain-opacity: 0.06;
+    --premium-scanlines-opacity: 0;
+    --premium-scanlines-color: var(--foreground);
+    --premium-flicker-opacity: 0;
 
     --card: 220 18% 10%;
     --card-foreground: 45 12% 88%;
@@ -126,6 +129,9 @@ All colors MUST be HSL.
 
     --premium-depth: 220 10% 10%;
     --premium-grain-opacity: 0.09;
+    --premium-scanlines-opacity: 0.02;
+    --premium-scanlines-color: var(--foreground);
+    --premium-flicker-opacity: 0.03;
 
     --card: 220 10% 9%;
     --card-foreground: 40 10% 92%;
@@ -174,7 +180,6 @@ All colors MUST be HSL.
     --background: 35 30% 92%;
     --foreground: 28 25% 18%;
 
-    --font-body: 'Cormorant Garamond', Georgia, serif;
     --font-title: 'Cormorant Garamond', Georgia, serif;
     --font-ui: 'Oswald', 'Inter', system-ui, -apple-system, sans-serif;
 
@@ -183,7 +188,10 @@ All colors MUST be HSL.
       radial-gradient(ellipse at bottom right, hsl(28 54% 32% / 0.10) 0%, transparent 58%);
 
     --premium-depth: 35 22% 80%;
-    --premium-grain-opacity: 0.04;
+    --premium-grain-opacity: 0.08;
+    --premium-scanlines-opacity: 0.012;
+    --premium-scanlines-color: var(--foreground);
+    --premium-flicker-opacity: 0.06;
 
     --card: 35 35% 96%;
     --card-foreground: 28 25% 18%;
@@ -241,6 +249,9 @@ All colors MUST be HSL.
 
     --premium-depth: 230 30% 14%;
     --premium-grain-opacity: 0.05;
+    --premium-scanlines-opacity: 0.07;
+    --premium-scanlines-color: var(--primary);
+    --premium-flicker-opacity: 0.02;
 
     --card: 230 28% 10%;
     --card-foreground: 210 40% 96%;
@@ -298,6 +309,9 @@ All colors MUST be HSL.
 
     --premium-depth: 120 14% 12%;
     --premium-grain-opacity: 0.10;
+    --premium-scanlines-opacity: 0.02;
+    --premium-scanlines-color: var(--accent);
+    --premium-flicker-opacity: 0.05;
 
     --card: 120 14% 9%;
     --card-foreground: 40 15% 88%;
@@ -504,6 +518,18 @@ All colors MUST be HSL.
   @keyframes premium-grain-shift {
     0% { transform: translate3d(0, 0, 0) scale(1.6); }
     100% { transform: translate3d(-8%, -6%, 0) scale(1.6); }
+  }
+
+  @keyframes premium-flicker {
+    0%, 100% { opacity: 0; }
+    7% { opacity: var(--premium-flicker-opacity); }
+    9% { opacity: 0; }
+    23% { opacity: var(--premium-flicker-opacity); }
+    24% { opacity: 0; }
+    62% { opacity: var(--premium-flicker-opacity); }
+    64% { opacity: 0; }
+    86% { opacity: var(--premium-flicker-opacity); }
+    88% { opacity: 0; }
   }
 
   @keyframes premium-bokeh-float {

@@ -141,6 +141,8 @@ export const GameLanding: React.FC<GameLandingProps> = ({
         onDatabaseChanged={(db) => setDatabaseSlot(db)}
       />
 
+      <SupabaseConfigDialog open={supabaseConfigOpen} onOpenChange={setSupabaseConfigOpen} />
+
       <div
         className={cn(
           'relative z-10 flex flex-col items-center min-h-screen',
@@ -334,7 +336,7 @@ export const GameLanding: React.FC<GameLandingProps> = ({
                       onClick={() => handleUiSkinChange(skin.id)}
                       aria-pressed={uiSkin === skin.id}
                       className={cn(
-                        'group rounded-lg border bg-background/30 backdrop-blur-sm p-3 text-left transition-all duration-300',
+                        'group relative overflow-hidden rounded-lg border bg-background/30 backdrop-blur-sm p-3 text-left transition-all duration-300 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 focus-visible:ring-offset-background after:absolute after:inset-0 after:bg-gradient-to-r after:from-transparent after:via-primary/12 after:to-transparent after:-translate-x-full after:transition-transform after:duration-700 after:pointer-events-none group-hover:after:translate-x-full',
                         uiSkin === skin.id
                           ? 'border-primary/70 shadow-[0_0_0_1px_hsl(var(--primary)/0.25),0_0_50px_hsl(var(--primary)/0.10)]'
                           : 'border-border/50 hover:border-primary/40'
@@ -512,7 +514,7 @@ export const GameLanding: React.FC<GameLandingProps> = ({
                         onClick={() => handleUiSkinChange(skin.id)}
                         aria-pressed={uiSkin === skin.id}
                         className={cn(
-                          'group rounded-lg border bg-background/30 backdrop-blur-sm p-3 text-left transition-all duration-300',
+                          'group relative overflow-hidden rounded-lg border bg-background/30 backdrop-blur-sm p-3 text-left transition-all duration-300 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 focus-visible:ring-offset-background after:absolute after:inset-0 after:bg-gradient-to-r after:from-transparent after:via-primary/12 after:to-transparent after:-translate-x-full after:transition-transform after:duration-700 after:pointer-events-none group-hover:after:translate-x-full',
                           uiSkin === skin.id
                             ? 'border-primary/70 shadow-[0_0_0_1px_hsl(var(--primary)/0.25),0_0_50px_hsl(var(--primary)/0.10)]'
                             : 'border-border/50 hover:border-primary/40'

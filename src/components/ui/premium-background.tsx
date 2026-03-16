@@ -168,6 +168,27 @@ export const PremiumBackground: React.FC<PremiumBackgroundProps> = ({ variant = 
         }}
       />
 
+      {/* Scanlines (themeable) */}
+      <div
+        className="absolute inset-0"
+        style={{
+          backgroundImage:
+            'repeating-linear-gradient(to bottom, hsl(var(--premium-scanlines-color) / 0.18) 0px, hsl(var(--premium-scanlines-color) / 0.18) 1px, transparent 1px, transparent 4px)',
+          opacity: 'var(--premium-scanlines-opacity)',
+          mixBlendMode: 'overlay',
+        }}
+      />
+
+      {/* Flicker (themeable) */}
+      <div
+        className="absolute inset-0"
+        style={{
+          backgroundImage: 'linear-gradient(180deg, hsl(var(--background) / 0.06), transparent 45%, hsl(var(--background) / 0.08))',
+          animation: 'premium-flicker 8s linear infinite',
+          pointerEvents: 'none',
+        }}
+      />
+
       {/* Vignette */}
       <div
         className="absolute inset-0"
