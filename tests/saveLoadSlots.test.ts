@@ -1,10 +1,12 @@
 import { describe, expect, it, beforeEach } from 'vitest';
 
 import {
+  deleteDatabaseSavesAsync,
   deleteGameAsync,
   getActiveSaveSlotId,
   listSaveSlotsAsync,
   loadGame,
+  moveDatabaseSavesAsync,
   normalizeSlotId,
   saveGame,
   saveSnapshotAsync,
@@ -143,5 +145,34 @@ describe('saveLoad slots', () => {
 
     expect(loadedA?.gameState.studio.name).toBe('DB-A');
     expect(loadedB?.gameState.studio.name).toBe('DB-B');
+  });
+
+  it('moves saves when a database is renamed', async () => {
+    const snap = makeSnapshot();
+    snap.gameState.studio.name = 'Old DB';
+    await saveSnapshotAsync('slot1', snap, 'old-db');
+    await saveSnapshotAsync('slot2', snap, 'old-db');
+
+    expect(await listSaveSlotsAsync('old-db')).toEqual(['slot1', 'slot2']);
+
+    const moved = await moveDatabaseSavesAsync('old-db', 'new-db');
+    expect(moved).toBe(2);
+
+    expect(await listSaveSlotsAsync('old-db')).toEqual([]);
+    expect(await listSaveSlotsAsync('new-db')).toEqual(['slot1', 'slot2']);
+
+    const loaded = loadGame('slot1', 'new-db');
+    expect(loaded?.meta.modSlotId).toBe('new-db');
+  });
+
+  it('deletes all saves in a database', async () => {
+    const snap = makeSnapshot();
+    await saveSnapshotAsync('slot1', snap, 'db-x');
+    await saveSnapshotAsync('slot2', snap, 'db-x');
+
+    const deleted = await deleteDatabaseSavesAsync('db-x');
+    expect(deleted).toBe(2);
+
+    expect(await listSaveSlotsAsync('db-x')).toEqual([]);
   });
 });

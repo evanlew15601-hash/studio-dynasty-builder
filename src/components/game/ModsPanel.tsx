@@ -26,6 +26,7 @@ import type { ModBundle, ModInfo, ModOp, ModPatch } from '@/types/modding';
 import { useToast } from '@/hooks/use-toast';
 import { applyPatchesByKey, applyPatchesToRecord, getPatchesForEntity, normalizeModBundle } from '@/utils/modding';
 import { parseCsv, toCsv } from '@/utils/csv';
+import { deleteDatabaseSavesAsync, moveDatabaseSavesAsync } from '@/utils/saveLoad';
 import {
   clearModBundle,
   deleteModSlot,
@@ -463,7 +464,7 @@ export const ModsPanel: React.FC = () => {
     toast({ title: 'Slot created', description: `Active slot is now "${nextSlot}".` });
   };
 
-  const handleDeleteSlot = () => {
+  const handleDeleteSlot = async () => {
     if (activeSlot === 'default') return;
 
     if (isDirty && typeof window !== 'undefined') {
@@ -471,12 +472,35 @@ export const ModsPanel: React.FC = () => {
       if (!ok) return;
     }
 
+    if (typeof window !== 'undefined') {
+      const ok = window.confirm(
+        `Delete database "${activeSlot}" and ALL saves for it?\n\nThis cannot be undone.`
+      );
+      if (!ok) return;
+    }
+
     const old = activeSlot;
-    deleteModSlot(old);
-    const nextSlot = getActiveModSlot();
-    setActiveSlot(nextSlot);
-    handleReload();
-    toast({ title: 'Slot deleted', description: `Deleted slot "${old}".` });
+
+    try {
+      const deletedSaves = await deleteDatabaseSavesAsync(old);
+
+      deleteModSlot(old);
+      const nextSlot = getActiveModSlot();
+      setActiveSlot(nextSlot);
+      handleReload();
+
+      toast({
+        title: 'Slot deleted',
+        description: `Deleted database "${old}" (${deletedSaves} save(s) removed).`,
+      });
+    } catch (error) {
+      console.error('Failed to delete database slot', error);
+      toast({
+        title: 'Delete failed',
+        description: `Could not delete database "${old}".`,
+        variant: 'destructive',
+      });
+    }
   };
 
   const handleDuplicateSlot = () => {
@@ -509,7 +533,7 @@ export const ModsPanel: React.FC = () => {
     toast({ title: 'Slot duplicated', description: `Duplicated into slot "${nextSlot}".` });
   };
 
-  const handleRenameSlot = () => {
+  const handleRenameSlot = async () => {
     if (activeSlot === 'default') return;
 
     const normalized = parseFromRawOrToast();
@@ -541,9 +565,23 @@ export const ModsPanel: React.FC = () => {
     saveModBundle(normalized);
     syncFromBundle(normalized, true);
 
-    deleteModSlot(old);
+    try {
+      const movedSaves = await moveDatabaseSavesAsync(old, nextSlot);
 
-    toast({ title: 'Slot renamed', description: `Renamed "${old}" -> "${nextSlot}".` });
+      deleteModSlot(old);
+
+      toast({
+        title: 'Slot renamed',
+        description: `Renamed "${old}" -> "${nextSlot}" (${movedSaves} save(s) moved).`,
+      });
+    } catch (error) {
+      console.error('Failed to migrate saves for renamed database', error);
+      toast({
+        title: 'Rename incomplete',
+        description: `Database "${old}" was copied to "${nextSlot}", but saves could not be moved.`,
+        variant: 'destructive',
+      });
+    }
   };
 
   const handleClear = () => {

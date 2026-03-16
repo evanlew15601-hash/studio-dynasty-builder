@@ -378,3 +378,120 @@ export async function getSavesDirAsync(): Promise<string | null> {
   if (!isTauriRuntime()) return null;
   return await getSavesDir();
 }
+
+export type AutoLoadTarget = {
+  modSlotId: string;
+  slotId: string;
+};
+
+export function decodeAutoLoadTarget(raw: string | null | undefined): AutoLoadTarget | null {
+  const text = String(raw || '').trim();
+  if (!text) return null;
+
+  try {
+    const parsed = JSON.parse(text) as { modSlotId?: unknown; slotId?: unknown };
+    if (parsed && typeof parsed === 'object' && typeof parsed.slotId === 'string' && parsed.slotId.trim()) {
+      const modSlotId = typeof parsed.modSlotId === 'string' && parsed.modSlotId.trim() ? parsed.modSlotId.trim() : 'default';
+      const slotId = normalizeSlotId(parsed.slotId);
+      if (!slotId) return null;
+      return {
+        modSlotId,
+        slotId,
+      };
+    }
+  } catch {
+    // fall through
+  }
+
+  // Legacy formats:
+  // - plain slot id (pre DB-aware auto-load)
+  // - encoded storage slot id (db<len>_<db>_<slot>)
+  const decoded = decodeStorageSlotId(text);
+  if (decoded) {
+    return {
+      modSlotId: decoded.dbId,
+      slotId: decoded.slotId,
+    };
+  }
+
+  const legacySlotId = normalizeSlotId(text);
+  if (!legacySlotId) return null;
+
+  return {
+    modSlotId: getActiveModSlot(),
+    slotId: legacySlotId,
+  };
+}
+
+export function setAutoLoadTarget(slotId: string, modSlotId?: string): void {
+  if (typeof window === 'undefined' || typeof window.localStorage === 'undefined') return;
+
+  const slot = normalizeSlotId(slotId);
+  if (!slot) return;
+
+  const db = (modSlotId ?? getActiveModSlot()).trim() || 'default';
+
+  window.localStorage.setItem(AUTO_LOAD_SLOT_KEY, JSON.stringify({ modSlotId: db, slotId: slot }));
+}
+
+function migrateActiveSlotSetting(fromDbId: string, toDbId: string): void {
+  if (typeof window === 'undefined' || typeof window.localStorage === 'undefined') return;
+
+  const fromKey = activeSlotKey(fromDbId);
+  const toKey = activeSlotKey(toDbId);
+
+  const existing = window.localStorage.getItem(fromKey);
+  if (existing) {
+    window.localStorage.setItem(toKey, existing);
+  }
+
+  window.localStorage.removeItem(fromKey);
+}
+
+export async function moveDatabaseSavesAsync(fromModSlotId: string, toModSlotId: string): Promise<number> {
+  const fromDb = normalizeDbId(fromModSlotId);
+  const toDb = normalizeDbId(toModSlotId);
+  const toMetaSlot = (toModSlotId || '').trim() || 'default';
+
+  if (!fromDb || !toDb || fromDb === toDb) return 0;
+
+  const slotIds = await listSaveSlotsAsync(fromDb);
+
+  let moved = 0;
+  for (const slotId of slotIds) {
+    const snapshot = await loadGameAsync(slotId, fromDb);
+    if (!snapshot) continue;
+
+    const next: SaveGameSnapshot = {
+      ...snapshot,
+      meta: {
+        ...snapshot.meta,
+        modSlotId: toMetaSlot,
+      },
+    };
+
+    await saveSnapshotAsync(slotId, next, toDb);
+    await deleteGameAsync(slotId, fromDb);
+    moved += 1;
+  }
+
+  migrateActiveSlotSetting(fromDb, toDb);
+
+  return moved;
+}
+
+export async function deleteDatabaseSavesAsync(modSlotId: string): Promise<number> {
+  const db = normalizeDbId(modSlotId);
+  if (!db) return 0;
+
+  const slotIds = await listSaveSlotsAsync(db);
+  for (const slotId of slotIds) {
+    await deleteGameAsync(slotId, db);
+  }
+
+  if (typeof window !== 'undefined' && typeof window.localStorage !== 'undefined') {
+    window.localStorage.removeItem(activeSlotKey(db));
+  }
+
+  return slotIds.length;
+}

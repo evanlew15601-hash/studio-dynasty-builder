@@ -3,7 +3,7 @@ import { SaveLoadDialog } from '@/components/game/SaveLoadDialog';
 import { GlobalLoadingOverlay } from '@/components/ui/global-loading-overlay';
 import { LoadingProvider } from '@/contexts/LoadingContext';
 import { Suspense, lazy, useEffect, useState } from 'react';
-import { AUTO_LOAD_SLOT_KEY, loadGameAsync, type SaveGameSnapshot } from '@/utils/saveLoad';
+import { AUTO_LOAD_SLOT_KEY, decodeAutoLoadTarget, loadGameAsync, type SaveGameSnapshot } from '@/utils/saveLoad';
 import { patchLoadedSnapshot } from '@/utils/snapshotPatches';
 import { useToast } from '@/hooks/use-toast';
 import { getActiveModSlot, listModSlots, setActiveModSlot } from '@/utils/moddingStore';
@@ -85,36 +85,36 @@ const Online = () => {
     if (typeof window === 'undefined') return;
     if (gameStarted) return;
 
-    const slot = window.localStorage.getItem(AUTO_LOAD_SLOT_KEY);
-    if (!slot) return;
+    const raw = window.localStorage.getItem(AUTO_LOAD_SLOT_KEY);
+    if (!raw) return;
 
     window.localStorage.removeItem(AUTO_LOAD_SLOT_KEY);
 
+    const decoded = decodeAutoLoadTarget(raw);
+    if (!decoded) return;
+
     void (async () => {
-      const snapshot = await loadGameAsync(slot);
-      if (!snapshot) return;
-
-      const requiredModSlot = snapshot.meta?.modSlotId;
-      if (requiredModSlot) {
-        const current = getActiveModSlot();
-        if (current !== requiredModSlot) {
-          const available = listModSlots();
-          if (!available.includes(requiredModSlot)) {
-            toast({
-              title: 'Missing mod database',
-              description: `Auto-load save requires mod slot "${requiredModSlot}", but that slot doesn't exist on this device.`,
-              variant: 'destructive',
-            });
-            return;
-          }
-
-          setActiveModSlot(requiredModSlot);
+      const current = getActiveModSlot();
+      if (current !== decoded.modSlotId) {
+        const available = listModSlots();
+        if (!available.includes(decoded.modSlotId)) {
           toast({
-            title: 'Mod database switched',
-            description: `Switched to mod slot "${requiredModSlot}" to load the save.`,
+            title: 'Missing mod database',
+            description: `Auto-load save requires mod slot "${decoded.modSlotId}", but that slot doesn't exist on this device.`,
+            variant: 'destructive',
           });
+          return;
         }
+
+        setActiveModSlot(decoded.modSlotId);
+        toast({
+          title: 'Mod database switched',
+          description: `Switched to mod slot "${decoded.modSlotId}" to load the save.`,
+        });
       }
+
+      const snapshot = await loadGameAsync(decoded.slotId, decoded.modSlotId);
+      if (!snapshot) return;
 
       const patched = patchLoadedSnapshot(snapshot, { mode: 'online' });
       setLoadedSnapshot(patched);

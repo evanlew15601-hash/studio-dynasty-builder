@@ -62,7 +62,7 @@ export const GameLanding: React.FC<GameLandingProps> = ({
     if (databaseSlot !== current) {
       setDatabaseSlot(current);
     }
-  });
+  }, [databaseSlot]);
 
   const hasOnlineConfig =
     mode !== 'online' ||
