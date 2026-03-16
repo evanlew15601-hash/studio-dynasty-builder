@@ -3,6 +3,26 @@
 -- Human studios shouldn't be able to share the same name in the same league.
 -- We enforce this as a case-insensitive, trim-insensitive uniqueness rule.
 
+-- If there are existing duplicate names (from before this constraint existed),
+-- resolve them deterministically so the unique index can be created.
+with ranked as (
+  select
+    league_id,
+    user_id,
+    studio_name,
+    row_number() over (
+      partition by league_id, lower(btrim(studio_name))
+      order by joined_at asc, user_id asc
+    ) as rn
+  from public.online_league_members
+)
+update public.online_league_members m
+set studio_name = left(btrim(m.studio_name) || ' [' || r.rn::text || ']', 60)
+from ranked r
+where m.league_id = r.league_id
+  and m.user_id = r.user_id
+  and r.rn > 1;
+
 create unique index if not exists online_league_members_league_studio_name_uniq
   on public.online_league_members (league_id, lower(btrim(studio_name)));
 
