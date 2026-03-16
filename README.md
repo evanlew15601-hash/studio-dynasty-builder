@@ -33,17 +33,23 @@ No environment variables are required to run the base game.
 
 ### Optional: Online League (Supabase)
 
-Online League mode requires a Supabase project (hosted or local) and these Vite env vars:
+Online League mode requires a Supabase project (hosted or local).
 
-- `VITE_SUPABASE_URL`
-- `VITE_SUPABASE_ANON_KEY`
+You can configure it either:
 
-Setup:
+- **At runtime** (recommended for desktop builds): main menu → Online League → **Configure…**
+- **At build-time** (recommended for local dev / CI builds): set these Vite env vars:
+  - `VITE_SUPABASE_URL`
+  - `VITE_SUPABASE_ANON_KEY`
+
+Build-time setup:
 
 ```sh
 cp .env.example .env
 # edit .env and set VITE_SUPABASE_URL + VITE_SUPABASE_ANON_KEY
 ```
+
+Note: `.env` is only read by Vite during `npm run dev` / `npm run build` (it is not loaded at runtime by the shipped desktop app).
 
 Notes:
 - `.env` is gitignored to avoid committing secrets.
