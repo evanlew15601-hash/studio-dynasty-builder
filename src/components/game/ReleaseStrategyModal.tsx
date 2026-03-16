@@ -1,5 +1,15 @@
 import React, { useEffect, useMemo, useState } from 'react';
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription } from '@/components/ui/dialog';
+import {
+  AlertDialog,
+  AlertDialogAction,
+  AlertDialogCancel,
+  AlertDialogContent,
+  AlertDialogDescription,
+  AlertDialogFooter,
+  AlertDialogHeader,
+  AlertDialogTitle,
+} from '@/components/ui/alert-dialog';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
@@ -31,9 +41,13 @@ export const ReleaseStrategyModal: React.FC<ReleaseStrategyModalProps> = ({
   const [selectedDate, setSelectedDate] = useState<{ week: number; year: number } | null>(null);
   const [selectedReleaseType, setSelectedReleaseType] = useState<ReleaseStrategy['type']>('wide');
   const [selectedStreamingProviderId, setSelectedStreamingProviderId] = useState<string>('');
+  const [clearConfirmOpen, setClearConfirmOpen] = useState(false);
 
   useEffect(() => {
-    if (!isOpen) return;
+    if (!isOpen) {
+      setClearConfirmOpen(false);
+      return;
+    }
 
     if (!project) {
       setSelectedDate(null);
@@ -283,11 +297,16 @@ export const ReleaseStrategyModal: React.FC<ReleaseStrategyModalProps> = ({
     });
 
     toast({
-      title: "Release Schedule Cleared",
+      title: 'Release Schedule Cleared',
       description: `Cleared planned ${isTV ? 'air date' : 'release date'} for ${project.title}.`,
     });
 
     onClose();
+  };
+
+  const handleConfirmClearSchedule = () => {
+    setClearConfirmOpen(false);
+    handleClearSchedule();
   };
 
   const handleScheduleRelease = () => {
@@ -367,7 +386,28 @@ export const ReleaseStrategyModal: React.FC<ReleaseStrategyModalProps> = ({
   };
 
   return (
-    <Dialog open={isOpen} onOpenChange={onClose}>
+    <>
+      <AlertDialog open={clearConfirmOpen} onOpenChange={setClearConfirmOpen}>
+        <AlertDialogContent>
+          <AlertDialogHeader>
+            <AlertDialogTitle>Clear scheduled release?</AlertDialogTitle>
+            <AlertDialogDescription>
+              This will remove the planned {isTV ? 'air date' : 'release date'} for {project.title}.
+            </AlertDialogDescription>
+          </AlertDialogHeader>
+          <AlertDialogFooter>
+            <AlertDialogCancel>Cancel</AlertDialogCancel>
+            <AlertDialogAction
+              className="bg-destructive text-destructive-foreground hover:bg-destructive/90"
+              onClick={handleConfirmClearSchedule}
+            >
+              Clear schedule
+            </AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
+
+      <Dialog open={isOpen} onOpenChange={onClose}>
       <DialogContent className="max-w-2xl max-h-[80vh] overflow-y-auto">
         <DialogHeader>
           <DialogTitle className="flex items-center gap-2">
@@ -621,7 +661,7 @@ export const ReleaseStrategyModal: React.FC<ReleaseStrategyModalProps> = ({
                 Cancel
               </Button>
               {project.status === 'scheduled-for-release' && project.scheduledReleaseWeek && project.scheduledReleaseYear && (
-                <Button variant="destructive" onClick={handleClearSchedule}>
+                <Button variant="destructive" onClick={() => setClearConfirmOpen(true)}>
                   Clear Schedule
                 </Button>
               )}
@@ -637,5 +677,6 @@ export const ReleaseStrategyModal: React.FC<ReleaseStrategyModalProps> = ({
         </div>
       </DialogContent>
     </Dialog>
+    </>
   );
 };

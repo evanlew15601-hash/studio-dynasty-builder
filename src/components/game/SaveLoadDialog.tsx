@@ -6,6 +6,16 @@ import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 
 import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle } from '@/components/ui/dialog';
+import {
+  AlertDialog,
+  AlertDialogAction,
+  AlertDialogCancel,
+  AlertDialogContent,
+  AlertDialogDescription,
+  AlertDialogFooter,
+  AlertDialogHeader,
+  AlertDialogTitle,
+} from '@/components/ui/alert-dialog';
 import { ScrollArea } from '@/components/ui/scroll-area';
 import { useToast } from '@/hooks/use-toast';
 import {
@@ -74,6 +84,9 @@ export function SaveLoadDialog(props: {
   const [loading, setLoading] = useState(false);
   const [slots, setSlots] = useState<SaveSlotRow[]>([]);
 
+  const [deleteConfirmOpen, setDeleteConfirmOpen] = useState(false);
+  const [deleteSlotId, setDeleteSlotId] = useState<string>('');
+
   const importFileRef = useRef<HTMLInputElement | null>(null);
 
   const normalizedActiveSlot = useMemo(
@@ -114,17 +127,18 @@ export function SaveLoadDialog(props: {
   };
 
   useEffect(() => {
-    if (!props.open) return;
+    if (!props.open) {
+      setDeleteConfirmOpen(false);
+      setDeleteSlotId('');
+      return;
+    }
 
     const slot = getActiveModSlot();
     setActiveModSlotState(slot);
     setActiveSlot(getActiveSaveSlotId(slot));
-    void refreshSlots(slot);
 
-    void (async () => {
-      const dir = await getSavesDirAsync();
-      setSavesDir(dir);
-    })();
+    void refreshSlots(slot);
+    void getSavesDirAsync().then(setSavesDir);
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [props.open]);
 
@@ -238,6 +252,21 @@ export function SaveLoadDialog(props: {
     await refreshSlots();
   };
 
+  const requestDelete = (slotId: string) => {
+    const normalized = normalizeSlotId(slotId);
+    if (!normalized) return;
+    setDeleteSlotId(normalized);
+    setDeleteConfirmOpen(true);
+  };
+
+  const handleConfirmDelete = async () => {
+    const slotId = deleteSlotId;
+    setDeleteConfirmOpen(false);
+    setDeleteSlotId('');
+    if (!slotId) return;
+    await handleDelete(slotId);
+  };
+
   const handleExport = async (slotId: string) => {
     const normalized = normalizeSlotId(slotId);
     if (!normalized) return;
@@ -326,7 +355,28 @@ export function SaveLoadDialog(props: {
   };
 
   return (
-    <Dialog open={props.open} onOpenChange={props.onOpenChange}>
+    <>
+      <AlertDialog open={deleteConfirmOpen} onOpenChange={setDeleteConfirmOpen}>
+        <AlertDialogContent>
+          <AlertDialogHeader>
+            <AlertDialogTitle>Delete save?</AlertDialogTitle>
+            <AlertDialogDescription>
+              This will permanently delete the save slot "{deleteSlotId}" (DB: {activeModSlot}).
+            </AlertDialogDescription>
+          </AlertDialogHeader>
+          <AlertDialogFooter>
+            <AlertDialogCancel>Cancel</AlertDialogCancel>
+            <AlertDialogAction
+              className="bg-destructive text-destructive-foreground hover:bg-destructive/90"
+              onClick={() => void handleConfirmDelete()}
+            >
+              Delete
+            </AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
+
+      <Dialog open={props.open} onOpenChange={props.onOpenChange}>
       <DialogContent className="max-w-3xl max-h-[85vh] flex flex-col">
         <DialogHeader>
           <DialogTitle>Save & Load</DialogTitle>
@@ -495,7 +545,7 @@ export function SaveLoadDialog(props: {
                               type="button"
                               size="sm"
                               variant="destructive"
-                              onClick={() => void handleDelete(row.slotId)}
+                              onClick={() => requestDelete(row.slotId)}
                             >
                               Delete
                             </Button>
@@ -517,5 +567,6 @@ export function SaveLoadDialog(props: {
         </DialogFooter>
       </DialogContent>
     </Dialog>
+    </>
   );
 }
