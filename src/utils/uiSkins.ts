@@ -51,10 +51,10 @@ export const UI_SKINS: UiSkin[] = [
   {
     id: 'horror',
     name: 'Horror',
-    description: 'Sickly green + blood red.',
+    description: 'Atmospheric dread, bone + dried blood.',
     preview: {
-      backgroundImage: 'linear-gradient(135deg, hsl(120 12% 6%), hsl(0 72% 52% / 0.22), hsl(95 35% 45% / 0.14))',
-      swatches: ['hsl(120 12% 6%)', 'hsl(40 15% 88%)', 'hsl(0 72% 52%)', 'hsl(95 35% 45%)'],
+      backgroundImage: 'linear-gradient(135deg, hsl(240 16% 5%), hsl(358 60% 42% / 0.20), hsl(268 25% 44% / 0.18))',
+      swatches: ['hsl(240 16% 5%)', 'hsl(45 18% 90%)', 'hsl(358 60% 42%)', 'hsl(268 25% 44%)'],
     },
   },
   {
