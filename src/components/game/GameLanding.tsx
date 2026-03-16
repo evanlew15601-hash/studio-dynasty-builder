@@ -15,6 +15,7 @@ import { PremiumBackground } from '@/components/ui/premium-background';
 import { DatabaseManagerDialog } from '@/components/game/DatabaseManagerDialog';
 import { SupabaseConfigDialog } from '@/components/game/SupabaseConfigDialog';
 import { getSupabaseConfigStatus } from '@/integrations/supabase/client';
+import { cn } from '@/lib/utils';
 import { getActiveModSlot, listModSlots, setActiveModSlot } from '@/utils/moddingStore';
 
 interface GameLandingProps {
@@ -50,6 +51,8 @@ export const GameLanding: React.FC<GameLandingProps> = ({
   onlineSeasonYears,
   onOnlineSeasonYearsChange,
 }) => {
+  const compactLanding = true;
+
   const [showCustomization, setShowCustomization] = useState(false);
   const [databaseSlot, setDatabaseSlot] = useState(() => getActiveModSlot());
   const [dbManagerOpen, setDbManagerOpen] = useState(false);
@@ -133,39 +136,59 @@ export const GameLanding: React.FC<GameLandingProps> = ({
         onDatabaseChanged={(db) => setDatabaseSlot(db)}
       />
 
-      <div className="relative z-10 flex flex-col items-center justify-center min-h-screen p-8">
+      <div
+        className={cn(
+          'relative z-10 flex flex-col items-center min-h-screen',
+          compactLanding ? 'justify-start px-6 pb-8 pt-10' : 'justify-center p-8'
+        )}
+      >
         {/* Main Title */}
-        <div className="text-center mb-16 animate-fade-in">
-          <div className="relative mb-8">
-            <h1 className="text-7xl md:text-8xl lg:text-9xl font-black bg-gradient-golden bg-clip-text text-transparent drop-shadow-2xl mb-2 tracking-[0.15em] leading-none studio-title">
+        <div className={cn('text-center animate-fade-in', compactLanding ? 'mb-8' : 'mb-16')}>
+          <div className={cn('relative', compactLanding ? 'mb-5' : 'mb-8')}>
+            <h1
+              className={cn(
+                'font-black bg-gradient-golden bg-clip-text text-transparent drop-shadow-2xl mb-2 tracking-[0.15em] leading-none studio-title',
+                compactLanding ? 'text-5xl md:text-6xl lg:text-7xl' : 'text-7xl md:text-8xl lg:text-9xl'
+              )}
+            >
               STUDIO
             </h1>
-            <h1 className="text-7xl md:text-8xl lg:text-9xl font-black bg-gradient-golden bg-clip-text text-transparent drop-shadow-2xl tracking-[0.15em] leading-none studio-title">
+            <h1
+              className={cn(
+                'font-black bg-gradient-golden bg-clip-text text-transparent drop-shadow-2xl tracking-[0.15em] leading-none studio-title',
+                compactLanding ? 'text-5xl md:text-6xl lg:text-7xl' : 'text-7xl md:text-8xl lg:text-9xl'
+              )}
+            >
               MAGNATE
             </h1>
             
             {/* Elegant underline with glow */}
-            <div className="flex justify-center mt-8 mb-8">
+            <div className={cn('flex justify-center', compactLanding ? 'mt-4 mb-4' : 'mt-8 mb-8')}>
               <div className="relative">
-                <div className="h-[2px] w-48 bg-gradient-to-r from-transparent via-primary to-transparent" />
-                <div className="absolute inset-0 h-[2px] w-48 bg-gradient-to-r from-transparent via-primary to-transparent blur-sm" />
-                <div className="absolute inset-0 h-[4px] w-48 bg-gradient-to-r from-transparent via-accent/50 to-transparent blur-md" />
+                <div className={cn('h-[2px] bg-gradient-to-r from-transparent via-primary to-transparent', compactLanding ? 'w-36' : 'w-48')} />
+                <div className={cn('absolute inset-0 h-[2px] bg-gradient-to-r from-transparent via-primary to-transparent blur-sm', compactLanding ? 'w-36' : 'w-48')} />
+                <div className={cn('absolute inset-0 h-[4px] bg-gradient-to-r from-transparent via-accent/50 to-transparent blur-md', compactLanding ? 'w-36' : 'w-48')} />
               </div>
             </div>
           </div>
           
-          <p className="text-xl md:text-2xl text-foreground/95 max-w-3xl mx-auto leading-relaxed font-light tracking-wide">
-            Build your entertainment empire. Create blockbuster films. Manage talent. 
-            <span className="block mt-2 text-foreground/85">Dominate the industry.</span>
+          <p
+            className={cn(
+              'text-foreground/95 max-w-3xl mx-auto leading-relaxed font-light tracking-wide',
+              compactLanding ? 'text-base md:text-lg' : 'text-xl md:text-2xl'
+            )}
+          >
+            Build your entertainment empire. Create blockbuster films. Manage talent.
+            <span className={cn('block text-foreground/85', compactLanding ? 'mt-1' : 'mt-2')}>Dominate the industry.</span>
           </p>
         </div>
 
         {/* Main Menu */}
         {!showCustomization ? (
-          <div className="space-y-6 animate-scale-in">
+          <div className={cn('animate-scale-in', compactLanding ? 'space-y-4' : 'space-y-6')}>
             <Card className="card-golden max-w-2xl mx-auto">
-              <CardHeader>
-                <CardTitle className="text-xl text-foreground flex items-center">
+              <CardHeader className={cn(compactLanding ? 'py-4' : '')}>
+                <CardTitle className={cn('text-foreground flex items-center', compactLanding ? 'text-lg' : 'text-xl')}>
                   <Sparkles className="mr-2 text-primary" />
                   Database
                 </CardTitle>
@@ -205,8 +228,8 @@ export const GameLanding: React.FC<GameLandingProps> = ({
 
             {mode === 'online' && (
               <Card className="card-golden max-w-2xl mx-auto">
-                <CardHeader>
-                  <CardTitle className="text-xl text-foreground flex items-center">
+                <CardHeader className={cn(compactLanding ? 'py-4' : '')}>
+                  <CardTitle className={cn('text-foreground flex items-center', compactLanding ? 'text-lg' : 'text-xl')}>
                     <Sparkles className="mr-2 text-primary" />
                     Online League (Beta)
                   </CardTitle>
@@ -286,32 +309,41 @@ export const GameLanding: React.FC<GameLandingProps> = ({
               </Card>
             )}
 
-            <div className="flex flex-col sm:flex-row gap-6 justify-center">
-              <Button 
-                size="lg" 
-                className="btn-studio px-14 py-7 text-lg shadow-golden hover:shadow-golden/60 transition-all duration-500 hover:scale-[1.02]"
+            <div className={cn('flex flex-col sm:flex-row justify-center', compactLanding ? 'gap-4' : 'gap-6')}>
+              <Button
+                size="lg"
+                className={cn(
+                  'btn-studio shadow-golden hover:shadow-golden/60 transition-all duration-500 hover:scale-[1.02]',
+                  compactLanding ? 'px-10 py-5 text-base' : 'px-14 py-7 text-lg'
+                )}
                 onClick={handleStartGame}
                 disabled={mode === 'online' && (!onlineLeagueCode?.trim() || !hasOnlineConfig)}
               >
-                <Play className="mr-3" size={24} />
+                <Play className={cn('mr-3', compactLanding ? '' : '')} size={compactLanding ? 20 : 24} />
                 Quick Start
               </Button>
-              
-              <Button 
-                size="lg" 
-                variant="outline" 
-                className="btn-ghost-premium px-14 py-7 text-lg transition-all duration-500 hover:scale-[1.02]"
+
+              <Button
+                size="lg"
+                variant="outline"
+                className={cn(
+                  'btn-ghost-premium transition-all duration-500 hover:scale-[1.02]',
+                  compactLanding ? 'px-10 py-5 text-base' : 'px-14 py-7 text-lg'
+                )}
                 onClick={() => setShowCustomization(true)}
               >
-                <Settings className="mr-3" size={24} />
+                <Settings className={cn('mr-3', compactLanding ? '' : '')} size={compactLanding ? 20 : 24} />
                 Custom Studio
               </Button>
             </div>
 
-            <div className="flex flex-col items-center gap-2">
-              <Button 
-                variant="ghost" 
-                className="text-muted-foreground hover:text-foreground hover:bg-accent/10 transition-all duration-300 px-6 py-3"
+            <div className={cn('flex flex-col items-center', compactLanding ? 'gap-1.5' : 'gap-2')}>
+              <Button
+                variant="ghost"
+                className={cn(
+                  'text-muted-foreground hover:text-foreground hover:bg-accent/10 transition-all duration-300',
+                  compactLanding ? 'px-4 py-2 text-sm' : 'px-6 py-3'
+                )}
                 onClick={onLoadGame}
               >
                 Load Saved Game
@@ -320,7 +352,10 @@ export const GameLanding: React.FC<GameLandingProps> = ({
               {mode === 'single' ? (
                 <Button
                   variant="ghost"
-                  className="text-muted-foreground hover:text-foreground hover:bg-accent/10 transition-all duration-300 px-6 py-3"
+                  className={cn(
+                    'text-muted-foreground hover:text-foreground hover:bg-accent/10 transition-all duration-300',
+                    compactLanding ? 'px-4 py-2 text-sm' : 'px-6 py-3'
+                  )}
                   asChild
                 >
                   <Link to="/online">
@@ -331,18 +366,22 @@ export const GameLanding: React.FC<GameLandingProps> = ({
               ) : (
                 <Button
                   variant="ghost"
-                  className="text-muted-foreground hover:text-foreground hover:bg-accent/10 transition-all duration-300 px-6 py-3"
+                  className={cn(
+                    'text-muted-foreground hover:text-foreground hover:bg-accent/10 transition-all duration-300',
+                    compactLanding ? 'px-4 py-2 text-sm' : 'px-6 py-3'
+                  )}
                   asChild
                 >
-                  <Link to="/">
-                    Back to Single Player
-                  </Link>
+                  <Link to="/">Back to Single Player</Link>
                 </Button>
               )}
 
               <Button
                 variant="ghost"
-                className="text-muted-foreground hover:text-foreground hover:bg-accent/10 transition-all duration-300 px-6 py-3"
+                className={cn(
+                  'text-muted-foreground hover:text-foreground hover:bg-accent/10 transition-all duration-300',
+                  compactLanding ? 'px-4 py-2 text-sm' : 'px-6 py-3'
+                )}
                 asChild
               >
                 <Link to="/help">
@@ -353,7 +392,8 @@ export const GameLanding: React.FC<GameLandingProps> = ({
             </div>
 
             {/* Feature Highlights */}
-            <div className="mt-20 grid grid-cols-1 md:grid-cols-3 gap-8 max-w-6xl">
+            {!compactLanding && (
+              <div className="mt-20 grid grid-cols-1 md:grid-cols-3 gap-8 max-w-6xl">
               <Card className="group card-golden hover:scale-105 transition-all duration-700 hover:shadow-golden">
                 <CardContent className="p-12 text-center">
                   <div className="relative mb-10">
@@ -387,18 +427,19 @@ export const GameLanding: React.FC<GameLandingProps> = ({
                 </CardContent>
               </Card>
             </div>
+            )}
           </div>
         ) : (
           /* Studio Customization */
-          <div className="w-full max-w-2xl animate-fade-in">
+          <div className={cn('w-full animate-fade-in', compactLanding ? 'max-w-xl' : 'max-w-2xl')}>
             <Card className="card-golden">
-              <CardHeader>
-                <CardTitle className="text-2xl text-foreground flex items-center">
+              <CardHeader className={cn(compactLanding ? 'py-4' : '')}>
+                <CardTitle className={cn('text-foreground flex items-center', compactLanding ? 'text-xl' : 'text-2xl')}>
                   <Sparkles className="mr-2 text-primary" />
                   Create Your Studio
                 </CardTitle>
               </CardHeader>
-              <CardContent className="space-y-6">
+              <CardContent className={cn(compactLanding ? 'space-y-4' : 'space-y-6')}>
                 <div>
                   <Label className="text-foreground text-base">Database</Label>
                   <Select value={databaseSlot} onValueChange={handleDatabaseChange}>
