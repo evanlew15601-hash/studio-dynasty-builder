@@ -88,16 +88,16 @@ export const PremiumBackground: React.FC<PremiumBackgroundProps> = ({ variant = 
   const baseGradient =
     variant === 'landing'
       ? [
-          'radial-gradient(1400px 720px at 50% 14%, hsl(var(--primary) / 0.14), transparent 62%)',
-          'radial-gradient(980px 720px at 18% 70%, hsl(var(--accent) / 0.06), transparent 70%)',
-          'radial-gradient(980px 720px at 82% 70%, hsl(var(--primary) / 0.05), transparent 70%)',
-          'linear-gradient(180deg, hsl(220 18% 10% / 0.55) 0%, transparent 45%)',
+          'radial-gradient(1400px 720px at 50% 14%, hsl(var(--primary) / calc(0.14 * var(--premium-bg-strength))), transparent 62%)',
+          'radial-gradient(980px 720px at 18% 70%, hsl(var(--accent) / calc(0.06 * var(--premium-bg-strength))), transparent 70%)',
+          'radial-gradient(980px 720px at 82% 70%, hsl(var(--primary) / calc(0.05 * var(--premium-bg-strength))), transparent 70%)',
+          'linear-gradient(180deg, hsl(var(--premium-depth) / calc(0.55 * var(--premium-bg-strength))) 0%, transparent 45%)',
         ].join(', ')
       : [
-          'radial-gradient(1200px 600px at 50% 12%, hsl(var(--primary) / 0.10), transparent 62%)',
-          'radial-gradient(980px 640px at 16% 78%, hsl(var(--accent) / 0.05), transparent 70%)',
-          'radial-gradient(900px 620px at 86% 74%, hsl(var(--primary) / 0.05), transparent 70%)',
-          'radial-gradient(740px 560px at 70% 28%, hsl(220 18% 14% / 0.55), transparent 72%)',
+          'radial-gradient(1200px 600px at 50% 12%, hsl(var(--primary) / calc(0.10 * var(--premium-bg-strength))), transparent 62%)',
+          'radial-gradient(980px 640px at 16% 78%, hsl(var(--accent) / calc(0.05 * var(--premium-bg-strength))), transparent 70%)',
+          'radial-gradient(900px 620px at 86% 74%, hsl(var(--primary) / calc(0.05 * var(--premium-bg-strength))), transparent 70%)',
+          'radial-gradient(740px 560px at 70% 28%, hsl(var(--premium-depth) / calc(0.55 * var(--premium-bg-strength))), transparent 72%)',
         ].join(', ');
 
   const spotlightOpacity = variant === 'landing' ? 0.14 : 0.18;
@@ -106,13 +106,23 @@ export const PremiumBackground: React.FC<PremiumBackgroundProps> = ({ variant = 
 
   const vignette =
     variant === 'landing'
-      ? 'radial-gradient(ellipse at center, transparent 44%, hsl(var(--background) / 0.45) 74%, hsl(var(--background) / 0.78) 100%)'
-      : 'radial-gradient(ellipse at center, transparent 40%, hsl(var(--background) / 0.55) 72%, hsl(var(--background) / 0.86) 100%)';
+      ? 'radial-gradient(ellipse at center, transparent 44%, hsl(var(--background) / calc(0.45 * var(--premium-vignette-strength))) 74%, hsl(var(--background) / calc(0.78 * var(--premium-vignette-strength))) 100%)'
+      : 'radial-gradient(ellipse at center, transparent 40%, hsl(var(--background) / calc(0.55 * var(--premium-vignette-strength))) 72%, hsl(var(--background) / calc(0.86 * var(--premium-vignette-strength))) 100%)';
 
   return (
     <div aria-hidden className="premium-background pointer-events-none fixed inset-0 z-0">
       {/* Base cinematic gradients */}
       <div className="absolute inset-0" style={{ backgroundImage: baseGradient }} />
+
+      {/* Optional per-skin glow overlay */}
+      <div
+        className="absolute inset-0"
+        style={{
+          backgroundImage: 'var(--premium-overlay-image)',
+          opacity: 'var(--premium-overlay-opacity)',
+          mixBlendMode: 'soft-light',
+        }}
+      />
 
       {/* Soft bokeh blooms (very subtle) */}
       {bokeh.length > 0 && (
@@ -126,7 +136,7 @@ export const PremiumBackground: React.FC<PremiumBackgroundProps> = ({ variant = 
                 top: `${s.topPct}%`,
                 width: `${s.sizePx}px`,
                 height: `${s.sizePx}px`,
-                opacity: s.opacity,
+                opacity: `calc(${s.opacity} * var(--premium-bokeh-opacity))`,
                 filter: `blur(${s.blurPx}px)`,
                 background:
                   s.hue === 'primary'
@@ -150,7 +160,7 @@ export const PremiumBackground: React.FC<PremiumBackgroundProps> = ({ variant = 
           background:
             'linear-gradient(75deg, transparent 0%, hsl(var(--primary) / 0.06) 46%, hsl(var(--accent) / 0.03) 54%, transparent 100%)',
           filter: `blur(${spotlightBlurPx}px)`,
-          opacity: spotlightOpacity,
+          opacity: `calc(${spotlightOpacity} * var(--premium-spotlight-opacity))`,
           transform: 'translate3d(-18%, 0, 0) rotate(10deg)',
           animation: `premium-spotlight-sweep ${spotlightDuration} ease-in-out infinite`,
         }}
@@ -159,11 +169,34 @@ export const PremiumBackground: React.FC<PremiumBackgroundProps> = ({ variant = 
       {/* Film grain */}
       <canvas
         ref={grainRef}
-        className="absolute inset-0 h-full w-full opacity-[0.06] mix-blend-overlay"
+        className="absolute inset-0 h-full w-full mix-blend-overlay"
         style={{
           imageRendering: 'pixelated',
+          opacity: 'var(--premium-grain-opacity)',
           transform: 'translate3d(0,0,0) scale(1.6)',
           animation: 'premium-grain-shift 18s linear infinite',
+        }}
+      />
+
+      {/* Scanlines (themeable) */}
+      <div
+        className="absolute inset-0 premium-scanlines"
+        style={{
+          backgroundImage:
+            'repeating-linear-gradient(to bottom, hsl(var(--premium-scanlines-color) / 0.18) 0px, hsl(var(--premium-scanlines-color) / 0.18) 1px, transparent 1px, transparent 4px)',
+          opacity: 'var(--premium-scanlines-opacity)',
+          mixBlendMode: 'overlay',
+        }}
+      />
+
+      {/* Flicker (themeable) */}
+      <div
+        className="absolute inset-0 premium-flicker"
+        style={{
+          backgroundImage: 'linear-gradient(180deg, hsl(var(--background) / 0.06), transparent 45%, hsl(var(--background) / 0.08))',
+          opacity: 0,
+          animation: 'premium-flicker 8s linear infinite',
+          pointerEvents: 'none',
         }}
       />
 

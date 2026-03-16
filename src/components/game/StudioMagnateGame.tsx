@@ -97,7 +97,7 @@ import {
   ClapperboardIcon,
   BarChartIcon
 } from '@/components/ui/icons';
-import { ChevronDown } from 'lucide-react';
+import { ChevronDown, Settings2 } from 'lucide-react';
 import { RoleDatabase } from '../../data/RoleDatabase';
 import { importRolesForScript } from '@/utils/roleImport';
 import { finalizeScriptForSave } from '@/utils/scriptFinalization';
@@ -140,6 +140,7 @@ import { LoreHub } from './LoreHub';
 import { TalentProfileDialog } from './TalentProfileDialog';
 import { StudioIconRenderer as StudioIconRendererLazy } from './StudioIconCustomizer';
 import { SaveLoadDialog } from './SaveLoadDialog';
+import { GameSettingsDialog } from './GameSettingsDialog';
 
 // Ensure AI films have credited talent so awards/filmographies have real people to reference
 function attachBasicCastForAI(project: Project, talentPool: TalentPerson[]): Project {
@@ -1017,6 +1018,7 @@ export const StudioMagnateGame: React.FC<StudioMagnateGameProps> = ({
   const [selectedPublicDomain, setSelectedPublicDomain] = useState<string | null>(null);
   const [filmReleaseProject, setFilmReleaseProject] = useState<Project | null>(null);
   const [saveDialogOpen, setSaveDialogOpen] = useState(false);
+  const [settingsDialogOpen, setSettingsDialogOpen] = useState(false);
 
   // Post-tick persistence (strict single-button progression contract):
   // Any persistence that should happen "because a week advanced" is scheduled by the tick
@@ -3545,6 +3547,7 @@ export const StudioMagnateGame: React.FC<StudioMagnateGameProps> = ({
           }
         }}
       />
+      <GameSettingsDialog open={settingsDialogOpen} onOpenChange={setSettingsDialogOpen} />
       <div className="min-h-screen bg-background font-studio relative">
       <PremiumBackground variant="game" />
       <div className="relative z-10">
@@ -3644,6 +3647,16 @@ export const StudioMagnateGame: React.FC<StudioMagnateGameProps> = ({
                 onClick={() => setSaveDialogOpen(true)}
               >
                 Saves…
+              </Button>
+
+              <Button
+                size="sm"
+                variant="outline"
+                className="mr-2"
+                onClick={() => setSettingsDialogOpen(true)}
+              >
+                <Settings2 className="mr-2" size={16} />
+                Settings
               </Button>
 
               <Button

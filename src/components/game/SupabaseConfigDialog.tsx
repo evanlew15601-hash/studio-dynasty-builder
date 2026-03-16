@@ -62,7 +62,7 @@ export function SupabaseConfigDialog(props: { open: boolean; onOpenChange: (open
 
   return (
     <Dialog open={props.open} onOpenChange={props.onOpenChange}>
-      <DialogContent className="max-w-xl">
+      <DialogContent className="max-w-xl card-premium">
         <DialogHeader>
           <DialogTitle>Online League Settings (Supabase)</DialogTitle>
           <DialogDescription>

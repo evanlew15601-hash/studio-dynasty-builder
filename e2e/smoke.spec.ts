@@ -27,4 +27,10 @@ test('can quick start a new game', async ({ page }) => {
   // Once the game shell mounts, the top header includes a "Save Game" button.
   // This guards against runtime errors during boot (e.g. blank screen after starting).
   await expect(page.getByRole('button', { name: /^Save Game$/ })).toBeVisible({ timeout: 55_000 });
+
+  // Settings panel should be available in-game.
+  await expect(page.getByRole('button', { name: /^Settings$/ })).toBeVisible();
+  await page.getByRole('button', { name: /^Settings$/ }).click();
+  await expect(page.getByRole('heading', { name: /^Settings$/ })).toBeVisible();
+  await expect(page.getByText(/^UI Skin$/)).toBeVisible();
 });
