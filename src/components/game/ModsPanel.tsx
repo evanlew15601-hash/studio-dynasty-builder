@@ -26,16 +26,7 @@ import type { ModBundle, ModInfo, ModOp, ModPatch } from '@/types/modding';
 import { useToast } from '@/hooks/use-toast';
 import { applyPatchesByKey, applyPatchesToRecord, getPatchesForEntity, normalizeModBundle } from '@/utils/modding';
 import { parseCsv, toCsv } from '@/utils/csv';
-import { deleteDatabaseSavesAsync, moveDatabaseSavesAsync } from '@/utils/saveLoad';
-import {
-  clearModBundle,
-  deleteModSlot,
-  getActiveModSlot,
-  getModBundle,
-  listModSlots,
-  saveModBundle,
-  setActiveModSlot,
-} from '@/utils/moddingStore';
+import { clearModBundle, getActiveModSlot, getModBundle, saveModBundle } from '@/utils/moddingStore';
 
 const ENTITY_TYPES = [
   'talent',
@@ -233,9 +224,6 @@ export const ModsPanel: React.FC = () => {
   const [savedRaw, setSavedRaw] = useState<string>(() => JSON.stringify(getModBundle(), null, 2));
 
   const [activeSlot, setActiveSlot] = useState<string>(() => getActiveModSlot());
-  const [newSlotName, setNewSlotName] = useState('');
-
-  const slots = useMemo(() => listModSlots(), [activeSlot]);
 
   const isDirty = useMemo(() => raw !== savedRaw, [raw, savedRaw]);
 
@@ -324,48 +312,31 @@ export const ModsPanel: React.FC = () => {
     syncFromBundle(b, true);
   };
 
-  const resolveNewSlotName = (promptText: string, suggested: string): string => {
-    const proposed = newSlotName.trim();
-    if (proposed) return proposed;
-    if (typeof window === 'undefined') return '';
-    return (window.prompt(promptText, suggested) || '').trim();
-  };
+  useEffect(() => {
+    const current = getActiveModSlot();
+    if (activeSlot !== current) {
+      setActiveSlot(current);
+      const b = getModBundle();
+      syncFromBundle(b, true);
+    }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [activeSlot]);
 
   const handleSave = () => {
     const normalized = parseFromRawOrToast();
     if (!normalized) return;
 
     if (activeSlot === 'default') {
-      const picked = resolveNewSlotName('Save As (new slot name):', 'my-mod-db');
-      if (!picked) {
-        toast({ title: 'Not saved', description: 'Default slot is read-only. Create a new slot to save changes.' });
-        return;
-      }
-      if (picked === 'default') {
-        toast({ title: 'Invalid slot name', description: '"default" is reserved. Pick a different name.' });
-        return;
-      }
-
-      const existing = listModSlots();
-      if (existing.includes(picked) && typeof window !== 'undefined') {
-        const ok = window.confirm(`Slot "${picked}" already exists. Overwrite it?`);
-        if (!ok) return;
-      }
-
-      setActiveModSlot(picked);
-      const nextSlot = getActiveModSlot();
-      setActiveSlot(nextSlot);
-      setNewSlotName('');
-
-      saveModBundle(normalized);
-      syncFromBundle(normalized, true);
-      toast({ title: 'Mods saved', description: `Saved to new slot "${nextSlot}".` });
+      toast({
+        title: 'Read-only database',
+        description: 'The default database is read-only. Duplicate it from the main menu (Database -> Manage…) to save changes.',
+      });
       return;
     }
 
     saveModBundle(normalized);
     syncFromBundle(normalized, true);
-    toast({ title: 'Mods saved', description: `Saved to slot "${getActiveModSlot()}".` });
+    toast({ title: 'Mods saved', description: `Saved to database "${getActiveModSlot()}".` });
   };
 
   const handleCopyJson = async () => {
@@ -423,181 +394,22 @@ export const ModsPanel: React.FC = () => {
     reader.readAsText(file);
   };
 
-  const handleSwitchSlot = (slotId: string) => {
-    if (slotId === activeSlot) return;
-    if (isDirty && typeof window !== 'undefined') {
-      const ok = window.confirm('You have unsaved changes. Switch slots anyway?');
-      if (!ok) return;
-    }
-
-    setActiveModSlot(slotId);
-    const nextSlot = getActiveModSlot();
-    setActiveSlot(nextSlot);
-    handleReload();
-  };
-
-  const handleCreateSlot = () => {
-    const next = newSlotName.trim();
-    if (!next) return;
-
-    if (next === 'default') {
-      toast({ title: 'Invalid slot name', description: '"default" is reserved. Pick a different name.' });
-      return;
-    }
-
-    const existing = listModSlots();
-    if (existing.includes(next) && typeof window !== 'undefined') {
-      const ok = window.confirm(`Slot "${next}" already exists. Overwrite it?`);
-      if (!ok) return;
-    }
-
-    setActiveModSlot(next);
-    const nextSlot = getActiveModSlot();
-    setActiveSlot(nextSlot);
-    setNewSlotName('');
-
-    const normalized = parseFromRawOrToast();
-    const start = normalized ?? { version: 1, mods: [], patches: [] };
-    saveModBundle(start);
-    syncFromBundle(start, true);
-
-    toast({ title: 'Slot created', description: `Active slot is now "${nextSlot}".` });
-  };
-
-  const handleDeleteSlot = async () => {
-    if (activeSlot === 'default') return;
-
-    if (isDirty && typeof window !== 'undefined') {
-      const ok = window.confirm('You have unsaved changes. Delete this slot anyway?');
-      if (!ok) return;
-    }
-
-    if (typeof window !== 'undefined') {
-      const ok = window.confirm(
-        `Delete database "${activeSlot}" and ALL saves for it?\n\nThis cannot be undone.`
-      );
-      if (!ok) return;
-    }
-
-    const old = activeSlot;
-
-    try {
-      const deletedSaves = await deleteDatabaseSavesAsync(old);
-
-      deleteModSlot(old);
-      const nextSlot = getActiveModSlot();
-      setActiveSlot(nextSlot);
-      handleReload();
-
-      toast({
-        title: 'Slot deleted',
-        description: `Deleted database "${old}" (${deletedSaves} save(s) removed).`,
-      });
-    } catch (error) {
-      console.error('Failed to delete database slot', error);
-      toast({
-        title: 'Delete failed',
-        description: `Could not delete database "${old}".`,
-        variant: 'destructive',
-      });
-    }
-  };
-
-  const handleDuplicateSlot = () => {
-    const normalized = parseFromRawOrToast();
-    if (!normalized) return;
-
-    const suggested = activeSlot === 'default' ? 'my-mod-db' : `${activeSlot}-copy`;
-    const picked = resolveNewSlotName('Duplicate slot as (new slot name):', suggested);
-    if (!picked) return;
-
-    if (picked === 'default') {
-      toast({ title: 'Invalid slot name', description: '"default" is reserved. Pick a different name.' });
-      return;
-    }
-
-    const existing = listModSlots();
-    if (existing.includes(picked) && typeof window !== 'undefined') {
-      const ok = window.confirm(`Slot "${picked}" already exists. Overwrite it?`);
-      if (!ok) return;
-    }
-
-    setActiveModSlot(picked);
-    const nextSlot = getActiveModSlot();
-    setActiveSlot(nextSlot);
-    setNewSlotName('');
-
-    saveModBundle(normalized);
-    syncFromBundle(normalized, true);
-
-    toast({ title: 'Slot duplicated', description: `Duplicated into slot "${nextSlot}".` });
-  };
-
-  const handleRenameSlot = async () => {
-    if (activeSlot === 'default') return;
-
-    const normalized = parseFromRawOrToast();
-    if (!normalized) return;
-
-    const picked = resolveNewSlotName('Rename slot to (new slot name):', activeSlot);
-    if (!picked) return;
-
-    if (picked === 'default') {
-      toast({ title: 'Invalid slot name', description: '"default" is reserved. Pick a different name.' });
-      return;
-    }
-
-    if (picked === activeSlot) return;
-
-    const existing = listModSlots();
-    if (existing.includes(picked) && typeof window !== 'undefined') {
-      const ok = window.confirm(`Slot "${picked}" already exists. Overwrite it?`);
-      if (!ok) return;
-    }
-
-    const old = activeSlot;
-
-    setActiveModSlot(picked);
-    const nextSlot = getActiveModSlot();
-    setActiveSlot(nextSlot);
-    setNewSlotName('');
-
-    saveModBundle(normalized);
-    syncFromBundle(normalized, true);
-
-    try {
-      const movedSaves = await moveDatabaseSavesAsync(old, nextSlot);
-
-      deleteModSlot(old);
-
-      toast({
-        title: 'Slot renamed',
-        description: `Renamed "${old}" -> "${nextSlot}" (${movedSaves} save(s) moved).`,
-      });
-    } catch (error) {
-      console.error('Failed to migrate saves for renamed database', error);
-      toast({
-        title: 'Rename incomplete',
-        description: `Database "${old}" was copied to "${nextSlot}", but saves could not be moved.`,
-        variant: 'destructive',
-      });
-    }
-  };
+  
 
   const handleClear = () => {
     if (activeSlot === 'default') {
-      toast({ title: 'Read-only', description: 'Default slot cannot be cleared. Create a new slot instead.' });
+      toast({ title: 'Read-only', description: 'The default database is read-only. Duplicate it from the main menu (Database -> Manage…) to edit mods.' });
       return;
     }
 
     if (isDirty && typeof window !== 'undefined') {
-      const ok = window.confirm('You have unsaved changes. Clear this slot anyway?');
+      const ok = window.confirm('You have unsaved changes. Clear mods for this database anyway?');
       if (!ok) return;
     }
 
     clearModBundle();
     handleReload();
-    toast({ title: 'Cleared', description: `Cleared slot "${getActiveModSlot()}".` });
+    toast({ title: 'Cleared', description: `Cleared mods for database "${getActiveModSlot()}".` });
   };
 
   const selectedMod = useMemo(() => {
@@ -2489,49 +2301,22 @@ export const ModsPanel: React.FC = () => {
 
         <div className="grid grid-cols-1 lg:grid-cols-3 gap-3">
           <div className="space-y-1">
-            <Label className="text-xs text-muted-foreground">Slot</Label>
-            <Select value={activeSlot} onValueChange={handleSwitchSlot}>
-              <SelectTrigger>
-                <SelectValue placeholder="Select slot" />
-              </SelectTrigger>
-              <SelectContent>
-                {slots.map((s) => (
-                  <SelectItem key={s} value={s}>
-                    {s}
-                  </SelectItem>
-                ))}
-              </SelectContent>
-            </Select>
-          </div>
-
-          <div className="space-y-1">
-            <Label className="text-xs text-muted-foreground">Create slot</Label>
-            <div className="flex gap-2">
-              <Input value={newSlotName} onChange={(e) => setNewSlotName(e.target.value)} placeholder="e.g. my-mod-db" />
-              <Button size="sm" variant="secondary" onClick={handleCreateSlot}>
-                Create
-              </Button>
+            <Label className="text-xs text-muted-foreground">Database</Label>
+            <Input value={activeSlot} readOnly />
+            <div className="text-xs text-muted-foreground">
+              To switch/rename/delete databases, use the main menu: <span className="font-medium">Database -> Manage…</span>
             </div>
           </div>
 
-          <div className="flex flex-wrap items-end justify-end gap-2">
+          <div className="flex flex-wrap items-end justify-end gap-2 lg:col-span-2">
             <Button size="sm" variant="secondary" onClick={handleReload}>
               Reload
             </Button>
-            <Button size="sm" onClick={handleSave}>
-              {activeSlot === 'default' ? 'Save As…' : 'Save'}
-            </Button>
-            <Button size="sm" variant="secondary" onClick={handleDuplicateSlot}>
-              Duplicate
-            </Button>
-            <Button size="sm" variant="secondary" disabled={activeSlot === 'default'} onClick={handleRenameSlot}>
-              Rename
+            <Button size="sm" onClick={handleSave} disabled={activeSlot === 'default'}>
+              Save
             </Button>
             <Button size="sm" variant="secondary" disabled={activeSlot === 'default'} onClick={handleClear}>
               Clear
-            </Button>
-            <Button size="sm" variant="destructive" disabled={activeSlot === 'default'} onClick={handleDeleteSlot}>
-              Delete slot
             </Button>
           </div>
         </div>

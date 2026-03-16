@@ -288,7 +288,7 @@ export function SaveLoadDialog(props: {
 
         toast({
           title: 'Wrong database selected',
-          description: `Select DB "${declaredModSlot}" first, then import this save.`,
+          description: `This save belongs to DB "${declaredModSlot}". Close this window and select that database on the main menu first.`,
           variant: 'destructive',
         });
         return;
@@ -346,7 +346,7 @@ export function SaveLoadDialog(props: {
                   {activeModSlot}
                 </div>
                 <div className="text-xs text-muted-foreground">
-                  TEW-style: saves are separated per database. Change databases from the main menu.
+                  TEW-style: saves are separated per database. Change databases from the main menu (Database -> Manage…).
                 </div>
               </div>
 

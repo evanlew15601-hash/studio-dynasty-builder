@@ -3,6 +3,7 @@ import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
+import { ScrollArea } from '@/components/ui/scroll-area';
 import {
   Dialog,
   DialogContent,
@@ -50,7 +51,7 @@ export function DatabaseManagerDialog(props: {
   const [nameInput, setNameInput] = useState('');
   const [working, setWorking] = useState(false);
 
-  const [saveCounts, setSaveCounts] = useState<Record<string, number>>({});
+  const [saveSlotsByDb, setSaveSlotsByDb] = useState<Record<string, string[]>>({});
 
   const [confirmOpen, setConfirmOpen] = useState(false);
   const [confirmState, setConfirmState] = useState<ConfirmState | null>(null);
@@ -64,16 +65,15 @@ export function DatabaseManagerDialog(props: {
     setConfirmOpen(true);
   };
 
-  const refreshSaveCounts = async () => {
+  const refreshSaveIndex = async () => {
     const dbs = listModSlots();
-    const counts: Record<string, number> = {};
+    const next: Record<string, string[]> = {};
 
     for (const db of dbs) {
-      const slots = await listSaveSlotsAsync(db);
-      counts[db] = slots.length;
+      next[db] = await listSaveSlotsAsync(db);
     }
 
-    setSaveCounts(counts);
+    setSaveSlotsByDb(next);
   };
 
   useEffect(() => {
@@ -83,7 +83,7 @@ export function DatabaseManagerDialog(props: {
     setActiveDb(current);
     setNameInput('');
 
-    void refreshSaveCounts();
+    void refreshSaveIndex();
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [props.open]);
 
@@ -142,7 +142,7 @@ export function DatabaseManagerDialog(props: {
 
       toast({ title: 'Database created', description: `Active database is now "${picked}".` });
       setNameInput('');
-      await refreshSaveCounts();
+      await refreshSaveIndex();
     } finally {
       setWorking(false);
     }
@@ -183,7 +183,7 @@ export function DatabaseManagerDialog(props: {
 
       toast({ title: 'Database duplicated', description: `Duplicated "${activeDb}" -> "${picked}".` });
       setNameInput('');
-      await refreshSaveCounts();
+      await refreshSaveIndex();
     } finally {
       setWorking(false);
     }
@@ -228,7 +228,7 @@ export function DatabaseManagerDialog(props: {
 
       toast({ title: 'Database renamed', description: `Renamed "${activeDb}" -> "${picked}" (${moved} save(s) moved).` });
       setNameInput('');
-      await refreshSaveCounts();
+      await refreshSaveIndex();
     } finally {
       setWorking(false);
     }
@@ -284,7 +284,7 @@ export function DatabaseManagerDialog(props: {
           props.onDatabaseChanged?.(next);
 
           toast({ title: 'Database deleted', description: `Deleted "${activeDb}" (${deleted} save(s) removed).` });
-          await refreshSaveCounts();
+          await refreshSaveIndex();
         } catch (error) {
           console.error('Failed to delete database', error);
           toast({ title: 'Delete failed', description: 'Could not delete that database.', variant: 'destructive' });
@@ -322,8 +322,22 @@ export function DatabaseManagerDialog(props: {
                 </SelectContent>
               </Select>
               <div className="text-xs text-muted-foreground">
-                Saves in this DB: {saveCounts[activeDb] ?? 0}
+                Saves in this DB: {(saveSlotsByDb[activeDb] || []).length}
               </div>
+
+              <ScrollArea className="h-[120px] rounded-md border border-border/60 bg-background/40">
+                <div className="p-2 space-y-1">
+                  {(saveSlotsByDb[activeDb] || []).length ? (
+                    (saveSlotsByDb[activeDb] || []).map((slot) => (
+                      <div key={slot} className="text-xs font-mono text-muted-foreground">
+                        {slot}
+                      </div>
+                    ))
+                  ) : (
+                    <div className="text-xs text-muted-foreground">No saves found for this database.</div>
+                  )}
+                </div>
+              </ScrollArea>
             </div>
 
             <div className="space-y-2">
