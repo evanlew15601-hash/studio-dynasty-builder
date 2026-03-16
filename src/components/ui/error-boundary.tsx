@@ -1,6 +1,7 @@
 import React from 'react';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
+import { attemptChunkLoadRecovery, isChunkLoadError } from '@/utils/chunkLoadRecovery';
 
 type Props = {
   children: React.ReactNode;
@@ -33,6 +34,10 @@ export class ErrorBoundary extends React.Component<Props, State> {
 
   componentDidCatch(error: Error, info: React.ErrorInfo): void {
     console.error('Unhandled UI error', error, info);
+
+    if (import.meta.env.PROD && isChunkLoadError(error)) {
+      attemptChunkLoadRecovery({ maxAttemptsPerSession: 1 });
+    }
   }
 
   private reset = () => {
@@ -58,6 +63,7 @@ export class ErrorBoundary extends React.Component<Props, State> {
     }
 
     const error = this.state.error;
+    const chunkLoadError = isChunkLoadError(error);
 
     return (
       <div className="p-6">
@@ -67,7 +73,9 @@ export class ErrorBoundary extends React.Component<Props, State> {
           </CardHeader>
           <CardContent className="space-y-4">
             <div className="text-sm text-muted-foreground">
-              The game encountered an unexpected error. You can try reloading.
+              {chunkLoadError
+                ? 'An update may have been deployed while this tab was open. Reload to fetch the latest version.'
+                : 'The game encountered an unexpected error. You can try reloading.'}
             </div>
 
             {import.meta.env.DEV && (
@@ -80,6 +88,11 @@ export class ErrorBoundary extends React.Component<Props, State> {
               <Button onClick={() => window.location.reload()}>
                 Reload
               </Button>
+              {chunkLoadError && (
+                <Button variant="secondary" onClick={() => attemptChunkLoadRecovery({ maxAttemptsPerSession: 1 })}>
+                  Reload (force update)
+                </Button>
+              )}
               <Button variant="outline" onClick={() => window.location.assign(import.meta.env.BASE_URL || '/')}>
                 Return to main menu
               </Button>
