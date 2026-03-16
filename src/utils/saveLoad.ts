@@ -2,6 +2,7 @@ import { GameState } from '@/types/game';
 import { isTauriRuntime, loadSlotJson, saveSlotJson, listSlots, deleteSlot, getSavesDir } from '@/integrations/tauri/saves';
 import { CURRENT_SAVE_VERSION } from '@/utils/saveVersion';
 import { migrateSnapshot, validateSnapshot } from '@/game/persistence/migrations';
+import { getCurrentModFingerprint } from '@/utils/modFingerprint';
 
 export interface SaveGameMeta {
   savedAt: string;
@@ -12,6 +13,16 @@ export interface SaveGameMeta {
    * Used to restore the UI context on load.
    */
   currentPhase?: string;
+  /**
+   * The mod slot that was active when the save was created.
+   * This prevents loading a save under a different mod database.
+   */
+  modSlotId?: string;
+  /**
+   * Fingerprint of the active mod bundle at save time.
+   * Used for mismatch warnings (best-effort).
+   */
+  modBundleHash?: string;
 }
 
 export interface SaveGameSnapshot {
@@ -59,6 +70,8 @@ function buildSnapshot(
     unlockedAchievementIds?: string[];
   }
 ): SaveGameSnapshot {
+  const modFingerprint = getCurrentModFingerprint();
+
   return {
     gameState,
     meta: {
@@ -66,6 +79,8 @@ function buildSnapshot(
       version: CURRENT_SAVE_VERSION,
       note: options?.note,
       currentPhase: options?.currentPhase,
+      modSlotId: modFingerprint.slotId,
+      modBundleHash: modFingerprint.bundleHash,
     },
     unlockedAchievements: options?.unlockedAchievementIds,
   };

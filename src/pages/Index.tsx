@@ -2,33 +2,27 @@ import { GameLanding } from '@/components/game/GameLanding';
 import { SaveLoadDialog } from '@/components/game/SaveLoadDialog';
 import { GlobalLoadingOverlay } from '@/components/ui/global-loading-overlay';
 import { LoadingProvider } from '@/contexts/LoadingContext';
-import { Suspense, lazy, useEffect, useState } from 'react';
+import { Suspense, lazy, useEffect, useRef, useState } from 'react';
 import { AUTO_LOAD_SLOT_KEY, loadGameAsync, type SaveGameSnapshot } from '@/utils/saveLoad';
 import { patchLoadedSnapshot } from '@/utils/snapshotPatches';
+import { useToast } from '@/hooks/use-toast';
+import { getModMismatchWarning } from '@/utils/modFingerprint';
 import { Genre } from '@/types/game';
 import type { StudioIconConfig } from '@/components/game/StudioIconCustomizer';
 
-const StudioMagnateGame = lazy(() =>
-  import('@/components/game/StudioMagnateGame').then((m) => ({ default: m.StudioMagnateGame }))
-);
-
-type GameConfig = {
-  studioName: string;
+const StudioMagnatetype GameConfig =     studioName: string;
   specialties: Genre[];
-  difficulty: 'easy' | 'normal' | 'hard' | 'magnate';
-  startingBudget: number;
-  studioIcon?: StudioIconConfig;
-};
+  difficulty: 'easy' | 'normal' | 'hard' | 'magnate'ty  startingBudget:   studio  studioIcon?:  specialties: Genr};
 
 const Index = () => {
+  const { toast } = useToast();
+  const modWarningShownRef = useRef(false);
+  const [gameStartedconst Index = () => {
   const [gameStarted, setGameStarted] = useState(false);
   const [gameConfig, setGameConfig] = useState<GameConfig | null>(null);
   const [loadedSnapshot, setLoadedSnapshot] = useState<SaveGameSnapshot | null>(null);
-  const [saveDialogOpen, setSaveDialogOpen] = useState(false);
-
-  const handleStartGame = (config: GameConfig) => {
-    // Starting a fresh game clears any loaded snapshot
-    setLoadedSnapshot(null);
+  const [saveDialogOpe  const handleStartGame = (config: GameCo
+  const ha    // Starting a fresh game clears any lo    // Startin    setLoadedSnapshot(null);
     setGameConfig(config);
     setGameStarted(true);
   };
@@ -38,6 +32,16 @@ const Index = () => {
   };
 
   const handleLoadedSnapshot = (snapshot: SaveGameSnapshot) => {
+    const warning = getModMismatchWarning(snapshot.meta);
+    if (warning && !modWarningShownRef.current) {
+      modWarningShownRef.current = true;
+      toast({
+        title: 'Mod mismatch',
+        description: warning,
+        variant: 'destructive',
+      });
+    }
+
     const patched = patchLoadedSnapshot(snapshot, { mode: 'single' });
     setLoadedSnapshot(patched);
     setGameConfig(null);
@@ -56,6 +60,16 @@ const Index = () => {
     void (async () => {
       const snapshot = await loadGameAsync(slot);
       if (!snapshot) return;
+      const warning = getModMismatchWarning(snapshot.meta);
+      if (warning && !modWarningShownRef.current) {
+        modWarningShownRef.current = true;
+        toast({
+          title: 'Mod mismatch',
+          description: warning,
+          variant: 'destructive',
+        });
+      }
+
       const patched = patchLoadedSnapshot(snapshot, { mode: 'single' });
       setLoadedSnapshot(patched);
       setGameConfig(null);
@@ -87,6 +101,11 @@ const Index = () => {
         </Suspense>
       )}
     </LoadingProvider>
+  );
+};
+
+export default Index;
+gProvider>
   );
 };
 

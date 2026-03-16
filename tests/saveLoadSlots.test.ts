@@ -4,11 +4,14 @@ import {
   deleteGameAsync,
   getActiveSaveSlotId,
   listSaveSlotsAsync,
+  loadGame,
   normalizeSlotId,
+  saveGame,
   saveSnapshotAsync,
   setActiveSaveSlotId,
   type SaveGameSnapshot,
 } from '@/utils/saveLoad';
+import { invalidateModBundleCache } from '@/utils/moddingStore';
 
 type LocalStorageMock = {
   length: number;
@@ -85,6 +88,7 @@ describe('saveLoad slots', () => {
   beforeEach(() => {
     const localStorage = createLocalStorageMock();
     (globalThis as any).window = { localStorage };
+    invalidateModBundleCache();
   });
 
   it('normalizes slot ids', () => {
@@ -106,5 +110,16 @@ describe('saveLoad slots', () => {
 
     await deleteGameAsync('slot1');
     expect(await listSaveSlotsAsync()).toEqual(['slot2']);
+  });
+
+  it('stores mod fingerprint in saves created via saveGame()', () => {
+    const snap = makeSnapshot();
+    saveGame('slot1', snap.gameState);
+
+    const loaded = loadGame('slot1');
+    expect(loaded).not.toBeNull();
+
+    expect(loaded?.meta.modSlotId).toBe('default');
+    expect(loaded?.meta.modBundleHash).toMatch(/^[0-9a-f]{8}$/);
   });
 });

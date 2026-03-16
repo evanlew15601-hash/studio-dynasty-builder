@@ -2,9 +2,11 @@ import { GameLanding } from '@/components/game/GameLanding';
 import { SaveLoadDialog } from '@/components/game/SaveLoadDialog';
 import { GlobalLoadingOverlay } from '@/components/ui/global-loading-overlay';
 import { LoadingProvider } from '@/contexts/LoadingContext';
-import { Suspense, lazy, useEffect, useState } from 'react';
+import { Suspense, lazy, useEffect, useRef, useState } from 'react';
 import { AUTO_LOAD_SLOT_KEY, loadGameAsync, type SaveGameSnapshot } from '@/utils/saveLoad';
 import { patchLoadedSnapshot } from '@/utils/snapshotPatches';
+import { useToast } from '@/hooks/use-toast';
+import { getModMismatchWarning } from '@/utils/modFingerprint';
 
 import { Genre } from '@/types/game';
 import type { StudioIconConfig } from '@/components/game/StudioIconCustomizer';
@@ -72,6 +74,16 @@ const Online = () => {
   };
 
   const handleLoadedSnapshot = (snapshot: SaveGameSnapshot) => {
+    const warning = getModMismatchWarning(snapshot.meta);
+    if (warning && !modWarningShownRef.current) {
+      modWarningShownRef.current = true;
+      toast({
+        title: 'Mod mismatch',
+        description: warning,
+        variant: 'destructive',
+      });
+    }
+
     const patched = patchLoadedSnapshot(snapshot, { mode: 'online' });
     setLoadedSnapshot(patched);
     setGameConfig(null);
@@ -90,6 +102,16 @@ const Online = () => {
     void (async () => {
       const snapshot = await loadGameAsync(slot);
       if (!snapshot) return;
+      const warning = getModMismatchWarning(snapshot.meta);
+      if (warning && !modWarningShownRef.current) {
+        modWarningShownRef.current = true;
+        toast({
+          title: 'Mod mismatch',
+          description: warning,
+          variant: 'destructive',
+        });
+      }
+
       const patched = patchLoadedSnapshot(snapshot, { mode: 'online' });
       setLoadedSnapshot(patched);
       setGameConfig(null);
