@@ -126,6 +126,7 @@ import {
   upsertOnlineLeagueTurnSubmission,
 } from '@/integrations/supabase/onlineLeagueTurnCompile';
 import { mergeLeagueReleaseSnapshotsIntoAllReleases } from '@/utils/leagueReleases';
+import { dedupeReleasePoolPreferLatest } from '@/utils/releasePool';
 import type { LeagueReleasedProjectSnapshot } from '@/types/onlineLeague';
 import {
   applyOnlineLeagueTalentResolution,
@@ -2664,16 +2665,7 @@ export const StudioMagnateGame: React.FC<StudioMagnateGameProps> = ({
 
       const releasePool = [...baseAfterEngine.allReleases, ...newAIReleases, ...playerReleases];
 
-      const dedupedReleases = (() => {
-        const seen = new Set<string>();
-        return releasePool.filter((release) => {
-          const id = 'script' in release ? release.id : release.projectId;
-          if (!id) return true;
-          if (seen.has(id)) return false;
-          seen.add(id);
-          return true;
-        });
-      })();
+      const dedupedReleases = dedupeReleasePoolPreferLatest(releasePool as any);
 
       const prunedReleases = dedupedReleases.filter((release) => {
         if (!('releaseWeek' in release) || !('releaseYear' in release)) return true;
