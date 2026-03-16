@@ -74,6 +74,7 @@ import { useToast } from '@/hooks/use-toast';
 import type { TickRecapCard, TickReport, TickSystemReport } from '@/types/tickReport';
 import { createTickReport } from '@/utils/tickReport';
 import { WeekRecapModal } from './WeekRecapModal';
+import { GameEventModal } from './GameEventModal';
 import { EnhancedFinancialAccuracy, applyEnhancedFinancialAccuracy } from './EnhancedFinancialAccuracy';
 import { EnhancedFranchiseSystem } from './EnhancedFranchiseSystem';
 import { FranchiseManager } from './FranchiseManager';
@@ -4456,8 +4457,9 @@ export const StudioMagnateGame: React.FC<StudioMagnateGameProps> = ({
           <OnlineLeague initialLeagueCode={onlineLeagueCode} />
         )}
       </div>
-      
-      
+
+      <GameEventModal />
+
       {/* First Week Box Office Modal */}
       {firstWeekModalProject && (
         <FirstWeekBoxOfficeModal
