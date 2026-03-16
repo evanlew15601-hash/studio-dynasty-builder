@@ -5,11 +5,23 @@ import { clearIndustryDatabase, createEmptyIndustryDatabase, loadIndustryDatabas
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { Input } from '@/components/ui/input';
+import { Textarea } from '@/components/ui/textarea';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { Badge } from '@/components/ui/badge';
 import { ScrollArea } from '@/components/ui/scroll-area';
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
 import { Button } from '@/components/ui/button';
+import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle } from '@/components/ui/dialog';
+import {
+  AlertDialog,
+  AlertDialogAction,
+  AlertDialogCancel,
+  AlertDialogContent,
+  AlertDialogDescription,
+  AlertDialogFooter,
+  AlertDialogHeader,
+  AlertDialogTitle,
+} from '@/components/ui/alert-dialog';
 import { useToast } from '@/hooks/use-toast';
 import { ModsPanel } from './ModsPanel';
 import { useGameStore } from '@/game/store';
@@ -69,6 +81,10 @@ export const IndustryDatabasePanel: React.FC<IndustryDatabasePanelProps> = ({ sl
     return loadIndustryDatabase(slot);
   });
 
+  const [importOpen, setImportOpen] = useState(false);
+  const [importText, setImportText] = useState('');
+  const [resetConfirmOpen, setResetConfirmOpen] = useState(false);
+
   // Keep the persisted database synced with the current world state.
   // We sync on week/year changes and on major catalog size changes to avoid doing
   // a full scan on every small UI interaction.
@@ -107,8 +123,16 @@ export const IndustryDatabasePanel: React.FC<IndustryDatabasePanelProps> = ({ sl
   };
 
   const handleImportDatabaseJson = () => {
-    const raw = window.prompt('Paste industry database JSON to import (this will overwrite the current slot).');
-    if (!raw) return;
+    setImportText('');
+    setImportOpen(true);
+  };
+
+  const applyImportDatabaseJson = () => {
+    const raw = importText.trim();
+    if (!raw) {
+      toast({ title: 'Nothing to import', description: 'Paste JSON first.', variant: 'destructive' });
+      return;
+    }
 
     try {
       const parsed = JSON.parse(raw) as IndustryDatabase;
@@ -120,6 +144,8 @@ export const IndustryDatabasePanel: React.FC<IndustryDatabasePanelProps> = ({ sl
       setDb(parsed);
       saveIndustryDatabase(slot, parsed);
       toast({ title: 'Imported', description: 'Industry database imported into this slot.' });
+      setImportOpen(false);
+      setImportText('');
     } catch {
       toast({ title: 'Invalid JSON', description: 'Could not parse JSON.', variant: 'destructive' });
     }
@@ -445,6 +471,58 @@ export const IndustryDatabasePanel: React.FC<IndustryDatabasePanelProps> = ({ sl
 
   return (
     <div className="space-y-6">
+      <Dialog open={importOpen} onOpenChange={setImportOpen}>
+        <DialogContent className="max-w-2xl">
+          <DialogHeader>
+            <DialogTitle>Import Industry Database JSON</DialogTitle>
+            <DialogDescription>
+              Paste an IndustryDatabase v1 JSON blob. This will overwrite the current slot ({slot}).
+            </DialogDescription>
+          </DialogHeader>
+
+          <div className="space-y-2">
+            <Textarea
+              value={importText}
+              onChange={(e) => setImportText(e.target.value)}
+              placeholder="{\n  \"version\": 1,\n  ...\n}"
+              className="min-h-[240px] font-mono text-xs"
+            />
+          </div>
+
+          <DialogFooter>
+            <Button type="button" variant="outline" onClick={() => setImportOpen(false)}>
+              Cancel
+            </Button>
+            <Button type="button" onClick={applyImportDatabaseJson}>
+              Import
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
+
+      <AlertDialog open={resetConfirmOpen} onOpenChange={setResetConfirmOpen}>
+        <AlertDialogContent>
+          <AlertDialogHeader>
+            <AlertDialogTitle>Reset industry database?</AlertDialogTitle>
+            <AlertDialogDescription>
+              This will clear the persisted industry database for slot {slot}. This cannot be undone.
+            </AlertDialogDescription>
+          </AlertDialogHeader>
+          <AlertDialogFooter>
+            <AlertDialogCancel>Cancel</AlertDialogCancel>
+            <AlertDialogAction
+              className="bg-destructive text-destructive-foreground hover:bg-destructive/90"
+              onClick={() => {
+                setResetConfirmOpen(false);
+                handleResetDatabase();
+              }}
+            >
+              Reset
+            </AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
+
       <Card className="card-premium">
         <CardHeader>
           <CardTitle className="flex items-center justify-between gap-3">
@@ -457,7 +535,7 @@ export const IndustryDatabasePanel: React.FC<IndustryDatabasePanelProps> = ({ sl
               <Button size="sm" variant="secondary" onClick={handleImportDatabaseJson}>
                 Import JSON
               </Button>
-              <Button size="sm" variant="destructive" onClick={handleResetDatabase}>
+              <Button size="sm" variant="destructive" onClick={() => setResetConfirmOpen(true)}>
                 Reset
               </Button>
             </div>

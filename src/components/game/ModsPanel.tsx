@@ -10,6 +10,16 @@ import { Separator } from '@/components/ui/separator';
 import { Switch } from '@/components/ui/switch';
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
+import {
+  AlertDialog,
+  AlertDialogAction,
+  AlertDialogCancel,
+  AlertDialogContent,
+  AlertDialogDescription,
+  AlertDialogFooter,
+  AlertDialogHeader,
+  AlertDialogTitle,
+} from '@/components/ui/alert-dialog';
 import { PROVIDER_DEALS, type ProviderDealProfile, type ProviderId } from '@/data/ProviderDealsDatabase';
 import { PublicDomainGenerator } from '@/data/PublicDomainGenerator';
 import { FranchiseGenerator } from '@/data/FranchiseGenerator';
@@ -227,6 +237,8 @@ export const ModsPanel: React.FC = () => {
 
   const isDirty = useMemo(() => raw !== savedRaw, [raw, savedRaw]);
 
+  const [clearConfirmOpen, setClearConfirmOpen] = useState(false);
+
   // Editor
   const [editorModId, setEditorModId] = useState('my-mod');
   const [newModId, setNewModId] = useState('');
@@ -396,20 +408,24 @@ export const ModsPanel: React.FC = () => {
 
   
 
+  const doClearMods = () => {
+    clearModBundle();
+    handleReload();
+    toast({ title: 'Cleared', description: `Cleared mods for database "${getActiveModSlot()}".` });
+  };
+
   const handleClear = () => {
     if (activeSlot === 'default') {
       toast({ title: 'Read-only', description: 'The default database is read-only. Duplicate it from the main menu (Database -> Manage…) to edit mods.' });
       return;
     }
 
-    if (isDirty && typeof window !== 'undefined') {
-      const ok = window.confirm('You have unsaved changes. Clear mods for this database anyway?');
-      if (!ok) return;
+    if (isDirty) {
+      setClearConfirmOpen(true);
+      return;
     }
 
-    clearModBundle();
-    handleReload();
-    toast({ title: 'Cleared', description: `Cleared mods for database "${getActiveModSlot()}".` });
+    doClearMods();
   };
 
   const selectedMod = useMemo(() => {
@@ -2289,7 +2305,31 @@ export const ModsPanel: React.FC = () => {
   };
 
   return (
-    <Card>
+    <>
+      <AlertDialog open={clearConfirmOpen} onOpenChange={setClearConfirmOpen}>
+        <AlertDialogContent>
+          <AlertDialogHeader>
+            <AlertDialogTitle>Clear unsaved changes?</AlertDialogTitle>
+            <AlertDialogDescription>
+              You have unsaved changes. Clearing will discard your edits for database "{activeSlot}".
+            </AlertDialogDescription>
+          </AlertDialogHeader>
+          <AlertDialogFooter>
+            <AlertDialogCancel>Cancel</AlertDialogCancel>
+            <AlertDialogAction
+              className="bg-destructive text-destructive-foreground hover:bg-destructive/90"
+              onClick={() => {
+                setClearConfirmOpen(false);
+                doClearMods();
+              }}
+            >
+              Clear
+            </AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
+
+      <Card>
       <CardHeader className="space-y-2">
         <div className="flex flex-wrap items-center justify-between gap-2">
           <CardTitle>Mods</CardTitle>
@@ -4040,5 +4080,6 @@ export const ModsPanel: React.FC = () => {
         </Tabs>
       </CardContent>
     </Card>
+    </>
   );
 };
