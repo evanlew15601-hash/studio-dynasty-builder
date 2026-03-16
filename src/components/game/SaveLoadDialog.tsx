@@ -20,6 +20,8 @@ import {
   setActiveSaveSlotId,
   type SaveGameSnapshot,
 } from '@/utils/saveLoad';
+import { getActiveModSlot, listModSlots, setActiveModSlot } from '@/utils/moddingStore';
+import { getModMismatchWarning } from '@/utils/modFingerprint';
 
 type SaveSlotRow = {
   slotId: string;
@@ -33,7 +35,8 @@ type SaveSlotRow = {
 function formatSlotLabel(row: SaveSlotRow): string {
   const parts: string[] = [];
   if (row.studioName) parts.push(row.studioName);
-  if (row.year && row.week) parts.push(`W${row.week}, ${row.year}`);
+  if (row.year != null && row.week != null) parts.push(`W${row.week}, ${row.year}`);
+  if (row.modSlotId) parts.push(`DB: ${row.modSlotId}`);
   if (row.savedAt) parts.push(new Date(row.savedAt).toLocaleString());
   return parts.join(' • ');
 }
@@ -89,6 +92,7 @@ export function SaveLoadDialog(props: {
           slotId,
           savedAt: snapshot.meta?.savedAt,
           version: snapshot.meta?.version,
+          modSlotId: snapshot.meta?.modSlotId,
           studioName: snapshot.gameState?.studio?.name,
           week: snapshot.gameState?.currentWeek,
           year: snapshot.gameState?.currentYear,
@@ -166,6 +170,37 @@ export function SaveLoadDialog(props: {
         variant: 'destructive',
       });
       return;
+    }
+
+    const requiredModSlot = snapshot.meta?.modSlotId;
+    if (requiredModSlot) {
+      const current = getActiveModSlot();
+      if (current !== requiredModSlot) {
+        const available = listModSlots();
+        if (!available.includes(requiredModSlot)) {
+          toast({
+            title: 'Missing mod database',
+            description: `This save was created with mod slot "${requiredModSlot}", but that slot doesn't exist on this device. Import/create it in Mods first.`,
+            variant: 'destructive',
+          });
+          return;
+        }
+
+        setActiveModSlot(requiredModSlot);
+        toast({
+          title: 'Mod database switched',
+          description: `Now using mod slot "${requiredModSlot}".`,
+        });
+      }
+    }
+
+    const modWarning = getModMismatchWarning(snapshot.meta);
+    if (modWarning) {
+      toast({
+        title: 'Mod mismatch',
+        description: modWarning,
+        variant: 'destructive',
+      });
     }
 
     setActiveSaveSlotId(normalized);

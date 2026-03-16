@@ -2,11 +2,11 @@ import { GameLanding } from '@/components/game/GameLanding';
 import { SaveLoadDialog } from '@/components/game/SaveLoadDialog';
 import { GlobalLoadingOverlay } from '@/components/ui/global-loading-overlay';
 import { LoadingProvider } from '@/contexts/LoadingContext';
-import { Suspense, lazy, useEffect, useRef, useState } from 'react';
+import { Suspense, lazy, useEffect, useState } from 'react';
 import { AUTO_LOAD_SLOT_KEY, loadGameAsync, type SaveGameSnapshot } from '@/utils/saveLoad';
 import { patchLoadedSnapshot } from '@/utils/snapshotPatches';
 import { useToast } from '@/hooks/use-toast';
-import { getModMismatchWarning } from '@/utils/modFingerprint';
+import { getActiveModSlot, listModSlots, setActiveModSlot } from '@/utils/moddingStore';
 
 import { Genre } from '@/types/game';
 import type { StudioIconConfig } from '@/components/game/StudioIconCustomizer';
@@ -33,6 +33,7 @@ function generateLeagueCode(): string {
 }
 
 const Online = () => {
+  const { toast } = useToast();
   const [gameStarted, setGameStarted] = useState(false);
   const [gameConfig, setGameConfig] = useState<GameConfig | null>(null);
   const [loadedSnapshot, setLoadedSnapshot] = useState<SaveGameSnapshot | null>(null);
@@ -74,16 +75,6 @@ const Online = () => {
   };
 
   const handleLoadedSnapshot = (snapshot: SaveGameSnapshot) => {
-    const warning = getModMismatchWarning(snapshot.meta);
-    if (warning && !modWarningShownRef.current) {
-      modWarningShownRef.current = true;
-      toast({
-        title: 'Mod mismatch',
-        description: warning,
-        variant: 'destructive',
-      });
-    }
-
     const patched = patchLoadedSnapshot(snapshot, { mode: 'online' });
     setLoadedSnapshot(patched);
     setGameConfig(null);
@@ -102,14 +93,27 @@ const Online = () => {
     void (async () => {
       const snapshot = await loadGameAsync(slot);
       if (!snapshot) return;
-      const warning = getModMismatchWarning(snapshot.meta);
-      if (warning && !modWarningShownRef.current) {
-        modWarningShownRef.current = true;
-        toast({
-          title: 'Mod mismatch',
-          description: warning,
-          variant: 'destructive',
-        });
+
+      const requiredModSlot = snapshot.meta?.modSlotId;
+      if (requiredModSlot) {
+        const current = getActiveModSlot();
+        if (current !== requiredModSlot) {
+          const available = listModSlots();
+          if (!available.includes(requiredModSlot)) {
+            toast({
+              title: 'Missing mod database',
+              description: `Auto-load save requires mod slot "${requiredModSlot}", but that slot doesn't exist on this device.`,
+              variant: 'destructive',
+            });
+            return;
+          }
+
+          setActiveModSlot(requiredModSlot);
+          toast({
+            title: 'Mod database switched',
+            description: `Switched to mod slot "${requiredModSlot}" to load the save.`,
+          });
+        }
       }
 
       const patched = patchLoadedSnapshot(snapshot, { mode: 'online' });
@@ -117,7 +121,7 @@ const Online = () => {
       setGameConfig(null);
       setGameStarted(true);
     })();
-  }, [gameStarted]);
+  }, [gameStarted, toast]);
 
   const handleGenerateLeagueCode = () => {
     const next = generateLeagueCode();
@@ -168,19 +172,19 @@ const Online = () => {
         </>
       ) : (
         <Suspense fallback={null}>
-            <StudioMagnateGame
-              gameConfig={gameConfig ?? undefined}
-              initialGameState={loadedSnapshot?.gameState}
-              initialPhase={loadedSnapshot?.meta.currentPhase}
-              initialUnlockedAchievements={loadedSnapshot?.unlockedAchievements}
-              onlineLeagueCode={onlineLeagueCode}
-              onlineSeasonYears={onlineSeasonYears}
-              onlineHostSync={onlineHostSync}
-              onPhaseChange={(phase) => {
-                if (loadedSnapshot) setLoadedSnapshot({ ...loadedSnapshot, meta: { ...loadedSnapshot.meta, currentPhase: phase } });
-              }}
-            />
-          </Suspense>
+          <StudioMagnateGame
+            gameConfig={gameConfig ?? undefined}
+            initialGameState={loadedSnapshot?.gameState}
+            initialPhase={loadedSnapshot?.meta.currentPhase}
+            initialUnlockedAchievements={loadedSnapshot?.unlockedAchievements}
+            onlineLeagueCode={onlineLeagueCode}
+            onlineSeasonYears={onlineSeasonYears}
+            onlineHostSync={onlineHostSync}
+            onPhaseChange={(phase) => {
+              if (loadedSnapshot) setLoadedSnapshot({ ...loadedSnapshot, meta: { ...loadedSnapshot.meta, currentPhase: phase } });
+            }}
+          />
+        </Suspense>
       )}
     </LoadingProvider>
   );
