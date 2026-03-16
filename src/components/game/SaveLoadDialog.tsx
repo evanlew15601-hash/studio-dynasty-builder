@@ -4,7 +4,7 @@ import { Button } from '@/components/ui/button';
 import { Card, CardContent } from '@/components/ui/card';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
-import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
+
 import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle } from '@/components/ui/dialog';
 import { ScrollArea } from '@/components/ui/scroll-area';
 import { useToast } from '@/hooks/use-toast';
@@ -21,7 +21,7 @@ import {
   setActiveSaveSlotId,
   type SaveGameSnapshot,
 } from '@/utils/saveLoad';
-import { getActiveModSlot, listModSlots, setActiveModSlot } from '@/utils/moddingStore';
+import { getActiveModSlot, listModSlots } from '@/utils/moddingStore';
 import { getModMismatchWarning } from '@/utils/modFingerprint';
 
 type SaveSlotRow = {
@@ -128,23 +128,6 @@ export function SaveLoadDialog(props: {
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [props.open]);
 
-  const handleModSlotChange = (slotId: string) => {
-    if (props.currentGameState) return;
-
-    setActiveModSlot(slotId);
-    setActiveModSlotState(slotId);
-
-    const slot = getActiveSaveSlotId(slotId);
-    setActiveSlot(slot);
-
-    void refreshSlots(slotId);
-
-    toast({
-      title: 'Database selected',
-      description: `Now viewing saves for "${slotId}".`,
-    });
-  };
-
   const handleSetActiveSlot = (slotId: string) => {
     const normalized = normalizeSlotId(slotId);
     if (!normalized) return;
@@ -205,26 +188,23 @@ export function SaveLoadDialog(props: {
     }
 
     const requiredModSlot = snapshot.meta?.modSlotId;
-    if (requiredModSlot) {
-      const current = getActiveModSlot();
-      if (current !== requiredModSlot) {
-        const available = listModSlots();
-        if (!available.includes(requiredModSlot)) {
-          toast({
-            title: 'Missing mod database',
-            description: `This save was created with mod slot "${requiredModSlot}", but that slot doesn't exist on this device. Import/create it in Mods first.`,
-            variant: 'destructive',
-          });
-          return;
-        }
-
-        setActiveModSlot(requiredModSlot);
-        setActiveModSlotState(requiredModSlot);
+    if (requiredModSlot && requiredModSlot !== activeModSlot) {
+      const available = listModSlots();
+      if (!available.includes(requiredModSlot)) {
         toast({
-          title: 'Mod database switched',
-          description: `Now using mod slot "${requiredModSlot}".`,
+          title: 'Missing mod database',
+          description: `This save belongs to DB "${requiredModSlot}", but that database doesn't exist on this device. Import/create it first.`,
+          variant: 'destructive',
         });
+        return;
       }
+
+      toast({
+        title: 'Wrong database selected',
+        description: `This save belongs to DB "${requiredModSlot}". Close this window and select that database on the main menu first.`,
+        variant: 'destructive',
+      });
+      return;
     }
 
     const modWarning = getModMismatchWarning(snapshot.meta);
@@ -236,9 +216,7 @@ export function SaveLoadDialog(props: {
       });
     }
 
-    const saveModSlot = requiredModSlot || activeModSlot;
-
-    setActiveSaveSlotId(normalized, saveModSlot);
+    setActiveSaveSlotId(normalized, activeModSlot);
     setActiveSlot(normalized);
 
     props.onLoaded(snapshot);
@@ -295,34 +273,48 @@ export function SaveLoadDialog(props: {
         return;
       }
 
-      const importModSlot = parsed.meta?.modSlotId || activeModSlot;
+      const declaredModSlot = parsed.meta?.modSlotId;
 
-      if (parsed.meta?.modSlotId) {
+      if (declaredModSlot && declaredModSlot !== activeModSlot) {
         const available = listModSlots();
-        if (!available.includes(importModSlot)) {
+        if (!available.includes(declaredModSlot)) {
           toast({
             title: 'Missing mod database',
-            description: `This save belongs to mod slot "${importModSlot}", but that slot doesn't exist on this device. Import/create it in Mods first.`,
+            description: `This save belongs to DB "${declaredModSlot}", but that database doesn't exist on this device. Import/create it first.`,
             variant: 'destructive',
           });
           return;
         }
 
-        setActiveModSlot(importModSlot);
-        setActiveModSlotState(importModSlot);
+        toast({
+          title: 'Wrong database selected',
+          description: `Select DB "${declaredModSlot}" first, then import this save.`,
+          variant: 'destructive',
+        });
+        return;
       }
 
-      await saveSnapshotAsync(targetSlot, parsed, importModSlot);
-      setActiveSaveSlotId(targetSlot, importModSlot);
+      const next: SaveGameSnapshot = declaredModSlot
+        ? parsed
+        : {
+            ...parsed,
+            meta: {
+              ...parsed.meta,
+              modSlotId: activeModSlot,
+            },
+          };
+
+      await saveSnapshotAsync(targetSlot, next, activeModSlot);
+      setActiveSaveSlotId(targetSlot, activeModSlot);
       setActiveSlot(targetSlot);
 
       toast({
         title: 'Imported',
-        description: `Imported into "${targetSlot}" (DB: ${importModSlot}).`,
+        description: `Imported into "${targetSlot}" (DB: ${activeModSlot}).`,
       });
 
       setNewSlotId('');
-      await refreshSlots(importModSlot);
+      await refreshSlots(activeModSlot);
     } catch (error) {
       console.error('Import failed', error);
       toast({
@@ -350,20 +342,11 @@ export function SaveLoadDialog(props: {
             <CardContent className="pt-6 space-y-3">
               <div className="space-y-2">
                 <Label>Database</Label>
-                <Select value={activeModSlot} onValueChange={handleModSlotChange}>
-                  <SelectTrigger disabled={!!props.currentGameState}>
-                    <SelectValue placeholder="Select database" />
-                  </SelectTrigger>
-                  <SelectContent>
-                    {listModSlots().map((slot) => (
-                      <SelectItem key={slot} value={slot}>
-                        {slot}
-                      </SelectItem>
-                    ))}
-                  </SelectContent>
-                </Select>
+                <div className="rounded-md border bg-background/40 px-3 py-2 text-sm">
+                  {activeModSlot}
+                </div>
                 <div className="text-xs text-muted-foreground">
-                  TEW-style: saves are separated per database.
+                  TEW-style: saves are separated per database. Change databases from the main menu.
                 </div>
               </div>
 

@@ -6,7 +6,7 @@ import { Suspense, lazy, useEffect, useState } from 'react';
 import { AUTO_LOAD_SLOT_KEY, decodeAutoLoadTarget, loadGameAsync, type SaveGameSnapshot } from '@/utils/saveLoad';
 import { patchLoadedSnapshot } from '@/utils/snapshotPatches';
 import { useToast } from '@/hooks/use-toast';
-import { getActiveModSlot, listModSlots, setActiveModSlot } from '@/utils/moddingStore';
+import { getActiveModSlot, listModSlots } from '@/utils/moddingStore';
 import { Genre } from '@/types/game';
 import type { StudioIconConfig } from '@/components/game/StudioIconCustomizer';
 
@@ -63,20 +63,16 @@ const Index = () => {
       const current = getActiveModSlot();
       if (current !== decoded.modSlotId) {
         const available = listModSlots();
-        if (!available.includes(decoded.modSlotId)) {
-          toast({
-            title: 'Missing mod database',
-            description: `Auto-load save requires mod slot "${decoded.modSlotId}", but that slot doesn't exist on this device.`,
-            variant: 'destructive',
-          });
-          return;
-        }
+        const isMissing = !available.includes(decoded.modSlotId);
 
-        setActiveModSlot(decoded.modSlotId);
         toast({
-          title: 'Mod database switched',
-          description: `Switched to mod slot "${decoded.modSlotId}" to load the save.`,
+          title: isMissing ? 'Missing mod database' : 'Wrong database selected',
+          description: isMissing
+            ? `Auto-load save requires DB "${decoded.modSlotId}", but that database doesn't exist on this device.`
+            : `Auto-load save requires DB "${decoded.modSlotId}". Select that database on the main menu first, then load.`,
+          variant: 'destructive',
         });
+        return;
       }
 
       const snapshot = await loadGameAsync(decoded.slotId, decoded.modSlotId);
