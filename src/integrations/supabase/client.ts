@@ -2,6 +2,8 @@ import { createClient, type SupabaseClient } from '@supabase/supabase-js';
 import type { Database } from './types';
 
 const LOCAL_CONFIG_KEY = 'studio-magnate-supabase-config-v1';
+const LEGACY_LOCAL_CONFIG_KEYS = ['studio-magnate-supabase-config', 'studio-magnate-supabase-config-v0'];
+const CONFIG_CHANGED_EVENT = 'studio-magnate-supabase-config-changed';
 
 export type SupabaseConfigSource = 'env' | 'local' | null;
 
@@ -32,16 +34,45 @@ function normalizeConfig(candidate: unknown): SupabaseConfig | null {
   return { url: normalizedUrl, anonKey: normalizedAnon };
 }
 
+function emitConfigChanged(): void {
+  if (typeof window === 'undefined') return;
+  window.dispatchEvent(new Event(CONFIG_CHANGED_EVENT));
+}
+
+export function onSupabaseConfigChanged(callback: () => void): () => void {
+  if (typeof window === 'undefined') return () => {};
+  window.addEventListener(CONFIG_CHANGED_EVENT, callback);
+  return () => window.removeEventListener(CONFIG_CHANGED_EVENT, callback);
+}
+
 function getLocalConfig(): SupabaseConfig | null {
   if (typeof window === 'undefined') return null;
 
-  try {
-    const raw = window.localStorage.getItem(LOCAL_CONFIG_KEY);
-    if (!raw) return null;
-    return normalizeConfig(JSON.parse(raw));
-  } catch {
-    return null;
+  const readKey = (key: string): SupabaseConfig | null => {
+    try {
+      const raw = window.localStorage.getItem(key);
+      if (!raw) return null;
+      return normalizeConfig(JSON.parse(raw));
+    } catch {
+      return null;
+    }
+  };
+
+  const current = readKey(LOCAL_CONFIG_KEY);
+  if (current) return current;
+
+  for (const key of LEGACY_LOCAL_CONFIG_KEYS) {
+    const legacy = readKey(key);
+    if (!legacy) continue;
+
+    // Migrate legacy key to the current format so future runs are stable.
+    window.localStorage.setItem(LOCAL_CONFIG_KEY, JSON.stringify(legacy));
+    window.localStorage.removeItem(key);
+    emitConfigChanged();
+    return legacy;
   }
+
+  return null;
 }
 
 function getEnvConfig(): SupabaseConfig | null {
@@ -81,6 +112,7 @@ export function setSupabaseLocalConfig(config: { url: string; anonKey: string })
   window.localStorage.setItem(LOCAL_CONFIG_KEY, JSON.stringify(normalized));
   cachedClient = null;
   cachedConfigKey = null;
+  emitConfigChanged();
 }
 
 export function clearSupabaseLocalConfig(): void {
@@ -89,6 +121,7 @@ export function clearSupabaseLocalConfig(): void {
   window.localStorage.removeItem(LOCAL_CONFIG_KEY);
   cachedClient = null;
   cachedConfigKey = null;
+  emitConfigChanged();
 }
 
 export function getSupabaseClient(): SupabaseClient<Database> | null {

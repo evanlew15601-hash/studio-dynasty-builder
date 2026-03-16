@@ -1,5 +1,5 @@
 import { useEffect, useMemo, useRef, useState } from 'react';
-import { getSupabaseClient } from '@/integrations/supabase/client';
+import { getSupabaseClient, onSupabaseConfigChanged } from '@/integrations/supabase/client';
 
 function mapOnlineLeagueError(message: string): string {
   const normalized = (message || '').toLowerCase();
@@ -79,7 +79,13 @@ export function useOnlineLeagueTickGate({
 }: Params): OnlineLeagueTickGateState {
   const code = (leagueCode || '').trim().toUpperCase();
 
-  const supabase = useMemo(() => getSupabaseClient(), []);
+  const [configVersion, setConfigVersion] = useState(0);
+
+  useEffect(() => {
+    return onSupabaseConfigChanged(() => setConfigVersion((v) => v + 1));
+  }, []);
+
+  const supabase = useMemo(() => getSupabaseClient(), [configVersion]);
 
   const [status, setStatus] = useState<OnlineLeagueTickGateStatus>(enabled ? 'auth' : 'disabled');
   const [error, setError] = useState<string | null>(null);

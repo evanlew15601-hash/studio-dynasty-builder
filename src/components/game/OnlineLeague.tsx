@@ -5,7 +5,7 @@ import { Input } from '@/components/ui/input';
 import { Badge } from '@/components/ui/badge';
 import { Separator } from '@/components/ui/separator';
 import { useGameStore } from '@/game/store';
-import { getSupabaseClient } from '@/integrations/supabase/client';
+import { getSupabaseClient, onSupabaseConfigChanged } from '@/integrations/supabase/client';
 
 type PresenceStudioSnapshot = {
   studioName: string;
@@ -71,7 +71,13 @@ export const OnlineLeague: React.FC<OnlineLeagueProps> = ({ initialLeagueCode })
   const [persistedSnapshots, setPersistedSnapshots] = useState<PersistedLeagueSnapshot[]>([]);
   const [leagueBusy, setLeagueBusy] = useState(false);
 
-  const supabase = useMemo(() => getSupabaseClient(), []);
+  const [configVersion, setConfigVersion] = useState(0);
+
+  useEffect(() => {
+    return onSupabaseConfigChanged(() => setConfigVersion((v) => v + 1));
+  }, []);
+
+  const supabase = useMemo(() => getSupabaseClient(), [configVersion]);
   const channelRef = useRef<ReturnType<NonNullable<typeof supabase>['channel']> | null>(null);
 
   const canUseOnline = !!supabase;
