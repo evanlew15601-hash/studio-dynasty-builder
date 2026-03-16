@@ -1,4 +1,4 @@
-export type UiSkinId = 'studio' | 'noir' | 'silent-era' | 'sci-fi' | 'horror';
+export type UiSkinId = 'studio' | 'noir' | 'silent-era' | 'sci-fi' | 'horror' | 'art-deco' | 'retro-synth';
 
 export type UiSkin = {
   id: UiSkinId;
@@ -55,6 +55,26 @@ export const UI_SKINS: UiSkin[] = [
     preview: {
       backgroundImage: 'linear-gradient(135deg, hsl(120 12% 6%), hsl(0 72% 52% / 0.22), hsl(95 35% 45% / 0.14))',
       swatches: ['hsl(120 12% 6%)', 'hsl(40 15% 88%)', 'hsl(0 72% 52%)', 'hsl(95 35% 45%)'],
+    },
+  },
+  {
+    id: 'art-deco',
+    name: 'Art Deco',
+    description: 'Ivory + gilt + emerald geometry.',
+    preview: {
+      backgroundImage:
+        'linear-gradient(135deg, hsl(38 28% 92%), hsl(42 88% 68% / 0.22), hsl(156 65% 38% / 0.18))',
+      swatches: ['hsl(220 15% 8%)', 'hsl(38 28% 92%)', 'hsl(42 88% 68%)', 'hsl(156 65% 38%)'],
+    },
+  },
+  {
+    id: 'retro-synth',
+    name: 'Retro Synth',
+    description: 'Neon magenta + cyan on midnight.',
+    preview: {
+      backgroundImage:
+        'linear-gradient(135deg, hsl(255 55% 10%), hsl(300 92% 62% / 0.22), hsl(185 92% 55% / 0.18))',
+      swatches: ['hsl(255 55% 10%)', 'hsl(210 40% 96%)', 'hsl(300 92% 62%)', 'hsl(185 92% 55%)'],
     },
   },
 ];

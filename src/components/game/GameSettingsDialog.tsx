@@ -31,7 +31,7 @@ export function GameSettingsDialog(props: { open: boolean; onOpenChange: (open: 
 
   return (
     <Dialog open={props.open} onOpenChange={props.onOpenChange}>
-      <DialogContent className="max-w-3xl">
+      <DialogContent className="max-w-3xl card-premium">
         <DialogHeader>
           <DialogTitle>Settings</DialogTitle>
           <DialogDescription>UI changes apply instantly and persist across sessions.</DialogDescription>
@@ -59,9 +59,10 @@ export function GameSettingsDialog(props: { open: boolean; onOpenChange: (open: 
                   key={skin.id}
                   type="button"
                   onClick={() => handleUiSkinChange(skin.id)}
+                  aria-label={`Select UI skin ${skin.name}`}
                   aria-pressed={uiSkin === skin.id}
                   className={cn(
-                    'group relative overflow-hidden rounded-lg border bg-background/30 backdrop-blur-sm p-3 text-left transition-all duration-300 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 focus-visible:ring-offset-background after:absolute after:inset-0 after:bg-gradient-to-r after:from-transparent after:via-primary/12 after:to-transparent after:-translate-x-full after:transition-transform after:duration-700 after:pointer-events-none group-hover:after:translate-x-full',
+                    'group relative overflow-hidden rounded-lg border bg-background/30 backdrop-blur-sm p-3 text-left transition-all duration-300 hover:-translate-y-0.5 active:translate-y-0 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 focus-visible:ring-offset-background after:absolute after:inset-0 after:bg-gradient-to-r after:from-transparent after:via-primary/12 after:to-transparent after:-translate-x-full after:transition-transform after:duration-700 after:pointer-events-none group-hover:after:translate-x-full hover:shadow-[0_22px_50px_-30px_hsl(var(--primary)/0.45)]',
                     uiSkin === skin.id
                       ? 'border-primary/70 shadow-[0_0_0_1px_hsl(var(--primary)/0.25),0_0_50px_hsl(var(--primary)/0.10)]'
                       : 'border-border/50 hover:border-primary/40'
@@ -76,11 +77,15 @@ export function GameSettingsDialog(props: { open: boolean; onOpenChange: (open: 
                       <div className="text-sm font-semibold text-foreground leading-tight">{skin.name}</div>
                       <div className="mt-0.5 text-[11px] text-muted-foreground leading-snug">{skin.description}</div>
                     </div>
-                    {uiSkin === skin.id && (
+                    {uiSkin === skin.id ? (
                       <Badge variant="outline" className="border-primary/50 text-primary">
                         Active
                       </Badge>
-                    )}
+                    ) : skin.id === 'studio' ? (
+                      <Badge variant="outline" className="border-border/60 text-muted-foreground">
+                        Default
+                      </Badge>
+                    ) : null}
                   </div>
                   <div className="mt-2 flex gap-1.5">
                     {skin.preview.swatches.map((c, idx) => (

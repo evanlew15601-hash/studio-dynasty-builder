@@ -24,6 +24,8 @@ All colors MUST be HSL.
 
     --premium-depth: 220 18% 12%;
     --premium-grain-opacity: 0.06;
+    --premium-bokeh-opacity: 1;
+    --premium-spotlight-opacity: 1;
     --premium-scanlines-opacity: 0;
     --premium-scanlines-color: var(--foreground);
     --premium-flicker-opacity: 0;
@@ -129,6 +131,8 @@ All colors MUST be HSL.
 
     --premium-depth: 220 10% 10%;
     --premium-grain-opacity: 0.09;
+    --premium-bokeh-opacity: 0.25;
+    --premium-spotlight-opacity: 0.75;
     --premium-scanlines-opacity: 0.02;
     --premium-scanlines-color: var(--foreground);
     --premium-flicker-opacity: 0.03;
@@ -180,7 +184,8 @@ All colors MUST be HSL.
     --background: 35 30% 92%;
     --foreground: 28 25% 18%;
 
-    --font-title: 'Cormorant Garamond', Georgia, serif;
+    --font-body: 'Cormorant Garamond', Georgia, serif;
+    --font-title: var(--font-body);
     --font-ui: 'Oswald', 'Inter', system-ui, -apple-system, sans-serif;
 
     --app-bg-image:
@@ -189,6 +194,8 @@ All colors MUST be HSL.
 
     --premium-depth: 35 22% 80%;
     --premium-grain-opacity: 0.08;
+    --premium-bokeh-opacity: 0.15;
+    --premium-spotlight-opacity: 0.6;
     --premium-scanlines-opacity: 0.012;
     --premium-scanlines-color: var(--foreground);
     --premium-flicker-opacity: 0.06;
@@ -249,6 +256,8 @@ All colors MUST be HSL.
 
     --premium-depth: 230 30% 14%;
     --premium-grain-opacity: 0.05;
+    --premium-bokeh-opacity: 0.75;
+    --premium-spotlight-opacity: 1;
     --premium-scanlines-opacity: 0.07;
     --premium-scanlines-color: var(--primary);
     --premium-flicker-opacity: 0.02;
@@ -309,6 +318,8 @@ All colors MUST be HSL.
 
     --premium-depth: 120 14% 12%;
     --premium-grain-opacity: 0.10;
+    --premium-bokeh-opacity: 0.2;
+    --premium-spotlight-opacity: 0.55;
     --premium-scanlines-opacity: 0.02;
     --premium-scanlines-color: var(--accent);
     --premium-flicker-opacity: 0.05;
@@ -354,6 +365,130 @@ All colors MUST be HSL.
     --card-navy-bg: var(--gradient-navy);
 
     --radius: 0.4rem;
+  }
+
+  :root[data-skin="art-deco"] {
+    --background: 38 28% 92%;
+    --foreground: 220 15% 10%;
+
+    --font-title: 'Oswald', 'Inter', system-ui, -apple-system, sans-serif;
+    --font-ui: 'Oswald', 'Inter', system-ui, -apple-system, sans-serif;
+
+    --app-bg-image:
+      radial-gradient(ellipse at top left, hsl(42 88% 68% / 0.16) 0%, transparent 55%),
+      radial-gradient(ellipse at bottom right, hsl(156 65% 38% / 0.10) 0%, transparent 58%);
+
+    --premium-depth: 38 28% 86%;
+    --premium-grain-opacity: 0.03;
+    --premium-bokeh-opacity: 0.35;
+    --premium-spotlight-opacity: 0.85;
+    --premium-scanlines-opacity: 0.006;
+    --premium-scanlines-color: var(--foreground);
+    --premium-flicker-opacity: 0.02;
+
+    --card: 38 35% 96%;
+    --card-foreground: 220 15% 10%;
+
+    --popover: 38 40% 98%;
+    --popover-foreground: 220 15% 10%;
+
+    --primary: 42 88% 68%;
+    --primary-foreground: 220 15% 10%;
+
+    --secondary: 220 15% 12%;
+    --secondary-foreground: 38 28% 92%;
+
+    --muted: 38 18% 84%;
+    --muted-foreground: 220 12% 28%;
+
+    --accent: 156 65% 38%;
+    --accent-foreground: 38 28% 92%;
+
+    --destructive: 0 60% 46%;
+    --destructive-foreground: 38 28% 92%;
+
+    --border: 38 16% 70%;
+    --input: 38 22% 90%;
+    --ring: 156 65% 38%;
+
+    --gradient-golden: linear-gradient(135deg, hsl(42 88% 68%), hsl(38 82% 58%), hsl(156 65% 38%));
+    --gradient-silver: linear-gradient(135deg, hsl(38 16% 70%), hsl(220 12% 35%));
+    --gradient-spotlight: linear-gradient(135deg, hsl(42 88% 68%), hsl(156 65% 38%));
+    --gradient-navy: linear-gradient(135deg, hsl(220 15% 12%), hsl(38 28% 92%));
+    --gradient-crimson: linear-gradient(135deg, hsl(0 60% 46%), hsl(350 50% 40%), hsl(220 15% 12%));
+
+    --shadow-studio: 0 18px 34px -22px hsl(220 15% 10% / 0.18), 0 0 0 1px hsl(38 16% 70% / 0.95);
+    --shadow-golden: 0 0 54px hsl(42 88% 68% / 0.16), 0 10px 30px hsl(156 65% 38% / 0.10);
+    --shadow-crimson: 0 0 42px hsl(0 60% 46% / 0.16), 0 8px 22px hsl(0 60% 46% / 0.10);
+    --shadow-navy: 0 18px 34px -22px hsl(220 15% 10% / 0.16), 0 0 0 1px hsl(220 15% 12% / 0.75);
+
+    --card-premium-bg: linear-gradient(135deg, hsl(38 35% 96% / 0.96), hsl(38 28% 92% / 0.98));
+    --card-golden-bg: linear-gradient(135deg, hsl(38 35% 96%), hsl(42 88% 68% / 0.12));
+    --card-navy-bg: var(--gradient-navy);
+
+    --radius: 0.3rem;
+  }
+
+  :root[data-skin="retro-synth"] {
+    --background: 255 55% 10%;
+    --foreground: 210 40% 96%;
+
+    --font-title: 'Orbitron', 'Inter', system-ui, -apple-system, sans-serif;
+    --font-ui: 'Orbitron', 'Inter', system-ui, -apple-system, sans-serif;
+
+    --app-bg-image:
+      radial-gradient(ellipse at top left, hsl(300 92% 62% / 0.16) 0%, transparent 56%),
+      radial-gradient(ellipse at bottom right, hsl(185 92% 55% / 0.10) 0%, transparent 58%);
+
+    --premium-depth: 255 45% 18%;
+    --premium-grain-opacity: 0.05;
+    --premium-bokeh-opacity: 0.85;
+    --premium-spotlight-opacity: 1;
+    --premium-scanlines-opacity: 0.05;
+    --premium-scanlines-color: var(--accent);
+    --premium-flicker-opacity: 0.02;
+
+    --card: 255 50% 13%;
+    --card-foreground: 210 40% 96%;
+
+    --popover: 255 50% 14%;
+    --popover-foreground: 210 40% 96%;
+
+    --primary: 300 92% 62%;
+    --primary-foreground: 255 55% 10%;
+
+    --secondary: 260 40% 18%;
+    --secondary-foreground: 210 40% 96%;
+
+    --muted: 255 30% 18%;
+    --muted-foreground: 215 20% 74%;
+
+    --accent: 185 92% 55%;
+    --accent-foreground: 255 55% 10%;
+
+    --destructive: 0 72% 56%;
+    --destructive-foreground: 210 40% 96%;
+
+    --border: 255 28% 24%;
+    --input: 255 30% 14%;
+    --ring: 185 92% 55%;
+
+    --gradient-golden: linear-gradient(135deg, hsl(300 92% 62%), hsl(185 92% 55%), hsl(220 92% 65%));
+    --gradient-silver: linear-gradient(135deg, hsl(220 25% 55%), hsl(255 28% 26%), hsl(255 30% 14%));
+    --gradient-spotlight: linear-gradient(135deg, hsl(185 92% 55%), hsl(300 92% 62%), hsl(220 92% 65%));
+    --gradient-navy: linear-gradient(135deg, hsl(260 40% 18%), hsl(255 55% 10%));
+    --gradient-crimson: linear-gradient(135deg, hsl(0 72% 56%), hsl(300 92% 62%), hsl(185 92% 55%));
+
+    --shadow-studio: 0 26px 54px -18px hsl(255 70% 4% / 0.88), 0 0 0 1px hsl(255 28% 24% / 0.8);
+    --shadow-golden: 0 0 84px hsl(300 92% 62% / 0.18), 0 0 54px hsl(185 92% 55% / 0.12);
+    --shadow-crimson: 0 0 52px hsl(0 72% 56% / 0.20), 0 0 30px hsl(300 92% 62% / 0.14);
+    --shadow-navy: 0 16px 30px hsl(255 70% 4% / 0.85), 0 0 0 1px hsl(260 40% 18% / 0.9);
+
+    --card-premium-bg: linear-gradient(135deg, hsl(255 50% 13% / 0.92), hsl(255 55% 10% / 0.98));
+    --card-golden-bg: linear-gradient(135deg, hsl(255 50% 13%), hsl(185 92% 55% / 0.06));
+    --card-navy-bg: var(--gradient-navy);
+
+    --radius: 0.55rem;
   }
 
   .dark {
@@ -409,6 +544,16 @@ All colors MUST be HSL.
     @apply bg-background text-foreground antialiased;
     font-family: var(--font-body);
     background-image: var(--app-bg-image);
+    transition: background-color 250ms ease, color 250ms ease;
+  }
+
+  ::selection {
+    background: hsl(var(--primary) / 0.35);
+    color: hsl(var(--primary-foreground));
+  }
+
+  :where(button, input, select, textarea) {
+    font-family: var(--font-ui);
   }
 
   /* Premium Typography */
@@ -555,6 +700,14 @@ All colors MUST be HSL.
 
     .premium-background canvas {
       display: none;
+    }
+
+    .premium-background .premium-scanlines {
+      opacity: 0 !important;
+    }
+
+    .premium-background .premium-flicker {
+      opacity: 0 !important;
     }
   }
 

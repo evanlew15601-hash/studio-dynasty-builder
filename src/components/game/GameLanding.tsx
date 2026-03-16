@@ -75,6 +75,7 @@ export const GameLanding: React.FC<GameLandingProps> = ({
   }, [databaseSlot]);
 
   const hasOnlineConfig = mode !== 'online' || getSupabaseConfigStatus().configured;
+  const activeSkin = UI_SKINS.find((s) => s.id === uiSkin) ?? UI_SKINS[0];
 
   const difficultySettings = {
     easy: { budget: 15000000, description: 'More budget, forgiving market' },
@@ -325,7 +326,7 @@ export const GameLanding: React.FC<GameLandingProps> = ({
               </CardHeader>
               <CardContent className="space-y-3">
                 <p className="text-xs text-muted-foreground">
-                  Applies instantly and carries into gameplay.
+                  Applies instantly and carries into gameplay. Currently: <span className="font-medium text-foreground">{activeSkin.name}</span>
                 </p>
 
                 <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-3">
@@ -334,9 +335,10 @@ export const GameLanding: React.FC<GameLandingProps> = ({
                       key={skin.id}
                       type="button"
                       onClick={() => handleUiSkinChange(skin.id)}
+                      aria-label={`Select UI skin ${skin.name}`}
                       aria-pressed={uiSkin === skin.id}
                       className={cn(
-                        'group relative overflow-hidden rounded-lg border bg-background/30 backdrop-blur-sm p-3 text-left transition-all duration-300 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 focus-visible:ring-offset-background after:absolute after:inset-0 after:bg-gradient-to-r after:from-transparent after:via-primary/12 after:to-transparent after:-translate-x-full after:transition-transform after:duration-700 after:pointer-events-none group-hover:after:translate-x-full',
+                        'group relative overflow-hidden rounded-lg border bg-background/30 backdrop-blur-sm p-3 text-left transition-all duration-300 hover:-translate-y-0.5 active:translate-y-0 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 focus-visible:ring-offset-background after:absolute after:inset-0 after:bg-gradient-to-r after:from-transparent after:via-primary/12 after:to-transparent after:-translate-x-full after:transition-transform after:duration-700 after:pointer-events-none group-hover:after:translate-x-full hover:shadow-[0_22px_50px_-30px_hsl(var(--primary)/0.45)]',
                         uiSkin === skin.id
                           ? 'border-primary/70 shadow-[0_0_0_1px_hsl(var(--primary)/0.25),0_0_50px_hsl(var(--primary)/0.10)]'
                           : 'border-border/50 hover:border-primary/40'
@@ -351,11 +353,15 @@ export const GameLanding: React.FC<GameLandingProps> = ({
                           <div className="text-sm font-semibold text-foreground leading-tight">{skin.name}</div>
                           <div className="mt-0.5 text-[11px] text-muted-foreground leading-snug">{skin.description}</div>
                         </div>
-                        {uiSkin === skin.id && (
+                        {uiSkin === skin.id ? (
                           <Badge variant="outline" className="border-primary/50 text-primary">
                             Active
                           </Badge>
-                        )}
+                        ) : skin.id === 'studio' ? (
+                          <Badge variant="outline" className="border-border/60 text-muted-foreground">
+                            Default
+                          </Badge>
+                        ) : null}
                       </div>
                       <div className="mt-2 flex gap-1.5">
                         {skin.preview.swatches.map((c, idx) => (
@@ -506,15 +512,19 @@ export const GameLanding: React.FC<GameLandingProps> = ({
 
                 <div>
                   <Label className="text-foreground text-sm">UI Skin</Label>
+                  <p className="mt-1 text-xs text-muted-foreground">
+                    Currently: <span className="font-medium text-foreground">{activeSkin.name}</span>
+                  </p>
                   <div className="mt-2 grid grid-cols-1 sm:grid-cols-2 gap-3">
                     {UI_SKINS.map((skin) => (
                       <button
                         key={skin.id}
                         type="button"
                         onClick={() => handleUiSkinChange(skin.id)}
+                        aria-label={`Select UI skin ${skin.name}`}
                         aria-pressed={uiSkin === skin.id}
                         className={cn(
-                          'group relative overflow-hidden rounded-lg border bg-background/30 backdrop-blur-sm p-3 text-left transition-all duration-300 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 focus-visible:ring-offset-background after:absolute after:inset-0 after:bg-gradient-to-r after:from-transparent after:via-primary/12 after:to-transparent after:-translate-x-full after:transition-transform after:duration-700 after:pointer-events-none group-hover:after:translate-x-full',
+                          'group relative overflow-hidden rounded-lg border bg-background/30 backdrop-blur-sm p-3 text-left transition-all duration-300 hover:-translate-y-0.5 active:translate-y-0 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 focus-visible:ring-offset-background after:absolute after:inset-0 after:bg-gradient-to-r after:from-transparent after:via-primary/12 after:to-transparent after:-translate-x-full after:transition-transform after:duration-700 after:pointer-events-none group-hover:after:translate-x-full hover:shadow-[0_22px_50px_-30px_hsl(var(--primary)/0.45)]',
                           uiSkin === skin.id
                             ? 'border-primary/70 shadow-[0_0_0_1px_hsl(var(--primary)/0.25),0_0_50px_hsl(var(--primary)/0.10)]'
                             : 'border-border/50 hover:border-primary/40'
@@ -529,11 +539,15 @@ export const GameLanding: React.FC<GameLandingProps> = ({
                             <div className="text-sm font-semibold text-foreground leading-tight">{skin.name}</div>
                             <div className="mt-0.5 text-[11px] text-muted-foreground leading-snug">{skin.description}</div>
                           </div>
-                          {uiSkin === skin.id && (
+                          {uiSkin === skin.id ? (
                             <Badge variant="outline" className="border-primary/50 text-primary">
                               Active
                             </Badge>
-                          )}
+                          ) : skin.id === 'studio' ? (
+                            <Badge variant="outline" className="border-border/60 text-muted-foreground">
+                              Default
+                            </Badge>
+                          ) : null}
                         </div>
                         <div className="mt-2 flex gap-1.5">
                           {skin.preview.swatches.map((c, idx) => (

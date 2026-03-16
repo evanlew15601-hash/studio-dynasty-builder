@@ -126,7 +126,7 @@ export const PremiumBackground: React.FC<PremiumBackgroundProps> = ({ variant = 
                 top: `${s.topPct}%`,
                 width: `${s.sizePx}px`,
                 height: `${s.sizePx}px`,
-                opacity: s.opacity,
+                opacity: `calc(${s.opacity} * var(--premium-bokeh-opacity))`,
                 filter: `blur(${s.blurPx}px)`,
                 background:
                   s.hue === 'primary'
@@ -150,7 +150,7 @@ export const PremiumBackground: React.FC<PremiumBackgroundProps> = ({ variant = 
           background:
             'linear-gradient(75deg, transparent 0%, hsl(var(--primary) / 0.06) 46%, hsl(var(--accent) / 0.03) 54%, transparent 100%)',
           filter: `blur(${spotlightBlurPx}px)`,
-          opacity: spotlightOpacity,
+          opacity: `calc(${spotlightOpacity} * var(--premium-spotlight-opacity))`,
           transform: 'translate3d(-18%, 0, 0) rotate(10deg)',
           animation: `premium-spotlight-sweep ${spotlightDuration} ease-in-out infinite`,
         }}
@@ -170,7 +170,7 @@ export const PremiumBackground: React.FC<PremiumBackgroundProps> = ({ variant = 
 
       {/* Scanlines (themeable) */}
       <div
-        className="absolute inset-0"
+        className="absolute inset-0 premium-scanlines"
         style={{
           backgroundImage:
             'repeating-linear-gradient(to bottom, hsl(var(--premium-scanlines-color) / 0.18) 0px, hsl(var(--premium-scanlines-color) / 0.18) 1px, transparent 1px, transparent 4px)',
@@ -181,9 +181,10 @@ export const PremiumBackground: React.FC<PremiumBackgroundProps> = ({ variant = 
 
       {/* Flicker (themeable) */}
       <div
-        className="absolute inset-0"
+        className="absolute inset-0 premium-flicker"
         style={{
           backgroundImage: 'linear-gradient(180deg, hsl(var(--background) / 0.06), transparent 45%, hsl(var(--background) / 0.08))',
+          opacity: 0,
           animation: 'premium-flicker 8s linear infinite',
           pointerEvents: 'none',
         }}

@@ -8,6 +8,8 @@ describe('uiSkins', () => {
     expect(normalizeUiSkinId('silent-era')).toBe('silent-era');
     expect(normalizeUiSkinId('sci-fi')).toBe('sci-fi');
     expect(normalizeUiSkinId('horror')).toBe('horror');
+    expect(normalizeUiSkinId('art-deco')).toBe('art-deco');
+    expect(normalizeUiSkinId('retro-synth')).toBe('retro-synth');
   });
 
   it('falls back to studio for unknown values', () => {
