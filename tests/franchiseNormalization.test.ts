@@ -76,4 +76,41 @@ describe('normalizeFranchisesState', () => {
     expect(normalized.scripts[0].franchiseId).toBe('f-a');
     expect(normalized.scripts[1].franchiseId).toBe('f-a');
   });
+
+  it('merges duplicate world franchises by parodySource and rewrites references', () => {
+    const base = {
+      universeSeed: 1,
+      rngState: 1,
+      studio: { id: 'studio-1', name: 'You' },
+      currentYear: 2000,
+      currentWeek: 1,
+      currentQuarter: 1,
+      projects: [
+        { id: 'p1', franchiseId: 'w-1', script: { id: 's1', title: 'A', franchiseId: 'w-1' } },
+        { id: 'p2', franchiseId: 'w-2', script: { id: 's2', title: 'B', franchiseId: 'w-2' } },
+      ],
+      scripts: [
+        { id: 's1', title: 'A', franchiseId: 'w-1' },
+        { id: 's2', title: 'B', franchiseId: 'w-2' },
+      ],
+      franchises: [
+        { id: 'w-1', title: 'Star Enforcers', creatorStudioId: 'world', parodySource: 'Star Saga', entries: ['p1'] },
+        { id: 'w-2', title: 'Galactic Guardians', creatorStudioId: 'world', parodySource: 'Star Saga', entries: ['p2'] },
+      ],
+    } as any;
+
+    const normalized = normalizeFranchisesState(base);
+
+    expect(normalized.franchises).toHaveLength(1);
+    expect(normalized.franchises[0].id).toBe('w-1');
+    expect(normalized.franchises[0].entries).toEqual(['p1', 'p2']);
+
+    expect(normalized.projects[0].script.franchiseId).toBe('w-1');
+    expect(normalized.projects[1].script.franchiseId).toBe('w-1');
+    expect(normalized.projects[0].franchiseId).toBe('w-1');
+    expect(normalized.projects[1].franchiseId).toBe('w-1');
+
+    expect(normalized.scripts[0].franchiseId).toBe('w-1');
+    expect(normalized.scripts[1].franchiseId).toBe('w-1');
+  });
 });

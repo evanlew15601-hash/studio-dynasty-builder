@@ -147,6 +147,212 @@ const FRANCHISE_TEMPLATES: FranchiseTemplate[] = [
     description:
       'A prestige crime dynasty saga where family loyalty is both shield and weapon. The hook is quiet power: deals in back rooms, betrayals dressed as tradition, and heirs who inherit both privilege and rot. Audiences come for operatic drama and moral consequence—every choice costs something, and the “business” always follows you home.',
   },
+
+  // Adventure
+  {
+    titlePatterns: ['Dino Park', 'Primeval Resort', 'Jurassic Frontier', 'The Lost Exhibit'],
+    genre: ['adventure', 'thriller'],
+    tone: 'pulpy',
+    parodySource: 'Dino Park',
+    tags: ['dinosaurs', 'theme park', 'survival', 'science gone wrong'],
+    culturalWeight: 93,
+    description:
+      'A high-concept adventure where wonder turns to panic the moment the fences fail. The audience comes for escalating set pieces—containment breaches, clever improvisation, and humans discovering they are not the apex predator. The brand works best when it balances awe with consequences and treats every “upgrade” as a new problem, not a bigger gun.',
+  },
+  {
+    titlePatterns: ['Black Flag Shores', 'Pirate Kings', 'Cursed Compass', 'Sea of Thieves'],
+    genre: ['adventure', 'action'],
+    tone: 'pulpy',
+    parodySource: 'Pirate Seas',
+    tags: ['pirates', 'curses', 'treasure', 'naval battles'],
+    culturalWeight: 84,
+    description:
+      'A swashbuckling adventure series built on rogues, cursed gold, and impossible sea battles. Fans want charm-forward leads, outrageous betrayals, and a supernatural hook that justifies the spectacle. The tone should feel like a campfire legend told with modern production values—breezy until it gets scary, then back to fun.',
+  },
+  {
+    titlePatterns: ['Deep Blue Quest', 'Abyssal Gate', 'Trench Raiders', 'Ocean Unknown'],
+    genre: ['adventure', 'sci-fi'],
+    tone: 'serious',
+    parodySource: 'Abyss Expedition',
+    tags: ['deep sea', 'ancient ruins', 'pressure', 'unknown life'],
+    culturalWeight: 71,
+    description:
+      'A deep-ocean adventure where the environment is as hostile as any monster. The franchise lives on discovery—forgotten structures, strange signals, and moral choices made under crushing pressure. Audiences show up for atmosphere and “hard survival” problem-solving, so tight rules and credible logistics matter more than quips.',
+  },
+
+  // Animation
+  {
+    titlePatterns: ['Toy Friends', 'Playroom Patrol', 'Shelf Life', 'The Lost Plush'],
+    genre: ['animation', 'comedy'],
+    tone: 'light',
+    parodySource: 'Toy Friends',
+    tags: ['toys', 'friendship', 'growing up', 'secret life'],
+    culturalWeight: 90,
+    description:
+      'A heart-forward animated franchise about loyalty, change, and the private world that exists when humans aren’t watching. The hook is emotional clarity: jokes land because the characters mean what they say, and the stakes are small but real. Fans expect warmth, memorable sidekicks, and a few scenes that unexpectedly devastate adults.',
+  },
+  {
+    titlePatterns: ['Green Ogre', 'Swamp Tales', 'Fairyland Fiasco', 'Once Upon a Mess'],
+    genre: ['animation', 'comedy'],
+    tone: 'comedic',
+    parodySource: 'Swamp Ogre',
+    tags: ['fairy tales', 'parody', 'odd couple', 'road trip'],
+    culturalWeight: 82,
+    description:
+      'A fairy-tale comedy built on sending classic stories through a blender and finding genuine heart in the wreckage. The audience expects sharp jokes, modern references, and a surprisingly earnest core relationship. The franchise can go wild with spin-offs as long as it keeps that “outsider found family” anchor.',
+  },
+
+  // Sci-Fi / Action
+  {
+    titlePatterns: ['Time Runner', 'Chrono Hunter', 'Future War', 'The Last Protocol'],
+    genre: ['sci-fi', 'action'],
+    tone: 'serious',
+    parodySource: 'Time Runner',
+    tags: ['time travel', 'assassins', 'doomsday', 'paradox'],
+    culturalWeight: 88,
+    description:
+      'A relentless sci-fi action brand where the future keeps sending problems back in time. The appeal is inevitability: every victory costs something, and even “saving the world” leaves scars. Fans want a clean central premise, hard choices, and set pieces that feel like cause-and-effect rather than magic.',
+  },
+  {
+    titlePatterns: ['Auto Titans', 'Steel Legion', 'Machine Wars', 'Gearstorm'],
+    genre: ['sci-fi', 'action'],
+    tone: 'pulpy',
+    parodySource: 'Auto Titans',
+    tags: ['robots', 'alien war', 'transforming machines', 'spectacle'],
+    culturalWeight: 80,
+    description:
+      'A toyetic action franchise where the hardware is the star: towering machines, impossible vehicle mayhem, and mythology delivered in punchy chunks. The fanbase comes for scale and clear visual identity—distinct silhouettes, signature transformations, and battles that read. It works best when it keeps the human story simple and the mechanical stakes big.',
+  },
+  {
+    titlePatterns: ['Star Infantry', 'Bug War', 'Drop Troopers', 'Offworld Draft'],
+    genre: ['sci-fi', 'action'],
+    tone: 'dark',
+    parodySource: 'Star Infantry',
+    tags: ['space marines', 'alien swarms', 'propaganda', 'survival'],
+    culturalWeight: 73,
+    description:
+      'A militarized sci-fi franchise about young soldiers thrown into a machine that doesn’t care if they live. The best entries embrace tension between heroic imagery and ugly reality—competence under fire, propaganda gloss, and brutal consequences. Fans expect relentless action, sharp satire, and characters who change because they have to.',
+  },
+
+  // Horror / Thriller
+  {
+    titlePatterns: ['Kaiju Clash', 'City Breaker', 'Titanfall', 'Monster Horizon'],
+    genre: ['sci-fi', 'horror'],
+    tone: 'epic',
+    parodySource: 'Kaiju Clash',
+    tags: ['giant monsters', 'city destruction', 'ancient threats', 'military'],
+    culturalWeight: 79,
+    description:
+      'A monster-event franchise built around a simple promise: something impossibly large is coming, and the city will not survive intact. The audience wants scale, dread, and moments of awe. The brand works when it treats civilians as part of the story—evacuations, failures, and fragile heroism—not just background texture.',
+  },
+  {
+    titlePatterns: ['Wasteland Road', 'Chrome Nomads', 'Dust Kingdom', 'Road of Fury'],
+    genre: ['action', 'thriller'],
+    tone: 'dark',
+    parodySource: 'Wasteland Road',
+    tags: ['post-apocalypse', 'convoys', 'scarcity', 'war rigs'],
+    culturalWeight: 86,
+    description:
+      'A kinetic post-apocalypse franchise where every scene feels like momentum. The hook is scarcity turned into style: improvised machines, harsh desert politics, and chases that escalate into mythology. Fans want practical stunt energy, a clear visual language, and a sense that the world has rules—even when it’s insane.',
+  },
+  {
+    titlePatterns: ['Specter Squad', 'Ghost Patrol', 'Paranormal Unit', 'Haunt Hunters'],
+    genre: ['comedy', 'horror'],
+    tone: 'comedic',
+    parodySource: 'Specter Squad',
+    tags: ['ghosts', 'gadgets', 'team comedy', 'city hauntings'],
+    culturalWeight: 77,
+    description:
+      'A horror-comedy franchise where blue-collar weirdos take the supernatural like a day job. The brand thrives on banter, practical effects, and a “we can build it in the garage” confidence. Fans expect memorable creatures, quotable insults, and a third act that goes bigger than anyone admits is possible.',
+  },
+  {
+    titlePatterns: ['Zombie Day', 'Dead Weekend', 'Outbreak City', 'Last Shelter'],
+    genre: ['horror', 'thriller'],
+    tone: 'dark',
+    parodySource: 'Zombie Day',
+    tags: ['zombies', 'outbreak', 'survivors', 'siege'],
+    culturalWeight: 69,
+    description:
+      'A modern apocalypse brand built on tension, resource scarcity, and the slow realization that society is the first casualty. The best entries focus on containment—one location, one night, one choice that spirals. The fanbase wants grit, momentum, and human conflict that’s scarier than the infected.',
+  },
+
+  // Thriller / Crime
+  {
+    titlePatterns: ['Casino Caper', 'Ocean Crew', 'The Big Score', 'Perfect Heist'],
+    genre: ['crime', 'thriller'],
+    tone: 'light',
+    parodySource: 'Casino Caper',
+    tags: ['heists', 'teams', 'cons', 'twists'],
+    culturalWeight: 75,
+    description:
+      'A slick heist franchise where competence is the fantasy: elaborate plans, stylish outfits, and a twist you only see in hindsight. The audience shows up for chemistry, banter, and the “reveal” montage that makes the whole plot click. Stakes can be high, but the tone should feel like a fun puzzle rather than misery.',
+  },
+  {
+    titlePatterns: ['Consulting Detective', 'Baker Street', 'The Great Deduction', 'Casefile Zero'],
+    genre: ['crime', 'drama'],
+    tone: 'serious',
+    parodySource: 'Consulting Detective',
+    tags: ['mystery', 'genius detective', 'cases', 'rival'],
+    culturalWeight: 81,
+    description:
+      'A mystery franchise built around a brilliant mind, a loyal partner, and cases that reward the audience for paying attention. The brand lives on clever reveals, character friction, and a recurring nemesis who feels like an equal. Fans want puzzles that play fair, plus personal stakes that don’t drown the mystery engine.',
+  },
+
+  // Romance / Drama
+  {
+    titlePatterns: ['Midnight Hearts', 'Blood Kiss', 'Eternal Night', 'Moonlit Lovers'],
+    genre: ['romance', 'fantasy'],
+    tone: 'serious',
+    parodySource: 'Midnight Hearts',
+    tags: ['vampires', 'romance', 'teen drama', 'forbidden love'],
+    culturalWeight: 68,
+    description:
+      'A melodramatic romance franchise where the supernatural is just a lens for adolescent intensity. The hook is heightened emotion: longing, jealousy, and impossible choices dressed in gothic style. Fans expect moody aesthetics, clean love-triangle stakes, and enough sincerity to make the absurd feel personal.',
+  },
+  {
+    titlePatterns: ['Arena Trials', 'District Fire', 'The Reaping', 'Survivor Games'],
+    genre: ['thriller', 'drama'],
+    tone: 'serious',
+    parodySource: 'Arena Trials',
+    tags: ['dystopia', 'survival games', 'rebellion', 'media spectacle'],
+    culturalWeight: 82,
+    description:
+      'A dystopian thriller franchise powered by spectacle and outrage: a society that turns suffering into entertainment and heroes into symbols. The audience comes for tense action and moral anger, but stays for character resilience and political consequences. It plays best when the “show” machinery feels real and manipulative.',
+  },
+
+  // Superhero / Action
+  {
+    titlePatterns: ['Dark Vigil', 'Night Sentinel', 'Gotham Shadow', 'The Cowl'],
+    genre: ['action', 'crime'],
+    tone: 'dark',
+    parodySource: 'Dark Vigil',
+    tags: ['vigilante', 'city crime', 'gadgets', 'mythic hero'],
+    culturalWeight: 91,
+    description:
+      'A brooding vigilante franchise where the city is a character and crime is both personal and systemic. Fans want noir mood, practical fight choreography, and villains with strong themes. The brand can tilt pulpy or prestige, but it must keep the central fantasy: one person choosing to become a symbol.',
+  },
+
+  // Fantasy / YA
+  {
+    titlePatterns: ['Olympian Bloodlines', 'Demigod Diaries', 'Storm of Myths', 'Camp of Heroes'],
+    genre: ['fantasy', 'adventure'],
+    tone: 'light',
+    parodySource: 'Olympian Bloodlines',
+    tags: ['mythology', 'teen heroes', 'quests', 'prophecies'],
+    culturalWeight: 70,
+    description:
+      'A YA fantasy adventure built on modern kids colliding with ancient myths. The audience expects brisk quests, funny banter, and a clear “myth rules” framework that makes the world feel consistent. It works best when it treats destiny as pressure, not convenience—heroes win by growing up, not by being chosen.',
+  },
+  {
+    titlePatterns: ['Frozen Edge', 'Whiteout Protocol', 'Arctic Pursuit', 'Cold Frontier'],
+    genre: ['thriller', 'drama'],
+    tone: 'serious',
+    parodySource: 'Frozen Edge',
+    tags: ['survival', 'isolation', 'mystery', 'extreme cold'],
+    culturalWeight: 66,
+    description:
+      'A survival-thriller franchise where the environment is the antagonist and every decision has a cost. The appeal is pressure: limited supplies, unreliable communication, and mysteries that get worse the more you dig. Fans want grounded tactics, slow dread, and a payoff that feels inevitable rather than random.',
+  },
 ];
 
 function generateRandomDate(startYear: number, endYear: number, seed: string): string {
