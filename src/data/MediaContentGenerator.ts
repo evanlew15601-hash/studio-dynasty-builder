@@ -2,6 +2,8 @@ import { MediaItem, MediaEvent, MediaSource, TalentPerson, Project, Studio } fro
 import type { ModBundle } from '@/types/modding';
 import { applyPatchesToRecord, getPatchesForEntity } from '@/utils/modding';
 import { getModBundle } from '@/utils/moddingStore';
+import { hashStringToUint32 } from '@/utils/stablePick';
+import { stableFloat01, stableInt } from '@/utils/stableRandom';
 import { MediaSourceGenerator } from '@/data/MediaSourceGenerator';
 
 export class MediaContentGenerator {
@@ -175,6 +177,45 @@ export class MediaContentGenerator {
     return this.contentTemplates as any;
   }
 
+  private static buildSeed(
+    event: MediaEvent,
+    entities: {
+      studios?: Studio[];
+      talent?: TalentPerson[];
+      projects?: Project[];
+    }
+  ): string {
+    const join = (xs?: string[]) => (xs && xs.length ? xs.slice().sort().join(',') : '');
+
+    const studios = join(entities.studios?.map((s) => s.id));
+    const talent = join(entities.talent?.map((t) => t.id));
+    const projects = join(entities.projects?.map((p) => p.id));
+
+    const targetStudios = join(event.entities?.studios);
+    const targetTalent = join(event.entities?.talent);
+    const targetProjects = join(event.entities?.projects);
+
+    const projectId = (event.eventData as any)?.project?.id || '';
+    const talentId = (event.eventData as any)?.talent?.id || '';
+    const award = (event.eventData as any)?.awardName || (event.eventData as any)?.award || '';
+
+    return [
+      `media`,
+      event.type,
+      `Y${event.year}`,
+      `W${event.week}`,
+      `s:${studios}`,
+      `t:${talent}`,
+      `p:${projects}`,
+      `ts:${targetStudios}`,
+      `tt:${targetTalent}`,
+      `tp:${targetProjects}`,
+      `pid:${projectId}`,
+      `tid:${talentId}`,
+      `a:${award}`,
+    ].join('|');
+  }
+
   static generateMediaItem(
     event: MediaEvent,
     entities: {
@@ -184,16 +225,20 @@ export class MediaContentGenerator {
     },
     mods?: ModBundle
   ): MediaItem {
-    const source = MediaSourceGenerator.getSourceForEvent(event.type, false, mods);
-    const sentiment = this.determineSentiment(event, source);
+    const seed = this.buildSeed(event, entities);
+
+    const source = MediaSourceGenerator.getSourceForEvent(event.type, false, mods, `${seed}|source`);
+    const sentiment = this.determineSentiment(event, source, seed);
     const type = this.mapEventToMediaType(event.type);
 
+    const idHash = hashStringToUint32(`${seed}|id`).toString(36);
+
     return {
-      id: `media_${Date.now()}_${Math.random().toString(36).substr(2, 9)}`,
+      id: `media_${event.year}_${event.week}_${idHash}`,
       source,
       type,
-      headline: this.generateHeadline(event, entities, source, mods),
-      content: this.generateContent(event, entities, source, sentiment, mods),
+      headline: this.generateHeadline(event, entities, source, seed, mods),
+      content: this.generateContent(event, entities, source, sentiment, seed, mods),
       publishDate: {
         week: event.week,
         year: event.year
@@ -216,7 +261,7 @@ export class MediaContentGenerator {
     }
   }
 
-  private static determineSentiment(event: MediaEvent, source: MediaSource): 'positive' | 'neutral' | 'negative' {
+  private static determineSentiment(event: MediaEvent, source: MediaSource, seed: string): 'positive' | 'neutral' | 'negative' {
     let baseSentiment = 0;
 
     const project = event.eventData?.project as Project | undefined;
@@ -274,8 +319,8 @@ export class MediaContentGenerator {
     // Apply source bias
     baseSentiment += source.bias;
 
-    // Add random variance
-    baseSentiment += (Math.random() - 0.5) * 40;
+    // Add deterministic variance (keeps stories from feeling identical while staying save-stable)
+    baseSentiment += (stableFloat01(`${seed}|sentiment-variance`) - 0.5) * 40;
 
     if (baseSentiment > 20) return 'positive';
     if (baseSentiment < -20) return 'negative';
@@ -286,15 +331,17 @@ export class MediaContentGenerator {
     event: MediaEvent,
     entities: any,
     source: MediaSource,
+    seed: string,
     mods?: ModBundle
   ): string {
     const headlines = this.getPatchedHeadlines(mods);
     const byType = headlines[event.type];
     const fallback = headlines.casting_announcement || this.headlines.casting_announcement;
     const templates = Array.isArray(byType) && byType.length ? byType : fallback;
-    const template = templates[Math.floor(Math.random() * templates.length)];
-    
-    return this.replaceVariables(template, event, entities);
+    const idx = stableInt(`${seed}|headline-template`, 0, Math.max(0, templates.length - 1));
+    const template = templates[idx] ?? templates[0];
+
+    return this.replaceVariables(template, event, entities, seed);
   }
 
   private static generateContent(
@@ -302,27 +349,29 @@ export class MediaContentGenerator {
     entities: any,
     source: MediaSource,
     sentiment: 'positive' | 'neutral' | 'negative',
+    seed: string,
     mods?: ModBundle
   ): string {
     const templatesByType = this.getPatchedContentTemplates(mods);
     const byType = templatesByType[event.type];
     const fallback = templatesByType.casting_announcement || this.contentTemplates.casting_announcement;
     const templates = Array.isArray(byType) && byType.length ? byType : fallback;
-    const template = templates[Math.floor(Math.random() * templates.length)];
-    
-    let content = this.replaceVariables(template, event, entities);
-    
+    const idx = stableInt(`${seed}|content-template`, 0, Math.max(0, templates.length - 1));
+    const template = templates[idx] ?? templates[0];
+
+    let content = this.replaceVariables(template, event, entities, seed);
+
     // Add sentiment-based conclusion
     if (sentiment === 'positive') {
       content += " Industry insiders are optimistic about the project's potential.";
     } else if (sentiment === 'negative') {
       content += " Some industry observers have expressed concerns about the announcement.";
     }
-    
+
     return content;
   }
 
-  private static replaceVariables(template: string, event: MediaEvent, entities: any): string {
+  private static replaceVariables(template: string, event: MediaEvent, entities: any, seed: string): string {
     let result = template;
 
     const actor = entities.talent?.[0] ?? (event.eventData?.talent as TalentPerson | undefined);
@@ -404,7 +453,7 @@ export class MediaContentGenerator {
       Budget: budgetText,
 
       Role: 'leading',
-      Amount: earnings ? (earnings / 1000000).toFixed(1) : (Math.random() * 50 + 10).toFixed(1),
+      Amount: earnings ? (earnings / 1000000).toFixed(1) : (stableFloat01(`${seed}|fallback-amount`) * 50 + 10).toFixed(1),
       Location: 'Los Angeles',
       TimeFrame: 'later this year',
       Description: 'an engaging story',

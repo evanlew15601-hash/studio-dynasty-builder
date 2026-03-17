@@ -145,7 +145,7 @@ export function importRolesForScript(script: Script, gameState: GameState): Scri
 
   // Guarantee at least one minor cameo for depth
   if (!finalList.some(r => r.importance === 'minor')) {
-    finalList.push({ id: `cameo-${Date.now()}`, name: 'Cameo Appearance', importance: 'minor', description: 'Short cameo role', requiredType: 'actor', ageRange: [25,80] });
+    finalList.push({ id: `cameo-${script.id}`, name: 'Cameo Appearance', importance: 'minor', description: 'Short cameo role', requiredType: 'actor', ageRange: [25,80] });
   }
 
   // Actor roles must always have a gender requirement.

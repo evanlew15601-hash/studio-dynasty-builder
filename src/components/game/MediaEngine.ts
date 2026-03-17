@@ -1,6 +1,8 @@
 import { MediaEvent, MediaItem, MediaMemory, GameState, TalentPerson, Project, Studio, MediaSource } from '@/types/game';
 import { MediaSourceGenerator } from '@/data/MediaSourceGenerator';
 import { MediaContentGenerator } from '@/data/MediaContentGenerator';
+import { hashStringToUint32 } from '@/utils/stablePick';
+import { stableFloat01, stableInt } from '@/utils/stableRandom';
 
 class MediaEngine {
   private static mediaHistory: MediaItem[] = [];
@@ -16,10 +18,15 @@ class MediaEngine {
   }
 
   // Add media event to queue for processing
-  static queueMediaEvent(event: Omit<MediaEvent, 'id' | 'processed'>): string {
+  static queueMediaEvent(event: (Omit<MediaEvent, 'id' | 'processed'> & { id?: string })): string {
+    const id = event.id || `event_${Date.now()}_${Math.random().toString(36).substr(2, 9)}`;
+
+    // Allow deterministic callers to avoid accidental duplicate queueing.
+    if (this.eventQueue.some((e) => e.id === id)) return id;
+
     const mediaEvent: MediaEvent = {
       ...event,
-      id: `event_${Date.now()}_${Math.random().toString(36).substr(2, 9)}`,
+      id,
       processed: false
     };
 
@@ -183,15 +190,21 @@ class MediaEngine {
       }
     }
 
-    // Random industry events (keeps the feed from going quiet between major milestones)
-    if (Math.random() < 0.12 && gameState.talent.length > 0) {
-      const randomEventTypes = ['rumor', 'interview', 'exclusive', 'leak', 'rumor', 'interview', 'scandal'];
-      const eventType = randomEventTypes[Math.floor(Math.random() * randomEventTypes.length)];
+    const absWeek = (gameState.currentYear * 52) + gameState.currentWeek;
+    const seedRoot = `media|${gameState.universeSeed ?? 0}|${absWeek}`;
 
-      // Pick random talent for the event
-      const talent = gameState.talent[Math.floor(Math.random() * gameState.talent.length)];
+    // Random industry events (keeps the feed from going quiet between major milestones)
+    if (stableFloat01(`${seedRoot}|industry-event-chance`) < 0.12 && gameState.talent.length > 0) {
+      const randomEventTypes = ['rumor', 'interview', 'exclusive', 'leak', 'rumor', 'interview', 'scandal'] as const;
+      const eventType = randomEventTypes[stableInt(`${seedRoot}|industry-event-type`, 0, randomEventTypes.length - 1)];
+
+      // Pick (deterministic) talent for the event
+      const talent = gameState.talent[stableInt(`${seedRoot}|industry-event-talent`, 0, gameState.talent.length - 1)];
+
+      const idHash = hashStringToUint32(`${seedRoot}|industry|${eventType}|${talent.id}`).toString(36);
 
       const eventId = this.queueMediaEvent({
+        id: `event_${idHash}`,
         type: eventType as any,
         triggerType: 'random',
         priority: eventType === 'scandal' ? 'high' : eventType === 'leak' ? 'medium' : 'low',
@@ -206,7 +219,7 @@ class MediaEngine {
     }
 
     // Competitor / industry release coverage (gives the feed non-player stories)
-    if (Math.random() < 0.35 && (gameState.allReleases?.length || 0) > 0) {
+    if (stableFloat01(`${seedRoot}|release-coverage-chance`) < 0.35 && (gameState.allReleases?.length || 0) > 0) {
       const releasesThisWeek = (gameState.allReleases || [])
         .filter((r): r is Project => (r as any)?.script)
         .filter(p => (p.releaseWeek === gameState.currentWeek && p.releaseYear === gameState.currentYear));
@@ -218,7 +231,7 @@ class MediaEngine {
       const candidatePool = competitorCandidates.length > 0 ? competitorCandidates : releasesThisWeek;
 
       if (candidatePool.length > 0) {
-        const project = candidatePool[Math.floor(Math.random() * candidatePool.length)];
+        const project = candidatePool[stableInt(`${seedRoot}|release-coverage-project`, 0, candidatePool.length - 1)];
 
         const studio =
           (project.studioName
@@ -232,7 +245,10 @@ class MediaEngine {
           .map(c => c.talentId)
           .filter(Boolean);
 
+        const idHash = hashStringToUint32(`${seedRoot}|release|${project.id}|${studio?.id || 'none'}`).toString(36);
+
         const eventId = this.queueMediaEvent({
+          id: `event_${idHash}`,
           type: 'release',
           triggerType: 'competitor_action',
           priority: 'low',

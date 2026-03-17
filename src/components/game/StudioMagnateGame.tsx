@@ -623,6 +623,7 @@ export const StudioMagnateGame: React.FC<StudioMagnateGameProps> = ({
 
     const next = isOnlineMode ? seeded : primeCompetitorTelevision(seeded);
 
+    MediaEngine.cleanup();
     loadGameToStore(next, next.rngState ?? next.universeSeed);
   }, [storeGameState, initialGameState, loadGameToStore, isOnlineMode]);
 
@@ -952,6 +953,7 @@ export const StudioMagnateGame: React.FC<StudioMagnateGameProps> = ({
       if (cancelled) return;
 
       updateOperation(LOADING_OPERATIONS.GAME_INIT.id, 100, 'Finalizing...');
+      MediaEngine.cleanup();
       initGame(initialState, initialState.universeSeed);
 
       setTimeout(() => {
@@ -1371,7 +1373,7 @@ export const StudioMagnateGame: React.FC<StudioMagnateGameProps> = ({
   };
 
   // Always run awards engine in the background (independent of UI phase)
-  useAwardsEngine(gameState, handleStudioUpdate, handleTalentUpdate, handleAwardShow);
+  useAwardsEngine(gameState, handleStudioUpdate, handleTalentUpdate, handleAwardShow, mergeGameState);
 
   
 

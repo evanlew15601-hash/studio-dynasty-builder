@@ -1,10 +1,11 @@
-import { useEffect, useState } from 'react';
-import { GameState, Project, Studio, StudioAward, TalentAward, TalentPerson } from '@/types/game';
+import { useEffect } from 'react';
+import { AwardsSeasonState, GameState, Project, Studio, StudioAward, TalentAward, TalentPerson } from '@/types/game';
 import { getAwardShowsForYear } from '@/data/AwardsSchedule';
 import type { AwardCategoryDefinition } from '@/data/AwardsSchedule';
 import { useToast } from '@/hooks/use-toast';
 import { AwardShowCeremony } from '@/components/game/IndividualAwardShowModal';
-import { stablePick } from '@/utils/stablePick';
+import { hashStringToUint32, stablePick } from '@/utils/stablePick';
+import { stableFloat01 } from '@/utils/stableRandom';
 import { MediaEngine } from '@/components/game/MediaEngine';
 import { logDebug } from '@/utils/logger';
 
@@ -13,18 +14,29 @@ export function useAwardsEngine(
   gameState: GameState,
   onStudioUpdate: (updates: Partial<Studio>) => void,
   onTalentUpdate?: (talentId: string, updates: Partial<TalentPerson>) => void,
-  onAwardShowTrigger?: (ceremony: AwardShowCeremony) => void
+  onAwardShowTrigger?: (ceremony: AwardShowCeremony) => void,
+  onGameStateUpdate?: (updates: Partial<GameState>) => void
 ) {
   const { toast } = useToast();
 
-  const [processedCeremonies, setProcessedCeremonies] = useState<Set<string>>(new Set());
-  const [seasonMomentum, setSeasonMomentum] = useState<Record<string, number>>({});
-  const [seasonNominations, setSeasonNominations] = useState<
-    Record<string, { year: number; categories: Record<string, Array<{ project: Project; score: number }>> }>
-  >({});
-
   const isTvProject = (project: Project) => project.type === 'series' || project.type === 'limited-series';
   const isFilmProject = (project: Project) => !isTvProject(project);
+
+  const getSeasonState = (): AwardsSeasonState => {
+    const existing = gameState.awardsSeason;
+    if (existing && existing.year === gameState.currentYear) return existing;
+    return {
+      year: gameState.currentYear,
+      processedCeremonies: [],
+      seasonMomentum: {},
+      seasonNominations: {},
+    };
+  };
+
+  const setSeasonState = (next: AwardsSeasonState) => {
+    if (!onGameStateUpdate) return;
+    onGameStateUpdate({ awardsSeason: next });
+  };
 
   // Film awards are clustered early in the year (legacy behavior). We still keep the
   // seasonal genre bias there, but nominations/ceremonies can occur later.
@@ -113,17 +125,26 @@ export function useAwardsEngine(
     return cl.includes('actor') || cl.includes('actress') || cl.includes('director') || cl.includes('directing');
   };
 
-  const announceNominations = (showKey: string) => {
-    const show = getShowByKey(showKey);
-    if (!show) return;
-
-    const key = `${show.id}-${gameState.currentYear}`;
-    if (seasonNominations[key]) return; // idempotent
+  const computeNominations = (showId: string): {
+    showName: string;
+    medium: 'film' | 'tv';
+    categories: AwardCategoryDefinition[];
+    nominationsForState: Record<string, Array<{ projectId: string; score: number }>>;
+    nominationsWithProjects: Record<string, Array<{ project: Project; score: number }>>;
+  } | null => {
+    const show = getShowByKey(showId);
+    if (!show) return null;
 
     const categories = show.categories || [];
     const eligible = getEligibleProjects(show.medium);
 
-    const categoriesMap: Record<string, Array<{ project: Project; score: number }>> = {};
+    const season = getSeasonState();
+    const seasonMomentum = season.seasonMomentum || {};
+
+    const seedRoot = `awards|${gameState.universeSeed ?? 0}|Y${gameState.currentYear}|${show.id}`;
+
+    const nominationsForState: Record<string, Array<{ projectId: string; score: number }>> = {};
+    const nominationsWithProjects: Record<string, Array<{ project: Project; score: number }>> = {};
 
     categories.forEach((category) => {
       const categoryName = category.name;
@@ -200,26 +221,56 @@ export function useAwardsEngine(
             }
           }
 
-          const score = Math.min(100, base + momentum + categoryBias + talentBonus + (Math.random() * 8 - 4));
+          const noise = (stableFloat01(`${seedRoot}|${categoryName}|${project.id}|noise`) * 8) - 4;
+
+          const score = Math.min(100, base + momentum + categoryBias + talentBonus + noise);
           return { project, score };
         })
         .filter(({ score }) => score > 10) // Filter out clearly ineligible
         .sort((a, b) => b.score - a.score)
         .slice(0, 5);
-      categoriesMap[categoryName] = ranked;
+
+      nominationsWithProjects[categoryName] = ranked;
+      nominationsForState[categoryName] = ranked.map((r) => ({ projectId: r.project.id, score: r.score }));
     });
 
-    setSeasonNominations((prev) => ({
-      ...prev,
-      [key]: { year: gameState.currentYear, categories: categoriesMap },
-    }));
+    return {
+      showName: show.name,
+      medium: show.medium,
+      categories,
+      nominationsForState,
+      nominationsWithProjects,
+    };
+  };
+
+  const announceNominations = (showKey: string) => {
+    const show = getShowByKey(showKey);
+    if (!show) return;
+
+    const key = `${show.id}-${gameState.currentYear}`;
+    const season = getSeasonState();
+
+    if (season.seasonNominations[key]) return; // idempotent
+
+    const computed = computeNominations(show.id);
+    if (!computed) return;
+
+    const nextSeason: AwardsSeasonState = {
+      ...season,
+      seasonNominations: {
+        ...season.seasonNominations,
+        [key]: { year: gameState.currentYear, categories: computed.nominationsForState },
+      },
+    };
+
+    setSeasonState(nextSeason);
 
     // Hook nominations into the media feed (1 highlight story per show)
     const isPlayerProject = (p: Project) => gameState.projects.some(pp => pp.id === p.id);
 
     let highlight: { project: Project; category: string } | undefined;
 
-    for (const [category, ranked] of Object.entries(categoriesMap)) {
+    for (const [category, ranked] of Object.entries(computed.nominationsWithProjects)) {
       const playerNominee = ranked.find(n => isPlayerProject(n.project));
       if (playerNominee) {
         highlight = { project: playerNominee.project, category };
@@ -229,16 +280,16 @@ export function useAwardsEngine(
 
     if (!highlight) {
       const headlineCategory =
-        Object.keys(categoriesMap).find(c => /best (picture|film)/i.test(c)) ||
-        Object.keys(categoriesMap)[0];
+        Object.keys(computed.nominationsWithProjects).find(c => /best (picture|film)/i.test(c)) ||
+        Object.keys(computed.nominationsWithProjects)[0];
 
       if (headlineCategory) {
-        const top = categoriesMap[headlineCategory]?.[0];
+        const top = computed.nominationsWithProjects[headlineCategory]?.[0];
         if (top) highlight = { project: top.project, category: headlineCategory };
       }
     }
 
-    const categoryDefByName = new Map(categories.map((c) => [c.name, c] as const));
+    const categoryDefByName = new Map(computed.categories.map((c) => [c.name, c] as const));
 
     let queuedNominationMedia = false;
     if (highlight) {
@@ -281,7 +332,7 @@ export function useAwardsEngine(
     logDebug(`[AwardsEngine] ${show.name} nominations announced for Y${gameState.currentYear}`);
     toast({
       title: `${show.name} Nominations Announced`,
-      description: `Top contenders selected across ${categories.length} categories.`,
+      description: `Top contenders selected across ${computed.categories.length} categories.`,
     });
   };
 
@@ -294,13 +345,29 @@ export function useAwardsEngine(
 
     const key = `${show.id}-${gameState.currentYear}`;
     if (gameState.currentWeek !== ceremonyWeek) return;
-    if (processedCeremonies.has(key)) return;
 
-    if (!seasonNominations[key]) {
-      announceNominations(show.id);
+    let season = getSeasonState();
+    if (season.processedCeremonies.includes(key)) return;
+
+    if (!season.seasonNominations[key]) {
+      const computed = computeNominations(show.id);
+      if (!computed) return;
+
+      season = {
+        ...season,
+        seasonNominations: {
+          ...season.seasonNominations,
+          [key]: { year: gameState.currentYear, categories: computed.nominationsForState },
+        },
+      };
+      setSeasonState(season);
     }
-    const nominationsRecord = seasonNominations[key];
+
+    const nominationsRecord = season.seasonNominations[key];
     if (!nominationsRecord) return;
+
+    const eligible = getEligibleProjects(show.medium);
+    const byId = new Map(eligible.map((p) => [p.id, p] as const));
 
     const categoryDefByName = new Map(categories.map((c) => [c.name, c] as const));
 
@@ -308,19 +375,29 @@ export function useAwardsEngine(
     const winnersThisShow: string[] = [];
     let extraTalentStudioReputation = 0;
 
+    const seedRoot = `awards|${gameState.universeSeed ?? 0}|Y${gameState.currentYear}|${show.id}|ceremony`;
+
     categories.forEach((categoryDef) => {
       const category = categoryDef.name;
 
-      const nominees = nominationsRecord.categories[category] || [];
+      const nominees = (nominationsRecord.categories[category] || [])
+        .map((n) => {
+          const project = byId.get(n.projectId);
+          return project ? { project, score: n.score } : null;
+        })
+        .filter(Boolean) as Array<{ project: Project; score: number }>;
+
       if (nominees.length === 0) return;
+
       const weighted = nominees.map((n, idx) => ({
         ...n,
-        weight: (nominees.length - idx) * 1.5 + (seasonMomentum[n.project.id] || 0) / 10,
+        weight: (nominees.length - idx) * 1.5 + (season.seasonMomentum[n.project.id] || 0) / 10,
       }));
-      const totalWeight = weighted.reduce((s, w) => s + (w as any).weight, 0);
-      let r = Math.random() * totalWeight;
-      let winner = weighted[0] as any;
-      for (const w of weighted as any[]) {
+
+      const totalWeight = weighted.reduce((s, w) => s + w.weight, 0);
+      let r = stableFloat01(`${seedRoot}|${category}|pick`) * totalWeight;
+      let winner = weighted[0];
+      for (const w of weighted) {
         r -= w.weight;
         if (r <= 0) {
           winner = w;
@@ -337,12 +414,14 @@ export function useAwardsEngine(
         let talentName: string | undefined;
 
         if (won) {
+          const catKey = hashStringToUint32(category).toString(36);
+
           if (categoryIsTalent) {
             // Find relevant talent for this category
             const relevantTalent = findRelevantTalent(n.project, category, categoryDef);
             if (relevantTalent) {
               talentAward = {
-                id: `talent-award-${Date.now()}-${Math.random()}`,
+                id: `talent-award:${show.id}:${gameState.currentYear}:${catKey}:${relevantTalent.id}:${n.project.id}`,
                 talentId: relevantTalent.id,
                 projectId: n.project.id,
                 category,
@@ -374,7 +453,7 @@ export function useAwardsEngine(
           } else {
             // Studio award for non-talent categories
             studioAward = {
-              id: `award-${Date.now()}-${Math.random()}`,
+              id: `award:${show.id}:${gameState.currentYear}:${catKey}:${n.project.id}`,
               projectId: n.project.id,
               category,
               ceremony: ceremonyName,
@@ -415,17 +494,23 @@ export function useAwardsEngine(
       MediaEngine.processMediaEvents(gameState);
     }
 
-    setProcessedCeremonies((prev) => new Set(prev).add(key));
+    season = {
+      ...season,
+      processedCeremonies: [...season.processedCeremonies, key],
+    };
 
     if (winnersThisShow.length > 0) {
-      setSeasonMomentum((prev) => {
-        const next = { ...prev };
-        winnersThisShow.forEach((pid) => {
-          next[pid] = (next[pid] || 0) + momentumBonus;
-        });
-        return next;
+      const next = { ...(season.seasonMomentum || {}) };
+      winnersThisShow.forEach((pid) => {
+        next[pid] = (next[pid] || 0) + momentumBonus;
       });
+      season = {
+        ...season,
+        seasonMomentum: next,
+      };
     }
+
+    setSeasonState(season);
 
     if (flatForModal.length > 0) {
       // Create ceremony object for modal
@@ -441,7 +526,13 @@ export function useAwardsEngine(
 
       categories.forEach((categoryDef) => {
         const category = categoryDef.name;
-        const nominees = nominationsRecord.categories[category] || [];
+
+        const nominees = (nominationsRecord.categories[category] || [])
+          .map((n) => {
+            const project = byId.get(n.projectId);
+            return project ? { project, score: n.score } : null;
+          })
+          .filter(Boolean) as Array<{ project: Project; score: number }>;
 
         ceremonyData.nominations[category] = nominees.map(n => {
           const t = isTalentCategory(categoryDef) ? findRelevantTalent(n.project, category, categoryDef) : undefined;
@@ -462,7 +553,13 @@ export function useAwardsEngine(
       categories.forEach((categoryDef) => {
         const category = categoryDef.name;
 
-        const nominees = nominationsRecord.categories[category] || [];
+        const nominees = (nominationsRecord.categories[category] || [])
+          .map((n) => {
+            const project = byId.get(n.projectId);
+            return project ? { project, score: n.score } : null;
+          })
+          .filter(Boolean) as Array<{ project: Project; score: number }>;
+
         const winner = nominees.find(n => flatForModal.some(f => f.project.id === n.project.id && f.category === category && f.won));
         if (winner) {
           const winnerData = flatForModal.find(f => f.project.id === winner.project.id && f.category === category && f.won);
@@ -515,12 +612,19 @@ export function useAwardsEngine(
 
   // Reset season each year/week 1
   useEffect(() => {
-    if (gameState.currentWeek === 1) {
-      setProcessedCeremonies(new Set());
-      setSeasonNominations({});
-      setSeasonMomentum({});
-      logDebug(`[AwardsEngine] Reset season state for Y${gameState.currentYear}`);
-    }
+    if (gameState.currentWeek !== 1) return;
+
+    const season = gameState.awardsSeason;
+    if (season && season.year === gameState.currentYear && season.processedCeremonies.length === 0) return;
+
+    setSeasonState({
+      year: gameState.currentYear,
+      processedCeremonies: [],
+      seasonMomentum: {},
+      seasonNominations: {},
+    });
+
+    logDebug(`[AwardsEngine] Reset season state for Y${gameState.currentYear}`);
   }, [gameState.currentYear, gameState.currentWeek]);
 
   // Weekly triggers
