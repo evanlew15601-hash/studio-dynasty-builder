@@ -135,7 +135,7 @@ export const FranchiseManager: React.FC<FranchiseManagerProps> = ({
   const pagedPublicDomain = paginate(filteredPublicDomain, publicDomainPage);
 
   if (!gameState) {
-    return <div className="p-6 text-sm text-muted-foreground">Loading franchise marketplace...</div>;
+    return <div className="p-6 text-sm text-muted-foreground">Loading IP marketplace...</div>;
   }
 
   const getFranchiseStatusColor = (status: string) => {
@@ -164,9 +164,9 @@ export const FranchiseManager: React.FC<FranchiseManagerProps> = ({
       {/* Header */}
       <div className="flex items-center justify-between">
         <div>
-          <h1 className="text-3xl font-bold">Franchise & IP Management</h1>
+          <h1 className="text-3xl font-bold">IP Marketplace</h1>
           <p className="text-muted-foreground">
-            Manage franchises and adapt public domain properties for your studio
+            License major franchises (one-time fee) or adapt public-domain properties
           </p>
         </div>
       </div>
@@ -244,7 +244,7 @@ export const FranchiseManager: React.FC<FranchiseManagerProps> = ({
 
       <Tabs value={activeTab} onValueChange={(v) => setActiveTab(v as any)} className="space-y-4">
         <TabsList>
-          <TabsTrigger value="franchises">Available Franchises ({filteredFranchises.length})</TabsTrigger>
+          <TabsTrigger value="franchises">Franchise Licenses ({filteredFranchises.length})</TabsTrigger>
           <TabsTrigger value="public-domain">Public Domain ({filteredPublicDomain.length})</TabsTrigger>
         </TabsList>
 
@@ -265,100 +265,117 @@ export const FranchiseManager: React.FC<FranchiseManagerProps> = ({
               </div>
 
               <div className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-3 gap-4">
-                {pagedFranchises.items.map((franchise) => (
-                  <Card key={franchise.id} className="hover:shadow-lg transition-shadow">
-                    <CardHeader className="pb-3">
-                      <div className="flex items-start justify-between">
-                        <div>
-                          <CardTitle className="text-lg">{franchise.title}</CardTitle>
-                          <CardDescription className="mt-1">
-                            {franchise.inspirationLabel && <span>{`Inspired by ${franchise.inspirationLabel}`}</span>}
-                            {franchise.originMedium && (
-                              <span className={`capitalize ${franchise.inspirationLabel ? 'block' : ''}`}>
-                                Origin: {franchise.originMedium}
-                              </span>
+                {pagedFranchises.items.map((franchise) => {
+                  const alreadyLicensed = (gameState.projects || []).some((p) => p.script?.franchiseId === franchise.id);
+                  const licenseCost = franchise.cost ?? 0;
+
+                  return (
+                    <Card key={franchise.id} className="hover:shadow-lg transition-shadow">
+                      <CardHeader className="pb-3">
+                        <div className="flex items-start justify-between">
+                          <div>
+                            <CardTitle className="text-lg">{franchise.title}</CardTitle>
+                            <CardDescription className="mt-1">
+                              {franchise.inspirationLabel && <span>{`Inspired by ${franchise.inspirationLabel}`}</span>}
+                              {franchise.originMedium && (
+                                <span className={`capitalize ${franchise.inspirationLabel ? 'block' : ''}`}>
+                                  Origin: {franchise.originMedium}
+                                </span>
+                              )}
+                            </CardDescription>
+                          </div>
+                          <div className="flex flex-col items-end gap-1">
+                            <Badge className={`${getFranchiseStatusColor(franchise.status)} text-white`}>
+                              {franchise.status}
+                            </Badge>
+                            {alreadyLicensed && (
+                              <Badge variant="outline" className="text-xs">
+                                Licensed
+                              </Badge>
                             )}
-                          </CardDescription>
-                        </div>
-                        <Badge className={`${getFranchiseStatusColor(franchise.status)} text-white`}>
-                          {franchise.status}
-                        </Badge>
-                      </div>
-                    </CardHeader>
-                    <CardContent className="space-y-4">
-                      <div className="space-y-2">
-                        <div className="flex items-center justify-between text-sm">
-                          <span>Cultural Weight</span>
-                          <span className="font-mono">{franchise.culturalWeight}/100</span>
-                        </div>
-                        <Progress value={franchise.culturalWeight} className="h-2" />
-                      </div>
-
-                      <div className="p-3 bg-muted rounded-lg">
-                        <div className="flex items-center justify-between mb-2">
-                          <div className="flex items-center space-x-2">
-                            <DollarSign className="w-4 h-4" />
-                            <span className="text-sm font-medium">License Cost</span>
                           </div>
-                          <span className="text-lg font-bold">
-                            ${(franchise.cost / 1000000).toFixed(1)}M
-                          </span>
                         </div>
-                        {franchise.description && (
-                          <div className="flex items-start space-x-2 mt-2">
-                            <Info className="w-4 h-4 text-muted-foreground mt-0.5 flex-shrink-0" />
-                            <p className="text-xs text-muted-foreground">{franchise.description}</p>
+                      </CardHeader>
+                      <CardContent className="space-y-4">
+                        <div className="space-y-2">
+                          <div className="flex items-center justify-between text-sm">
+                            <span>Cultural Weight</span>
+                            <span className="font-mono">{franchise.culturalWeight}/100</span>
                           </div>
-                        )}
-                      </div>
-
-                      <div className="space-y-2">
-                        <div className="text-sm font-medium">Genres:</div>
-                        <div className="flex flex-wrap gap-1">
-                          {franchise.genre.map((genre) => (
-                            <Badge key={genre} variant="secondary" className="text-xs">
-                              {genre}
-                            </Badge>
-                          ))}
+                          <Progress value={franchise.culturalWeight} className="h-2" />
                         </div>
-                      </div>
 
-                      <div className="space-y-2">
-                        <div className="text-sm font-medium">Tags:</div>
-                        <div className="flex flex-wrap gap-1">
-                          {franchise.franchiseTags.slice(0, 3).map((tag) => (
-                            <Badge key={tag} variant="outline" className="text-xs">
-                              {tag}
-                            </Badge>
-                          ))}
-                          {franchise.franchiseTags.length > 3 && (
-                            <Badge variant="outline" className="text-xs">
-                              +{franchise.franchiseTags.length - 3} more
-                            </Badge>
+                        <div className="p-3 bg-muted rounded-lg">
+                          <div className="flex items-center justify-between mb-2">
+                            <div className="flex items-center space-x-2">
+                              <DollarSign className="w-4 h-4" />
+                              <span className="text-sm font-medium">License Fee</span>
+                            </div>
+                            <span className={`text-lg font-bold ${alreadyLicensed ? 'text-green-600' : ''}`}>
+                              {alreadyLicensed ? 'PAID' : '\u0024' + (licenseCost / 1000000).toFixed(1) + 'M'}
+                            </span>
+                          </div>
+                          <div className="text-xs text-muted-foreground">
+                            {alreadyLicensed
+                              ? 'You have already licensed this franchise.'
+                              : 'One-time fee (paid the first time you develop this franchise).'}
+                          </div>
+                          {franchise.description && (
+                            <div className="flex items-start space-x-2 mt-2">
+                              <Info className="w-4 h-4 text-muted-foreground mt-0.5 flex-shrink-0" />
+                              <p className="text-xs text-muted-foreground">{franchise.description}</p>
+                            </div>
                           )}
                         </div>
-                      </div>
 
-                      <div className="grid grid-cols-2 gap-2 text-xs text-muted-foreground">
-                        <div>Entries: {franchise.entries.length}</div>
-                        <div>Since: {new Date(franchise.originDate).getFullYear()}</div>
-                        {franchise.criticalFatigue && (
-                          <div className="col-span-2">
-                            Fatigue: {franchise.criticalFatigue}%
+                        <div className="space-y-2">
+                          <div className="text-sm font-medium">Genres:</div>
+                          <div className="flex flex-wrap gap-1">
+                            {franchise.genre.map((genre) => (
+                              <Badge key={genre} variant="secondary" className="text-xs">
+                                {genre}
+                              </Badge>
+                            ))}
                           </div>
-                        )}
-                      </div>
+                        </div>
 
-                      <Button 
-                        className="w-full"
-                        onClick={() => onCreateProject(franchise.id, undefined, franchise.cost)}
-                        variant="default"
-                      >
-                        {franchise.entries.length === 0 ? 'Start Franchise' : 'Create Sequel'}
-                      </Button>
-                    </CardContent>
-                  </Card>
-                ))}
+                        <div className="space-y-2">
+                          <div className="text-sm font-medium">Tags:</div>
+                          <div className="flex flex-wrap gap-1">
+                            {franchise.franchiseTags.slice(0, 3).map((tag) => (
+                              <Badge key={tag} variant="outline" className="text-xs">
+                                {tag}
+                              </Badge>
+                            ))}
+                            {franchise.franchiseTags.length > 3 && (
+                              <Badge variant="outline" className="text-xs">
+                                +{franchise.franchiseTags.length - 3} more
+                              </Badge>
+                            )}
+                          </div>
+                        </div>
+
+                        <div className="grid grid-cols-2 gap-2 text-xs text-muted-foreground">
+                          <div>Entries: {franchise.entries.length}</div>
+                          <div>Since: {new Date(franchise.originDate).getFullYear()}</div>
+                          {franchise.criticalFatigue && (
+                            <div className="col-span-2">
+                              Fatigue: {franchise.criticalFatigue}%
+                            </div>
+                          )}
+                        </div>
+
+                        <Button 
+                          className="w-full"
+                          onClick={() => onCreateProject(franchise.id, undefined, alreadyLicensed ? undefined : licenseCost)}
+                          variant="default"
+                        >
+                          {alreadyLicensed ? 'Develop New Entry' : 'License & Develop'}
+                        </Button>
+                      </CardContent>
+                    </Card>
+                  );
+                })}
               </div>
 
               {franchiseTotalPages > 1 && (

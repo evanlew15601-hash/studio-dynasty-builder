@@ -81,7 +81,6 @@ import { EnhancedFinancialAccuracy, applyEnhancedFinancialAccuracy } from './Enh
 import { EnhancedFranchiseSystem } from './EnhancedFranchiseSystem';
 import { FranchiseManager } from './FranchiseManager';
 import { OwnedFranchiseManager } from './OwnedFranchiseManager';
-import { FranchiseProjectCreator } from './FranchiseProjectCreator';
 
 import { EnhancedMarketingSystem } from './EnhancedMarketingSystem';
 import { PlayerCirclePanel } from './PlayerCirclePanel';
@@ -3826,7 +3825,7 @@ export const StudioMagnateGame: React.FC<StudioMagnateGameProps> = ({
               <DropdownMenuContent align="start" className="min-w-[200px] bg-background/95 backdrop-blur-md">
                 <DropdownMenuItem onClick={() => handlePhaseChange('franchise')}>
                   <ClapperboardIcon className="mr-2" size={16} />
-                  Franchise Manager
+                  IP & Franchises
                 </DropdownMenuItem>
                 <DropdownMenuItem onClick={() => handlePhaseChange('media')}>
                   <BarChartIcon className="mr-2" size={16} />
@@ -3945,8 +3944,7 @@ export const StudioMagnateGame: React.FC<StudioMagnateGameProps> = ({
           <div className="space-y-6">
             <Tabs defaultValue="portfolio" className="space-y-4">
               <TabsList>
-                <TabsTrigger value="portfolio">Portfolio</TabsTrigger>
-                <TabsTrigger value="creator">Create</TabsTrigger>
+                <TabsTrigger value="portfolio">Owned IP</TabsTrigger>
                 <TabsTrigger value="marketplace">Marketplace</TabsTrigger>
                 <TabsTrigger value="sequels">Sequels</TabsTrigger>
               </TabsList>
@@ -4008,31 +4006,7 @@ export const StudioMagnateGame: React.FC<StudioMagnateGameProps> = ({
                 <EnhancedFranchiseSystem />
               </TabsContent>
 
-              <TabsContent value="creator" className="space-y-6">
-                <FranchiseProjectCreator
-                  onProjectCreate={(script) => {
-                    const finalized = finalizeScriptForSave(script, gameState);
-
-                    setSelectedFranchise(finalized.franchiseId || null);
-                    setSelectedPublicDomain(finalized.publicDomainId || null);
-
-                    const isTVScript =
-                      finalized.characteristics?.pacing === 'episodic' ||
-                      (finalized.estimatedRuntime && finalized.estimatedRuntime <= 60);
-
-                    // Route to the appropriate development workspace
-                    handlePhaseChange(isTVScript ? 'television' : 'scripts');
-
-                    upsertScript(finalized);
-                    toast({
-                      title: 'Script Draft Created',
-                      description: isTVScript
-                        ? `"${finalized.title}" is ready in TV Show Development to customize roles before greenlighting.`
-                        : `"${finalized.title}" is ready in Script Development to customize roles before greenlighting.`,
-                    });
-                  }}
-                />
-              </TabsContent>
+              
 
               <TabsContent value="marketplace" className="space-y-6">
                 <FranchiseManager
@@ -4076,7 +4050,7 @@ export const StudioMagnateGame: React.FC<StudioMagnateGameProps> = ({
                       },
                       themes: [],
                       sourceType: franchiseId ? 'franchise' : publicDomainId ? 'public-domain' : 'original',
-                      budget: cost ? 25000000 : 15000000, // Higher budget for licensed franchises
+                      budget: franchiseId ? 25000000 : 15000000, // Higher budget for franchise entries
                       characters: [],
                     };
 
