@@ -48,8 +48,8 @@ export const TalentDebutSystem: TickSystem = {
           return generateProceduralDebuts({
             existingTalent: state.talent || [],
             year,
-            actorCount: baselineActors + Math.round(retiredActors * replacementMult),
-            directorCount: baselineDirectors + Math.round(retiredDirectors * replacementMult),
+            actorCount: baselineActors + Math.floor(retiredActors * replacementMult),
+            directorCount: baselineDirectors + Math.floor(retiredDirectors * replacementMult),
             seed: `rookies:${state.universeSeed ?? 0}:${year}`,
           });
         })();
