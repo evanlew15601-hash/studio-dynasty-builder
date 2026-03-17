@@ -649,7 +649,7 @@ export interface ProducerEffect {
 
 export type Genre = 
   | 'action' | 'adventure' | 'comedy' | 'drama' | 'horror' | 'thriller'
-  | 'romance' | 'sci-fi' | 'fantasy' | 'documentary' | 'animation'
+  | 'romance' | 'erotica' | 'sci-fi' | 'fantasy' | 'documentary' | 'animation'
   | 'musical' | 'western' | 'war' | 'biography' | 'crime' | 'mystery'
   | 'superhero' | 'family' | 'sports' | 'historical';
 

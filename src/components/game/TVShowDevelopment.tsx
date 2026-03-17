@@ -348,7 +348,7 @@ export const TVShowDevelopment: React.FC<TVShowDevelopmentProps> = ({
 
   const genres: Genre[] = [
     'action', 'adventure', 'comedy', 'drama', 'horror', 'thriller',
-    'romance', 'sci-fi', 'fantasy', 'documentary', 'animation',
+    'romance', 'erotica', 'sci-fi', 'fantasy', 'documentary', 'animation',
     'musical', 'western', 'war', 'biography', 'crime', 'mystery',
     'superhero', 'family', 'sports', 'historical'
   ];
@@ -373,7 +373,7 @@ export const TVShowDevelopment: React.FC<TVShowDevelopmentProps> = ({
       cgiIntensity: 'minimal',
     };
 
-    const contentRating = computeFilmContentRating(baseCharacteristics.content);
+    const contentRating = computeFilmContentRating(baseCharacteristics.content, newScript.genre as Genre | undefined);
 
     const script: Script = {
       id: editingScript ? editingScript.id : `tv-script-${Date.now()}`,
@@ -562,7 +562,7 @@ export const TVShowDevelopment: React.FC<TVShowDevelopmentProps> = ({
     );
   });
 
-  const draftRating = computeFilmContentRating(newScript.characteristics?.content);
+  const draftRating = computeFilmContentRating(newScript.characteristics?.content, newScript.genre as Genre | undefined);
 
   return (
     <div className="space-y-6">

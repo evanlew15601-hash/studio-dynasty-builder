@@ -86,7 +86,7 @@ export const GameLanding: React.FC<GameLandingProps> = ({
 
   const genres: Genre[] = [
     'action', 'adventure', 'comedy', 'drama', 'horror', 'thriller',
-    'romance', 'sci-fi', 'fantasy', 'documentary', 'animation',
+    'romance', 'erotica', 'sci-fi', 'fantasy', 'documentary', 'animation',
     'musical', 'western', 'war', 'biography', 'crime', 'mystery',
     'superhero', 'family', 'sports', 'historical'
   ];

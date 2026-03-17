@@ -225,6 +225,7 @@ export const FranchiseProjectCreator: React.FC<FranchiseProjectCreatorProps> = (
                     <SelectItem value="musical">Musical</SelectItem>
                     <SelectItem value="mystery">Mystery</SelectItem>
                     <SelectItem value="romance">Romance</SelectItem>
+                    <SelectItem value="erotica">Erotica</SelectItem>
                     <SelectItem value="sci-fi">Sci-Fi</SelectItem>
                     <SelectItem value="sports">Sports</SelectItem>
                     <SelectItem value="superhero">Superhero</SelectItem>

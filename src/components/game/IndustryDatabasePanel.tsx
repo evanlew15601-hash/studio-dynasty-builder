@@ -55,6 +55,7 @@ const ALL_GENRES: Genre[] = [
   'horror',
   'thriller',
   'romance',
+  'erotica',
   'sci-fi',
   'fantasy',
   'documentary',
