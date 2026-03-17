@@ -154,7 +154,7 @@ export interface TalentPerson {
   // Enhanced talent properties
   biography?: string;
   lastWorkWeek?: number;
-  retired?: { year: number; week: number; reason: 'age' | 'burnout' | 'unknown' };
+  retired?: { year: number; week: number; reason: 'age' | 'burnout' | 'inactivity' | 'scandal' | 'unknown' };
   careerEvolution?: CareerEvent[];
   publicImage?: number; // 0-100, separate from reputation
   scandals?: Scandal[];
@@ -789,6 +789,9 @@ export interface WorldHistoryEntry {
     | 'talent_flop'
     | 'talent_comeback'
     | 'talent_retirement'
+    | 'talent_scandal'
+    | 'talent_rivalry'
+    | 'industry_era'
     | 'award_win'
     | 'box_office_record'
     | 'studio_milestone';

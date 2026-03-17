@@ -191,6 +191,17 @@ function buildYearbookBody(params: {
     }
   }
 
+  if (params.notableEvents.length > 0) {
+    lines.push('');
+    lines.push('Notable events:');
+    for (const e of params.notableEvents.slice(0, 6)) {
+      lines.push(`• ${e}`);
+    }
+    if (params.notableEvents.length > 6) {
+      lines.push(`• …and ${params.notableEvents.length - 6} more`);
+    }
+  }
+
   lines.push('');
   lines.push(`Industry Retirements:`);
   if (params.retirements.length === 0) {
@@ -215,7 +226,7 @@ function buildYearbookBody(params: {
 export const WorldYearbookSystem: TickSystem = {
   id: 'worldYearbook',
   label: 'World yearbook',
-  dependsOn: ['talentRetirements', 'worldMilestones'],
+  dependsOn: ['talentRetirements', 'worldMilestones', 'worldEras'],
   onTick: (state, ctx) => {
     if (ctx.week !== 1) return state;
     if (state.mode === 'online') return state;
@@ -240,6 +251,12 @@ export const WorldYearbookSystem: TickSystem = {
     });
 
     const careerHighlights = computeCareerHighlights(state, previousYear, projectTitleById);
+
+    const notableEvents = (state.worldHistory || [])
+      .filter((e) => e.year === previousYear && (e.importance || 0) >= 4)
+      .slice()
+      .sort((a, b) => (b.importance || 0) - (a.importance || 0) || a.kind.localeCompare(b.kind) || a.id.localeCompare(b.id))
+      .map((e) => e.title);
 
     const entry: WorldYearbookEntry = {
       id: `yearbook:${previousYear}`,

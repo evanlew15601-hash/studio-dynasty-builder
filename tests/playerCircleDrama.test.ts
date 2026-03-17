@@ -356,6 +356,62 @@ describe('resolveGameEvent (store)', () => {
     expect(media.some((m) => m.id === 'media:event-pr:pr-spin')).toBe(true);
   });
 
+  it('supports gossip scandal events and marks scandals resolved', () => {
+    const event: GameEvent = {
+      id: 'event-scandal',
+      title: 'Scandal',
+      description: '...',
+      type: 'crisis',
+      triggerDate: new Date('2027-01-01T00:00:00.000Z'),
+      data: { kind: 'gossip:scandal', talentId: 'talent-1', scandalId: 'scandal:2027:W13:talent-1' },
+      choices: [
+        {
+          id: 'pr',
+          text: 'PR blitz',
+          consequences: [
+            { type: 'budget', impact: -100_000, description: 'PR spend.' },
+          ],
+        },
+      ],
+    };
+
+    useGameStore.getState().mergeGameState({
+      talent: [
+        {
+          ...makeTalent({ id: 'talent-1', name: 'T', contractStatus: 'contracted' }),
+          publicImage: 40,
+          scandals: [
+            {
+              id: 'scandal:2027:W13:talent-1',
+              type: 'social',
+              severity: 'major',
+              description: 'x',
+              weekOccurred: 13,
+              yearOccurred: 2027,
+              resolved: false,
+              reputationImpact: -5,
+              marketValueImpact: -100,
+            },
+          ],
+        } as any,
+      ],
+      eventQueue: [event],
+      studio: { ...useGameStore.getState().game!.studio, budget: 1_000_000, reputation: 50 },
+    });
+
+    useGameStore.getState().resolveGameEvent('event-scandal', 'pr');
+
+    const state = useGameStore.getState().game!;
+    expect(state.eventQueue.length).toBe(0);
+
+    const t = state.talent.find((x) => x.id === 'talent-1')!;
+    expect(t.scandals?.[0].resolved).toBe(true);
+    expect((t.publicImage as any) > 40).toBe(true);
+
+    const media = MediaEngine.getRecentMedia(10);
+    expect(media.some((m) => m.id === 'media:event-scandal:pr')).toBe(true);
+  });
+
   it('handles replace-b for circle:feud by removing the talent from the project', () => {
     const projectId = 'project-x';
 

@@ -31,9 +31,11 @@ import { TalentRetirementSystem } from './systems/talentRetirementSystem';
 import { TalentDebutSystem } from './systems/talentDebutSystem';
 import { WorldYearbookSystem } from './systems/worldYearbookSystem';
 import { WorldMilestonesSystem } from './systems/worldMilestonesSystem';
+import { WorldErasSystem } from './systems/worldErasSystem';
 import { PlayerLegacySystem } from './systems/playerLegacySystem';
 import { TalentFilmographySystem } from './systems/talentFilmographySystem';
 import { TalentCareerArcSystem } from './systems/talentCareerArcSystem';
+import { IndustryGossipSystem } from './systems/industryGossipSystem';
 import { AiTelevisionSystem } from './systems/aiTelevisionSystem';
 import { PlayerCircleDramaSystem } from './systems/playerCircleDramaSystem';
 import { MediaEngine } from '@/components/game/MediaEngine';
@@ -165,11 +167,13 @@ export const useGameStore: import('zustand').UseBoundStore<import('zustand').Sto
       r.register(TalentRetirementSystem);
       r.register(WorldYearbookSystem);
       r.register(WorldMilestonesSystem);
+      r.register(WorldErasSystem);
       r.register(TalentDebutSystem);
       r.register(PlayerLegacySystem);
       r.register(AiTelevisionSystem);
       r.register(TalentFilmographySystem);
       r.register(TalentCareerArcSystem);
+      r.register(IndustryGossipSystem);
       r.register(PlayerCircleDramaSystem);
       return r;
     })(),
@@ -618,6 +622,61 @@ export const useGameStore: import('zustand').UseBoundStore<import('zustand').Sto
                 );
               }
               t.contractStatus = 'available';
+            }
+          }
+
+          if (kind === 'gossip:scandal') {
+            const talentId = (event as any)?.data?.talentId as string | undefined;
+            const scandalId = (event as any)?.data?.scandalId as string | undefined;
+
+            const t = talentId ? s.game.talent.find((x) => x.id === talentId) : undefined;
+            if (t) {
+              const rep = clamp(t.reputation ?? 50, 0, 100);
+              const pi = clamp(t.publicImage ?? rep, 0, 100);
+
+              if (scandalId && t.scandals) {
+                t.scandals = t.scandals.map((s) => (s.id === scandalId ? { ...s, resolved: true } : s));
+              }
+
+              if (selectedChoice.id === 'deny') {
+                t.publicImage = clamp(pi - 2, 0, 100);
+                t.reputation = clamp(rep - 1, 0, 100);
+              } else if (selectedChoice.id === 'apology') {
+                t.publicImage = clamp(pi + 2, 0, 100);
+              } else if (selectedChoice.id === 'pr') {
+                t.publicImage = clamp(pi + 5, 0, 100);
+              } else if (selectedChoice.id === 'cut') {
+                t.publicImage = clamp(pi - 1, 0, 100);
+                // If they were signed to you, sever the relationship.
+                if (t.contractStatus === 'contracted' || t.contractStatus === 'exclusive') {
+                  t.contractStatus = 'available';
+                  if (t.studioLoyalty) delete t.studioLoyalty[s.game.studio.id];
+                }
+              }
+
+              const mediaId = `media:${event.id}:${selectedChoice.id}`;
+              const headline =
+                selectedChoice.id === 'pr'
+                  ? `${s.game.studio.name} launches a PR blitz amid ${t.name} scandal`
+                  : selectedChoice.id === 'apology'
+                    ? `${t.name} issues an apology as the scandal cycle cools`
+                    : selectedChoice.id === 'cut'
+                      ? `${s.game.studio.name} cuts ties with ${t.name} after controversy`
+                      : `${t.name} denies wrongdoing as reporters press for answers`;
+
+              MediaEngine.injectDeterministicMediaItem({
+                id: mediaId,
+                type: 'news',
+                headline,
+                content: headline,
+                week: s.game.currentWeek,
+                year: s.game.currentYear,
+                sentiment: selectedChoice.id === 'pr' || selectedChoice.id === 'apology' ? 'neutral' : 'negative',
+                targets: { studios: [s.game.studio.id], talent: [t.id] },
+                tags: ['scandal', 'response'],
+                relatedEvents: [event.id],
+                sourceType: 'trade_publication',
+              });
             }
           }
 

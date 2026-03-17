@@ -34,11 +34,37 @@ function rosterPressureMultiplier(activeCount: number): number {
   return clamp(activeCount / 320, 1, 1.4);
 }
 
-function retirementChance(t: TalentPerson, rosterMult: number): number {
-  let chance = baseChance(t) * rosterMult;
+function retirementChance(t: TalentPerson, rosterMult: number, previousYear: number): number {
+  const age = t.age ?? 30;
+  let chance = 0;
+
+  // Age-based baseline.
+  if (t.type === 'actor') {
+    if (age >= 75) chance = 0.16;
+    else if (age >= 70) chance = 0.11;
+    else if (age >= 65) chance = 0.07;
+    else if (age >= 60) chance = 0.03;
+  } else {
+    // Directors retire later.
+    if (age >= 82) chance = 0.14;
+    else if (age >= 77) chance = 0.10;
+    else if (age >= 72) chance = 0.06;
+    else if (age >= 67) chance = 0.03;
+  }
+
+  chance *= rosterMult;
 
   const burnout = clamp(t.burnoutLevel ?? 0, 0, 100);
   chance += (burnout / 100) * 0.06;
+
+  const lastYear = lastCreditedYear(t);
+  if (lastYear !== null) {
+    const inactiveYears = previousYear - lastYear;
+    if (inactiveYears >= 12) chance += 0.08;
+    else if (inactiveYears >= 8) chance += 0.04;
+  }
+
+  if (hasRecentSevereScandal(t, previousYear)) chance += 0.09;
 
   const rep = clamp(t.reputation ?? 50, 0, 100);
   if (rep >= 90) chance -= 0.06;
@@ -48,9 +74,30 @@ function retirementChance(t: TalentPerson, rosterMult: number): number {
   return clamp(chance, 0, 0.25);
 }
 
-function retirementReason(t: TalentPerson): 'age' | 'burnout' | 'unknown' {
+function lastCreditedYear(t: TalentPerson): number | null {
+  const films = t.filmography || [];
+  if (films.length > 0) {
+    const years = films.map((f) => f.year).filter((y): y is number => typeof y === 'number');
+    if (years.length > 0) return Math.max(...years);
+  }
+
+  return typeof t.careerStartYear === 'number' ? t.careerStartYear : null;
+}
+
+function hasRecentSevereScandal(t: TalentPerson, year: number): boolean {
+  return (t.scandals || []).some(
+    (s) => !s.resolved && (s.severity === 'career-ending' || s.severity === 'major') && s.yearOccurred >= year - 1
+  );
+}
+
+function retirementReason(t: TalentPerson, previousYear: number): 'age' | 'burnout' | 'inactivity' | 'scandal' | 'unknown' {
   const burnout = t.burnoutLevel ?? 0;
   if (burnout >= 85) return 'burnout';
+
+  if (hasRecentSevereScandal(t, previousYear)) return 'scandal';
+
+  const lastYear = lastCreditedYear(t);
+  if (lastYear !== null && previousYear - lastYear >= 10) return 'inactivity';
 
   const age = t.age ?? 30;
   if ((t.type === 'actor' && age >= 65) || (t.type === 'director' && age >= 70)) return 'age';
@@ -87,13 +134,13 @@ export const TalentRetirementSystem: TickSystem = {
       if (t.type !== 'actor' && t.type !== 'director') return t;
       if (t.contractStatus !== 'available') return t;
 
-      const chance = retirementChance(t, rosterMult);
+      const chance = retirementChance(t, rosterMult, previousYear);
       if (chance <= 0) return t;
 
       const roll = stableInt(`${state.universeSeed ?? 0}|retire|${t.id}|${previousYear}`, 0, 9999) / 10000;
       if (roll >= chance) return t;
 
-      const reason = retirementReason(t);
+      const reason = retirementReason(t, previousYear);
 
       const ev: CareerEvent = {
         type: 'retirement',
