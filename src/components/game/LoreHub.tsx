@@ -10,7 +10,7 @@ import { Separator } from '@/components/ui/separator';
 import { useGameStore } from '@/game/store';
 import { useUiStore } from '@/game/uiStore';
 import { cn } from '@/lib/utils';
-import { Book, Building, Film, Search, User, ExternalLink } from 'lucide-react';
+import { Book, Building, Film, Search, User, ExternalLink, ScrollText } from 'lucide-react';
 
 const formatMoney = (amount: number) => "$" + (amount / 1_000_000).toFixed(0) + "M";
 
@@ -171,6 +171,28 @@ const TalentEncyclopedia: React.FC<{ talent: TalentPerson[] }> = ({ talent }) =>
                         ))}
                       </div>
                     </div>
+                  )}
+
+                  {(selected.careerEvolution || []).length > 0 && (
+                    <>
+                      <Separator />
+                      <div className="space-y-2">
+                        <div className="text-sm font-medium">Career Events</div>
+                        <div className="space-y-1">
+                          {(selected.careerEvolution || [])
+                            .slice()
+                            .sort((a: any, b: any) => (b.year || 0) - (a.year || 0) || (b.week || 0) - (a.week || 0))
+                            .slice(0, 5)
+                            .map((e: any, i: number) => (
+                              <div key={`${e.type}-${e.year}-${e.week}-${e.sourceProjectId || i}`} className="rounded border p-2 text-sm">
+                                <div className="font-medium capitalize">{String(e.type || 'event')}</div>
+                                <div className="text-muted-foreground text-xs">{e.year ? `Y${e.year}W${e.week || '—'}` : ''}</div>
+                                {e.description && <div className="mt-1 text-sm">{e.description}</div>}
+                              </div>
+                            ))}
+                        </div>
+                      </div>
+                    </>
                   )}
 
                   {(selected.awards || []).length > 0 && (
@@ -587,6 +609,121 @@ const PublicDomainEncyclopedia: React.FC<{ ips: PublicDomainIP[] }> = ({ ips }) 
   );
 };
 
+// ─── Timeline ─────────────────────────────────────────────────────────────────
+
+const TimelineEncyclopedia: React.FC = () => {
+  const gameState = useGameStore((s) => s.game);
+  const [search, setSearch] = useState('');
+
+  const yearbooks = useMemo(() => {
+    const yb = gameState?.worldYearbooks || [];
+    return yb.slice().sort((a, b) => (b.year || 0) - (a.year || 0));
+  }, [gameState]);
+
+  const history = useMemo(() => {
+    const h = gameState?.worldHistory || [];
+    return h.slice().sort((a, b) => (b.year || 0) - (a.year || 0) || (b.importance || 0) - (a.importance || 0));
+  }, [gameState]);
+
+  const filteredYearbooks = useMemo(() => {
+    const q = search.trim().toLowerCase();
+    if (!q) return yearbooks;
+    return yearbooks.filter((y) =>
+      String(y.year).includes(q) || y.title.toLowerCase().includes(q) || y.body.toLowerCase().includes(q)
+    );
+  }, [yearbooks, search]);
+
+  const [selectedYear, setSelectedYear] = useState<number | null>(filteredYearbooks[0]?.year ?? null);
+
+  const selected = useMemo(() => {
+    const year = selectedYear ?? filteredYearbooks[0]?.year;
+    if (!year) return null;
+    return yearbooks.find((y) => y.year === year) || null;
+  }, [filteredYearbooks, selectedYear, yearbooks]);
+
+  const eventsForYear = useMemo(() => {
+    const year = selected?.year;
+    if (!year) return [];
+    return history
+      .filter((e) => e.year === year)
+      .slice()
+      .sort((a, b) => (b.importance || 0) - (a.importance || 0) || a.kind.localeCompare(b.kind) || a.id.localeCompare(b.id));
+  }, [history, selected]);
+
+  return (
+    <TwoPaneLayout
+      title={<span className="flex items-center gap-2"><ScrollText className="h-4 w-4 text-primary" />Timeline</span>}
+      search={search}
+      setSearch={setSearch}
+      list={
+        <ScrollArea className="h-[60vh] pr-3">
+          <div className="space-y-2">
+            {filteredYearbooks.map((y) => (
+              <button
+                key={y.id}
+                type="button"
+                className={cn(
+                  'w-full rounded-md border p-3 text-left transition-colors hover:bg-accent',
+                  selected?.year === y.year && 'border-primary bg-primary/5'
+                )}
+                onClick={() => setSelectedYear(y.year)}
+              >
+                <div className="font-medium">{y.year}</div>
+                <div className="text-xs text-muted-foreground truncate">{y.title}</div>
+              </button>
+            ))}
+            {filteredYearbooks.length === 0 && (
+              <div className="text-sm text-muted-foreground">No yearbooks yet. Advance time to generate a Year in Review.</div>
+            )}
+          </div>
+        </ScrollArea>
+      }
+      detail={
+        <Card>
+          <CardHeader>
+            <CardTitle className="text-lg">{selected?.title ?? 'Year in Review'}</CardTitle>
+          </CardHeader>
+          <CardContent className="space-y-4">
+            {!selected ? (
+              <div className="text-sm text-muted-foreground">Select a year to view the review.</div>
+            ) : (
+              <>
+                <div className="whitespace-pre-wrap text-sm">{selected.body}</div>
+
+                {eventsForYear.length > 0 && (
+                  <>
+                    <Separator />
+                    <div className="space-y-2">
+                      <div className="text-sm font-medium">Notable Events</div>
+                      <div className="space-y-1">
+                        {eventsForYear.slice(0, 12).map((e) => (
+                          <div key={e.id} className="rounded border p-2 text-sm">
+                            <div className="flex items-start justify-between gap-3">
+                              <div className="font-medium">{e.title}</div>
+                              {typeof e.importance === 'number' && (
+                                <Badge variant="secondary">{e.importance}</Badge>
+                              )}
+                            </div>
+                            <div className="mt-1 text-muted-foreground text-xs capitalize">{e.kind.replaceAll('_', ' ')}</div>
+                            <div className="mt-1 text-sm text-muted-foreground">{e.body}</div>
+                          </div>
+                        ))}
+                        {eventsForYear.length > 12 && (
+                          <div className="text-xs text-muted-foreground">…and {eventsForYear.length - 12} more</div>
+                        )}
+                      </div>
+                    </div>
+                  </>
+                )}
+              </>
+            )}
+          </CardContent>
+        </Card>
+      }
+    />
+  );
+};
+
 // ─── Root ───────────────────────────────────────────────────────────────────────
 
 export const LoreHub: React.FC = () => {
@@ -638,6 +775,10 @@ export const LoreHub: React.FC = () => {
           <User className="mr-1.5 h-4 w-4" />
           Talent
         </TabsTrigger>
+        <TabsTrigger value="timeline">
+          <ScrollText className="mr-1.5 h-4 w-4" />
+          Timeline
+        </TabsTrigger>
         <TabsTrigger value="studios">
           <Building className="mr-1.5 h-4 w-4" />
           Studios
@@ -654,6 +795,10 @@ export const LoreHub: React.FC = () => {
 
       <TabsContent value="talent">
         <TalentEncyclopedia talent={allTalent} />
+      </TabsContent>
+
+      <TabsContent value="timeline">
+        <TimelineEncyclopedia />
       </TabsContent>
 
       <TabsContent value="studios">

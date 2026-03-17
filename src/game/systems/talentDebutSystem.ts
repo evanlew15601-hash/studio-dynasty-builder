@@ -67,49 +67,51 @@ export const TalentDebutSystem: TickSystem = {
 
     let worldHistory = state.worldHistory || [];
 
-    const historyEntries: WorldHistoryEntry[] = [];
+    if (state.mode !== 'online') {
+      const historyEntries: WorldHistoryEntry[] = [];
 
-    for (const t of handcraftedDebuts) {
-      const rep = t.reputation ?? 0;
-      const importance: 1 | 2 | 3 | 4 | 5 = rep >= 95 ? 5 : 4;
-      historyEntries.push({
-        id: `hist:talent_debut:${year}:${t.id}`,
-        kind: 'talent_debut',
-        year,
-        week: 1,
-        title: `${t.name} debuts`,
-        body: `${t.name} entered the industry in ${year}.`,
-        entityIds: { talentIds: [t.id] },
-        importance,
-      });
-    }
+      for (const t of handcraftedDebuts) {
+        const rep = t.reputation ?? 0;
+        const importance: 1 | 2 | 3 | 4 | 5 = rep >= 95 ? 5 : 4;
+        historyEntries.push({
+          id: `hist:talent_debut:${year}:${t.id}`,
+          kind: 'talent_debut',
+          year,
+          week: 1,
+          title: `${t.name} debuts`,
+          body: `${t.name} entered the industry in ${year}.`,
+          entityIds: { talentIds: [t.id] },
+          importance,
+        });
+      }
 
-    // Keep rookies out of history unless they're notable.
-    for (const t of rookieDebuts) {
-      const rep = t.reputation ?? 0;
-      const importance: 1 | 2 | 3 | 4 | 5 | undefined = t.isNotable || rep >= 90 ? 3 : undefined;
-      if (!importance) continue;
+      // Keep rookies out of history unless they're notable.
+      for (const t of rookieDebuts) {
+        const rep = t.reputation ?? 0;
+        const importance: 1 | 2 | 3 | 4 | 5 | undefined = t.isNotable || rep >= 90 ? 3 : undefined;
+        if (!importance) continue;
 
-      historyEntries.push({
-        id: `hist:talent_debut:${year}:${t.id}`,
-        kind: 'talent_debut',
-        year,
-        week: 1,
-        title: `${t.name} debuts`,
-        body: `${t.name} entered the industry in ${year}.`,
-        entityIds: { talentIds: [t.id] },
-        importance,
-      });
-    }
+        historyEntries.push({
+          id: `hist:talent_debut:${year}:${t.id}`,
+          kind: 'talent_debut',
+          year,
+          week: 1,
+          title: `${t.name} debuts`,
+          body: `${t.name} entered the industry in ${year}.`,
+          entityIds: { talentIds: [t.id] },
+          importance,
+        });
+      }
 
-    for (const e of historyEntries) {
-      worldHistory = pushWorldHistory(worldHistory, e);
+      for (const e of historyEntries) {
+        worldHistory = pushWorldHistory(worldHistory, e);
+      }
     }
 
     const next: GameState = {
       ...state,
       talent: updatedTalent,
-      worldHistory,
+      worldHistory: state.mode === 'online' ? state.worldHistory : worldHistory,
     };
 
     return next;

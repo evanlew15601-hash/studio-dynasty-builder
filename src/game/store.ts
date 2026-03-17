@@ -30,7 +30,10 @@ import { TalentLifecycleSystem } from './systems/talentLifecycleSystem';
 import { TalentRetirementSystem } from './systems/talentRetirementSystem';
 import { TalentDebutSystem } from './systems/talentDebutSystem';
 import { WorldYearbookSystem } from './systems/worldYearbookSystem';
+import { WorldMilestonesSystem } from './systems/worldMilestonesSystem';
 import { PlayerLegacySystem } from './systems/playerLegacySystem';
+import { TalentFilmographySystem } from './systems/talentFilmographySystem';
+import { TalentCareerArcSystem } from './systems/talentCareerArcSystem';
 import { AiTelevisionSystem } from './systems/aiTelevisionSystem';
 import { PlayerCircleDramaSystem } from './systems/playerCircleDramaSystem';
 import { MediaEngine } from '@/components/game/MediaEngine';
@@ -161,9 +164,12 @@ export const useGameStore: import('zustand').UseBoundStore<import('zustand').Sto
       r.register(TalentLifecycleSystem);
       r.register(TalentRetirementSystem);
       r.register(WorldYearbookSystem);
+      r.register(WorldMilestonesSystem);
       r.register(TalentDebutSystem);
       r.register(PlayerLegacySystem);
       r.register(AiTelevisionSystem);
+      r.register(TalentFilmographySystem);
+      r.register(TalentCareerArcSystem);
       r.register(PlayerCircleDramaSystem);
       return r;
     })(),
