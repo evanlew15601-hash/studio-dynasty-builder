@@ -5,8 +5,42 @@ function clamp(n: number, min: number, max: number): number {
   return Math.max(min, Math.min(max, n));
 }
 
+function absWeekIndex(week: number, year: number): number {
+  return (year * 52) + week;
+}
+
 function isTvProject(project: Project): boolean {
   return project.type === 'series' || project.type === 'limited-series';
+}
+
+export function getAwardsCampaignTargetTokens(
+  focus: AwardsCampaign['focus'],
+  medium: AwardShowMedium
+): string[] {
+  if (focus === 'acting') {
+    return ['actor', 'actress', 'supporting'];
+  }
+
+  if (focus === 'craft') {
+    return [
+      'cinematography',
+      'editing',
+      'sound',
+      'visual',
+      'effects',
+      'production design',
+      'costume',
+      'makeup',
+      'hairstyl',
+      'score',
+      'song',
+    ];
+  }
+
+  // prestige (default)
+  return medium === 'tv'
+    ? ['best drama series', 'best comedy series', 'best limited series', 'director', 'directing', 'writing']
+    : ['best picture', 'best film', 'picture', 'director', 'directing', 'writing', 'screenplay'];
 }
 
 function isCategoryTargeted(campaign: AwardsCampaign, categoryName: string): boolean {
@@ -80,8 +114,10 @@ export function computeAwardsCampaignBoost(params: {
   project: Project;
   categoryDef: AwardCategoryDefinition;
   medium: AwardShowMedium;
+  week: number;
+  year: number;
 }): number {
-  const { project, categoryDef, medium } = params;
+  const { project, categoryDef, medium, week, year } = params;
 
   const campaign = project.awardsCampaign;
   if (!campaign) return 0;
@@ -94,7 +130,7 @@ export function computeAwardsCampaignBoost(params: {
   if (!Number.isFinite(budget) || budget <= 0) return 0;
 
   const budgetSpent = clamp(campaign.budgetSpent ?? 0, 0, budget);
-  const effectiveSpent = clamp(Math.max(budgetSpent, budget * 0.1), 0, budget);
+  const effectiveSpent = clamp(Math.max(budgetSpent, budget * 0.05), 0, budget);
 
   // Diminishing returns: normalize to a 0..1 signal with a soft cap around $5M.
   const budgetNorm = clamp(
@@ -105,6 +141,16 @@ export function computeAwardsCampaignBoost(params: {
 
   const effectiveness = clamp((campaign.effectiveness ?? 50) / 100, 0, 1);
 
+  // Timing: starting late is heavily penalized (ballots form early).
+  // If startedWeek/Year are missing (legacy saves), infer from duration progress.
+  const inferredActiveWeeks = Math.max(0, (campaign.duration ?? 0) - (campaign.weeksRemaining ?? 0));
+
+  const activeWeeks = (typeof campaign.startedWeek === 'number' && typeof campaign.startedYear === 'number')
+    ? Math.max(0, absWeekIndex(week, year) - absWeekIndex(campaign.startedWeek, campaign.startedYear))
+    : inferredActiveWeeks;
+
+  const timeFactor = clamp(activeWeeks / 4, 0, 1);
+
   const targeted = isCategoryTargeted(campaign, categoryDef.name);
   const targetMultiplier = targeted ? 1 : 0.25;
 
@@ -112,7 +158,7 @@ export function computeAwardsCampaignBoost(params: {
 
   // Max boost is modest; campaigns should help good contenders rather than create them.
   const maxBoost = 12;
-  const boost = maxBoost * budgetNorm * effectiveness * targetMultiplier * voterInterest;
+  const boost = maxBoost * budgetNorm * effectiveness * timeFactor * targetMultiplier * voterInterest;
 
   return clamp(boost, 0, maxBoost);
 }

@@ -1203,6 +1203,9 @@ export interface AwardsEvent {
 
 export interface AwardsCampaign {
   projectId: string;
+  /** Simple strategic focus: affects which categories are considered "targeted". */
+  focus?: 'prestige' | 'acting' | 'craft';
+  /** Substring tokens used to match award categories (e.g., "actor", "director", "cinematography"). */
   targetCategories: string[];
   budget: number;
   budgetSpent: number;

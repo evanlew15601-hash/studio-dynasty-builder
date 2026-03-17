@@ -222,7 +222,13 @@ export function useAwardsEngine(
             talentBonus = repBonus + awardsBonus + fameBonus;
           }
 
-          const campaignBoost = computeAwardsCampaignBoost({ project, categoryDef: category, medium: show.medium });
+          const campaignBoost = computeAwardsCampaignBoost({
+            project,
+            categoryDef: category,
+            medium: show.medium,
+            week: gameState.currentWeek,
+            year: gameState.currentYear,
+          });
 
           const noise = (stableFloat01(`${seedRoot}|${categoryName}|${project.id}|noise`) * 8) - 4;
 
@@ -422,7 +428,16 @@ export function useAwardsEngine(
             const expectedType = categoryDef.talent?.type;
             const expectedGender = categoryDef.talent?.gender;
 
-            if (relevantTalent && (!expectedType || relevantTalent.type === expectedType) && (!expectedGender || relevantTalent.gender === expectedGender)) {
+            const categoryLower = category.toLowerCase();
+            const inferredGender = expectedGender || (
+              categoryLower.includes('actress')
+                ? 'Female'
+                : (categoryLower.includes('actor') && !categoryLower.includes('actress'))
+                  ? 'Male'
+                  : undefined
+            );
+
+            if (relevantTalent && (!expectedType || relevantTalent.type === expectedType) && (!inferredGender || relevantTalent.gender === inferredGender)) {
               talentAward = {
                 id: `talent-award:${show.id}:${gameState.currentYear}:${catKey}:${relevantTalent.id}:${n.project.id}`,
                 talentId: relevantTalent.id,

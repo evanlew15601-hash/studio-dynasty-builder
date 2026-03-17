@@ -58,8 +58,8 @@ describe('computeAwardsCampaignBoost', () => {
       awardKind: 'studio',
     };
 
-    const a = computeAwardsCampaignBoost({ project, categoryDef: targeted, medium: 'film' });
-    const b = computeAwardsCampaignBoost({ project, categoryDef: nonTargeted, medium: 'film' });
+    const a = computeAwardsCampaignBoost({ project, categoryDef: targeted, medium: 'film', week: 4, year: 2026 });
+    const b = computeAwardsCampaignBoost({ project, categoryDef: nonTargeted, medium: 'film', week: 4, year: 2026 });
 
     expect(a).toBeGreaterThan(0);
     expect(b).toBeGreaterThan(0);
@@ -92,7 +92,7 @@ describe('computeAwardsCampaignBoost', () => {
       awardKind: 'studio',
     };
 
-    const boost = computeAwardsCampaignBoost({ project, categoryDef: bestPicture, medium: 'film' });
+    const boost = computeAwardsCampaignBoost({ project, categoryDef: bestPicture, medium: 'film', week: 4, year: 2026 });
 
     expect(boost).toBeLessThan(3);
   });
@@ -117,6 +117,35 @@ describe('computeAwardsCampaignBoost', () => {
       awardKind: 'studio',
     };
 
-    expect(computeAwardsCampaignBoost({ project, categoryDef: category, medium: 'tv' })).toBe(0);
+    expect(computeAwardsCampaignBoost({ project, categoryDef: category, medium: 'tv', week: 4, year: 2026 })).toBe(0);
+  });
+
+  it('heavily penalizes campaigns started too late (no time to influence voters)', () => {
+    const project = makeProject({
+      awardsCampaign: {
+        projectId: 'p1',
+        targetCategories: ['Best Picture'],
+        budget: 3_000_000,
+        budgetSpent: 0,
+        duration: 8,
+        weeksRemaining: 8,
+        effectiveness: 100,
+        startedWeek: 4,
+        startedYear: 2026,
+        activities: [],
+      } as any,
+    });
+
+    const category: AwardCategoryDefinition = {
+      id: 'c1',
+      name: 'Best Picture',
+      awardKind: 'studio',
+    };
+
+    // Nominations happening the same week as campaign start → 0 boost.
+    expect(computeAwardsCampaignBoost({ project, categoryDef: category, medium: 'film', week: 4, year: 2026 })).toBe(0);
+
+    // After a few weeks of runway → should provide some boost.
+    expect(computeAwardsCampaignBoost({ project, categoryDef: category, medium: 'film', week: 8, year: 2026 })).toBeGreaterThan(0);
   });
 });
