@@ -39,7 +39,7 @@ export const TalentDebutSystem: TickSystem = {
             .length;
 
           const baselineActors = activeCount < 240 ? 8 : activeCount <= 300 ? 4 : activeCount <= 320 ? 1 : 0;
-          const baselineDirectors = activeCount < 240 ? 2 : activeCount <= 320 ? 1 : 0;
+          const baselineDirectors = activeCount < 240 ? 2 : activeCount <= 300 ? 1 : activeCount <= 320 ? 0 : 0;
 
           // When the roster is overcrowded, not every retirement is fully replaced.
           // This is a “fewer rookies get signed” pressure valve that helps converge back to the 240–320 band.
