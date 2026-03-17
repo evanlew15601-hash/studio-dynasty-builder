@@ -223,19 +223,19 @@ export interface TalentPerson {
 ## 5) Engine systems (incremental, additive)
 
 ### 5.0 Balance targets (so systems converge instead of drift)
-These systems need a few explicit targets so the simulation stays stable over decades.
+These systems need explicit targets so the simulation stays stable over decades without feeling “scheduled.”
 
-Recommended starting targets (single-player):
+Chosen targets (single-player):
 
-- **Active roster band**: keep non-retired talent in roughly a 200–320 range.
-  - below band: reduce forced retirements and keep baseline debuts
-  - above band: increase retirement quota and/or reduce baseline debuts
-- **Annual churn**: aim for ~3–8% of the active roster to exit per year.
+- **Active roster band**: keep non-retired talent roughly in the **240–320** range.
+  - below band: reduce retirement odds and keep baseline debuts
+  - above band: increase retirement odds and/or reduce baseline debuts
+- **Annual churn**: aim for ~**4–7%** of the active roster to exit per year.
   - this creates generational turnover without erasing the world too fast
-- **Role mix** (if you only generate actors/directors today):
-  - ensure retirements and rookie generation are computed per role so you don’t accidentally end up with “too many directors” after 30 years
+- **Role mix**: compute retirements and rookie generation **per role** (at minimum actor vs director)
+  - prevents long-run drift into “too many directors” or “no directors”
 
-These are tuning knobs, not hard rules. The key is: the model should have a tendency to return to a stable range.
+These are tuning targets, not strict quotas. The key is: the model should naturally return toward a stable range.
 
 ### 5.1 Step A — Talent lifecycle (annual, deterministic)
 
@@ -352,18 +352,23 @@ Example (tunable) per talent per year:
   - burnout level (`burnoutLevel`): +0–6%
   - reputation/legend status: -0–6%
 
-#### Roster-size coupling (recommended)
-Pure per-talent probabilities can produce streaky years (0 retirements, then 12 retirements) and can drift roster size over long runs.
+#### Roster-size coupling (chosen)
+Pure per-talent probabilities can drift roster size over long runs, and can produce streaky years.
 
-A more robust (still deterministic) approach is quota-based selection:
+We keep retirements probabilistic (natural-feeling), but couple the probability to roster pressure:
 
-1. compute a `retirementScore` per eligible talent (age, burnout, inactivity, low reputation)
-2. decide a desired retirement count per role based on:
-   - a soft roster cap target (e.g. keep active cast in a 200–320 band)
-   - a baseline “refresh” count even if under cap
-3. deterministically retire the top K scores above a threshold, using `stableInt` only as a tie-break
+- compute `activeCount` (non-retired actors/directors)
+- define a target band: **240–320**
+- compute a pressure multiplier `m` (clamped), e.g.
+  - below band: `m` in `[0.7, 1.0]`
+  - within band: `m = 1.0`
+  - above band: `m` in `[1.0, 1.4]`
 
-This produces stable long-run behavior and makes replacement-aware debuts easier to tune.
+Then:
+
+- `finalChance = baseChance(age, role) * modifiers(burnout, reputation, inactivity) * m`
+
+This keeps retirements organic while still self-correcting.
 
 Determinism implementation guideline:
 
@@ -822,81 +827,60 @@ To keep long-run stability without quotas, we’ll couple probability to roster 
 
 That keeps the system flowing without turning it into a strict “retire K people per year” scheduler.
 
-### 12.2 Roster band / churn targets (needs confirmation)
+### 12.2 Roster band / churn targets (chosen)
 These targets exist for two reasons:
 
 - **legibility**: how many talent can the UI present without becoming noise
 - **save/perf stability**: how big the state gets after 50–100 years
 
-Two knobs:
+Chosen targets (single-player):
 
-1) **Active roster band** (non-retired talent kept in a range)
-- smaller band = easier browsing, stronger attachment, less save growth
-- larger band = more variety, but more noise and more churn pressure needed
+- active roster band: **240–320** non-retired (primarily actors/directors for now)
+- annual churn: **~4–7%** exits per year
 
-2) **Annual churn** (fraction of the roster that exits per year)
-- too low = no generational turnover; stars become immortal
-- too high = the world feels unstable and attachment breaks
+Why these values fit this genre:
 
-Proposed starting point (single-player):
+- below ~200 active talent, the world starts to feel like a small troupe and eras don’t form
+- above ~350, the hiring/casting UI becomes noise and attachment collapses
+- 4–7% churn gives “new faces every year” without making stars disappear unrealistically fast
 
-- active roster band: **200–320**
-- annual churn: **3–8%** of active roster
+Implementation note: with probabilistic retirements, churn is an outcome, not a guarantee. We hit these targets by adjusting the roster-pressure multiplier `m`.
 
-Implementation note: with probabilistic retirements, churn is a tuning outcome, not a hard guarantee.
-
-### 12.3 CareerEvent schema extension (recommended)
-Current `CareerEvent` fields are:
-
-- `week`, `year`, `type`, `description`, `impactOnReputation`, `impactOnMarketValue`
-
-Problem: without a stable source pointer, we can only “best-effort” dedupe career events.
-
-Recommended additive field:
+### 12.3 CareerEvent schema extension (chosen)
+We should add one optional field to `CareerEvent`:
 
 - `sourceProjectId?: string`
 
-Benefits:
+Why this is the best tradeoff for this game:
 
-- perfect idempotence (no duplicate “breakthrough after X”)
-- enables UI filtering (“show events tied to this film”)
-- minimal migration risk (optional field)
+- career arcs must feel canonical; duplicate “breakthrough after X” events break trust
+- it enables perfect idempotence without maintaining a separate processing ledger
+- it improves UI (“events tied to this film”) essentially for free
 
-If you’d rather not touch types yet, v1 can dedupe by scanning for the same `(type, year, week, description)` but it’s more fragile.
+This is additive and low-risk (optional field + migration default).
 
-### 12.4 Which talent types participate (needs confirmation)
-`TalentPerson.type` includes more than actors/directors. Today, debuts are primarily actor/director.
+### 12.4 Which talent types participate (chosen)
+Chosen v1 policy:
 
-Options:
+- **Lifecycle**: ages everyone (`TalentPerson.age += 1`), because biographies shouldn’t freeze.
+- **Retirement + replacement-aware debuts**: only for **actors and directors** initially.
 
-- **A) Lifecycle ages everyone; retirement only applies to actor/director** (safe; avoids draining other pools without replacements)
-- **B) Lifecycle + retirement applies to all talent types** (consistent; but we should ensure those types are actually present and/or have replacement rules)
+Why:
 
-Recommended v1: **A**.
+- those roles currently anchor the player-facing career narrative and the debut pipeline
+- other talent types (writer/producer/etc) should only get retirement once we confirm how they enter the world and what replacement looks like
 
-Rationale:
+### 12.5 History pruning policy (chosen)
+Chosen policy:
 
-- actors/directors are the visible “career narrative” layer today
-- we avoid accidentally retiring writers/producers if they aren’t meaningfully generated/replaced yet
+- `worldYearbooks`: never pruned (1/year)
+- `worldHistory`: keep the **last 250 entries**, and always keep `importance === 5` even if it exceeds the window
 
-We can expand to other roles once we confirm how they enter the world.
+Why:
 
-### 12.5 History pruning policy (needs confirmation)
-We’re intentionally splitting:
-
-- `worldYearbooks` (1/year; never pruned)
-- `worldHistory` (texture events; must be bounded)
-
-Two reasonable policies for `worldHistory`:
-
-- **importance gate:** keep only `importance >= 4`
-  - best for high signal, but early years may feel empty
-- **fixed window:** keep last N entries (e.g. 250)
-  - always shows recent drama; bounded save growth
-
-Recommended v1: **fixed window: last 250**, with an optional refinement:
-
-- always keep `importance === 5` even if it exceeds the window
+- a “recent memory” window feels natural (people remember the last decade)
+- bounded save growth
+- importance 5 protects truly defining events from disappearing
 
 ## 13) Online League note
 
