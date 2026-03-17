@@ -7,6 +7,7 @@ import { AwardShowCeremony } from '@/components/game/IndividualAwardShowModal';
 import { hashStringToUint32 } from '@/utils/stablePick';
 import { findRelevantTalentForAwardCategory } from '@/utils/awardsTalent';
 import { stableFloat01 } from '@/utils/stableRandom';
+import { computeAwardsCampaignBoost } from '@/utils/awardsCampaign';
 import { MediaEngine } from '@/components/game/MediaEngine';
 import { logDebug } from '@/utils/logger';
 
@@ -104,14 +105,6 @@ export function useAwardsEngine(
 
       if (share >= 15) probability += 6;
       else if (share >= 8) probability += 3;
-    }
-
-    // Awards campaign boost (player projects only; shared by film/TV)
-    const campaign = project.awardsCampaign;
-    if (campaign) {
-      const budgetBoost = Math.min(12, campaign.budget / 250_000);
-      const effectivenessBoost = (campaign.effectiveness || 0) * 0.1;
-      probability += budgetBoost * 0.6 + effectivenessBoost * 0.4;
     }
 
     return Math.min(100, Math.max(0, probability));
@@ -229,9 +222,11 @@ export function useAwardsEngine(
             talentBonus = repBonus + awardsBonus + fameBonus;
           }
 
+          const campaignBoost = computeAwardsCampaignBoost({ project, categoryDef: category, medium: show.medium });
+
           const noise = (stableFloat01(`${seedRoot}|${categoryName}|${project.id}|noise`) * 8) - 4;
 
-          const score = Math.min(100, base + momentum + categoryBias + talentBonus + noise);
+          const score = Math.min(100, base + momentum + categoryBias + talentBonus + campaignBoost + noise);
           return { project, score, talentId: categoryTalentId };
         })
         .filter(({ score }) => score > 10) // Filter out clearly ineligible

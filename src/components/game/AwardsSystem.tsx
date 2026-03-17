@@ -16,6 +16,7 @@ import {
   DollarIcon
 } from '@/components/ui/icons';
 import { getAwardShowsForYear } from '@/data/AwardsSchedule';
+import { computeAwardsCampaignBoost } from '@/utils/awardsCampaign';
 
 interface AwardsSystemProps {
   onNavigatePhase?: (phase: 'media' | 'distribution') => void;
@@ -31,6 +32,7 @@ export const AwardsSystem: React.FC<AwardsSystemProps> = ({
   const updateStudio = useGameStore((s) => s.updateStudio);
   const addStudioAwards = useGameStore((s) => s.addStudioAwards);
   const updateBudget = useGameStore((s) => s.updateBudget);
+  const spendStudioFunds = useGameStore((s) => s.spendStudioFunds);
   const { toast } = useToast();
   const [showAwardsModal, setShowAwardsModal] = useState(false);
   const [currentCeremony, setCurrentCeremony] = useState<string>('');
@@ -150,12 +152,16 @@ export const AwardsSystem: React.FC<AwardsSystemProps> = ({
       else if (share >= 8) probability += 3;
     }
 
-    // Awards campaign boost (for player projects only)
+    // Awards campaign boost (for player projects only; estimate only)
     const campaign = project.awardsCampaign as AwardsCampaign | undefined;
     if (campaign) {
-      const budgetBoost = Math.min(12, campaign.budget / 250_000);
-      const effectivenessBoost = (campaign.effectiveness || 0) * 0.1;
-      probability += budgetBoost * 0.6 + effectivenessBoost * 0.4;
+      const proxyCategory = {
+        id: 'proxy',
+        name: medium === 'tv' ? 'Best Drama Series' : 'Best Picture',
+        awardKind: 'studio',
+      } as any;
+
+      probability += computeAwardsCampaignBoost({ project, categoryDef: proxyCategory, medium }) * 2;
     }
 
     return Math.min(100, Math.max(0, probability));
@@ -174,7 +180,8 @@ export const AwardsSystem: React.FC<AwardsSystemProps> = ({
       return;
     }
 
-    if (budget > gameState.studio.budget) {
+    const spend = spendStudioFunds(budget);
+    if (!spend.success) {
       toast({
         title: "Insufficient Budget",
         description: "Not enough studio budget for awards campaign.",
@@ -186,8 +193,29 @@ export const AwardsSystem: React.FC<AwardsSystemProps> = ({
     const baseEffectiveness = 60 + Math.min(20, Math.floor(budget / 500_000) * 5);
 
     const targetCategories = isTvProject(project)
-      ? ['Best Drama Series', 'Best Actor - Drama Series', 'Best Directing']
-      : ['Best Picture', 'Best Director', 'Best Actor'];
+      ? [
+          'Best Drama Series',
+          'Best Comedy Series',
+          'Best Limited Series',
+          'Best Directing',
+          'Best Writing',
+          'Best Actor',
+          'Best Actress',
+          'Best Supporting Actor',
+          'Best Supporting Actress',
+        ]
+      : [
+          'Best Picture',
+          'Best Film',
+          'Best Director',
+          'Best Actor',
+          'Best Actress',
+          'Best Supporting Actor',
+          'Best Supporting Actress',
+          'Best Screenplay',
+          'Best Original Screenplay',
+          'Best Adapted Screenplay',
+        ];
 
     const campaign: AwardsCampaign = {
       projectId: project.id,
@@ -197,6 +225,8 @@ export const AwardsSystem: React.FC<AwardsSystemProps> = ({
       duration: 8, // 8 week campaign (tracked abstractly for now)
       weeksRemaining: 8,
       effectiveness: Math.min(100, baseEffectiveness),
+      startedWeek: gameState.currentWeek,
+      startedYear: gameState.currentYear,
       activities: [
         {
           type: 'screenings',
@@ -228,12 +258,71 @@ export const AwardsSystem: React.FC<AwardsSystemProps> = ({
       awardsCampaign: campaign
     });
 
-    // Deduct budget
-    updateBudget(-budget);
+    // Budget already deducted via spendStudioFunds
 
     toast({
       title: "Awards Campaign Started!",
       description: `${budget.toLocaleString()} campaign launched for "${project.title}". This will boost its awards chances this season.`,
+    });
+  };
+
+  const boostAwardsCampaign = (project: Project, amount: number) => {
+    const isPlayerProject = gameState.projects.some(p => p.id === project.id);
+    if (!isPlayerProject) {
+      toast({
+        title: "Not Allowed",
+        description: "You can only boost awards campaigns for your own projects.",
+        variant: "destructive"
+      });
+      return;
+    }
+
+    const campaign = project.awardsCampaign as AwardsCampaign | undefined;
+    if (!campaign || (campaign.weeksRemaining ?? 0) <= 0) {
+      toast({
+        title: "Campaign Inactive",
+        description: "This project does not have an active awards campaign.",
+        variant: "destructive"
+      });
+      return;
+    }
+
+    const spend = spendStudioFunds(amount);
+    if (!spend.success) {
+      toast({
+        title: "Insufficient Budget",
+        description: "Not enough studio budget to boost the campaign.",
+        variant: "destructive"
+      });
+      return;
+    }
+
+    const effectivenessBoost = Math.min(6, Math.max(1, Math.round(amount / 250_000)));
+
+    const nextCampaign: AwardsCampaign = {
+      ...campaign,
+      budget: (campaign.budget ?? 0) + amount,
+      effectiveness: Math.min(100, (campaign.effectiveness ?? 0) + effectivenessBoost),
+      activities: [
+        ...(campaign.activities || []),
+        {
+          type: 'advertising',
+          name: 'For Your Consideration Push',
+          cost: amount,
+          effectivenessBoost,
+          prestigeBoost: 0,
+        },
+      ],
+    };
+
+    replaceProject({
+      ...project,
+      awardsCampaign: nextCampaign,
+    });
+
+    toast({
+      title: "Campaign Boosted",
+      description: `Added ${amount.toLocaleString()} to "${project.title}" awards push.`,
     });
   };
 
@@ -620,7 +709,8 @@ export const AwardsSystem: React.FC<AwardsSystemProps> = ({
                         Awards Campaign Active
                       </Badge>
                       <span>
-                        Budget ${campaign.budget.toLocaleString()} • Effectiveness {Math.round(campaign.effectiveness).toString()}%
+                        Budget ${campaign.budget.toLocaleString()} • Spent ${Math.round(campaign.budgetSpent || 0).toLocaleString()} •
+                        Weeks left {campaign.weeksRemaining} • Effectiveness {Math.round(campaign.effectiveness).toString()}%
                       </span>
                     </div>
                   </div>
@@ -628,38 +718,69 @@ export const AwardsSystem: React.FC<AwardsSystemProps> = ({
 
                 {(isTvProject(project) ? tvCampaignWindowOpen : filmCampaignWindowOpen) && player && (
                   <div className="flex flex-col gap-2">
-                    <div className="flex flex-wrap gap-2">
-                      <Button
-                        size="sm"
-                        onClick={() => startAwardsCampaign(project, 500000)}
-                        variant="outline"
-                        disabled={!!campaign}
-                      >
-                        <DollarIcon className="mr-1" size={14} />
-                        Basic Campaign ($500K)
-                      </Button>
-                      <Button
-                        size="sm"
-                        onClick={() => startAwardsCampaign(project, 1500000)}
-                        variant="outline"
-                        disabled={!!campaign}
-                      >
-                        <DollarIcon className="mr-1" size={14} />
-                        Premium Campaign ($1.5M)
-                      </Button>
-                      <Button
-                        size="sm"
-                        onClick={() => startAwardsCampaign(project, 3000000)}
-                        variant="outline"
-                        disabled={!!campaign}
-                      >
-                        <DollarIcon className="mr-1" size={14} />
-                        Prestige Campaign ($3M)
-                      </Button>
-                    </div>
-                    {campaign && (
+                    {!campaign && (
+                      <>
+                        <div className="flex flex-wrap gap-2">
+                          <Button
+                            size="sm"
+                            onClick={() => startAwardsCampaign(project, 500000)}
+                            variant="outline"
+                          >
+                            <DollarIcon className="mr-1" size={14} />
+                            Basic Campaign ($500K)
+                          </Button>
+                          <Button
+                            size="sm"
+                            onClick={() => startAwardsCampaign(project, 1500000)}
+                            variant="outline"
+                          >
+                            <DollarIcon className="mr-1" size={14} />
+                            Premium Campaign ($1.5M)
+                          </Button>
+                          <Button
+                            size="sm"
+                            onClick={() => startAwardsCampaign(project, 3000000)}
+                            variant="outline"
+                          >
+                            <DollarIcon className="mr-1" size={14} />
+                            Prestige Campaign ($3M)
+                          </Button>
+                        </div>
+                        <div className="text-xs text-muted-foreground">
+                          Campaigns have diminishing returns and mainly help projects voters already care about (critics/quality + prestige fit).
+                        </div>
+                      </>
+                    )}
+
+                    {campaign && (campaign.weeksRemaining ?? 0) > 0 && (
+                      <>
+                        <div className="flex flex-wrap gap-2">
+                          <Button
+                            size="sm"
+                            onClick={() => boostAwardsCampaign(project, 250000)}
+                            variant="outline"
+                          >
+                            <DollarIcon className="mr-1" size={14} />
+                            Add Push ($250K)
+                          </Button>
+                          <Button
+                            size="sm"
+                            onClick={() => boostAwardsCampaign(project, 1000000)}
+                            variant="outline"
+                          >
+                            <DollarIcon className="mr-1" size={14} />
+                            Add Push ($1M)
+                          </Button>
+                        </div>
+                        <div className="text-xs text-muted-foreground">
+                          Additional spend helps most when the project is already a plausible contender.
+                        </div>
+                      </>
+                    )}
+
+                    {campaign && (campaign.weeksRemaining ?? 0) <= 0 && (
                       <div className="text-xs text-muted-foreground">
-                        A campaign is already running for this project this season.
+                        This campaign has ended.
                       </div>
                     )}
                   </div>

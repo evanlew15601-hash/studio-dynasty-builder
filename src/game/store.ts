@@ -45,6 +45,7 @@ import { IndustryGossipSystem } from './systems/industryGossipSystem';
 import { AiTelevisionSystem } from './systems/aiTelevisionSystem';
 import { PlayerCircleDramaSystem } from './systems/playerCircleDramaSystem';
 import { StudioGovernanceSystem } from './systems/studioGovernanceSystem';
+import { AwardsCampaignSystem } from './systems/awardsCampaignSystem';
 import { MediaEngine } from '@/components/game/MediaEngine';
 import { getPlayerCircleDramaMediaTemplate } from './systems/playerCircleDramaModding';
 
@@ -174,6 +175,7 @@ export const useGameStore: import('zustand').UseBoundStore<import('zustand').Sto
       r.register(TalentBurnoutSystem);
       r.register(TalentRetirementSystem);
       r.register(StudioGovernanceSystem);
+      r.register(AwardsCampaignSystem);
       r.register(WorldMilestonesSystem);
       r.register(WorldErasSystem);
       r.register(GenreTrendsSystem);

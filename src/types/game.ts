@@ -1209,6 +1209,8 @@ export interface AwardsCampaign {
   duration: number; // weeks
   weeksRemaining: number;
   effectiveness: number; // 0-100
+  startedWeek?: number;
+  startedYear?: number;
   activities: AwardsCampaignActivity[];
 }
 
