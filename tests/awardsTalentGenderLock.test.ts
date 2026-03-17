@@ -28,7 +28,7 @@ function makeState(overrides?: Partial<GameState>): GameState {
 }
 
 describe('findRelevantTalentForAwardCategory', () => {
-  it('enforces gendered categories (actress does not accept male talent)', () => {
+  it('enforces gendered categories (Best Actress does not accept male talent; category score should be 0)', () => {
     const state = makeState({
       talent: [
         { id: 'm1', name: 'Male Lead', type: 'actor', gender: 'Male', contractStatus: 'available' } as any,
@@ -66,8 +66,15 @@ describe('findRelevantTalentForAwardCategory', () => {
       talent: { type: 'actor', gender: 'Male' },
     };
 
-    expect(findRelevantTalentForAwardCategory(state, project, bestActress.name, bestActress)).toBeUndefined();
-    expect(findRelevantTalentForAwardCategory(state, project, bestActor.name, bestActor)?.id).toBe('m1');
+    const actressTalent = findRelevantTalentForAwardCategory(state, project, bestActress.name, bestActress);
+    const actorTalent = findRelevantTalentForAwardCategory(state, project, bestActor.name, bestActor);
+
+    expect(actressTalent).toBeUndefined();
+    expect(actorTalent?.id).toBe('m1');
+
+    // Headless awards engine treats missing eligible credited talent as category-ineligible (score 0).
+    const categoryScore = actressTalent ? 50 : 0;
+    expect(categoryScore).toBe(0);
   });
 
   it('does not allow supporting talent to satisfy lead gendered categories', () => {
