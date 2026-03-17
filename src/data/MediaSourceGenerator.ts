@@ -2,6 +2,7 @@ import type { Genre, MediaSource } from '@/types/game';
 import type { ModBundle } from '@/types/modding';
 import { applyPatchesByKey, getPatchesForEntity } from '@/utils/modding';
 import { getModBundle } from '@/utils/moddingStore';
+import { stablePick } from '@/utils/stablePick';
 
 export class MediaSourceGenerator {
   private static sources: MediaSource[] = [];
@@ -196,17 +197,23 @@ export class MediaSourceGenerator {
     return this.generateMediaSources(mods).filter((source) => source.credibility >= minCredibility);
   }
 
-  static getRandomSource(mods?: ModBundle): MediaSource {
+  static getRandomSource(mods?: ModBundle, seed?: string): MediaSource {
     const sources = this.generateMediaSources(mods);
+
+    if (seed) {
+      return stablePick(sources, seed) || sources[0];
+    }
+
     return sources[Math.floor(Math.random() * sources.length)];
   }
 
-  static getSourceForEvent(eventType: string, preferHighCredibility = false, mods?: ModBundle): MediaSource {
+  static getSourceForEvent(eventType: string, preferHighCredibility = false, mods?: ModBundle, seed?: string): MediaSource {
     const sources = this.generateMediaSources(mods);
 
     if (preferHighCredibility) {
       const credibleSources = sources.filter((s) => s.credibility >= 80);
       if (credibleSources.length) {
+        if (seed) return stablePick(credibleSources, `${seed}|credible`) || credibleSources[0];
         return credibleSources[Math.floor(Math.random() * credibleSources.length)];
       }
     }
@@ -216,6 +223,7 @@ export class MediaSourceGenerator {
       case 'rumor': {
         const gossipSources = sources.filter((s) => s.credibility < 70);
         if (gossipSources.length) {
+          if (seed) return stablePick(gossipSources, `${seed}|gossip`) || gossipSources[0];
           return gossipSources[Math.floor(Math.random() * gossipSources.length)];
         }
         break;
@@ -225,6 +233,7 @@ export class MediaSourceGenerator {
       case 'box_office': {
         const tradeSources = sources.filter((s) => s.type === 'trade_publication');
         if (tradeSources.length) {
+          if (seed) return stablePick(tradeSources, `${seed}|trade`) || tradeSources[0];
           return tradeSources[Math.floor(Math.random() * tradeSources.length)];
         }
         break;
@@ -233,12 +242,13 @@ export class MediaSourceGenerator {
       case 'interview': {
         const entertainmentSources = sources.filter((s) => s.type === 'magazine' || s.type === 'blog');
         if (entertainmentSources.length) {
+          if (seed) return stablePick(entertainmentSources, `${seed}|entertainment`) || entertainmentSources[0];
           return entertainmentSources[Math.floor(Math.random() * entertainmentSources.length)];
         }
         break;
       }
     }
 
-    return this.getRandomSource(mods);
+    return this.getRandomSource(mods, seed ? `${seed}|fallback` : undefined);
   }
 }

@@ -75,6 +75,8 @@ import type { TickRecapCard, TickReport, TickSystemReport } from '@/types/tickRe
 import { createTickReport } from '@/utils/tickReport';
 import { WeekRecapModal } from './WeekRecapModal';
 import { GameEventModal } from './GameEventModal';
+import { InboxDialog } from './InboxDialog';
+import { NextActionsBar } from './NextActionsBar';
 import { EnhancedFinancialAccuracy, applyEnhancedFinancialAccuracy } from './EnhancedFinancialAccuracy';
 import { EnhancedFranchiseSystem } from './EnhancedFranchiseSystem';
 import { FranchiseManager } from './FranchiseManager';
@@ -623,6 +625,7 @@ export const StudioMagnateGame: React.FC<StudioMagnateGameProps> = ({
 
     const next = isOnlineMode ? seeded : primeCompetitorTelevision(seeded);
 
+    MediaEngine.cleanup();
     loadGameToStore(next, next.rngState ?? next.universeSeed);
   }, [storeGameState, initialGameState, loadGameToStore, isOnlineMode]);
 
@@ -952,6 +955,7 @@ export const StudioMagnateGame: React.FC<StudioMagnateGameProps> = ({
       if (cancelled) return;
 
       updateOperation(LOADING_OPERATIONS.GAME_INIT.id, 100, 'Finalizing...');
+      MediaEngine.cleanup();
       initGame(initialState, initialState.universeSeed);
 
       setTimeout(() => {
@@ -1021,6 +1025,7 @@ export const StudioMagnateGame: React.FC<StudioMagnateGameProps> = ({
   const [filmReleaseProject, setFilmReleaseProject] = useState<Project | null>(null);
   const [saveDialogOpen, setSaveDialogOpen] = useState(false);
   const [settingsDialogOpen, setSettingsDialogOpen] = useState(false);
+  const [inboxOpen, setInboxOpen] = useState(false);
 
   // Post-tick persistence (strict single-button progression contract):
   // Any persistence that should happen "because a week advanced" is scheduled by the tick
@@ -1371,7 +1376,7 @@ export const StudioMagnateGame: React.FC<StudioMagnateGameProps> = ({
   };
 
   // Always run awards engine in the background (independent of UI phase)
-  useAwardsEngine(gameState, handleStudioUpdate, handleTalentUpdate, handleAwardShow);
+  useAwardsEngine(gameState, handleStudioUpdate, handleTalentUpdate, handleAwardShow, mergeGameState);
 
   
 
@@ -3535,6 +3540,13 @@ export const StudioMagnateGame: React.FC<StudioMagnateGameProps> = ({
         onOpenChange={setShowWeekRecap}
         report={lastTickReport}
       />
+      <InboxDialog
+        open={inboxOpen}
+        onOpenChange={setInboxOpen}
+        gameState={gameState}
+        isOnlineMode={isOnlineMode}
+        leagueId={onlineTickGate.leagueId}
+      />
       <SaveLoadDialog
         open={saveDialogOpen}
         onOpenChange={setSaveDialogOpen}
@@ -3701,6 +3713,15 @@ export const StudioMagnateGame: React.FC<StudioMagnateGameProps> = ({
           </div>
         </div>
       </div>
+
+      <NextActionsBar
+        gameState={gameState}
+        onNavigate={(phase, projectId) => {
+          handlePhaseChange(phase);
+          if (projectId) setSelectedProjectId(projectId);
+        }}
+        onOpenInbox={() => setInboxOpen(true)}
+      />
 
       {/* Debug Tools (development only) */}
       {import.meta.env.DEV && (

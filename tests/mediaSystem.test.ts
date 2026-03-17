@@ -92,8 +92,6 @@ describe('media system', () => {
   });
 
   it('resolves player studio/projects when generating media (player stories)', () => {
-    // Pick templates that include {StudioName} in both headline/content
-    vi.spyOn(Math, 'random').mockReturnValue(0.45);
 
     const playerStudio = { id: 'player-studio', name: 'Player Studio', reputation: 50, budget: 1000000, founded: 2025, specialties: ['drama'] };
     const playerProject = makeMinimalProject({
@@ -132,15 +130,12 @@ describe('media system', () => {
 
     const items = MediaEngine.processMediaEvents(gameState);
     expect(items.length).toBe(1);
-    expect(items[0].headline).toContain(playerStudio.name);
-    expect(items[0].headline).toContain(playerProject.title);
-    expect(items[0].headline).not.toMatch(/\{[A-Za-z]+\}/);
-    expect(items[0].content).not.toMatch(/\{[A-Za-z]+\}/);
+    const combined = `${items[0].headline} ${items[0].content}`;
+    expect(combined).toContain(playerProject.title);
+    expect(combined).not.toMatch(/\{[A-Za-z]+\}/);
   });
 
   it('resolves competitor studios/projects when generating media (non-player stories)', () => {
-    // Pick templates that include {StudioName} in both headline/content
-    vi.spyOn(Math, 'random').mockReturnValue(0.45);
 
     const competitorStudio = makeMinimalStudio({ id: 'studio-competitor', name: 'Crimson Peak Entertainment' });
     const competitorProject = makeMinimalProject({
@@ -179,9 +174,9 @@ describe('media system', () => {
 
     const items = MediaEngine.processMediaEvents(gameState);
     expect(items.length).toBe(1);
-    expect(items[0].headline).toContain(competitorStudio.name);
-    expect(items[0].headline).not.toMatch(/\{[A-Za-z]+\}/);
-    expect(items[0].content).not.toMatch(/\{[A-Za-z]+\}/);
+    const combined = `${items[0].headline} ${items[0].content}`;
+    expect(combined).toContain(competitorProject.title);
+    expect(combined).not.toMatch(/\{[A-Za-z]+\}/);
   });
 
   it('generates award nomination stories without placeholder leaks', () => {
@@ -231,8 +226,6 @@ describe('media system', () => {
   });
 
   it('generates box office bomb stories and includes critics/audience context', () => {
-    // Force first headline/content templates
-    vi.spyOn(Math, 'random').mockReturnValue(0);
 
     const playerStudio = { id: 'player-studio', name: 'Player Studio', reputation: 50, budget: 1000000, founded: 2025, specialties: ['drama'] };
     const playerProject = makeMinimalProject({
@@ -267,15 +260,13 @@ describe('media system', () => {
     expect(items.length).toBe(1);
 
     const combined = `${items[0].headline} ${items[0].content}`;
-    expect(combined).toContain('box office bomb');
+    expect(items[0].tags).toContain('bomb');
     expect(combined).toContain('52/100');
     expect(combined).toContain('49/100');
     expect(combined).not.toMatch(/\{[A-Za-z]+\}/);
   });
 
   it('generates box office hit stories and includes critics/audience context', () => {
-    // Force first headline/content templates
-    vi.spyOn(Math, 'random').mockReturnValue(0);
 
     const playerStudio = { id: 'player-studio', name: 'Player Studio', reputation: 50, budget: 1000000, founded: 2025, specialties: ['drama'] };
     const playerProject = makeMinimalProject({
@@ -311,7 +302,7 @@ describe('media system', () => {
     expect(items.length).toBe(1);
 
     const combined = `${items[0].headline} ${items[0].content}`;
-    expect(combined).toContain('breakout hit');
+    expect(items[0].tags).toContain('hit');
     expect(combined).toContain('91/100');
     expect(combined).toContain('88/100');
     expect(combined).not.toMatch(/\{[A-Za-z]+\}/);

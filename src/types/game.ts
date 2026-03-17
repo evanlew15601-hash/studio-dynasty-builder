@@ -874,6 +874,19 @@ export interface StudioGovernance {
   lastUpdatedWeekIndex?: number;
 }
 
+export interface AwardsSeasonState {
+  year: number;
+  processedCeremonies: string[];
+  seasonMomentum: Record<string, number>;
+  seasonNominations: Record<
+    string,
+    {
+      year: number;
+      categories: Record<string, Array<{ projectId: string; score: number }>>;
+    }
+  >;
+}
+
 export interface GameState {
   /** Stable seed for worldbuilding (used to derive deterministic per-save procedural content). */
   universeSeed?: number;
@@ -884,6 +897,8 @@ export interface GameState {
   studio: Studio;
   /** Studio governance + constraint model (optional for backwards-compatible saves). */
   governance?: StudioGovernance;
+  /** Persisted awards-season processing state (prevents double-awarding after reload). */
+  awardsSeason?: AwardsSeasonState;
   currentYear: number;
   currentWeek: number;
   currentQuarter: number;
