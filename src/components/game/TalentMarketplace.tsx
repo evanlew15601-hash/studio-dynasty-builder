@@ -1,5 +1,5 @@
 // Enhanced Talent Market with AI Studio Integration
-import React, { useEffect, useState } from 'react';
+import React, { useEffect, useMemo, useState } from 'react';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
@@ -15,7 +15,7 @@ import {
 } from '@/components/ui/alert-dialog';
 import { Switch } from '@/components/ui/switch';
 import { AIStudioManager, TalentCommitment } from './AIStudioManager';
-import { TalentPerson } from '@/types/game';
+import type { TalentPerson } from '@/types/game';
 import { Calendar, Star, User } from 'lucide-react';
 import { useUiStore } from '@/game/uiStore';
 import { isDebugUiEnabled } from '@/utils/debugFlags';
@@ -27,43 +27,24 @@ interface TalentMarketplaceProps {
   onCastTalent?: (talentId: string, role: string) => void;
 }
 
+type TalentFilter = 'all' | 'director' | 'actor' | 'actress' | 'writer' | 'producer';
+
 export const TalentMarketplace: React.FC<TalentMarketplaceProps> = ({
   talent,
   currentWeek,
   currentYear,
-  onCastTalent
+  onCastTalent,
 }) => {
   const openTalentProfile = useUiStore((s) => s.openTalentProfile);
   const [showAvailableOnly, setShowAvailableOnly] = useState(false);
-  const [selectedRole, setSelectedRole] = useState<string>('all');
+  const [selectedRole, setSelectedRole] = useState<TalentFilter>('all');
   const [commitments, setCommitments] = useState<TalentCommitment[]>([]);
   const [resetAiConfirmOpen, setResetAiConfirmOpen] = useState(false);
   const debugUiEnabled = isDebugUiEnabled();
 
   useEffect(() => {
-    const allCommitments = AIStudioManager.getAllCommitments();
-    setCommitments(allCommitments);
+    setCommitments(AIStudioManager.getAllCommitments());
   }, [currentWeek, currentYear]);
-
-  const getFilteredTalent = () => {
-    let filtered = [...talent];
-
-    if (selectedRole !== 'all') {
-      filtered = filtered.filter(t =>
-        (t.specialties as string[])?.includes(selectedRole) ||
-        (t.specialties as string[])?.some(s => s.toLowerCase().includes(selectedRole.toLowerCase()))
-      );
-    }
-
-    if (showAvailableOnly) {
-      filtered = filtered.filter(t => {
-        const commitment = AIStudioManager.getTalentCommitment(t.id, currentWeek, currentYear);
-        return !commitment;
-      });
-    }
-
-    return filtered;
-  };
 
   const getTalentStatus = (talentId: string) => {
     const commitment = AIStudioManager.getTalentCommitment(talentId, currentWeek, currentYear);
@@ -86,11 +67,23 @@ export const TalentMarketplace: React.FC<TalentMarketplaceProps> = ({
     };
   };
 
-  const getTalentFilmography = (talentId: string) => {
-    return AIStudioManager.getTalentFilmography(talentId);
-  };
+  const filteredTalent = useMemo(() => {
+    let filtered = [...talent];
 
-  const filteredTalent = getFilteredTalent();
+    if (selectedRole !== 'all') {
+      filtered = filtered.filter((t) => {
+        if (selectedRole === 'actor') return t.type === 'actor' && t.gender === 'Male';
+        if (selectedRole === 'actress') return t.type === 'actor' && t.gender === 'Female';
+        return t.type === selectedRole;
+      });
+    }
+
+    if (showAvailableOnly) {
+      filtered = filtered.filter((t) => !AIStudioManager.getTalentCommitment(t.id, currentWeek, currentYear));
+    }
+
+    return filtered;
+  }, [currentWeek, currentYear, selectedRole, showAvailableOnly, talent]);
 
   return (
     <>
@@ -143,7 +136,7 @@ export const TalentMarketplace: React.FC<TalentMarketplaceProps> = ({
 
               <select
                 value={selectedRole}
-                onChange={(e) => setSelectedRole(e.target.value)}
+                onChange={(e) => setSelectedRole(e.target.value as TalentFilter)}
                 className="px-3 py-1 border rounded text-sm"
               >
                 <option value="all">All Roles</option>
@@ -162,12 +155,15 @@ export const TalentMarketplace: React.FC<TalentMarketplaceProps> = ({
         </Card>
 
         <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
-          {filteredTalent.map(person => {
+          {filteredTalent.map((person) => {
             const status = getTalentStatus(person.id);
-            const filmography = getTalentFilmography(person.id);
+            const filmography = AIStudioManager.getTalentFilmography(person.id);
 
             return (
-              <Card key={person.id} className={`card-premium ${status.status === 'busy' ? 'opacity-75' : ''}`}>
+              <Card
+                key={person.id}
+                className={`card-premium ${status.status === 'busy' ? 'opacity-75' : ''}`}
+              >
                 <CardContent className="p-4">
                   <div className="flex justify-between items-start mb-3">
                     <div>
@@ -205,7 +201,9 @@ export const TalentMarketplace: React.FC<TalentMarketplaceProps> = ({
                     {status.commitment && (
                       <div className="mt-1 text-xs text-muted-foreground">
                         Role: {status.commitment.role}
-                        {debugUiEnabled ? ` • ${status.commitment.weeklyPay}k/week` : null}
+                        {debugUiEnabled ? (
+                          <span>{` • \u0024${status.commitment.weeklyPay}k/week`}</span>
+                        ) : null}
                       </div>
                     )}
                   </div>
@@ -214,12 +212,10 @@ export const TalentMarketplace: React.FC<TalentMarketplaceProps> = ({
                     <div className="mb-3">
                       <div className="text-xs font-medium text-muted-foreground mb-1">Recent credits:</div>
                       <div className="space-y-1">
-                        {filmography.slice(-2).map(film => (
+                        {filmography.slice(-2).map((film) => (
                           <div key={film.id} className="text-xs p-1 bg-muted/30 rounded">
                             <div className="font-medium">{film.title}</div>
-                            <div className="text-muted-foreground">
-                              {film.studioName}
-                            </div>
+                            <div className="text-muted-foreground">{film.studioName}</div>
                           </div>
                         ))}
                       </div>
@@ -228,7 +224,7 @@ export const TalentMarketplace: React.FC<TalentMarketplaceProps> = ({
 
                   <div className="mb-3">
                     <div className="flex flex-wrap gap-1">
-                      {person.specialties?.slice(0, 3).map(specialty => (
+                      {person.specialties?.slice(0, 3).map((specialty) => (
                         <Badge key={specialty} variant="outline" className="text-xs">
                           {specialty}
                         </Badge>
@@ -265,28 +261,26 @@ export const TalentMarketplace: React.FC<TalentMarketplaceProps> = ({
         {debugUiEnabled && (
           <Card className="card-premium border-dashed">
             <CardHeader>
-              <CardTitle className="text-sm text-muted-foreground">
-                AI Studio System Status (Debug)
-              </CardTitle>
+              <CardTitle className="text-sm text-muted-foreground">AI Studio System Status (Debug)</CardTitle>
             </CardHeader>
             <CardContent>
               <div className="grid grid-cols-2 md:grid-cols-4 gap-4 text-sm">
                 <div>
                   <div className="font-semibold">Active AI Films</div>
                   <div className="text-muted-foreground">
-                    {AIStudioManager.getAllAIFilms().filter(f => f.status !== 'released').length}
+                    {AIStudioManager.getAllAIFilms().filter((f) => f.status !== 'released').length}
                   </div>
                 </div>
                 <div>
                   <div className="font-semibold">Released AI Films</div>
                   <div className="text-muted-foreground">
-                    {AIStudioManager.getAllAIFilms().filter(f => f.status === 'released').length}
+                    {AIStudioManager.getAllAIFilms().filter((f) => f.status === 'released').length}
                   </div>
                 </div>
                 <div>
                   <div className="font-semibold">Active Commitments</div>
                   <div className="text-muted-foreground">
-                    {commitments.filter(c => {
+                    {commitments.filter((c) => {
                       const absWeek = currentYear * 52 + currentWeek;
                       return absWeek >= c.startAbsWeek && absWeek <= c.endAbsWeek;
                     }).length}
@@ -295,7 +289,7 @@ export const TalentMarketplace: React.FC<TalentMarketplaceProps> = ({
                 <div>
                   <div className="font-semibold">Available Talent</div>
                   <div className="text-muted-foreground">
-                    {talent.filter(t => !AIStudioManager.getTalentCommitment(t.id, currentWeek, currentYear)).length}/{talent.length}
+                    {talent.filter((t) => !AIStudioManager.getTalentCommitment(t.id, currentWeek, currentYear)).length}/{talent.length}
                   </div>
                 </div>
               </div>
@@ -311,11 +305,7 @@ export const TalentMarketplace: React.FC<TalentMarketplaceProps> = ({
                 >
                   Log AI System Data
                 </Button>
-                <Button
-                  size="sm"
-                  variant="outline"
-                  onClick={() => setResetAiConfirmOpen(true)}
-                >
+                <Button size="sm" variant="outline" onClick={() => setResetAiConfirmOpen(true)}>
                   Reset AI System
                 </Button>
               </div>
