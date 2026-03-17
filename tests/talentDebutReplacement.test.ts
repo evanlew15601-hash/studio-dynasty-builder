@@ -153,7 +153,7 @@ describe('TalentDebutSystem (replacement-aware)', () => {
 
     const rookies = (result.nextState.talent || []).filter((t) => t.id.startsWith('rookie:2027:'));
 
-    // activeCount > 380 => replacement multiplier = 0.5
-    expect(rookies.filter((t) => t.type === 'actor').length).toBe(2);
+    // activeCount > 380 => replacement multiplier = 0.4
+    expect(rookies.filter((t) => t.type === 'actor').length).toBe(1);
   });
 });
