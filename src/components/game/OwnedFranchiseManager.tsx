@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useEffect, useMemo, useState } from 'react';
 import { Franchise } from '@/types/game';
 import { useGameStore } from '@/game/store';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
@@ -9,7 +9,8 @@ import { Label } from '@/components/ui/label';
 import { Textarea } from '@/components/ui/textarea';
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from '@/components/ui/dialog';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
-import { Crown, Edit3, TrendingUp, Users, DollarSign, Star, Calendar } from 'lucide-react';
+import { Pagination, PaginationContent, PaginationEllipsis, PaginationItem, PaginationLink, PaginationNext, PaginationPrevious } from '@/components/ui/pagination';
+import { Crown, Edit3, TrendingUp, Users, Star, Calendar, Search } from 'lucide-react';
 import { useToast } from '@/hooks/use-toast';
 import { FinancialEngine } from './FinancialEngine';
 
@@ -31,10 +32,10 @@ export const OwnedFranchiseManager: React.FC<OwnedFranchiseManagerProps> = ({
     description: '',
     status: 'active' as 'active' | 'dormant' | 'rebooted' | 'retired'
   });
-
-  if (!gameState) {
-    return <div className="p-6 text-sm text-muted-foreground">Loading franchises...</div>;
-  }
+  const [searchTerm, setSearchTerm] = useState('');
+  const [statusFilter, setStatusFilter] = useState<string>('all');
+  const [pageSize, setPageSize] = useState<number>(6);
+  const [page, setPage] = useState<number>(1);
 
   const uniqById = <T extends { id: string }>(items: T[]): T[] => {
     const byId = new Map<string, T>();
@@ -49,14 +50,17 @@ export const OwnedFranchiseManager: React.FC<OwnedFranchiseManagerProps> = ({
     return order.map((id) => byId.get(id)!).filter(Boolean);
   };
 
-  const franchises = uniqById(gameState.franchises || []);
+  const franchises = uniqById(gameState?.franchises || []);
+
+  const studioId = gameState?.studio?.id ?? '';
+  const projects = gameState?.projects ?? [];
 
   // Get franchises owned by the player (deduped by id + title)
   const ownedFranchises = (() => {
     const seenTitles = new Set<string>();
 
     return franchises
-      .filter(f => f.creatorStudioId === gameState.studio.id)
+      .filter(f => f.creatorStudioId === studioId)
       .filter((f) => {
         const key = (f.title || '').trim().toLowerCase();
         if (!key) return false;
@@ -66,9 +70,49 @@ export const OwnedFranchiseManager: React.FC<OwnedFranchiseManagerProps> = ({
       });
   })();
 
+  const filteredOwnedFranchises = useMemo(() => {
+    const q = searchTerm.trim().toLowerCase();
+
+    return ownedFranchises
+      .filter((f) => statusFilter === 'all' || f.status === statusFilter)
+      .filter((f) => {
+        if (!q) return true;
+
+        return (
+          (f.title || '').toLowerCase().includes(q) ||
+          (f.description || '').toLowerCase().includes(q) ||
+          (f.franchiseTags || []).some((t) => (t || '').toLowerCase().includes(q))
+        );
+      });
+  }, [ownedFranchises, searchTerm, statusFilter]);
+
+  useEffect(() => {
+    setPage(1);
+  }, [searchTerm, statusFilter, pageSize]);
+
+  const totalPages = Math.max(1, Math.ceil(filteredOwnedFranchises.length / pageSize));
+
+  useEffect(() => {
+    if (page > totalPages) setPage(totalPages);
+  }, [page, totalPages]);
+
+  const buildPageItems = (p: number, total: number): Array<number | 'ellipsis'> => {
+    if (total <= 7) return Array.from({ length: total }, (_, i) => i + 1);
+
+    if (p <= 3) return [1, 2, 3, 4, 5, 'ellipsis', total];
+    if (p >= total - 2) return [1, 'ellipsis', total - 4, total - 3, total - 2, total - 1, total];
+
+    return [1, 'ellipsis', p - 1, p, p + 1, 'ellipsis', total];
+  };
+
+  const startIndex = filteredOwnedFranchises.length === 0 ? 0 : (page - 1) * pageSize;
+  const endIndex = Math.min(filteredOwnedFranchises.length, startIndex + pageSize);
+
+  const pagedOwnedFranchises = filteredOwnedFranchises.slice(startIndex, endIndex);
+
   // Calculate franchise metrics
   const getFranchiseMetrics = (franchise: Franchise) => {
-    const franchiseProjects = gameState.projects.filter(p => p.script.franchiseId === franchise.id);
+    const franchiseProjects = projects.filter(p => p.script.franchiseId === franchise.id);
     const financials = FinancialEngine.getFranchiseFinancials(franchiseProjects);
     const totalBoxOffice = financials.boxOfficeRevenue;
     const totalBudget = franchiseProjects.reduce((sum, p) => sum + p.budget.total, 0);
@@ -113,6 +157,10 @@ export const OwnedFranchiseManager: React.FC<OwnedFranchiseManagerProps> = ({
     setEditingFranchise(null);
   };
 
+  if (!gameState) {
+    return <div className="p-6 text-sm text-muted-foreground">Loading franchises...</div>;
+  }
+
   if (ownedFranchises.length === 0) {
     return (
       <Card>
@@ -133,7 +181,7 @@ export const OwnedFranchiseManager: React.FC<OwnedFranchiseManagerProps> = ({
         <div>
           <h2 className="text-2xl font-bold flex items-center gap-2">
             <Crown className="h-6 w-6 text-primary" />
-            Your Franchises ({ownedFranchises.length})
+            Your Franchises ({filteredOwnedFranchises.length}/{ownedFranchises.length})
           </h2>
           <p className="text-muted-foreground">
             Manage and expand your owned intellectual properties
@@ -141,12 +189,67 @@ export const OwnedFranchiseManager: React.FC<OwnedFranchiseManagerProps> = ({
         </div>
       </div>
 
-      <div className="grid gap-4">
-        {ownedFranchises.map(franchise => {
-          const metrics = getFranchiseMetrics(franchise);
-          
-          return (
-            <Card key={franchise.id} className="border-2 border-primary/30">
+      <Card>
+        <CardContent className="pt-6">
+          <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+            <div className="relative">
+              <Search className="absolute left-3 top-3 w-4 h-4 text-muted-foreground" />
+              <Input
+                placeholder="Search your franchises..."
+                value={searchTerm}
+                onChange={(e) => setSearchTerm(e.target.value)}
+                className="pl-10"
+              />
+            </div>
+
+            <Select value={statusFilter} onValueChange={setStatusFilter}>
+              <SelectTrigger>
+                <SelectValue placeholder="Filter by status" />
+              </SelectTrigger>
+              <SelectContent>
+                <SelectItem value="all">All Statuses</SelectItem>
+                <SelectItem value="active">Active</SelectItem>
+                <SelectItem value="dormant">Dormant</SelectItem>
+                <SelectItem value="rebooted">Rebooted</SelectItem>
+                <SelectItem value="retired">Retired</SelectItem>
+              </SelectContent>
+            </Select>
+
+            <Select value={String(pageSize)} onValueChange={(v) => setPageSize(Number(v))}>
+              <SelectTrigger>
+                <SelectValue placeholder="Results per page" />
+              </SelectTrigger>
+              <SelectContent>
+                <SelectItem value="6">6 / page</SelectItem>
+                <SelectItem value="12">12 / page</SelectItem>
+                <SelectItem value="24">24 / page</SelectItem>
+              </SelectContent>
+            </Select>
+          </div>
+        </CardContent>
+      </Card>
+
+      {filteredOwnedFranchises.length === 0 ? (
+        <div className="p-6 border rounded-lg bg-card text-sm text-muted-foreground">
+          No owned franchises match your filters.
+        </div>
+      ) : (
+        <>
+          <div className="flex items-center justify-between text-sm text-muted-foreground">
+            <div>
+              Showing {filteredOwnedFranchises.length === 0 ? 0 : startIndex + 1}–{endIndex} of {filteredOwnedFranchises.length}
+            </div>
+            <div>
+              Page {page} of {totalPages}
+            </div>
+          </div>
+
+          <div className="grid gap-4">
+            {pagedOwnedFranchises.map(franchise => {
+              const metrics = getFranchiseMetrics(franchise);
+              
+              return (
+                <Card key={franchise.id} className="border-2 border-primary/30">
               <CardHeader>
                 <div className="flex justify-between items-start">
                   <div className="flex-1">
@@ -291,6 +394,59 @@ export const OwnedFranchiseManager: React.FC<OwnedFranchiseManagerProps> = ({
           );
         })}
       </div>
+
+      {totalPages > 1 && (
+        <Pagination>
+          <PaginationContent>
+            <PaginationItem>
+              <PaginationPrevious
+                href="#"
+                aria-disabled={page === 1}
+                tabIndex={page === 1 ? -1 : undefined}
+                className={page === 1 ? 'pointer-events-none opacity-50' : undefined}
+                onClick={(e) => {
+                  e.preventDefault();
+                  if (page > 1) setPage(page - 1);
+                }}
+              />
+            </PaginationItem>
+
+            {buildPageItems(page, totalPages).map((p, idx) => (
+              <PaginationItem key={`${p}-${idx}`}>
+                {p === 'ellipsis' ? (
+                  <PaginationEllipsis />
+                ) : (
+                  <PaginationLink
+                    href="#"
+                    isActive={p === page}
+                    onClick={(e) => {
+                      e.preventDefault();
+                      setPage(p);
+                    }}
+                  >
+                    {p}
+                  </PaginationLink>
+                )}
+              </PaginationItem>
+            ))}
+
+            <PaginationItem>
+              <PaginationNext
+                href="#"
+                aria-disabled={page === totalPages}
+                tabIndex={page === totalPages ? -1 : undefined}
+                className={page === totalPages ? 'pointer-events-none opacity-50' : undefined}
+                onClick={(e) => {
+                  e.preventDefault();
+                  if (page < totalPages) setPage(page + 1);
+                }}
+              />
+            </PaginationItem>
+          </PaginationContent>
+        </Pagination>
+      )}
+    </>
+  )}
 
       {/* Edit Dialog */}
       <Dialog open={!!editingFranchise} onOpenChange={() => setEditingFranchise(null)}>
