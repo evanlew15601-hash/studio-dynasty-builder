@@ -4011,8 +4011,17 @@ export const StudioMagnateGame: React.FC<StudioMagnateGameProps> = ({
               <TabsContent value="marketplace" className="space-y-6">
                 <FranchiseManager
                   onCreateProject={(franchiseId, publicDomainId, cost) => {
+                    const weekIndex = (gameState.currentYear * 52) + gameState.currentWeek;
+                    const invitation = gameState.studio.franchiseInvitation;
+                    const hasInvitation =
+                      !!franchiseId &&
+                      !!invitation &&
+                      invitation.franchiseId === franchiseId &&
+                      invitation.usesRemaining > 0 &&
+                      invitation.expiresWeekIndex > weekIndex;
+
                     // Use existing handleCreateProject logic but adapted for the new interface
-                    if (cost && cost > gameState.studio.budget) {
+                    if (!hasInvitation && cost && cost > gameState.studio.budget) {
                       toast({
                         title: "Insufficient Budget",
                         description: `Cannot afford this franchise - need ${(cost / 1000000).toFixed(1)}M`,
@@ -4071,6 +4080,10 @@ export const StudioMagnateGame: React.FC<StudioMagnateGameProps> = ({
                         title: "Franchise Acquired!",
                         description: `Spent ${(cost / 1000000).toFixed(1)}M to license franchise`,
                       });
+                    }
+
+                    if (hasInvitation) {
+                      updateStudio({ franchiseInvitation: undefined });
                     }
 
                     // Route to Script Development instead of directly greenlighting

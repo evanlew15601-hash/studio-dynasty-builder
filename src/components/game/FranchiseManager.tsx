@@ -46,6 +46,8 @@ export const FranchiseManager: React.FC<FranchiseManagerProps> = ({
 
   const studioId = gameState?.studio?.id ?? '';
   const licensedFranchiseIds = new Set(gameState?.studio?.licensedFranchiseIds ?? []);
+  const currentWeekIndex = gameState ? (gameState.currentYear * 52) + gameState.currentWeek : 0;
+  const activeInvitation = gameState?.studio?.franchiseInvitation;
 
   // Check which franchises are owned by player
   const ownedFranchiseIds = franchises
@@ -272,10 +274,22 @@ export const FranchiseManager: React.FC<FranchiseManagerProps> = ({
 
                   const hasLicense = licensedFranchiseIds.has(franchise.id);
 
+                  const hasInvitation =
+                    !!activeInvitation &&
+                    activeInvitation.franchiseId === franchise.id &&
+                    activeInvitation.usesRemaining > 0 &&
+                    activeInvitation.expiresWeekIndex > currentWeekIndex;
+
                   const isFree = !licenseCost || licenseCost <= 0;
 
-                  const feeLabel = hasLicense ? 'PAID' : isFree ? 'FREE' : formatMoneyCompact(licenseCost);
-                  const shouldCharge = !hasLicense && licenseCost > 0;
+                  const feeLabel = hasLicense
+                    ? 'PAID'
+                    : hasInvitation
+                    ? 'INVITED'
+                    : isFree
+                    ? 'FREE'
+                    : formatMoneyCompact(licenseCost);
+                  const shouldCharge = !hasLicense && !hasInvitation && licenseCost > 0;
 
                   return (
                     <Card key={franchise.id} className="hover:shadow-lg transition-shadow">
@@ -301,6 +315,11 @@ export const FranchiseManager: React.FC<FranchiseManagerProps> = ({
                                 Licensed
                               </Badge>
                             )}
+                            {!hasLicense && hasInvitation && (
+                              <Badge variant="secondary" className="text-xs">
+                                Invitation
+                              </Badge>
+                            )}
                           </div>
                         </div>
                       </CardHeader>
@@ -320,7 +339,7 @@ export const FranchiseManager: React.FC<FranchiseManagerProps> = ({
                               <span className="text-sm font-medium">License Fee</span>
                             </div>
                             <span
-                              className={`text-lg font-bold ${hasLicense || isFree ? 'text-green-600' : ''}`}
+                              className={`text-lg font-bold ${hasLicense || hasInvitation || isFree ? 'text-green-600' : ''}`}
                             >
                               {feeLabel}
                             </span>
@@ -328,6 +347,8 @@ export const FranchiseManager: React.FC<FranchiseManagerProps> = ({
                           <div className="text-xs text-muted-foreground">
                             {hasLicense
                               ? 'You have already licensed this franchise.'
+                              : hasInvitation
+                              ? `You have a one-off invitation to develop a single film under this franchise. Permanent license: ${isFree ? 'FREE' : formatMoneyCompact(licenseCost)}.`
                               : isFree
                               ? 'No license fee for this franchise.'
                               : 'One-time fee (paid the first time you develop this franchise).'}
@@ -384,7 +405,7 @@ export const FranchiseManager: React.FC<FranchiseManagerProps> = ({
                           }
                           variant="default"
                         >
-                          {hasLicense ? 'Develop New Entry' : isFree ? 'Develop' : 'License & Develop'}
+                          {hasInvitation ? 'Develop (Invitation)' : hasLicense ? 'Develop New Entry' : isFree ? 'Develop' : 'License & Develop'}
                         </Button>
                       </CardContent>
                     </Card>
