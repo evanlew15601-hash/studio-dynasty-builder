@@ -22,7 +22,7 @@ function tickCampaign(c: AwardsCampaign): AwardsCampaign {
   const remainingBudget = Math.max(0, budget - spent0);
 
   const weeksRemaining0 = Math.max(0, c.weeksRemaining ?? 0);
-  const duration = Math.max(1, c.duration ?? weeksRemaining0 || 1);
+  const duration = Math.max(1, (c.duration ?? weeksRemaining0) || 1);
 
   const plannedWeekly = budget / duration;
 
