@@ -206,9 +206,11 @@ export const EnhancedAwardsSystem: React.FC<EnhancedAwardsSystemProps> = ({
                           <div className="space-y-2">
                             {entries.map((n) => {
                               const project = projectById.get(n.projectId);
-                              const talent = project && isTalentCategory(category)
-                                ? findRelevantTalentForAwardCategory(gameState, project, category.name, category)
-                                : undefined;
+                              const talent = n.talentId
+                                ? gameState.talent.find(t => t.id === n.talentId)
+                                : (project && isTalentCategory(category)
+                                    ? findRelevantTalentForAwardCategory(gameState, project, category.name, category)
+                                    : undefined);
 
                               return (
                                 <div key={`${category.id}:${n.projectId}`} className="flex items-center justify-between p-2 border rounded">

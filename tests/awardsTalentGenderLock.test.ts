@@ -69,4 +69,53 @@ describe('findRelevantTalentForAwardCategory', () => {
     expect(findRelevantTalentForAwardCategory(state, project, bestActress.name, bestActress)).toBeUndefined();
     expect(findRelevantTalentForAwardCategory(state, project, bestActor.name, bestActor)?.id).toBe('m1');
   });
+
+  it('does not allow supporting talent to satisfy lead gendered categories', () => {
+    const state = makeState({
+      talent: [
+        { id: 'm1', name: 'Male Lead', type: 'actor', gender: 'Male', contractStatus: 'available' } as any,
+        { id: 'f1', name: 'Female Supporting', type: 'actor', gender: 'Female', contractStatus: 'available' } as any,
+      ],
+    });
+
+    const project: Project = {
+      id: 'p1',
+      title: 'Film',
+      status: 'released',
+      releaseYear: 2025,
+      releaseWeek: 1,
+      budget: { total: 1 } as any,
+      cast: [
+        { talentId: 'm1', role: 'Lead Actor' } as any,
+        { talentId: 'f1', role: 'Supporting Actor' } as any,
+      ],
+      crew: [],
+      script: {
+        id: 's1',
+        title: 'Film',
+        genre: 'drama',
+        characters: [
+          { id: 'c1', name: 'Hero', importance: 'lead', requiredType: 'actor', assignedTalentId: 'm1' } as any,
+          { id: 'c2', name: 'Friend', importance: 'supporting', requiredType: 'actor', assignedTalentId: 'f1' } as any,
+        ],
+      } as any,
+    } as any;
+
+    const bestActress: AwardCategoryDefinition = {
+      id: 'best-actress',
+      name: 'Best Actress',
+      awardKind: 'talent',
+      talent: { type: 'actor', gender: 'Female' },
+    };
+
+    const bestSupportingActress: AwardCategoryDefinition = {
+      id: 'best-supporting-actress',
+      name: 'Best Supporting Actress',
+      awardKind: 'talent',
+      talent: { type: 'actor', gender: 'Female', supporting: true },
+    };
+
+    expect(findRelevantTalentForAwardCategory(state, project, bestActress.name, bestActress)).toBeUndefined();
+    expect(findRelevantTalentForAwardCategory(state, project, bestSupportingActress.name, bestSupportingActress)?.id).toBe('f1');
+  });
 });

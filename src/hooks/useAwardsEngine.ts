@@ -23,6 +23,8 @@ export function useAwardsEngine(
   const isTvProject = (project: Project) => project.type === 'series' || project.type === 'limited-series';
   const isFilmProject = (project: Project) => !isTvProject(project);
 
+  const getTalentById = (id?: string) => gameState.talent.find((t) => t.id === id);
+
   const getSeasonState = (): AwardsSeasonState => {
     const existing = gameState.awardsSeason;
     if (existing && existing.year === gameState.currentYear) return existing;
@@ -130,8 +132,8 @@ export function useAwardsEngine(
     showName: string;
     medium: 'film' | 'tv';
     categories: AwardCategoryDefinition[];
-    nominationsForState: Record<string, Array<{ projectId: string; score: number }>>;
-    nominationsWithProjects: Record<string, Array<{ project: Project; score: number }>>;
+    nominationsForState: Record<string, Array<{ projectId: string; score: number; talentId?: string }>>;
+    nominationsWithProjects: Record<string, Array<{ project: Project; score: number; talentId?: string }>>;
   } | null => {
     const show = getShowByKey(showId);
     if (!show) return null;
@@ -144,8 +146,8 @@ export function useAwardsEngine(
 
     const seedRoot = `awards|${gameState.universeSeed ?? 0}|Y${gameState.currentYear}|${show.id}`;
 
-    const nominationsForState: Record<string, Array<{ projectId: string; score: number }>> = {};
-    const nominationsWithProjects: Record<string, Array<{ project: Project; score: number }>> = {};
+    const nominationsForState: Record<string, Array<{ projectId: string; score: number; talentId?: string }>> = {};
+    const nominationsWithProjects: Record<string, Array<{ project: Project; score: number; talentId?: string }>> = {};
 
     categories.forEach((category) => {
       const categoryName = category.name;
@@ -205,11 +207,14 @@ export function useAwardsEngine(
 
           // Critically acclaimed actor/director boost for individual categories
           let talentBonus = 0;
+          let categoryTalentId: string | undefined;
           if (isTalentCategory(category)) {
             const talent = findRelevantTalentForAwardCategory(gameState, project, categoryName, category);
 
             // Talent categories require a credited person on the project; don't fill in with random global talent.
-            if (!talent) return { project, score: 0 };
+            if (!talent) return { project, score: 0, talentId: undefined };
+
+            categoryTalentId = talent.id;
 
             const baseRep = talent.reputation || 50;
             const awardsCount = talent.awards?.length || 0;
@@ -227,14 +232,14 @@ export function useAwardsEngine(
           const noise = (stableFloat01(`${seedRoot}|${categoryName}|${project.id}|noise`) * 8) - 4;
 
           const score = Math.min(100, base + momentum + categoryBias + talentBonus + noise);
-          return { project, score };
+          return { project, score, talentId: categoryTalentId };
         })
         .filter(({ score }) => score > 10) // Filter out clearly ineligible
         .sort((a, b) => b.score - a.score)
         .slice(0, 5);
 
       nominationsWithProjects[categoryName] = ranked;
-      nominationsForState[categoryName] = ranked.map((r) => ({ projectId: r.project.id, score: r.score }));
+      nominationsForState[categoryName] = ranked.map((r) => ({ projectId: r.project.id, score: r.score, talentId: r.talentId }));
     });
 
     return {
@@ -305,7 +310,7 @@ export function useAwardsEngine(
 
       const categoryDef = categoryDefByName.get(category);
       const talent = categoryDef && isTalentCategory(categoryDef)
-        ? findRelevantTalent(project, category, categoryDef)
+        ? findRelevantTalentForAwardCategory(gameState, project, category, categoryDef)
         : undefined;
 
       MediaEngine.queueMediaEvent({
@@ -372,8 +377,6 @@ export function useAwardsEngine(
     const eligible = getEligibleProjects(show.medium);
     const byId = new Map(eligible.map((p) => [p.id, p] as const));
 
-    const categoryDefByName = new Map(categories.map((c) => [c.name, c] as const));
-
     const flatForModal: Array<{ project: Project; category: string; won: boolean; award?: StudioAward; talentAward?: TalentAward; talentName?: string }> = [];
     const winnersThisShow: string[] = [];
     let extraTalentStudioReputation = 0;
@@ -386,9 +389,9 @@ export function useAwardsEngine(
       const nominees = (nominationsRecord.categories[category] || [])
         .map((n) => {
           const project = byId.get(n.projectId);
-          return project ? { project, score: n.score } : null;
+          return project ? { project, score: n.score, talentId: n.talentId } : null;
         })
-        .filter(Boolean) as Array<{ project: Project; score: number }>;
+        .filter(Boolean) as Array<{ project: Project; score: number; talentId?: string }>;
 
       if (nominees.length === 0) return;
 
@@ -420,9 +423,11 @@ export function useAwardsEngine(
           const catKey = hashStringToUint32(category).toString(36);
 
           if (categoryIsTalent) {
-            // Find relevant talent for this category
-            const relevantTalent = findRelevantTalentForAwardCategory(gameState, n.project, category, categoryDef);
-            if (relevantTalent) {
+            const relevantTalent = getTalentById(n.talentId) || findRelevantTalentForAwardCategory(gameState, n.project, category, categoryDef);
+            const expectedType = categoryDef.talent?.type;
+            const expectedGender = categoryDef.talent?.gender;
+
+            if (relevantTalent && (!expectedType || relevantTalent.type === expectedType) && (!expectedGender || relevantTalent.gender === expectedGender)) {
               talentAward = {
                 id: `talent-award:${show.id}:${gameState.currentYear}:${catKey}:${relevantTalent.id}:${n.project.id}`,
                 talentId: relevantTalent.id,
@@ -477,10 +482,7 @@ export function useAwardsEngine(
     const playerWin = flatForModal.find(f => f.won && gameState.projects.some(p => p.id === f.project.id));
     if (playerWin) {
       const awardName = `${ceremonyName} - ${playerWin.category}`;
-      const def = categoryDefByName.get(playerWin.category);
-      const talent = def && isTalentCategory(def)
-        ? findRelevantTalentForAwardCategory(gameState, playerWin.project, playerWin.category, def)
-        : undefined;
+      const talent = playerWin.talentAward ? getTalentById(playerWin.talentAward.talentId) : undefined;
 
       MediaEngine.queueMediaEvent({
         type: 'award_win',
@@ -535,13 +537,13 @@ export function useAwardsEngine(
         const nominees = (nominationsRecord.categories[category] || [])
           .map((n) => {
             const project = byId.get(n.projectId);
-            return project ? { project, score: n.score } : null;
+            return project ? { project, score: n.score, talentId: n.talentId } : null;
           })
-          .filter(Boolean) as Array<{ project: Project; score: number }>;
+          .filter(Boolean) as Array<{ project: Project; score: number; talentId?: string }>;
 
         ceremonyData.nominations[category] = nominees.map(n => {
           const t = isTalentCategory(categoryDef)
-            ? findRelevantTalentForAwardCategory(gameState, n.project, category, categoryDef)
+            ? (getTalentById(n.talentId) || findRelevantTalentForAwardCategory(gameState, n.project, category, categoryDef))
             : undefined;
 
           const isPlayer = isPlayerProject(n.project);
@@ -563,9 +565,9 @@ export function useAwardsEngine(
         const nominees = (nominationsRecord.categories[category] || [])
           .map((n) => {
             const project = byId.get(n.projectId);
-            return project ? { project, score: n.score } : null;
+            return project ? { project, score: n.score, talentId: n.talentId } : null;
           })
-          .filter(Boolean) as Array<{ project: Project; score: number }>;
+          .filter(Boolean) as Array<{ project: Project; score: number; talentId?: string }>;
 
         const winner = nominees.find(n => flatForModal.some(f => f.project.id === n.project.id && f.category === category && f.won));
         if (winner) {

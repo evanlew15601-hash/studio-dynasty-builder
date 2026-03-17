@@ -884,7 +884,7 @@ export interface AwardsSeasonState {
     string,
     {
       year: number;
-      categories: Record<string, Array<{ projectId: string; score: number }>>;
+      categories: Record<string, Array<{ projectId: string; score: number; talentId?: string }>>;
     }
   >;
 }

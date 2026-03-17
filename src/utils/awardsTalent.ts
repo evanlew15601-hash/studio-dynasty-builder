@@ -39,6 +39,7 @@ export function findRelevantTalentForAwardCategory(
     return undefined;
   }
 
+  // Actor categories: be strict about both gender (when specified) and role tier (lead vs supporting).
   const isSupporting = desiredSupporting ?? categoryLower.includes('supporting');
 
   const genderRequirement: Gender | undefined =
@@ -55,19 +56,27 @@ export function findRelevantTalentForAwardCategory(
     return talent.gender === genderRequirement;
   };
 
-  const roleMatch = (role: string) => role.toLowerCase().includes(isSupporting ? 'supporting' : 'lead');
+  const importanceOk = (importance: string | undefined) => {
+    if (!importance) return false;
+    if (!isSupporting) return importance === 'lead';
+    return importance === 'supporting' || importance === 'minor';
+  };
+
+  const roleMatch = (role: string) => {
+    const r = role.toLowerCase();
+    if (!isSupporting) return r.includes('lead') && !r.includes('supporting');
+    return r.includes('supporting') || r.includes('minor');
+  };
 
   // Prefer canonical script character assignments.
   const charCandidates = characters
     .filter((ch) => {
       if (!ch.assignedTalentId) return false;
       if (ch.requiredType === 'director') return false;
+      if (!importanceOk(ch.importance)) return false;
 
       const t = getTalentById(ch.assignedTalentId);
-      if (!genderOk(t)) return false;
-
-      if (!isSupporting) return ch.importance === 'lead';
-      return ch.importance === 'supporting' || ch.importance === 'minor';
+      return genderOk(t);
     });
 
   if (charCandidates.length > 0) {
@@ -87,26 +96,6 @@ export function findRelevantTalentForAwardCategory(
     return castCandidates.length > 1
       ? pick(castCandidates, isSupporting ? 'supporting' : 'lead')
       : castCandidates[0];
-  }
-
-  // Lead categories can fall back to any credited actor. Supporting categories should not.
-  if (!isSupporting) {
-    const anyCharActors = characters
-      .filter((ch) => ch.requiredType !== 'director' && !!ch.assignedTalentId)
-      .map((ch) => getTalentById(ch.assignedTalentId))
-      .filter(genderOk);
-
-    if (anyCharActors.length > 0) {
-      return anyCharActors.length > 1 ? pick(anyCharActors, 'any-credited-char') : anyCharActors[0];
-    }
-
-    const anyCastActors = castEntries
-      .map((c) => getTalentById((c as any).talentId))
-      .filter(genderOk);
-
-    if (anyCastActors.length > 0) {
-      return anyCastActors.length > 1 ? pick(anyCastActors, 'any-credited-cast') : anyCastActors[0];
-    }
   }
 
   return undefined;
