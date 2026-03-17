@@ -1,5 +1,5 @@
 import React, { useMemo, useState } from 'react';
-import type { Franchise, PublicDomainIP, Studio, TalentPerson } from '@/types/game';
+import type { Franchise, GameState, Project, PublicDomainIP, Studio, TalentPerson } from '@/types/game';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
@@ -756,7 +756,7 @@ const TimelineEncyclopedia: React.FC = () => {
                                     <Badge variant="secondary">{e.importance}</Badge>
                                   )}
                                 </div>
-                                <div className="mt-1 text-muted-foreground text-xs capitalize">{e.kind.replaceAll('_', ' ')}</div>
+                                <div className="mt-1 text-muted-foreground text-xs capitalize">{e.kind.replace(/_/g, ' ')}</div>
                                 <div className="mt-1 text-sm text-muted-foreground">{e.body}</div>
 
                                 {(talentId || project) && (
