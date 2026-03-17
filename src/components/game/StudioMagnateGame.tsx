@@ -75,6 +75,7 @@ import type { TickRecapCard, TickReport, TickSystemReport } from '@/types/tickRe
 import { createTickReport } from '@/utils/tickReport';
 import { WeekRecapModal } from './WeekRecapModal';
 import { GameEventModal } from './GameEventModal';
+import { NextActionsBar } from './NextActionsBar';
 import { EnhancedFinancialAccuracy, applyEnhancedFinancialAccuracy } from './EnhancedFinancialAccuracy';
 import { EnhancedFranchiseSystem } from './EnhancedFranchiseSystem';
 import { FranchiseManager } from './FranchiseManager';
@@ -3703,6 +3704,14 @@ export const StudioMagnateGame: React.FC<StudioMagnateGameProps> = ({
           </div>
         </div>
       </div>
+
+      <NextActionsBar
+        gameState={gameState}
+        onNavigate={(phase, projectId) => {
+          handlePhaseChange(phase);
+          if (projectId) setSelectedProjectId(projectId);
+        }}
+      />
 
       {/* Debug Tools (development only) */}
       {import.meta.env.DEV && (
