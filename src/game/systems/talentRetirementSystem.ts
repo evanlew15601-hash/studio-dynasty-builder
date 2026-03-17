@@ -35,27 +35,10 @@ function rosterPressureMultiplier(activeCount: number): number {
 }
 
 function retirementChance(t: TalentPerson, rosterMult: number, previousYear: number): number {
-  const age = t.age ?? 30;
-  let chance = 0;
-
-  // Age-based baseline.
-  if (t.type === 'actor') {
-    if (age >= 75) chance = 0.16;
-    else if (age >= 70) chance = 0.11;
-    else if (age >= 65) chance = 0.07;
-    else if (age >= 60) chance = 0.03;
-  } else {
-    // Directors retire later.
-    if (age >= 82) chance = 0.14;
-    else if (age >= 77) chance = 0.10;
-    else if (age >= 72) chance = 0.06;
-    else if (age >= 67) chance = 0.03;
-  }
-
-  chance *= rosterMult;
+  let chance = baseChance(t) * rosterMult;
 
   const burnout = clamp(t.burnoutLevel ?? 0, 0, 100);
-  chance += (burnout / 100) * 0.06;
+  chance += (burnout / 100) * 0.05;
 
   const lastYear = lastCreditedYear(t);
   if (lastYear !== null) {
@@ -107,14 +90,39 @@ function retirementReason(t: TalentPerson, previousYear: number): 'age' | 'burno
 
 
 
+function isTalentAttachedToActiveProject(state: GameState, talentId: string): boolean {
+  for (const p of state.projects || []) {
+    const status = (p as any).status;
+    if (status === 'archived' || status === 'released') continue;
+
+    const cast = (p as any).cast || [];
+    if (cast.some((c: any) => c?.talentId === talentId)) return true;
+
+    const crew = (p as any).crew || [];
+    if (crew.some((c: any) => c?.talentId === talentId)) return true;
+
+    const contracted = (p as any).contractedTalent || [];
+    if (contracted.some((c: any) => c?.talentId === talentId)) return true;
+
+    const chars = (p as any).script?.characters || [];
+    if (chars.some((ch: any) => ch?.assignedTalentId === talentId)) return true;
+  }
+
+  return false;
+}
+
+function isEligibleContractStatus(status: TalentPerson['contractStatus']): boolean {
+  return status === 'available' || status === 'contracted' || status === 'exclusive';
+}
+
 /**
  * Annual, probabilistic retirements.
- * Conservative: only retires available actors/directors in single-player.
+ * Conservative: avoids retiring talent attached to active productions.
  */
 export const TalentRetirementSystem: TickSystem = {
   id: 'talentRetirements',
   label: 'Talent retirements',
-  dependsOn: ['talentLifecycle'],
+  dependsOn: ['talentLifecycle', 'talentBurnout'],
   onTick: (state, ctx) => {
     if (ctx.week !== 1) return state;
     if (state.mode === 'online') return state;
@@ -132,7 +140,8 @@ export const TalentRetirementSystem: TickSystem = {
     const updatedTalent = (state.talent || []).map((t) => {
       if (t.contractStatus === 'retired') return t;
       if (t.type !== 'actor' && t.type !== 'director') return t;
-      if (t.contractStatus !== 'available') return t;
+      if (!isEligibleContractStatus(t.contractStatus)) return t;
+      if (isTalentAttachedToActiveProject(state, t.id)) return t;
 
       const chance = retirementChance(t, rosterMult, previousYear);
       if (chance <= 0) return t;

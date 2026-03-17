@@ -226,7 +226,7 @@ function buildYearbookBody(params: {
 export const WorldYearbookSystem: TickSystem = {
   id: 'worldYearbook',
   label: 'World yearbook',
-  dependsOn: ['talentRetirements', 'worldMilestones', 'worldEras'],
+  dependsOn: ['talentRetirements', 'worldMilestones', 'worldEras', 'playerLegacy', 'genreTrends', 'studioFortunes'],
   onTick: (state, ctx) => {
     if (ctx.week !== 1) return state;
     if (state.mode === 'online') return state;
@@ -252,11 +252,7 @@ export const WorldYearbookSystem: TickSystem = {
 
     const careerHighlights = computeCareerHighlights(state, previousYear, projectTitleById);
 
-    const notableEvents = (state.worldHistory || [])
-      .filter((e) => e.year === previousYear && (e.importance || 0) >= 4)
-      .slice()
-      .sort((a, b) => (b.importance || 0) - (a.importance || 0) || a.kind.localeCompare(b.kind) || a.id.localeCompare(b.id))
-      .map((e) => e.title);
+    const notableEvents = computeNotableWorldEvents(state, previousYear);
 
     const entry: WorldYearbookEntry = {
       id: `yearbook:${previousYear}`,

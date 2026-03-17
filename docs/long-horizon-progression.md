@@ -127,10 +127,11 @@ Long-horizon systems should follow that pattern.
 To get a working multi-generation loop, we need three engine-owned layers:
 
 1. **Lifecycle:** talent age/stage/value evolves over time.
-2. **Exit pressure:** the world retires people, creating space.
-3. **Historical memory + legacy:** the world remembers *select* events so decades feel real.
+2. **Wear & tear:** burnout drifts based on recent work vs rest.
+3. **Exit pressure:** the world retires people, creating space.
+4. **Historical memory + legacy:** the world remembers *select* events so decades feel real.
 
-Career “events” (breakthroughs/scandals/comebacks) should be added *after* lifecycle and history exist.
+Career “events” (breakthroughs/scandals/comebacks) should be added *after* lifecycle + memory exist.
 
 ---
 
@@ -149,7 +150,6 @@ Proposed additions:
 export type WorldHistoryEntry = {
   id: string;
   kind:
-    | 'yearbook'
     | 'talent_debut'
     | 'talent_retirement'
     | 'talent_breakthrough'
@@ -157,6 +157,7 @@ export type WorldHistoryEntry = {
     | 'talent_scandal'
     | 'talent_rivalry'
     | 'industry_era'
+    | 'genre_shift'
     | 'award_win'
     | 'box_office_record'
     | 'studio_milestone';
@@ -172,11 +173,18 @@ export type WorldHistoryEntry = {
   importance?: 1 | 2 | 3 | 4 | 5;
 };
 
-export interface GameState {
-  // Always small: <= number of simulated years
-  worldYearbooks?: WorldHistoryEntry[];
+export type WorldYearbookEntry = {
+  id: string;
+  year: number;
+  title: string;
+  body: string;
+};
 
-  // Bounded: e.g. keep last N, or keep only importance>=4
+export interface GameState {
+  // Always small: 1 per simulated year
+  worldYearbooks?: WorldYearbookEntry[];
+
+  // Bounded via pushWorldHistory() policy
   worldHistory?: WorldHistoryEntry[];
 }
 ```

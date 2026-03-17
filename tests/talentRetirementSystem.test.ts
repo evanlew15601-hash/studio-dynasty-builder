@@ -47,7 +47,7 @@ function makeBaseState(overrides?: Partial<GameState>): GameState {
 }
 
 describe('TalentRetirementSystem', () => {
-  it('retires only available actors/directors on year rollover and stamps previousYear/week52', () => {
+  it('retires eligible actors/directors on year rollover and stamps previousYear/week52', () => {
     const oldActors: TalentPerson[] = Array.from({ length: 50 }).map((_, i) => ({
       id: `t:old:actor:${i}`,
       name: `Old Actor ${i}`,

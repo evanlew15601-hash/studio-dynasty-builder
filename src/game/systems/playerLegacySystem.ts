@@ -102,7 +102,7 @@ function buildMilestones(params: {
 export const PlayerLegacySystem: TickSystem = {
   id: 'playerLegacy',
   label: 'Player legacy',
-  dependsOn: ['worldYearbook'],
+  dependsOn: ['worldMilestones'],
   onTick: (state, ctx) => {
     if (ctx.week !== 1) return state;
     if (state.mode === 'online') return state;

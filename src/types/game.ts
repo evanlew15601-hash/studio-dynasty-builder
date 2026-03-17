@@ -792,6 +792,7 @@ export interface WorldHistoryEntry {
     | 'talent_scandal'
     | 'talent_rivalry'
     | 'industry_era'
+    | 'genre_shift'
     | 'award_win'
     | 'box_office_record'
     | 'studio_milestone';
