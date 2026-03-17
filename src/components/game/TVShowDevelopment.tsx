@@ -9,10 +9,13 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@
 import { Slider } from '@/components/ui/slider';
 import { Badge } from '@/components/ui/badge';
 import { useToast } from '@/hooks/use-toast';
+import { ToastAction } from '@/components/ui/toast';
 import { ScriptCharacterManager, ScriptCharacter } from './ScriptCharacterManager';
 import { importRolesForScript } from '@/utils/roleImport';
 import { finalizeScriptForGreenlight, finalizeScriptForSave, getScriptGreenlightReport } from '@/utils/scriptFinalization';
 import { getScriptStageAdvanceQuote, formatScriptStage } from '@/utils/scriptProgression';
+import { applyGovernanceImpact, getGreenlightGateReport } from '@/utils/studioGovernance';
+import { computeFilmContentRating, contentRatingToSliderValue } from '@/utils/contentRating';
 import { FinancialEngine } from './FinancialEngine';
 import { ScriptIcon, ClapperboardIcon } from '@/components/ui/icons';
 import { useGameStore } from '@/game/store';
@@ -33,6 +36,7 @@ export const TVShowDevelopment: React.FC<TVShowDevelopmentProps> = ({
   onProjectCreate,
 }) => {
   const gameState = useGameStore((s) => s.game);
+  const mergeGameState = useGameStore((s) => s.mergeGameState);
   const spendStudioFunds = useGameStore((s) => s.spendStudioFunds);
   const upsertScript = useGameStore((s) => s.upsertScript);
   const { toast } = useToast();
@@ -176,7 +180,8 @@ export const TVShowDevelopment: React.FC<TVShowDevelopmentProps> = ({
           visualStyle: 'realistic',
           commercialAppeal: 5,
           criticalPotential: 5,
-          cgiIntensity: 'minimal'
+          cgiIntensity: 'minimal',
+          content: { violence: 0, nudity: 0, language: 0, substance: 0 },
         }
       };
     }
@@ -347,6 +352,18 @@ export const TVShowDevelopment: React.FC<TVShowDevelopmentProps> = ({
       return;
     }
 
+    const baseCharacteristics = newScript.characteristics || {
+      tone: 'balanced',
+      pacing: 'episodic',
+      dialogue: 'naturalistic',
+      visualStyle: 'realistic',
+      commercialAppeal: 5,
+      criticalPotential: 5,
+      cgiIntensity: 'minimal',
+    };
+
+    const contentRating = computeFilmContentRating(baseCharacteristics.content);
+
     const script: Script = {
       id: editingScript ? editingScript.id : `tv-script-${Date.now()}`,
       title: newScript.title!,
@@ -361,13 +378,15 @@ export const TVShowDevelopment: React.FC<TVShowDevelopmentProps> = ({
       targetAudience: newScript.targetAudience!,
       estimatedRuntime: newScript.estimatedRuntime || 45,
       characteristics: {
-        tone: newScript.characteristics?.tone || 'balanced',
+        ...baseCharacteristics,
         pacing: 'episodic',
-        dialogue: newScript.characteristics?.dialogue || 'naturalistic',
-        visualStyle: newScript.characteristics?.visualStyle || 'realistic',
-        commercialAppeal: newScript.characteristics?.commercialAppeal || 5,
-        criticalPotential: newScript.characteristics?.criticalPotential || 5,
-        cgiIntensity: newScript.characteristics?.cgiIntensity || 'minimal'
+        content: {
+          violence: baseCharacteristics.content?.violence ?? 0,
+          nudity: baseCharacteristics.content?.nudity ?? 0,
+          language: baseCharacteristics.content?.language ?? 0,
+          substance: baseCharacteristics.content?.substance ?? 0,
+        },
+        contentRating,
       },
       // Strip UI-only fields before persisting to game state
       characters: scriptCharacters.map(({ screenTimeMinutes, ...c }) => c),
@@ -458,11 +477,55 @@ export const TVShowDevelopment: React.FC<TVShowDevelopmentProps> = ({
       return;
     }
 
+    const gate = getGreenlightGateReport({ state: gameState, script, kind: 'tv', episodeCount: assumedEpisodeCount });
+
+    if (!gate.canGreenlight) {
+      if (gate.canOverride && gate.impactIfOverride) {
+        toast({
+          title: 'Approval Needed',
+          description: gate.reasons.join(' '),
+          action: (
+            <ToastAction
+              altText="Override board approval"
+              onClick={() => {
+                mergeGameState({
+                  governance: applyGovernanceImpact(gameState.governance, gate.impactIfOverride!),
+                });
+
+                onProjectCreate(script);
+
+                toast({
+                  title: 'Greenlit (Override)',
+                  description: `"${script.title}" moved to Development phase. The board is unhappy.`,
+                });
+              }}
+            >
+              Override
+            </ToastAction>
+          ),
+        });
+        return;
+      }
+
+      toast({
+        title: 'Cannot Greenlight Project',
+        description: gate.reasons.join(' '),
+        variant: 'destructive',
+      });
+      return;
+    }
+
+    if (gate.severity === 'warn' && gate.impactIfProceed) {
+      mergeGameState({
+        governance: applyGovernanceImpact(gameState.governance, gate.impactIfProceed),
+      });
+    }
+
     // Let the core game system create the actual TV project from this script
     onProjectCreate(script);
 
     toast({
-      title: 'TV Script Greenlit!',
+      title: gate.severity === 'warn' ? 'TV Greenlit (Board Pushback)' : 'TV Script Greenlit!',
       description: `"${script.title}" moved to Development phase. Assign cast and crew to proceed to Pre-Production.`,
     });
   };
@@ -472,6 +535,8 @@ export const TVShowDevelopment: React.FC<TVShowDevelopmentProps> = ({
     !gameState.projects.some(project => project.script.id === script.id) &&
     (script.characteristics.pacing === 'episodic' || script.estimatedRuntime <= 60) // TV-like characteristics
   );
+
+  const draftRating = computeFilmContentRating(newScript.characteristics?.content);
 
   return (
     <div className="space-y-6">
@@ -681,6 +746,105 @@ export const TVShowDevelopment: React.FC<TVShowDevelopmentProps> = ({
                     <span>Awards Bait</span>
                   </div>
                 </div>
+
+                <div className="space-y-3">
+                  <div className="flex items-center justify-between">
+                    <Label>Content</Label>
+                    <Badge variant="outline" className="font-mono">
+                      {draftRating.label}
+                    </Badge>
+                  </div>
+
+                  <div className="space-y-2">
+                    <Label className="text-xs text-muted-foreground">Violence</Label>
+                    <Slider
+                      value={[newScript.characteristics?.content?.violence ?? 0]}
+                      onValueChange={([value]) => setNewScript(prev => ({
+                        ...prev,
+                        characteristics: {
+                          ...prev.characteristics!,
+                          content: { ...(prev.characteristics?.content ?? {}), violence: value }
+                        }
+                      }))}
+                      min={0}
+                      max={10}
+                      step={1}
+                      className="w-full"
+                    />
+                  </div>
+
+                  <div className="space-y-2">
+                    <Label className="text-xs text-muted-foreground">Nudity</Label>
+                    <Slider
+                      value={[newScript.characteristics?.content?.nudity ?? 0]}
+                      onValueChange={([value]) => setNewScript(prev => ({
+                        ...prev,
+                        characteristics: {
+                          ...prev.characteristics!,
+                          content: { ...(prev.characteristics?.content ?? {}), nudity: value }
+                        }
+                      }))}
+                      min={0}
+                      max={10}
+                      step={1}
+                      className="w-full"
+                    />
+                  </div>
+
+                  <div className="space-y-2">
+                    <Label className="text-xs text-muted-foreground">Language</Label>
+                    <Slider
+                      value={[newScript.characteristics?.content?.language ?? 0]}
+                      onValueChange={([value]) => setNewScript(prev => ({
+                        ...prev,
+                        characteristics: {
+                          ...prev.characteristics!,
+                          content: { ...(prev.characteristics?.content ?? {}), language: value }
+                        }
+                      }))}
+                      min={0}
+                      max={10}
+                      step={1}
+                      className="w-full"
+                    />
+                  </div>
+
+                  <div className="space-y-2">
+                    <Label className="text-xs text-muted-foreground">Substance</Label>
+                    <Slider
+                      value={[newScript.characteristics?.content?.substance ?? 0]}
+                      onValueChange={([value]) => setNewScript(prev => ({
+                        ...prev,
+                        characteristics: {
+                          ...prev.characteristics!,
+                          content: { ...(prev.characteristics?.content ?? {}), substance: value }
+                        }
+                      }))}
+                      min={0}
+                      max={10}
+                      step={1}
+                      className="w-full"
+                    />
+                  </div>
+
+                  <div className="pt-1">
+                    <Slider
+                      value={[contentRatingToSliderValue(draftRating.label)]}
+                      min={0}
+                      max={4}
+                      step={1}
+                      disabled
+                      className="w-full"
+                    />
+                    <div className="flex justify-between text-xs text-muted-foreground mt-1">
+                      <span>G</span>
+                      <span>PG</span>
+                      <span>PG-13</span>
+                      <span>R</span>
+                      <span>NC-17</span>
+                    </div>
+                  </div>
+                </div>
               </div>
             </div>
 
@@ -765,7 +929,9 @@ export const TVShowDevelopment: React.FC<TVShowDevelopmentProps> = ({
 
                 const assumedEpisodeCount = 13;
                 const canAffordGreenlight = gameState.studio.budget >= (script.budget * assumedEpisodeCount) * 0.1;
-                const canGreenlight = isFinalized && canAffordGreenlight;
+                const gate = getGreenlightGateReport({ state: gameState, script, kind: 'tv', episodeCount: assumedEpisodeCount });
+                const canGreenlight = isFinalized && canAffordGreenlight && gate.canGreenlight;
+                const hasBoardPushback = isFinalized && canAffordGreenlight && gate.severity === 'warn';
 
                 return (
                 <Card 
@@ -838,13 +1004,13 @@ export const TVShowDevelopment: React.FC<TVShowDevelopmentProps> = ({
                           className={`flex-1 ${!canGreenlight ? 'opacity-90' : ''}`}
                           variant={canGreenlight ? 'default' : 'secondary'}
                           onClick={() => {
-                            if (canGreenlight) {
-                              handleGreenlightTVScript(script);
+                            if (stageQuote) {
+                              handleAdvanceStage(script);
                               return;
                             }
 
-                            if (stageQuote) {
-                              handleAdvanceStage(script);
+                            if (isFinalized) {
+                              handleGreenlightTVScript(script);
                               return;
                             }
 
@@ -853,28 +1019,47 @@ export const TVShowDevelopment: React.FC<TVShowDevelopmentProps> = ({
                           disabled={stageQuote ? !canAdvanceStage : false}
                           title={
                             canGreenlight
-                              ? ''
+                              ? hasBoardPushback
+                                ? gate.reasons.join(' ')
+                                : ''
                               : stageQuote
                                 ? !canAdvanceStage
                                   ? 'Insufficient funds to pay the writer'
                                   : `Pay ${formatMoney(stageQuote.writerFee)} to advance`
-                                : greenlightReport.issues.filter(i => i.level === 'error').map(i => i.message).join(' ')
+                                : isFinalized
+                                  ? !canAffordGreenlight
+                                    ? 'Insufficient funds to greenlight'
+                                    : gate.reasons.join(' ')
+                                  : greenlightReport.issues.filter(i => i.level === 'error').map(i => i.message).join(' ')
                           }
                         >
                           <ClapperboardIcon className="w-4 h-4 mr-1" />
                           {canGreenlight
-                            ? 'Greenlight'
+                            ? hasBoardPushback
+                              ? 'Greenlight (Pushback)'
+                              : 'Greenlight'
                             : stageQuote
                               ? `Advance (${formatScriptStage(stageQuote.toStage)})`
-                              : 'Final Checks'}
+                              : isFinalized
+                                ? !canAffordGreenlight
+                                  ? 'Financing Needed'
+                                  : 'Approval Needed'
+                                : 'Final Checks'}
                         </Button>
                       </div>
+                      {hasBoardPushback && (
+                        <p className="text-xs text-muted-foreground text-center">
+                          {gate.reasons.join(' ')}
+                        </p>
+                      )}
                       {!canGreenlight && (
                         <p className="text-xs text-muted-foreground text-center">
                           {stageQuote
                             ? `Pay ${formatMoney(stageQuote.writerFee)} to advance to ${formatScriptStage(stageQuote.toStage)}`
                             : isFinalized
-                              ? (canAffordGreenlight ? 'Run final checks to greenlight' : 'Secure financing to greenlight')
+                              ? !canAffordGreenlight
+                                ? 'Secure financing to greenlight'
+                                : gate.reasons.join(' ')
                               : 'Advance stages and run final checks before greenlighting'}
                         </p>
                       )}
