@@ -1,4 +1,4 @@
-import { MediaEvent, MediaItem, MediaMemory, GameState, TalentPerson, Project, Studio } from '@/types/game';
+import { MediaEvent, MediaItem, MediaMemory, GameState, TalentPerson, Project, Studio, MediaSource } from '@/types/game';
 import { MediaSourceGenerator } from '@/data/MediaSourceGenerator';
 import { MediaContentGenerator } from '@/data/MediaContentGenerator';
 
@@ -71,6 +71,64 @@ class MediaEngine {
     }
 
     return newMediaItems;
+  }
+
+  static injectDeterministicMediaItem(input: {
+    id: string;
+    type: MediaItem['type'];
+    headline: string;
+    content: string;
+    week: number;
+    year: number;
+    sentiment: MediaItem['sentiment'];
+    targets: MediaItem['targets'];
+    impact?: Partial<MediaItem['impact']>;
+    tags?: string[];
+    relatedEvents?: string[];
+    sourceType?: MediaSource['type'];
+    sourceId?: string;
+  }): string {
+    const allSources = MediaSourceGenerator.generateMediaSources();
+
+    if (this.mediaHistory.some((m) => m.id === input.id)) return input.id;
+
+    const sourceById = input.sourceId ? allSources.find((s) => s.id === input.sourceId) : undefined;
+
+    const pool = sourceById
+      ? [sourceById]
+      : MediaSourceGenerator.getSourcesByType(input.sourceType || 'trade_publication');
+
+    const source = pool
+      .slice()
+      .sort((a, b) => (b.credibility || 0) - (a.credibility || 0))[0] ||
+      allSources[0];
+
+    const impact: MediaItem['impact'] = {
+      reach: 70,
+      credibility: source?.credibility ?? 80,
+      virality: 30,
+      intensity: 35,
+      ...(input.impact || {}),
+    };
+
+    const mediaItem: MediaItem = {
+      id: input.id,
+      source,
+      type: input.type,
+      headline: input.headline,
+      content: input.content,
+      publishDate: { week: input.week, year: input.year },
+      targets: input.targets,
+      sentiment: input.sentiment,
+      impact,
+      tags: input.tags || [],
+      relatedEvents: input.relatedEvents,
+    };
+
+    this.mediaHistory.push(mediaItem);
+    this.updateMediaMemory(mediaItem);
+
+    return input.id;
   }
 
   // Auto-generate events based on game state changes

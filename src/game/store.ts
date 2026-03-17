@@ -28,6 +28,9 @@ import { advanceWeekInWorker } from './worker/client';
 import { saveGame } from '@/utils/saveLoad';
 import { TalentDebutSystem } from './systems/talentDebutSystem';
 import { AiTelevisionSystem } from './systems/aiTelevisionSystem';
+import { PlayerCircleDramaSystem } from './systems/playerCircleDramaSystem';
+import { MediaEngine } from '@/components/game/MediaEngine';
+import { getPlayerCircleDramaMediaTemplate } from './systems/playerCircleDramaModding';
 
 // ---------------------------------------------------------------------------
 // Store shape
@@ -133,6 +136,9 @@ export interface GameStoreState {
 
   /** Clear the last tick report */
   clearTickReport: () => void;
+
+  /** Resolve (apply and remove) a queued GameEvent */
+  resolveGameEvent: (eventId: string, choice?: string | number) => void;
 }
 
 // ---------------------------------------------------------------------------
@@ -150,6 +156,7 @@ export const useGameStore: import('zustand').UseBoundStore<import('zustand').Sto
       const r = new SystemRegistry();
       r.register(TalentDebutSystem);
       r.register(AiTelevisionSystem);
+      r.register(PlayerCircleDramaSystem);
       return r;
     })(),
     lastTickReport: null,
@@ -496,6 +503,190 @@ export const useGameStore: import('zustand').UseBoundStore<import('zustand').Sto
     clearTickReport: () => {
       set((s) => {
         s.lastTickReport = null;
+      });
+    },
+
+    resolveGameEvent: (eventId, choice) => {
+      const clamp = (n: number, min: number, max: number) => Math.max(min, Math.min(max, n));
+
+      set((s) => {
+        if (!s.game) return;
+
+        const idx = (s.game.eventQueue || []).findIndex((e) => e.id === eventId);
+        if (idx < 0) return;
+
+        const event = s.game.eventQueue[idx];
+
+        const selectedChoice = typeof choice === 'number'
+          ? event.choices?.[choice]
+          : typeof choice === 'string'
+            ? event.choices?.find((c) => c.id === choice)
+            : event.choices?.[0];
+
+        if (selectedChoice) {
+          for (const consequence of selectedChoice.consequences || []) {
+            if (consequence.type === 'budget') {
+              s.game.studio.budget = (s.game.studio.budget ?? 0) + consequence.impact;
+              continue;
+            }
+
+            if (consequence.type === 'reputation') {
+              s.game.studio.reputation = clamp((s.game.studio.reputation ?? 0) + consequence.impact, 0, 100);
+              continue;
+            }
+
+            if (consequence.type === 'talent-relationship') {
+              const targetTalentId = consequence.target?.talentId;
+              if (!targetTalentId) continue;
+
+              const t = s.game.talent.find((x) => x.id === targetTalentId);
+              if (!t) continue;
+
+              const relationship = consequence.relationship ?? 'loyalty';
+
+              if (relationship === 'loyalty') {
+                const studioId = consequence.target?.studioId ?? s.game.studio.id;
+                const current = t.studioLoyalty?.[studioId] ?? 50;
+                if (!t.studioLoyalty) t.studioLoyalty = {};
+                t.studioLoyalty[studioId] = clamp(current + consequence.impact, 0, 100);
+                continue;
+              }
+
+              if (relationship === 'chemistry') {
+                const otherId = consequence.target?.otherTalentId;
+                if (!otherId) continue;
+
+                const other = s.game.talent.find((x) => x.id === otherId);
+                if (!other) continue;
+
+                if (!t.chemistry) t.chemistry = {};
+                if (!other.chemistry) other.chemistry = {};
+
+                const baseAB = t.chemistry[otherId] ?? 0;
+                const baseBA = other.chemistry[targetTalentId] ?? 0;
+
+                t.chemistry[otherId] = clamp(baseAB + consequence.impact, -100, 100);
+                other.chemistry[targetTalentId] = clamp(baseBA + consequence.impact, -100, 100);
+                continue;
+              }
+            }
+          }
+
+          // Event-specific effects that are awkward to model as generic consequences.
+          const kind = (event as any)?.data?.kind;
+
+          if (kind === 'circle:poach' && selectedChoice.id === 'let-walk') {
+            const talentId = (event as any)?.data?.talentId as string | undefined;
+            const t = talentId ? s.game.talent.find((x) => x.id === talentId) : undefined;
+            if (t) {
+              const studioId = s.game.studio.id;
+              const loyalty = clamp(t.studioLoyalty?.[studioId] ?? 50, 0, 100);
+              if (loyalty <= 20) {
+                t.contractStatus = 'available';
+                if (t.studioLoyalty) delete t.studioLoyalty[studioId];
+              }
+            }
+          }
+
+          if (kind === 'circle:feud' && selectedChoice.id === 'replace-b') {
+            const projectId = (event as any)?.data?.projectId as string | undefined;
+            const talentId = (event as any)?.data?.talentBId as string | undefined;
+            const project = projectId ? s.game.projects.find((p) => p.id === projectId) : undefined;
+            const t = talentId ? s.game.talent.find((x) => x.id === talentId) : undefined;
+
+            if (project && t) {
+              project.cast = (project.cast || []).filter((r) => r.talentId !== talentId);
+              project.crew = (project.crew || []).filter((r) => r.talentId !== talentId);
+              project.contractedTalent = (project.contractedTalent || []).filter((r) => r.talentId !== talentId);
+              if (project.script?.characters) {
+                project.script.characters = project.script.characters.map((c) =>
+                  c.assignedTalentId === talentId ? { ...c, assignedTalentId: undefined } : c
+                );
+              }
+              t.contractStatus = 'available';
+            }
+          }
+
+          // Deterministic PR media coverage (no Date.now()/Math.random())
+          if (selectedChoice.id === 'pr-spin' && kind === 'circle:poach') {
+            const talentId = (event as any)?.data?.talentId as string | undefined;
+            const t = talentId ? s.game.talent.find((x) => x.id === talentId) : undefined;
+
+            if (t) {
+              const vars = {
+                StudioName: s.game.studio.name,
+                StudioId: s.game.studio.id,
+                TalentName: t.name,
+                TalentId: t.id,
+              };
+
+              const template = getPlayerCircleDramaMediaTemplate('circle:poach:pr-spin', vars, { enableMods: s.game.mode !== 'online' });
+              if (template) {
+                const mediaId = `media:${event.id}:pr-spin`;
+                MediaEngine.injectDeterministicMediaItem({
+                  id: mediaId,
+                  type: template.type,
+                  headline: template.headline,
+                  content: template.content,
+                  week: s.game.currentWeek,
+                  year: s.game.currentYear,
+                  sentiment: template.sentiment,
+                  targets: { studios: [s.game.studio.id], talent: [t.id] },
+                  impact: template.impact,
+                  tags: template.tags,
+                  relatedEvents: [event.id],
+                  sourceType: template.sourceType,
+                  sourceId: template.sourceId,
+                });
+              }
+            }
+          }
+
+          if (selectedChoice.id === 'pr-shield' && kind === 'circle:feud') {
+            const projectId = (event as any)?.data?.projectId as string | undefined;
+            const talentAId = (event as any)?.data?.talentAId as string | undefined;
+            const talentBId = (event as any)?.data?.talentBId as string | undefined;
+
+            const project = projectId ? s.game.projects.find((p) => p.id === projectId) : undefined;
+            const a = talentAId ? s.game.talent.find((x) => x.id === talentAId) : undefined;
+            const b = talentBId ? s.game.talent.find((x) => x.id === talentBId) : undefined;
+
+            if (project && a && b) {
+              const vars = {
+                StudioName: s.game.studio.name,
+                StudioId: s.game.studio.id,
+                ProjectTitle: project.title,
+                ProjectId: project.id,
+                TalentAName: a.name,
+                TalentAId: a.id,
+                TalentBName: b.name,
+                TalentBId: b.id,
+              };
+
+              const template = getPlayerCircleDramaMediaTemplate('circle:feud:pr-shield', vars, { enableMods: s.game.mode !== 'online' });
+              if (template) {
+                const mediaId = `media:${event.id}:pr-shield`;
+                MediaEngine.injectDeterministicMediaItem({
+                  id: mediaId,
+                  type: template.type,
+                  headline: template.headline,
+                  content: template.content,
+                  week: s.game.currentWeek,
+                  year: s.game.currentYear,
+                  sentiment: template.sentiment,
+                  targets: { studios: [s.game.studio.id], projects: [project.id], talent: [a.id, b.id] },
+                  impact: template.impact,
+                  tags: template.tags,
+                  relatedEvents: [event.id],
+                  sourceType: template.sourceType,
+                  sourceId: template.sourceId,
+                });
+              }
+            }
+          }
+        }
+
+        s.game.eventQueue.splice(idx, 1);
       });
     },
   }))

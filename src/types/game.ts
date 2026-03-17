@@ -883,9 +883,13 @@ export interface GameEvent {
   triggerDate: Date;
   choices?: EventChoice[];
   autoResolve?: boolean;
+  /** Optional event payload for engine/UI systems (kept small and serializable). */
+  data?: any;
 }
 
 export interface EventChoice {
+  /** Stable identifier for programmatic handling (optional for legacy events). */
+  id?: string;
   text: string;
   consequences: EventConsequence[];
   requirements?: EventRequirement[];
@@ -895,6 +899,15 @@ export interface EventConsequence {
   type: 'budget' | 'reputation' | 'talent-relationship' | 'market-share' | 'technology-access';
   impact: number;
   description: string;
+  /** Optional targeting for relationship consequences. */
+  target?: {
+    talentId?: string;
+    otherTalentId?: string;
+    studioId?: string;
+    projectId?: string;
+  };
+  /** Relationship axis to apply when type === 'talent-relationship'. */
+  relationship?: 'loyalty' | 'chemistry';
 }
 
 export interface EventRequirement {
