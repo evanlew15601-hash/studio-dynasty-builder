@@ -23,7 +23,28 @@ function makeBaseState(overrides?: Partial<GameState>): GameState {
     currentYear: 2026,
     currentWeek: 52,
     currentQuarter: 4,
-    projects: [],
+    projects: [
+      {
+        id: 'p1',
+        title: 'Player Hit',
+        script: { id: 's1', title: 'Player Hit', genre: 'drama', logline: 'x', writer: 'x', pages: 100, quality: 70, budget: 10_000_000, developmentStage: 'final', themes: [], targetAudience: 'general', estimatedRuntime: 110, characteristics: { tone: 'balanced', pacing: 'steady', dialogue: 'naturalistic', visualStyle: 'realistic', commercialAppeal: 6, criticalPotential: 6, cgiIntensity: 'minimal' } },
+        type: 'feature',
+        currentPhase: 'release',
+        budget: { total: 10_000_000, allocated: {}, spent: {}, overages: {} } as any,
+        cast: [],
+        crew: [],
+        timeline: { preProduction: { start: new Date(), end: new Date() }, principalPhotography: { start: new Date(), end: new Date() }, postProduction: { start: new Date(), end: new Date() }, release: new Date(), milestones: [] } as any,
+        locations: [],
+        distributionStrategy: { primary: { platform: 'Theatrical', type: 'theatrical', revenue: { type: 'box-office', studioShare: 50 } }, windows: [], marketingBudget: 0 } as any,
+        status: 'released',
+        metrics: { boxOfficeTotal: 800 } as any,
+        phaseDuration: 0,
+        contractedTalent: [],
+        developmentProgress: { scriptCompletion: 100, budgetApproval: 100, talentAttached: 100, locationSecured: 100, completionThreshold: 100, issues: [] },
+        releaseWeek: 11,
+        releaseYear: 2026,
+      } as any,
+    ],
     talent: [],
     scripts: [],
     competitorStudios: [],
@@ -37,25 +58,7 @@ function makeBaseState(overrides?: Partial<GameState>): GameState {
       competitorReleases: [],
     },
     eventQueue: [],
-    boxOfficeHistory: [
-      {
-        week: 10,
-        year: 2026,
-        releases: [
-          { projectId: 'p1', title: 'Player Hit', studio: 'Player Studio', weeklyRevenue: 10, totalRevenue: 500, theaters: 1, weekInRelease: 1 },
-          { projectId: 'p2', title: 'Other Hit', studio: 'Other Studio', weeklyRevenue: 10, totalRevenue: 900, theaters: 1, weekInRelease: 1 },
-        ],
-        totalRevenue: 0,
-      },
-      {
-        week: 11,
-        year: 2026,
-        releases: [
-          { projectId: 'p1', title: 'Player Hit', studio: 'Player Studio', weeklyRevenue: 10, totalRevenue: 800, theaters: 1, weekInRelease: 2 },
-        ],
-        totalRevenue: 0,
-      },
-    ],
+    boxOfficeHistory: [],
     awardsCalendar: [],
     industryTrends: [],
     allReleases: [],
@@ -72,7 +75,7 @@ function makeBaseState(overrides?: Partial<GameState>): GameState {
 describe('PlayerLegacySystem', () => {
   it('computes totals and biggest hit on year rollover', () => {
     const state = makeBaseState();
-    const result = advanceWeek(state, createRng(1), [WorldMilestonesSystem, WorldYearbookSystem, PlayerLegacySystem]);
+    const result = advanceWeek(state, createRng(1), [WorldMilestonesSystem, PlayerLegacySystem, WorldYearbookSystem]);
 
     const legacy = result.nextState.playerLegacy;
     expect(legacy?.studioId).toBe('studio-1');
@@ -88,19 +91,32 @@ describe('PlayerLegacySystem', () => {
 
   it('logs milestone history entries when thresholds are crossed', () => {
     const state = makeBaseState({
-      boxOfficeHistory: [
+      projects: [
         {
-          week: 10,
-          year: 2026,
-          releases: [
-            { projectId: 'p1', title: 'Player Hit', studio: 'Player Studio', weeklyRevenue: 10, totalRevenue: 100_000_001, theaters: 1, weekInRelease: 1 },
-          ],
-          totalRevenue: 0,
-        },
+          id: 'p1',
+          title: 'Player Hit',
+          script: { id: 's1', title: 'Player Hit', genre: 'drama', logline: 'x', writer: 'x', pages: 100, quality: 70, budget: 10_000_000, developmentStage: 'final', themes: [], targetAudience: 'general', estimatedRuntime: 110, characteristics: { tone: 'balanced', pacing: 'steady', dialogue: 'naturalistic', visualStyle: 'realistic', commercialAppeal: 6, criticalPotential: 6, cgiIntensity: 'minimal' } },
+          type: 'feature',
+          currentPhase: 'release',
+          budget: { total: 10_000_000, allocated: {}, spent: {}, overages: {} } as any,
+          cast: [],
+          crew: [],
+          timeline: { preProduction: { start: new Date(), end: new Date() }, principalPhotography: { start: new Date(), end: new Date() }, postProduction: { start: new Date(), end: new Date() }, release: new Date(), milestones: [] } as any,
+          locations: [],
+          distributionStrategy: { primary: { platform: 'Theatrical', type: 'theatrical', revenue: { type: 'box-office', studioShare: 50 } }, windows: [], marketingBudget: 0 } as any,
+          status: 'released',
+          metrics: { boxOfficeTotal: 100_000_001 } as any,
+          phaseDuration: 0,
+          contractedTalent: [],
+          developmentProgress: { scriptCompletion: 100, budgetApproval: 100, talentAttached: 100, locationSecured: 100, completionThreshold: 100, issues: [] },
+          releaseWeek: 10,
+          releaseYear: 2026,
+        } as any,
       ],
+      boxOfficeHistory: [],
     });
 
-    const result = advanceWeek(state, createRng(1), [WorldMilestonesSystem, WorldYearbookSystem, PlayerLegacySystem]);
+    const result = advanceWeek(state, createRng(1), [WorldMilestonesSystem, PlayerLegacySystem, WorldYearbookSystem]);
 
     const history = result.nextState.worldHistory || [];
     expect(history.some((e) => e.id === 'hist:studio_milestone:studio-1:boxoffice:100000000')).toBe(true);

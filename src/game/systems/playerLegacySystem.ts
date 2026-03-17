@@ -3,27 +3,75 @@ import { pushWorldHistory } from '@/utils/worldHistory';
 import { formatMoneyCompact } from '@/utils/money';
 import type { TickSystem } from '../core/types';
 
-function computePlayerReleaseGrossByProject(state: GameState): Map<string, { projectId: string; title: string; year: number; totalRevenue: number }> {
-  const best = new Map<string, { projectId: string; title: string; year: number; totalRevenue: number }>();
+function getProjectTotalRevenue(p: any): number {
+  const m = p?.metrics;
+  const box = m?.boxOfficeTotal ?? m?.totalRevenue ?? m?.boxOffice?.total ?? 0;
+  return Number.isFinite(box) ? box : 0;
+}
 
+function collectPlayerReleases(state: GameState, maxYear: number): Array<{ projectId: string; title: string; year: number; totalRevenue: number }> {
+  const out: Array<{ projectId: string; title: string; year: number; totalRevenue: number }> = [];
+
+  const bestFromHistory = new Map<string, number>();
   for (const week of state.boxOfficeHistory || []) {
+    if (week.year > maxYear) continue;
     for (const r of week.releases || []) {
       if (r.studio !== state.studio.name) continue;
-
-      const existing = best.get(r.projectId);
       const total = r.totalRevenue ?? 0;
-      if (!existing || total > existing.totalRevenue) {
-        best.set(r.projectId, {
-          projectId: r.projectId,
-          title: r.title,
-          year: week.year,
-          totalRevenue: total,
-        });
-      }
+      const existing = bestFromHistory.get(r.projectId) ?? 0;
+      if (total > existing) bestFromHistory.set(r.projectId, total);
     }
   }
 
-  return best;
+  for (const p of state.projects || []) {
+    if (!p) continue;
+    if (p.status !== 'released') continue;
+    const year = p.releaseYear ?? (p as any).scheduledReleaseYear;
+    if (typeof year !== 'number') continue;
+    if (year > maxYear) continue;
+
+    const direct = getProjectTotalRevenue(p);
+    const fromHistory = bestFromHistory.get(p.id) ?? 0;
+
+    out.push({
+      projectId: p.id,
+      title: p.title,
+      year,
+      totalRevenue: direct > 0 ? direct : fromHistory,
+    });
+  }
+
+  // Optional: in case player releases are mirrored into allReleases.
+  for (const r of state.allReleases || []) {
+    const p = r as any;
+    if (!p || typeof p !== 'object') continue;
+    if (!('script' in p)) continue;
+    if (p.status !== 'released') continue;
+    if (p.studioName !== state.studio.name) continue;
+
+    const year = p.releaseYear;
+    if (typeof year !== 'number') continue;
+    if (year > maxYear) continue;
+
+    const direct = getProjectTotalRevenue(p);
+    const fromHistory = bestFromHistory.get(p.id) ?? 0;
+
+    out.push({
+      projectId: p.id,
+      title: p.title,
+      year,
+      totalRevenue: direct > 0 ? direct : fromHistory,
+    });
+  }
+
+  // De-dupe by projectId, keep the max total.
+  const best = new Map<string, { projectId: string; title: string; year: number; totalRevenue: number }>();
+  for (const rel of out) {
+    const existing = best.get(rel.projectId);
+    if (!existing || rel.totalRevenue > existing.totalRevenue) best.set(rel.projectId, rel);
+  }
+
+  return [...best.values()];
 }
 
 function buildMilestones(params: {
@@ -109,8 +157,7 @@ export const PlayerLegacySystem: TickSystem = {
 
     const previousYear = ctx.year - 1;
 
-    const grossByProject = computePlayerReleaseGrossByProject(state);
-    const releases = [...grossByProject.values()];
+    const releases = collectPlayerReleases(state, previousYear);
 
     const totalBoxOffice = releases.reduce((sum, r) => sum + (r.totalRevenue ?? 0), 0);
     const totalReleases = releases.length;

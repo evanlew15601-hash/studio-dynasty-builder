@@ -36,6 +36,7 @@ import { WorldErasSystem } from './systems/worldErasSystem';
 import { GenreTrendsSystem } from './systems/genreTrendsSystem';
 import { StudioFortunesSystem } from './systems/studioFortunesSystem';
 import { PlayerLegacySystem } from './systems/playerLegacySystem';
+import { WorldArchiveSystem } from './systems/worldArchiveSystem';
 import { TalentFilmographySystem } from './systems/talentFilmographySystem';
 import { TalentCareerArcSystem } from './systems/talentCareerArcSystem';
 import { IndustryGossipSystem } from './systems/industryGossipSystem';
@@ -175,6 +176,7 @@ export const useGameStore: import('zustand').UseBoundStore<import('zustand').Sto
       r.register(StudioFortunesSystem);
       r.register(PlayerLegacySystem);
       r.register(WorldYearbookSystem);
+      r.register(WorldArchiveSystem);
       r.register(TalentDebutSystem);
       r.register(AiTelevisionSystem);
       r.register(TalentFilmographySystem);

@@ -899,11 +899,14 @@ Chosen policy:
 
 - `worldYearbooks`: never pruned (1/year)
 - `worldHistory`: keep the **last 250 entries**, and always keep `importance === 5` even if it exceeds the window
+- **High-volume timelines** (pruned annually via `WorldArchiveSystem`):
+  - `boxOfficeHistory`: keep last **~12 years** (enough to support decade summaries + recent charts)
+  - `topFilmsHistory`: keep last **~12 years**
 
 Why:
 
 - a “recent memory” window feels natural (people remember the last decade)
-- bounded save growth
+- bounded save growth (box office timelines can otherwise grow without limit)
 - importance 5 protects truly defining events from disappearing
 
 ## 13) Online League note

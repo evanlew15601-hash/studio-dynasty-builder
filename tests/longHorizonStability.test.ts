@@ -12,6 +12,7 @@ import { GenreTrendsSystem } from '@/game/systems/genreTrendsSystem';
 import { StudioFortunesSystem } from '@/game/systems/studioFortunesSystem';
 import { PlayerLegacySystem } from '@/game/systems/playerLegacySystem';
 import { WorldYearbookSystem } from '@/game/systems/worldYearbookSystem';
+import { WorldArchiveSystem } from '@/game/systems/worldArchiveSystem';
 import { TalentDebutSystem } from '@/game/systems/talentDebutSystem';
 
 function makeBaseState(overrides?: Partial<GameState>): GameState {
@@ -76,6 +77,7 @@ describe('long-horizon stability (100+ years)', () => {
       StudioFortunesSystem,
       PlayerLegacySystem,
       WorldYearbookSystem,
+      WorldArchiveSystem,
       TalentDebutSystem,
     ];
 
