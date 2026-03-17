@@ -10,7 +10,8 @@ import { Separator } from '@/components/ui/separator';
 import { useGameStore } from '@/game/store';
 import { useUiStore } from '@/game/uiStore';
 import { cn } from '@/lib/utils';
-import { Book, Building, Film, Search, User, ExternalLink, ScrollText } from 'lucide-react';
+import { Book, Building, Film, Search, User, ExternalLink, ScrollText, Trophy } from 'lucide-react';
+import { formatMoneyCompact as formatMoneyCompactUtil } from '@/utils/money';
 
 const formatMoney = (amount: number) => "$" + (amount / 1_000_000).toFixed(0) + "M";
 
@@ -724,6 +725,76 @@ const TimelineEncyclopedia: React.FC = () => {
   );
 };
 
+const LegacyEncyclopedia: React.FC = () => {
+  const gameState = useGameStore((s) => s.game);
+
+  const legacy = gameState?.playerLegacy;
+  const studio = gameState?.studio;
+
+  const milestones = useMemo(() => {
+    const studioId = studio?.id;
+    if (!studioId) return [];
+
+    return (gameState?.worldHistory || [])
+      .filter((e) => e.kind === 'studio_milestone')
+      .filter((e) => (e.entityIds?.studioIds || []).includes(studioId))
+      .slice()
+      .sort((a, b) => (b.year || 0) - (a.year || 0) || (b.importance || 0) - (a.importance || 0) || a.id.localeCompare(b.id));
+  }, [gameState, studio]);
+
+  return (
+    <Card>
+      <CardHeader>
+        <CardTitle className="flex items-center gap-2"><Trophy className="h-4 w-4 text-primary" />Legacy</CardTitle>
+      </CardHeader>
+      <CardContent className="space-y-4">
+        {!legacy || !studio ? (
+          <div className="text-sm text-muted-foreground">No legacy data yet. Advance a year to generate the first summary.</div>
+        ) : (
+          <>
+            <div className="flex flex-wrap gap-2">
+              <Badge variant="secondary">Releases: {legacy.totalReleases}</Badge>
+              <Badge variant="secondary">Awards: {legacy.totalAwards}</Badge>
+              <Badge variant="secondary">Box office: {formatMoneyCompactUtil(legacy.totalBoxOffice)}</Badge>
+            </div>
+
+            {legacy.biggestHit && (
+              <div className="rounded border p-3">
+                <div className="text-sm font-medium">Biggest hit</div>
+                <div className="text-sm">{legacy.biggestHit.title} ({legacy.biggestHit.year})</div>
+                <div className="text-xs text-muted-foreground">{formatMoneyCompactUtil(legacy.biggestHit.boxOffice)} box office</div>
+              </div>
+            )}
+
+            {milestones.length > 0 && (
+              <>
+                <Separator />
+                <div className="space-y-2">
+                  <div className="text-sm font-medium">Milestones</div>
+                  <div className="space-y-1">
+                    {milestones.slice(0, 12).map((m) => (
+                      <div key={m.id} className="rounded border p-2 text-sm">
+                        <div className="flex items-start justify-between gap-3">
+                          <div className="font-medium">{m.title}</div>
+                          {typeof m.importance === 'number' && <Badge variant="secondary">{m.importance}</Badge>}
+                        </div>
+                        <div className="text-xs text-muted-foreground">Y{m.year}</div>
+                      </div>
+                    ))}
+                    {milestones.length > 12 && (
+                      <div className="text-xs text-muted-foreground">…and {milestones.length - 12} more</div>
+                    )}
+                  </div>
+                </div>
+              </>
+            )}
+          </>
+        )}
+      </CardContent>
+    </Card>
+  );
+};
+
 // ─── Root ───────────────────────────────────────────────────────────────────────
 
 export const LoreHub: React.FC = () => {
@@ -779,6 +850,10 @@ export const LoreHub: React.FC = () => {
           <ScrollText className="mr-1.5 h-4 w-4" />
           Timeline
         </TabsTrigger>
+        <TabsTrigger value="legacy">
+          <Trophy className="mr-1.5 h-4 w-4" />
+          Legacy
+        </TabsTrigger>
         <TabsTrigger value="studios">
           <Building className="mr-1.5 h-4 w-4" />
           Studios
@@ -799,6 +874,10 @@ export const LoreHub: React.FC = () => {
 
       <TabsContent value="timeline">
         <TimelineEncyclopedia />
+      </TabsContent>
+
+      <TabsContent value="legacy">
+        <LegacyEncyclopedia />
       </TabsContent>
 
       <TabsContent value="studios">

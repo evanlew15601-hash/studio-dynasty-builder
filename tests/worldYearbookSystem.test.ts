@@ -68,7 +68,34 @@ function makeBaseState(overrides?: Partial<GameState>): GameState {
 
 describe('WorldYearbookSystem', () => {
   it('creates a yearbook entry on year rollover and emits a recap card', () => {
-    const state = makeBaseState();
+    const state = makeBaseState({
+      talent: [
+        {
+          id: 't1',
+          name: 'Rising Star',
+          type: 'actor',
+          age: 22,
+          experience: 2,
+          reputation: 70,
+          marketValue: 10,
+          genres: ['drama'],
+          contractStatus: 'available',
+          availability: { start: new Date(), end: new Date() },
+          careerEvolution: [
+            {
+              type: 'breakthrough',
+              year: 2026,
+              week: 20,
+              description: 'x',
+              impactOnReputation: 0,
+              impactOnMarketValue: 0,
+              sourceProjectId: 'p1',
+            },
+          ],
+        } as any,
+      ],
+    });
+
     const result = advanceWeek(state, createRng(1), [TalentLifecycleSystem, TalentRetirementSystem, WorldYearbookSystem]);
 
     expect(result.nextState.currentYear).toBe(2027);
@@ -77,6 +104,7 @@ describe('WorldYearbookSystem', () => {
     expect(result.nextState.worldYearbooks?.length).toBe(1);
     expect(result.nextState.worldYearbooks?.[0].year).toBe(2026);
     expect(result.nextState.worldYearbooks?.[0].id).toBe('yearbook:2026');
+    expect(result.nextState.worldYearbooks?.[0].body.includes('Career moments:')).toBe(true);
 
     expect(result.recap.some((c) => c.title.includes('Year in Review: 2026'))).toBe(true);
   });

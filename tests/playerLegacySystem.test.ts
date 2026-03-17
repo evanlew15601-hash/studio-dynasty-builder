@@ -84,4 +84,24 @@ describe('PlayerLegacySystem', () => {
 
     expect(legacy?.bestYearByAwards).toEqual({ year: 2025, awards: 1 });
   });
+
+  it('logs milestone history entries when thresholds are crossed', () => {
+    const state = makeBaseState({
+      boxOfficeHistory: [
+        {
+          week: 10,
+          year: 2026,
+          releases: [
+            { projectId: 'p1', title: 'Player Hit', studio: 'Player Studio', weeklyRevenue: 10, totalRevenue: 100_000_001, theaters: 1, weekInRelease: 1 },
+          ],
+          totalRevenue: 0,
+        },
+      ],
+    });
+
+    const result = advanceWeek(state, createRng(1), [WorldYearbookSystem, PlayerLegacySystem]);
+
+    const history = result.nextState.worldHistory || [];
+    expect(history.some((e) => e.id === 'hist:studio_milestone:studio-1:boxoffice:100000000')).toBe(true);
+  });
 });
