@@ -226,7 +226,7 @@ function buildYearbookBody(params: {
 export const WorldYearbookSystem: TickSystem = {
   id: 'worldYearbook',
   label: 'World yearbook',
-  dependsOn: ['talentRetirements', 'worldMilestones', 'worldEras', 'playerLegacy', 'genreTrends', 'studioFortunes'],
+  dependsOn: ['talentRetirements', 'worldMilestones', 'worldEras', 'playerLegacy', 'genreTrends', 'studioFortunes', 'competitorStudioLifecycle'],
   onTick: (state, ctx) => {
     if (ctx.week !== 1) return state;
     if (state.mode === 'online') return state;

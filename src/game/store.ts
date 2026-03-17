@@ -35,6 +35,7 @@ import { WorldMilestonesSystem } from './systems/worldMilestonesSystem';
 import { WorldErasSystem } from './systems/worldErasSystem';
 import { GenreTrendsSystem } from './systems/genreTrendsSystem';
 import { StudioFortunesSystem } from './systems/studioFortunesSystem';
+import { CompetitorStudioLifecycleSystem } from './systems/competitorStudioLifecycleSystem';
 import { PlayerLegacySystem } from './systems/playerLegacySystem';
 import { WorldArchiveSystem } from './systems/worldArchiveSystem';
 import { TalentFilmographySystem } from './systems/talentFilmographySystem';
@@ -174,6 +175,7 @@ export const useGameStore: import('zustand').UseBoundStore<import('zustand').Sto
       r.register(WorldErasSystem);
       r.register(GenreTrendsSystem);
       r.register(StudioFortunesSystem);
+      r.register(CompetitorStudioLifecycleSystem);
       r.register(PlayerLegacySystem);
       r.register(WorldYearbookSystem);
       r.register(WorldArchiveSystem);

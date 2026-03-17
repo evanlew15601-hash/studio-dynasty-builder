@@ -153,6 +153,7 @@ export interface TalentPerson {
   isNotable?: boolean;
   // Enhanced talent properties
   biography?: string;
+  /** Absolute week index (year * 52 + week) of last credited release. */
   lastWorkWeek?: number;
   retired?: { year: number; week: number; reason: 'age' | 'burnout' | 'inactivity' | 'scandal' | 'unknown' };
   careerEvolution?: CareerEvent[];

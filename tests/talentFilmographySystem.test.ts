@@ -88,6 +88,10 @@ describe('TalentFilmographySystem', () => {
 
     const t = result.nextState.talent.find((x) => x.id === 't1');
     expect(t?.filmography?.some((f) => f.projectId === 'p1')).toBe(true);
+
+    // lastWorkWeek is stored as an absolute week index (year * 52 + week).
+    expect(t?.lastWorkWeek).toBe(2026 * 52 + 10);
+    expect(t?.recentProjects?.[0]).toBe('p1');
   });
 
   it('updates filmography for releases present only in allReleases (AI/competitors)', () => {

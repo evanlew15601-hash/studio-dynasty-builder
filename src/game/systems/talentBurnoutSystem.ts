@@ -15,6 +15,10 @@ function lastCreditedYear(t: TalentPerson): number | null {
   return typeof t.careerStartYear === 'number' ? t.careerStartYear : null;
 }
 
+function creditsInYear(t: TalentPerson, year: number): number {
+  return (t.filmography || []).filter((f) => f.year === year).length;
+}
+
 /**
  * Annual talent burnout drift derived from recent work.
  *
@@ -44,8 +48,11 @@ export const TalentBurnoutSystem: TickSystem = {
       const lastYear = lastCreditedYear(t);
       const current = clamp(t.burnoutLevel ?? 0, 0, 100);
 
+      const creditsPrevYear = creditsInYear(t, previousYear);
+
       let delta = -6;
-      if (lastYear === previousYear) delta = 8;
+      if (creditsPrevYear >= 2) delta = 10;
+      else if (creditsPrevYear === 1) delta = 8;
       else if (lastYear !== null && lastYear >= previousYear - 1) delta = 3;
 
       // Exclusive contracts add a little extra pressure when actively working.
