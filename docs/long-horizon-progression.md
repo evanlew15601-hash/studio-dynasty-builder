@@ -74,6 +74,22 @@ Online League currently disables procedural rookies to keep shared IDs consisten
 
 **Principle:** anything that introduces new IDs or stochastic outcomes should be **single-player only** unless/ until Online League adopts a shared policy.
 
+### 1.5 Time semantics at year rollover (critical)
+The tick pipeline advances time *before* systems run (`advanceWeek` updates `ctx.week`/`ctx.year`). When Week 52 advances to Week 1, `ctx.year` is already the new year.
+
+For long-horizon systems we need consistent semantics:
+
+- Let `currentYear = ctx.year` (the year we just entered).
+- Let `previousYear = ctx.year - 1` (the year that just finished).
+
+Policy:
+
+- **Yearbook entries** summarize `previousYear`.
+- **Retirements** happen in the “offseason” between years, and should be stamped as `previousYear` so they appear in the correct historical frame.
+- **Debuts** belong to `currentYear` (rookie class for the new year).
+
+This avoids off-by-one confusion and keeps “Year X” summaries coherent.
+
 ---
 
 ## 2) Current foundations we should extend (not replace)
@@ -189,7 +205,12 @@ export interface GameState {
 ```
 
 ### 4.3 Optional: explicit retirement stamp
-This is useful for UI and to prevent “un-retiring” via legacy systems.
+This is useful for UI, for replacement-aware debuts, and to prevent “un-retiring” via legacy systems.
+
+Recommendation: treat retirement as an **offseason event** and stamp it against the year that just finished:
+
+- `retired.year = previousYear` (the year being closed out)
+- `retired.week = 52` (end-of-year marker; even though the system runs at week 1)
 
 ```ts
 export interface TalentPerson {
@@ -200,6 +221,21 @@ export interface TalentPerson {
 ---
 
 ## 5) Engine systems (incremental, additive)
+
+### 5.0 Balance targets (so systems converge instead of drift)
+These systems need a few explicit targets so the simulation stays stable over decades.
+
+Recommended starting targets (single-player):
+
+- **Active roster band**: keep non-retired talent in roughly a 200–320 range.
+  - below band: reduce forced retirements and keep baseline debuts
+  - above band: increase retirement quota and/or reduce baseline debuts
+- **Annual churn**: aim for ~3–8% of the active roster to exit per year.
+  - this creates generational turnover without erasing the world too fast
+- **Role mix** (if you only generate actors/directors today):
+  - ensure retirements and rookie generation are computed per role so you don’t accidentally end up with “too many directors” after 30 years
+
+These are tuning knobs, not hard rules. The key is: the model should have a tendency to return to a stable range.
 
 ### 5.1 Step A — Talent lifecycle (annual, deterministic)
 
@@ -213,14 +249,20 @@ export interface TalentPerson {
 
 - `talent.age`, `talent.experience`, `talent.reputation`, `talent.marketValue`
 - `talent.type` (actor/director)
-- `talent.contractStatus` (skip retired)
+- `talent.contractStatus` (especially `'retired'`)
 
 **Outputs (existing fields):**
 
-- `age += 1` (for non-retired)
-- `experience += 1` (for non-retired; or only if `careerStartYear <= ctx.year` if you later store it)
-- recompute `careerStage`
-- apply conservative market value drift
+- `age += 1` for all talent (including retired). This keeps biographies consistent and avoids “frozen ages.”
+- `experience += 1` for non-retired talent only.
+- recompute `careerStage` for non-retired talent only.
+- apply conservative market value drift for non-retired talent only.
+
+**Invariants:**
+
+- This system must run **before** any debut system, otherwise new rookies would incorrectly gain 1 year of experience immediately.
+- This system must not change `contractStatus` or any project/contract structures.
+- Rerunning the tick for the same save+seed should produce identical results (no `Math.random()`).
 
 **Important non-goals for Step A:**
 
@@ -275,14 +317,28 @@ On week 1, emit a recap card like:
 A talent is eligible to retire only if:
 
 - not already retired
-- not currently marked `contractStatus: 'busy'` with `busyUntilWeek` beyond the current week
-- not attached to an active player project phase (pre-production/production/post/post-marketing) if you can detect it
+- not attached to an active player project phase (if/when we can reliably detect it)
 
-If we can’t reliably detect attachment yet, start conservative:
+If we can’t reliably detect attachments yet, start conservative:
 
 - retire only `contractStatus === 'available'`
 
+This builds on existing contract semantics and avoids breaking the player’s in-flight plans.
+
 That’s additive and safe.
+
+**Invariants:**
+
+- The system must be **safe by default**: it should never retire someone the player is actively relying on.
+- Retirement must be idempotent: once `contractStatus === 'retired'`, this system must never change them again.
+- The system must not delete talent records; retirement is a state transition, not removal.
+
+**Planned expansion (still additive):**
+
+Once we have reliable “talent is currently attached to an active project” detection, widen eligibility from `available` to include:
+
+- contracted talent with no active project attachments (represents “retired between gigs”)
+- exclusive talent only if your contract model supports graceful exit (likely later)
 
 #### Probability model (deterministic)
 Use order-independent stable seeds (preferred) so outcomes don’t change if roster ordering changes.
@@ -296,17 +352,35 @@ Example (tunable) per talent per year:
   - burnout level (`burnoutLevel`): +0–6%
   - reputation/legend status: -0–6%
 
+#### Roster-size coupling (recommended)
+Pure per-talent probabilities can produce streaky years (0 retirements, then 12 retirements) and can drift roster size over long runs.
+
+A more robust (still deterministic) approach is quota-based selection:
+
+1. compute a `retirementScore` per eligible talent (age, burnout, inactivity, low reputation)
+2. decide a desired retirement count per role based on:
+   - a soft roster cap target (e.g. keep active cast in a 200–320 band)
+   - a baseline “refresh” count even if under cap
+3. deterministically retire the top K scores above a threshold, using `stableInt` only as a tie-break
+
+This produces stable long-run behavior and makes replacement-aware debuts easier to tune.
+
 Determinism implementation guideline:
 
+- define `previousYear = ctx.year - 1`
 - `chance = f(age, burnout, reputation)`
-- roll via `stableInt('retire:'+talent.id+':'+year, 0, 9999) / 10000`
+- roll via `stableInt('retire:'+talent.id+':'+previousYear, 0, 9999) / 10000`
 
 #### State updates (existing fields)
 When retiring:
 
 - `contractStatus = 'retired'`
-- set `retired = { year, week: 1, reason }` (optional)
-- append `CareerEvent { type: 'retirement', ... }` to `careerEvolution` (already in types)
+- set `retired = { year: previousYear, week: 52, reason }` (recommended; see §4.3)
+- append a `CareerEvent` to `careerEvolution` (already in types) with:
+  - `type: 'retirement'`
+  - `year: previousYear`, `week: 52`
+  - a human-readable `description`
+  - conservative negative impacts (often 0, since retirement is not a “failure”)
 
 #### Recap + history hooks
 Emit recap card:
@@ -328,7 +402,7 @@ Right now, rookies are fixed-count. This is fine early, but long runs need the r
 #### Policy: debuts respond to exits
 On year rollover:
 
-- count retirements in the *previous* rollover (or detect new `retired.year === ctx.year`)
+- count retirements from the offseason just processed (recommended: detect `retired.year === previousYear`)
 - generate rookies roughly equal to retirements, plus a small baseline for freshness
 
 Example target:
@@ -340,7 +414,7 @@ Example target:
 #### Determinism + ID stability
 Preserve the existing rookie ID format and seeding strategy:
 
-- keep `seed: rookies:${universeSeed}:${year}`
+- keep `seed: rookies:${universeSeed}:${currentYear}`
 - the generated ID already includes `year`, `type`, `index`, `attempt`
 
 If counts change year-to-year, IDs remain stable *within that year*.
@@ -352,25 +426,46 @@ No change: still core-only debuts.
 
 ### 5.4 Step D — Filmography + “career facts” (engine-owned, not UI-owned)
 
-Career arcs and history summaries need reliable career facts:
+Career arcs and yearbooks need reliable career facts:
 
 - “what did this person do last year?”
 - “was that film a hit or bomb?”
 
-Today, some filmography updating happens in legacy UI code (`TalentFilmographyManager`).
+Today, some filmography updating happens in legacy UI code (`src/utils/talentFilmographyManager.ts` is called from `StudioMagnateGame.tsx`). That creates an architectural risk: career truth lives in UI flow rather than engine flow.
 
-**Additive step:** introduce an engine system that *reuses* the existing logic rather than duplicating it.
+**Additive step:** introduce an engine tick system that **reuses** `TalentFilmographyManager.updateFilmographyOnRelease()` (no rewrite), so filmography becomes deterministic engine-owned state.
 
 **System:** `TalentFilmographySystem` (new)
 
 **Runs:** weekly
 
-**Responsibility:** detect newly released projects and update `talent.filmography` deterministically.
+#### v1 scope (safe)
+Start with player projects only:
 
-Why this matters:
+- iterate `state.projects` with `status === 'released'`
+- call the existing `TalentFilmographyManager.updateFilmographyOnRelease(state, project)`
 
-- makes career arcs derivable from engine state
-- reduces “UI-only truth” divergence
+Later (optional), expand to `state.allReleases` for AI/competitor releases once we’re confident those releases have credited talent.
+
+#### Algorithm (idempotent)
+Because the update function is already “don’t duplicate if filmography entry exists,” the simplest engine-safe implementation is:
+
+```ts
+let next = state;
+for (const p of state.projects) {
+  if (p.status !== 'released') continue;
+  next = TalentFilmographyManager.updateFilmographyOnRelease(next, p);
+}
+return next;
+```
+
+This is intentionally idempotent: once entries exist, the system becomes a no-op for that project.
+
+#### Invariants
+
+- Must not mutate projects; it only enriches `talent.filmography` (and associated fame adjustments already in the utility).
+- Must remain deterministic: all calculations are derived from project metrics and budget, not RNG.
+- Must be safe to call even if legacy UI paths still call the same utility (duplicates are prevented). After it’s verified, we should remove/gate the UI path to avoid wasted work.
 
 ---
 
@@ -382,38 +477,89 @@ Why this matters:
 
 **Principle:** most career events should be *caused by what happened* (release performance, awards), not arbitrary RNG.
 
+#### Prerequisites / data sources
+This system should be implemented once “release outcomes” are reliably represented in the deterministic engine state. Minimum required per released project:
+
+- credited talent IDs (director + cast)
+- basic performance signals (box office, critics, or whatever the project already stores)
+- a way to know “this project released this week”
+
+If release finalization still happens outside the tick registry, the correct intermediate step is:
+
+- run the career-arc logic in the same code path that finalizes a release, and later migrate it into a tick system once releases are tick-owned.
+
+#### Processing window (weekly)
+Prefer processing only projects released this tick (not all released projects every tick). A robust, order-independent trigger is:
+
+- `project.status === 'released' && project.releaseYear === ctx.year && project.releaseWeek === ctx.week`
+
+If those fields don’t exist yet, the fallback is an idempotent “process all released projects but only once per project,” which likely requires a small marker (project-level processed flag) later.
+
+#### Idempotence (no duplicate events)
+In practice, release-week gating (`releaseYear/releaseWeek`) makes career events “naturally once.” Still, we should defensively avoid duplicates.
+
+v1 (no schema changes): before appending an event, check whether `talent.careerEvolution` already contains an entry with the same:
+
+- `type`
+- `year` / `week`
+- and a matching description pattern
+
+v2 (small, additive schema improvement): extend `CareerEvent` with an optional source pointer for exact dedupe:
+
+- `sourceProjectId?: string`
+
+That enables perfect “already processed this project” checks without adding a separate ledger.
+
 #### Event types and triggers (starting set)
-Start with three events that are easy to justify and cheap to compute:
+Start with three events that are straightforward to justify and cheap to compute.
 
 1) **Breakthrough**
-- Trigger: a rookie/rising talent is credited on a project that exceeds performance thresholds
-- Threshold example:
-  - box office multiplier > 2.0 OR critics score ≥ 85
-- Effect:
-  - add `CareerEvent { type: 'breakthrough' }`
-  - bump reputation / fame modestly
-  - add notable history entry (importance 3–4)
+- Trigger:
+  - talent `careerStage` in `{ 'unknown', 'rising' }` (or low `experience`)
+  - credited on a project that strongly outperforms
+- Suggested thresholds (tunable; use whichever metrics exist):
+  - box office multiplier > 2.0 **or** critics score ≥ 85
+- Targeted recipients:
+  - director
+  - 1–2 top-billed actors (avoid spamming every supporting credit)
+- Effects (conservative):
+  - append a `CareerEvent` with:
+    - `type: 'breakthrough'`, `year: ctx.year`, `week: ctx.week`
+    - `description` referencing the project (“Breakthrough after <Project Title>”) 
+    - small positive impacts on reputation/market value (clamped)
+  - optionally bump `fame` modestly if that’s part of the existing fame model
+  - add notable history entry if talent is marquee or the project is exceptional (`importance` 3–4)
 
 2) **Flop**
-- Trigger: credited talent on a project that bombs (e.g. multiplier < 0.6)
-- Effect:
-  - add `CareerEvent { type: 'flop' }`
-  - reputation hit (smaller for ensemble)
-  - optional: increase burnout
+- Trigger:
+  - credited on a project that underperforms (e.g. multiplier < 0.6)
+- Effects:
+  - append a `CareerEvent` with:
+    - `type: 'flop'`, `year: ctx.year`, `week: ctx.week`
+    - `description` referencing the project (“Career stumble after <Project Title>”)
+    - small negative impacts on reputation/market value (scaled by credit weight)
+  - apply a smaller reputation hit for non-leads (so ensembles don’t collapse)
+  - optional: increase burnout a small amount
 
 3) **Comeback**
-- Trigger: veteran talent with recent flops has a hit
-- Effect:
-  - add `CareerEvent { type: 'comeback' }`
-  - reputation + public image bump
-  - history entry (importance 4 for marquee/legends)
+- Trigger:
+  - talent `careerStage` in `{ 'veteran', 'legend' }`
+  - has recent flops in the last N years (derived from `careerEvolution` timestamps)
+  - then lands a hit (threshold like breakthrough)
+- Effects:
+  - append a `CareerEvent` with:
+    - `type: 'comeback'`, `year: ctx.year`, `week: ctx.week`
+    - `description` referencing the project (“Comeback after <Project Title>”) 
+    - positive impacts on reputation/market value (clamped)
+  - reputation + optional fame bump
+  - history entry (`importance` 4 for marquee/legends)
 
-Scandals should come later (they need stronger UI + persistence policy).
+Scandals should come later (they require stronger UI affordances and a clear persistence/pruning policy).
 
 #### Don’t invent new data dependencies
-At first, derive from fields that already exist on `Project.metrics` and talent filmography.
+At first, derive from fields that already exist on project metrics + credited talent.
 
-Awards integration can be added once awards results are reliably represented in engine state.
+Awards integration can be layered later once awards results are deterministic engine state (rather than UI-derived).
 
 ---
 
@@ -423,24 +569,47 @@ Awards integration can be added once awards results are reliably represented in 
 
 **Runs:** year rollover (`ctx.week === 1`)
 
-**Output:** append exactly one yearbook entry to `worldYearbooks`.
+**Output:** append exactly one yearbook entry to `worldYearbooks` summarizing the year that just ended.
 
-Content should be derived, not guessed:
+Time semantics:
 
-- top box office releases (from `boxOfficeHistory` / `allReleases`)
-- awards summary (from `studio.awards` + talent awards)
-- breakout of the year (from career events created in Step E)
-- retirements roll call (from Step B)
+- define `previousYear = ctx.year - 1`
+- generate yearbook for `previousYear`
+- recommended ID: `yearbook:${previousYear}`
+
+#### Content (derived, not guessed)
+Yearbook content should be opinionated but mechanically grounded. Start with sections you can compute from existing state:
+
+- **Top box office releases** for `previousYear` (from `boxOfficeHistory` / `allReleases`)
+- **Awards summary** for `previousYear` (from `studio.awards` + talent awards)
+- **Breakout / comeback of the year** (from `careerEvolution` events stamped in `previousYear`)
+- **Retirements roll call** (from `talent.retired.year === previousYear`)
+
+If a section’s data isn’t available yet in the engine pipeline, omit it rather than fabricating.
+
+#### Format (UI-friendly)
+Even if stored as `{ title, body }`, write the body in a consistent, easy-to-render structure (plain text with line breaks is fine):
+
+- a short 2–4 sentence “industry vibe” paragraph (deterministic; derived from computed highlights)
+- then bullet sections, e.g.
+  - “Top Releases:”
+  - “Awards:”
+  - “New Stars:”
+  - “Retirements:”
+
+This keeps the Timeline readable without requiring rich markup.
 
 **System:** `WorldHistoryPruneSystem` (optional)
 
-If save size becomes a real constraint, prune `worldHistory` by policy:
+Notable events are for texture, not logging. Define a hard policy up front:
 
-- keep only `importance >= 4`, or
-- keep last N entries, or
-- keep last N years of events + all yearbooks
+- `worldYearbooks`: never pruned (1 per year; bounded by playtime)
+- `worldHistory`: pruned by one of:
+  - keep only `importance >= 4`, or
+  - keep last N entries (e.g. 250), or
+  - keep last N years worth of entries
 
-This keeps history *useful* without turning saves into logs.
+This keeps history useful without turning saves into logs.
 
 ---
 
@@ -450,15 +619,28 @@ This keeps history *useful* without turning saves into logs.
 
 **Runs:** year rollover (`ctx.week === 1`)
 
-Compute minimal “studio is history” stats from existing state:
+Compute minimal “studio is history” stats from existing state.
 
-- total releases
-- total awards
-- total box office
-- biggest hit
-- best year by awards
+Time semantics:
 
-**Important:** this should be a summary, not a second timeline.
+- define `previousYear = ctx.year - 1`
+- update records using data attributable to `previousYear` (so you don’t double-count when reloading mid-year)
+
+Suggested fields (keep this intentionally small):
+
+- lifetime totals:
+  - `totalReleases`
+  - `totalAwards`
+  - `totalBoxOffice`
+- best-of records:
+  - `biggestHit` (project + box office + year)
+  - `bestYearByAwards`
+
+**Important constraints:**
+
+- This is a *summary*, not a timeline: no per-year arrays.
+- All values should be derived from existing canonical data (releases/awards/box office), not separately simulated.
+- If a piece of canonical data is not yet tick-owned, defer that legacy stat until it is.
 
 ---
 
@@ -467,11 +649,11 @@ Compute minimal “studio is history” stats from existing state:
 Register systems so annual logic composes cleanly:
 
 ### Year rollover order (week 1)
-1. `TalentLifecycleSystem` (age/stage/value)
-2. `TalentRetirementSystem` (exit pressure)
-3. `TalentDebutSystem` (existing; now replacement-aware)
-4. `WorldYearbookSystem` (writes summary)
-5. `PlayerLegacySystem` (writes summary)
+1. `TalentLifecycleSystem` (age/experience/stage/value updates for existing talent)
+2. `TalentRetirementSystem` (offseason exits; stamped to `previousYear`)
+3. `WorldYearbookSystem` (summarize `previousYear` + include offseason retirements)
+4. `TalentDebutSystem` (rookie class for `currentYear`)
+5. `PlayerLegacySystem` (update studio summary; should ignore rookies unless explicitly tracked)
 
 ### Weekly order
 - release/box office systems (existing)
@@ -480,6 +662,13 @@ Register systems so annual logic composes cleanly:
 - existing drama systems (`PlayerCircleDramaSystem`)
 
 The exact placement among weekly systems should follow data dependencies (filmography before career arcs).
+
+Implementation note: prefer using `dependsOn` in system definitions (supported by `SystemRegistry` topological sort) so ordering survives refactors. Example intent:
+
+- `TalentDebutSystem` depends on `TalentLifecycleSystem` and `TalentRetirementSystem`
+- `WorldYearbookSystem` depends on `TalentRetirementSystem`
+- `TalentCareerArcSystem` depends on “release finalization” (whatever system owns that)
+- `TalentFilmographySystem` depends on “release finalization” as well
 
 ---
 
@@ -545,14 +734,20 @@ Studio Magnate already has strong simulation tests; we should add small, targete
 ### 10.1 Core tests (new)
 
 - `talentLifecycleSystem.test.ts`
-  - age increments once on rollover
-  - retired talent don’t age
+  - age increments once on rollover (including retired)
+  - experience increments for non-retired only
+  - rookies added after rollover do not get “free” experience (ordering invariant)
 - `talentRetirementSystem.test.ts`
   - deterministic retirements for fixed seed
-  - conservative eligibility (only available talent) doesn’t break projects
+  - retirement stamp uses `year = previousYear` and `week = 52`
+  - conservative eligibility (only `available`) doesn’t break active projects
+- `talentDebutSystem.replacementAware.test.ts`
+  - rookie counts respond to retirements by role
+  - IDs remain stable for a given `universeSeed` + `currentYear`
 - `worldYearbookSystem.test.ts`
   - exactly one yearbook added per rollover
-  - deterministic IDs and stable summaries
+  - yearbook summarizes `previousYear` (ID `yearbook:${previousYear}`)
+  - deterministic summaries for fixed seed + same sim history
 
 ### 10.2 Long-run stability test
 
@@ -608,7 +803,37 @@ After ~10 in-game years:
 
 ---
 
-## 12) Online League note
+## 12) Open decisions (confirm before implementation)
+These are small choices that affect implementation details. The plan above works either way, but we should pick defaults before coding.
+
+1) **Retirement selection style**
+- v1: independent per-talent probability (simpler)
+- v2: quota-based selection using retirement scores (more stable roster behavior)
+
+2) **Roster band / churn targets**
+- confirm the initial target band (doc proposes 200–320 active)
+- confirm desired annual churn (doc proposes 3–8%)
+
+3) **CareerEvent schema extension**
+To enable perfect dedupe and richer UI:
+
+- add `sourceProjectId?: string` to `CareerEvent` (additive, easy migration)
+
+If we don’t want schema changes yet, we’ll rely on release-week gating + description matching.
+
+4) **Which talent types participate**
+`TalentPerson.type` includes more than actors/directors. Decide whether lifecycle/retirement applies to:
+
+- all talent types (simpler, consistent), or
+- only types that currently have meaningful gameplay loops
+
+5) **History pruning policy**
+Pick one policy for `worldHistory` (not yearbooks):
+
+- keep only `importance >= 4` (high signal)
+- or keep last N (e.g. 250)
+
+## 13) Online League note
 
 Online League should keep:
 
