@@ -282,6 +282,10 @@ export const FranchiseManager: React.FC<FranchiseManagerProps> = ({
 
                   const isFree = !licenseCost || licenseCost <= 0;
 
+                  const invitationWeeksLeft = hasInvitation
+                    ? Math.max(0, activeInvitation!.expiresWeekIndex - currentWeekIndex)
+                    : 0;
+
                   const feeLabel = hasLicense
                     ? 'PAID'
                     : hasInvitation
@@ -316,9 +320,14 @@ export const FranchiseManager: React.FC<FranchiseManagerProps> = ({
                               </Badge>
                             )}
                             {!hasLicense && hasInvitation && (
-                              <Badge variant="secondary" className="text-xs">
-                                Invitation
-                              </Badge>
+                              <>
+                                <Badge variant="secondary" className="text-xs">
+                                  Invitation
+                                </Badge>
+                                <div className="text-[10px] text-muted-foreground">
+                                  Expires in {invitationWeeksLeft}w
+                                </div>
+                              </>
                             )}
                           </div>
                         </div>
@@ -348,7 +357,7 @@ export const FranchiseManager: React.FC<FranchiseManagerProps> = ({
                             {hasLicense
                               ? 'You have already licensed this franchise.'
                               : hasInvitation
-                              ? `You have a one-off invitation to develop a single film under this franchise. Permanent license: ${isFree ? 'FREE' : formatMoneyCompact(licenseCost)}.`
+                              ? `You have a one-off invitation to develop a single film under this franchise. Expires in ${invitationWeeksLeft} weeks. Permanent license: ${isFree ? 'FREE' : formatMoneyCompact(licenseCost)}.`
                               : isFree
                               ? 'No license fee for this franchise.'
                               : 'One-time fee (paid the first time you develop this franchise).'}
