@@ -21,6 +21,7 @@ interface NewProjectForm {
   title: string;
   description: string;
   genre: string;
+  subgenre: string;
   budget: number;
   timeline: string;
   tone: string;
@@ -40,6 +41,7 @@ export const FranchiseProjectCreator: React.FC<FranchiseProjectCreatorProps> = (
     title: '',
     description: '',
     genre: 'action',
+    subgenre: '',
     budget: 15000000,
     timeline: 'standard',
     tone: 'balanced',
@@ -69,6 +71,7 @@ export const FranchiseProjectCreator: React.FC<FranchiseProjectCreatorProps> = (
       title: `${franchise.title} ${projectCount === 0 ? 'Origins' : projectCount === 1 ? 'Returns' : `Part ${projectCount + 1}`}`,
       description: `A new entry in the ${franchise.title} franchise`,
       genre: franchise.genre?.[0] || 'action',
+      subgenre: '',
       budget: 15000000 + (projectCount * 5000000), // Increasing budgets for features by default
       timeline: 'standard',
       tone: franchise.tone || 'balanced',
@@ -104,6 +107,7 @@ export const FranchiseProjectCreator: React.FC<FranchiseProjectCreatorProps> = (
       id: `script-franchise-${Date.now()}`,
       title: projectForm.title,
       genre: projectForm.genre as any,
+      subgenre: projectForm.subgenre?.trim() || undefined,
       logline: projectForm.description,
       writer: 'Studio Writer',
       pages,
@@ -229,6 +233,16 @@ export const FranchiseProjectCreator: React.FC<FranchiseProjectCreatorProps> = (
                     <SelectItem value="western">Western</SelectItem>
                   </SelectContent>
                 </Select>
+              </div>
+
+              <div>
+                <Label htmlFor="project-subgenre">Subgenre (optional)</Label>
+                <Input
+                  id="project-subgenre"
+                  value={projectForm.subgenre}
+                  onChange={(e) => setProjectForm(prev => ({ ...prev, subgenre: e.target.value }))}
+                  placeholder="e.g. heist, noir, space opera"
+                />
               </div>
             </div>
 

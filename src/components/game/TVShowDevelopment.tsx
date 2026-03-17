@@ -45,6 +45,10 @@ export const TVShowDevelopment: React.FC<TVShowDevelopmentProps> = ({
   const [editingScript, setEditingScript] = useState<Script | null>(null);
   const [scriptCharacters, setScriptCharacters] = useState<ScriptCharacter[]>([]);
 
+  const [librarySearch, setLibrarySearch] = useState('');
+  const [libraryGenre, setLibraryGenre] = useState<string>('all');
+  const [libraryStage, setLibraryStage] = useState<string>('all');
+
   const stageOrder: Script['developmentStage'][] = ['concept', 'treatment', 'first-draft', 'polish', 'final'];
 
   const canAffordWriterFee = (amount: number): boolean => {
@@ -544,6 +548,20 @@ export const TVShowDevelopment: React.FC<TVShowDevelopmentProps> = ({
     (script.characteristics.pacing === 'episodic' || script.estimatedRuntime <= 60) // TV-like characteristics
   );
 
+  const filteredAvailableTVScripts = availableTVScripts.filter((script) => {
+    if (libraryGenre !== 'all' && script.genre !== libraryGenre) return false;
+    if (libraryStage !== 'all' && script.developmentStage !== libraryStage) return false;
+
+    const q = librarySearch.trim().toLowerCase();
+    if (!q) return true;
+
+    return (
+      script.title.toLowerCase().includes(q) ||
+      script.logline.toLowerCase().includes(q) ||
+      (script.subgenre || '').toLowerCase().includes(q)
+    );
+  });
+
   const draftRating = computeFilmContentRating(newScript.characteristics?.content);
 
   return (
@@ -920,10 +938,46 @@ export const TVShowDevelopment: React.FC<TVShowDevelopmentProps> = ({
       {/* TV Scripts Library */}
       <Card>
         <CardHeader>
-          <CardTitle className="flex items-center">
-            <ClapperboardIcon className="mr-2" size={18} />
-            TV Script Library
-          </CardTitle>
+          <div className="flex items-start justify-between gap-3 flex-wrap">
+            <CardTitle className="flex items-center">
+              <ClapperboardIcon className="mr-2" size={18} />
+              TV Script Library
+            </CardTitle>
+            <div className="flex items-center gap-2 flex-wrap">
+              <Input
+                value={librarySearch}
+                onChange={(e) => setLibrarySearch(e.target.value)}
+                placeholder="Search title, logline, subgenre..."
+                className="h-9 w-[240px]"
+              />
+              <Select value={libraryGenre} onValueChange={setLibraryGenre}>
+                <SelectTrigger className="h-9 w-[160px]">
+                  <SelectValue placeholder="Genre" />
+                </SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="all">All genres</SelectItem>
+                  {genres.map((g) => (
+                    <SelectItem key={g} value={g}>
+                      {g.charAt(0).toUpperCase() + g.slice(1)}
+                    </SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
+              <Select value={libraryStage} onValueChange={setLibraryStage}>
+                <SelectTrigger className="h-9 w-[160px]">
+                  <SelectValue placeholder="Stage" />
+                </SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="all">All stages</SelectItem>
+                  <SelectItem value="concept">Concept</SelectItem>
+                  <SelectItem value="treatment">Treatment</SelectItem>
+                  <SelectItem value="first-draft">First Draft</SelectItem>
+                  <SelectItem value="polish">Polish</SelectItem>
+                  <SelectItem value="final">Final</SelectItem>
+                </SelectContent>
+              </Select>
+            </div>
+          </div>
         </CardHeader>
         <CardContent>
           {availableTVScripts.length === 0 ? (
@@ -932,9 +986,13 @@ export const TVShowDevelopment: React.FC<TVShowDevelopmentProps> = ({
               <p>No TV scripts in development</p>
               <p className="text-sm">Create your first TV script to begin building your slate</p>
             </div>
+          ) : filteredAvailableTVScripts.length === 0 ? (
+            <div className="text-center py-8 text-muted-foreground">
+              <p>No TV scripts match your filters.</p>
+            </div>
           ) : (
             <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
-              {availableTVScripts.map((script) => {
+              {filteredAvailableTVScripts.map((script) => {
                 const stageIndex = stageOrder.indexOf(script.developmentStage || 'concept');
                 const stageProgress = ((stageIndex + 1) / stageOrder.length) * 100;
                 const greenlightReport = getScriptGreenlightReport(script, gameState);
@@ -957,6 +1015,11 @@ export const TVShowDevelopment: React.FC<TVShowDevelopmentProps> = ({
                     <CardTitle className="text-base truncate">{script.title}</CardTitle>
                     <div className="flex items-center space-x-2">
                       <Badge variant="outline">{script.genre}</Badge>
+                      {script.subgenre && (
+                        <Badge variant="outline" className="text-xs">
+                          {script.subgenre}
+                        </Badge>
+                      )}
                       <Badge variant={isFinalized ? 'default' : 'secondary'} className="text-xs capitalize">
                         {(script.developmentStage || 'concept').replace('-', ' ')}
                       </Badge>

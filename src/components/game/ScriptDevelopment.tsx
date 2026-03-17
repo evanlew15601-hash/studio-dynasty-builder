@@ -43,6 +43,10 @@ export const ScriptDevelopment: React.FC<ScriptDevelopmentProps> = ({
   
   const [isCreating, setIsCreating] = useState(false);
   const [editingScript, setEditingScript] = useState<Script | null>(null);
+
+  const [librarySearch, setLibrarySearch] = useState('');
+  const [libraryGenre, setLibraryGenre] = useState<string>('all');
+  const [libraryStage, setLibraryStage] = useState<string>('all');
   
   // Auto-fill script based on selected franchise or PD
   const getInitialScript = (): Partial<Script> => {
@@ -543,6 +547,20 @@ export const ScriptDevelopment: React.FC<ScriptDevelopmentProps> = ({
     !gameState.projects.some(project => project.script.id === script.id)
   );
 
+  const filteredAvailableScripts = availableScripts.filter((script) => {
+    if (libraryGenre !== 'all' && script.genre !== libraryGenre) return false;
+    if (libraryStage !== 'all' && script.developmentStage !== libraryStage) return false;
+
+    const q = librarySearch.trim().toLowerCase();
+    if (!q) return true;
+
+    return (
+      script.title.toLowerCase().includes(q) ||
+      script.logline.toLowerCase().includes(q) ||
+      (script.subgenre || '').toLowerCase().includes(q)
+    );
+  });
+
   const draftRating = computeFilmContentRating(newScript.characteristics?.content);
 
   return (
@@ -957,18 +975,58 @@ export const ScriptDevelopment: React.FC<ScriptDevelopmentProps> = ({
       {/* Scripts Library */}
       <Card>
         <CardHeader>
-          <CardTitle className="flex items-center">Script Library</CardTitle>
+          <div className="flex items-start justify-between gap-3 flex-wrap">
+            <CardTitle className="flex items-center">Script Library</CardTitle>
+            <div className="flex items-center gap-2 flex-wrap">
+              <Input
+                value={librarySearch}
+                onChange={(e) => setLibrarySearch(e.target.value)}
+                placeholder="Search title, logline, subgenre..."
+                className="h-9 w-[240px]"
+              />
+              <Select value={libraryGenre} onValueChange={setLibraryGenre}>
+                <SelectTrigger className="h-9 w-[160px]">
+                  <SelectValue placeholder="Genre" />
+                </SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="all">All genres</SelectItem>
+                  {genres.map((g) => (
+                    <SelectItem key={g} value={g}>
+                      {g.charAt(0).toUpperCase() + g.slice(1)}
+                    </SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
+              <Select value={libraryStage} onValueChange={setLibraryStage}>
+                <SelectTrigger className="h-9 w-[160px]">
+                  <SelectValue placeholder="Stage" />
+                </SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="all">All stages</SelectItem>
+                  <SelectItem value="concept">Concept</SelectItem>
+                  <SelectItem value="treatment">Treatment</SelectItem>
+                  <SelectItem value="first-draft">First Draft</SelectItem>
+                  <SelectItem value="polish">Polish</SelectItem>
+                  <SelectItem value="final">Final</SelectItem>
+                </SelectContent>
+              </Select>
+            </div>
+          </div>
         </CardHeader>
         <CardContent>
-          {gameState.scripts.length === 0 ? (
+          {availableScripts.length === 0 ? (
             <div className="text-center py-8 text-muted-foreground">
               <div className="text-4xl mb-4">No scripts</div>
               <p>No scripts in development</p>
               <p className="text-sm">Create your first script to begin building your slate</p>
             </div>
+          ) : filteredAvailableScripts.length === 0 ? (
+            <div className="text-center py-8 text-muted-foreground">
+              <p>No scripts match your filters.</p>
+            </div>
           ) : (
             <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
-              {availableScripts.map((script) => {
+              {filteredAvailableScripts.map((script) => {
                 const stageOrder = ['concept', 'treatment', 'first-draft', 'polish', 'final'];
                 const stageIndex = stageOrder.indexOf(script.developmentStage);
                 const stageProgress = ((stageIndex + 1) / stageOrder.length) * 100;
@@ -990,6 +1048,11 @@ export const ScriptDevelopment: React.FC<ScriptDevelopmentProps> = ({
                     <CardTitle className="text-base truncate">{script.title}</CardTitle>
                     <div className="flex items-center space-x-2 flex-wrap gap-1">
                       <Badge variant="outline">{script.genre}</Badge>
+                      {script.subgenre && (
+                        <Badge variant="outline" className="text-xs">
+                          {script.subgenre}
+                        </Badge>
+                      )}
                       <Badge 
                         variant={script.developmentStage === 'final' && greenlightReport.canFinalize ? 'default' : 'secondary'} 
                         className="text-xs"
