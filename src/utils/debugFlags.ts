@@ -1,5 +1,4 @@
 export function isDebugUiEnabled(): boolean {
-  if (import.meta.env.DEV) return true;
   if (typeof window === 'undefined' || typeof window.localStorage === 'undefined') return false;
   return window.localStorage.getItem('studio-magnate-debug-ui') === '1';
 }
