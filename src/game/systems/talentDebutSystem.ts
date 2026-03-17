@@ -1,7 +1,8 @@
-import type { GameState } from '@/types/game';
+import type { GameState, WorldHistoryEntry } from '@/types/game';
 import type { TickSystem } from '../core/types';
 import { buildCoreTalentDebutsForYear, ensureCoreTalentRelationships } from '@/data/WorldGenerator';
 import { generateProceduralDebuts } from '@/data/TalentDebutGenerator';
+import { pushWorldHistory } from '@/utils/worldHistory';
 
 /**
  * Adds new talent at the start of each year.
@@ -64,9 +65,51 @@ export const TalentDebutSystem: TickSystem = {
       severity: 'info',
     });
 
+    let worldHistory = state.worldHistory || [];
+
+    const historyEntries: WorldHistoryEntry[] = [];
+
+    for (const t of handcraftedDebuts) {
+      const rep = t.reputation ?? 0;
+      const importance: 1 | 2 | 3 | 4 | 5 = rep >= 95 ? 5 : 4;
+      historyEntries.push({
+        id: `hist:talent_debut:${year}:${t.id}`,
+        kind: 'talent_debut',
+        year,
+        week: 1,
+        title: `${t.name} debuts`,
+        body: `${t.name} entered the industry in ${year}.`,
+        entityIds: { talentIds: [t.id] },
+        importance,
+      });
+    }
+
+    // Keep rookies out of history unless they're notable.
+    for (const t of rookieDebuts) {
+      const rep = t.reputation ?? 0;
+      const importance: 1 | 2 | 3 | 4 | 5 | undefined = t.isNotable || rep >= 90 ? 3 : undefined;
+      if (!importance) continue;
+
+      historyEntries.push({
+        id: `hist:talent_debut:${year}:${t.id}`,
+        kind: 'talent_debut',
+        year,
+        week: 1,
+        title: `${t.name} debuts`,
+        body: `${t.name} entered the industry in ${year}.`,
+        entityIds: { talentIds: [t.id] },
+        importance,
+      });
+    }
+
+    for (const e of historyEntries) {
+      worldHistory = pushWorldHistory(worldHistory, e);
+    }
+
     const next: GameState = {
       ...state,
       talent: updatedTalent,
+      worldHistory,
     };
 
     return next;

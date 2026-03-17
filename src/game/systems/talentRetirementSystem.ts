@@ -1,5 +1,6 @@
-import type { CareerEvent, GameState, TalentPerson, WorldHistoryEntry } from '@/types/game';
+import type { CareerEvent, GameState, TalentPerson } from '@/types/game';
 import { stableInt } from '@/utils/stableRandom';
+import { pushWorldHistory } from '@/utils/worldHistory';
 import type { TickSystem } from '../core/types';
 
 function clamp(n: number, min: number, max: number): number {
@@ -57,21 +58,7 @@ function retirementReason(t: TalentPerson): 'age' | 'burnout' | 'unknown' {
   return 'unknown';
 }
 
-function pushWorldHistory(entries: WorldHistoryEntry[], e: WorldHistoryEntry): WorldHistoryEntry[] {
-  const next = [...entries, e];
 
-  // Keep last 250, but never drop importance 5 entries.
-  const tail = next.slice(-250);
-  const keepIds = new Set(tail.map((x) => x.id));
-  for (const x of next) {
-    if (x.importance === 5 && !keepIds.has(x.id)) {
-      tail.push(x);
-      keepIds.add(x.id);
-    }
-  }
-
-  return tail;
-}
 
 /**
  * Annual, probabilistic retirements.

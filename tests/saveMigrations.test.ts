@@ -64,5 +64,8 @@ describe('save-game migrations', () => {
     expect(Array.isArray(loaded?.gameState.talent)).toBe(true);
     expect(Array.isArray(loaded?.gameState.scripts)).toBe(true);
     expect(Array.isArray(loaded?.gameState.competitorStudios)).toBe(true);
+
+    expect(Array.isArray((loaded as any)?.gameState.worldHistory)).toBe(true);
+    expect(Array.isArray((loaded as any)?.gameState.worldYearbooks)).toBe(true);
   });
 });
