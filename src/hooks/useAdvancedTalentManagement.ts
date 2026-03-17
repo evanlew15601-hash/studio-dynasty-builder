@@ -45,7 +45,8 @@ export const useAdvancedTalentManagement = (
   const calculateBurnout = useCallback((person: TalentPerson): BurnoutCalculation => {
     const recentProjects = person.recentProjects?.length || 0;
     const lastWorkWeek = person.lastWorkWeek || 0;
-    const weeksSinceWork = currentWeek - lastWorkWeek;
+    const currentAbsWeek = currentYear * 52 + currentWeek;
+    const weeksSinceWork = Math.max(0, currentAbsWeek - lastWorkWeek);
     
     // Base burnout from project count
     let burnout = Math.min(recentProjects * 15, 80);
@@ -65,7 +66,7 @@ export const useAdvancedTalentManagement = (
       recoveryWeeks: weeksSinceWork,
       currentBurnout: Math.round(burnout)
     };
-  }, [currentWeek]);
+  }, [currentWeek, currentYear]);
 
   // Get loyalty score between talent and studio
   const getLoyaltyScore = useCallback((talentId: string, targetStudioId: string): number => {

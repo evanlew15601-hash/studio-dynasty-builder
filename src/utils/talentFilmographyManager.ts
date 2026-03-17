@@ -71,6 +71,8 @@ export const TalentFilmographyManager = {
     }
 
     const releaseYear = project.releaseYear ?? gameState.currentYear;
+    const releaseWeek = project.releaseWeek ?? gameState.currentWeek;
+    const workAbsWeek = releaseYear * 52 + releaseWeek;
 
     const updatedTalent = gameState.talent.map(talent => {
       const role = roleByTalentId[talent.id];
@@ -96,6 +98,9 @@ export const TalentFilmographyManager = {
       const updatedFilmography = [...existingFilmography, filmEntry]
         .sort((a, b) => (b.year || 0) - (a.year || 0));
 
+      const existingRecent = talent.recentProjects || [];
+      const nextRecentProjects = [project.id, ...existingRecent.filter((id) => id !== project.id)].slice(0, 5);
+
       // Update fame based on box office performance
       const performance = project.metrics?.boxOfficeTotal || 0;
       const budget = project.budget.total;
@@ -119,7 +124,9 @@ export const TalentFilmographyManager = {
       return {
         ...talent,
         filmography: updatedFilmography,
-        fame: newFame
+        fame: newFame,
+        lastWorkWeek: workAbsWeek,
+        recentProjects: nextRecentProjects,
       };
     });
 

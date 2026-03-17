@@ -19,7 +19,8 @@ export const TalentBurnoutSystem: React.FC<TalentBurnoutSystemProps> = ({
   const calculateBurnout = (person: TalentPerson): BurnoutCalculation => {
     const recentProjects = person.recentProjects?.length || 0;
     const lastWorkWeek = person.lastWorkWeek || 0;
-    const weeksSinceWork = currentWeek - lastWorkWeek;
+    const currentAbsWeek = currentYear * 52 + currentWeek;
+    const weeksSinceWork = Math.max(0, currentAbsWeek - lastWorkWeek);
     
     // Base burnout from project count (more projects = more burnout)
     let burnout = Math.min(recentProjects * 15, 80);

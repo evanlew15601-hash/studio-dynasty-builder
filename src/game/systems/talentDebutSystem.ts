@@ -1,7 +1,8 @@
-import type { GameState } from '@/types/game';
+import type { GameState, WorldHistoryEntry } from '@/types/game';
 import type { TickSystem } from '../core/types';
 import { buildCoreTalentDebutsForYear, ensureCoreTalentRelationships } from '@/data/WorldGenerator';
 import { generateProceduralDebuts } from '@/data/TalentDebutGenerator';
+import { pushWorldHistory } from '@/utils/worldHistory';
 
 /**
  * Adds new talent at the start of each year.
@@ -11,11 +12,14 @@ import { generateProceduralDebuts } from '@/data/TalentDebutGenerator';
 export const TalentDebutSystem: TickSystem = {
   id: 'talentDebuts',
   label: 'Talent debuts',
+  dependsOn: ['talentLifecycle', 'talentRetirements'],
   onTick: (state, ctx) => {
     // Year rollover happens when Week 52 advances to Week 1.
     if (ctx.week !== 1) return state;
 
     const year = ctx.year;
+    const previousYear = year - 1;
+
     const existingIds = new Set((state.talent || []).map((t) => t.id));
 
     const handcraftedDebuts = buildCoreTalentDebutsForYear(year).filter((t) => !existingIds.has(t.id));
@@ -24,13 +28,31 @@ export const TalentDebutSystem: TickSystem = {
     // Procedural rookies are intentionally disabled to ensure every player shares the exact same talent IDs.
     const rookieDebuts = state.mode === 'online'
       ? []
-      : generateProceduralDebuts({
-          existingTalent: state.talent || [],
-          year,
-          actorCount: 8,
-          directorCount: 2,
-          seed: `rookies:${state.universeSeed ?? 0}:${year}`,
-        });
+      : (() => {
+          const activeCount = (state.talent || []).filter(
+            (t) => (t.type === 'actor' || t.type === 'director') && t.contractStatus !== 'retired'
+          ).length;
+
+          const retiredActors = (state.talent || []).filter((t) => t.type === 'actor' && t.retired?.year === previousYear)
+            .length;
+          const retiredDirectors = (state.talent || []).filter((t) => t.type === 'director' && t.retired?.year === previousYear)
+            .length;
+
+          const baselineActors = activeCount < 240 ? 8 : activeCount <= 320 ? 4 : 0;
+          const baselineDirectors = activeCount < 240 ? 2 : activeCount <= 320 ? 1 : 0;
+
+          // When the roster is overcrowded, not every retirement is fully replaced.
+          // This is a “fewer rookies get signed” pressure valve that helps converge back to the 240–320 band.
+          const replacementMult = activeCount <= 320 ? 1 : activeCount <= 380 ? 0.75 : 0.5;
+
+          return generateProceduralDebuts({
+            existingTalent: state.talent || [],
+            year,
+            actorCount: baselineActors + Math.round(retiredActors * replacementMult),
+            directorCount: baselineDirectors + Math.round(retiredDirectors * replacementMult),
+            seed: `rookies:${state.universeSeed ?? 0}:${year}`,
+          });
+        })();
 
     const incoming = [...handcraftedDebuts, ...rookieDebuts];
     if (incoming.length === 0) return state;
@@ -47,9 +69,53 @@ export const TalentDebutSystem: TickSystem = {
       severity: 'info',
     });
 
+    let worldHistory = state.worldHistory || [];
+
+    if (state.mode !== 'online') {
+      const historyEntries: WorldHistoryEntry[] = [];
+
+      for (const t of handcraftedDebuts) {
+        const rep = t.reputation ?? 0;
+        const importance: 1 | 2 | 3 | 4 | 5 = rep >= 95 ? 5 : 4;
+        historyEntries.push({
+          id: `hist:talent_debut:${year}:${t.id}`,
+          kind: 'talent_debut',
+          year,
+          week: 1,
+          title: `${t.name} debuts`,
+          body: `${t.name} entered the industry in ${year}.`,
+          entityIds: { talentIds: [t.id] },
+          importance,
+        });
+      }
+
+      // Keep rookies out of history unless they're notable.
+      for (const t of rookieDebuts) {
+        const rep = t.reputation ?? 0;
+        const importance: 1 | 2 | 3 | 4 | 5 | undefined = t.isNotable || rep >= 90 ? 3 : undefined;
+        if (!importance) continue;
+
+        historyEntries.push({
+          id: `hist:talent_debut:${year}:${t.id}`,
+          kind: 'talent_debut',
+          year,
+          week: 1,
+          title: `${t.name} debuts`,
+          body: `${t.name} entered the industry in ${year}.`,
+          entityIds: { talentIds: [t.id] },
+          importance,
+        });
+      }
+
+      for (const e of historyEntries) {
+        worldHistory = pushWorldHistory(worldHistory, e);
+      }
+    }
+
     const next: GameState = {
       ...state,
       talent: updatedTalent,
+      worldHistory: state.mode === 'online' ? state.worldHistory : worldHistory,
     };
 
     return next;
