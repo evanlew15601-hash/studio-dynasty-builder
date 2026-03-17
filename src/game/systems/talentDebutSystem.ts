@@ -38,12 +38,12 @@ export const TalentDebutSystem: TickSystem = {
           const retiredDirectors = (state.talent || []).filter((t) => t.type === 'director' && t.retired?.year === previousYear)
             .length;
 
-          const baselineActors = activeCount < 240 ? 8 : activeCount <= 300 ? 4 : activeCount <= 320 ? 2 : 0;
+          const baselineActors = activeCount < 240 ? 8 : activeCount <= 300 ? 4 : activeCount <= 320 ? 1 : 0;
           const baselineDirectors = activeCount < 240 ? 2 : activeCount <= 320 ? 1 : 0;
 
           // When the roster is overcrowded, not every retirement is fully replaced.
           // This is a “fewer rookies get signed” pressure valve that helps converge back to the 240–320 band.
-          const replacementMult = activeCount <= 320 ? 1 : activeCount <= 380 ? 0.6 : 0.5;
+          const replacementMult = activeCount <= 320 ? 1 : activeCount <= 380 ? 0.55 : 0.5;
 
           return generateProceduralDebuts({
             existingTalent: state.talent || [],
