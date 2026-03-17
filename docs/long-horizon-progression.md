@@ -1,133 +1,143 @@
 # Long-Horizon Progression in Studio Magnate
 
-This document describes the retention mechanic behind “500–1000 hour” simulation games—**multi-generation career ecosystems**—and maps it onto Studio Magnate’s current architecture (Vite + React + TypeScript + deterministic tick engine).
+This doc turns the “multi‑generation career ecosystem” retention model into a concrete, incremental plan for Studio Magnate.
 
-The goal is to turn the world into a *living timeline* that keeps producing new goals, new characters, and new storylines across decades of in-game time.
+The core requirement is *not* “more systems.” It’s **time-based narrative renewal** that is:
 
----
-
-## 1) The retention loop (why players keep going)
-
-Long-horizon sims don’t retain players because the systems are deep *once*—they retain because the **world keeps changing**, creating unfinished narratives that players want to resolve.
-
-The practical “forever loop” is:
-
-1. **New talent appears**
-2. They **rise** into relevance
-3. They **peak** (dominant, expensive, high leverage)
-4. They **decline** (stale, volatile, burned out, replaced)
-5. They **retire / exit**
-6. A **new generation replaces them**
-
-This is the renewal engine. Without it, worlds become static and narrative energy collapses.
-
-To reach extreme playtime, games typically add two more layers:
-
-- **Persistent world history**: remembered awards, records, rivalries, scandals, “eras”
-- **Player legacy tracking**: the player’s studio becomes part of the timeline (dynasties, signature eras, protégés)
+- **additive** (build on existing engine + data; avoid rewrites)
+- **deterministic** in the tick engine (`src/game/**`)
+- **legible** (players can understand what changed and why)
+- **bounded** (rosters + save size stay under control over decades)
 
 ---
 
-## 2) What Studio Magnate already has (relevant foundations)
+## 0) Terms / north star
 
-### 2.1 Deterministic simulation spine
+### Multi-generation career ecosystem
+A self-sustaining loop where the industry keeps producing new people and new storylines:
 
-Studio Magnate already has the most important prerequisite for long-horizon progression: a deterministic tick engine.
+1) debuts → 2) growth → 3) peak → 4) decline → 5) exit → 6) replacement
 
-- Weekly tick pipeline: `src/game/core/tick.ts` (`advanceWeek`)
-- Tick context: `src/game/core/types.ts` (`TickContext` includes `ctx.rng`, `week`, `year`, `recap`)
-- System registry + ordered execution: `src/game/core/registry.ts`, registered via `src/game/store.ts`
+Studio Magnate’s version should make players care about:
 
-Hard rule in the engine: systems should be pure `(state, ctx) => nextState`, and avoid `Math.random()`.
+- the rookie they “discovered,”
+- the rival they keep losing to,
+- the veteran they helped stage a comeback,
+- the era their studio defined.
 
-### 2.2 “Generational” foothold: annual debuts
+### What “done” feels like
+After the initial onboarding, the game keeps presenting new, self-authored goals:
 
-You already have the first half of generational turnover: new people entering the world.
+- “Can this rookie become a star?”
+- “Can I rebuild this director’s career?”
+- “Can I finally beat that studio in awards season?”
 
-- `TalentDebutSystem` (`src/game/systems/talentDebutSystem.ts`)
-  - Runs on year rollover (`ctx.week === 1`)
-  - Adds:
-    - Handcrafted debuts from the Cornellverse bible (`CORE_TALENT_BIBLE`) via `buildCoreTalentDebutsForYear()` (`src/data/WorldGenerator.ts`)
-    - Procedural rookies via `generateProceduralDebuts()` (`src/data/TalentDebutGenerator.ts`)
-  - Online League disables procedural rookies to keep shared IDs consistent.
-
-This is a strong base: IDs are stable, and procedural seeds are derived from `universeSeed` + `year`.
-
-### 2.3 Memory primitives exist (but aren’t unified)
-
-You already track slices of history:
-
-- `GameState.boxOfficeHistory`, `topFilmsHistory`, `allReleases`
-- Studio/talent awards arrays
-- `TalentPerson.filmography` (plus utilities in `src/utils/talentFilmographyManager.ts`)
-- Relationships + relationship notes (core lore in `WorldBible.ts` + wiring in `WorldGenerator.ts`)
-
-But there is no single “timeline ledger” that turns this output into *remembered* history.
+…and the game remembers outcomes in a way that players treat as canon.
 
 ---
 
-## 3) What’s missing (gap analysis)
+## 1) Constraints and design principles (how we avoid rewrites)
 
-### 3.1 No exit pressure (retirements / attrition)
+### 1.1 Use the existing deterministic tick pipeline
+The engine already has the right structure:
 
-Debuts without exits create roster bloat. Roster bloat destroys legibility and attachment.
+- Weekly deterministic tick: `src/game/core/tick.ts` (`advanceWeek`)
+- Ordered systems: `src/game/core/registry.ts` registered in `src/game/store.ts`
+- Randomness source: `ctx.rng` (no `Math.random()` in `src/game/**`)
 
-A sustainable ecosystem needs deterministic exit pressure:
+**Principle:** implement long-horizon progression as additional tick systems that:
 
-- retirement (age, burnout)
-- soft exits (unavailable, blacklisted, “busy”) that free the player’s attention
-- occasional comebacks (keeps veterans relevant without immortality)
+- read existing fields on `GameState` / `TalentPerson`
+- write minimal deltas back
+- emit recap cards via `ctx.recap`
 
-### 3.2 No engine-owned career arc evolution
+### 1.2 Prefer “derive first, persist second”
+If something can be derived cheaply from existing state, do that first. Persist only when:
 
-The type system supports career storytelling (`CareerEvent`, `Scandal`, `careerEvolution`), but there’s no tick system that advances careers over time:
+- it’s needed for UI speed/ergonomics,
+- it’s needed to keep history stable across future schema changes,
+- or it prevents expensive re-computation.
 
-- stage progression: rising → established → veteran → legend → retired
-- reputation/value curves
-- narrative events: breakthroughs, flops, scandals, awards buzz
+### 1.3 Bound the growth vectors
+Two growth vectors can kill long-horizon play:
 
-### 3.3 History exists but isn’t “remembered” as story
+- **unbounded roster size** (too many talent to parse)
+- **unbounded save size** (localStorage/serialization bloat)
 
-Players treat the world as a living timeline when the game remembers:
+So the generational engine must include:
 
-- who dominated award seasons
-- decade-long rivalries
-- infamous scandals
-- “eras” of a studio
+- exit pressure (retirement)
+- history compaction (yearbooks + “notable events only”)
 
-Right now the game *can* derive some of this from state, but it doesn’t persist a canonical, player-facing timeline.
+### 1.4 Don’t fight Online League constraints
+Online League currently disables procedural rookies to keep shared IDs consistent.
 
----
-
-## 4) Target design: a multi-generation career ecosystem loop
-
-At a high level, each in-game year should deterministically produce:
-
-1. **Talent lifecycle update** (age/experience/stage/value)
-2. **Retirements** (exit pressure)
-3. **Debuts** (replacement-aware)
-4. **Career arc events** (breakthroughs, flops, scandals, comebacks)
-5. **World history entries** (timeline ledger + yearbook summaries)
-6. **Player legacy deltas** (studio milestones & records)
-
-This should be implemented as **tick systems** under `src/game/systems/**` so it participates in the deterministic pipeline and recap output.
+**Principle:** anything that introduces new IDs or stochastic outcomes should be **single-player only** unless/ until Online League adopts a shared policy.
 
 ---
 
-## 5) Proposed state additions (minimal, high leverage)
+## 2) Current foundations we should extend (not replace)
 
-### 5.1 Global history ledger (WorldHistory)
+### 2.1 Annual debuts already exist
+`TalentDebutSystem` (`src/game/systems/talentDebutSystem.ts`) runs on year rollover (`ctx.week === 1`) and adds:
 
-Add a compact, serializable event log on `GameState`:
+- handcrafted debuts from `CORE_TALENT_BIBLE` (`buildCoreTalentDebutsForYear`)
+- a small procedural rookie class (`generateProceduralDebuts`) in single-player
+
+This is the correct entry point for generational turnover.
+
+### 2.2 Talent already has “career story” fields
+`TalentPerson` supports:
+
+- `age`, `experience`, `careerStage`, `marketValue`, `reputation`, `fame`
+- `awards`, `filmography`
+- `careerEvolution?: CareerEvent[]`, `scandals?: Scandal[]`
+- relationship fields (`relationships`, `relationshipNotes`, `chemistry`)
+- `contractStatus` includes `'retired'`
+
+We should use these rather than inventing parallel structures.
+
+### 2.3 The engine can already surface narrative via recap + event queue
+- `ctx.recap` cards become Week Recap UI (`TickReport`)
+- `eventQueue` already supports “player must decide” moments
+- `PlayerCircleDramaSystem` shows a pattern for deterministic drama hooks
+
+Long-horizon systems should follow that pattern.
+
+---
+
+## 3) The missing pieces (in order of dependency)
+
+To get a working multi-generation loop, we need three engine-owned layers:
+
+1. **Lifecycle:** talent age/stage/value evolves over time.
+2. **Exit pressure:** the world retires people, creating space.
+3. **Historical memory + legacy:** the world remembers *select* events so decades feel real.
+
+Career “events” (breakthroughs/scandals/comebacks) should be added *after* lifecycle and history exist.
+
+---
+
+## 4) Data model changes (minimal + storage-aware)
+
+### 4.1 World history should be compact and intentionally sparse
+A naive per-week event log will bloat saves. Instead, split history into:
+
+- **Yearbooks**: 1 entry per year (always kept)
+- **Notable events**: only high-importance events (bounded by policy)
+
+Proposed additions:
 
 ```ts
 // src/types/game.ts
 export type WorldHistoryEntry = {
   id: string;
   kind:
+    | 'yearbook'
     | 'talent_debut'
-    | 'talent_breakthrough'
     | 'talent_retirement'
+    | 'talent_breakthrough'
+    | 'talent_comeback'
     | 'talent_scandal'
     | 'award_win'
     | 'box_office_record'
@@ -136,7 +146,7 @@ export type WorldHistoryEntry = {
   year: number;
   title: string;
   body: string;
-  entityIds: {
+  entityIds?: {
     studioIds?: string[];
     talentIds?: string[];
     projectIds?: string[];
@@ -145,244 +155,468 @@ export type WorldHistoryEntry = {
 };
 
 export interface GameState {
-  // ...
+  // Always small: <= number of simulated years
+  worldYearbooks?: WorldHistoryEntry[];
+
+  // Bounded: e.g. keep last N, or keep only importance>=4
   worldHistory?: WorldHistoryEntry[];
 }
 ```
 
-Design constraints:
+**Why split?**
 
-- entries must be small and JSON-serializable
-- IDs must be deterministic (no `Date.now()`), e.g. `hist:${kind}:${year}:${week}:${talentId}`
+- yearbooks give “timeline weight” without save bloat
+- notable events give “texture” without logging everything
 
-### 5.2 Player legacy snapshot
-
-A compact summary that makes “your studio is history” explicit:
+### 4.2 Player legacy should be a small summary, not a second history log
+Keep it minimal and avoid duplicating world history.
 
 ```ts
 export type PlayerLegacy = {
   studioId: string;
+
+  totalReleases: number;
   totalAwards: number;
   totalBoxOffice: number;
-  totalReleases: number;
 
-  bestYearByProfit?: { year: number; profit: number };
-  bestYearByAwards?: { year: number; awards: number };
   biggestHit?: { projectId: string; title: string; boxOffice: number; year: number };
-
-  // Optional narrative hooks
-  discoveredTalentIds?: string[];
+  bestYearByAwards?: { year: number; awards: number };
 };
 
 export interface GameState {
-  // ...
   playerLegacy?: PlayerLegacy;
 }
 ```
 
-Note: much of this can be derived, but persisting it makes UI cheap and resilient to future schema changes.
-
-### 5.3 Talent retirement metadata (optional)
+### 4.3 Optional: explicit retirement stamp
+This is useful for UI and to prevent “un-retiring” via legacy systems.
 
 ```ts
 export interface TalentPerson {
-  // ...
-  retired?: {
-    year: number;
-    week: number;
-    reason: 'age' | 'burnout' | 'blacklist' | 'unknown';
-  };
+  retired?: { year: number; week: number; reason: 'age' | 'burnout' | 'unknown' };
 }
 ```
 
 ---
 
-## 6) Proposed tick systems (deterministic)
+## 5) Engine systems (incremental, additive)
 
-### 6.1 `TalentLifecycleSystem` (annual)
+### 5.1 Step A — Talent lifecycle (annual, deterministic)
 
-**Runs:** year rollover (`ctx.week === 1`)
+**System:** `TalentLifecycleSystem` (new)
 
-Responsibilities:
+**Runs:** year rollover only (`ctx.week === 1`)
 
-- increment `age` for all non-retired talent
-- increment `experience`
-- recompute `careerStage` deterministically (you already do this in two places:
-  - `src/data/WorldGenerator.ts`
-  - `src/data/TalentDebutGenerator.ts`
-  )
-- apply age curves:
-  - market value drifts toward peak windows (actor vs director)
-  - optional reputation drift for very old ages unless “legend”
+**Why first:** everything else (retirements, arcs, history summaries) depends on talent “changing over time.”
 
-Implementation note: prefer consolidating `determineCareerStage()` into a shared utility to avoid drift.
+**Inputs (existing):**
 
-### 6.2 `TalentRetirementSystem` (annual)
+- `talent.age`, `talent.experience`, `talent.reputation`, `talent.marketValue`
+- `talent.type` (actor/director)
+- `talent.contractStatus` (skip retired)
 
-**Runs:** year rollover (`ctx.week === 1`)
+**Outputs (existing fields):**
 
-Responsibilities:
+- `age += 1` (for non-retired)
+- `experience += 1` (for non-retired; or only if `careerStartYear <= ctx.year` if you later store it)
+- recompute `careerStage`
+- apply conservative market value drift
 
-- deterministically select retirements using stable, order-independent rules
-- update:
-  - `contractStatus = 'retired'`
-  - add `careerEvolution` retirement event
-  - optionally set `talent.retired`
-- emit:
-  - recap card (how many retired)
-  - world history entries for notable retirements
+**Important non-goals for Step A:**
 
-Tuning goals:
+- don’t invent new stats
+- don’t change project/contract logic
+- don’t introduce weekly noise
 
-- exits should roughly balance debuts to prevent unbounded roster growth
-- legends retire later but do retire
+#### Career stage computation (unify existing logic)
+The codebase currently has similar `determineCareerStage()` logic in:
 
-### 6.3 Upgrade `TalentDebutSystem` to be replacement-aware
+- `src/data/WorldGenerator.ts`
+- `src/data/TalentDebutGenerator.ts`
 
-Today the rookie class is fixed (`actorCount: 8`, `directorCount: 2`). For a sustainable ecosystem:
+To avoid divergence, the lifecycle system should use a shared helper (new file), e.g.
 
-- calculate retirements this year by role
-- generate rookies = retirements + baseline (freshness) + optional growth term
+- `src/utils/careerStage.ts` exported function `determineCareerStage({ age, experience, reputation })`
 
-Determinism:
+This is additive: it doesn’t break generation; it just prevents future drift.
 
-- keep IDs stable
-- seed generation with `universeSeed + year + index`
+#### Market value drift (conservative)
+We should not rewrite market value formulas. Instead:
 
-Online League:
+- keep current `marketValue` as baseline
+- apply a small multiplicative drift per year toward an age-based curve
 
-- keep procedural rookies disabled unless/until league rules adopt a shared newgen policy
+Example policy (tunable):
 
-### 6.4 `TalentCareerArcSystem` (weekly or annual)
+- define “prime age” per role (actors ~35, directors ~45)
+- define an “age factor” in `[0.6, 1.15]`
+- yearly drift: `marketValue *= lerp(1, ageFactor, 0.15)`
 
-Responsibilities:
+This makes careers feel like they have phases without destabilizing the economy.
 
-- produce narrative career events:
-  - breakthroughs (often tied to successful releases)
-  - flops (bombs)
-  - comebacks (late-career hit)
-  - scandals (rare, sticky)
-- write to:
-  - `talent.careerEvolution[]` and/or `talent.scandals[]`
-  - `worldHistory[]` for notable events
-  - optionally `eventQueue[]` if you want player decisions
+#### Recap
+On week 1, emit a recap card like:
 
-### 6.5 `WorldYearbookSystem` (annual)
-
-**Runs:** year rollover (`ctx.week === 1`)
-
-Responsibilities:
-
-- generate a “Year in Review” entry (or a separate `yearbook[]`):
-  - top box office releases
-  - biggest critical darling
-  - breakout talent of the year
-  - retirements roll call
-  - awards summary
-
-This is the “historical memory” layer that makes decades *feel* like decades.
+- “Industry aging: talent updated for 2032” (optional; can be hidden once noisy)
 
 ---
 
-## 7) System ordering (registry)
+### 5.2 Step B — Retirement pressure (annual, conservative)
 
-Suggested deterministic order at year rollover:
+**System:** `TalentRetirementSystem` (new)
 
-1. `TalentLifecycleSystem`
-2. `TalentRetirementSystem`
-3. `TalentDebutSystem` (replacement-aware)
-4. `TalentCareerArcSystem`
-5. `WorldYearbookSystem`
-6. Market/media systems (as desired)
+**Runs:** year rollover (`ctx.week === 1`)
 
-This plugs cleanly into `SystemRegistry` registration in `src/game/store.ts`.
+**Why now:** debuts alone don’t create generational turnover; retirements create space.
+
+**Key principle:** retirements must not break active productions.
+
+#### Eligibility rules (build on existing structures)
+A talent is eligible to retire only if:
+
+- not already retired
+- not currently marked `contractStatus: 'busy'` with `busyUntilWeek` beyond the current week
+- not attached to an active player project phase (pre-production/production/post/post-marketing) if you can detect it
+
+If we can’t reliably detect attachment yet, start conservative:
+
+- retire only `contractStatus === 'available'`
+
+That’s additive and safe.
+
+#### Probability model (deterministic)
+Use order-independent stable seeds (preferred) so outcomes don’t change if roster ordering changes.
+
+Example (tunable) per talent per year:
+
+- base retirement chance derived from age:
+  - actors: 0% <55, ramps to ~12% by 70
+  - directors: 0% <60, ramps to ~12% by 75
+- modify chance by:
+  - burnout level (`burnoutLevel`): +0–6%
+  - reputation/legend status: -0–6%
+
+Determinism implementation guideline:
+
+- `chance = f(age, burnout, reputation)`
+- roll via `stableInt('retire:'+talent.id+':'+year, 0, 9999) / 10000`
+
+#### State updates (existing fields)
+When retiring:
+
+- `contractStatus = 'retired'`
+- set `retired = { year, week: 1, reason }` (optional)
+- append `CareerEvent { type: 'retirement', ... }` to `careerEvolution` (already in types)
+
+#### Recap + history hooks
+Emit recap card:
+
+- “3 retirements (including <Name>)”
+
+Also emit a **notable event** for high-importance retirements (legends / marquee):
+
+- `worldHistory += { kind: 'talent_retirement', importance: 4, ... }`
 
 ---
 
-## 8) Determinism rules (project-consistent)
+### 5.3 Step C — Replacement-aware debuts (extend existing system)
+
+**System:** extend `TalentDebutSystem` (no rewrite)
+
+Right now, rookies are fixed-count. This is fine early, but long runs need the roster to stay within a band.
+
+#### Policy: debuts respond to exits
+On year rollover:
+
+- count retirements in the *previous* rollover (or detect new `retired.year === ctx.year`)
+- generate rookies roughly equal to retirements, plus a small baseline for freshness
+
+Example target:
+
+- baseline: `+6 actors, +2 directors` per year (single-player)
+- replacement: `+1 rookie per retirement by role`
+- soft cap: if active (non-retired) roster exceeds a target (e.g. 260), reduce baseline to 0
+
+#### Determinism + ID stability
+Preserve the existing rookie ID format and seeding strategy:
+
+- keep `seed: rookies:${universeSeed}:${year}`
+- the generated ID already includes `year`, `type`, `index`, `attempt`
+
+If counts change year-to-year, IDs remain stable *within that year*.
+
+#### Online League
+No change: still core-only debuts.
+
+---
+
+### 5.4 Step D — Filmography + “career facts” (engine-owned, not UI-owned)
+
+Career arcs and history summaries need reliable career facts:
+
+- “what did this person do last year?”
+- “was that film a hit or bomb?”
+
+Today, some filmography updating happens in legacy UI code (`TalentFilmographyManager`).
+
+**Additive step:** introduce an engine system that *reuses* the existing logic rather than duplicating it.
+
+**System:** `TalentFilmographySystem` (new)
+
+**Runs:** weekly
+
+**Responsibility:** detect newly released projects and update `talent.filmography` deterministically.
+
+Why this matters:
+
+- makes career arcs derivable from engine state
+- reduces “UI-only truth” divergence
+
+---
+
+### 5.5 Step E — Career arcs (derived from outcomes, not random noise)
+
+**System:** `TalentCareerArcSystem` (new)
+
+**Runs:** weekly (triggered on new releases), plus an annual pass for “comebacks/declines.”
+
+**Principle:** most career events should be *caused by what happened* (release performance, awards), not arbitrary RNG.
+
+#### Event types and triggers (starting set)
+Start with three events that are easy to justify and cheap to compute:
+
+1) **Breakthrough**
+- Trigger: a rookie/rising talent is credited on a project that exceeds performance thresholds
+- Threshold example:
+  - box office multiplier > 2.0 OR critics score ≥ 85
+- Effect:
+  - add `CareerEvent { type: 'breakthrough' }`
+  - bump reputation / fame modestly
+  - add notable history entry (importance 3–4)
+
+2) **Flop**
+- Trigger: credited talent on a project that bombs (e.g. multiplier < 0.6)
+- Effect:
+  - add `CareerEvent { type: 'flop' }`
+  - reputation hit (smaller for ensemble)
+  - optional: increase burnout
+
+3) **Comeback**
+- Trigger: veteran talent with recent flops has a hit
+- Effect:
+  - add `CareerEvent { type: 'comeback' }`
+  - reputation + public image bump
+  - history entry (importance 4 for marquee/legends)
+
+Scandals should come later (they need stronger UI + persistence policy).
+
+#### Don’t invent new data dependencies
+At first, derive from fields that already exist on `Project.metrics` and talent filmography.
+
+Awards integration can be added once awards results are reliably represented in engine state.
+
+---
+
+### 5.6 Step F — Historical memory: yearbooks + notable events
+
+**System:** `WorldYearbookSystem` (new)
+
+**Runs:** year rollover (`ctx.week === 1`)
+
+**Output:** append exactly one yearbook entry to `worldYearbooks`.
+
+Content should be derived, not guessed:
+
+- top box office releases (from `boxOfficeHistory` / `allReleases`)
+- awards summary (from `studio.awards` + talent awards)
+- breakout of the year (from career events created in Step E)
+- retirements roll call (from Step B)
+
+**System:** `WorldHistoryPruneSystem` (optional)
+
+If save size becomes a real constraint, prune `worldHistory` by policy:
+
+- keep only `importance >= 4`, or
+- keep last N entries, or
+- keep last N years of events + all yearbooks
+
+This keeps history *useful* without turning saves into logs.
+
+---
+
+### 5.7 Step G — Player legacy tracking (annual)
+
+**System:** `PlayerLegacySystem` (new)
+
+**Runs:** year rollover (`ctx.week === 1`)
+
+Compute minimal “studio is history” stats from existing state:
+
+- total releases
+- total awards
+- total box office
+- biggest hit
+- best year by awards
+
+**Important:** this should be a summary, not a second timeline.
+
+---
+
+## 6) System ordering (how the pieces fit without breaking anything)
+
+Register systems so annual logic composes cleanly:
+
+### Year rollover order (week 1)
+1. `TalentLifecycleSystem` (age/stage/value)
+2. `TalentRetirementSystem` (exit pressure)
+3. `TalentDebutSystem` (existing; now replacement-aware)
+4. `WorldYearbookSystem` (writes summary)
+5. `PlayerLegacySystem` (writes summary)
+
+### Weekly order
+- release/box office systems (existing)
+- `TalentFilmographySystem` (updates filmography from releases)
+- `TalentCareerArcSystem` (career events)
+- existing drama systems (`PlayerCircleDramaSystem`)
+
+The exact placement among weekly systems should follow data dependencies (filmography before career arcs).
+
+---
+
+## 7) Determinism strategy (practical rules)
 
 Inside `src/game/**`:
 
-- no `Math.random()`
-- no `Date.now()` for IDs
-- prefer:
-  - `ctx.rng` when order-sensitive within-tick randomness is fine
-  - `stableInt` / `stablePick` when results must be stable regardless of iteration order
+- never use `Math.random()`
+- never generate IDs with `Date.now()`
 
-Rule of thumb:
+When choosing between `ctx.rng` and stable helpers:
 
-- if you iterate arrays/maps and pick “one of many,” prefer `stable*` with explicit seed strings
-- if you want the simulation to feel like a roll-forward pipeline where earlier draws influence later draws, use `ctx.rng`
+- use **stable** (`stableInt` / `stablePick`) for outcomes that should not depend on iteration order (retirements, “which scandal this person gets in year X”)
+- use **ctx.rng** for “simulation texture” that is allowed to be order-coupled within a tick (rare; avoid for anything user-visible that must be reproducible across refactors)
 
 ---
 
-## 9) UI surfacing (how players experience the ecosystem)
+## 8) UI surfacing (how players perceive the timeline)
 
-Long-horizon systems matter only if players can *see* them.
+This work only matters if players can see it.
 
-### 9.1 Week Recap
-Use `ctx.recap` to surface:
+### 8.1 Week recap
+Ensure each long-horizon system emits recap cards at appropriate cadence:
 
-- retirements
-- breakouts
-- scandals
-- yearbook summaries (Week 1 of each year)
+- retirements (week 1)
+- debuts (already)
+- yearbook summary (week 1)
+- breakthroughs/comebacks (on release weeks)
 
-### 9.2 LoreHub: Timeline tab
-Add a Timeline/Almanac tab to `src/components/game/LoreHub.tsx` that renders `gameState.worldHistory`:
+### 8.2 LoreHub: add a Timeline view (yearbooks first)
+Start with yearbooks (low volume, high signal):
 
-- filters: year, kind, studio/talent
-- click-through: talent profile / project detail
+- show list of years
+- show “Year in Review” bodies
 
-### 9.3 Talent Profile: Career timeline
-In Talent Profile UI, show:
+Then add “Notable Events” filtered views if `worldHistory` exists.
 
-- `careerEvolution` events
-- awards + filmography (already supported)
-- relationships (already supported)
+### 8.3 Talent Profile: Career timeline
+Talent UI already shows awards/filmography/relationships.
+
+Add a simple “Career Events” section rendering `careerEvolution` in chronological order.
 
 ---
 
-## 10) Save migrations
+## 9) Save migrations and compatibility
 
-Adding `worldHistory` / `playerLegacy` requires:
+Any new `GameState` fields must be introduced via a migration:
 
 - bump `CURRENT_SAVE_VERSION` (`src/utils/saveVersion.ts`)
-- add a migration in `src/game/persistence/migrations.ts` to initialize new fields on old saves
+- add a migration in `src/game/persistence/migrations.ts` that initializes:
+  - `worldYearbooks: []`
+  - `worldHistory: []`
+  - `playerLegacy: { studioId, totalReleases: 0, ... }` or `null`
+
+**Compatibility principle:** new systems should treat missing fields as empty arrays/undefined.
 
 ---
 
-## 11) Testing plan (Vitest)
+## 10) Tests and acceptance criteria
 
-Add focused simulation tests under `tests/`:
+Studio Magnate already has strong simulation tests; we should add small, targeted ones.
+
+### 10.1 Core tests (new)
 
 - `talentLifecycleSystem.test.ts`
-  - age increments exactly once per year rollover
-  - career stage recomputation deterministic
+  - age increments once on rollover
+  - retired talent don’t age
 - `talentRetirementSystem.test.ts`
-  - deterministic retirement set for fixed seed + roster
-  - retired talent set `contractStatus` correctly
+  - deterministic retirements for fixed seed
+  - conservative eligibility (only available talent) doesn’t break projects
 - `worldYearbookSystem.test.ts`
-  - yearbook entries stable IDs and stable content
-- `longHorizonDeterminism.test.ts`
-  - simulate 10–20 years and assert:
-    - roster size stays within a target band
-    - worldHistory grows deterministically
-    - no NaNs / runaway values
+  - exactly one yearbook added per rollover
+  - deterministic IDs and stable summaries
+
+### 10.2 Long-run stability test
+
+- `longHorizonStability.test.ts`
+  - simulate 30–50 years
+  - assert:
+    - active roster size stays within a band (e.g. 200–320)
+    - worldYearbooks length == years simulated
+    - worldHistory stays below cap if pruning enabled
+
+### 10.3 Acceptance criteria (player-facing)
+
+After ~10 in-game years:
+
+- you’ve seen multiple debut classes
+- at least a handful of retirements
+- at least a few “breakthrough/comeback” narratives
+- LoreHub shows a believable year-by-year timeline
 
 ---
 
-## 12) Implementation roadmap (phased)
+## 11) Implementation roadmap (explicitly additive)
 
-1. **Schema & migrations**: add `worldHistory`, `playerLegacy`, optional `talent.retired`
-2. **Lifecycle + retirement**: implement `TalentLifecycleSystem` + `TalentRetirementSystem`
-3. **Replacement-aware debuts**: adjust `TalentDebutSystem` counts
-4. **World history + yearbook**: implement ledger + annual summaries
-5. **UI timeline**: add LoreHub Timeline tab
-6. **Career arcs**: breakthroughs/scandals/comebacks (plus optional player-facing decisions)
+1) **Shared helpers**
+- unify `determineCareerStage()` into a shared utility
+
+2) **Lifecycle (safe)**
+- `TalentLifecycleSystem` (annual)
+
+3) **Retirement (conservative)**
+- `TalentRetirementSystem` (annual; only `available` eligible initially)
+
+4) **Replacement-aware debuts (extend, don’t rewrite)**
+- adjust counts in `TalentDebutSystem` based on retirements + caps
+
+5) **Yearbooks (memory with bounded size)**
+- `WorldYearbookSystem` + migrations
+
+6) **Engine-owned filmography facts**
+- `TalentFilmographySystem` (weekly)
+
+7) **Career arcs derived from releases**
+- `TalentCareerArcSystem` (weekly; breakthroughs/flops/comebacks)
+
+8) **Legacy summary**
+- `PlayerLegacySystem` (annual)
+
+9) **UI timeline**
+- LoreHub: Yearbooks tab → Notable Events
+
+10) **Expand the ecosystem** (optional)
+- scandals, rivalries, studio rise/fall, genre eras
 
 ---
 
-## 13) Online League note
+## 12) Online League note
 
-Online League currently requires shared determinism across players and disables procedural rookies. Most of the “newgen” and “random career event” logic should default to **single-player only** (`state.mode !== 'online'`) unless the league adopts a shared newgen policy and corresponding snapshot/validation rules.
+Online League should keep:
+
+- core talent only
+- deterministic, shared IDs
+
+So:
+
+- procedural rookies remain disabled
+- retirements should likely remain disabled unless league agrees on shared lifecycle outcomes
+- yearbooks may be safe if derived entirely from shared, deterministic outcomes
