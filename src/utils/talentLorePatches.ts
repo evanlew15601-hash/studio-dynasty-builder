@@ -1,18 +1,13 @@
 import type { GameState, TalentPerson } from '@/types/game';
 import { stablePick } from '@/utils/stablePick';
 import { stableInt } from '@/utils/stableRandom';
+import { determineCareerStage } from '@/utils/careerStage';
 
-function determineCareerStage(t: TalentPerson): NonNullable<TalentPerson['careerStage']> {
+function careerStageFor(t: TalentPerson): NonNullable<TalentPerson['careerStage']> {
   const age = t.age || 30;
   const experience = t.experience || 0;
   const reputation = t.reputation || 50;
-
-  if (experience < 2 || reputation < 30) return 'unknown';
-  if (experience < 8 && age < 30) return 'rising';
-  if (experience < 15 && reputation < 80) return 'established';
-  if (experience >= 15 || age > 50) return 'veteran';
-  if (reputation > 90 && experience > 20) return 'legend';
-  return 'established';
+  return determineCareerStage(age, experience, reputation) ?? 'established';
 }
 
 function pronounsFor(t: TalentPerson): { subject: string; object: string; possessive: string } {
@@ -28,7 +23,7 @@ function buildFallbackBiography(t: TalentPerson): string {
   const primaryGenre = (t.genres || [])[0] || 'drama';
   const secondaryGenre = (t.genres || [])[1];
 
-  const stage = t.careerStage || determineCareerStage(t);
+  const stage = t.careerStage || careerStageFor(t);
   const p = pronounsFor(t);
 
   const intros = [

@@ -58,7 +58,7 @@ describe('save-game migrations', () => {
 
     const loaded = loadGame('slot1');
     expect(loaded).not.toBeNull();
-    expect(loaded?.meta.version).toBe('alpha-1');
+    expect(loaded?.meta.version).toBe('alpha-2');
 
     expect(Array.isArray(loaded?.gameState.projects)).toBe(true);
     expect(Array.isArray(loaded?.gameState.talent)).toBe(true);

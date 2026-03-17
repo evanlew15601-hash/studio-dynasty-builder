@@ -11,11 +11,14 @@ import { generateProceduralDebuts } from '@/data/TalentDebutGenerator';
 export const TalentDebutSystem: TickSystem = {
   id: 'talentDebuts',
   label: 'Talent debuts',
+  dependsOn: ['talentLifecycle', 'talentRetirements'],
   onTick: (state, ctx) => {
     // Year rollover happens when Week 52 advances to Week 1.
     if (ctx.week !== 1) return state;
 
     const year = ctx.year;
+    const previousYear = year - 1;
+
     const existingIds = new Set((state.talent || []).map((t) => t.id));
 
     const handcraftedDebuts = buildCoreTalentDebutsForYear(year).filter((t) => !existingIds.has(t.id));
@@ -24,13 +27,27 @@ export const TalentDebutSystem: TickSystem = {
     // Procedural rookies are intentionally disabled to ensure every player shares the exact same talent IDs.
     const rookieDebuts = state.mode === 'online'
       ? []
-      : generateProceduralDebuts({
-          existingTalent: state.talent || [],
-          year,
-          actorCount: 8,
-          directorCount: 2,
-          seed: `rookies:${state.universeSeed ?? 0}:${year}`,
-        });
+      : (() => {
+          const activeCount = (state.talent || []).filter(
+            (t) => (t.type === 'actor' || t.type === 'director') && t.contractStatus !== 'retired'
+          ).length;
+
+          const retiredActors = (state.talent || []).filter((t) => t.type === 'actor' && t.retired?.year === previousYear)
+            .length;
+          const retiredDirectors = (state.talent || []).filter((t) => t.type === 'director' && t.retired?.year === previousYear)
+            .length;
+
+          const baselineActors = activeCount > 320 ? 0 : 8;
+          const baselineDirectors = activeCount > 320 ? 0 : 2;
+
+          return generateProceduralDebuts({
+            existingTalent: state.talent || [],
+            year,
+            actorCount: baselineActors + retiredActors,
+            directorCount: baselineDirectors + retiredDirectors,
+            seed: `rookies:${state.universeSeed ?? 0}:${year}`,
+          });
+        })();
 
     const incoming = [...handcraftedDebuts, ...rookieDebuts];
     if (incoming.length === 0) return state;

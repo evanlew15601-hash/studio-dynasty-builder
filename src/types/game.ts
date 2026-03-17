@@ -154,6 +154,7 @@ export interface TalentPerson {
   // Enhanced talent properties
   biography?: string;
   lastWorkWeek?: number;
+  retired?: { year: number; week: number; reason: 'age' | 'burnout' | 'unknown' };
   careerEvolution?: CareerEvent[];
   publicImage?: number; // 0-100, separate from reputation
   scandals?: Scandal[];
@@ -219,6 +220,8 @@ export interface CareerEvent {
   description: string;
   impactOnReputation: number;
   impactOnMarketValue: number;
+  /** Optional: source project that caused this event (for idempotence + UI drilldown). */
+  sourceProjectId?: string;
 }
 
 export interface Scandal {
@@ -778,6 +781,45 @@ export interface MediaReaction {
   cost?: number; // For paid responses like PR campaigns
 }
 
+export interface WorldHistoryEntry {
+  id: string;
+  kind:
+    | 'talent_debut'
+    | 'talent_breakthrough'
+    | 'talent_flop'
+    | 'talent_comeback'
+    | 'talent_retirement'
+    | 'award_win'
+    | 'box_office_record'
+    | 'studio_milestone';
+  week: number;
+  year: number;
+  title: string;
+  body: string;
+  entityIds?: {
+    studioIds?: string[];
+    talentIds?: string[];
+    projectIds?: string[];
+  };
+  importance?: 1 | 2 | 3 | 4 | 5;
+}
+
+export interface WorldYearbookEntry {
+  id: string;
+  year: number;
+  title: string;
+  body: string;
+}
+
+export interface PlayerLegacy {
+  studioId: string;
+  totalAwards: number;
+  totalBoxOffice: number;
+  totalReleases: number;
+  bestYearByAwards?: { year: number; awards: number };
+  biggestHit?: { projectId: string; title: string; boxOffice: number; year: number };
+}
+
 export interface GameState {
   /** Stable seed for worldbuilding (used to derive deterministic per-save procedural content). */
   universeSeed?: number;
@@ -801,6 +843,10 @@ export interface GameState {
   // Enhanced game state
   allReleases: (Project | BoxOfficeRelease)[]; // Includes AI studio releases
   topFilmsHistory: TopFilmsWeek[];
+  // Long-horizon progression
+  worldHistory?: WorldHistoryEntry[];
+  worldYearbooks?: WorldYearbookEntry[];
+  playerLegacy?: PlayerLegacy;
   // Franchise & Public Domain Systems
   franchises: Franchise[];
   publicDomainIPs: PublicDomainIP[];

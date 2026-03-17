@@ -51,7 +51,7 @@ function createLocalStorageMock(): LocalStorageMock {
 
 function makeSnapshot(): SaveGameSnapshot {
   return {
-    meta: { savedAt: '2027-01-01T00:00:00.000Z', version: 'alpha-1' },
+    meta: { savedAt: '2027-01-01T00:00:00.000Z', version: 'alpha-2' },
     gameState: {
       studio: { id: 'player', name: 'Test Studio', reputation: 50, budget: 1_000_000, founded: 2000, specialties: ['drama'], debt: 0, lastProjectWeek: 0, weeksSinceLastProject: 0 },
       currentYear: 2027,

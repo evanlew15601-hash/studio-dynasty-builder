@@ -45,6 +45,25 @@ const migrations: MigrationEntry[] = [
       };
     },
   },
+  {
+    from: 'alpha-1',
+    to: 'alpha-2',
+    migrate: (snapshot) => {
+      return {
+        ...snapshot,
+        gameState: {
+          ...snapshot.gameState,
+          worldHistory: snapshot.gameState.worldHistory ?? [],
+          worldYearbooks: snapshot.gameState.worldYearbooks ?? [],
+          playerLegacy: snapshot.gameState.playerLegacy ?? undefined,
+        } as any,
+        meta: {
+          ...snapshot.meta,
+          version: 'alpha-2',
+        },
+      };
+    },
+  },
 ];
 
 /**

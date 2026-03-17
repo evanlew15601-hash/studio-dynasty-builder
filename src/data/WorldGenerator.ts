@@ -3,17 +3,9 @@ import { TalentGenerator } from '@/data/TalentGenerator';
 import { CORE_TALENT_BIBLE, WorldTalentBlueprint } from '@/data/WorldBible';
 import { stableInt } from '@/utils/stableRandom';
 import { stablePick } from '@/utils/stablePick';
+import { determineCareerStage } from '@/utils/careerStage';
 
 const idForSlug = (slug: string) => `core:${slug}`;
-
-function determineCareerStage(age: number, experience: number, reputation: number): TalentPerson['careerStage'] {
-  if (experience < 2 || reputation < 30) return 'unknown';
-  if (experience < 8 && age < 30) return 'rising';
-  if (experience < 15 && reputation < 80) return 'established';
-  if (experience >= 15 || age > 50) return 'veteran';
-  if (reputation > 90 && experience > 20) return 'legend';
-  return 'established';
-}
 
 function generateMarketValue(age: number, experience: number, reputation: number, type: 'actor' | 'director'): number {
   let baseValue = type === 'director' ? 2_000_000 : 1_000_000;

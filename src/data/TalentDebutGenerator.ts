@@ -1,15 +1,7 @@
 import type { Genre, Race, TalentPerson } from '@/types/game';
 import { stableInt } from '@/utils/stableRandom';
 import { stablePick } from '@/utils/stablePick';
-
-function determineCareerStage(age: number, experience: number, reputation: number): TalentPerson['careerStage'] {
-  if (experience < 2 || reputation < 30) return 'unknown';
-  if (experience < 8 && age < 30) return 'rising';
-  if (experience < 15 && reputation < 80) return 'established';
-  if (experience >= 15 || age > 50) return 'veteran';
-  if (reputation > 90 && experience > 20) return 'legend';
-  return 'established';
-}
+import { determineCareerStage } from '@/utils/careerStage';
 
 function generateMarketValue(age: number, experience: number, reputation: number, type: 'actor' | 'director'): number {
   let baseValue = type === 'director' ? 2_000_000 : 1_000_000;

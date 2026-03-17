@@ -26,6 +26,8 @@ import { SystemRegistry } from './core/registry';
 import type { TickResult, TickSystem } from './core/types';
 import { advanceWeekInWorker } from './worker/client';
 import { saveGame } from '@/utils/saveLoad';
+import { TalentLifecycleSystem } from './systems/talentLifecycleSystem';
+import { TalentRetirementSystem } from './systems/talentRetirementSystem';
 import { TalentDebutSystem } from './systems/talentDebutSystem';
 import { AiTelevisionSystem } from './systems/aiTelevisionSystem';
 import { PlayerCircleDramaSystem } from './systems/playerCircleDramaSystem';
@@ -154,6 +156,8 @@ export const useGameStore: import('zustand').UseBoundStore<import('zustand').Sto
     rng: null,
     registry: (() => {
       const r = new SystemRegistry();
+      r.register(TalentLifecycleSystem);
+      r.register(TalentRetirementSystem);
       r.register(TalentDebutSystem);
       r.register(AiTelevisionSystem);
       r.register(PlayerCircleDramaSystem);
