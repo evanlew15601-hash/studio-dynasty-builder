@@ -73,6 +73,57 @@ class MediaEngine {
     return newMediaItems;
   }
 
+  static injectDeterministicMediaItem(input: {
+    id: string;
+    type: MediaItem['type'];
+    headline: string;
+    content: string;
+    week: number;
+    year: number;
+    sentiment: MediaItem['sentiment'];
+    targets: MediaItem['targets'];
+    impact?: Partial<MediaItem['impact']>;
+    tags?: string[];
+    relatedEvents?: string[];
+  }): string {
+    MediaSourceGenerator.generateMediaSources();
+
+    if (this.mediaHistory.some((m) => m.id === input.id)) return input.id;
+
+    const source = MediaSourceGenerator
+      .getSourcesByType('trade_publication')
+      .slice()
+      .sort((a, b) => (b.credibility || 0) - (a.credibility || 0))[0] ||
+      MediaSourceGenerator.generateMediaSources()[0];
+
+    const impact: MediaItem['impact'] = {
+      reach: 70,
+      credibility: source?.credibility ?? 80,
+      virality: 30,
+      intensity: 35,
+      ...(input.impact || {}),
+    };
+
+    const mediaItem: MediaItem = {
+      id: input.id,
+      source,
+      type: input.type,
+      headline: input.headline,
+      content: input.content,
+      publishDate: { week: input.week, year: input.year },
+      targets: input.targets,
+      sentiment: input.sentiment,
+      impact,
+      tags: input.tags || [],
+      relatedEvents: input.relatedEvents,
+    };
+
+    this.mediaHistory.push(mediaItem);
+    this.updateMediaMemory(mediaItem);
+
+    return input.id;
+  }
+
   // Auto-generate events based on game state changes
   static triggerAutomaticEvents(gameState: GameState, previousState?: GameState): string[] {
     const triggeredEvents: string[] = [];

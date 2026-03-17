@@ -29,6 +29,7 @@ import { saveGame } from '@/utils/saveLoad';
 import { TalentDebutSystem } from './systems/talentDebutSystem';
 import { AiTelevisionSystem } from './systems/aiTelevisionSystem';
 import { PlayerCircleDramaSystem } from './systems/playerCircleDramaSystem';
+import { MediaEngine } from '@/components/game/MediaEngine';
 
 // ---------------------------------------------------------------------------
 // Store shape
@@ -602,6 +603,60 @@ export const useGameStore: import('zustand').UseBoundStore<import('zustand').Sto
                 );
               }
               t.contractStatus = 'available';
+            }
+          }
+
+          // Deterministic PR media coverage (no Date.now()/Math.random())
+          if (selectedChoice.id === 'pr-spin' && kind === 'circle:poach') {
+            const talentId = (event as any)?.data?.talentId as string | undefined;
+            const t = talentId ? s.game.talent.find((x) => x.id === talentId) : undefined;
+
+            if (t) {
+              const mediaId = `media:${event.id}:pr-spin`;
+              MediaEngine.injectDeterministicMediaItem({
+                id: mediaId,
+                type: 'editorial',
+                headline: `${s.game.studio.name} launches damage control amid ${t.name} poaching rumors`,
+                content:
+                  `${s.game.studio.name} moved quickly to contain talk of a rival approach for ${t.name}. ` +
+                  `Sources describe a coordinated outreach effort and a bid to keep the relationship on track.`,
+                week: s.game.currentWeek,
+                year: s.game.currentYear,
+                sentiment: 'neutral',
+                targets: { studios: [s.game.studio.id], talent: [t.id] },
+                impact: { virality: 40, intensity: 40 },
+                tags: ['pr', 'inner-circle', 'poaching'],
+                relatedEvents: [event.id],
+              });
+            }
+          }
+
+          if (selectedChoice.id === 'pr-shield' && kind === 'circle:feud') {
+            const projectId = (event as any)?.data?.projectId as string | undefined;
+            const talentAId = (event as any)?.data?.talentAId as string | undefined;
+            const talentBId = (event as any)?.data?.talentBId as string | undefined;
+
+            const project = projectId ? s.game.projects.find((p) => p.id === projectId) : undefined;
+            const a = talentAId ? s.game.talent.find((x) => x.id === talentAId) : undefined;
+            const b = talentBId ? s.game.talent.find((x) => x.id === talentBId) : undefined;
+
+            if (project && a && b) {
+              const mediaId = `media:${event.id}:pr-shield`;
+              MediaEngine.injectDeterministicMediaItem({
+                id: mediaId,
+                type: 'news',
+                headline: `${s.game.studio.name} issues statement to steady ${project.title} production`,
+                content:
+                  `${s.game.studio.name} acknowledged "creative tensions" on ${project.title} and emphasized a focused set. ` +
+                  `Representatives for ${a.name} and ${b.name} say production remains on schedule.`,
+                week: s.game.currentWeek,
+                year: s.game.currentYear,
+                sentiment: 'neutral',
+                targets: { studios: [s.game.studio.id], projects: [project.id], talent: [a.id, b.id] },
+                impact: { virality: 35, intensity: 35 },
+                tags: ['pr', 'inner-circle', 'set', 'feud'],
+                relatedEvents: [event.id],
+              });
             }
           }
         }

@@ -3,6 +3,7 @@ import type { GameEvent, GameState, Project, Script, TalentPerson } from '@/type
 import { createRng } from '@/game/core/rng';
 import { PlayerCircleDramaSystem } from '@/game/systems/playerCircleDramaSystem';
 import { useGameStore } from '@/game/store';
+import { MediaEngine } from '@/components/game/MediaEngine';
 
 function makeBaseState(overrides?: Partial<GameState>): GameState {
   const base: GameState = {
@@ -205,6 +206,7 @@ describe('PlayerCircleDramaSystem', () => {
 
 describe('resolveGameEvent (store)', () => {
   beforeEach(() => {
+    MediaEngine.cleanup();
     useGameStore.getState().initGame(makeBaseState({ universeSeed: 111 }), 123);
   });
 
@@ -251,6 +253,7 @@ describe('resolveGameEvent (store)', () => {
       description: '...',
       type: 'crisis',
       triggerDate: new Date('2027-01-01T00:00:00.000Z'),
+      data: { kind: 'circle:poach', talentId: 'talent-1' },
       choices: [
         {
           id: 'pr-spin',
@@ -264,6 +267,7 @@ describe('resolveGameEvent (store)', () => {
     };
 
     useGameStore.getState().mergeGameState({
+      talent: [makeTalent({ id: 'talent-1', name: 'T', contractStatus: 'contracted' })],
       eventQueue: [event],
       studio: { ...useGameStore.getState().game!.studio, budget: 1_000_000, reputation: 50 },
     });
@@ -274,6 +278,9 @@ describe('resolveGameEvent (store)', () => {
     expect(state.eventQueue.length).toBe(0);
     expect(state.studio.budget).toBe(800_000);
     expect(state.studio.reputation).toBe(52);
+
+    const media = MediaEngine.getRecentMedia(10);
+    expect(media.some((m) => m.id === 'media:event-pr:pr-spin')).toBe(true);
   });
 
   it('handles replace-b for circle:feud by removing the talent from the project', () => {
