@@ -130,6 +130,7 @@ import {
   upsertOnlineLeagueTurnSubmission,
 } from '@/integrations/supabase/onlineLeagueTurnCompile';
 import { mergeLeagueReleaseSnapshotsIntoAllReleases } from '@/utils/leagueReleases';
+import { getUnavailableTalentIds, isTalentAvailable } from '@/utils/talentAvailability';
 import { dedupeReleasePoolPreferLatest } from '@/utils/releasePool';
 import type { LeagueReleasedProjectSnapshot } from '@/types/onlineLeague';
 import {
@@ -257,7 +258,7 @@ function attachBasicCastForAI(project: Project, talentPool: TalentPerson[]): Pro
           name: 'Director',
           description: 'Director',
           requiredType: 'director',
-          importance: 'lead',
+          importance: 'crew',
           traits: ['mandatory'],
           assignedTalentId: pickedDirector?.id,
         } as any,
@@ -1617,6 +1618,8 @@ export const StudioMagnateGame: React.FC<StudioMagnateGameProps> = ({
                   ...updatedProject,
                   postTheatricalEligible: true,
                   theatricalEndDate: new Date(),
+                  theatricalEndWeek: resolvedReleaseWeek,
+                  theatricalEndYear: resolvedReleaseYear,
                   postTheatricalReleases: alreadyHasStreamingWindow
                     ? updatedProject.postTheatricalReleases
                     : [
@@ -2097,6 +2100,8 @@ export const StudioMagnateGame: React.FC<StudioMagnateGameProps> = ({
       releaseYear: gameState.currentYear,
       postTheatricalEligible: true,
       theatricalEndDate: new Date(),
+      theatricalEndWeek: gameState.currentWeek,
+      theatricalEndYear: gameState.currentYear,
       metrics: {
         inTheaters: false,
         boxOfficeTotal: 125000000,
@@ -2303,7 +2308,7 @@ export const StudioMagnateGame: React.FC<StudioMagnateGameProps> = ({
                   randomStudio,
                   newTimeState.currentWeek,
                   newTimeState.currentYear,
-                  baseAfterEngine.talent.filter(t => t.contractStatus === 'available')
+                  baseAfterEngine.talent.filter(t => isTalentAvailable(baseAfterEngine, t))
                 );
               }
             }
@@ -2927,9 +2932,7 @@ export const StudioMagnateGame: React.FC<StudioMagnateGameProps> = ({
       const readyOrderUserIds = await fetchOnlineLeagueReadyOrder({ leagueId, turn });
       const submissionsByUserId = await fetchOnlineLeagueTurnSubmissions({ leagueId, turn });
 
-      const initiallyTakenTalentIds = new Set(
-        (gameState.talent || []).filter((t) => t.contractStatus !== 'available').map((t) => t.id)
-      );
+      const initiallyTakenTalentIds = getUnavailableTalentIds(gameState);
 
       const resolution = resolveOnlineLeagueTalentConflicts({
         turn,

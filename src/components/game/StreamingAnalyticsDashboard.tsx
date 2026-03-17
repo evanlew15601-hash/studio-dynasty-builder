@@ -36,7 +36,11 @@ export const StreamingAnalyticsDashboard: React.FC = () => {
       const isTV = p.type === 'series' || p.type === 'limited-series';
       const isStreamingFilm = (p.type === 'feature' || p.type === 'documentary') && p.releaseStrategy?.type === 'streaming';
 
-      return (isTV || isStreamingFilm) && p.status === 'released' && !!p.metrics?.streaming;
+      const hasPostTheatricalStreaming =
+        (p.type === 'feature' || p.type === 'documentary') &&
+        (p.postTheatricalReleases || []).some(r => r.platform === 'streaming');
+
+      return (isTV || isStreamingFilm || hasPostTheatricalStreaming) && p.status === 'released' && !!p.metrics?.streaming;
     });
   };
 
@@ -65,7 +69,20 @@ export const StreamingAnalyticsDashboard: React.FC = () => {
   const currentSeason = project.seasons?.[0];
   const contract = project.streamingContract;
   const streamingRelease = project.postTheatricalReleases?.find(r => r.platform === 'streaming');
-  const weeksSinceRelease = project.metrics?.weeksSinceRelease || 0;
+
+  const isTVProject = project.type === 'series' || project.type === 'limited-series';
+
+  const weeksSinceRelease = (() => {
+    // For TV + direct-to-streaming films, weeksSinceRelease is tracked on metrics.
+    if (isTVProject || project.releaseStrategy?.type === 'streaming') {
+      return project.metrics?.weeksSinceRelease || 0;
+    }
+
+    // For theatrical films that later hit streaming, use the post-theatrical window age.
+    if (streamingRelease) return streamingRelease.weeksActive || 0;
+
+    return project.metrics?.weeksSinceRelease || 0;
+  })();
 
   // Calculate key metrics
   const getMetrics = () => {

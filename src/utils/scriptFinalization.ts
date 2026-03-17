@@ -88,6 +88,24 @@ function ensureLeadActor(chars: ScriptCharacter[], fixesApplied: string[]): Scri
   ];
 }
 
+function ensureSupporting(chars: ScriptCharacter[], fixesApplied: string[]): ScriptCharacter[] {
+  const hasSupporting = chars.some(c => c.requiredType !== 'director' && c.importance === 'supporting');
+  if (hasSupporting) return chars;
+  fixesApplied.push('Added a Supporting role');
+  return [
+    ...chars,
+    {
+      id: nextId(chars, 'supporting'),
+      name: 'Supporting',
+      importance: 'supporting',
+      requiredType: 'actor',
+      requiredGender: stablePick<Gender>(['Male', 'Female'], `${nextId(chars, 'supporting')}|gender`),
+      description: 'Key supporting character',
+      ageRange: [20, 70],
+    },
+  ];
+}
+
 function ensureMinor(chars: ScriptCharacter[], fixesApplied: string[]): ScriptCharacter[] {
   const hasMinor = chars.some(c => c.importance === 'minor');
   if (hasMinor) return chars;
@@ -191,6 +209,7 @@ export function finalizeScriptForGreenlight(input: Script, gameState: GameState)
   characters = ensureRoleGenders(characters, fixesApplied);
   characters = ensureDirector(characters, fixesApplied);
   characters = ensureLeadActor(characters, fixesApplied);
+  characters = ensureSupporting(characters, fixesApplied);
   characters = ensureMinor(characters, fixesApplied);
 
   const issues = [...validateScriptBasics(input), ...validateRoles(characters)];

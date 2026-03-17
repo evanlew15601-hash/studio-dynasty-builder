@@ -95,4 +95,19 @@ describe('AwardsSchedule', () => {
     expect(patched.find(s => s.id === 'crown')).toBeUndefined();
     expect(patched.find(s => s.id === 'custom-show-1')?.name).toBe('Custom Awards');
   });
+
+  it('defines explicit gender requirements for gendered actor categories', () => {
+    const shows = getAwardShowsForYear(2024);
+    const categories = shows.flatMap(s => s.categories || []);
+
+    const actorCategories = categories.filter(c => c.awardKind === 'talent' && c.talent?.type === 'actor');
+
+    actorCategories.forEach((c) => {
+      const name = c.name.toLowerCase();
+      const gendered = name.includes('actor') || name.includes('actress');
+      if (!gendered) return;
+
+      expect(c.talent?.gender).toBeTruthy();
+    });
+  });
 });

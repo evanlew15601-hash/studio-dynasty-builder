@@ -5,7 +5,7 @@ const getBaseScreenTime = (character: ScriptCharacter): number => {
     lead: 90,
     supporting: 45,
     minor: 15,
-    crew: 5
+    crew: 0
   };
 
   return baseMap[character.importance] ?? 15;
@@ -19,6 +19,11 @@ export const estimateScreenTimeMinutes = (
   character: ScriptCharacter,
   project: Project
 ): number => {
+  // Directors/key crew do not receive "screen time" and should never be evaluated like actors.
+  if (character.requiredType === 'director' || character.importance === 'crew') {
+    return 0;
+  }
+
   const baseTime = getBaseScreenTime(character);
   const budgetMultiplier = Math.min(
     1.5,

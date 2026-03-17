@@ -1,5 +1,6 @@
 import React, { useState } from 'react';
 import { Project, Franchise, Script } from '@/types/game';
+import { isTalentAvailable } from '@/utils/talentAvailability';
 import { useGameStore } from '@/game/store';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
@@ -474,10 +475,11 @@ export const SequelManagement: React.FC<SequelManagementProps> = ({
                     <div className="text-sm">
                       <span className="text-muted-foreground">Cast Available:</span>
                       <span className="ml-1 font-medium">
-                        {(project.script?.characters || []).filter(c => 
-                          c.assignedTalentId && 
-                          gameState.talent.find(t => t.id === c.assignedTalentId)?.contractStatus === 'available'
-                        ).length}/{(project.script?.characters || []).filter(c => c.assignedTalentId).length}
+                        {(project.script?.characters || []).filter(c => {
+                          if (!c.assignedTalentId) return false;
+                          const t = gameState.talent.find(x => x.id === c.assignedTalentId);
+                          return !!t && isTalentAvailable(gameState, t);
+                        }).length}/{(project.script?.characters || []).filter(c => c.assignedTalentId).length}
                       </span>
                     </div>
                     

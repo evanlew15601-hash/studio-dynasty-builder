@@ -312,6 +312,8 @@ export interface Project {
   status: 'development' | 'pre-production' | 'production' | 'post-production' | 'marketing' | 'release' | 'distribution' | 'archived' | 'released' | 'filming' | 'completed' | 'ready-for-marketing' | 'ready-for-release' | 'scheduled-for-release';
   postTheatricalEligible?: boolean;
   theatricalEndDate?: Date;
+  theatricalEndWeek?: number;
+  theatricalEndYear?: number;
   metrics: ProjectMetrics;
   phaseDuration: number; // weeks remaining in current phase
   studioName?: string; // For AI projects, tracks which studio produced it
@@ -882,7 +884,7 @@ export interface AwardsSeasonState {
     string,
     {
       year: number;
-      categories: Record<string, Array<{ projectId: string; score: number }>>;
+      categories: Record<string, Array<{ projectId: string; score: number; talentId?: string }>>;
     }
   >;
 }
@@ -1201,12 +1203,17 @@ export interface AwardsEvent {
 
 export interface AwardsCampaign {
   projectId: string;
+  /** Simple strategic focus: affects which categories are considered "targeted". */
+  focus?: 'prestige' | 'acting' | 'craft';
+  /** Substring tokens used to match award categories (e.g., "actor", "director", "cinematography"). */
   targetCategories: string[];
   budget: number;
   budgetSpent: number;
   duration: number; // weeks
   weeksRemaining: number;
   effectiveness: number; // 0-100
+  startedWeek?: number;
+  startedYear?: number;
   activities: AwardsCampaignActivity[];
 }
 
