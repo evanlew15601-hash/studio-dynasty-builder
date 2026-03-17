@@ -185,62 +185,31 @@ export const EnhancedAwardsSystem: React.FC<EnhancedAwardsSystemProps> = ({
       const byImportance = (importance: ScriptCharacter['importance']) =>
         filtered.filter(entry => entry.character.importance === importance);
 
+      const isMale = (entry: { talent: TalentPerson }) => entry.talent.gender === 'Male';
+      const isFemale = (entry: { talent: TalentPerson }) => entry.talent.gender === 'Female';
+
       if (categoryId === 'best-actor') {
-        let pool = byImportance('lead').filter(
-          entry =>
-            !entry.talent.gender || entry.talent.gender.toLowerCase() !== 'female'
-        );
-        if (pool.length === 0) {
-          pool = byImportance('lead');
-        }
-        if (pool.length === 0) {
-          pool = byImportance('supporting');
-        }
-        if (pool.length > 0) {
-          filtered = pool;
-        }
+        let pool = byImportance('lead').filter(isMale);
+        if (pool.length === 0) pool = byImportance('supporting').filter(isMale);
+        if (pool.length === 0) pool = byImportance('minor').filter(isMale);
+        if (pool.length === 0) return undefined;
+        filtered = pool;
       } else if (categoryId === 'best-actress') {
-        let pool = byImportance('lead').filter(
-          entry =>
-            entry.talent.gender && entry.talent.gender.toLowerCase() === 'female'
-        );
-        if (pool.length === 0) {
-          pool = byImportance('lead');
-        }
-        if (pool.length === 0) {
-          pool = byImportance('supporting');
-        }
-        if (pool.length > 0) {
-          filtered = pool;
-        }
+        let pool = byImportance('lead').filter(isFemale);
+        if (pool.length === 0) pool = byImportance('supporting').filter(isFemale);
+        if (pool.length === 0) pool = byImportance('minor').filter(isFemale);
+        if (pool.length === 0) return undefined;
+        filtered = pool;
       } else if (categoryId === 'best-supporting-actor') {
-        let pool = byImportance('supporting').filter(
-          entry =>
-            !entry.talent.gender || entry.talent.gender.toLowerCase() !== 'female'
-        );
-        if (pool.length === 0) {
-          pool = byImportance('supporting');
-        }
-        if (pool.length === 0) {
-          pool = byImportance('lead');
-        }
-        if (pool.length > 0) {
-          filtered = pool;
-        }
+        let pool = byImportance('supporting').filter(isMale);
+        if (pool.length === 0) pool = byImportance('minor').filter(isMale);
+        if (pool.length === 0) return undefined;
+        filtered = pool;
       } else if (categoryId === 'best-supporting-actress') {
-        let pool = byImportance('supporting').filter(
-          entry =>
-            entry.talent.gender && entry.talent.gender.toLowerCase() === 'female'
-        );
-        if (pool.length === 0) {
-          pool = byImportance('supporting');
-        }
-        if (pool.length === 0) {
-          pool = byImportance('lead');
-        }
-        if (pool.length > 0) {
-          filtered = pool;
-        }
+        let pool = byImportance('supporting').filter(isFemale);
+        if (pool.length === 0) pool = byImportance('minor').filter(isFemale);
+        if (pool.length === 0) return undefined;
+        filtered = pool;
       }
     }
 

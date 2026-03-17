@@ -206,19 +206,21 @@ export function useAwardsEngine(
           let talentBonus = 0;
           if (isTalentCategory(category)) {
             const talent = findRelevantTalent(project, categoryName, category);
-            if (talent) {
-              const baseRep = talent.reputation || 50;
-              const awardsCount = talent.awards?.length || 0;
-              const fame = talent.fame ?? 0;
 
-              // Reputation above/below 50 pulls score modestly.
-              const repBonus = (baseRep - 50) * 0.4; // max about ±20
-              // Prior awards and fame give additional small boosts.
-              const awardsBonus = Math.min(10, awardsCount * 2);
-              const fameBonus = Math.min(10, fame * 0.1);
+            // Talent categories require a credited person on the project; don't fill in with random global talent.
+            if (!talent) return { project, score: 0 };
 
-              talentBonus = repBonus + awardsBonus + fameBonus;
-            }
+            const baseRep = talent.reputation || 50;
+            const awardsCount = talent.awards?.length || 0;
+            const fame = talent.fame ?? 0;
+
+            // Reputation above/below 50 pulls score modestly.
+            const repBonus = (baseRep - 50) * 0.4; // max about ±20
+            // Prior awards and fame give additional small boosts.
+            const awardsBonus = Math.min(10, awardsCount * 2);
+            const fameBonus = Math.min(10, fame * 0.1);
+
+            talentBonus = repBonus + awardsBonus + fameBonus;
           }
 
           const noise = (stableFloat01(`${seedRoot}|${categoryName}|${project.id}|noise`) * 8) - 4;
@@ -657,98 +659,86 @@ export function useAwardsEngine(
     const directorCategory = desiredTalentType === 'director' || categoryLower.includes('director') || categoryLower.includes('directing');
 
     if (directorCategory) {
-      // From cast/crew credits
-      const directorEntries = [...castEntries, ...crewEntries].filter(c => (c.role || '').toLowerCase().includes('director'));
-      const castDir = directorEntries.length > 1 ? pick(directorEntries, 'director') : directorEntries[0];
-      if (castDir) {
-        const t = getTalentById((castDir as any).talentId);
-        if (t && t.type === 'director') return t;
-      }
+      const directorEntries = crewEntries.filter(c => (c.role || '').toLowerCase().includes('director'));
+      const chosenEntry = directorEntries.length > 1 ? pick(directorEntries, 'director') : directorEntries[0];
+      const t1 = getTalentById((chosenEntry as any)?.talentId);
+      if (t1 && t1.type === 'director') return t1;
 
-      // Fallback to script characters
       const directorChars = characters.filter(c => c.requiredType === 'director' && !!c.assignedTalentId);
-      const charDir = directorChars.length > 1 ? pick(directorChars, 'director-char') : directorChars[0];
-      const t = getTalentById(charDir?.assignedTalentId);
-      if (t && t.type === 'director') return t;
+      const chosenChar = directorChars.length > 1 ? pick(directorChars, 'director-char') : directorChars[0];
+      const t2 = getTalentById(chosenChar?.assignedTalentId);
+      if (t2 && t2.type === 'director') return t2;
 
-      const directors = gameState.talent.filter(tt => tt.type === 'director');
-      return directors.length > 0 ? pick(directors, 'global-director-fallback') : undefined;
+      return undefined;
     }
 
     // Acting categories - deterministic selection (no Math.random), with gender handling
     const isSupporting = desiredSupporting ?? categoryLower.includes('supporting');
 
-    const genderOkStrict = (talent: TalentPerson | undefined) => {
+    const genderRequirement: TalentPerson['gender'] | undefined =
+      desiredGender ||
+      (categoryLower.includes('actress')
+        ? 'Female'
+        : (categoryLower.includes('actor') && !categoryLower.includes('actress'))
+          ? 'Male'
+          : undefined);
+
+    const genderOk = (talent: TalentPerson | undefined): talent is TalentPerson => {
       if (!talent || talent.type !== 'actor') return false;
-      if (desiredGender) return talent.gender === desiredGender;
-      if (categoryLower.includes('actress')) return talent.gender === 'Female';
-      if (categoryLower.includes('actor')) return talent.gender !== 'Female';
-      return true;
+      if (!genderRequirement) return true;
+      return talent.gender === genderRequirement;
     };
 
-    const genderOkLoose = (talent: TalentPerson | undefined) => {
-      return !!talent && talent.type === 'actor';
-    };
+    const roleMatch = (role: string) => role.toLowerCase().includes(isSupporting ? 'supporting' : 'lead');
 
-    const byRoleMatch = (role: string) => role.toLowerCase().includes(isSupporting ? 'supporting' : 'lead');
+    // Prefer canonical script character assignments.
+    const charCandidates = characters
+      .filter((ch) => {
+        if (!ch.assignedTalentId) return false;
+        if (ch.requiredType === 'director') return false;
 
-    const roleCandidatesStrict = castEntries
-      .filter(c => byRoleMatch(c.role))
-      .filter(c => genderOkStrict(getTalentById((c as any).talentId)));
+        const t = getTalentById(ch.assignedTalentId);
+        if (!genderOk(t)) return false;
 
-    const roleCandidates = roleCandidatesStrict.length > 0
-      ? roleCandidatesStrict
-      : castEntries
-          .filter(c => byRoleMatch(c.role))
-          .filter(c => genderOkLoose(getTalentById((c as any).talentId)));
+        if (!isSupporting) return ch.importance === 'lead';
+        return ch.importance === 'supporting' || ch.importance === 'minor';
+      });
 
-    if (roleCandidates.length > 0) {
-      const chosen = roleCandidates.length > 1 ? pick(roleCandidates, isSupporting ? 'supporting' : 'lead') : roleCandidates[0];
-      const talent = getTalentById((chosen as any).talentId);
-      if (talent && talent.type === 'actor') return talent;
+    if (charCandidates.length > 0) {
+      const chosen = charCandidates.length > 1 ? pick(charCandidates, isSupporting ? 'supporting-char' : 'lead-char') : charCandidates[0];
+      return getTalentById(chosen.assignedTalentId);
     }
 
-    // Any actor from cast (prefer gender-match but never return empty)
-    const anyActorCastStrict = castEntries.filter(c => genderOkStrict(getTalentById((c as any).talentId)));
-    const anyActorCast = anyActorCastStrict.length > 0
-      ? anyActorCastStrict
-      : castEntries.filter(c => genderOkLoose(getTalentById((c as any).talentId)));
+    // Next, try credited cast entries.
+    const castCandidates = castEntries
+      .filter((c) => roleMatch(c.role || ''))
+      .map((c) => getTalentById((c as any).talentId))
+      .filter(genderOk);
 
-    if (anyActorCast.length > 0) {
-      const chosen = anyActorCast.length > 1 ? pick(anyActorCast, 'any-actor') : anyActorCast[0];
-      const talent = getTalentById((chosen as any).talentId);
-      if (talent && talent.type === 'actor') return talent;
+    if (castCandidates.length > 0) {
+      return castCandidates.length > 1 ? pick(castCandidates, isSupporting ? 'supporting' : 'lead') : castCandidates[0];
     }
 
-    // Fallback to script characters (prefer gender-match but never return empty)
-    const charCandidatesStrict = characters.filter(ch => {
-      if (ch.requiredType === 'director') return false;
-      const talent = getTalentById(ch.assignedTalentId);
-      if (!genderOkStrict(talent)) return false;
-      if (isSupporting) return ch.importance === 'supporting';
-      return ch.importance === 'lead';
-    });
+    // Lead categories can fall back to any credited actor. Supporting categories should not.
+    if (!isSupporting) {
+      const anyCharActors = characters
+        .filter((ch) => ch.requiredType !== 'director' && !!ch.assignedTalentId)
+        .map((ch) => getTalentById(ch.assignedTalentId))
+        .filter(genderOk);
 
-    const charCandidates = charCandidatesStrict.length > 0
-      ? charCandidatesStrict
-      : characters.filter(ch => {
-          if (ch.requiredType === 'director') return false;
-          const talent = getTalentById(ch.assignedTalentId);
-          if (!genderOkLoose(talent)) return false;
-          if (isSupporting) return ch.importance === 'supporting';
-          return ch.importance === 'lead';
-        });
+      if (anyCharActors.length > 0) {
+        return anyCharActors.length > 1 ? pick(anyCharActors, 'any-credited-char') : anyCharActors[0];
+      }
 
-    const chosenChar = charCandidates.length > 1
-      ? pick(charCandidates, isSupporting ? 'supporting-char' : 'lead-char')
-      : charCandidates[0];
+      const anyCastActors = castEntries
+        .map((c) => getTalentById((c as any).talentId))
+        .filter(genderOk);
 
-    const talent = getTalentById(chosenChar?.assignedTalentId);
-    if (talent && talent.type === 'actor') return talent;
+      if (anyCastActors.length > 0) {
+        return anyCastActors.length > 1 ? pick(anyCastActors, 'any-credited-cast') : anyCastActors[0];
+      }
+    }
 
-    // Final fallback: pick any actor from the global pool.
-    const actorPoolStrict = gameState.talent.filter(t => genderOkStrict(t));
-    const actorPool = actorPoolStrict.length > 0 ? actorPoolStrict : gameState.talent.filter(t => genderOkLoose(t));
-    return actorPool.length > 0 ? pick(actorPool, 'global-actor-fallback') : undefined;
+    return undefined;
   };
 }

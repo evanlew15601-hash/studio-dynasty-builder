@@ -312,6 +312,8 @@ export interface Project {
   status: 'development' | 'pre-production' | 'production' | 'post-production' | 'marketing' | 'release' | 'distribution' | 'archived' | 'released' | 'filming' | 'completed' | 'ready-for-marketing' | 'ready-for-release' | 'scheduled-for-release';
   postTheatricalEligible?: boolean;
   theatricalEndDate?: Date;
+  theatricalEndWeek?: number;
+  theatricalEndYear?: number;
   metrics: ProjectMetrics;
   phaseDuration: number; // weeks remaining in current phase
   studioName?: string; // For AI projects, tracks which studio produced it

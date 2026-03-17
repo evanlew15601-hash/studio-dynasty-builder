@@ -257,7 +257,7 @@ function attachBasicCastForAI(project: Project, talentPool: TalentPerson[]): Pro
           name: 'Director',
           description: 'Director',
           requiredType: 'director',
-          importance: 'lead',
+          importance: 'crew',
           traits: ['mandatory'],
           assignedTalentId: pickedDirector?.id,
         } as any,
@@ -1617,6 +1617,8 @@ export const StudioMagnateGame: React.FC<StudioMagnateGameProps> = ({
                   ...updatedProject,
                   postTheatricalEligible: true,
                   theatricalEndDate: new Date(),
+                  theatricalEndWeek: resolvedReleaseWeek,
+                  theatricalEndYear: resolvedReleaseYear,
                   postTheatricalReleases: alreadyHasStreamingWindow
                     ? updatedProject.postTheatricalReleases
                     : [
@@ -2097,6 +2099,8 @@ export const StudioMagnateGame: React.FC<StudioMagnateGameProps> = ({
       releaseYear: gameState.currentYear,
       postTheatricalEligible: true,
       theatricalEndDate: new Date(),
+      theatricalEndWeek: gameState.currentWeek,
+      theatricalEndYear: gameState.currentYear,
       metrics: {
         inTheaters: false,
         boxOfficeTotal: 125000000,
