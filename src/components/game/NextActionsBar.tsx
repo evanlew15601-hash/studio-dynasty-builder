@@ -58,7 +58,8 @@ function pickFocusProject(gameState: GameState): Project | null {
 export const NextActionsBar: React.FC<{
   gameState: GameState;
   onNavigate: (phase: string, projectId?: string) => void;
-}> = ({ gameState, onNavigate }) => {
+  onOpenInbox?: () => void;
+}> = ({ gameState, onNavigate, onOpenInbox }) => {
   const actions = useMemo(() => {
     const next: NextAction[] = [];
 
@@ -152,8 +153,18 @@ export const NextActionsBar: React.FC<{
             ))}
           </div>
 
-          <div className="text-xs text-muted-foreground">
+          <div className="flex items-center gap-2 text-xs text-muted-foreground">
             Inbox: <span className="studio-mono">{pendingEvents}</span>
+            {onOpenInbox && (
+              <Button
+                size="sm"
+                variant="outline"
+                className="h-6 px-2 text-xs"
+                onClick={onOpenInbox}
+              >
+                Open
+              </Button>
+            )}
           </div>
         </div>
       </div>
