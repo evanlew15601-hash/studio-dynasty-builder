@@ -13,6 +13,7 @@ import { ScriptCharacterManager, ScriptCharacter } from './ScriptCharacterManage
 import { importRolesForScript } from '@/utils/roleImport';
 import { finalizeScriptForGreenlight, finalizeScriptForSave, getScriptGreenlightReport } from '@/utils/scriptFinalization';
 import { getScriptStageAdvanceQuote, formatScriptStage } from '@/utils/scriptProgression';
+import { getGreenlightGateReport } from '@/utils/studioGovernance';
 import { FinancialEngine } from './FinancialEngine';
 import { ScriptIcon, ClapperboardIcon } from '@/components/ui/icons';
 import { useGameStore } from '@/game/store';
@@ -458,6 +459,16 @@ export const TVShowDevelopment: React.FC<TVShowDevelopmentProps> = ({
       return;
     }
 
+    const gate = getGreenlightGateReport({ state: gameState, script, kind: 'tv', episodeCount: assumedEpisodeCount });
+    if (!gate.canGreenlight) {
+      toast({
+        title: 'Cannot Greenlight Project',
+        description: gate.reasons.join(' '),
+        variant: 'destructive',
+      });
+      return;
+    }
+
     // Let the core game system create the actual TV project from this script
     onProjectCreate(script);
 
@@ -765,7 +776,8 @@ export const TVShowDevelopment: React.FC<TVShowDevelopmentProps> = ({
 
                 const assumedEpisodeCount = 13;
                 const canAffordGreenlight = gameState.studio.budget >= (script.budget * assumedEpisodeCount) * 0.1;
-                const canGreenlight = isFinalized && canAffordGreenlight;
+                const gate = getGreenlightGateReport({ state: gameState, script, kind: 'tv', episodeCount: assumedEpisodeCount });
+                const canGreenlight = isFinalized && canAffordGreenlight && gate.canGreenlight;
 
                 return (
                 <Card 
@@ -838,13 +850,13 @@ export const TVShowDevelopment: React.FC<TVShowDevelopmentProps> = ({
                           className={`flex-1 ${!canGreenlight ? 'opacity-90' : ''}`}
                           variant={canGreenlight ? 'default' : 'secondary'}
                           onClick={() => {
-                            if (canGreenlight) {
-                              handleGreenlightTVScript(script);
+                            if (stageQuote) {
+                              handleAdvanceStage(script);
                               return;
                             }
 
-                            if (stageQuote) {
-                              handleAdvanceStage(script);
+                            if (isFinalized) {
+                              handleGreenlightTVScript(script);
                               return;
                             }
 
@@ -858,7 +870,11 @@ export const TVShowDevelopment: React.FC<TVShowDevelopmentProps> = ({
                                 ? !canAdvanceStage
                                   ? 'Insufficient funds to pay the writer'
                                   : `Pay ${formatMoney(stageQuote.writerFee)} to advance`
-                                : greenlightReport.issues.filter(i => i.level === 'error').map(i => i.message).join(' ')
+                                : isFinalized
+                                  ? !canAffordGreenlight
+                                    ? 'Insufficient funds to greenlight'
+                                    : gate.reasons.join(' ')
+                                  : greenlightReport.issues.filter(i => i.level === 'error').map(i => i.message).join(' ')
                           }
                         >
                           <ClapperboardIcon className="w-4 h-4 mr-1" />
@@ -866,7 +882,11 @@ export const TVShowDevelopment: React.FC<TVShowDevelopmentProps> = ({
                             ? 'Greenlight'
                             : stageQuote
                               ? `Advance (${formatScriptStage(stageQuote.toStage)})`
-                              : 'Final Checks'}
+                              : isFinalized
+                                ? !canAffordGreenlight
+                                  ? 'Financing Needed'
+                                  : 'Approval Needed'
+                                : 'Final Checks'}
                         </Button>
                       </div>
                       {!canGreenlight && (
@@ -874,7 +894,9 @@ export const TVShowDevelopment: React.FC<TVShowDevelopmentProps> = ({
                           {stageQuote
                             ? `Pay ${formatMoney(stageQuote.writerFee)} to advance to ${formatScriptStage(stageQuote.toStage)}`
                             : isFinalized
-                              ? (canAffordGreenlight ? 'Run final checks to greenlight' : 'Secure financing to greenlight')
+                              ? !canAffordGreenlight
+                                ? 'Secure financing to greenlight'
+                                : gate.reasons.join(' ')
                               : 'Advance stages and run final checks before greenlighting'}
                         </p>
                       )}

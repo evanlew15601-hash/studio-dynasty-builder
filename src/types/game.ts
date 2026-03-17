@@ -825,6 +825,39 @@ export interface PlayerLegacy {
   biggestHit?: { projectId: string; title: string; boxOffice: number; year: number };
 }
 
+/**
+ * Studio governance and operational constraints.
+ *
+ * Ownership provides authority, but capability is constrained by stakeholder pressure,
+ * capital availability, and industry conditions.
+ */
+export interface StudioGovernance {
+  /** How supportive leadership is of the current strategy (0-100). */
+  boardConfidence: number;
+
+  /** Internal constraints: your own organization pushing back. */
+  internalPressure: {
+    board: number;
+    finance: number;
+    investors: number;
+  };
+
+  /** External constraints: the industry pushing back. */
+  externalPressure: {
+    competition: number;
+    talent: number;
+    market: number;
+  };
+
+  /** What the studio can reliably execute at once. */
+  capability: {
+    maxActiveProjects: number;
+  };
+
+  /** Absolute week index (year * 52 + week) of last update (optional, for migrations/telemetry). */
+  lastUpdatedWeekIndex?: number;
+}
+
 export interface GameState {
   /** Stable seed for worldbuilding (used to derive deterministic per-save procedural content). */
   universeSeed?: number;
@@ -833,6 +866,8 @@ export interface GameState {
   /** Optional: identifies how this state was created (useful for Online League rules). */
   mode?: 'single' | 'online';
   studio: Studio;
+  /** Studio governance + constraint model (optional for backwards-compatible saves). */
+  governance?: StudioGovernance;
   currentYear: number;
   currentWeek: number;
   currentQuarter: number;

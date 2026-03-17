@@ -30,6 +30,13 @@ export const StudioDashboard: React.FC<StudioDashboardProps> = () => {
   }
   const activeProjects = gameState.projects.filter(p => p.status !== 'archived');
 
+  const governance = gameState.governance;
+  const boardConfidence = governance?.boardConfidence ?? 60;
+  const capabilityMax = governance?.capability?.maxActiveProjects ?? 1;
+  const activeInFlight = gameState.projects.filter(p => p.status !== 'archived' && p.status !== 'released').length;
+  const internalPressure = governance?.internalPressure ?? { board: 0, finance: 0, investors: 0 };
+  const externalPressure = governance?.externalPressure ?? { competition: 0, talent: 0, market: 0 };
+
   const getBestProjectForCasting = (): Project | null => {
     const castingCandidates = activeProjects.filter(p =>
       p.currentPhase === 'development' ||
@@ -288,6 +295,81 @@ export const StudioDashboard: React.FC<StudioDashboardProps> = () => {
           </CardContent>
         </Card>
       </div>
+
+      {/* Governance & Constraints */}
+      <Card className="card-premium border-border/50">
+        <CardHeader>
+          <CardTitle className="flex items-center font-studio">
+            <div className="p-2 rounded-lg bg-gradient-to-r from-primary/20 to-accent/20 mr-3">
+              <StudioIcon className="text-primary" size={20} />
+            </div>
+            Governance & Constraints
+          </CardTitle>
+        </CardHeader>
+        <CardContent>
+          <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+            <div className="space-y-4">
+              <div className="flex justify-between items-center">
+                <span className="text-sm text-muted-foreground">Board confidence</span>
+                <span className="studio-mono font-semibold">{Math.round(boardConfidence)}/100</span>
+              </div>
+              <Progress value={boardConfidence} className="h-3 bg-muted/30" />
+
+              <div className="flex justify-between items-center py-2 px-3 rounded-lg bg-card/50">
+                <span className="text-sm text-muted-foreground">Active capacity</span>
+                <span className="studio-mono font-medium">{activeInFlight}/{capabilityMax}</span>
+              </div>
+
+              <div className="space-y-2 text-xs">
+                <div className="flex justify-between items-center">
+                  <span className="text-muted-foreground">Internal: board</span>
+                  <span className="studio-mono">{internalPressure.board}/100</span>
+                </div>
+                <Progress value={internalPressure.board} className="h-2 bg-muted/30" />
+
+                <div className="flex justify-between items-center">
+                  <span className="text-muted-foreground">Internal: finance</span>
+                  <span className="studio-mono">{internalPressure.finance}/100</span>
+                </div>
+                <Progress value={internalPressure.finance} className="h-2 bg-muted/30" />
+
+                <div className="flex justify-between items-center">
+                  <span className="text-muted-foreground">Internal: investors</span>
+                  <span className="studio-mono">{internalPressure.investors}/100</span>
+                </div>
+                <Progress value={internalPressure.investors} className="h-2 bg-muted/30" />
+              </div>
+            </div>
+
+            <div className="space-y-4">
+              <div className="text-sm font-medium text-muted-foreground">External pressure</div>
+              <div className="space-y-2 text-xs">
+                <div className="flex justify-between items-center">
+                  <span className="text-muted-foreground">Competition</span>
+                  <span className="studio-mono">{externalPressure.competition}/100</span>
+                </div>
+                <Progress value={externalPressure.competition} className="h-2 bg-muted/30" />
+
+                <div className="flex justify-between items-center">
+                  <span className="text-muted-foreground">Talent market</span>
+                  <span className="studio-mono">{externalPressure.talent}/100</span>
+                </div>
+                <Progress value={externalPressure.talent} className="h-2 bg-muted/30" />
+
+                <div className="flex justify-between items-center">
+                  <span className="text-muted-foreground">Market fit</span>
+                  <span className="studio-mono">{externalPressure.market}/100</span>
+                </div>
+                <Progress value={externalPressure.market} className="h-2 bg-muted/30" />
+              </div>
+
+              <div className="text-xs text-muted-foreground">
+                Authority lets you choose. Capability decides what actually ships.
+              </div>
+            </div>
+          </div>
+        </CardContent>
+      </Card>
 
       {/* Active Projects */}
       <Card className="card-premium">

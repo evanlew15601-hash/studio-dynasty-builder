@@ -13,6 +13,7 @@ import { ScriptCharacterManager, ScriptCharacter } from './ScriptCharacterManage
 import { importRolesForScript } from '@/utils/roleImport';
 import { finalizeScriptForGreenlight, getScriptGreenlightReport } from '@/utils/scriptFinalization';
 import { getScriptStageAdvanceQuote, formatScriptStage } from '@/utils/scriptProgression';
+import { getGreenlightGateReport } from '@/utils/studioGovernance';
 import { FinancialEngine } from './FinancialEngine';
 import { ScriptIcon, ClapperboardIcon } from '@/components/ui/icons';
 import { useGameStore } from '@/game/store';
@@ -466,6 +467,16 @@ export const ScriptDevelopment: React.FC<ScriptDevelopmentProps> = ({
       return;
     }
 
+    const gate = getGreenlightGateReport({ state: gameState, script, kind: 'film' });
+    if (!gate.canGreenlight) {
+      toast({
+        title: 'Cannot Greenlight Project',
+        description: gate.reasons.join(' '),
+        variant: 'destructive',
+      });
+      return;
+    }
+
     onProjectCreate(script);
 
     toast({
@@ -767,7 +778,8 @@ export const ScriptDevelopment: React.FC<ScriptDevelopmentProps> = ({
                 const greenlightReport = getScriptGreenlightReport(script, gameState);
                 const canAfford = canAffordDevelopmentCost(script);
                 const isFinalized = script.developmentStage === 'final' && greenlightReport.canFinalize;
-                const canGreenlight = isFinalized && canAfford;
+                const gate = getGreenlightGateReport({ state: gameState, script, kind: 'film' });
+                const canGreenlight = isFinalized && canAfford && gate.canGreenlight;
                 const stageQuote = getScriptStageAdvanceQuote(script);
                 const canAdvanceStage = !!stageQuote && canAffordWriterFee(stageQuote.writerFee);
 
@@ -854,19 +866,19 @@ export const ScriptDevelopment: React.FC<ScriptDevelopmentProps> = ({
                           className={`flex-1 ${!canGreenlight ? 'opacity-90' : ''}`}
                           variant={canGreenlight ? 'default' : 'secondary'}
                           onClick={() => {
-                            if (canGreenlight) {
-                              handleGreenlightScript(script);
-                              return;
-                            }
-
                             if (stageQuote) {
                               handleAdvanceStage(script);
                               return;
                             }
 
+                            if (isFinalized) {
+                              handleGreenlightScript(script);
+                              return;
+                            }
+
                             handleFinalizeScript(script);
                           }}
-                          disabled={stageQuote ? !canAdvanceStage : isFinalized && !canAfford}
+                          disabled={stageQuote ? !canAdvanceStage : false}
                           title={
                             canGreenlight
                               ? ''
@@ -875,7 +887,9 @@ export const ScriptDevelopment: React.FC<ScriptDevelopmentProps> = ({
                                   ? 'Insufficient funds to pay the writer'
                                   : `Pay ${formatMoney(stageQuote.writerFee)} to advance`
                                 : isFinalized
-                                  ? 'Insufficient funds to greenlight'
+                                  ? !canAfford
+                                    ? 'Insufficient funds to greenlight'
+                                    : gate.reasons.join(' ')
                                   : greenlightReport.issues.filter(i => i.level === 'error').map(i => i.message).join(' ')
                           }
                         >
@@ -885,7 +899,9 @@ export const ScriptDevelopment: React.FC<ScriptDevelopmentProps> = ({
                             : stageQuote
                               ? `Advance (${formatScriptStage(stageQuote.toStage)})`
                               : isFinalized
-                                ? 'Financing Needed'
+                                ? !canAfford
+                                  ? 'Financing Needed'
+                                  : 'Approval Needed'
                                 : 'Final Checks'}
                         </Button>
                       </div>
@@ -894,7 +910,9 @@ export const ScriptDevelopment: React.FC<ScriptDevelopmentProps> = ({
                           {stageQuote
                             ? `Pay ${formatMoney(stageQuote.writerFee)} to advance to ${formatScriptStage(stageQuote.toStage)}`
                             : isFinalized
-                              ? (canAfford ? 'Run final checks to greenlight' : 'Secure financing to greenlight')
+                              ? !canAfford
+                                ? 'Secure financing to greenlight'
+                                : gate.reasons.join(' ')
                               : 'Run final checks before greenlighting'}
                         </p>
                       )}
