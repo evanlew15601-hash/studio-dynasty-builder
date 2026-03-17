@@ -74,6 +74,8 @@ export interface Studio {
   awards?: StudioAward[];
   awardsThisYear?: number;
   prestige?: number; // 0-100, separate from reputation
+  /** World-franchise licenses purchased in the Marketplace (one-time fee each). */
+  licensedFranchiseIds?: string[];
   // Worldbuilding / lore (player-facing)
   personality?: string;
   businessTendency?: string;

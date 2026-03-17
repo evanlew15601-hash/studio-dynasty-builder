@@ -168,7 +168,7 @@ export const OwnedFranchiseManager: React.FC<OwnedFranchiseManagerProps> = ({
           <Crown className="mx-auto h-12 w-12 text-muted-foreground mb-4" />
           <h3 className="text-lg font-medium mb-2">No Owned Franchises</h3>
           <p className="text-muted-foreground">
-            Create successful films or purchase franchise rights to build your intellectual property portfolio.
+            Release films and turn them into franchises, or license major properties from the Marketplace.
           </p>
         </CardContent>
       </Card>

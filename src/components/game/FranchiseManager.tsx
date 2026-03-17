@@ -9,6 +9,7 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@
 import { Pagination, PaginationContent, PaginationEllipsis, PaginationItem, PaginationLink, PaginationNext, PaginationPrevious } from '@/components/ui/pagination';
 import { Search, Star, Crown, Clock, TrendingUp, BookOpen, Sparkles, DollarSign, Info } from 'lucide-react';
 import { Progress } from '@/components/ui/progress';
+import { formatMoneyCompact } from '@/utils/money';
 
 interface FranchiseManagerProps {
   onCreateProject: (franchiseId?: string, publicDomainId?: string, cost?: number) => void;
@@ -44,6 +45,7 @@ export const FranchiseManager: React.FC<FranchiseManagerProps> = ({
   const publicDomainIPs = uniqById(gameState?.publicDomainIPs || []);
 
   const studioId = gameState?.studio?.id ?? '';
+  const licensedFranchiseIds = new Set(gameState?.studio?.licensedFranchiseIds ?? []);
 
   // Check which franchises are owned by player
   const ownedFranchiseIds = franchises
@@ -266,8 +268,19 @@ export const FranchiseManager: React.FC<FranchiseManagerProps> = ({
 
               <div className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-3 gap-4">
                 {pagedFranchises.items.map((franchise) => {
-                  const alreadyLicensed = (gameState.projects || []).some((p) => p.script?.franchiseId === franchise.id);
-                  const licenseCost = franchise.cost ?? 0;
+                  const licenseCost = typeof franchise.cost === 'number' ? franchise.cost : 0;
+
+                  const hasLicense =
+                    licensedFranchiseIds.has(franchise.id) ||
+                    (gameState.projects || []).some(
+                      (p) => p.script?.franchiseId === franchise.id || p.franchiseId === franchise.id
+                    ) ||
+                    (gameState.scripts || []).some((s) => s.franchiseId === franchise.id);
+
+                  const isFree = !licenseCost || licenseCost <= 0;
+
+                  const feeLabel = hasLicense ? 'PAID' : isFree ? 'FREE' : formatMoneyCompact(licenseCost);
+                  const shouldCharge = !hasLicense && licenseCost > 0;
 
                   return (
                     <Card key={franchise.id} className="hover:shadow-lg transition-shadow">
@@ -288,7 +301,7 @@ export const FranchiseManager: React.FC<FranchiseManagerProps> = ({
                             <Badge className={`${getFranchiseStatusColor(franchise.status)} text-white`}>
                               {franchise.status}
                             </Badge>
-                            {alreadyLicensed && (
+                            {hasLicense && (
                               <Badge variant="outline" className="text-xs">
                                 Licensed
                               </Badge>
@@ -311,13 +324,17 @@ export const FranchiseManager: React.FC<FranchiseManagerProps> = ({
                               <DollarSign className="w-4 h-4" />
                               <span className="text-sm font-medium">License Fee</span>
                             </div>
-                            <span className={`text-lg font-bold ${alreadyLicensed ? 'text-green-600' : ''}`}>
-                              {alreadyLicensed ? 'PAID' : '\u0024' + (licenseCost / 1000000).toFixed(1) + 'M'}
+                            <span
+                              className={`text-lg font-bold ${hasLicense || isFree ? 'text-green-600' : ''}`}
+                            >
+                              {feeLabel}
                             </span>
                           </div>
                           <div className="text-xs text-muted-foreground">
-                            {alreadyLicensed
+                            {hasLicense
                               ? 'You have already licensed this franchise.'
+                              : isFree
+                              ? 'No license fee for this franchise.'
                               : 'One-time fee (paid the first time you develop this franchise).'}
                           </div>
                           {franchise.description && (
@@ -367,10 +384,12 @@ export const FranchiseManager: React.FC<FranchiseManagerProps> = ({
 
                         <Button 
                           className="w-full"
-                          onClick={() => onCreateProject(franchise.id, undefined, alreadyLicensed ? undefined : licenseCost)}
+                          onClick={() =>
+                            onCreateProject(franchise.id, undefined, shouldCharge ? licenseCost : undefined)
+                          }
                           variant="default"
                         >
-                          {alreadyLicensed ? 'Develop New Entry' : 'License & Develop'}
+                          {hasLicense ? 'Develop New Entry' : isFree ? 'Develop' : 'License & Develop'}
                         </Button>
                       </CardContent>
                     </Card>

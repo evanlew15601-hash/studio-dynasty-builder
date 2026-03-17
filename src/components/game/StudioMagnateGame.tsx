@@ -4059,6 +4059,13 @@ export const StudioMagnateGame: React.FC<StudioMagnateGameProps> = ({
                     // Deduct franchise cost if applicable
                     if (cost) {
                       updateBudget(-cost);
+
+                      if (franchiseId) {
+                        const prev = gameState.studio.licensedFranchiseIds ?? [];
+                        updateStudio({
+                          licensedFranchiseIds: Array.from(new Set([...prev, franchiseId]))
+                        });
+                      }
                       
                       toast({
                         title: "Franchise Acquired!",
