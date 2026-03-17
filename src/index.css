@@ -150,8 +150,10 @@ All colors MUST be HSL.
     --premium-spotlight-opacity: 0.75;
     --premium-bg-strength: 1;
     --premium-vignette-strength: 1;
-    --premium-overlay-opacity: 0;
-    --premium-overlay-image: none;
+    --premium-overlay-opacity: 0.10;
+    --premium-overlay-image:
+      radial-gradient(1100px 680px at 54% 10%, hsl(var(--accent) / 0.08), transparent 68%),
+      radial-gradient(920px 700px at 22% 78%, hsl(var(--primary) / 0.06), transparent 74%);
     --premium-scanlines-opacity: 0.02;
     --premium-scanlines-color: var(--foreground);
     --premium-flicker-opacity: 0.03;
@@ -192,7 +194,10 @@ All colors MUST be HSL.
     --shadow-crimson: 0 0 46px hsl(0 60% 46% / 0.22), 0 4px 24px hsl(0 60% 46% / 0.12);
     --shadow-navy: 0 12px 24px hsl(220 10% 5% / 0.9), 0 0 0 1px hsl(220 10% 14% / 0.9);
 
-    --card-pattern: none;
+    --card-pattern:
+      repeating-linear-gradient(0deg, hsl(var(--foreground) / 0.010) 0 1px, transparent 1px 24px),
+      repeating-linear-gradient(90deg, hsl(var(--accent) / 0.008) 0 1px, transparent 1px 46px),
+      radial-gradient(900px 640px at 14% 18%, hsl(var(--accent) / 0.03), transparent 72%);
 
     --card-premium-bg: linear-gradient(135deg, hsl(220 10% 10% / 0.92), hsl(220 10% 6% / 0.98));
     --card-golden-bg: linear-gradient(135deg, hsl(220 10% 9%), hsl(195 80% 60% / 0.06));
@@ -222,8 +227,11 @@ All colors MUST be HSL.
     --premium-spotlight-opacity: 0.6;
     --premium-bg-strength: 1;
     --premium-vignette-strength: 1;
-    --premium-overlay-opacity: 0;
-    --premium-overlay-image: none;
+    --premium-overlay-opacity: 0.08;
+    --premium-overlay-image:
+      radial-gradient(1200px 760px at 50% 8%, hsl(var(--primary) / 0.07), transparent 68%),
+      radial-gradient(980px 720px at 18% 82%, hsl(var(--accent) / 0.07), transparent 74%),
+      repeating-linear-gradient(0deg, hsl(var(--foreground) / 0.008) 0 1px, transparent 1px 8px);
     --premium-scanlines-opacity: 0.012;
     --premium-scanlines-color: var(--foreground);
     --premium-flicker-opacity: 0.06;
@@ -264,7 +272,10 @@ All colors MUST be HSL.
     --shadow-crimson: 0 0 42px hsl(0 55% 38% / 0.18), 0 8px 22px hsl(0 55% 38% / 0.10);
     --shadow-navy: 0 18px 34px -22px hsl(28 30% 10% / 0.18), 0 0 0 1px hsl(30 18% 70% / 0.90);
 
-    --card-pattern: none;
+    --card-pattern:
+      repeating-linear-gradient(0deg, hsl(var(--foreground) / 0.014) 0 1px, transparent 1px 22px),
+      repeating-linear-gradient(90deg, hsl(var(--foreground) / 0.012) 0 1px, transparent 1px 30px),
+      radial-gradient(1100px 780px at 18% 14%, hsl(var(--accent) / 0.04), transparent 74%);
 
     --card-premium-bg: linear-gradient(135deg, hsl(35 35% 96% / 0.96), hsl(35 30% 92% / 0.98));
     --card-golden-bg: linear-gradient(135deg, hsl(35 35% 96%), hsl(42 60% 45% / 0.10));
@@ -290,8 +301,12 @@ All colors MUST be HSL.
     --premium-spotlight-opacity: 1;
     --premium-bg-strength: 1;
     --premium-vignette-strength: 1;
-    --premium-overlay-opacity: 0;
-    --premium-overlay-image: none;
+    --premium-overlay-opacity: 0.14;
+    --premium-overlay-image:
+      radial-gradient(1100px 680px at 50% 8%, hsl(var(--primary) / 0.12), transparent 66%),
+      radial-gradient(980px 720px at 18% 82%, hsl(var(--accent) / 0.09), transparent 72%),
+      radial-gradient(740px 560px at 84% 74%, hsl(var(--primary) / 0.05), transparent 76%),
+      repeating-linear-gradient(90deg, hsl(var(--primary) / 0.012) 0 1px, transparent 1px 28px);
     --premium-scanlines-opacity: 0.07;
     --premium-scanlines-color: var(--primary);
     --premium-flicker-opacity: 0.02;
@@ -332,7 +347,10 @@ All colors MUST be HSL.
     --shadow-crimson: 0 0 50px hsl(0 72% 56% / 0.22), 0 0 30px hsl(300 92% 62% / 0.14);
     --shadow-navy: 0 16px 30px hsl(230 50% 3% / 0.85), 0 0 0 1px hsl(240 30% 18% / 0.9);
 
-    --card-pattern: none;
+    --card-pattern:
+      repeating-linear-gradient(0deg, hsl(var(--primary) / 0.016) 0 1px, transparent 1px 28px),
+      repeating-linear-gradient(90deg, hsl(var(--primary) / 0.012) 0 1px, transparent 1px 28px),
+      radial-gradient(980px 720px at 18% 18%, hsl(var(--accent) / 0.04), transparent 74%);
 
     --card-premium-bg: linear-gradient(135deg, hsl(230 28% 10% / 0.92), hsl(230 35% 7% / 0.98));
     --card-golden-bg: linear-gradient(135deg, hsl(230 28% 10%), hsl(185 92% 55% / 0.06));
@@ -437,8 +455,11 @@ All colors MUST be HSL.
     --premium-spotlight-opacity: 0.85;
     --premium-bg-strength: 1;
     --premium-vignette-strength: 1;
-    --premium-overlay-opacity: 0;
-    --premium-overlay-image: none;
+    --premium-overlay-opacity: 0.10;
+    --premium-overlay-image:
+      radial-gradient(1200px 760px at 50% 8%, hsl(var(--primary) / 0.08), transparent 68%),
+      radial-gradient(980px 720px at 16% 82%, hsl(var(--accent) / 0.06), transparent 74%),
+      repeating-linear-gradient(135deg, hsl(var(--foreground) / 0.010) 0 1px, transparent 1px 20px);
     --premium-scanlines-opacity: 0.006;
     --premium-scanlines-color: var(--foreground);
     --premium-flicker-opacity: 0.02;
@@ -479,7 +500,10 @@ All colors MUST be HSL.
     --shadow-crimson: 0 0 42px hsl(0 60% 46% / 0.16), 0 8px 22px hsl(0 60% 46% / 0.10);
     --shadow-navy: 0 18px 34px -22px hsl(220 15% 10% / 0.16), 0 0 0 1px hsl(220 15% 12% / 0.75);
 
-    --card-pattern: none;
+    --card-pattern:
+      repeating-linear-gradient(90deg, hsl(var(--foreground) / 0.012) 0 1px, transparent 1px 28px),
+      repeating-linear-gradient(0deg, hsl(var(--primary) / 0.014) 0 1px, transparent 1px 46px),
+      radial-gradient(1100px 780px at 18% 16%, hsl(var(--primary) / 0.035), transparent 76%);
 
     --card-premium-bg: linear-gradient(135deg, hsl(38 35% 96% / 0.96), hsl(38 28% 92% / 0.98));
     --card-golden-bg: linear-gradient(135deg, hsl(38 35% 96%), hsl(42 88% 68% / 0.12));
@@ -509,8 +533,11 @@ All colors MUST be HSL.
     --premium-spotlight-opacity: 1;
     --premium-bg-strength: 1;
     --premium-vignette-strength: 1;
-    --premium-overlay-opacity: 0;
-    --premium-overlay-image: none;
+    --premium-overlay-opacity: 0.14;
+    --premium-overlay-image:
+      radial-gradient(1100px 680px at 50% 8%, hsl(var(--primary) / 0.12), transparent 68%),
+      radial-gradient(980px 720px at 20% 82%, hsl(var(--accent) / 0.08), transparent 74%),
+      repeating-linear-gradient(0deg, hsl(var(--accent) / 0.008) 0 1px, transparent 1px 10px);
     --premium-scanlines-opacity: 0.05;
     --premium-scanlines-color: var(--accent);
     --premium-flicker-opacity: 0.02;
@@ -551,7 +578,10 @@ All colors MUST be HSL.
     --shadow-crimson: 0 0 52px hsl(0 72% 56% / 0.20), 0 0 30px hsl(300 92% 62% / 0.14);
     --shadow-navy: 0 16px 30px hsl(255 70% 4% / 0.85), 0 0 0 1px hsl(260 40% 18% / 0.9);
 
-    --card-pattern: none;
+    --card-pattern:
+      repeating-linear-gradient(0deg, hsl(var(--accent) / 0.014) 0 1px, transparent 1px 30px),
+      repeating-linear-gradient(90deg, hsl(var(--primary) / 0.012) 0 1px, transparent 1px 46px),
+      radial-gradient(980px 720px at 16% 18%, hsl(var(--primary) / 0.04), transparent 74%);
 
     --card-premium-bg: linear-gradient(135deg, hsl(255 50% 13% / 0.92), hsl(255 55% 10% / 0.98));
     --card-golden-bg: linear-gradient(135deg, hsl(255 50% 13%), hsl(185 92% 55% / 0.06));
