@@ -5,6 +5,7 @@ import { Badge } from '@/components/ui/badge';
 import { useToast } from '@/hooks/use-toast';
 import { Project, TalentPerson, ScriptCharacter } from '@/types/game';
 import { talentMatchesRole } from '@/utils/castingEligibility';
+import { isTalentAvailableForProject } from '@/utils/talentAvailability';
 import { Users, User, Crown, Star, CheckCircle } from 'lucide-react';
 import { importRolesForScript } from '@/utils/roleImport';
 import { useGameStore } from '@/game/store';
@@ -84,7 +85,7 @@ export const RoleBasedCasting: React.FC<RoleBasedCastingProps> = ({
 
   const getAvailableTalent = (role: ScriptCharacter) => {
     return gameState.talent.filter(talent => {
-      if (talent.contractStatus !== 'available') return false;
+      if (!isTalentAvailableForProject(gameState, talent, project.id)) return false;
       return talentMatchesRole(talent, role);
     });
   };

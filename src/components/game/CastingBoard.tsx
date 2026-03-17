@@ -2,6 +2,7 @@ import React, { useState } from 'react';
 import { Project, TalentPerson, ProductionRole, ScriptCharacter } from '@/types/game';
 import { useGameStore } from '@/game/store';
 import { useUiStore } from '@/game/uiStore';
+import { isTalentAvailable } from '@/utils/talentAvailability';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
@@ -49,7 +50,7 @@ export const CastingBoard: React.FC<CastingBoardProps> = ({
     : null;
 
   const availableTalent = gameState.talent.filter(talent => {
-    if (talent.contractStatus !== 'available') return false;
+    if (!isTalentAvailable(gameState, talent)) return false;
     
     // Apply filters
     if (filters.talentType !== 'all' && talent.type !== filters.talentType) return false;
@@ -210,7 +211,7 @@ export const CastingBoard: React.FC<CastingBoardProps> = ({
       <CastingBoardFilters
         filters={filters}
         onFiltersChange={setFilters}
-        talent={gameState.talent.filter(t => t.contractStatus === 'available')}
+        talent={gameState.talent.filter(t => isTalentAvailable(gameState, t))}
       />
 
       {/* Project Selection */}

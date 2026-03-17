@@ -130,6 +130,7 @@ import {
   upsertOnlineLeagueTurnSubmission,
 } from '@/integrations/supabase/onlineLeagueTurnCompile';
 import { mergeLeagueReleaseSnapshotsIntoAllReleases } from '@/utils/leagueReleases';
+import { getUnavailableTalentIds, isTalentAvailable } from '@/utils/talentAvailability';
 import { dedupeReleasePoolPreferLatest } from '@/utils/releasePool';
 import type { LeagueReleasedProjectSnapshot } from '@/types/onlineLeague';
 import {
@@ -2307,7 +2308,7 @@ export const StudioMagnateGame: React.FC<StudioMagnateGameProps> = ({
                   randomStudio,
                   newTimeState.currentWeek,
                   newTimeState.currentYear,
-                  baseAfterEngine.talent.filter(t => t.contractStatus === 'available')
+                  baseAfterEngine.talent.filter(t => isTalentAvailable(baseAfterEngine, t))
                 );
               }
             }
@@ -2931,9 +2932,7 @@ export const StudioMagnateGame: React.FC<StudioMagnateGameProps> = ({
       const readyOrderUserIds = await fetchOnlineLeagueReadyOrder({ leagueId, turn });
       const submissionsByUserId = await fetchOnlineLeagueTurnSubmissions({ leagueId, turn });
 
-      const initiallyTakenTalentIds = new Set(
-        (gameState.talent || []).filter((t) => t.contractStatus !== 'available').map((t) => t.id)
-      );
+      const initiallyTakenTalentIds = getUnavailableTalentIds(gameState);
 
       const resolution = resolveOnlineLeagueTalentConflicts({
         turn,
