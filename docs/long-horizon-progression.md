@@ -410,11 +410,19 @@ On year rollover:
 - count retirements from the offseason just processed (recommended: detect `retired.year === previousYear`)
 - generate rookies roughly equal to retirements, plus a small baseline for freshness
 
-Example target:
+Chosen target policy (single-player):
 
-- baseline: `+6 actors, +2 directors` per year (single-player)
-- replacement: `+1 rookie per retirement by role`
-- soft cap: if active (non-retired) roster exceeds a target (e.g. 260), reduce baseline to 0
+- replacements are **per role**, based on retirements from `previousYear`
+- baseline rookies vary by roster pressure:
+  - if active roster <240: baseline `+8 actors, +2 directors`
+  - if active roster 240–320: baseline `+4 actors, +1 director`
+  - if active roster >320: baseline `+0`
+- replacement multiplier when overcrowded (pressure valve):
+  - <=320: replace 100% of retirees
+  - 321–380: replace 75% of retirees
+  - >380: replace 50% of retirees
+
+This keeps a “steady rookie class” when the world is healthy, but lets the roster converge back down when it balloons.
 
 #### Determinism + ID stability
 Preserve the existing rookie ID format and seeding strategy:
@@ -444,23 +452,28 @@ Today, some filmography updating happens in legacy UI code (`src/utils/talentFil
 
 **Runs:** weekly
 
-#### v1 scope (safe)
-Start with player projects only:
+#### v1 scope (chosen)
+Filmography is updated for both:
 
-- iterate `state.projects` with `status === 'released'`
-- call the existing `TalentFilmographyManager.updateFilmographyOnRelease(state, project)`
+- `state.projects` (player projects)
+- `state.allReleases` entries that are full `Project` objects (AI/competitor releases with credited talent)
 
-Later (optional), expand to `state.allReleases` for AI/competitor releases once we’re confident those releases have credited talent.
+We filter by `status === 'released'` and `(releaseWeek, releaseYear)` so each release is processed once.
 
 #### Algorithm (idempotent)
 Because the update function is already “don’t duplicate if filmography entry exists,” the simplest engine-safe implementation is:
 
 ```ts
 let next = state;
-for (const p of state.projects) {
+
+const candidates = [...state.projects, ...state.allReleases.filter((x): x is Project => 'script' in (x as any))];
+
+for (const p of candidates) {
   if (p.status !== 'released') continue;
+  if (p.releaseWeek !== ctx.week || p.releaseYear !== ctx.year) continue;
   next = TalentFilmographyManager.updateFilmographyOnRelease(next, p);
 }
+
 return next;
 ```
 
@@ -671,7 +684,8 @@ The exact placement among weekly systems should follow data dependencies (filmog
 Implementation note: prefer using `dependsOn` in system definitions (supported by `SystemRegistry` topological sort) so ordering survives refactors. Example intent:
 
 - `TalentDebutSystem` depends on `TalentLifecycleSystem` and `TalentRetirementSystem`
-- `WorldYearbookSystem` depends on `TalentRetirementSystem`
+- `WorldMilestonesSystem` (awards/records) depends on `TalentRetirementSystem`
+- `WorldYearbookSystem` depends on `WorldMilestonesSystem` + `TalentRetirementSystem`
 - `TalentCareerArcSystem` depends on “release finalization” (whatever system owns that)
 - `TalentFilmographySystem` depends on “release finalization” as well
 

@@ -82,6 +82,16 @@ function computeAwardHighlights(params: {
   return out;
 }
 
+function computeNotableWorldEvents(state: GameState, year: number): string[] {
+  const events = (state.worldHistory || [])
+    .filter((e) => e.year === year)
+    .filter((e) => (e.importance || 0) >= 4)
+    .slice()
+    .sort((a, b) => (b.importance || 0) - (a.importance || 0) || a.kind.localeCompare(b.kind) || a.id.localeCompare(b.id));
+
+  return events.slice(0, 5).map((e) => e.title);
+}
+
 function computeCareerHighlights(state: GameState, year: number, projectTitleById: Map<string, string>): string[] {
   type Row = { score: number; talentId: string; name: string; type: string; ev: CareerEvent };
 
@@ -147,6 +157,7 @@ function buildYearbookBody(params: {
   talentAwardCount: number;
   awardHighlights: string[];
   careerHighlights: string[];
+  notableEvents: string[];
   retirements: Array<{ name: string; type: string }>;
 }): string {
   const lines: string[] = [];
@@ -204,7 +215,7 @@ function buildYearbookBody(params: {
 export const WorldYearbookSystem: TickSystem = {
   id: 'worldYearbook',
   label: 'World yearbook',
-  dependsOn: ['talentRetirements'],
+  dependsOn: ['talentRetirements', 'worldMilestones'],
   onTick: (state, ctx) => {
     if (ctx.week !== 1) return state;
     if (state.mode === 'online') return state;
@@ -241,6 +252,7 @@ export const WorldYearbookSystem: TickSystem = {
         talentAwardCount: talentAwards.length,
         awardHighlights,
         careerHighlights,
+        notableEvents,
         retirements,
       }),
     };

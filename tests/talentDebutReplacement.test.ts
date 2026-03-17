@@ -112,9 +112,48 @@ describe('TalentDebutSystem (replacement-aware)', () => {
 
     const rookies = (result.nextState.talent || []).filter((t) => t.id.startsWith('rookie:2027:'));
 
-    // Baseline 8 actors + 2 directors, plus replacements for 3 retired actors and 1 retired director.
+    // Baseline (low roster) + replacements for 3 retired actors and 1 retired director.
     expect(rookies.length).toBe(14);
     expect(rookies.filter((t) => t.type === 'actor').length).toBe(11);
     expect(rookies.filter((t) => t.type === 'director').length).toBe(3);
+  });
+
+  it('replaces fewer retirees when the roster is overcrowded', () => {
+    const active: TalentPerson[] = Array.from({ length: 381 }).map((_, i) => ({
+      id: `t:a${i}`,
+      name: `Active ${i}`,
+      type: 'actor',
+      age: 35,
+      experience: 10,
+      reputation: 50,
+      marketValue: 1,
+      contractStatus: 'available',
+      genres: ['drama'],
+      specialties: ['drama'],
+      availability: { startWeek: 1, endWeek: 52, year: 2026 },
+    })) as any;
+
+    const retired: TalentPerson[] = Array.from({ length: 4 }).map((_, i) => ({
+      id: `t:r${i}`,
+      name: `Retired ${i}`,
+      type: 'actor',
+      age: 75,
+      experience: 30,
+      reputation: 50,
+      marketValue: 1,
+      contractStatus: 'retired',
+      retired: { year: 2026, week: 52, reason: 'age' },
+      genres: ['drama'],
+      specialties: ['drama'],
+      availability: { startWeek: 1, endWeek: 52, year: 2026 },
+    })) as any;
+
+    const state = makeBaseState({ talent: [...active, ...retired], universeSeed: 111 });
+    const result = advanceWeek(state, createRng(1), [TalentDebutSystem]);
+
+    const rookies = (result.nextState.talent || []).filter((t) => t.id.startsWith('rookie:2027:'));
+
+    // activeCount > 380 => replacement multiplier = 0.5
+    expect(rookies.filter((t) => t.type === 'actor').length).toBe(2);
   });
 });

@@ -113,7 +113,19 @@ export const TalentCareerArcSystem: TickSystem = {
   onTick: (state, ctx) => {
     if (state.mode === 'online') return state;
 
-    const released = (state.projects || []).filter((p) => isReleasedThisWeek(p, ctx.week, ctx.year));
+    const releasedById = new Map<string, Project>();
+    for (const p of state.projects || []) {
+      if (isReleasedThisWeek(p, ctx.week, ctx.year)) releasedById.set(p.id, p);
+    }
+
+    for (const r of state.allReleases || []) {
+      if (!r) continue;
+      if (!('script' in (r as any))) continue;
+      const p = r as Project;
+      if (isReleasedThisWeek(p, ctx.week, ctx.year)) releasedById.set(p.id, p);
+    }
+
+    const released = [...releasedById.values()];
     if (released.length === 0) return state;
 
     let worldHistory = state.worldHistory || [];

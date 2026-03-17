@@ -1,15 +1,29 @@
-import React, { useMemo } from 'react';
+import React, { useMemo, useState } from 'react';
+import type { GameState, Project } from '@/types/game';
+import { formatMoneyCompact } from '@/utils/money';
 import { useGameStore } from '@/game/store';
 import { useUiStore } from '@/game/uiStore';
 import { Badge } from '@/components/ui/badge';
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from '@/components/ui/dialog';
 import { ScrollArea } from '@/components/ui/scroll-area';
 import { Separator } from '@/components/ui/separator';
+import { Button } from '@/components/ui/button';
+import { ReleaseDetailsDialog } from './ReleaseDetailsDialog';
 
-const formatMoney = (amount: number) => `$${(amount / 1_000_000).toFixed(1)}M`;
+function findReleaseById(gameState: GameState, projectId: string): Project | null {
+  const player = (gameState.projects || []).find((p) => p.id === projectId);
+  if (player) return player;
+
+  const all = (gameState.allReleases || []).find(
+    (r): r is Project => !!r && 'script' in (r as any) && (r as any).id === projectId
+  );
+
+  return all || null;
+}
 
 export const TalentProfileDialog: React.FC = () => {
   const gameState = useGameStore((s) => s.game);
+  const [activeRelease, setActiveRelease] = useState<Project | null>(null);
   const talentProfileId = useUiStore((s) => s.talentProfileId);
   const closeTalentProfile = useUiStore((s) => s.closeTalentProfile);
 
@@ -60,7 +74,7 @@ export const TalentProfileDialog: React.FC = () => {
                 <Badge variant="outline">Age: {talent.age}</Badge>
                 <Badge variant="outline">Exp: {talent.experience}y</Badge>
                 <Badge variant="outline" className="capitalize">{talent.contractStatus}</Badge>
-                <Badge variant="secondary">Value: {formatMoney(talent.marketValue || 0)}</Badge>
+                <Badge variant="secondary">Value: {formatMoneyCompact(talent.marketValue || 0)}</Badge>
               </div>
 
               {(talent.archetype || talent.biography) && (
@@ -150,13 +164,47 @@ export const TalentProfileDialog: React.FC = () => {
                         .slice()
                         .sort((a, b) => (b.year || 0) - (a.year || 0))
                         .slice(0, 12)
-                        .map((f) => (
-                          <div key={f.projectId} className="rounded border p-2 text-sm">
-                            <div className="font-medium">{f.year ? `${f.year} — ` : ''}{f.title}</div>
-                            <div className="text-muted-foreground">
-                              {f.role}
-                              {typeof f.boxOffice === 'number' ? ` • ${Math.round(f.boxOffice / 1_000_000)}M` : ''}
+                        .map((f) => {
+                          const release = findReleaseById(gameState, f.projectId);
+
+                          return (
+                            <div key={f.projectId} className="rounded border p-2 text-sm">
+                              <div className="flex items-start justify-between gap-3">
+                                <div>
+                                  <div className="font-medium">{f.year ? `${f.year} — ` : ''}{f.title}</div>
+                                  <div className="text-muted-foreground">
+                                    {f.role}
+                                    {typeof f.boxOffice === 'number' ? ` • ${formatMoneyCompact(f.boxOffice)}` : ''}
+                                  </div>
+                                </div>
+                                {release && (
+                                  <Button size="sm" variant="outline" onClick={() => setActiveRelease(release)}>
+                                    View
+                                  </Button>
+                                )}
+                              </div>
                             </div>
+                          );
+                        })}
+                    </div>
+                  </div>
+                </>
+              )}
+
+              {(talent.careerEvolution || []).length > 0 && (
+                <>
+                  <Separator />
+                  <div className="space-y-2">
+                    <div className="text-sm font-medium">Career events</div>
+                    <div className="space-y-2">
+                      {(talent.careerEvolution || [])
+                        .slice()
+                        .sort((a, b) => (b.year || 0) - (a.year || 0) || (b.week || 0) - (a.week || 0))
+                        .slice(0, 12)
+                        .map((e: any, i: number) => (
+                          <div key={`${e.type}:${e.year}:${e.week}:${i}`} className="rounded border p-2 text-sm">
+                            <div className="font-medium">{(e.year ? `${e.year} ` : '') + (e.type || 'event')}</div>
+                            <div className="text-muted-foreground">{e.description}</div>
                           </div>
                         ))}
                     </div>
@@ -183,6 +231,16 @@ export const TalentProfileDialog: React.FC = () => {
             </div>
           </ScrollArea>
         )}
+      {gameState && (
+        <ReleaseDetailsDialog
+          gameState={gameState}
+          project={activeRelease}
+          open={!!activeRelease}
+          onOpenChange={(open) => {
+            if (!open) setActiveRelease(null);
+          }}
+        />
+      )}
       </DialogContent>
     </Dialog>
   );

@@ -100,7 +100,7 @@ function stableSortAwards<T extends { ceremony: string; category: string; presti
 export const WorldMilestonesSystem: TickSystem = {
   id: 'worldMilestones',
   label: 'World milestones',
-  dependsOn: ['worldYearbook'],
+  dependsOn: ['talentRetirements'],
   onTick: (state, ctx) => {
     if (ctx.week !== 1) return state;
     if (state.mode === 'online') return state;

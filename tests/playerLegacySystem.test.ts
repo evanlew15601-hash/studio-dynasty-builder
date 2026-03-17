@@ -2,6 +2,7 @@ import { describe, expect, it } from 'vitest';
 import type { GameState } from '@/types/game';
 import { createRng } from '@/game/core/rng';
 import { advanceWeek } from '@/game/core/tick';
+import { WorldMilestonesSystem } from '@/game/systems/worldMilestonesSystem';
 import { WorldYearbookSystem } from '@/game/systems/worldYearbookSystem';
 import { PlayerLegacySystem } from '@/game/systems/playerLegacySystem';
 
@@ -71,7 +72,7 @@ function makeBaseState(overrides?: Partial<GameState>): GameState {
 describe('PlayerLegacySystem', () => {
   it('computes totals and biggest hit on year rollover', () => {
     const state = makeBaseState();
-    const result = advanceWeek(state, createRng(1), [WorldYearbookSystem, PlayerLegacySystem]);
+    const result = advanceWeek(state, createRng(1), [WorldMilestonesSystem, WorldYearbookSystem, PlayerLegacySystem]);
 
     const legacy = result.nextState.playerLegacy;
     expect(legacy?.studioId).toBe('studio-1');
@@ -99,7 +100,7 @@ describe('PlayerLegacySystem', () => {
       ],
     });
 
-    const result = advanceWeek(state, createRng(1), [WorldYearbookSystem, PlayerLegacySystem]);
+    const result = advanceWeek(state, createRng(1), [WorldMilestonesSystem, WorldYearbookSystem, PlayerLegacySystem]);
 
     const history = result.nextState.worldHistory || [];
     expect(history.some((e) => e.id === 'hist:studio_milestone:studio-1:boxoffice:100000000')).toBe(true);

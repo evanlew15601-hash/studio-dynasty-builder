@@ -12,6 +12,7 @@ import { useUiStore } from '@/game/uiStore';
 import { cn } from '@/lib/utils';
 import { Book, Building, Film, Search, User, ExternalLink, ScrollText, Trophy } from 'lucide-react';
 import { formatMoneyCompact as formatMoneyCompactUtil } from '@/utils/money';
+import { ReleaseDetailsDialog } from './ReleaseDetailsDialog';
 
 const formatMoney = (amount: number) => "$" + (amount / 1_000_000).toFixed(0) + "M";
 
@@ -44,9 +45,24 @@ const TwoPaneLayout: React.FC<{
   </div>
 );
 
+function findReleaseById(gameState: GameState | null, projectId: string): Project | null {
+  if (!gameState) return null;
+
+  const player = (gameState.projects || []).find((p) => p.id === projectId);
+  if (player) return player;
+
+  const all = (gameState.allReleases || []).find(
+    (r): r is Project => !!r && 'script' in (r as any) && (r as any).id === projectId
+  );
+
+  return all || null;
+}
+
 // ─── Talent ─────────────────────────────────────────────────────────────────────
 
 const TalentEncyclopedia: React.FC<{ talent: TalentPerson[] }> = ({ talent }) => {
+  const gameState = useGameStore((s) => s.game);
+  const [activeRelease, setActiveRelease] = useState<Project | null>(null);
   const [search, setSearch] = useState('');
   const [typeFilter, setTypeFilter] = useState<'all' | 'actor' | 'director'>('all');
   const [selectedId, setSelectedId] = useState<string | null>(talent[0]?.id ?? null);
@@ -231,14 +247,27 @@ const TalentEncyclopedia: React.FC<{ talent: TalentPerson[] }> = ({ talent }) =>
                             .slice()
                             .sort((a, b) => (b.year || 0) - (a.year || 0))
                             .slice(0, 5)
-                            .map((f) => (
-                              <div key={f.projectId} className="rounded border p-2 text-sm">
-                                <div className="font-medium">{f.year ? `${f.year} — ` : ''}{f.title}</div>
-                                <div className="text-muted-foreground text-xs">
-                                  {f.role}{typeof f.boxOffice === 'number' ? ` • ${Math.round(f.boxOffice / 1_000_000)}M` : ''}
+                            .map((f) => {
+                              const release = findReleaseById(gameState, f.projectId);
+
+                              return (
+                                <div key={f.projectId} className="rounded border p-2 text-sm">
+                                  <div className="flex items-start justify-between gap-3">
+                                    <div>
+                                      <div className="font-medium">{f.year ? `${f.year} — ` : ''}{f.title}</div>
+                                      <div className="text-muted-foreground text-xs">
+                                        {f.role}{typeof f.boxOffice === 'number' ? ` • ${Math.round(f.boxOffice / 1_000_000)}M` : ''}
+                                      </div>
+                                    </div>
+                                    {release && (
+                                      <Button size="sm" variant="outline" onClick={() => setActiveRelease(release)}>
+                                        View
+                                      </Button>
+                                    )}
+                                  </div>
                                 </div>
-                              </div>
-                            ))}
+                              );
+                            })}
                         </div>
                       </div>
                     </>
@@ -252,6 +281,17 @@ const TalentEncyclopedia: React.FC<{ talent: TalentPerson[] }> = ({ talent }) =>
                     <ExternalLink className="mr-2 h-4 w-4" />
                     View Full Profile
                   </Button>
+
+                  {gameState && (
+                    <ReleaseDetailsDialog
+                      gameState={gameState}
+                      project={activeRelease}
+                      open={!!activeRelease}
+                      onOpenChange={(open) => {
+                        if (!open) setActiveRelease(null);
+                      }}
+                    />
+                  )}
                 </>
               )}
             </CardContent>
@@ -614,7 +654,9 @@ const PublicDomainEncyclopedia: React.FC<{ ips: PublicDomainIP[] }> = ({ ips }) 
 
 const TimelineEncyclopedia: React.FC = () => {
   const gameState = useGameStore((s) => s.game);
+  const openTalentProfile = useUiStore((s) => s.openTalentProfile);
   const [search, setSearch] = useState('');
+  const [activeRelease, setActiveRelease] = useState<Project | null>(null);
 
   const yearbooks = useMemo(() => {
     const yb = gameState?.worldYearbooks || [];
@@ -652,81 +694,121 @@ const TimelineEncyclopedia: React.FC = () => {
   }, [history, selected]);
 
   return (
-    <TwoPaneLayout
-      title={<span className="flex items-center gap-2"><ScrollText className="h-4 w-4 text-primary" />Timeline</span>}
-      search={search}
-      setSearch={setSearch}
-      list={
-        <ScrollArea className="h-[60vh] pr-3">
-          <div className="space-y-2">
-            {filteredYearbooks.map((y) => (
-              <button
-                key={y.id}
-                type="button"
-                className={cn(
-                  'w-full rounded-md border p-3 text-left transition-colors hover:bg-accent',
-                  selected?.year === y.year && 'border-primary bg-primary/5'
-                )}
-                onClick={() => setSelectedYear(y.year)}
-              >
-                <div className="font-medium">{y.year}</div>
-                <div className="text-xs text-muted-foreground truncate">{y.title}</div>
-              </button>
-            ))}
-            {filteredYearbooks.length === 0 && (
-              <div className="text-sm text-muted-foreground">No yearbooks yet. Advance time to generate a Year in Review.</div>
-            )}
-          </div>
-        </ScrollArea>
-      }
-      detail={
-        <Card>
-          <CardHeader>
-            <CardTitle className="text-lg">{selected?.title ?? 'Year in Review'}</CardTitle>
-          </CardHeader>
-          <CardContent className="space-y-4">
-            {!selected ? (
-              <div className="text-sm text-muted-foreground">Select a year to view the review.</div>
-            ) : (
-              <>
-                <div className="whitespace-pre-wrap text-sm">{selected.body}</div>
+    <>
+      <TwoPaneLayout
+        title={<span className="flex items-center gap-2"><ScrollText className="h-4 w-4 text-primary" />Timeline</span>}
+        search={search}
+        setSearch={setSearch}
+        list={
+          <ScrollArea className="h-[60vh] pr-3">
+            <div className="space-y-2">
+              {filteredYearbooks.map((y) => (
+                <button
+                  key={y.id}
+                  type="button"
+                  className={cn(
+                    'w-full rounded-md border p-3 text-left transition-colors hover:bg-accent',
+                    selected?.year === y.year && 'border-primary bg-primary/5'
+                  )}
+                  onClick={() => setSelectedYear(y.year)}
+                >
+                  <div className="font-medium">{y.year}</div>
+                  <div className="text-xs text-muted-foreground truncate">{y.title}</div>
+                </button>
+              ))}
+              {filteredYearbooks.length === 0 && (
+                <div className="text-sm text-muted-foreground">No yearbooks yet. Advance time to generate a Year in Review.</div>
+              )}
+            </div>
+          </ScrollArea>
+        }
+        detail={
+          <Card>
+            <CardHeader>
+              <CardTitle className="text-lg">{selected?.title ?? 'Year in Review'}</CardTitle>
+            </CardHeader>
+            <CardContent className="space-y-4">
+              {!selected ? (
+                <div className="text-sm text-muted-foreground">Select a year to view the review.</div>
+              ) : (
+                <>
+                  <div className="whitespace-pre-wrap text-sm">{selected.body}</div>
 
-                {eventsForYear.length > 0 && (
-                  <>
-                    <Separator />
-                    <div className="space-y-2">
-                      <div className="text-sm font-medium">Notable Events</div>
-                      <div className="space-y-1">
-                        {eventsForYear.slice(0, 12).map((e) => (
-                          <div key={e.id} className="rounded border p-2 text-sm">
-                            <div className="flex items-start justify-between gap-3">
-                              <div className="font-medium">{e.title}</div>
-                              {typeof e.importance === 'number' && (
-                                <Badge variant="secondary">{e.importance}</Badge>
-                              )}
-                            </div>
-                            <div className="mt-1 text-muted-foreground text-xs capitalize">{e.kind.replaceAll('_', ' ')}</div>
-                            <div className="mt-1 text-sm text-muted-foreground">{e.body}</div>
-                          </div>
-                        ))}
-                        {eventsForYear.length > 12 && (
-                          <div className="text-xs text-muted-foreground">…and {eventsForYear.length - 12} more</div>
-                        )}
+                  {eventsForYear.length > 0 && (
+                    <>
+                      <Separator />
+                      <div className="space-y-2">
+                        <div className="text-sm font-medium">Notable Events</div>
+                        <div className="space-y-1">
+                          {eventsForYear.slice(0, 12).map((e) => {
+                            const talentId = e.entityIds?.talentIds?.[0];
+                            const talentExtra = (e.entityIds?.talentIds?.length || 0) - (talentId ? 1 : 0);
+
+                            const projectId = e.entityIds?.projectIds?.[0];
+                            const project = projectId ? findReleaseById(gameState, projectId) : null;
+                            const projectExtra = (e.entityIds?.projectIds?.length || 0) - (project ? 1 : 0);
+
+                            return (
+                              <div key={e.id} className="rounded border p-2 text-sm">
+                                <div className="flex items-start justify-between gap-3">
+                                  <div className="font-medium">{e.title}</div>
+                                  {typeof e.importance === 'number' && (
+                                    <Badge variant="secondary">{e.importance}</Badge>
+                                  )}
+                                </div>
+                                <div className="mt-1 text-muted-foreground text-xs capitalize">{e.kind.replaceAll('_', ' ')}</div>
+                                <div className="mt-1 text-sm text-muted-foreground">{e.body}</div>
+
+                                {(talentId || project) && (
+                                  <div className="mt-2 flex flex-wrap gap-2">
+                                    {talentId && (
+                                      <Button size="sm" variant="outline" onClick={() => openTalentProfile(talentId)}>
+                                        View talent
+                                        {talentExtra > 0 ? ` (+${talentExtra})` : ''}
+                                      </Button>
+                                    )}
+                                    {project && (
+                                      <Button size="sm" variant="outline" onClick={() => setActiveRelease(project)}>
+                                        View release
+                                        {projectExtra > 0 ? ` (+${projectExtra})` : ''}
+                                      </Button>
+                                    )}
+                                  </div>
+                                )}
+                              </div>
+                            );
+                          })}
+                          {eventsForYear.length > 12 && (
+                            <div className="text-xs text-muted-foreground">…and {eventsForYear.length - 12} more</div>
+                          )}
+                        </div>
                       </div>
-                    </div>
-                  </>
-                )}
-              </>
-            )}
-          </CardContent>
-        </Card>
-      }
-    />
+                    </>
+                  )}
+                </>
+              )}
+            </CardContent>
+          </Card>
+        }
+      />
+
+      {gameState && (
+        <ReleaseDetailsDialog
+          gameState={gameState}
+          project={activeRelease}
+          open={!!activeRelease}
+          onOpenChange={(open) => {
+            if (!open) setActiveRelease(null);
+          }}
+        />
+      )}
+    </>
   );
 };
 
 const LegacyEncyclopedia: React.FC = () => {
   const gameState = useGameStore((s) => s.game);
+  const [activeRelease, setActiveRelease] = useState<Project | null>(null);
 
   const legacy = gameState?.playerLegacy;
   const studio = gameState?.studio;
@@ -760,9 +842,22 @@ const LegacyEncyclopedia: React.FC = () => {
 
             {legacy.biggestHit && (
               <div className="rounded border p-3">
-                <div className="text-sm font-medium">Biggest hit</div>
-                <div className="text-sm">{legacy.biggestHit.title} ({legacy.biggestHit.year})</div>
-                <div className="text-xs text-muted-foreground">{formatMoneyCompactUtil(legacy.biggestHit.boxOffice)} box office</div>
+                <div className="flex items-start justify-between gap-3">
+                  <div>
+                    <div className="text-sm font-medium">Biggest hit</div>
+                    <div className="text-sm">{legacy.biggestHit.title} ({legacy.biggestHit.year})</div>
+                    <div className="text-xs text-muted-foreground">{formatMoneyCompactUtil(legacy.biggestHit.boxOffice)} box office</div>
+                  </div>
+                  {(() => {
+                    const release = findReleaseById(gameState, legacy.biggestHit!.projectId);
+                    if (!release) return null;
+                    return (
+                      <Button size="sm" variant="outline" onClick={() => setActiveRelease(release)}>
+                        View
+                      </Button>
+                    );
+                  })()}
+                </div>
               </div>
             )}
 
@@ -791,6 +886,17 @@ const LegacyEncyclopedia: React.FC = () => {
           </>
         )}
       </CardContent>
+
+      {gameState && (
+        <ReleaseDetailsDialog
+          gameState={gameState}
+          project={activeRelease}
+          open={!!activeRelease}
+          onOpenChange={(open) => {
+            if (!open) setActiveRelease(null);
+          }}
+        />
+      )}
     </Card>
   );
 };

@@ -89,4 +89,13 @@ describe('TalentFilmographySystem', () => {
     const t = result.nextState.talent.find((x) => x.id === 't1');
     expect(t?.filmography?.some((f) => f.projectId === 'p1')).toBe(true);
   });
+
+  it('updates filmography for releases present only in allReleases (AI/competitors)', () => {
+    const base = makeBaseState({ projects: [], allReleases: makeBaseState().projects as any });
+
+    const result = advanceWeek(base, createRng(1), [TalentFilmographySystem]);
+
+    const t = result.nextState.talent.find((x) => x.id === 't1');
+    expect(t?.filmography?.some((f) => f.projectId === 'p1')).toBe(true);
+  });
 });

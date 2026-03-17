@@ -2,7 +2,7 @@ import { describe, expect, it } from 'vitest';
 import type { GameState } from '@/types/game';
 import { createRng } from '@/game/core/rng';
 import { advanceWeek } from '@/game/core/tick';
-import { WorldYearbookSystem } from '@/game/systems/worldYearbookSystem';
+
 import { WorldMilestonesSystem } from '@/game/systems/worldMilestonesSystem';
 
 function makeBaseState(overrides?: Partial<GameState>): GameState {
@@ -81,7 +81,7 @@ describe('WorldMilestonesSystem', () => {
   it('adds award win + box office record entries on year rollover', () => {
     const state = makeBaseState();
 
-    const result = advanceWeek(state, createRng(1), [WorldYearbookSystem, WorldMilestonesSystem]);
+    const result = advanceWeek(state, createRng(1), [WorldMilestonesSystem]);
 
     const history = result.nextState.worldHistory || [];
 
@@ -107,7 +107,7 @@ describe('WorldMilestonesSystem', () => {
       ],
     });
 
-    const result = advanceWeek(state, createRng(1), [WorldYearbookSystem, WorldMilestonesSystem]);
+    const result = advanceWeek(state, createRng(1), [WorldMilestonesSystem]);
 
     const ids = (result.nextState.worldHistory || []).map((e) => e.id);
     const unique = new Set(ids);

@@ -120,6 +120,15 @@ describe('TalentCareerArcSystem', () => {
     expect(t1?.careerEvolution?.some((e) => e.type === 'breakthrough' && e.sourceProjectId === 'p1')).toBe(true);
   });
 
+  it('creates career events for hit releases present only in allReleases (AI/competitors)', () => {
+    const base = makeBaseState({ projects: [], allReleases: makeBaseState().projects as any });
+
+    const result = advanceWeek(base, createRng(1), [TalentFilmographySystem, TalentCareerArcSystem]);
+
+    const t1 = result.nextState.talent.find((t) => t.id === 't1');
+    expect(t1?.careerEvolution?.some((e) => e.type === 'breakthrough' && e.sourceProjectId === 'p1')).toBe(true);
+  });
+
   it('does not duplicate events if already present for the same source project', () => {
     const state = makeBaseState({
       talent: [

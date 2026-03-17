@@ -4,6 +4,7 @@ import { createRng } from '@/game/core/rng';
 import { advanceWeek } from '@/game/core/tick';
 import { TalentLifecycleSystem } from '@/game/systems/talentLifecycleSystem';
 import { TalentRetirementSystem } from '@/game/systems/talentRetirementSystem';
+import { WorldMilestonesSystem } from '@/game/systems/worldMilestonesSystem';
 import { WorldYearbookSystem } from '@/game/systems/worldYearbookSystem';
 
 function makeBaseState(overrides?: Partial<GameState>): GameState {
@@ -69,6 +70,18 @@ function makeBaseState(overrides?: Partial<GameState>): GameState {
 describe('WorldYearbookSystem', () => {
   it('creates a yearbook entry on year rollover and emits a recap card', () => {
     const state = makeBaseState({
+      worldHistory: [
+        {
+          id: 'hist:talent_comeback:2026:10:t1:p1',
+          kind: 'talent_comeback',
+          year: 2026,
+          week: 10,
+          title: 'Rising Star comeback',
+          body: 'x',
+          importance: 4,
+          entityIds: { talentIds: ['t1'], projectIds: ['p1'] },
+        },
+      ],
       talent: [
         {
           id: 't1',
@@ -96,7 +109,7 @@ describe('WorldYearbookSystem', () => {
       ],
     });
 
-    const result = advanceWeek(state, createRng(1), [TalentLifecycleSystem, TalentRetirementSystem, WorldYearbookSystem]);
+    const result = advanceWeek(state, createRng(1), [TalentLifecycleSystem, TalentRetirementSystem, WorldMilestonesSystem, WorldYearbookSystem]);
 
     expect(result.nextState.currentYear).toBe(2027);
     expect(result.nextState.currentWeek).toBe(1);
@@ -105,13 +118,14 @@ describe('WorldYearbookSystem', () => {
     expect(result.nextState.worldYearbooks?.[0].year).toBe(2026);
     expect(result.nextState.worldYearbooks?.[0].id).toBe('yearbook:2026');
     expect(result.nextState.worldYearbooks?.[0].body.includes('Career moments:')).toBe(true);
+    expect(result.nextState.worldYearbooks?.[0].body.includes('Notable events:')).toBe(true);
 
     expect(result.recap.some((c) => c.title.includes('Year in Review: 2026'))).toBe(true);
   });
 
   it('does not duplicate yearbook entries if already present', () => {
     const state = makeBaseState({ worldYearbooks: [{ id: 'yearbook:2026', year: 2026, title: 'x', body: 'y' }] });
-    const result = advanceWeek(state, createRng(1), [TalentLifecycleSystem, TalentRetirementSystem, WorldYearbookSystem]);
+    const result = advanceWeek(state, createRng(1), [TalentLifecycleSystem, TalentRetirementSystem, WorldMilestonesSystem, WorldYearbookSystem]);
 
     expect(result.nextState.worldYearbooks?.length).toBe(1);
   });
