@@ -195,13 +195,26 @@ export const FranchiseManager: React.FC<FranchiseManagerProps> = ({
               <SelectContent>
                 <SelectItem value="all">All Genres</SelectItem>
                 <SelectItem value="action">Action</SelectItem>
-                <SelectItem value="drama">Drama</SelectItem>
+                <SelectItem value="adventure">Adventure</SelectItem>
+                <SelectItem value="animation">Animation</SelectItem>
+                <SelectItem value="biography">Biography</SelectItem>
                 <SelectItem value="comedy">Comedy</SelectItem>
-                <SelectItem value="horror">Horror</SelectItem>
-                <SelectItem value="sci-fi">Sci-Fi</SelectItem>
+                <SelectItem value="crime">Crime</SelectItem>
+                <SelectItem value="documentary">Documentary</SelectItem>
+                <SelectItem value="drama">Drama</SelectItem>
+                <SelectItem value="family">Family</SelectItem>
                 <SelectItem value="fantasy">Fantasy</SelectItem>
-                <SelectItem value="thriller">Thriller</SelectItem>
+                <SelectItem value="historical">Historical</SelectItem>
+                <SelectItem value="horror">Horror</SelectItem>
+                <SelectItem value="musical">Musical</SelectItem>
+                <SelectItem value="mystery">Mystery</SelectItem>
                 <SelectItem value="romance">Romance</SelectItem>
+                <SelectItem value="sci-fi">Sci-Fi</SelectItem>
+                <SelectItem value="sports">Sports</SelectItem>
+                <SelectItem value="superhero">Superhero</SelectItem>
+                <SelectItem value="thriller">Thriller</SelectItem>
+                <SelectItem value="war">War</SelectItem>
+                <SelectItem value="western">Western</SelectItem>
               </SelectContent>
             </Select>
             {activeTab === 'franchises' ? (

@@ -204,6 +204,8 @@ export interface Script {
   id: string;
   title: string;
   genre: Genre;
+  /** Optional: secondary label like "heist", "noir", "space opera". */
+  subgenre?: string;
   logline: string;
   writer: string;
   pages: number;

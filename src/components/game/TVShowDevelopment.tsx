@@ -342,6 +342,13 @@ export const TVShowDevelopment: React.FC<TVShowDevelopmentProps> = ({
     return <div className="p-6 text-sm text-muted-foreground">Loading TV show development...</div>;
   }
 
+  const genres: Genre[] = [
+    'action', 'adventure', 'comedy', 'drama', 'horror', 'thriller',
+    'romance', 'sci-fi', 'fantasy', 'documentary', 'animation',
+    'musical', 'western', 'war', 'biography', 'crime', 'mystery',
+    'superhero', 'family', 'sports', 'historical'
+  ];
+
   const handleCreateTVScript = () => {
     if (!newScript.title || !newScript.logline) {
       toast({
@@ -368,6 +375,7 @@ export const TVShowDevelopment: React.FC<TVShowDevelopmentProps> = ({
       id: editingScript ? editingScript.id : `tv-script-${Date.now()}`,
       title: newScript.title!,
       genre: newScript.genre as Genre,
+      subgenre: newScript.subgenre?.trim() || undefined,
       logline: newScript.logline!,
       writer: newScript.writer || `${gameState.studio.name} Writing Team`,
       pages: newScript.pages || 60,
@@ -633,17 +641,24 @@ export const TVShowDevelopment: React.FC<TVShowDevelopmentProps> = ({
                       <SelectValue />
                     </SelectTrigger>
                     <SelectContent>
-                      <SelectItem value="drama">Drama</SelectItem>
-                      <SelectItem value="comedy">Comedy</SelectItem>
-                      <SelectItem value="action">Action</SelectItem>
-                      <SelectItem value="thriller">Thriller</SelectItem>
-                      <SelectItem value="horror">Horror</SelectItem>
-                      <SelectItem value="romance">Romance</SelectItem>
-                      <SelectItem value="sci-fi">Sci-Fi</SelectItem>
-                      <SelectItem value="fantasy">Fantasy</SelectItem>
-                      <SelectItem value="documentary">Documentary</SelectItem>
+                      {genres.map((genre) => (
+                        <SelectItem key={genre} value={genre}>
+                          {genre.charAt(0).toUpperCase() + genre.slice(1)}
+                        </SelectItem>
+                      ))}
                     </SelectContent>
                   </Select>
+                </div>
+
+                <div>
+                  <Label htmlFor="subgenre">Subgenre (optional)</Label>
+                  <Input
+                    id="subgenre"
+                    value={newScript.subgenre || ''}
+                    onChange={(e) => setNewScript(prev => ({ ...prev, subgenre: e.target.value }))}
+                    placeholder="e.g. workplace sitcom, noir, space opera"
+                    className="mt-1"
+                  />
                 </div>
 
                 <div>

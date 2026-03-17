@@ -404,6 +404,7 @@ export const ScriptDevelopment: React.FC<ScriptDevelopmentProps> = ({
       id: editingScript?.id || `script-${Date.now()}`,
       title: newScript.title!,
       genre: newScript.genre!,
+      subgenre: newScript.subgenre?.trim() || undefined,
       logline: newScript.logline!,
       writer: newScript.writer || 'In-house',
       pages: newScript.pages || 120,
@@ -669,6 +670,17 @@ export const ScriptDevelopment: React.FC<ScriptDevelopmentProps> = ({
                       ))}
                     </SelectContent>
                   </Select>
+                </div>
+
+                <div>
+                  <Label htmlFor="subgenre">Subgenre (optional)</Label>
+                  <Input
+                    id="subgenre"
+                    value={newScript.subgenre || ''}
+                    onChange={(e) => setNewScript(prev => ({ ...prev, subgenre: e.target.value }))}
+                    placeholder="e.g. heist, noir, space opera"
+                    className="mt-1"
+                  />
                 </div>
 
                 <div>
