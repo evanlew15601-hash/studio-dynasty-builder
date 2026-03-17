@@ -1,7 +1,9 @@
 import { beforeEach, describe, expect, it } from 'vitest';
 import type { GameEvent, GameState, Project, Script, TalentPerson } from '@/types/game';
+import type { ModBundle } from '@/types/modding';
 import { createRng } from '@/game/core/rng';
 import { PlayerCircleDramaSystem } from '@/game/systems/playerCircleDramaSystem';
+import { applyPlayerCircleDramaEventMods, getPlayerCircleDramaMediaTemplate } from '@/game/systems/playerCircleDramaModding';
 import { useGameStore } from '@/game/store';
 import { MediaEngine } from '@/components/game/MediaEngine';
 
@@ -201,6 +203,77 @@ describe('PlayerCircleDramaSystem', () => {
 
     expect(next.eventQueue.length).toBe(1);
     expect((next.eventQueue[0] as any).data.kind).toBe('circle:feud');
+  });
+});
+
+describe('player circle drama modding', () => {
+  it('applies modded event copy with variable interpolation', () => {
+    const base: GameEvent = {
+      id: 'evt',
+      title: 'Base {TalentName}',
+      description: 'Desc',
+      type: 'talent',
+      triggerDate: new Date('2027-01-01T00:00:00.000Z'),
+      data: { kind: 'circle:poach' },
+      choices: [{ id: 'x', text: 'Ok', consequences: [] }],
+    };
+
+    const mods: ModBundle = {
+      version: 1,
+      mods: [{ id: 'm', name: 'm', version: '1.0.0', enabled: true }],
+      patches: [
+        {
+          id: 'p1',
+          modId: 'm',
+          entityType: 'playerCircleDramaEvent',
+          op: 'update',
+          target: 'circle:poach',
+          payload: { title: 'MOD {TalentName}', description: 'MODDESC {StudioName}' },
+        },
+      ],
+    };
+
+    const event = applyPlayerCircleDramaEventMods(
+      'circle:poach',
+      base,
+      { TalentName: 'Star', StudioName: 'Studio' },
+      { mods, enableMods: true }
+    );
+
+    expect(event.title).toBe('MOD Star');
+    expect(event.description).toBe('MODDESC Studio');
+    expect(event.id).toBe('evt');
+  });
+
+  it('applies modded PR media templates with interpolation', () => {
+    const mods: ModBundle = {
+      version: 1,
+      mods: [{ id: 'm', name: 'm', version: '1.0.0', enabled: true }],
+      patches: [
+        {
+          id: 'p1',
+          modId: 'm',
+          entityType: 'playerCircleDramaMedia',
+          op: 'update',
+          target: 'circle:poach:pr-spin',
+          payload: {
+            headline: 'CUSTOM {StudioName} / {TalentName}',
+            content: 'CONTENT',
+            type: 'social_post',
+            sourceType: 'social_media',
+          },
+        },
+      ],
+    };
+
+    const tpl = getPlayerCircleDramaMediaTemplate(
+      'circle:poach:pr-spin',
+      { StudioName: 'Studio', TalentName: 'Star' },
+      { mods, enableMods: true }
+    );
+
+    expect(tpl?.headline).toBe('CUSTOM Studio / Star');
+    expect(tpl?.sourceType).toBe('social_media');
   });
 });
 

@@ -1,6 +1,7 @@
 import type { GameEvent, GameState, Project, TalentPerson } from '@/types/game';
 import type { TickSystem } from '../core/types';
 import { MediaSourceGenerator } from '@/data/MediaSourceGenerator';
+import { applyPlayerCircleDramaEventMods, getPlayerCircleDramaConfig, type PlayerCircleDramaConfig } from './playerCircleDramaModding';
 
 function clamp(value: number, min: number, max: number): number {
   return Math.max(min, Math.min(max, value));
@@ -113,8 +114,9 @@ function buildPoachingEvent(
   const prCost = Math.max(75_000, Math.round(cost * 0.55));
 
   const outlet = getTopTradeOutletName();
+  const rivalStudioName = state.competitorStudios.find((s) => s.id === rivalStudioId)?.name || 'a rival studio';
 
-  return {
+  const baseEvent: GameEvent = {
     id: `circle:${weekAbs}:poach:${talent.id}:${rivalStudioId}`,
     title: `${talent.name} gets a poaching offer`,
     description:
@@ -186,6 +188,26 @@ function buildPoachingEvent(
       },
     ],
   };
+
+  const vars = {
+    StudioName: state.studio.name,
+    StudioId: studioId,
+    TalentName: talent.name,
+    TalentId: talent.id,
+    RivalStudioName: rivalStudioName,
+    RivalStudioId: rivalStudioId,
+    AgentLabel: agentLabel,
+    AgentName: talent.agent?.name || '',
+    AgentAgency: talent.agent?.agency || '',
+    OutletName: outlet,
+    Loyalty: Math.round(loyalty),
+    Cost: cost,
+    CostDollars: formatDollars(cost),
+    PrCost: prCost,
+    PrCostDollars: formatDollars(prCost),
+  };
+
+  return applyPlayerCircleDramaEventMods('circle:poach', baseEvent, vars, { enableMods: state.mode !== 'online' });
 }
 
 function buildFeudEvent(
@@ -196,16 +218,18 @@ function buildFeudEvent(
   project: Project,
   a: TalentPerson,
   b: TalentPerson,
-  chemistry: number
+  chemistry: number,
+  config: PlayerCircleDramaConfig
 ): GameEvent {
   const studioId = state.studio.id;
   const outlet = getTopTradeOutletName();
 
-  const cost = chemistry <= -75 ? 175_000 : 125_000;
-  const prCost = chemistry <= -75 ? 250_000 : 150_000;
-  const severityLabel = chemistry <= -75 ? 'explosive' : chemistry <= -60 ? 'serious' : 'tense';
+  const explosive = chemistry <= config.feudChemistryExplosive;
+  const cost = explosive ? 175_000 : 125_000;
+  const prCost = explosive ? 250_000 : 150_000;
+  const severityLabel = explosive ? 'explosive' : chemistry <= config.feudChemistryThreshold ? 'serious' : 'tense';
 
-  return {
+  const baseEvent: GameEvent = {
     id: `circle:${weekAbs}:feud:${project.id}:${a.id}:${b.id}`,
     title: `On-set conflict turns ${severityLabel}`,
     description:
@@ -250,7 +274,7 @@ function buildFeudEvent(
         requirements: [{ type: 'budget', threshold: prCost, description: 'Not enough budget for damage control.' }],
         consequences: [
           { type: 'budget', impact: -prCost, description: 'Pay for crisis comms + controlled access.' },
-          { type: 'reputation', impact: chemistry <= -75 ? 2 : 1, description: `You blunt the worst headlines at ${outlet}.` },
+          { type: 'reputation', impact: explosive ? 2 : 1, description: `You blunt the worst headlines at ${outlet}.` },
           {
             type: 'talent-relationship',
             relationship: 'loyalty',
@@ -285,14 +309,14 @@ function buildFeudEvent(
             impact: -14,
             description: `${b.name} feels slighted.`
           },
-          { type: 'reputation', impact: chemistry <= -75 ? -2 : -1, description: 'The crew senses favoritism.' },
+          { type: 'reputation', impact: explosive ? -2 : -1, description: 'The crew senses favoritism.' },
         ],
       },
       {
         id: 'replace-b',
         text: `Replace ${b.name}`,
         consequences: [
-          { type: 'reputation', impact: chemistry <= -75 ? -3 : -2, description: `Press sniffs instability (and ${outlet} runs with it).` },
+          { type: 'reputation', impact: explosive ? -3 : -2, description: `Press sniffs instability (and ${outlet} runs with it).` },
           {
             type: 'talent-relationship',
             relationship: 'loyalty',
@@ -304,6 +328,26 @@ function buildFeudEvent(
       },
     ],
   };
+
+  const vars = {
+    StudioName: state.studio.name,
+    StudioId: studioId,
+    ProjectTitle: project.title,
+    ProjectId: project.id,
+    TalentAName: a.name,
+    TalentAId: a.id,
+    TalentBName: b.name,
+    TalentBId: b.id,
+    OutletName: outlet,
+    Chemistry: Math.round(chemistry),
+    Severity: severityLabel,
+    Cost: cost,
+    CostDollars: formatDollars(cost),
+    PrCost: prCost,
+    PrCostDollars: formatDollars(prCost),
+  };
+
+  return applyPlayerCircleDramaEventMods('circle:feud', baseEvent, vars, { enableMods: state.mode !== 'online' });
 }
 
 export const PlayerCircleDramaSystem: TickSystem = {
@@ -314,6 +358,9 @@ export const PlayerCircleDramaSystem: TickSystem = {
     if ((state.eventQueue || []).length > 0) return state;
 
     const weekAbs = absWeek(ctx.week, ctx.year);
+
+    const modsEnabled = state.mode !== 'online';
+    const config = getPlayerCircleDramaConfig({ enableMods: modsEnabled });
 
     const talentById = new Map((state.talent || []).map((t) => [t.id, t] as const));
 
@@ -340,7 +387,7 @@ export const PlayerCircleDramaSystem: TickSystem = {
       }
     }
 
-    const feudSevere = !!worstFeud && worstFeud.chemistry <= -60;
+    const feudSevere = !!worstFeud && worstFeud.chemistry <= config.feudChemistryThreshold;
 
     // ---------------------------------------------------------------------
     // Candidate 2: Poaching attempt (disabled in Online League)
@@ -356,23 +403,40 @@ export const PlayerCircleDramaSystem: TickSystem = {
             talent: t,
             loyalty: clamp(t.studioLoyalty?.[studioId] ?? 50, 0, 100),
           }))
-          .filter((t) => t.loyalty <= 40)
+          .filter((t) => t.loyalty <= config.poachLoyaltyThreshold)
           .sort((a, b) => a.loyalty - b.loyalty);
 
     const topPoach = poachable[0];
-    const poachSevere = !!topPoach && topPoach.loyalty <= 25;
+    const poachSevere = !!topPoach && topPoach.loyalty <= config.poachLoyaltySevere;
 
     // ---------------------------------------------------------------------
     // Decide which event to emit (worst-first, then probabilistic)
     // ---------------------------------------------------------------------
 
-    const shouldFeud = feudSevere || (!!worstFeud && ctx.rng.chance(clamp((-worstFeud.chemistry - 45) / 120, 0, 0.25)));
-    const shouldPoach = poachSevere || (!!topPoach && state.competitorStudios.length > 0 && ctx.rng.chance(clamp((40 - topPoach.loyalty) / 200, 0, 0.2)));
+    const shouldFeud =
+      feudSevere ||
+      (!!worstFeud && ctx.rng.chance(clamp((-worstFeud.chemistry - 45) / 120, 0, config.chanceFeudMax)));
+
+    const shouldPoach =
+      poachSevere ||
+      (!!topPoach &&
+        state.competitorStudios.length > 0 &&
+        ctx.rng.chance(clamp((config.poachLoyaltyThreshold - topPoach.loyalty) / 200, 0, config.chancePoachMax)));
 
     let event: GameEvent | null = null;
 
     if (shouldFeud && worstFeud) {
-      event = buildFeudEvent(state, weekAbs, ctx.week, ctx.year, worstFeud.project, worstFeud.a, worstFeud.b, worstFeud.chemistry);
+      event = buildFeudEvent(
+        state,
+        weekAbs,
+        ctx.week,
+        ctx.year,
+        worstFeud.project,
+        worstFeud.a,
+        worstFeud.b,
+        worstFeud.chemistry,
+        config
+      );
     } else if (shouldPoach && topPoach && state.competitorStudios.length > 0) {
       const rival = ctx.rng.pick(state.competitorStudios) || state.competitorStudios[0];
       event = buildPoachingEvent(state, weekAbs, ctx.week, ctx.year, topPoach.talent, rival.id);
