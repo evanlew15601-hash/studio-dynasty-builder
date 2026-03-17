@@ -804,34 +804,99 @@ After ~10 in-game years:
 ---
 
 ## 12) Open decisions (confirm before implementation)
-These are small choices that affect implementation details. The plan above works either way, but we should pick defaults before coding.
+These choices change tuning and data shape. The plan above works either way, but we should pick defaults before coding.
 
-1) **Retirement selection style**
-- v1: independent per-talent probability (simpler)
-- v2: quota-based selection using retirement scores (more stable roster behavior)
+### 12.1 Retirement selection style (chosen)
+**Chosen:** v1 probabilistic (per-talent annual rolls).
 
-2) **Roster band / churn targets**
-- confirm the initial target band (doc proposes 200–320 active)
-- confirm desired annual churn (doc proposes 3–8%)
+Design intent:
 
-3) **CareerEvent schema extension**
-To enable perfect dedupe and richer UI:
+- retirement feels “natural” and non-mechanical
+- legends can stick around longer
+- the world doesn’t clear out in a single season
 
-- add `sourceProjectId?: string` to `CareerEvent` (additive, easy migration)
+To keep long-run stability without quotas, we’ll couple probability to roster pressure:
 
-If we don’t want schema changes yet, we’ll rely on release-week gating + description matching.
+- if the active roster is above the target band, apply a small global multiplier to retirement chances
+- if it’s below band, reduce chances
 
-4) **Which talent types participate**
-`TalentPerson.type` includes more than actors/directors. Decide whether lifecycle/retirement applies to:
+That keeps the system flowing without turning it into a strict “retire K people per year” scheduler.
 
-- all talent types (simpler, consistent), or
-- only types that currently have meaningful gameplay loops
+### 12.2 Roster band / churn targets (needs confirmation)
+These targets exist for two reasons:
 
-5) **History pruning policy**
-Pick one policy for `worldHistory` (not yearbooks):
+- **legibility**: how many talent can the UI present without becoming noise
+- **save/perf stability**: how big the state gets after 50–100 years
 
-- keep only `importance >= 4` (high signal)
-- or keep last N (e.g. 250)
+Two knobs:
+
+1) **Active roster band** (non-retired talent kept in a range)
+- smaller band = easier browsing, stronger attachment, less save growth
+- larger band = more variety, but more noise and more churn pressure needed
+
+2) **Annual churn** (fraction of the roster that exits per year)
+- too low = no generational turnover; stars become immortal
+- too high = the world feels unstable and attachment breaks
+
+Proposed starting point (single-player):
+
+- active roster band: **200–320**
+- annual churn: **3–8%** of active roster
+
+Implementation note: with probabilistic retirements, churn is a tuning outcome, not a hard guarantee.
+
+### 12.3 CareerEvent schema extension (recommended)
+Current `CareerEvent` fields are:
+
+- `week`, `year`, `type`, `description`, `impactOnReputation`, `impactOnMarketValue`
+
+Problem: without a stable source pointer, we can only “best-effort” dedupe career events.
+
+Recommended additive field:
+
+- `sourceProjectId?: string`
+
+Benefits:
+
+- perfect idempotence (no duplicate “breakthrough after X”)
+- enables UI filtering (“show events tied to this film”)
+- minimal migration risk (optional field)
+
+If you’d rather not touch types yet, v1 can dedupe by scanning for the same `(type, year, week, description)` but it’s more fragile.
+
+### 12.4 Which talent types participate (needs confirmation)
+`TalentPerson.type` includes more than actors/directors. Today, debuts are primarily actor/director.
+
+Options:
+
+- **A) Lifecycle ages everyone; retirement only applies to actor/director** (safe; avoids draining other pools without replacements)
+- **B) Lifecycle + retirement applies to all talent types** (consistent; but we should ensure those types are actually present and/or have replacement rules)
+
+Recommended v1: **A**.
+
+Rationale:
+
+- actors/directors are the visible “career narrative” layer today
+- we avoid accidentally retiring writers/producers if they aren’t meaningfully generated/replaced yet
+
+We can expand to other roles once we confirm how they enter the world.
+
+### 12.5 History pruning policy (needs confirmation)
+We’re intentionally splitting:
+
+- `worldYearbooks` (1/year; never pruned)
+- `worldHistory` (texture events; must be bounded)
+
+Two reasonable policies for `worldHistory`:
+
+- **importance gate:** keep only `importance >= 4`
+  - best for high signal, but early years may feel empty
+- **fixed window:** keep last N entries (e.g. 250)
+  - always shows recent drama; bounded save growth
+
+Recommended v1: **fixed window: last 250**, with an optional refinement:
+
+- always keep `importance === 5` even if it exceeds the window
 
 ## 13) Online League note
 
