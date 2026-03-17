@@ -17,6 +17,7 @@ import type { Franchise, GameState, Project, Script, Studio, StudioAward, Talent
 import { normalizeFranchisesState } from '@/utils/franchiseNormalization';
 import { normalizePublicDomainState } from '@/utils/publicDomainNormalization';
 import { normalizeStudioGovernanceState } from '@/utils/studioGovernanceNormalization';
+import { normalizeStudioLicensesState } from '@/utils/studioLicenseNormalization';
 import type { TickReport } from '@/types/tickReport';
 import { createTickReport } from '@/utils/tickReport';
 import type { ModBundle } from '@/types/modding';
@@ -201,7 +202,9 @@ export const useGameStore: import('zustand').UseBoundStore<import('zustand').Sto
       const gameSeed = seed ?? generateGameSeed();
       set((s) => {
         const next = { ...state, universeSeed: state.universeSeed ?? gameSeed, rngState: state.rngState ?? gameSeed };
-        s.game = normalizeStudioGovernanceState(normalizePublicDomainState(normalizeFranchisesState(next) as any) as any);
+        s.game = normalizeStudioLicensesState(
+          normalizeStudioGovernanceState(normalizePublicDomainState(normalizeFranchisesState(next) as any) as any) as any
+        );
         s.seed = gameSeed;
         s.rng = createRng(gameSeed);
         s.initialized = true;
@@ -226,7 +229,9 @@ export const useGameStore: import('zustand').UseBoundStore<import('zustand').Sto
           universeSeed: typeof state.universeSeed === 'number' ? state.universeSeed : derivedUniverseSeed,
           rngState: typeof state.rngState === 'number' ? state.rngState : derivedRngState,
         };
-        s.game = normalizeStudioGovernanceState(normalizePublicDomainState(normalizeFranchisesState(next) as any) as any);
+        s.game = normalizeStudioLicensesState(
+          normalizeStudioGovernanceState(normalizePublicDomainState(normalizeFranchisesState(next) as any) as any) as any
+        );
         s.seed = gameSeed;
         s.rng = createRng(gameSeed);
         s.initialized = true;
@@ -260,7 +265,9 @@ export const useGameStore: import('zustand').UseBoundStore<import('zustand').Sto
           universeSeed: (s.game as any)?.universeSeed,
           rngState: rng.state,
         };
-        s.game = normalizeStudioGovernanceState(normalizePublicDomainState(normalizeFranchisesState(next) as any) as any);
+        s.game = normalizeStudioLicensesState(
+          normalizeStudioGovernanceState(normalizePublicDomainState(normalizeFranchisesState(next) as any) as any) as any
+        );
         // Persist the PRNG state ("seed" here is treated as current RNG state).
         s.seed = rng.state;
         s.rng = createRng(rng.state);
@@ -310,7 +317,9 @@ export const useGameStore: import('zustand').UseBoundStore<import('zustand').Sto
           universeSeed: (s.game as any)?.universeSeed,
           rngState,
         };
-        s.game = normalizeStudioGovernanceState(normalizePublicDomainState(normalizeFranchisesState(next) as any) as any);
+        s.game = normalizeStudioLicensesState(
+          normalizeStudioGovernanceState(normalizePublicDomainState(normalizeFranchisesState(next) as any) as any) as any
+        );
         s.seed = rngState;
         s.rng = createRng(rngState);
         s.lastTickReport = report as any;
@@ -324,8 +333,17 @@ export const useGameStore: import('zustand').UseBoundStore<import('zustand').Sto
       set((s) => {
         if (!s.game) return;
         Object.assign(s.game as any, updates);
-        if ('franchises' in updates || 'publicDomainIPs' in updates || 'governance' in updates) {
-          s.game = normalizeStudioGovernanceState(normalizePublicDomainState(normalizeFranchisesState(s.game as any) as any) as any) as any;
+        if (
+          'franchises' in updates ||
+          'publicDomainIPs' in updates ||
+          'governance' in updates ||
+          'projects' in updates ||
+          'scripts' in updates ||
+          'studio' in updates
+        ) {
+          s.game = normalizeStudioLicensesState(
+            normalizeStudioGovernanceState(normalizePublicDomainState(normalizeFranchisesState(s.game as any) as any) as any) as any
+          ) as any;
         }
       });
     },
@@ -509,7 +527,9 @@ export const useGameStore: import('zustand').UseBoundStore<import('zustand').Sto
       set((s) => {
         if (!s.game) return;
         const next = updater(s.game as GameState);
-        s.game = normalizeStudioGovernanceState(normalizePublicDomainState(normalizeFranchisesState(next) as any) as any) as any;
+        s.game = normalizeStudioLicensesState(
+          normalizeStudioGovernanceState(normalizePublicDomainState(normalizeFranchisesState(next) as any) as any) as any
+        ) as any;
       });
     },
 

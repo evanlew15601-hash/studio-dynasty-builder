@@ -270,12 +270,7 @@ export const FranchiseManager: React.FC<FranchiseManagerProps> = ({
                 {pagedFranchises.items.map((franchise) => {
                   const licenseCost = typeof franchise.cost === 'number' ? franchise.cost : 0;
 
-                  const hasLicense =
-                    licensedFranchiseIds.has(franchise.id) ||
-                    (gameState.projects || []).some(
-                      (p) => p.script?.franchiseId === franchise.id || p.franchiseId === franchise.id
-                    ) ||
-                    (gameState.scripts || []).some((s) => s.franchiseId === franchise.id);
+                  const hasLicense = licensedFranchiseIds.has(franchise.id);
 
                   const isFree = !licenseCost || licenseCost <= 0;
 
