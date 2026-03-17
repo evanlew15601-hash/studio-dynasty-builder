@@ -172,7 +172,7 @@ export const WorldMilestonesSystem: TickSystem = {
           year: previousYear,
           week: 52,
           title: `${a.ceremony} — ${a.category}`,
-          body: `${row.talentName} won ${a.category} at ${a.ceremony} for \"${projectTitle}\".`,
+          body: `${row.talentName} won ${a.category} at ${a.ceremony} for "${projectTitle}".`,
           entityIds: {
             talentIds: [row.talentId],
             projectIds: [a.projectId],

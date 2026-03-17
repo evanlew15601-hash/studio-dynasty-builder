@@ -118,7 +118,7 @@ export class MediaContentGenerator {
     box_office: [
       "{FilmTitle} opened to ${Amount}M domestically, making it {BoxOfficeOutcome} for {StudioName}. {ReceptionSummary}",
       "With ${Amount}M in ticket sales, {FilmTitle} is tracking as {BoxOfficeOutcome} against its {Budget} budget. Critics delivered {CriticsVerdict} ({CriticsScore}/100) while audiences report {AudienceVerdict} ({AudienceScore}/100).",
-      "After a ${Amount}M debut, questions are swirling about {FilmTitle}'s legs. Reviews have been {CriticsVerdict}, and audience response is {AudienceVerdict} so far."
+      "After a ${Amount}M debut, questions are swirling about {FilmTitle}'s legs. Reviews have been {CriticsVerdict} ({CriticsScore}/100), and audience response is {AudienceVerdict} ({AudienceScore}/100) so far."
     ],
     award_nomination: [
       "Awards season momentum builds as {FilmTitle} earns a {AwardName} nomination. Industry watchers see the {Genre} project as a strong contender.",

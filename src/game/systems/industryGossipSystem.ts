@@ -58,7 +58,7 @@ function createScandal(params: {
   };
 
   const base = pickDeterministic(`${universeSeed}|scandal|template|${id}`, templates[type]);
-  const description = base.replaceAll('{TalentName}', talent.name);
+  const description = base.replace(/\{TalentName\}/g, talent.name);
 
   const severityMult = severity === 'career-ending' ? 3.2 : severity === 'major' ? 2.1 : severity === 'moderate' ? 1.2 : 0.6;
   const reputationImpact = -Math.round(3 * severityMult);
@@ -351,7 +351,7 @@ export const IndustryGossipSystem: TickSystem = {
             const ev = buildScandalEvent({ state, talent: t, scandal, week: ctx.week, year: ctx.year });
 
             ctx.recap.push({
-              type: 'crisis',
+              type: 'talent',
               title: 'Scandal: decision required',
               body: ev.title,
               severity: 'warning',
