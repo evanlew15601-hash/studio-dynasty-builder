@@ -37,10 +37,6 @@ export const OwnedFranchiseManager: React.FC<OwnedFranchiseManagerProps> = ({
   const [pageSize, setPageSize] = useState<number>(6);
   const [page, setPage] = useState<number>(1);
 
-  if (!gameState) {
-    return <div className="p-6 text-sm text-muted-foreground">Loading franchises...</div>;
-  }
-
   const uniqById = <T extends { id: string }>(items: T[]): T[] => {
     const byId = new Map<string, T>();
     const order: string[] = [];
@@ -54,14 +50,17 @@ export const OwnedFranchiseManager: React.FC<OwnedFranchiseManagerProps> = ({
     return order.map((id) => byId.get(id)!).filter(Boolean);
   };
 
-  const franchises = uniqById(gameState.franchises || []);
+  const franchises = uniqById(gameState?.franchises || []);
+
+  const studioId = gameState?.studio?.id ?? '';
+  const projects = gameState?.projects ?? [];
 
   // Get franchises owned by the player (deduped by id + title)
   const ownedFranchises = (() => {
     const seenTitles = new Set<string>();
 
     return franchises
-      .filter(f => f.creatorStudioId === gameState.studio.id)
+      .filter(f => f.creatorStudioId === studioId)
       .filter((f) => {
         const key = (f.title || '').trim().toLowerCase();
         if (!key) return false;
@@ -113,7 +112,7 @@ export const OwnedFranchiseManager: React.FC<OwnedFranchiseManagerProps> = ({
 
   // Calculate franchise metrics
   const getFranchiseMetrics = (franchise: Franchise) => {
-    const franchiseProjects = gameState.projects.filter(p => p.script.franchiseId === franchise.id);
+    const franchiseProjects = projects.filter(p => p.script.franchiseId === franchise.id);
     const financials = FinancialEngine.getFranchiseFinancials(franchiseProjects);
     const totalBoxOffice = financials.boxOfficeRevenue;
     const totalBudget = franchiseProjects.reduce((sum, p) => sum + p.budget.total, 0);
@@ -157,6 +156,10 @@ export const OwnedFranchiseManager: React.FC<OwnedFranchiseManagerProps> = ({
 
     setEditingFranchise(null);
   };
+
+  if (!gameState) {
+    return <div className="p-6 text-sm text-muted-foreground">Loading franchises...</div>;
+  }
 
   if (ownedFranchises.length === 0) {
     return (

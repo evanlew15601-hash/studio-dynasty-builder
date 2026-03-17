@@ -27,10 +27,6 @@ export const FranchiseManager: React.FC<FranchiseManagerProps> = ({
   const [franchisePage, setFranchisePage] = useState<number>(1);
   const [publicDomainPage, setPublicDomainPage] = useState<number>(1);
 
-  if (!gameState) {
-    return <div className="p-6 text-sm text-muted-foreground">Loading franchise marketplace...</div>;
-  }
-
   const uniqById = <T extends { id: string }>(items: T[]): T[] => {
     const byId = new Map<string, T>();
     const order: string[] = [];
@@ -44,12 +40,14 @@ export const FranchiseManager: React.FC<FranchiseManagerProps> = ({
     return order.map((id) => byId.get(id)!).filter(Boolean);
   };
 
-  const franchises = uniqById(gameState.franchises || []);
-  const publicDomainIPs = uniqById(gameState.publicDomainIPs || []);
+  const franchises = uniqById(gameState?.franchises || []);
+  const publicDomainIPs = uniqById(gameState?.publicDomainIPs || []);
+
+  const studioId = gameState?.studio?.id ?? '';
 
   // Check which franchises are owned by player
   const ownedFranchiseIds = franchises
-    .filter(f => f.creatorStudioId === gameState.studio.id)
+    .filter(f => f.creatorStudioId === studioId)
     .map(f => f.id);
 
   // Filter franchises (exclude owned ones from purchase list)
@@ -135,6 +133,10 @@ export const FranchiseManager: React.FC<FranchiseManagerProps> = ({
 
   const pagedFranchises = paginate(filteredFranchises, franchisePage);
   const pagedPublicDomain = paginate(filteredPublicDomain, publicDomainPage);
+
+  if (!gameState) {
+    return <div className="p-6 text-sm text-muted-foreground">Loading franchise marketplace...</div>;
+  }
 
   const getFranchiseStatusColor = (status: string) => {
     switch (status) {
