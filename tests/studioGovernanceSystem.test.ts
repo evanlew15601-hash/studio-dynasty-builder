@@ -85,7 +85,7 @@ describe('StudioGovernanceSystem', () => {
     expect(normalized.governance!.capability.maxActiveProjects).toBeGreaterThanOrEqual(1);
   });
 
-  it('blocks greenlighting when studio capability is maxed', () => {
+  it('warns (but allows) greenlighting when studio capability is exceeded by 1', () => {
     const script = makeScript({ budget: 5_000_000, characteristics: { ...makeScript().characteristics, commercialAppeal: 7 } });
 
     const state = makeBaseState({
@@ -118,8 +118,9 @@ describe('StudioGovernanceSystem', () => {
     });
 
     const gate = getGreenlightGateReport({ state, script });
-    expect(gate.canGreenlight).toBe(false);
-    expect(gate.reasons.some((r) => r.includes('capacity'))).toBe(true);
+    expect(gate.canGreenlight).toBe(true);
+    expect(gate.severity).toBe('warn');
+    expect(gate.reasons.some((r) => r.toLowerCase().includes('capacity'))).toBe(true);
   });
 
   it('reduces board confidence when cash runway is low', () => {

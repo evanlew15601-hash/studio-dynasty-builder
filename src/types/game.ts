@@ -202,6 +202,8 @@ export interface Script {
   publicDomainId?: string;
 }
 
+export type FilmContentRating = 'G' | 'PG' | 'PG-13' | 'R' | 'NC-17';
+
 export interface ScriptCharacteristics {
   tone: 'dark' | 'light' | 'balanced' | 'satirical' | 'dramatic';
   pacing: 'slow-burn' | 'fast-paced' | 'episodic' | 'steady';
@@ -210,6 +212,20 @@ export interface ScriptCharacteristics {
   commercialAppeal: number; // 1-10
   criticalPotential: number; // 1-10
   cgiIntensity: 'practical' | 'minimal' | 'moderate' | 'heavy';
+
+  /** Optional content knobs (0-10 each). Used to derive a content rating. */
+  content?: {
+    violence?: number;
+    nudity?: number;
+    language?: number;
+    substance?: number;
+  };
+
+  /** Optional derived rating label + score (0-100). */
+  contentRating?: {
+    label: FilmContentRating;
+    score: number;
+  };
 }
 
 
