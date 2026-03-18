@@ -10,6 +10,7 @@ export default tseslint.config(
       "dist",
       "coverage",
       "playwright-report",
+      "test-results",
       "sbom",
       "src-tauri/target",
       "**/*.timestamp-*",
@@ -47,6 +48,14 @@ export default tseslint.config(
         ...globals.node,
         ...globals.vitest,
       },
+    },
+  },
+  {
+    extends: [js.configs.recommended, ...tseslint.configs.recommended],
+    files: ["e2e/**/*.{ts,tsx}"],
+    languageOptions: {
+      ecmaVersion: 2020,
+      globals: globals.node,
     },
   },
   {
