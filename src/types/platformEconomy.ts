@@ -25,6 +25,7 @@ export interface PlayerPlatformState {
   /** Platform cash proxy (used for distress modelling). */
   cash: number;
   status: PlatformOperationalStatus;
+  distressWeeks?: number;
 
   tierMix?: PlatformTierMix;
   /** Weekly promotion spend (abstracted algorithm control). */
@@ -32,9 +33,25 @@ export interface PlayerPlatformState {
   /** Abstract price competitiveness index (0.5–1.5 typical). */
   priceIndex?: number;
 
+  /** 0–100 proxy derived from releases arriving to the platform. */
+  freshness?: number;
+  /** 0–100 proxy derived from total library depth/performance. */
+  catalogValue?: number;
+
   // Optional knobs for future economy simulation
   monthlyPrice?: number;
   contentSpendPerWeek?: number;
+  vibe?: string;
+}
+
+export interface PlatformWeekKpis {
+  subscribers: number;
+  netAdds: number;
+  churnRate: number;
+  revenue: number;
+  opsCost: number;
+  profit: number;
+  cash: number;
 }
 
 export interface RivalPlatformState {
@@ -60,6 +77,11 @@ export interface PlatformMarketState {
   player?: PlayerPlatformState;
   /** Always prefer an array when present, but allow legacy undefined. */
   rivals?: RivalPlatformState[];
+
+  lastWeek?: {
+    player?: PlatformWeekKpis;
+    rivals?: Record<string, PlatformWeekKpis>;
+  };
 
   lastUpdatedWeek?: number;
   lastUpdatedYear?: number;

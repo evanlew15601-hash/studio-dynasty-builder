@@ -40,7 +40,15 @@ export class PostTheatricalSystem {
 
       const durationWeeks = release.durationWeeks || DEFAULT_DURATIONS[release.platform] || 52;
 
-      const earnedThisWeek = isActiveStatus(release.status)
+      const scheduledAbs =
+        release.status === 'planned' && typeof release.releaseWeek === 'number' && typeof release.releaseYear === 'number'
+          ? release.releaseYear * 52 + release.releaseWeek
+          : null;
+
+      const currentAbs = currentYear * 52 + currentWeek;
+      const notStartedYet = scheduledAbs != null && scheduledAbs > currentAbs;
+
+      const earnedThisWeek = !notStartedYet && isActiveStatus(release.status)
         ? Math.round(release.weeklyRevenue || 0)
         : 0;
 
@@ -49,6 +57,14 @@ export class PostTheatricalSystem {
       }
 
       if (release.status === 'planned') {
+        if (notStartedYet) {
+          return {
+            ...release,
+            lastProcessedWeek: currentWeek,
+            lastProcessedYear: currentYear,
+          };
+        }
+
         const weeksActive = 1;
         const revenue = (release.revenue || 0) + earnedThisWeek;
 

@@ -1150,6 +1150,11 @@ export interface PostTheatricalRelease {
   /** Optional platform identifier for deals (e.g., streamflix) */
   providerId?: string;
   releaseDate: Date;
+  /** Optional game-time scheduling fields (used for deterministic delayed windows). */
+  releaseWeek?: number;
+  releaseYear?: number;
+  /** Optional: player-chosen delay weeks from theatrical premiere to this window. */
+  delayWeeks?: number;
   revenue: number;
   weeklyRevenue: number;
   weeksActive: number;

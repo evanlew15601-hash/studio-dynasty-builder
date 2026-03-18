@@ -72,6 +72,33 @@ function normalizeExistingRivals(rivals: any[] | undefined, totalAddressableSubs
   return [...byId.values()];
 }
 
+function normalizePlayerPlatform(player: any | undefined): PlatformMarketState['player'] {
+  if (!player || typeof player !== 'object') return undefined;
+
+  const status = (player as any).status;
+  const normalizedStatus = status === 'sold' || status === 'shutdown' ? status : 'active';
+
+  return {
+    id: typeof (player as any).id === 'string' ? (player as any).id : 'player-platform',
+    name: typeof (player as any).name === 'string' ? (player as any).name : 'Your Platform',
+    launchedWeek: typeof (player as any).launchedWeek === 'number' ? (player as any).launchedWeek : undefined,
+    launchedYear: typeof (player as any).launchedYear === 'number' ? (player as any).launchedYear : undefined,
+    subscribers: typeof (player as any).subscribers === 'number' ? Math.max(0, Math.floor((player as any).subscribers)) : 0,
+    cash: typeof (player as any).cash === 'number' ? (player as any).cash : 0,
+    status: normalizedStatus,
+    distressWeeks: typeof (player as any).distressWeeks === 'number' ? Math.max(0, Math.floor((player as any).distressWeeks)) : 0,
+    tierMix: normalizeTierMix((player as any).tierMix),
+    promotionBudgetPerWeek:
+      typeof (player as any).promotionBudgetPerWeek === 'number' ? Math.max(0, Math.floor((player as any).promotionBudgetPerWeek)) : 0,
+    priceIndex: typeof (player as any).priceIndex === 'number' ? (player as any).priceIndex : 1,
+    freshness: typeof (player as any).freshness === 'number' ? clamp((player as any).freshness, 0, 100) : undefined,
+    catalogValue: typeof (player as any).catalogValue === 'number' ? clamp((player as any).catalogValue, 0, 100) : undefined,
+    monthlyPrice: typeof (player as any).monthlyPrice === 'number' ? (player as any).monthlyPrice : undefined,
+    contentSpendPerWeek: typeof (player as any).contentSpendPerWeek === 'number' ? (player as any).contentSpendPerWeek : undefined,
+    vibe: typeof (player as any).vibe === 'string' ? (player as any).vibe : undefined,
+  };
+}
+
 export const PlatformMarketBootstrapSystem: TickSystem = {
   id: 'platformMarketBootstrap',
   label: 'Platform market bootstrap (Streaming Wars)',
@@ -86,10 +113,12 @@ export const PlatformMarketBootstrapSystem: TickSystem = {
         : DEFAULT_TOTAL_ADDRESSABLE_SUBS;
 
     const rivals = normalizeExistingRivals(raw?.rivals as any, totalAddressableSubs);
+    const player = normalizePlayerPlatform(raw?.player as any);
 
     const nextMarket: PlatformMarketState = {
       ...raw,
       totalAddressableSubs,
+      player,
       rivals,
       lastUpdatedWeek: ctx.week,
       lastUpdatedYear: ctx.year,
