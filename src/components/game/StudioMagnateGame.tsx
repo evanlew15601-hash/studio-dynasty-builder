@@ -146,6 +146,59 @@ import { StudioIconRenderer as StudioIconRendererLazy } from './StudioIconCustom
 import { SaveLoadDialog } from './SaveLoadDialog';
 import { GameSettingsDialog } from './GameSettingsDialog';
 
+const TalentMarketplaceLazy = React.lazy(async () => {
+  const m = await import('./TalentMarketplace');
+  return { default: m.TalentMarketplace };
+});
+
+const TalentAgencySystemLazy = React.lazy(async () => {
+  const m = await import('./TalentAgencySystem');
+  return { default: m.TalentAgencySystem };
+});
+
+const TalentBurnoutSystemLazy = React.lazy(async () => {
+  const m = await import('./TalentBurnoutSystem');
+  return { default: m.TalentBurnoutSystem };
+});
+
+const TalentChemistrySystemLazy = React.lazy(async () => {
+  const m = await import('./TalentChemistrySystem');
+  return { default: m.TalentChemistrySystem };
+});
+
+const TopActorsPanelLazy = React.lazy(async () => {
+  const m = await import('./TopActorsPanel');
+  return { default: m.TopActorsPanel };
+});
+
+const AdvancedTalentTestSuiteLazy = React.lazy(async () => {
+  const m = await import('./AdvancedTalentTestSuite');
+  return { default: m.AdvancedTalentTestSuite };
+});
+
+const MediaResponseDashboardFallback = () => (
+  <div className="text-center py-8 text-muted-foreground">Media Response Dashboard loading...</div>
+);
+
+const MediaDashboardLazy = React.lazy(async () => {
+  try {
+    const m = await import('./MediaDashboard');
+    return { default: m.MediaDashboard };
+  } catch {
+    const m = await import('./MediaNotifications');
+    return { default: m.MediaNotifications as any };
+  }
+});
+
+const MediaResponseDashboardLazy = React.lazy(async () => {
+  try {
+    const m = await import('./MediaResponseDashboard');
+    return { default: m.MediaResponseDashboard };
+  } catch {
+    return { default: MediaResponseDashboardFallback };
+  }
+});
+
 // Ensure AI films have credited talent so awards/filmographies have real people to reference
 function attachBasicCastForAI(project: Project, talentPool: TalentPerson[]): Project {
   try {
@@ -1005,6 +1058,11 @@ export const StudioMagnateGame: React.FC<StudioMagnateGameProps> = ({
   const setPhase = useUiStore((s) => s.setPhase);
   const selectedProjectId = useUiStore((s) => s.selectedProjectId);
   const setSelectedProjectId = useUiStore((s) => s.setSelectedProjectId);
+
+  const talentAgents = useMemo(() => {
+    if (currentPhase !== 'talent') return [];
+    return gameState.talent.filter(t => t.agent).map(t => t.agent!);
+  }, [currentPhase, gameState.talent]);
 
   const phaseInitRef = useRef(false);
   const initialPhaseNormalizedRaw = (((initialPhase === 'financials' ? 'finance' : initialPhase) as any) || 'dashboard') as string;
@@ -4258,63 +4316,60 @@ export const StudioMagnateGame: React.FC<StudioMagnateGameProps> = ({
               
               <TabsContent value="marketplace">
                 <Suspense fallback={<div>Loading talent marketplace...</div>}>
-                  {React.createElement(React.lazy(() => import('./TalentMarketplace').then(m => ({ default: m.TalentMarketplace }))), {
-                    talent: gameState.talent,
-                    currentWeek: gameState.currentWeek,
-                    currentYear: gameState.currentYear,
-                    onCastTalent: (talentId: string) => console.log('Cast talent:', talentId)
-                  })}
+                  <TalentMarketplaceLazy
+                    talent={gameState.talent}
+                    currentWeek={gameState.currentWeek}
+                    currentYear={gameState.currentYear}
+                    onCastTalent={(talentId: string) => console.log('Cast talent:', talentId)}
+                  />
                 </Suspense>
               </TabsContent>
               
               <TabsContent value="agencies">
                 <Suspense fallback={<div>Loading agency system...</div>}>
-                  {React.createElement(React.lazy(() => import('./TalentAgencySystem').then(m => ({ default: m.TalentAgencySystem }))), {
-                    agents: gameState.talent.filter(t => t.agent).map(t => t.agent!),
-                    talent: gameState.talent,
-                    studioId: gameState.studio.id,
-                    currentWeek: gameState.currentWeek,
-                    currentYear: gameState.currentYear,
-                    onNegotiateDeal: (agentId: string, talentId: string, terms: any) => console.log('Negotiating deal:', { agentId, talentId, terms }),
-                    onCreateHold: (hold: any) => console.log('Creating hold:', hold)
-                  })}
+                  <TalentAgencySystemLazy
+                    agents={talentAgents}
+                    talent={gameState.talent}
+                    studioId={gameState.studio.id}
+                    currentWeek={gameState.currentWeek}
+                    currentYear={gameState.currentYear}
+                    onNegotiateDeal={(agentId: string, talentId: string, terms: any) => console.log('Negotiating deal:', { agentId, talentId, terms })}
+                    onCreateHold={(hold: any) => console.log('Creating hold:', hold)}
+                  />
                 </Suspense>
               </TabsContent>
               
               <TabsContent value="wellness">
                 <Suspense fallback={<div>Loading wellness monitor...</div>}>
-                  {React.createElement(React.lazy(() => import('./TalentBurnoutSystem').then(m => ({ default: m.TalentBurnoutSystem }))), {
-                    talent: gameState.talent,
-                    currentWeek: gameState.currentWeek,
-                    currentYear: gameState.currentYear
-                  })}
+                  <TalentBurnoutSystemLazy
+                    talent={gameState.talent}
+                    currentWeek={gameState.currentWeek}
+                    currentYear={gameState.currentYear}
+                  />
                 </Suspense>
               </TabsContent>
               
               <TabsContent value="chemistry">
                 <Suspense fallback={<div>Loading chemistry system...</div>}>
-                  {React.createElement(React.lazy(() => import('./TalentChemistrySystem').then(m => ({ default: m.TalentChemistrySystem }))), {
-                    talent: gameState.talent,
-                    chemistryEvents: [],
-                    currentWeek: gameState.currentWeek,
-                    currentYear: gameState.currentYear
-                  })}
+                  <TalentChemistrySystemLazy
+                    talent={gameState.talent}
+                    chemistryEvents={[]}
+                    currentWeek={gameState.currentWeek}
+                    currentYear={gameState.currentYear}
+                  />
                 </Suspense>
               </TabsContent>
 
               <TabsContent value="top-actors">
                 <Suspense fallback={<div>Loading top actors...</div>}>
-                  {React.createElement(React.lazy(() => import('./TopActorsPanel').then(m => ({ default: m.TopActorsPanel }))), {})}
+                  <TopActorsPanelLazy />
                 </Suspense>
               </TabsContent>
               
               {import.meta.env.DEV && (
                 <TabsContent value="test">
                   <Suspense fallback={<div>Loading test suite...</div>}>
-                    {React.createElement(
-                      React.lazy(() => import('./AdvancedTalentTestSuite').then(m => ({ default: m.AdvancedTalentTestSuite }))),
-                      {}
-                    )}
+                    <AdvancedTalentTestSuiteLazy />
                   </Suspense>
                 </TabsContent>
               )}
@@ -4395,17 +4450,11 @@ export const StudioMagnateGame: React.FC<StudioMagnateGameProps> = ({
               </TabsList>
               
               <TabsContent value="feed">
-                {React.createElement(React.lazy(() => 
-                  import('./MediaDashboard').then(m => ({ default: m.MediaDashboard }))
-                  .catch(() => import('./MediaNotifications').then(m => ({ default: m.MediaNotifications as any })))
-                ), {})}
+                <MediaDashboardLazy />
               </TabsContent>
               
               <TabsContent value="responses">
-                {React.createElement(React.lazy(() => 
-                  import('./MediaResponseDashboard').then(m => ({ default: m.MediaResponseDashboard }))
-                  .catch(() => ({ default: () => <div className="text-center py-8 text-muted-foreground">Media Response Dashboard loading...</div> }))
-                ), {})}
+                <MediaResponseDashboardLazy />
               </TabsContent>
               
               <TabsContent value="analytics">
