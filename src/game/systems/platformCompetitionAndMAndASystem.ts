@@ -60,7 +60,7 @@ export const PlatformCompetitionAndMAndASystem: TickSystem = {
         subscribers: nextStatus === 'collapsed' ? 0 : r.subscribers,
       };
 
-      if (r.status !== 'collapsed' && nextStatus === 'collapsed') {
+      if (nextStatus === 'collapsed') {
         collapsedThisTick.push(r);
       }
 

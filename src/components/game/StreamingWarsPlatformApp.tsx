@@ -21,7 +21,7 @@ import {
   DialogTitle,
 } from '@/components/ui/dialog';
 import { useGameStore } from '@/game/store';
-import type { Genre, Project, Script } from '@/types/game';
+import type { Genre, PostTheatricalRelease, Project, Script } from '@/types/game';
 import type { StreamingContract } from '@/types/streamingTypes';
 import {
   getContractPlatformId,
@@ -331,27 +331,26 @@ export const StreamingWarsPlatformApp: React.FC = () => {
     const releaseDate = new Date(gameState.currentYear, 0, 1 + Math.max(0, gameState.currentWeek - 1) * 7);
     const releaseId = `release:${licenseProject.id}:${licenseRivalId}:${gameState.currentYear}:W${gameState.currentWeek}`;
 
-    const nextPost = (licenseProject.postTheatricalReleases ?? []).some((r) => r.id === releaseId)
-      ? licenseProject.postTheatricalReleases
-      : [
-          ...(licenseProject.postTheatricalReleases ?? []),
-          {
-            id: releaseId,
-            projectId: licenseProject.id,
-            platform: 'streaming',
-            providerId: licenseRivalId,
-            releaseDate,
-            releaseWeek: gameState.currentWeek,
-            releaseYear: gameState.currentYear,
-            delayWeeks: 0,
-            revenue: offer,
-            weeklyRevenue: 0,
-            weeksActive: 0,
-            status: 'planned',
-            cost: 0,
-            durationWeeks: clampInt(licenseDurationWeeks, 8, 52),
-          },
-        ];
+    const newWindow: PostTheatricalRelease = {
+      id: releaseId,
+      projectId: licenseProject.id,
+      platform: 'streaming',
+      providerId: licenseRivalId,
+      releaseDate,
+      releaseWeek: gameState.currentWeek,
+      releaseYear: gameState.currentYear,
+      delayWeeks: 0,
+      revenue: offer,
+      weeklyRevenue: 0,
+      weeksActive: 0,
+      status: 'planned',
+      cost: 0,
+      durationWeeks: clampInt(licenseDurationWeeks, 8, 52),
+    };
+
+    const nextPost: PostTheatricalRelease[] = (licenseProject.postTheatricalReleases ?? []).some((r) => r.id === releaseId)
+      ? [...(licenseProject.postTheatricalReleases ?? [])]
+      : [...(licenseProject.postTheatricalReleases ?? []), newWindow];
 
     updateBudget(offer);
 
