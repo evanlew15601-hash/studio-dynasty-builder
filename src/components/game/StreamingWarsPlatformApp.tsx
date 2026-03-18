@@ -1169,8 +1169,66 @@ export const StreamingWarsPlatformApp: React.FC = () => {
                             : null;
 
                       const releaseFormat = p.releaseFormat === 'binge' || p.releaseFormat === 'batch' || p.releaseFormat === 'weekly' ? p.releaseFormat : 'weekly';
-                      const totalEpisodes = typeof p.episodeCount === 'number' ? p.episodeCount : p.seasons?.[0]?.totalEpisodes;
-                      const episodesAired = p.seasons?.[0]?.episodesAired;
+
+                      const seasons = Array.isArray(p.seasons) ? p.seasons : [];
+                      const currentAbs = absWeek(gameState.currentWeek ?? 0, gameState.currentYear ?? 0);
+                      const releaseAbs =
+                        typeof p.releaseWeek === 'number' && typeof p.releaseYear === 'number' ? absWeek(p.releaseWeek, p.releaseYear) : currentAbs;
+
+                      let currentSeason = typeof p.currentSeason === 'number' && p.currentSeason > 0 ? p.currentSeason : 1;
+                      let displaySeason = seasons.find((s) => s?.seasonNumber === currentSeason) ?? seasons[0];
+
+                      if (p.status === 'released' && seasons.length > 0) {
+                        const candidates = seasons
+                          .map((s, idx) => {
+                            const seasonNumber = typeof s?.seasonNumber === 'number' ? s.seasonNumber : idx + 1;
+
+                            const premiereAbs =
+                              typeof (s as any)?.premiereDate?.week === 'number' && typeof (s as any)?.premiereDate?.year === 'number'
+                                ? absWeek((s as any).premiereDate.week, (s as any).premiereDate.year)
+                                : seasonNumber === 1
+                                  ? releaseAbs
+                                  : null;
+
+                            if (premiereAbs == null || premiereAbs > currentAbs) return null;
+
+                            const totalRaw =
+                              typeof (s as any)?.totalEpisodes === 'number'
+                                ? (s as any).totalEpisodes
+                                : seasonNumber === 1 && typeof p.episodeCount === 'number'
+                                  ? p.episodeCount
+                                  : 10;
+
+                            const total = typeof totalRaw === 'number' && totalRaw > 0 ? clampInt(totalRaw, 1, 30) : 0;
+                            const airedRaw = typeof (s as any)?.episodesAired === 'number' ? (s as any).episodesAired : 0;
+                            const aired = total > 0 ? clampInt(airedRaw, 0, total) : 0;
+
+                            return {
+                              season: s,
+                              seasonNumber,
+                              premiereAbs,
+                              isComplete: total > 0 && aired >= total,
+                            };
+                          })
+                          .filter((x): x is { season: any; seasonNumber: number; premiereAbs: number; isComplete: boolean } => x !== null);
+
+                        const active =
+                          candidates.filter((c) => !c.isComplete).sort((a, b) => b.premiereAbs - a.premiereAbs)[0] ??
+                          candidates.sort((a, b) => b.premiereAbs - a.premiereAbs)[0];
+
+                        if (active) {
+                          displaySeason = active.season;
+                          currentSeason = active.seasonNumber;
+                        }
+                      }
+
+                      const totalEpisodes =
+                        typeof (displaySeason as any)?.totalEpisodes === 'number'
+                          ? (displaySeason as any).totalEpisodes
+                          : currentSeason === 1 && typeof p.episodeCount === 'number'
+                            ? p.episodeCount
+                            : 10;
+                      const episodesAired = (displaySeason as any)?.episodesAired;
 
                       const phaseLabel = phase
                         ? `${phase}${typeof p.phaseDuration === 'number' && p.phaseDuration > 0 ? ` • ${Math.floor(p.phaseDuration)}w left` : ''}`
@@ -1189,7 +1247,7 @@ export const StreamingWarsPlatformApp: React.FC = () => {
 
                       const canRush =
                         player?.status === 'active' &&
-                        phase !== null &&
+                        phase === 'production' &&
                         remainingForRush > 1 &&
                         p.status !== 'released' &&
                         typeof rushCost === 'number' &&
@@ -1202,7 +1260,7 @@ export const StreamingWarsPlatformApp: React.FC = () => {
                             <div className="text-sm font-medium truncate">{p.title}</div>
                             <div className="text-xs text-muted-foreground capitalize truncate">
                               {p.type.replace('-', ' ')} • {p.script?.genre} • {releaseFormat} • {phaseLabel}
-                              {typeof totalEpisodes === 'number' ? ` • ${typeof episodesAired === 'number' ? episodesAired : 0}/${totalEpisodes} eps` : ''}
+                              {typeof totalEpisodes === 'number' ? ` • S${currentSeason} ${typeof episodesAired === 'number' ? episodesAired : 0}/${totalEpisodes} eps` : ''}
                               {typeof eta === 'number' && eta > 0 ? ` • ETA ~${eta}w` : ''}
                             </div>
                           </div>
@@ -1227,7 +1285,7 @@ export const StreamingWarsPlatformApp: React.FC = () => {
                                             ? proj.status
                                             : null;
 
-                                      if (!projPhase) return proj;
+                                      if (projPhase !== 'production') return proj;
 
                                       const base = ORIGINAL_PHASE_WEEKS[projPhase];
                                       const remaining = typeof proj.phaseDuration === 'number' && proj.phaseDuration > 0 ? Math.floor(proj.phaseDuration) : base;

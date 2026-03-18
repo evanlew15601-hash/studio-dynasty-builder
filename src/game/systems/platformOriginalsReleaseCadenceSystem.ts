@@ -31,99 +31,144 @@ function isStreamingWarsOriginal(project: Project, playerPlatformId: string): bo
   return pid === playerPlatformId;
 }
 
-function normalizeReleaseFormat(project: Project): ReleaseFormat {
-  const f = project.releaseFormat;
-  return f === 'binge' || f === 'batch' || f === 'weekly' ? f : 'weekly';
+function normalizeReleaseFormatValue(value: unknown): ReleaseFormat {
+  return value === 'binge' || value === 'batch' || value === 'weekly' ? value : 'weekly';
 }
 
-function ensureSeason(project: Project): { season: SeasonData; changed: boolean } {
-  const totalEpisodes = Math.max(
-    1,
-    clampInt(
-      (project.episodeCount ?? project.seasons?.[0]?.totalEpisodes ?? 10) as number,
-      1,
-      30
-    )
-  );
+function normalizeReleaseFormat(project: Project, season?: SeasonData): ReleaseFormat {
+  return normalizeReleaseFormatValue(season?.releaseFormat ?? project.releaseFormat);
+}
 
-  const releaseFormat = normalizeReleaseFormat(project);
+function seasonPremiereAbs(params: { season: SeasonData; seasonIndex: number; releaseAbs: number }): number | null {
+  const { season, seasonIndex, releaseAbs } = params;
 
-  const existing = project.seasons?.[0];
-  if (existing) {
-    const coercedEpisodes = Array.isArray(existing.episodes) ? existing.episodes : [];
-    const paddedEpisodes: EpisodeData[] = coercedEpisodes.length >= totalEpisodes
-      ? coercedEpisodes.slice(0, totalEpisodes)
-      : coercedEpisodes.concat(
-          Array.from({ length: totalEpisodes - coercedEpisodes.length }).map((_, idx) => {
-            const n = coercedEpisodes.length + idx + 1;
-            return {
-              episodeNumber: n,
-              seasonNumber: 1,
-              title: `Episode ${n}`,
-              runtime: 50,
-              viewers: 0,
-              completionRate: 0,
-              averageWatchTime: 0,
-              replayViews: 0,
-              productionCost: 0,
-              weeklyViews: [],
-              cumulativeViews: 0,
-              viewerRetention: 0,
-            };
-          })
-        );
-
-    const seasonOut: SeasonData = {
-      ...existing,
-      seasonNumber: 1,
-      totalEpisodes,
-      releaseFormat,
-      episodes: paddedEpisodes,
-      episodesAired: clampInt(existing.episodesAired ?? 0, 0, totalEpisodes),
-    };
-
-    const changed =
-      (existing.totalEpisodes ?? 0) !== totalEpisodes ||
-      existing.releaseFormat !== releaseFormat ||
-      paddedEpisodes.length !== (existing.episodes?.length ?? 0) ||
-      seasonOut.episodesAired !== (existing.episodesAired ?? 0);
-
-    return { season: seasonOut, changed };
+  if (season?.premiereDate && typeof season.premiereDate.week === 'number' && typeof season.premiereDate.year === 'number') {
+    return absWeek(season.premiereDate.week, season.premiereDate.year);
   }
 
-  const episodes: EpisodeData[] = Array.from({ length: totalEpisodes }).map((_, idx) => {
-    const n = idx + 1;
+  // Fallback: season 1 premieres on project release.
+  if ((season.seasonNumber ?? seasonIndex + 1) === 1) return releaseAbs;
+
+  return null;
+}
+
+function seasonTotalEpisodes(project: Project, season: SeasonData, seasonIndex: number): number {
+  const fallback = (seasonIndex === 0 ? project.episodeCount : undefined) ?? 10;
+  const n = (season.totalEpisodes ?? fallback) as number;
+  return Math.max(1, clampInt(n, 1, 30));
+}
+
+function ensureSeasonEpisodes(params: {
+  project: Project;
+  season: SeasonData;
+  seasonIndex: number;
+}): { season: SeasonData; changed: boolean } {
+  const { project, season, seasonIndex } = params;
+
+  const totalEpisodes = seasonTotalEpisodes(project, season, seasonIndex);
+  const releaseFormat = normalizeReleaseFormat(project, season);
+
+  const coercedEpisodes = Array.isArray(season.episodes) ? season.episodes : [];
+
+  const paddedEpisodes: EpisodeData[] = coercedEpisodes.length >= totalEpisodes
+    ? coercedEpisodes.slice(0, totalEpisodes)
+    : coercedEpisodes.concat(
+        Array.from({ length: totalEpisodes - coercedEpisodes.length }).map((_, idx) => {
+          const n = coercedEpisodes.length + idx + 1;
+          return {
+            episodeNumber: n,
+            seasonNumber: season.seasonNumber ?? seasonIndex + 1,
+            title: `Episode ${n}`,
+            runtime: 50,
+            viewers: 0,
+            completionRate: 0,
+            averageWatchTime: 0,
+            replayViews: 0,
+            productionCost: 0,
+            weeklyViews: [],
+            cumulativeViews: 0,
+            viewerRetention: 0,
+          };
+        })
+      );
+
+  const seasonOut: SeasonData = {
+    ...season,
+    seasonNumber: season.seasonNumber ?? seasonIndex + 1,
+    totalEpisodes,
+    releaseFormat,
+    productionStatus: 'complete',
+    episodesAired: clampInt(season.episodesAired ?? 0, 0, totalEpisodes),
+    episodes: paddedEpisodes,
+  };
+
+  const changed =
+    (season.totalEpisodes ?? 0) !== totalEpisodes ||
+    season.releaseFormat !== releaseFormat ||
+    paddedEpisodes.length !== (season.episodes?.length ?? 0) ||
+    seasonOut.episodesAired !== (season.episodesAired ?? 0) ||
+    season.productionStatus !== 'complete';
+
+  return { season: seasonOut, changed };
+}
+
+function ensureSeasonOne(project: Project): { seasons: SeasonData[]; changed: boolean } {
+  const seasonsIn = Array.isArray(project.seasons) ? project.seasons : [];
+
+  if (seasonsIn.length === 0) {
+    const totalEpisodes = Math.max(1, clampInt((project.episodeCount ?? 10) as number, 1, 30));
+    const releaseFormat = normalizeReleaseFormat(project);
+
+    const episodes: EpisodeData[] = Array.from({ length: totalEpisodes }).map((_, idx) => {
+      const n = idx + 1;
+      return {
+        episodeNumber: n,
+        seasonNumber: 1,
+        title: `Episode ${n}`,
+        runtime: 50,
+        viewers: 0,
+        completionRate: 0,
+        averageWatchTime: 0,
+        replayViews: 0,
+        productionCost: 0,
+        weeklyViews: [],
+        cumulativeViews: 0,
+        viewerRetention: 0,
+      };
+    });
+
     return {
-      episodeNumber: n,
-      seasonNumber: 1,
-      title: `Episode ${n}`,
-      runtime: 50,
-      viewers: 0,
-      completionRate: 0,
-      averageWatchTime: 0,
-      replayViews: 0,
-      productionCost: 0,
-      weeklyViews: [],
-      cumulativeViews: 0,
-      viewerRetention: 0,
+      seasons: [
+        {
+          seasonNumber: 1,
+          totalEpisodes,
+          episodesAired: 0,
+          releaseFormat,
+          averageViewers: 0,
+          seasonCompletionRate: 0,
+          seasonDropoffRate: 0,
+          totalBudget: project.budget?.total ?? 0,
+          spentBudget: 0,
+          productionStatus: 'complete',
+          episodes,
+        },
+      ],
+      changed: true,
     };
+  }
+
+  const first = ensureSeasonEpisodes({ project, season: seasonsIn[0], seasonIndex: 0 });
+
+  let restChanged = false;
+  const rest = seasonsIn.slice(1).map((s, idx) => {
+    const out = ensureSeasonEpisodes({ project, season: s, seasonIndex: idx + 1 });
+    if (out.changed) restChanged = true;
+    return out.season;
   });
 
   return {
-    season: {
-      seasonNumber: 1,
-      totalEpisodes,
-      episodesAired: 0,
-      releaseFormat,
-      averageViewers: 0,
-      seasonCompletionRate: 0,
-      seasonDropoffRate: 0,
-      totalBudget: project.budget?.total ?? 0,
-      spentBudget: 0,
-      productionStatus: 'complete',
-      episodes,
-    },
-    changed: true,
+    seasons: [first.season, ...rest],
+    changed: first.changed || restChanged,
   };
 }
 
@@ -155,33 +200,78 @@ export const PlatformOriginalsReleaseCadenceSystem: TickSystem = {
       const releaseAbs = absWeek(p.releaseWeek, p.releaseYear);
       if (releaseAbs > currentAbs) return p;
 
-      const releaseFormat = normalizeReleaseFormat(p);
-      const { season, changed: seasonChanged } = ensureSeason(p);
+      const ensured = ensureSeasonOne(p);
+      const seasonsIn = ensured.seasons;
 
+      type SeasonCandidate = {
+        season: SeasonData;
+        seasonIndex: number;
+        premiereAbs: number;
+        total: number;
+        isComplete: boolean;
+      };
+
+      const candidates: SeasonCandidate[] = seasonsIn
+        .map((season, seasonIndex) => {
+          const premiereAbs = seasonPremiereAbs({ season, seasonIndex, releaseAbs });
+          if (premiereAbs == null) return null;
+          if (premiereAbs > currentAbs) return null;
+
+          const total = seasonTotalEpisodes(p, season, seasonIndex);
+          const aired = clampInt(season.episodesAired ?? 0, 0, total);
+
+          return {
+            season,
+            seasonIndex,
+            premiereAbs,
+            total,
+            isComplete: aired >= total,
+          };
+        })
+        .filter((c): c is SeasonCandidate => c !== null);
+
+      // Choose the most recently premiered season that isn't complete.
+      const active =
+        candidates
+          .filter((c) => !c.isComplete)
+          .sort((a, b) => b.premiereAbs - a.premiereAbs)[0] ??
+        candidates.sort((a, b) => b.premiereAbs - a.premiereAbs)[0] ??
+        null;
+
+      if (!active) {
+        if (!ensured.changed) return p;
+        changed = true;
+        return {
+          ...p,
+          seasons: seasonsIn,
+        };
+      }
+
+      const releaseFormat = normalizeReleaseFormat(p, active.season);
       const batchSize = releaseFormat === 'batch' ? 3 : 1;
-      const weeksSincePremiere = Math.max(0, currentAbs - releaseAbs);
+      const weeksSincePremiere = Math.max(0, currentAbs - active.premiereAbs);
 
       let expectedAired = 0;
       if (releaseFormat === 'binge') {
-        expectedAired = season.totalEpisodes;
+        expectedAired = active.total;
       } else {
-        expectedAired = Math.min(season.totalEpisodes, (weeksSincePremiere + 1) * batchSize);
+        expectedAired = Math.min(active.total, (weeksSincePremiere + 1) * batchSize);
       }
 
-      expectedAired = clampInt(expectedAired, 0, season.totalEpisodes);
+      expectedAired = clampInt(expectedAired, 0, active.total);
 
-      const prevAired = clampInt(season.episodesAired ?? 0, 0, season.totalEpisodes);
+      const prevAired = clampInt(active.season.episodesAired ?? 0, 0, active.total);
       const nextAired = Math.max(prevAired, expectedAired);
 
-      let episodesOut = season.episodes;
+      let episodesOut = active.season.episodes;
 
       if (nextAired > prevAired) {
-        episodesOut = season.episodes.map((ep) => {
+        episodesOut = active.season.episodes.map((ep) => {
           if (!ep) return ep;
           if (ep.airDate) return ep;
           if (ep.episodeNumber > nextAired) return ep;
 
-          const abs = releaseAbs + (releaseFormat === 'binge' ? 0 : Math.floor((ep.episodeNumber - 1) / batchSize));
+          const abs = active.premiereAbs + (releaseFormat === 'binge' ? 0 : Math.floor((ep.episodeNumber - 1) / batchSize));
           const { week, year } = fromAbs(abs);
           return {
             ...ep,
@@ -190,19 +280,17 @@ export const PlatformOriginalsReleaseCadenceSystem: TickSystem = {
         });
       }
 
-      const premiereDate = season.premiereDate ?? { week: p.releaseWeek, year: p.releaseYear };
+      const premiereDate = active.season.premiereDate ?? fromAbs(active.premiereAbs);
 
-      const dropsTotal = releaseFormat === 'binge' ? 1 : Math.ceil(season.totalEpisodes / batchSize);
-      const finaleAbs = releaseAbs + (dropsTotal - 1);
-      const finaleDate = nextAired >= season.totalEpisodes ? (season.finaleDate ?? fromAbs(finaleAbs)) : season.finaleDate;
+      const dropsTotal = releaseFormat === 'binge' ? 1 : Math.ceil(active.total / batchSize);
+      const finaleAbs = active.premiereAbs + (dropsTotal - 1);
+      const finaleDate = nextAired >= active.total ? (active.season.finaleDate ?? fromAbs(finaleAbs)) : active.season.finaleDate;
 
-      const productionStatus = 'complete';
-
-      if (nextAired >= season.totalEpisodes && !season.finaleDate) {
+      if (nextAired >= active.total && !active.season.finaleDate) {
         ctx.recap.push({
           type: 'release',
           title: 'Season finale',
-          body: `Season 1 of "${p.title}" finished airing.`,
+          body: `Season ${active.season.seasonNumber ?? active.seasonIndex + 1} of "${p.title}" finished airing.`,
           severity: 'good',
           relatedIds: {
             projectId: p.id,
@@ -211,21 +299,37 @@ export const PlatformOriginalsReleaseCadenceSystem: TickSystem = {
       }
 
       const seasonOut: SeasonData = {
-        ...season,
+        ...active.season,
         releaseFormat,
         episodesAired: nextAired,
         premiereDate,
         finaleDate,
-        productionStatus,
+        productionStatus: 'complete',
         episodes: episodesOut,
       };
 
+      const seasonsOut = seasonsIn.map((s, idx) => (idx === active.seasonIndex ? seasonOut : s));
+
+      // Auto-schedule the next season premiere if a later season exists but has no date.
+      if (nextAired >= active.total) {
+        const nextSeasonIndex = active.seasonIndex + 1;
+        const nextSeason = seasonsOut[nextSeasonIndex];
+        if (nextSeason && !nextSeason.premiereDate) {
+          const hiatusWeeks = 26;
+          const nextPremiereAbs = finaleAbs + hiatusWeeks;
+          seasonsOut[nextSeasonIndex] = {
+            ...nextSeason,
+            premiereDate: fromAbs(nextPremiereAbs),
+          };
+        }
+      }
+
       const changedThis =
-        seasonChanged ||
+        ensured.changed ||
         nextAired !== prevAired ||
-        !season.premiereDate ||
-        (nextAired >= season.totalEpisodes && !season.finaleDate) ||
-        episodesOut !== season.episodes;
+        !active.season.premiereDate ||
+        (nextAired >= active.total && !active.season.finaleDate) ||
+        episodesOut !== active.season.episodes;
 
       if (!changedThis) return p;
 
@@ -233,11 +337,11 @@ export const PlatformOriginalsReleaseCadenceSystem: TickSystem = {
 
       return {
         ...p,
-        seasons: [seasonOut, ...(p.seasons ?? []).slice(1)],
-        currentSeason: p.currentSeason ?? 1,
-        totalOrderedSeasons: p.totalOrderedSeasons ?? 1,
-        episodeCount: p.episodeCount ?? seasonOut.totalEpisodes,
-        releaseFormat,
+        seasons: seasonsOut,
+        currentSeason: active.season.seasonNumber ?? active.seasonIndex + 1,
+        totalOrderedSeasons: p.totalOrderedSeasons ?? seasonsOut.length,
+        episodeCount: p.episodeCount ?? seasonsOut[0]?.totalEpisodes,
+        releaseFormat: normalizeReleaseFormat(p, seasonsOut[0]),
       };
     });
 

@@ -23,54 +23,121 @@ function clampInt(n: number, min: number, max: number): number {
 
 type ReleaseFormat = 'weekly' | 'binge' | 'batch';
 
-function normalizeReleaseFormat(project: Project): ReleaseFormat {
-  const f = project.releaseFormat;
-  return f === 'binge' || f === 'batch' || f === 'weekly' ? f : 'weekly';
+function normalizeReleaseFormatValue(value: unknown): ReleaseFormat {
+  return value === 'binge' || value === 'batch' || value === 'weekly' ? value : 'weekly';
 }
 
-function totalEpisodes(project: Project): number {
-  const n = (project.episodeCount ?? project.seasons?.[0]?.totalEpisodes ?? 0) as number;
-  if (typeof n === 'number' && n > 0) return clampInt(n, 1, 30);
-  return 0;
+function normalizeReleaseFormat(project: Project, season?: { releaseFormat?: unknown }): ReleaseFormat {
+  return normalizeReleaseFormatValue(season?.releaseFormat ?? project.releaseFormat);
 }
 
-function episodesAired(project: Project, currentAbs: number, releaseAbs: number, format: ReleaseFormat): number {
-  const total = totalEpisodes(project);
-  if (total <= 0) return 0;
+function seasonPremiereAbs(params: {
+  releaseAbs: number;
+  season: any;
+  seasonIndex: number;
+}): number | null {
+  const { releaseAbs, season, seasonIndex } = params;
 
-  const seasonAiredRaw = project.seasons?.[0]?.episodesAired;
-  if (typeof seasonAiredRaw === 'number') {
-    return clampInt(seasonAiredRaw, 0, total);
+  if (season?.premiereDate && typeof season.premiereDate.week === 'number' && typeof season.premiereDate.year === 'number') {
+    return absWeek(season.premiereDate.week, season.premiereDate.year);
   }
 
-  if (currentAbs < releaseAbs) return 0;
+  if ((season?.seasonNumber ?? seasonIndex + 1) === 1) return releaseAbs;
 
-  if (format === 'binge') return total;
+  return null;
+}
 
-  const weeksSincePremiere = Math.max(0, currentAbs - releaseAbs);
+function seasonTotalEpisodes(project: Project, season: any, seasonIndex: number): number {
+  const fallbackRaw = seasonIndex === 0 ? project.episodeCount : 10;
+  const fallback = typeof fallbackRaw === 'number' && fallbackRaw > 0 ? fallbackRaw : 10;
+
+  const nRaw = season?.totalEpisodes;
+  const n = typeof nRaw === 'number' && nRaw > 0 ? nRaw : fallback;
+
+  return clampInt(n, 1, 30);
+}
+
+function seasonEpisodesAired(params: {
+  season: any;
+  currentAbs: number;
+  premiereAbs: number;
+  format: ReleaseFormat;
+  totalEpisodes: number;
+}): number {
+  const { season, currentAbs, premiereAbs, format, totalEpisodes } = params;
+
+  const recorded = typeof season?.episodesAired === 'number' ? clampInt(season.episodesAired, 0, totalEpisodes) : 0;
+
+  if (currentAbs < premiereAbs) return recorded;
+
+  if (format === 'binge') return Math.max(recorded, totalEpisodes);
+
+  const weeksSincePremiere = Math.max(0, currentAbs - premiereAbs);
   const batchSize = format === 'batch' ? 3 : 1;
+  const derived = clampInt(Math.min(totalEpisodes, (weeksSincePremiere + 1) * batchSize), 0, totalEpisodes);
 
-  return clampInt(Math.min(total, (weeksSincePremiere + 1) * batchSize), 0, total);
+  return Math.max(recorded, derived);
 }
 
 function effectiveArrivalAbs(project: Project, releaseAbs: number, currentAbs: number): number {
-  const format = normalizeReleaseFormat(project);
+  const baseFormat = normalizeReleaseFormat(project);
 
   // Only series-like titles get episode cadence behavior.
   if (project.type !== 'series' && project.type !== 'limited-series') return releaseAbs;
 
-  if (format === 'binge') return releaseAbs;
+  const seasons = Array.isArray(project.seasons) ? project.seasons : [];
 
-  const total = totalEpisodes(project);
-  if (total <= 0) return releaseAbs;
+  if (seasons.length === 0) {
+    if (baseFormat === 'binge') return releaseAbs;
 
-  const batchSize = format === 'batch' ? 3 : 1;
-  const aired = episodesAired(project, currentAbs, releaseAbs, format);
-  const dropsAired = aired > 0 ? Math.ceil(aired / batchSize) : 0;
-  const totalDrops = Math.max(1, Math.ceil(total / batchSize));
+    const total = typeof project.episodeCount === 'number' && project.episodeCount > 0 ? clampInt(project.episodeCount, 1, 30) : 0;
+    if (total <= 0) return releaseAbs;
 
-  const lastDropIndex = clampInt(dropsAired - 1, 0, totalDrops - 1);
-  return releaseAbs + lastDropIndex;
+    const batchSize = baseFormat === 'batch' ? 3 : 1;
+    const weeksSincePremiere = Math.max(0, currentAbs - releaseAbs);
+    const derivedAired = clampInt(Math.min(total, (weeksSincePremiere + 1) * batchSize), 0, total);
+
+    const dropsAired = derivedAired > 0 ? Math.ceil(derivedAired / batchSize) : 0;
+    const totalDrops = Math.max(1, Math.ceil(total / batchSize));
+
+    const lastDropIndex = clampInt(dropsAired - 1, 0, totalDrops - 1);
+    return releaseAbs + lastDropIndex;
+  }
+
+  let bestAbs = releaseAbs;
+
+  for (let i = 0; i < seasons.length; i += 1) {
+    const season = seasons[i];
+    const premiereAbs = seasonPremiereAbs({ releaseAbs, season, seasonIndex: i });
+    if (premiereAbs == null) continue;
+    if (premiereAbs > currentAbs) continue;
+
+    const total = seasonTotalEpisodes(project, season, i);
+    if (total <= 0) continue;
+
+    const format = normalizeReleaseFormat(project, season);
+
+    const aired = seasonEpisodesAired({
+      season,
+      currentAbs,
+      premiereAbs,
+      format,
+      totalEpisodes: total,
+    });
+
+    if (aired <= 0) continue;
+
+    const batchSize = format === 'batch' ? 3 : 1;
+
+    const dropsAired = format === 'binge' ? 1 : Math.ceil(aired / batchSize);
+    const totalDrops = Math.max(1, Math.ceil(total / batchSize));
+    const lastDropIndex = clampInt(dropsAired - 1, 0, totalDrops - 1);
+
+    const candidate = Math.min(currentAbs, premiereAbs + lastDropIndex);
+    if (candidate > bestAbs) bestAbs = candidate;
+  }
+
+  return bestAbs;
 }
 
 type PlatformContentPresence = {
