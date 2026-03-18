@@ -122,9 +122,10 @@ function ensureSeasonEpisodes(params: {
     existingStatus === 'planning' ||
     existingStatus === 'filming' ||
     existingStatus === 'post-production' ||
+    existingStatus === 'airing' ||
     existingStatus === 'complete';
 
-  const productionStatus: SeasonData['productionStatus'] = seasonIndex === 0 ? 'complete' : (validExistingStatus ? existingStatus : 'planning');
+  const productionStatus: SeasonData['productionStatus'] = validExistingStatus ? existingStatus : 'planning';
 
   const seasonOut: SeasonData = {
     ...season,
@@ -183,7 +184,7 @@ function ensureSeasonOne(project: Project): { seasons: SeasonData[]; changed: bo
           seasonDropoffRate: 0,
           totalBudget: project.budget?.total ?? 0,
           spentBudget: 0,
-          productionStatus: 'complete',
+          productionStatus: 'airing',
           episodes,
         },
       ],
@@ -339,13 +340,15 @@ export const PlatformOriginalsReleaseCadenceSystem: TickSystem = {
         });
       }
 
+      const productionStatus: SeasonData['productionStatus'] = nextAired >= active.total ? 'complete' : 'airing';
+
       const seasonOut: SeasonData = {
         ...active.season,
         releaseFormat,
         episodesAired: nextAired,
         premiereDate,
         finaleDate,
-        productionStatus: 'complete',
+        productionStatus,
         episodes: episodesOut,
       };
 
@@ -372,6 +375,7 @@ export const PlatformOriginalsReleaseCadenceSystem: TickSystem = {
         ensured.changed ||
         scheduledNextSeason ||
         nextAired !== prevAired ||
+        productionStatus !== active.season.productionStatus ||
         !active.season.premiereDate ||
         (nextAired >= active.total && !active.season.finaleDate) ||
         episodesOut !== active.season.episodes;

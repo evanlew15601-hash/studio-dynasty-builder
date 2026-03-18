@@ -210,6 +210,7 @@ describe('Streaming Wars: Originals release cadence (multi-season)', () => {
 
     expect(out.currentSeason).toBe(2);
     expect(out.seasons?.[1]?.episodesAired).toBe(3);
+    expect(out.seasons?.[1]?.productionStatus).toBe('airing');
 
     const season2 = out.seasons?.[1];
     expect(season2.episodes?.[0]?.airDate).toEqual({ week: 20, year: 2027 });

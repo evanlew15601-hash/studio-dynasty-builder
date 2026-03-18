@@ -117,7 +117,7 @@ export interface SeasonData {
   // Production
   totalBudget: number;
   spentBudget: number;
-  productionStatus: 'planning' | 'filming' | 'post-production' | 'complete';
+  productionStatus: 'planning' | 'filming' | 'post-production' | 'airing' | 'complete';
   
   // Release schedule
   premiereDate?: {
