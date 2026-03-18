@@ -4,6 +4,11 @@ import reactHooks from "eslint-plugin-react-hooks";
 import reactRefresh from "eslint-plugin-react-refresh";
 import tseslint from "typescript-eslint";
 
+const tsNoUnusedExpressions = [
+  "error",
+  { allowShortCircuit: true, allowTernary: true, allowTaggedTemplates: true },
+];
+
 export default tseslint.config(
   {
     ignores: [
@@ -38,6 +43,9 @@ export default tseslint.config(
       ecmaVersion: 2020,
       globals: globals.node,
     },
+    rules: {
+      "@typescript-eslint/no-unused-expressions": tsNoUnusedExpressions,
+    },
   },
   {
     extends: [js.configs.recommended, ...tseslint.configs.recommended],
@@ -49,6 +57,9 @@ export default tseslint.config(
         ...globals.vitest,
       },
     },
+    rules: {
+      "@typescript-eslint/no-unused-expressions": tsNoUnusedExpressions,
+    },
   },
   {
     extends: [js.configs.recommended, ...tseslint.configs.recommended],
@@ -56,6 +67,9 @@ export default tseslint.config(
     languageOptions: {
       ecmaVersion: 2020,
       globals: globals.node,
+    },
+    rules: {
+      "@typescript-eslint/no-unused-expressions": tsNoUnusedExpressions,
     },
   },
   {
@@ -78,10 +92,7 @@ export default tseslint.config(
       "@typescript-eslint/no-unused-vars": "off",
       "@typescript-eslint/no-explicit-any": "off",
       "@typescript-eslint/no-empty-object-type": "off",
-      "@typescript-eslint/no-unused-expressions": [
-        "error",
-        { allowShortCircuit: true, allowTernary: true, allowTaggedTemplates: true },
-      ],
+      "@typescript-eslint/no-unused-expressions": tsNoUnusedExpressions,
     },
   }
 );
