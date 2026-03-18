@@ -711,7 +711,7 @@ export const StreamingWarsPlatformApp: React.FC = () => {
                     ensureLaunchDefaults();
                     setLaunchOpen(true);
                   }}
-                  disabled={!hasEnoughBudget || !hasEnoughReputation || !hasEnoughReleases}
+                  disabled={!canLaunchPlatform}
                 >
                   Launch Platform
                 </Button>
