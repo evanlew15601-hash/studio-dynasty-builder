@@ -8,6 +8,10 @@ export default tseslint.config(
   {
     ignores: [
       "dist",
+      "coverage",
+      "playwright-report",
+      "sbom",
+      "src-tauri/target",
       "**/*.timestamp-*",
       "**/*.timestamp-*.mjs",
     ],
@@ -23,7 +27,31 @@ export default tseslint.config(
   },
   {
     extends: [js.configs.recommended, ...tseslint.configs.recommended],
-    files: ["**/*.{ts,tsx}"],
+    files: [
+      "vite.config.ts",
+      "vitest.config.ts",
+      "playwright.config.ts",
+      "types/**/*.d.ts",
+    ],
+    languageOptions: {
+      ecmaVersion: 2020,
+      globals: globals.node,
+    },
+  },
+  {
+    extends: [js.configs.recommended, ...tseslint.configs.recommended],
+    files: ["tests/**/*.{ts,tsx}"],
+    languageOptions: {
+      ecmaVersion: 2020,
+      globals: {
+        ...globals.node,
+        ...globals.vitest,
+      },
+    },
+  },
+  {
+    extends: [js.configs.recommended, ...tseslint.configs.recommended],
+    files: ["src/**/*.{ts,tsx}"],
     languageOptions: {
       ecmaVersion: 2020,
       globals: globals.browser,
