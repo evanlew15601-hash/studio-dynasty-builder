@@ -194,6 +194,7 @@ export const PlatformOriginalsReleaseCadenceSystem: TickSystem = {
       if (!p) return p;
       if (!isStreamingWarsOriginal(p, playerPlatformId)) return p;
       if (p.status !== 'released') return p;
+      if (p.type !== 'series' && p.type !== 'limited-series') return p;
 
       if (typeof p.releaseWeek !== 'number' || typeof p.releaseYear !== 'number') return p;
 
@@ -310,6 +311,8 @@ export const PlatformOriginalsReleaseCadenceSystem: TickSystem = {
 
       const seasonsOut = seasonsIn.map((s, idx) => (idx === active.seasonIndex ? seasonOut : s));
 
+      let scheduledNextSeason = false;
+
       // Auto-schedule the next season premiere if a later season exists but has no date.
       if (nextAired >= active.total) {
         const nextSeasonIndex = active.seasonIndex + 1;
@@ -321,11 +324,13 @@ export const PlatformOriginalsReleaseCadenceSystem: TickSystem = {
             ...nextSeason,
             premiereDate: fromAbs(nextPremiereAbs),
           };
+          scheduledNextSeason = true;
         }
       }
 
       const changedThis =
         ensured.changed ||
+        scheduledNextSeason ||
         nextAired !== prevAired ||
         !active.season.premiereDate ||
         (nextAired >= active.total && !active.season.finaleDate) ||

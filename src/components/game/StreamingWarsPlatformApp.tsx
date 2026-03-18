@@ -1170,7 +1170,9 @@ export const StreamingWarsPlatformApp: React.FC = () => {
 
                       const releaseFormat = p.releaseFormat === 'binge' || p.releaseFormat === 'batch' || p.releaseFormat === 'weekly' ? p.releaseFormat : 'weekly';
 
-                      const seasons = Array.isArray(p.seasons) ? p.seasons : [];
+                      const isSeriesLike = p.type === 'series' || p.type === 'limited-series';
+
+                      const seasons = isSeriesLike && Array.isArray(p.seasons) ? p.seasons : [];
                       const currentAbs = absWeek(gameState.currentWeek ?? 0, gameState.currentYear ?? 0);
                       const releaseAbs =
                         typeof p.releaseWeek === 'number' && typeof p.releaseYear === 'number' ? absWeek(p.releaseWeek, p.releaseYear) : currentAbs;
@@ -1222,13 +1224,14 @@ export const StreamingWarsPlatformApp: React.FC = () => {
                         }
                       }
 
-                      const totalEpisodes =
-                        typeof (displaySeason as any)?.totalEpisodes === 'number'
+                      const totalEpisodes = isSeriesLike
+                        ? typeof (displaySeason as any)?.totalEpisodes === 'number'
                           ? (displaySeason as any).totalEpisodes
                           : currentSeason === 1 && typeof p.episodeCount === 'number'
                             ? p.episodeCount
-                            : 10;
-                      const episodesAired = (displaySeason as any)?.episodesAired;
+                            : 10
+                        : undefined;
+                      const episodesAired = isSeriesLike ? (displaySeason as any)?.episodesAired : undefined;
 
                       const phaseLabel = phase
                         ? `${phase}${typeof p.phaseDuration === 'number' && p.phaseDuration > 0 ? ` • ${Math.floor(p.phaseDuration)}w left` : ''}`
