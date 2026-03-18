@@ -91,6 +91,7 @@ export const StreamingWarsPlatformApp: React.FC = () => {
   const platformMarket = gameState?.platformMarket;
 
   const [launchOpen, setLaunchOpen] = useState(false);
+  const [onboardingOpen, setOnboardingOpen] = useState(false);
   const [launchName, setLaunchName] = useState('');
   const [launchVibe, setLaunchVibe] = useState('prestige');
   const [launchAdSupportedPct, setLaunchAdSupportedPct] = useState(50);
@@ -444,6 +445,7 @@ export const StreamingWarsPlatformApp: React.FC = () => {
     });
 
     setLaunchOpen(false);
+    setOnboardingOpen(true);
   };
 
   const addWeeks = (startWeek: number, startYear: number, duration: number) => {
@@ -1551,6 +1553,52 @@ export const StreamingWarsPlatformApp: React.FC = () => {
             </Button>
             <Button type="button" onClick={onLaunchPlatform} disabled={!canLaunchPlatform}>
               Launch
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
+
+     <Dialog open={onboardingOpen} onOpenChange={setOnboardingOpen}>
+        <DialogContent>
+          <DialogHeader>
+            <DialogTitle>Welcome to Streaming Wars</DialogTitle>
+          </DialogHeader>
+
+          <div className="space-y-3 text-sm">
+            <p className="text-muted-foreground">
+              Your platform updates weekly. The loop is: exclusives + Originals boost freshness and reduce churn, while promotion and pricing
+              determine growth vs. burn.
+            </p>
+
+            <div className="rounded border p-3 space-y-2">
+              <div className="flex items-start gap-2">
+                <span className="font-medium">1.</span>
+                <span>
+                  Keep <span className="font-medium">churn</span> under control. If net adds go negative, crises can fire.
+                </span>
+              </div>
+              <div className="flex items-start gap-2">
+                <span className="font-medium">2.</span>
+                <span>
+                  <span className="font-medium">Exclusives matter</span>. Licensing out titles weakens differentiation.
+                </span>
+              </div>
+              <div className="flex items-start gap-2">
+                <span className="font-medium">3.</span>
+                <span>
+                  <span className="font-medium">Distress is slow</span>, but extreme sustained losses can force a sale or shutdown.
+                </span>
+              </div>
+            </div>
+
+            <p className="text-xs text-muted-foreground">
+              Tip: The Week Recap will warn you well before any forced sale/shutdown becomes possible.
+            </p>
+          </div>
+
+          <DialogFooter>
+            <Button type="button" onClick={() => setOnboardingOpen(false)}>
+              Got it
             </Button>
           </DialogFooter>
         </DialogContent>

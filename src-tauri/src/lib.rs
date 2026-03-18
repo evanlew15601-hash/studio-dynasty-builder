@@ -94,6 +94,28 @@ fn steam_open_overlay(state: tauri::State<SteamState>, dialog: String) -> Result
 }
 
 #[tauri::command(rename_all = "camelCase")]
+fn steam_open_store_overlay(state: tauri::State<SteamState>, app_id: u32) -> Result<(), String> {
+  #[cfg(feature = "steam")]
+  {
+    let Some(client) = state.client.as_ref() else {
+      return Err("Steam API is not available".to_string());
+    };
+
+    client
+      .friends()
+      .activate_game_overlay_to_store(app_id.into(), steamworks::OverlayToStoreFlag::AddToCartAndShow);
+
+    Ok(())
+  }
+
+  #[cfg(not(feature = "steam"))]
+  {
+    let _ = (state, app_id);
+    Err("Steam support is not enabled in this build".to_string())
+  }
+}
+
+#[tauri::command(rename_all = "camelCase")]
 fn steam_is_dlc_installed(state: tauri::State<SteamState>, dlc_app_id: u32) -> bool {
   #[cfg(feature = "steam")]
   {
@@ -237,6 +259,7 @@ pub fn run() {
       steam_is_dlc_installed,
       steam_unlock_achievement,
       steam_open_overlay,
+      steam_open_store_overlay,
       get_saves_dir,
       save_slot,
       load_slot,

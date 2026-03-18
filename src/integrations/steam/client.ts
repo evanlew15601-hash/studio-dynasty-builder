@@ -52,3 +52,10 @@ export async function openSteamOverlay(dialog: string): Promise<void> {
 
   await invokeSteam<void>('steam_open_overlay', { dialog });
 }
+
+export async function openSteamStoreOverlay(appId: number): Promise<void> {
+  if (!isTauriRuntime()) return;
+  if (!(await isSteamAvailable())) return;
+
+  await invokeSteam<void>('steam_open_store_overlay', { appId });
+}
