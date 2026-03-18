@@ -25,61 +25,133 @@ export const PlatformCrisisSystem: TickSystem = {
 
     // "Spike" is intentionally high: roughly 8–10% monthly churn.
     const isChurnSpike = kpis.churnRate >= 0.02 && kpis.netAdds < 0;
-    if (!isChurnSpike) return state;
 
-    const subsLost = Math.max(0, -kpis.netAdds);
+    if (isChurnSpike) {
+      const subsLost = Math.max(0, -kpis.netAdds);
 
-    const event: GameEvent = {
-      id: `platform:churn-spike:${ctx.year}:W${ctx.week}:${player.id}`,
-      title: 'Churn spike: subscriber backlash',
-      description: `${player.name} is seeing a churn spike this week.\n\n- Net adds: ${kpis.netAdds}\n- Churn: ${(kpis.churnRate * 100).toFixed(2)}%\n\nIf you don’t respond, the churn spiral may worsen and force you into a distressed sale later.`,
+      const event: GameEvent = {
+        id: `platform:churn-spike:${ctx.year}:W${ctx.week}:${player.id}`,
+        title: 'Churn spike: subscriber backlash',
+        description: `${player.name} is seeing a churn spike this week.\n\n- Net adds: ${kpis.netAdds}\n- Churn: ${(kpis.churnRate * 100).toFixed(2)}%\n\nIf you don’t respond, the churn spiral may worsen and force you into a distressed sale later.`,
+        type: 'crisis',
+        triggerDate: triggerDateFromWeekYear(ctx.year, ctx.week),
+        data: {
+          kind: 'platform:churn-spike',
+          playerPlatformId: player.id,
+          netAdds: kpis.netAdds,
+          churnRate: kpis.churnRate,
+          suggestedLoss: subsLost,
+        },
+        choices: [
+          {
+            id: 'retention-campaign',
+            text: 'Launch a retention campaign',
+            requirements: [
+              {
+                type: 'budget',
+                threshold: 20_000_000,
+                description: 'Requires $20M budget for emergency retention marketing',
+              },
+            ],
+            consequences: [
+              {
+                type: 'budget',
+                impact: -20_000_000,
+                description: '-$20M emergency campaign spend',
+              },
+            ],
+          },
+          {
+            id: 'cut-price',
+            text: 'Cut price (reduce ARPU to stabilize churn)',
+            consequences: [
+              {
+                type: 'reputation',
+                impact: -1,
+                description: '-1 studio reputation (price war optics)',
+              },
+            ],
+          },
+          {
+            id: 'hold-course',
+            text: 'Hold course',
+            consequences: [
+              {
+                type: 'reputation',
+                impact: -2,
+                description: '-2 studio reputation (press backlash)',
+              },
+            ],
+          },
+        ],
+      };
+
+      return {
+        ...state,
+        eventQueue: [...(state.eventQueue || []), event],
+      };
+    }
+
+    // Deterministic outage crisis: only hits when you have real scale, but low service quality.
+    const freshness = player.freshness ?? 55;
+    const subs = player.subscribers ?? 0;
+
+    const isOutageWeek = ctx.week === 26;
+    const isOutageRisk = freshness <= 25 && subs >= 5_000_000;
+
+    if (!isOutageWeek || !isOutageRisk) return state;
+
+    const suggestedLoss = Math.max(0, Math.floor(subs * ctx.rng.nextFloat(0.003, 0.012)));
+
+    const outageEvent: GameEvent = {
+      id: `platform:outage:${ctx.year}:W${ctx.week}:${player.id}`,
+      title: 'Service outage: platform reliability failure',
+      description: `${player.name} suffered a major outage this week. Subscribers are furious, and churn is spiking.`,
       type: 'crisis',
       triggerDate: triggerDateFromWeekYear(ctx.year, ctx.week),
       data: {
-        kind: 'platform:churn-spike',
+        kind: 'platform:outage',
         playerPlatformId: player.id,
-        netAdds: kpis.netAdds,
-        churnRate: kpis.churnRate,
-        suggestedLoss: subsLost,
+        suggestedLoss,
       },
       choices: [
         {
-          id: 'retention-campaign',
-          text: 'Launch a retention campaign',
+          id: 'refunds',
+          text: 'Issue refunds and credits',
           requirements: [
             {
               type: 'budget',
-              threshold: 20_000_000,
-              description: 'Requires $20M budget for emergency retention marketing',
+              threshold: 35_000_000,
+              description: 'Requires $35M budget for refunds and customer credits',
             },
           ],
           consequences: [
             {
               type: 'budget',
-              impact: -20_000_000,
-              description: '-$20M emergency campaign spend',
+              impact: -35_000_000,
+              description: '-$35M refunds and credits',
             },
           ],
         },
         {
-          id: 'cut-price',
-          text: 'Cut price (reduce ARPU to stabilize churn)',
+          id: 'apology',
+          text: 'Public apology + fast fix',
           consequences: [
             {
               type: 'reputation',
               impact: -1,
-              description: '-1 studio reputation (price war optics)',
+              description: '-1 studio reputation (outage headlines)',
             },
           ],
         },
         {
-          id: 'hold-course',
-          text: 'Hold course',
+          id: 'ignore',
+          text: 'Downplay it',
           consequences: [
             {
               type: 'reputation',
               impact: -2,
-              description: '-2 studio reputation (press backlash)',
+              description: '-2 studio reputation (customer backlash)',
             },
           ],
         },
@@ -88,7 +160,7 @@ export const PlatformCrisisSystem: TickSystem = {
 
     return {
       ...state,
-      eventQueue: [...(state.eventQueue || []), event],
+      eventQueue: [...(state.eventQueue || []), outageEvent],
     };
   },
 };

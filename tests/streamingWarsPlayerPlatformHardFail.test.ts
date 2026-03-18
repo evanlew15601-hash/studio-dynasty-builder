@@ -95,25 +95,56 @@ describe('Streaming Wars: player platform hard fail is extreme (not any loss)', 
     // One tick should apply platform losses to the studio budget.
     useGameStore.getState().advanceWeek();
 
-    const afterOne = useGameStore.getState().game!;
+    let afterOne = useGameStore.getState().game!;
     expect(afterOne.studio.budget).toBeLessThan(initialBudget);
     expect(afterOne.platformMarket?.player?.status).toBe('active');
 
-    // 10 weeks is not enough to trigger hard fail.
+    // Resolve any churn spike events so the hard-fail ultimatum can eventually queue.
+    if (afterOne.eventQueue.length > 0) {
+      useGameStore.getState().resolveGameEvent(afterOne.eventQueue[0].id, 'hold-course');
+      afterOne = useGameStore.getState().game!;
+    }
+
+    // 10 weeks is not enough to trigger the ultimatum.
+    let sawUltimatumEarly = false;
     for (let i = 0; i < 9; i++) {
       useGameStore.getState().advanceWeek();
+      const s = useGameStore.getState().game!;
+      if (s.eventQueue.length > 0) {
+        const evt = s.eventQueue[0];
+        const kind = (evt as any)?.data?.kind;
+        if (kind === 'platform:forced-sale') {
+          sawUltimatumEarly = true;
+          break;
+        }
+        useGameStore.getState().resolveGameEvent(evt.id, 'hold-course');
+      }
     }
 
     const afterTen = useGameStore.getState().game!;
+    expect(sawUltimatumEarly).toBe(false);
     expect(afterTen.platformMarket?.player?.status).toBe('active');
 
     // Push to the extreme sustained window. The system uses >= 20 consecutive distress ticks.
-    for (let i = 0; i < 11; i++) {
+    let resolvedUltimatum = false;
+    for (let i = 0; i < 20; i++) {
       useGameStore.getState().advanceWeek();
+      const s = useGameStore.getState().game!;
+      if (s.eventQueue.length > 0) {
+        const evt = s.eventQueue[0];
+        const kind = (evt as any)?.data?.kind;
+        if (kind === 'platform:forced-sale') {
+          useGameStore.getState().resolveGameEvent(evt.id, 'sell');
+          resolvedUltimatum = true;
+          break;
+        }
+        useGameStore.getState().resolveGameEvent(evt.id, 'hold-course');
+      }
     }
 
-    const afterTwentyOne = useGameStore.getState().game!;
-    expect(['sold', 'shutdown']).toContain(afterTwentyOne.platformMarket?.player?.status);
-    expect(afterTwentyOne.platformMarket?.player?.subscribers).toBe(0);
+    const after = useGameStore.getState().game!;
+    expect(resolvedUltimatum).toBe(true);
+    expect(['sold', 'shutdown']).toContain(after.platformMarket?.player?.status);
+    expect(after.platformMarket?.player?.subscribers).toBe(0);
   });
 });

@@ -54,8 +54,14 @@ export interface PlayerPlatformState {
   /** Distress counter used for extreme hard-fail gating. */
   distressWeeks?: number;
 
-  /** Internal: last time we generated a major platform business offer (prevents spam). */
+  /** Internal (legacy): last time we generated a major platform business offer (prevents spam). */
   lastOfferYear?: number;
+
+  /** Internal: prevents spamming annual licensing offers. */
+  lastLicenseOfferYear?: number;
+
+  /** Internal: prevents spamming annual M&A offers. */
+  lastMnaOfferYear?: number;
 
   // Optional knobs for future economy simulation
   monthlyPrice?: number;

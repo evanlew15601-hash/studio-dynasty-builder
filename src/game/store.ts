@@ -51,6 +51,7 @@ import { PlatformEconomySystem } from './systems/platformEconomySystem';
 import { PlatformCompetitionAndMAndASystem } from './systems/platformCompetitionAndMAndASystem';
 import { PlatformCrisisSystem } from './systems/platformCrisisSystem';
 import { PlatformOpportunitiesSystem } from './systems/platformOpportunitiesSystem';
+import { PlatformMnaOffersSystem } from './systems/platformMnaOffersSystem';
 import { MediaEngine } from '@/components/game/MediaEngine';
 import { getPlayerCircleDramaMediaTemplate } from './systems/playerCircleDramaModding';
 
@@ -201,6 +202,7 @@ export const useGameStore: import('zustand').UseBoundStore<import('zustand').Sto
       r.register(PlatformEconomySystem);
       r.register(PlatformCompetitionAndMAndASystem);
       r.register(PlatformCrisisSystem);
+      r.register(PlatformMnaOffersSystem);
       r.register(PlatformOpportunitiesSystem);
 
       return r;
@@ -839,6 +841,190 @@ export const useGameStore: import('zustand').UseBoundStore<import('zustand').Sto
                   sentiment: 'positive',
                   targets: { studios: [s.game.studio.id] },
                   tags: ['streaming', 'exclusivity'],
+                  relatedEvents: [event.id],
+                  sourceType: 'trade_publication',
+                });
+              }
+            }
+          }
+
+          if (kind === 'platform:mna-offer') {
+            const market = s.game.platformMarket;
+            const player = market?.player;
+
+            const targetId = (event as any)?.data?.targetId as string | undefined;
+            const targetName = (event as any)?.data?.targetName as string | undefined;
+            const salePrice = Math.max(0, Math.floor((event as any)?.data?.salePrice ?? 0));
+            const transferredSubs = Math.max(0, Math.floor((event as any)?.data?.transferredSubs ?? 0));
+            const transferredCatalogRaw = (event as any)?.data?.transferredCatalog;
+            const transferredCatalog = typeof transferredCatalogRaw === 'number' ? transferredCatalogRaw : 0;
+
+            if (market && player && player.status === 'active' && targetId) {
+              if (selectedChoice.id === 'buy') {
+                player.subscribers = Math.max(0, (player.subscribers ?? 0) + transferredSubs);
+                player.catalogValue = clamp((player.catalogValue ?? 40) + transferredCatalog * 0.15, 0, 100);
+                player.freshness = clamp((player.freshness ?? 50) + 1, 0, 100);
+
+                const target = (market.rivals || []).find((r) => r.id === targetId);
+                if (target) {
+                  target.status = 'collapsed';
+                  target.subscribers = 0;
+                  target.distressWeeks = 0;
+                }
+
+                const headline = `${player.name} acquires ${targetName ?? targetId} in a distressed buyout (${Math.round(
+                  salePrice / 1_000_000
+                )}M)`;
+
+                MediaEngine.injectDeterministicMediaItem({
+                  id: `media:${event.id}:${selectedChoice.id}`,
+                  type: 'news',
+                  headline,
+                  content: headline,
+                  week: s.game.currentWeek,
+                  year: s.game.currentYear,
+                  sentiment: 'neutral',
+                  targets: { studios: [s.game.studio.id] },
+                  tags: ['streaming', 'acquisition'],
+                  relatedEvents: [event.id],
+                  sourceType: 'trade_publication',
+                });
+              } else {
+                const headline = `${player.name} passes on a distressed buyout of ${targetName ?? targetId}`;
+
+                MediaEngine.injectDeterministicMediaItem({
+                  id: `media:${event.id}:${selectedChoice.id}`,
+                  type: 'news',
+                  headline,
+                  content: headline,
+                  week: s.game.currentWeek,
+                  year: s.game.currentYear,
+                  sentiment: 'neutral',
+                  targets: { studios: [s.game.studio.id] },
+                  tags: ['streaming', 'strategy'],
+                  relatedEvents: [event.id],
+                  sourceType: 'trade_publication',
+                });
+              }
+            }
+          }
+
+          if (kind === 'platform:outage') {
+            const market = s.game.platformMarket;
+            const playerPlatformId = (event as any)?.data?.playerPlatformId as string | undefined;
+            const suggestedLoss = Math.max(0, Math.floor((event as any)?.data?.suggestedLoss ?? 0));
+
+            const player = market?.player;
+            if (market && player && player.status === 'active' && player.id === playerPlatformId) {
+              if (selectedChoice.id === 'refunds') {
+                player.subscribers = Math.max(0, (player.subscribers ?? 0) - Math.floor(suggestedLoss * 0.25));
+                player.freshness = clamp((player.freshness ?? 50) - 1, 0, 100);
+              } else if (selectedChoice.id === 'apology') {
+                player.subscribers = Math.max(0, (player.subscribers ?? 0) - Math.floor(suggestedLoss * 0.55));
+                player.freshness = clamp((player.freshness ?? 50) - 2, 0, 100);
+              } else {
+                player.subscribers = Math.max(0, (player.subscribers ?? 0) - suggestedLoss);
+                player.freshness = clamp((player.freshness ?? 50) - 3, 0, 100);
+              }
+
+              const headline = `${player.name} outage triggers churn as customers demand compensation`;
+
+              MediaEngine.injectDeterministicMediaItem({
+                id: `media:${event.id}:${selectedChoice.id}`,
+                type: 'news',
+                headline,
+                content: headline,
+                week: s.game.currentWeek,
+                year: s.game.currentYear,
+                sentiment: 'negative',
+                targets: { studios: [s.game.studio.id] },
+                tags: ['streaming', 'outage'],
+                relatedEvents: [event.id],
+                sourceType: 'trade_publication',
+              });
+            }
+          }
+
+          if (kind === 'platform:forced-sale') {
+            const market = s.game.platformMarket;
+            const player = market?.player;
+
+            const buyerId = (event as any)?.data?.buyerId as string | undefined;
+            const buyerName = (event as any)?.data?.buyerName as string | undefined;
+            const salePrice = Math.max(0, Math.floor((event as any)?.data?.salePrice ?? 0));
+            const transferredSubs = Math.max(0, Math.floor((event as any)?.data?.transferredSubs ?? 0));
+            const transferredCatalogRaw = (event as any)?.data?.transferredCatalog;
+            const transferredCatalog = typeof transferredCatalogRaw === 'number' ? transferredCatalogRaw : 0;
+
+            const emergencyFundingCost = Math.max(0, Math.floor((event as any)?.data?.emergencyFundingCost ?? 0));
+
+            if (market && player && player.status === 'active') {
+              if (selectedChoice.id === 'emergency-funding') {
+                // Stabilize runway, but at the cost of layoffs and subscriber shock.
+                player.cash = (player.cash ?? 0) + emergencyFundingCost * 3;
+                player.distressWeeks = 0;
+                player.promotionBudgetPerWeek = Math.floor((player.promotionBudgetPerWeek ?? 0) * 0.5);
+                player.priceIndex = clamp((player.priceIndex ?? 1) - 0.05, 0.7, 1.5);
+                player.subscribers = Math.max(0, Math.floor((player.subscribers ?? 0) * 0.85));
+
+                const headline = `${player.name} survives on emergency funding as layoffs hit and churn spikes`;
+
+                MediaEngine.injectDeterministicMediaItem({
+                  id: `media:${event.id}:${selectedChoice.id}`,
+                  type: 'news',
+                  headline,
+                  content: headline,
+                  week: s.game.currentWeek,
+                  year: s.game.currentYear,
+                  sentiment: 'negative',
+                  targets: { studios: [s.game.studio.id] },
+                  tags: ['streaming', 'crisis'],
+                  relatedEvents: [event.id],
+                  sourceType: 'trade_publication',
+                });
+              } else if (selectedChoice.id === 'sell') {
+                player.status = 'sold';
+                player.subscribers = 0;
+
+                const buyer = buyerId ? (market.rivals || []).find((r) => r.id === buyerId) : undefined;
+                if (buyer && buyer.status !== 'collapsed') {
+                  buyer.subscribers = Math.max(0, (buyer.subscribers ?? 0) + transferredSubs);
+                  buyer.catalogValue = clamp((buyer.catalogValue ?? 50) + transferredCatalog * 0.12, 0, 100);
+                }
+
+                const headline = `${player.name} sold in a distressed deal to ${buyerName ?? buyer?.name ?? 'a rival'} for ${Math.round(
+                  salePrice / 1_000_000
+                )}M`;
+
+                MediaEngine.injectDeterministicMediaItem({
+                  id: `media:${event.id}:${selectedChoice.id}`,
+                  type: 'news',
+                  headline,
+                  content: headline,
+                  week: s.game.currentWeek,
+                  year: s.game.currentYear,
+                  sentiment: 'negative',
+                  targets: { studios: [s.game.studio.id] },
+                  tags: ['streaming', 'consolidation'],
+                  relatedEvents: [event.id],
+                  sourceType: 'trade_publication',
+                });
+              } else {
+                player.status = 'shutdown';
+                player.subscribers = 0;
+
+                const headline = `${player.name} shuts down after catastrophic losses`;
+
+                MediaEngine.injectDeterministicMediaItem({
+                  id: `media:${event.id}:${selectedChoice.id || 'shutdown'}`,
+                  type: 'news',
+                  headline,
+                  content: headline,
+                  week: s.game.currentWeek,
+                  year: s.game.currentYear,
+                  sentiment: 'negative',
+                  targets: { studios: [s.game.studio.id] },
+                  tags: ['streaming', 'shutdown'],
                   relatedEvents: [event.id],
                   sourceType: 'trade_publication',
                 });

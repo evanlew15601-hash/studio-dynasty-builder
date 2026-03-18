@@ -98,6 +98,14 @@ function normalizePlayerPlatform(player: any | undefined): PlatformMarketState['
     monthlyPrice: typeof (player as any).monthlyPrice === 'number' ? (player as any).monthlyPrice : undefined,
     contentSpendPerWeek: typeof (player as any).contentSpendPerWeek === 'number' ? (player as any).contentSpendPerWeek : undefined,
     vibe: typeof (player as any).vibe === 'string' ? (player as any).vibe : undefined,
+    lastOfferYear: typeof (player as any).lastOfferYear === 'number' ? (player as any).lastOfferYear : undefined,
+    lastLicenseOfferYear:
+      typeof (player as any).lastLicenseOfferYear === 'number'
+        ? (player as any).lastLicenseOfferYear
+        : typeof (player as any).lastOfferYear === 'number'
+          ? (player as any).lastOfferYear
+          : undefined,
+    lastMnaOfferYear: typeof (player as any).lastMnaOfferYear === 'number' ? (player as any).lastMnaOfferYear : undefined,
   };
 }
 

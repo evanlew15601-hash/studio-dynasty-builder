@@ -205,8 +205,8 @@ export const PlatformCompetitionAndMAndASystem: TickSystem = {
     }
 
     // Player platform hard-fail: extreme sustained underperformance can trigger a forced sale or shutdown.
+    // This is event-driven so the player sees it coming and makes an explicit choice.
     let nextPlayer = market.player;
-    let nextStudioBudget = state.studio.budget ?? 0;
 
     if (market.player && market.player.status === 'active') {
       const player = market.player;
@@ -246,70 +246,127 @@ export const PlatformCompetitionAndMAndASystem: TickSystem = {
 
       const shouldHardFail = nextDistress >= 20;
 
-      if (shouldHardFail) {
+      if (shouldHardFail && !hasBlockingEvent) {
         const buyer = rivals
           .filter((r) => r.status !== 'collapsed')
           .sort((a, b) => (b.cash ?? 0) - (a.cash ?? 0))[0];
 
         const salePrice = Math.max(25_000_000, Math.floor(subs * 22 + (player.catalogValue ?? 40) * 1_000_000));
-        nextStudioBudget += salePrice;
+        const transferRate = buyer ? ctx.rng.nextFloat(0.5, 0.8) : 0;
+        const transferredSubs = buyer ? Math.floor(subs * transferRate) : 0;
+        const transferredCatalog = buyer ? clamp((player.catalogValue ?? 40) * 0.7, 0, 100) : 0;
 
-        if (buyer) {
-          const transferRate = ctx.rng.nextFloat(0.5, 0.8);
-          const transferredSubs = Math.floor(subs * transferRate);
+        const emergencyFundingCost = 180_000_000;
 
-          rivals = rivals.map((r) =>
-            r.id === buyer.id
-              ? {
-                  ...r,
-                  subscribers: (r.subscribers ?? 0) + transferredSubs,
-                  catalogValue: clamp((r.catalogValue ?? 50) + (player.catalogValue ?? 40) * 0.12, 0, 100),
-                }
-              : r
-          );
+        const event: GameEvent = {
+          id: `platform:forced-sale:${ctx.year}:W${ctx.week}:${player.id}`,
+          title: 'Board ultimatum: platform in distress',
+          description: `${player.name} is in an extreme death spiral.\n\n- Scale: ${subs} subs\n- Weekly profit: ${profit}\n- Platform cash: ${cash}\n\nYou must act now.`,
+          type: 'crisis',
+          triggerDate: triggerDateFromWeekYear(ctx.year, ctx.week),
+          data: {
+            kind: 'platform:forced-sale',
+            playerPlatformId: player.id,
+            playerPlatformName: player.name,
+            salePrice,
+            buyerId: buyer?.id,
+            buyerName: buyer?.name,
+            transferredSubs,
+            transferredCatalog,
+            emergencyFundingCost,
+          },
+          choices: [
+            {
+              id: 'emergency-funding',
+              text: `Emergency funding (${Math.round(emergencyFundingCost / 1_000_000)}M)`,
+              requirements: [
+                {
+                  type: 'budget',
+                  threshold: emergencyFundingCost,
+                  description: `Requires ${Math.round(emergencyFundingCost / 1_000_000)}M budget for emergency funding`,
+                },
+              ],
+              consequences: [
+                {
+                  type: 'budget',
+                  impact: -emergencyFundingCost,
+                  description: `-${Math.round(emergencyFundingCost / 1_000_000)}M emergency funding`,
+                },
+                {
+                  type: 'reputation',
+                  impact: -3,
+                  description: '-3 studio reputation (public failure narrative)',
+                },
+              ],
+            },
+            {
+              id: 'sell',
+              text: `Accept distressed sale (${Math.round(salePrice / 1_000_000)}M)`,
+              consequences: [
+                {
+                  type: 'budget',
+                  impact: salePrice,
+                  description: `+${Math.round(salePrice / 1_000_000)}M distressed sale proceeds`,
+                },
+                {
+                  type: 'reputation',
+                  impact: -2,
+                  description: '-2 studio reputation (forced sale optics)',
+                },
+              ],
+            },
+            {
+              id: 'shutdown',
+              text: 'Shut it down',
+              consequences: [
+                {
+                  type: 'budget',
+                  impact: Math.floor(salePrice * 0.5),
+                  description: `+${Math.round((salePrice * 0.5) / 1_000_000)}M liquidation proceeds`,
+                },
+                {
+                  type: 'reputation',
+                  impact: -3,
+                  description: '-3 studio reputation (shutdown narrative)',
+                },
+              ],
+            },
+          ],
+        };
 
-          ctx.recap.push({
-            type: 'market',
-            title: 'Forced sale: streaming platform',
-            body: `${player.name} has been sold to ${buyer.name} after sustained extreme losses. You received ${Math.round(salePrice / 1_000_000)}M in a distressed sale.`,
-            severity: 'bad',
-          });
+        ctx.recap.push({
+          type: 'market',
+          title: 'Board ultimatum',
+          body: `${player.name} is facing an existential crisis. You must choose: emergency funding, sale, or shutdown.`,
+          severity: 'bad',
+        });
 
-          nextPlayer = {
-            ...player,
-            status: 'sold',
-            subscribers: 0,
-            distressWeeks: nextDistress,
-          };
-        } else {
-          ctx.recap.push({
-            type: 'market',
-            title: 'Shutdown: streaming platform',
-            body: `${player.name} has been shut down after sustained extreme losses. You received ${Math.round(salePrice / 1_000_000)}M from liquidating remaining assets.`,
-            severity: 'bad',
-          });
-
-          nextPlayer = {
-            ...player,
-            status: 'shutdown',
-            subscribers: 0,
-            distressWeeks: nextDistress,
-          };
-        }
-      } else {
         nextPlayer = {
           ...player,
           distressWeeks: nextDistress,
         };
+
+        return {
+          ...state,
+          platformMarket: {
+            ...market,
+            player: nextPlayer,
+            rivals,
+            lastUpdatedWeek: ctx.week,
+            lastUpdatedYear: ctx.year,
+          },
+          eventQueue: [...(state.eventQueue || []), event],
+        };
       }
+
+      nextPlayer = {
+        ...player,
+        distressWeeks: nextDistress,
+      };
     }
 
     return {
       ...state,
-      studio: {
-        ...state.studio,
-        budget: nextStudioBudget,
-      },
       platformMarket: {
         ...market,
         player: nextPlayer,

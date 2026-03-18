@@ -29,7 +29,15 @@ export const PlatformOpportunitiesSystem: TickSystem = {
 
     // A single predictable “licensing offer season” keeps the system deterministic and prevents spam.
     if (ctx.week !== 13) return state;
-    if (player.lastOfferYear === ctx.year) return state;
+
+    const lastLicenseOfferYear =
+      typeof player.lastLicenseOfferYear === 'number'
+        ? player.lastLicenseOfferYear
+        : typeof player.lastOfferYear === 'number'
+          ? player.lastOfferYear
+          : undefined;
+
+    if (lastLicenseOfferYear === ctx.year) return state;
 
     const playerPlatformId = player.id;
     const releasedOnPlatform = (state.projects || []).filter(
@@ -94,7 +102,7 @@ export const PlatformOpportunitiesSystem: TickSystem = {
         ...market,
         player: {
           ...player,
-          lastOfferYear: ctx.year,
+          lastLicenseOfferYear: ctx.year,
         },
       },
       eventQueue: [...(state.eventQueue || []), event],
