@@ -428,6 +428,7 @@ export const StreamingWarsPlatformApp: React.FC = () => {
           ...pm,
           player: {
             ...pm.player,
+            cash: (pm.player.cash ?? 0) + offer,
             freshness: clampInt((pm.player.freshness ?? 50) - moatPenalty, 0, 100),
             catalogValue: clampInt((pm.player.catalogValue ?? 45) - 1, 0, 100),
           },

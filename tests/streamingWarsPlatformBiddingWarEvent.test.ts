@@ -115,6 +115,36 @@ function makeReleasedOnPlayerPlatform(params: { projectId: string; platformId: s
   } as any;
 }
 
+function makeReleasedStreamingContractOriginal(params: { projectId: string; platformId: string }): Project {
+  return {
+    ...makeReleasedOnPlayerPlatform(params),
+    type: 'series',
+    releaseStrategy: undefined,
+    streamingContract: {
+      id: 'contract-1',
+      dealKind: 'streaming',
+      platformId: params.platformId,
+      name: 'TestFlix Original - Breakout Hit',
+      type: 'series',
+      duration: 52,
+      startWeek: 1,
+      startYear: 2027,
+      endWeek: 1,
+      endYear: 2028,
+      upfrontPayment: 0,
+      episodeRate: 0,
+      performanceBonus: [],
+      expectedViewers: 0,
+      expectedCompletionRate: 0.7,
+      expectedSubscriberGrowth: 0,
+      status: 'active',
+      performanceScore: 0,
+      exclusivityClause: true,
+      marketingSupport: 0,
+    },
+  } as any;
+}
+
 describe('Streaming Wars: bidding war event', () => {
   beforeEach(() => {
     useGameStore.getState().initGame(makeBaseState({ universeSeed: 888, rngState: 888 }), 123);
@@ -161,6 +191,59 @@ describe('Streaming Wars: bidding war event', () => {
           ],
         },
         projects: [makeReleasedOnPlayerPlatform({ projectId: 'p-1', platformId: playerPlatformId })],
+      }),
+      123
+    );
+
+    useGameStore.getState().advanceWeek(); // to week 30
+
+    const state = useGameStore.getState().game!;
+    expect(state.currentWeek).toBe(30);
+    expect(state.eventQueue.length).toBe(1);
+    expect((state.eventQueue[0] as any)?.data?.kind).toBe('platform:bidding-war');
+  });
+
+  it('also triggers for exclusive streaming-contract Originals (no releaseStrategy needed)', () => {
+    const playerPlatformId = 'player-platform:studio-1';
+
+    useGameStore.getState().initGame(
+      makeBaseState({
+        dlc: { streamingWars: true },
+        universeSeed: 888,
+        rngState: 888,
+        platformMarket: {
+          totalAddressableSubs: 100_000_000,
+          player: {
+            id: playerPlatformId,
+            name: 'TestFlix',
+            launchedWeek: 1,
+            launchedYear: 2026,
+            subscribers: 5_000_000,
+            cash: 100_000_000,
+            status: 'active',
+            tierMix: { adSupportedPct: 60, adFreePct: 40 },
+            promotionBudgetPerWeek: 0,
+            priceIndex: 1.0,
+            freshness: 55,
+            catalogValue: 45,
+            distressWeeks: 0,
+          },
+          rivals: [
+            {
+              id: 'streamflix',
+              name: 'StreamFlix',
+              subscribers: 40_000_000,
+              cash: 2_000_000_000,
+              status: 'healthy',
+              distressWeeks: 0,
+              tierMix: { adSupportedPct: 40, adFreePct: 60 },
+              priceIndex: 1.0,
+              catalogValue: 70,
+              freshness: 60,
+            },
+          ],
+        },
+        projects: [makeReleasedStreamingContractOriginal({ projectId: 'p-1', platformId: playerPlatformId })],
       }),
       123
     );
@@ -225,6 +308,8 @@ describe('Streaming Wars: bidding war event', () => {
     expect((event as any)?.data?.kind).toBe('platform:bidding-war');
 
     const beforeFreshness = withEvent.platformMarket!.player!.freshness ?? 0;
+    const beforeCash = withEvent.platformMarket!.player!.cash ?? 0;
+    const offer = (event as any)?.data?.offer ?? 0;
 
     useGameStore.getState().resolveGameEvent(event.id, 'sell');
 
@@ -240,5 +325,6 @@ describe('Streaming Wars: bidding war event', () => {
     expect(window?.durationWeeks).toBe(52);
 
     expect(after.platformMarket!.player!.freshness).toBeLessThan(beforeFreshness);
+    expect(after.platformMarket!.player!.cash).toBe(beforeCash + offer);
   });
 });

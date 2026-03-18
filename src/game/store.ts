@@ -868,6 +868,7 @@ export const useGameStore: import('zustand').UseBoundStore<import('zustand').Sto
                 // Moat erosion: cash now, slightly weaker retention/differentiation.
                 player.freshness = clamp((player.freshness ?? 50) - 3, 0, 100);
                 player.catalogValue = clamp((player.catalogValue ?? 45) - 1, 0, 100);
+                player.cash = (player.cash ?? 0) + offer;
 
                 // Make the title non-exclusive and actually place it on the rival platform for a time-limited window.
                 if (titleProjectId && rivalId) {
@@ -1015,6 +1016,7 @@ export const useGameStore: import('zustand').UseBoundStore<import('zustand').Sto
             const titleProjectId = (event as any)?.data?.titleProjectId as string | undefined;
             const titleName = (event as any)?.data?.titleName as string | undefined;
             const offer = Math.max(0, Math.floor((event as any)?.data?.offer ?? 0));
+            const keepCost = Math.max(0, Math.floor((event as any)?.data?.keepCost ?? 0));
             const windowWeeks = Math.max(8, Math.floor((event as any)?.data?.windowWeeks ?? 52));
 
             const player = market?.player;
@@ -1026,6 +1028,7 @@ export const useGameStore: import('zustand').UseBoundStore<import('zustand').Sto
                 // Moat erosion: you're giving up exclusivity on one of your anchors.
                 player.freshness = clamp((player.freshness ?? 50) - 6, 0, 100);
                 player.catalogValue = clamp((player.catalogValue ?? 45) - 2, 0, 100);
+                player.cash = (player.cash ?? 0) + offer;
 
                 if (titleProjectId && rivalId) {
                   const project = s.game.projects.find((p) => p.id === titleProjectId);
@@ -1087,6 +1090,7 @@ export const useGameStore: import('zustand').UseBoundStore<import('zustand').Sto
               } else if (selectedChoice.id === 'match') {
                 player.freshness = clamp((player.freshness ?? 50) + 2, 0, 100);
                 player.promotionBudgetPerWeek = (player.promotionBudgetPerWeek ?? 0) + 5_000_000;
+                player.cash = (player.cash ?? 0) - keepCost;
 
                 const headline = `${player.name} holds the line and keeps ${titleName ?? 'a hit title'} exclusive`;
 
