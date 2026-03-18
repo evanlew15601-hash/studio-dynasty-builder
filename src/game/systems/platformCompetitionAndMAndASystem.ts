@@ -1,8 +1,13 @@
 import type { PlatformMarketState, RivalPlatformState } from '@/types/platformEconomy';
+import type { GameEvent } from '@/types/game';
 import type { TickSystem } from '../core/types';
 
 function clamp(n: number, min: number, max: number): number {
   return Math.max(min, Math.min(max, n));
+}
+
+function triggerDateFromWeekYear(year: number, week: number): Date {
+  return new Date(year, 0, 1 + Math.max(0, week - 1) * 7);
 }
 
 export const PlatformCompetitionAndMAndASystem: TickSystem = {
@@ -11,6 +16,8 @@ export const PlatformCompetitionAndMAndASystem: TickSystem = {
   dependsOn: ['platformEconomy'],
   onTick: (state, ctx) => {
     if (state.dlc?.streamingWars !== true) return state;
+
+    const hasBlockingEvent = (state.eventQueue || []).length > 0;
 
     const market = state.platformMarket as PlatformMarketState | undefined;
     if (!market || !Array.isArray(market.rivals)) return state;
@@ -61,6 +68,94 @@ export const PlatformCompetitionAndMAndASystem: TickSystem = {
     });
 
     let rivals = rivalsAfterStatus as RivalPlatformState[];
+
+    // Rival collapse: offer the player a chance to acquire distressed assets.
+    if (!hasBlockingEvent && collapsedThisTick.length > 0 && market.player && market.player.status === 'active') {
+      const collapsed = collapsedThisTick[0];
+      const buyer = rivals
+        .filter((x) => x && x.id !== collapsed.id)
+        .filter((x) => x.status !== 'collapsed')
+        .sort((a, b) => (b.subscribers ?? 0) - (a.subscribers ?? 0))[0];
+
+      const subTransferRate = ctx.rng.nextFloat(0.45, 0.7);
+      const transferredSubs = Math.floor((collapsed.subscribers ?? 0) * subTransferRate);
+
+      const catalogTransferRate = ctx.rng.nextFloat(0.45, 0.7);
+      const transferredCatalog = (collapsed.catalogValue ?? 50) * catalogTransferRate;
+
+      const salePrice = Math.max(
+        35_000_000,
+        Math.floor((collapsed.subscribers ?? 0) * 10 + (collapsed.catalogValue ?? 50) * 900_000)
+      );
+
+      const buyerName = buyer?.name ?? 'a rival platform';
+
+      const event: GameEvent = {
+        id: `platform:rival-collapse:${ctx.year}:W${ctx.week}:${collapsed.id}`,
+        title: 'Distressed acquisition opportunity',
+        description: `${collapsed.name} has collapsed.\n\nYou can attempt a distressed acquisition to capture ${transferredSubs} subscribers and key catalog assets.\n\nIf you pass, ${buyerName} will absorb most of the demand.`,
+        type: 'market',
+        triggerDate: triggerDateFromWeekYear(ctx.year, ctx.week),
+        data: {
+          kind: 'platform:rival-collapse',
+          collapsedId: collapsed.id,
+          collapsedName: collapsed.name,
+          rivalBuyerId: buyer?.id,
+          rivalBuyerName: buyer?.name,
+          salePrice,
+          transferredSubs,
+          transferredCatalog,
+        },
+        choices: [
+          {
+            id: 'buy',
+            text: `Acquire assets (${Math.round(salePrice / 1_000_000)}M)`,
+            requirements: [
+              {
+                type: 'budget',
+                threshold: salePrice,
+                description: `Requires ${Math.round(salePrice / 1_000_000)}M budget for a distressed acquisition`,
+              },
+            ],
+            consequences: [
+              {
+                type: 'budget',
+                impact: -salePrice,
+                description: `-${Math.round(salePrice / 1_000_000)}M acquisition cost`,
+              },
+              {
+                type: 'reputation',
+                impact: -1,
+                description: '-1 studio reputation (consolidation optics)',
+              },
+            ],
+          },
+          {
+            id: 'pass',
+            text: 'Pass (let rivals consolidate)',
+            consequences: [],
+          },
+        ],
+      };
+
+      ctx.recap.push({
+        type: 'market',
+        title: 'Distressed acquisition opportunity',
+        body: `${collapsed.name} collapsed. You have a brief window to acquire distressed assets before rivals consolidate.`,
+        severity: 'warning',
+      });
+
+      return {
+        ...state,
+        platformMarket: {
+          ...market,
+          rivals,
+          lastUpdatedWeek: ctx.week,
+          lastUpdatedYear: ctx.year,
+        },
+        eventQueue: [...(state.eventQueue || []), event],
+      };
+    }
 
     // Consolidation: collapsed rivals are acquired by the strongest remaining rival.
     if (collapsedThisTick.length > 0) {
@@ -124,8 +219,6 @@ export const PlatformCompetitionAndMAndASystem: TickSystem = {
       const subs = player.subscribers ?? 0;
       const cash = player.cash ?? 0;
 
-      // Hard-fail is intentionally extreme: we require deep negative cash runway AND low scale,
-      // plus continued weekly losses. This avoids punishing normal "growth-phase" losses.
       const isSevereBurn = profit < 0;
       const isLowScale = subs < minScale;
       const isRunwayBad = cash < -500_000_000;

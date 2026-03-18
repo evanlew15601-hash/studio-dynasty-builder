@@ -32,7 +32,7 @@ export const PlatformCrisisSystem: TickSystem = {
     const event: GameEvent = {
       id: `platform:churn-spike:${ctx.year}:W${ctx.week}:${player.id}`,
       title: 'Churn spike: subscriber backlash',
-      description: `${player.name} is seeing a churn spike this week.\n\n- Net adds: ${kpis.netAdds.toLocaleString()}\n- Churn: ${(kpis.churnRate * 100).toFixed(2)}%\n\nIf you don’t respond, the churn spiral may worsen and force you into a distressed sale later.`,
+      description: `${player.name} is seeing a churn spike this week.\n\n- Net adds: ${kpis.netAdds}\n- Churn: ${(kpis.churnRate * 100).toFixed(2)}%\n\nIf you don’t respond, the churn spiral may worsen and force you into a distressed sale later.`,
       type: 'crisis',
       triggerDate: triggerDateFromWeekYear(ctx.year, ctx.week),
       data: {

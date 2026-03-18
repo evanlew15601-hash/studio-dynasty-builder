@@ -1,4 +1,4 @@
-// Platform economy / market state types (Streaming Wars groundwork)
+// Platform economy / market state types (Streaming Wars)
 //
 // Notes:
 // - This is additive, optional state; old saves may not have it.
@@ -43,19 +43,23 @@ export interface PlayerPlatformState {
   /** Abstract price competitiveness index (0.5–1.5 typical). */
   priceIndex?: number;
 
-  /** Proxies for “does the platform have a compelling library”. */
-  catalogValue?: number; // 0–100
-  freshness?: number; // 0–100
+  /** 0–100; retention proxy used by churn/acquisition model. */
+  freshness?: number;
+  /** 0–100; long-tail catalog depth proxy. */
+  catalogValue?: number;
 
-  /** Used by hard-fail modeling. */
+  /** Flavor: chosen at launch. */
+  vibe?: string;
+
+  /** Distress counter used for extreme hard-fail gating. */
   distressWeeks?: number;
+
+  /** Internal: last time we generated a major platform business offer (prevents spam). */
+  lastOfferYear?: number;
 
   // Optional knobs for future economy simulation
   monthlyPrice?: number;
   contentSpendPerWeek?: number;
-
-  /** UI flavor; does not affect simulation directly (yet). */
-  vibe?: string;
 }
 
 export interface RivalPlatformState {
@@ -74,6 +78,11 @@ export interface RivalPlatformState {
   freshness?: number; // 0–100
 }
 
+export interface PlatformMarketLastWeek {
+  player?: PlatformWeeklyKpis;
+  rivals?: Array<{ id: string; status: RivalPlatformStatus; kpis: PlatformWeeklyKpis }>;
+}
+
 export interface PlatformMarketState {
   /** Global market headroom for this save. */
   totalAddressableSubs?: number;
@@ -82,14 +91,13 @@ export interface PlatformMarketState {
   /** Always prefer an array when present, but allow legacy undefined. */
   rivals?: RivalPlatformState[];
 
-  /** Weekly KPI snapshot for UI, recap cards, and debugging. */
-  lastWeek?: {
-    player?: PlatformWeeklyKpis;
-    rivals?: Array<{ id: string; status: RivalPlatformStatus; kpis: PlatformWeeklyKpis }>;
-  };
+  /** Optional telemetry snapshot for UI and event triggers. */
+  lastWeek?: PlatformMarketLastWeek;
 
   lastUpdatedWeek?: number;
   lastUpdatedYear?: number;
 }
+
+
 
 
