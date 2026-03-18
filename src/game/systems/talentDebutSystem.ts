@@ -43,7 +43,7 @@ export const TalentDebutSystem: TickSystem = {
 
           // When the roster is overcrowded, not every retirement is fully replaced.
           // This is a “fewer rookies get signed” pressure valve that helps converge back to the 240–320 band.
-          const replacementMult = activeCount <= 320 ? 1 : activeCount <= 380 ? 0.45 : 0.4;
+          const replacementMult = activeCount <= 320 ? 1 : activeCount <= 380 ? 0.55 : 0.5;
 
           return generateProceduralDebuts({
             existingTalent: state.talent || [],

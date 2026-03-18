@@ -104,7 +104,8 @@ export const CastingRoleManager: React.FC<CastingRoleManagerProps> = ({
         if (['lead', 'supporting', 'character'].includes(roleType) && talent.type !== 'actor') return false;
       }
 
-      return true;
+      // Only available talent
+      return talent.contractStatus === 'available';
     });
   };
 

@@ -1,8 +1,10 @@
-import React from 'react';
+import React, { useState } from 'react';
 import { Project, PostTheatricalRelease } from '@/types/game';
 import { useGameStore } from '@/game/store';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
+import { Input } from '@/components/ui/input';
+import { Label } from '@/components/ui/label';
 
 import { Separator } from '@/components/ui/separator';
 import { useToast } from '@/hooks/use-toast';
@@ -71,6 +73,8 @@ export const PostTheatricalManagement: React.FC<PostTheatricalManagementProps> =
   const updateBudget = useGameStore((s) => s.updateBudget);
   const { toast } = useToast();
 
+  const [ownedPlatformDelayByProject, setOwnedPlatformDelayByProject] = useState<Record<string, number>>({});
+
   const diagnosticsEnabled = import.meta.env.DEV;
 
   if (!gameState) {
@@ -83,34 +87,20 @@ export const PostTheatricalManagement: React.FC<PostTheatricalManagementProps> =
   const weeklyPostTheatricalRevenue = activeReleases.reduce((sum, r) => sum + (r.weeklyRevenue || 0), 0);
 
   const getEligibleProjects = () => {
-    return gameState.projects.filter(project => {
-      if (!project.postTheatricalEligible) return false;
-      if (project.status !== 'released') return false;
-
-      // Older saves might not have theatricalEndDate; treat a locked theatrical run or a primary streaming premiere
-      // as sufficient to expose post-theatrical options.
-      if (project.theatricalEndDate) return true;
-      if (project.theatricalEndWeek && project.theatricalEndYear) return true;
-      if (project.metrics?.theatricalRunLocked) return true;
-      if (project.releaseStrategy?.type === 'streaming') return true;
-
-      return false;
-    });
+    return gameState.projects.filter(project => 
+      project.postTheatricalEligible && 
+      project.theatricalEndDate &&
+      project.status === 'released'
+    );
   };
 
   const calculateWeeksSinceTheatricalEnd = (project: Project): number => {
+    if (!project.theatricalEndDate || !project.releaseWeek || !project.releaseYear) return 0;
+
     // Use game time instead of real time
-    const currentAbs = (gameState.currentYear * 52) + gameState.currentWeek;
-
-    if (project.theatricalEndWeek && project.theatricalEndYear) {
-      const endAbs = (project.theatricalEndYear * 52) + project.theatricalEndWeek;
-      return Math.max(0, currentAbs - endAbs);
-    }
-
-    if (!project.releaseWeek || !project.releaseYear) return 0;
-
-    const releaseAbs = (project.releaseYear * 52) + project.releaseWeek;
-    const weeksSinceRelease = currentAbs - releaseAbs;
+    const currentGameWeek = (gameState.currentYear * 52) + gameState.currentWeek;
+    const releaseGameWeek = (project.releaseYear * 52) + project.releaseWeek;
+    const weeksSinceRelease = currentGameWeek - releaseGameWeek;
 
     // Assume theatrical run lasted the weeks since release from metrics. For direct-to-streaming films,
     // treat the theatrical run as 0 so secondary windows can unlock relative to the streaming premiere.
@@ -119,14 +109,32 @@ export const PostTheatricalManagement: React.FC<PostTheatricalManagementProps> =
 
     if (diagnosticsEnabled) {
       console.log(`POST-THEATRICAL CHECK: ${project.title}`);
-      console.log(`   Release: Y${project.releaseYear}W${project.releaseWeek} (${releaseAbs})`);
-      console.log(`   Current: Y${gameState.currentYear}W${gameState.currentWeek} (${currentAbs})`);
+      console.log(`   Release: Y${project.releaseYear}W${project.releaseWeek} (${releaseGameWeek})`);
+      console.log(`   Current: Y${gameState.currentYear}W${gameState.currentWeek} (${currentGameWeek})`);
       console.log(`   Weeks since release: ${weeksSinceRelease}`);
       console.log(`   Theatrical run weeks: ${theatricalRunWeeks}`);
       console.log(`   Weeks since theatrical end: ${weeksSinceTheatricalEnd}`);
     }
 
     return weeksSinceTheatricalEnd;
+  };
+
+  const dateForWeekYear = (year: number, week: number): Date => {
+    const base = new Date(year, 0, 1);
+    base.setDate(base.getDate() + (week - 1) * 7);
+    return base;
+  };
+
+  const weekYearForAbsWeek = (absWeek: number): { week: number; year: number } => {
+    let year = Math.floor(absWeek / 52);
+    let week = absWeek % 52;
+
+    if (week === 0) {
+      week = 52;
+      year -= 1;
+    }
+
+    return { week, year };
   };
 
   const calculatePostTheatricalRevenue = (project: Project, platform: string): number => {
@@ -195,71 +203,126 @@ export const PostTheatricalManagement: React.FC<PostTheatricalManagementProps> =
   };
 
   const canReleaseOnPlatform = (project: Project, option: any): { canRelease: boolean; reason: string } => {
-    if (project.releaseStrategy?.type === 'streaming' && option.platform === 'streaming') {
+    const playerPlatform =
+      gameState.dlc?.streamingWars === true && gameState.platformMarket?.player?.status === 'active'
+        ? gameState.platformMarket.player
+        : null;
+
+    const isOwnedDestination = option.isOwnedPlatform === true;
+
+    if (!isOwnedDestination && project.releaseStrategy?.type === 'streaming' && option.platform === 'streaming') {
       return { canRelease: false, reason: 'Primary streaming release' };
     }
 
-    const weeksSinceEnd = calculateWeeksSinceTheatricalEnd(project);
-    
-    if (weeksSinceEnd < option.minimumWeeksAfterTheatrical) {
-      return {
-        canRelease: false,
-        reason: `Available in ${option.minimumWeeksAfterTheatrical - weeksSinceEnd} weeks`
-      };
+    if (!isOwnedDestination) {
+      const weeksSinceEnd = calculateWeeksSinceTheatricalEnd(project);
+
+      if (weeksSinceEnd < option.minimumWeeksAfterTheatrical) {
+        return {
+          canRelease: false,
+          reason: `Available in ${option.minimumWeeksAfterTheatrical - weeksSinceEnd} weeks`,
+        };
+      }
     }
-    
-    // Check if already released on this platform
-    const alreadyReleasedOnPlatform = (project.postTheatricalReleases || []).some(r => r.platform === option.platform);
+
+    // Check if already released on this platform/destination
+    const alreadyReleasedOnPlatform = (project.postTheatricalReleases || []).some((r) => {
+      if (r.platform !== option.platform) return false;
+      if (!isOwnedDestination) return true;
+      return !!playerPlatform && r.platformId === playerPlatform.id;
+    });
+
     if (alreadyReleasedOnPlatform) {
       return { canRelease: false, reason: 'Already released on this platform' };
     }
-    
+
+    // Owned destination requires an active player platform.
+    if (isOwnedDestination && !playerPlatform) {
+      return { canRelease: false, reason: 'Launch your platform first' };
+    }
+
     // Check budget
     if (gameState.studio.budget < option.baseCost) {
       return { canRelease: false, reason: 'Insufficient budget' };
     }
-    
+
     return { canRelease: true, reason: '' };
   };
 
   const launchPostTheatricalRelease = (project: Project, option: any) => {
     const { canRelease, reason } = canReleaseOnPlatform(project, option);
-    
+
     if (!canRelease) {
       toast({
         title: "Cannot Launch Release",
         description: reason,
-        variant: "destructive"
+        variant: "destructive",
       });
       return;
     }
 
-    const estimatedRevenue = calculatePostTheatricalRevenue(project, option.platform);
-    
+    const playerPlatform =
+      gameState.dlc?.streamingWars === true && gameState.platformMarket?.player?.status === 'active'
+        ? gameState.platformMarket.player
+        : null;
+
+    const isOwnedDestination = option.isOwnedPlatform === true;
+
+    const currentAbsWeek = gameState.currentYear * 52 + gameState.currentWeek;
+
+    const delayWeeks = isOwnedDestination
+      ? Math.max(0, Math.floor(ownedPlatformDelayByProject[project.id] ?? 16))
+      : undefined;
+
+    const estimatedRevenue = isOwnedDestination ? 0 : calculatePostTheatricalRevenue(project, option.platform);
+
+    const targetAbsWeek =
+      isOwnedDestination && project.releaseWeek && project.releaseYear && delayWeeks != null
+        ? project.releaseYear * 52 + project.releaseWeek + delayWeeks
+        : currentAbsWeek;
+
+    const targetWeekYear = weekYearForAbsWeek(targetAbsWeek);
+
+    const releaseId = (() => {
+      const platformId = isOwnedDestination && playerPlatform ? playerPlatform.id : option.platform;
+      return `release:${project.id}:${platformId}:${targetWeekYear.year}:W${targetWeekYear.week}`;
+    })();
+
     const newRelease: PostTheatricalRelease = {
-      id: `release-${Date.now()}`,
+      id: releaseId,
       projectId: project.id,
       platform: option.platform,
-      releaseDate: new Date(),
+      platformId: isOwnedDestination && playerPlatform ? playerPlatform.id : undefined,
+      releaseDate: dateForWeekYear(targetWeekYear.year, targetWeekYear.week),
+      releaseWeek: targetWeekYear.week,
+      releaseYear: targetWeekYear.year,
+      delayWeeks,
       revenue: 0,
-      weeklyRevenue: Math.round(estimatedRevenue / option.duration),
+      weeklyRevenue: isOwnedDestination ? 0 : Math.round(estimatedRevenue / option.duration),
       weeksActive: 0,
       status: 'planned',
       cost: option.baseCost,
-      durationWeeks: option.duration
+      durationWeeks: option.duration,
     };
 
     updateBudget(-option.baseCost);
 
     updateProject(project.id, {
-      postTheatricalReleases: [...(project.postTheatricalReleases || []), newRelease]
+      postTheatricalReleases: [...(project.postTheatricalReleases || []), newRelease],
     });
 
-    
+    if (isOwnedDestination && delayWeeks != null) {
+      const startsInWeeks = Math.max(0, targetAbsWeek - currentAbsWeek);
+      toast({
+        title: "Platform arrival scheduled",
+        description: `${project.title} will arrive on ${playerPlatform?.name ?? 'your platform'} in ${startsInWeeks} weeks.`,
+      });
+      return;
+    }
 
     toast({
       title: "Post-Theatrical Release Scheduled",
-      description: `${project.title} will be available on ${option.name} platforms. Estimated revenue: $${(estimatedRevenue / 1000000).toFixed(1)}M`,
+      description: `${project.title} will be available on ${option.name} platforms. Estimated revenue: ${(estimatedRevenue / 1000000).toFixed(1)}M`,
     });
   };
 
@@ -323,6 +386,26 @@ export const PostTheatricalManagement: React.FC<PostTheatricalManagementProps> =
             <div className="space-y-6">
               {eligibleProjects.map(project => {
                 const weeksSinceEnd = calculateWeeksSinceTheatricalEnd(project);
+
+                const ownedPlatform =
+                  gameState.dlc?.streamingWars === true && gameState.platformMarket?.player?.status === 'active'
+                    ? gameState.platformMarket.player
+                    : null;
+
+                const ownedOption = ownedPlatform
+                  ? {
+                      platform: 'streaming',
+                      name: `Arrive on ${ownedPlatform.name}`,
+                      description: 'Bring the film to your platform after a player-chosen window delay.',
+                      icon: StreamingIcon,
+                      minimumWeeksAfterTheatrical: 0,
+                      baseCost: 20000,
+                      revenueModel: 'internal',
+                      duration: 26,
+                      revenuePotential: 'retention',
+                      isOwnedPlatform: true,
+                    }
+                  : null;
                 
                 return (
                   <Card key={project.id} className="border-2 border-primary/20">
@@ -354,19 +437,23 @@ export const PostTheatricalManagement: React.FC<PostTheatricalManagementProps> =
 
                       <Separator className="my-4" />
 
-                      <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">
-                        {POST_THEATRICAL_OPTIONS.map(option => {
+                      <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-5 gap-4">
+                        {[...POST_THEATRICAL_OPTIONS, ...(ownedOption ? [ownedOption] : [])].map(option => {
                           const { canRelease, reason } = canReleaseOnPlatform(project, option);
-                          const estimatedRevenue = calculatePostTheatricalRevenue(project, option.platform);
+                          const estimatedRevenue = option.isOwnedPlatform ? 0 : calculatePostTheatricalRevenue(project, option.platform);
                           const roi =
                             estimatedRevenue > 0
                               ? ((estimatedRevenue - option.baseCost) / option.baseCost) * 100
                               : 0;
                           const IconComponent = option.icon;
 
+                          const delayWeeks = option.isOwnedPlatform
+                            ? Math.max(0, Math.floor(ownedPlatformDelayByProject[project.id] ?? 16))
+                            : null;
+
                           return (
                             <Card 
-                              key={option.platform}
+                              key={option.isOwnedPlatform ? `owned:${project.id}` : option.platform}
                               className={`transition-all duration-200 ${
                                 canRelease ? 'hover:border-primary/30 cursor-pointer' : 'opacity-60'
                               }`}
@@ -391,27 +478,54 @@ export const PostTheatricalManagement: React.FC<PostTheatricalManagementProps> =
                                     <span>Cost:</span>
                                     <span>${(option.baseCost / 1000).toFixed(0)}K</span>
                                   </div>
-                                  <div className="flex justify-between">
-                                    <span>Est. Revenue:</span>
-                                    <span>${(estimatedRevenue / 1000000).toFixed(1)}M</span>
-                                  </div>
-                                  <div className="flex justify-between">
-                                    <span>Duration:</span>
-                                    <span>{Math.round(option.duration / 4)} months</span>
-                                  </div>
-                                  <div className="flex justify-between">
-                                    <span>ROI:</span>
-                                    <span>
-                                      {estimatedRevenue > 0
-                                        ? `${roi >= 0 ? '+' : ''}${roi.toFixed(0)}%`
-                                        : '—'}
-                                    </span>
-                                  </div>
+                                  {option.isOwnedPlatform ? (
+                                    <>
+                                      <div className="flex justify-between">
+                                        <span>Est. Revenue:</span>
+                                        <span>—</span>
+                                      </div>
+                                      <div className="flex justify-between items-center gap-2">
+                                        <Label className="text-xs">Delay (weeks)</Label>
+                                        <Input
+                                          className="h-7 w-24 text-xs"
+                                          type="number"
+                                          min={0}
+                                          max={156}
+                                          value={delayWeeks ?? 16}
+                                          onChange={(e) => {
+                                            const next = Math.max(0, Math.floor(parseInt(e.target.value || '0', 10)));
+                                            setOwnedPlatformDelayByProject((prev) => ({ ...prev, [project.id]: next }));
+                                          }}
+                                        />
+                                      </div>
+                                    </>
+                                  ) : (
+                                    <>
+                                      <div className="flex justify-between">
+                                        <span>Est. Revenue:</span>
+                                        <span>${(estimatedRevenue / 1000000).toFixed(1)}M</span>
+                                      </div>
+                                      <div className="flex justify-between">
+                                        <span>Duration:</span>
+                                        <span>{Math.round(option.duration / 4)} months</span>
+                                      </div>
+                                      <div className="flex justify-between">
+                                        <span>ROI:</span>
+                                        <span>
+                                          {estimatedRevenue > 0
+                                            ? `${roi >= 0 ? '+' : ''}${roi.toFixed(0)}%`
+                                            : '—'}
+                                        </span>
+                                      </div>
+                                    </>
+                                  )}
                                 </div>
 
-                                <p className="mt-2 text-[10px] text-muted-foreground">
-                                  Estimates factor in reviews, awards, reputation and current media buzz.
-                                </p>
+                                {!option.isOwnedPlatform && (
+                                  <p className="mt-2 text-[10px] text-muted-foreground">
+                                    Estimates factor in reviews, awards, reputation and current media buzz.
+                                  </p>
+                                )}
 
                                 <Button
                                   onClick={() => launchPostTheatricalRelease(project, option)}

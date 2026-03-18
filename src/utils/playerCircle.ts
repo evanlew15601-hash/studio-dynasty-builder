@@ -47,33 +47,11 @@ export function computePlayerCircle(state: GameState, options?: { limit?: number
 
   const studioId = state.studio.id;
 
-  const byId = new Map((state.talent || []).map((t) => [t.id, t] as const));
+  const contracted = (state.talent || []).filter(
+    (t) => t.contractStatus === 'contracted' || t.contractStatus === 'exclusive'
+  );
 
-  // Collaborators are people you are actively working with (credits/contracts), not just people whose
-  // global contractStatus happened to be toggled.
-  const collaboratorIds = new Set<string>();
-
-  for (const t of state.talent || []) {
-    if (t.contractStatus === 'contracted' || t.contractStatus === 'exclusive') {
-      collaboratorIds.add(t.id);
-    }
-  }
-
-  for (const p of state.projects || []) {
-    for (const c of p.cast || []) {
-      if ((c as any)?.talentId) collaboratorIds.add((c as any).talentId);
-    }
-    for (const c of p.crew || []) {
-      if ((c as any)?.talentId) collaboratorIds.add((c as any).talentId);
-    }
-    for (const ct of p.contractedTalent || []) {
-      if ((ct as any)?.talentId) collaboratorIds.add((ct as any).talentId);
-    }
-  }
-
-  const collaboratorTalents = [...collaboratorIds]
-    .map((id) => byId.get(id))
-    .filter((t): t is TalentPerson => !!t)
+  const collaborators: PlayerCircleCollaborator[] = [...contracted]
     .sort((a, b) => {
       const la = getStudioLoyalty(a, studioId);
       const lb = getStudioLoyalty(b, studioId);
@@ -81,14 +59,13 @@ export function computePlayerCircle(state: GameState, options?: { limit?: number
       if ((b.reputation ?? 0) !== (a.reputation ?? 0)) return (b.reputation ?? 0) - (a.reputation ?? 0);
       return a.name.localeCompare(b.name);
     })
-    .slice(0, limit);
-
-  const collaborators: PlayerCircleCollaborator[] = collaboratorTalents
+    .slice(0, limit)
     .map((t) => ({ talent: t, loyalty: getStudioLoyalty(t, studioId) }));
 
   const collaboratorsSet = new Set(collaborators.map((c) => c.talent.id));
 
   // Rivals are talent that have explicit hostile/rivals relationships with your collaborators.
+  const byId = new Map((state.talent || []).map((t) => [t.id, t] as const));
   const rivalScore = new Map<string, { score: number; relationshipCount: number }>();
 
   for (const c of collaborators) {

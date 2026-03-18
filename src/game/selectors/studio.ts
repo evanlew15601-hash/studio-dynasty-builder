@@ -6,7 +6,6 @@
  */
 
 import type { GameState, Project, TalentPerson, Studio, Franchise } from '@/types/game';
-import { isTalentAvailable } from '@/utils/talentAvailability';
 
 // ---------------------------------------------------------------------------
 // Studio
@@ -45,7 +44,7 @@ export const selectProjectById = (s: GameState, id: string): Project | undefined
 
 export const selectTalent = (s: GameState): TalentPerson[] => s.talent;
 export const selectAvailableTalent = (s: GameState): TalentPerson[] =>
-  s.talent.filter((t) => isTalentAvailable(s, t));
+  s.talent.filter((t) => t.contractStatus === 'available');
 export const selectDirectors = (s: GameState): TalentPerson[] =>
   s.talent.filter((t) => t.type === 'director');
 export const selectActors = (s: GameState): TalentPerson[] =>

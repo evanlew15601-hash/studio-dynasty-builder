@@ -211,14 +211,14 @@ describe('Save migrations', () => {
         currentWeek: 5,
         currentYear: 2027,
       },
-      meta: { savedAt: '2027-01-01', version: 'alpha-2' },
+      meta: { savedAt: '2027-01-01', version: 'alpha-3' },
     };
     expect(validateSnapshot(valid)).not.toBeNull();
   });
 
   it('migrateSnapshot returns snapshot as-is for current version', () => {
     const snap = {
-      meta: { savedAt: '2027-01-01', version: 'alpha-2' },
+      meta: { savedAt: '2027-01-01', version: 'alpha-3' },
       gameState: makeMinimalState(),
     };
     const migrated = migrateSnapshot(snap as any);

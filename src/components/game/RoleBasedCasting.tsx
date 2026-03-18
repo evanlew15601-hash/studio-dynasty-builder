@@ -5,7 +5,6 @@ import { Badge } from '@/components/ui/badge';
 import { useToast } from '@/hooks/use-toast';
 import { Project, TalentPerson, ScriptCharacter } from '@/types/game';
 import { talentMatchesRole } from '@/utils/castingEligibility';
-import { isTalentAvailableForProject } from '@/utils/talentAvailability';
 import { Users, User, Crown, Star, CheckCircle } from 'lucide-react';
 import { importRolesForScript } from '@/utils/roleImport';
 import { useGameStore } from '@/game/store';
@@ -85,7 +84,7 @@ export const RoleBasedCasting: React.FC<RoleBasedCastingProps> = ({
 
   const getAvailableTalent = (role: ScriptCharacter) => {
     return gameState.talent.filter(talent => {
-      if (!isTalentAvailableForProject(gameState, talent, project.id)) return false;
+      if (talent.contractStatus !== 'available') return false;
       return talentMatchesRole(talent, role);
     });
   };
@@ -287,7 +286,7 @@ export const RoleBasedCasting: React.FC<RoleBasedCastingProps> = ({
               </CardHeader>
               <CardContent>
                 {castTalent ? (
-                  <div className="flex items-center justify-between p-3 rounded border border-green-200 bg-green-50 dark:border-green-800 dark:bg-green-950/20">
+                  <div className="flex items-center justify-between p-3 bg-green-50 rounded">
                     <div>
                       <p className="font-medium">{castTalent.name}</p>
                       <p className="text-sm text-muted-foreground">
@@ -300,7 +299,7 @@ export const RoleBasedCasting: React.FC<RoleBasedCastingProps> = ({
                   </div>
                 ) : (
                   <div className="space-y-3">
-                    <p className="text-sm text-amber-700 dark:text-amber-300">
+                    <p className="text-sm text-amber-600">
                       Role not cast • {availableTalent.length} available candidates
                     </p>
                     <div className="grid gap-2 max-h-40 overflow-y-auto">

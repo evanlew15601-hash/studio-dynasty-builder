@@ -64,6 +64,104 @@ const migrations: MigrationEntry[] = [
       };
     },
   },
+  {
+    from: 'alpha-2',
+    to: 'alpha-3',
+    migrate: (snapshot) => {
+      const projects = (snapshot.gameState.projects ?? []).map((project: any) => {
+        const contract = project.streamingContract;
+        const streamingContract = contract
+          ? {
+              ...contract,
+              platformId: contract.platformId ?? contract.platform ?? 'unknown',
+            }
+          : undefined;
+
+        const dist = project.distributionStrategy;
+        const distributionStrategy = dist
+          ? {
+              ...dist,
+              primary: dist.primary
+                ? {
+                    ...dist.primary,
+                    platformId: dist.primary.platformId ?? undefined,
+                  }
+                : dist.primary,
+              international: (dist.international ?? []).map((c: any) => ({
+                ...c,
+                platformId: c.platformId ?? undefined,
+              })),
+              windows: (dist.windows ?? []).map((w: any) => ({
+                ...w,
+                platformId: w.platformId ?? undefined,
+              })),
+            }
+          : dist;
+
+        const rel = project.releaseStrategy;
+        const releaseStrategy = rel
+          ? {
+              ...rel,
+              streamingPlatformId: rel.streamingPlatformId ?? undefined,
+              streamingExclusive: rel.streamingExclusive ?? undefined,
+              streamingExclusivityWeeks: rel.streamingExclusivityWeeks ?? undefined,
+            }
+          : rel;
+
+        const postTheatricalReleases = project.postTheatricalReleases
+          ? project.postTheatricalReleases.map((r: any) => ({
+              ...r,
+              platformId: r.platformId ?? undefined,
+            }))
+          : project.postTheatricalReleases;
+
+        return {
+          ...project,
+          streamingContract,
+          distributionStrategy,
+          releaseStrategy,
+          postTheatricalReleases,
+        };
+      });
+
+      const rawGameState = snapshot.gameState as any;
+
+      const legacyExpansionFlag = rawGameState?.expansions?.enableStreamingWars;
+
+      const rawStreamingWars = rawGameState?.dlc?.streamingWars;
+      const normalizedFromDlc =
+        typeof rawStreamingWars === 'boolean'
+          ? rawStreamingWars
+          : rawStreamingWars && typeof rawStreamingWars === 'object' && 'enabled' in rawStreamingWars
+            ? Boolean((rawStreamingWars as any).enabled)
+            : undefined;
+
+      const streamingWars =
+        typeof normalizedFromDlc === 'boolean'
+          ? normalizedFromDlc
+          : typeof legacyExpansionFlag === 'boolean'
+            ? legacyExpansionFlag
+            : undefined;
+
+      const dlc = typeof streamingWars === 'boolean' ? { streamingWars } : undefined;
+
+      const { expansions: _expansions, dlc: _legacyDlc, ...restGameState } = rawGameState;
+
+      return {
+        ...snapshot,
+        gameState: {
+          ...restGameState,
+          dlc,
+          platformMarket: rawGameState.platformMarket ?? undefined,
+          projects,
+        } as any,
+        meta: {
+          ...snapshot.meta,
+          version: 'alpha-3',
+        },
+      };
+    },
+  },
 ];
 
 /**

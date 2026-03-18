@@ -1,5 +1,4 @@
 import type { GameState, TalentPerson } from '@/types/game';
-import { buildCoreTalent } from '@/data/WorldGenerator';
 import { stablePick } from '@/utils/stablePick';
 import { stableInt } from '@/utils/stableRandom';
 import { determineCareerStage } from '@/utils/careerStage';
@@ -110,59 +109,18 @@ function buildFallbackBiography(t: TalentPerson): string {
   return parts.slice(0, targetCount).join(' ');
 }
 
-function mergeAwards(existing: TalentPerson['awards'] | undefined, canon: TalentPerson['awards'] | undefined): TalentPerson['awards'] {
-  const existingList = existing || [];
-  const canonList = canon || [];
-
-  if (canonList.length === 0) return existingList;
-  if (existingList.length === 0) return canonList;
-
-  const byId = new Map(existingList.map((a) => [a.id, a] as const));
-  for (const a of canonList) {
-    if (!byId.has(a.id)) byId.set(a.id, a);
-  }
-  return Array.from(byId.values());
-}
-
 export function ensureTalentLore(gameState: GameState): GameState {
-  const loreYear = Math.min(gameState.currentYear || 2026, 2026);
-  const core = buildCoreTalent(loreYear);
-  const coreById = new Map(core.map((t) => [t.id, t] as const));
+  const patchTalent = (t: TalentPerson): TalentPerson => {
+    if (typeof t.biography === 'string' && t.biography.trim().length > 0) return t;
 
-  let changed = false;
-
-  const patchedTalent = (gameState.talent || []).map((t) => {
-    let next = t;
-
-    if (typeof next.biography !== 'string' || next.biography.trim().length === 0) {
-      next = {
-        ...next,
-        biography: buildFallbackBiography(next),
-      };
-    }
-
-    // Canonical core talent awards (pre-game history) should be present in saves,
-    // even if the save was created before we started storing awards on talent.
-    if (next.id.startsWith('core:')) {
-      const canon = coreById.get(next.id);
-      const canonAwards = canon?.awards || [];
-
-      if (canonAwards.length > 0) {
-        const merged = mergeAwards(next.awards, canonAwards);
-        if (merged.length !== (next.awards || []).length) {
-          next = { ...next, awards: merged };
-        }
-      }
-    }
-
-    if (next !== t) changed = true;
-    return next;
-  });
-
-  if (!changed) return gameState;
+    return {
+      ...t,
+      biography: buildFallbackBiography(t),
+    };
+  };
 
   return {
     ...gameState,
-    talent: patchedTalent,
+    talent: (gameState.talent || []).map(patchTalent),
   };
 }

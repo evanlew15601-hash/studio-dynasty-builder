@@ -18,39 +18,6 @@ const categoryForPlatform = (
   return 'licensing';
 };
 
-function clamp(n: number, min: number, max: number): number {
-  return Math.max(min, Math.min(max, n));
-}
-
-function computeSecondaryStreamingViewsFirstWeek(project: Project): number {
-  const boxOffice = project.metrics?.boxOfficeTotal ?? 0;
-  const budget = project.budget?.total ?? 0;
-
-  const critics = project.metrics?.criticsScore ?? 50;
-  const audience = project.metrics?.audienceScore ?? 50;
-  const avgScore = (critics + audience) / 2;
-
-  const base = Math.max(250_000, Math.floor(budget * 0.015) + Math.floor(boxOffice * 0.004));
-  const qualityMultiplier = clamp(avgScore / 70, 0.6, 1.35);
-
-  return Math.max(80_000, Math.floor(base * qualityMultiplier));
-}
-
-function cumulativeDecayed(first: number, weeks: number, decay: number): { total: number; lastWeek: number } {
-  if (weeks <= 0) return { total: 0, lastWeek: 0 };
-
-  let total = 0;
-  let lastWeek = 0;
-
-  for (let i = 0; i < weeks; i += 1) {
-    const v = Math.max(25_000, Math.floor(first * Math.pow(decay, i)));
-    total += v;
-    lastWeek = v;
-  }
-
-  return { total, lastWeek };
-}
-
 export class PostTheatricalSystem {
   static processWeeklyRevenue(
     project: Project,
@@ -73,7 +40,15 @@ export class PostTheatricalSystem {
 
       const durationWeeks = release.durationWeeks || DEFAULT_DURATIONS[release.platform] || 52;
 
-      const earnedThisWeek = isActiveStatus(release.status)
+      const scheduledAbs =
+        release.status === 'planned' && typeof release.releaseWeek === 'number' && typeof release.releaseYear === 'number'
+          ? release.releaseYear * 52 + release.releaseWeek
+          : null;
+
+      const currentAbs = currentYear * 52 + currentWeek;
+      const notStartedYet = scheduledAbs != null && scheduledAbs > currentAbs;
+
+      const earnedThisWeek = !notStartedYet && isActiveStatus(release.status)
         ? Math.round(release.weeklyRevenue || 0)
         : 0;
 
@@ -82,6 +57,14 @@ export class PostTheatricalSystem {
       }
 
       if (release.status === 'planned') {
+        if (notStartedYet) {
+          return {
+            ...release,
+            lastProcessedWeek: currentWeek,
+            lastProcessedYear: currentYear,
+          };
+        }
+
         const weeksActive = 1;
         const revenue = (release.revenue || 0) + earnedThisWeek;
 
@@ -176,59 +159,11 @@ export class PostTheatricalSystem {
       );
     }
 
-    // If a theatrical film goes to streaming post-theatrically, simulate viewership so streaming dashboards
-    // and contract checks don't stay stuck at 0.
-    const streamingWindow = updatedReleases.find(
-      (r) => r.platform === 'streaming' && (r.status === 'planned' || r.status === 'active' || r.status === 'declining')
-    );
-
-    const isSecondaryStreaming =
-      !!streamingWindow &&
-      project.releaseStrategy?.type !== 'streaming' &&
-      project.type !== 'series' &&
-      project.type !== 'limited-series';
-
-    let updatedProject: Project = {
-      ...project,
-      postTheatricalReleases: updatedReleases,
-    };
-
-    if (isSecondaryStreaming && streamingWindow) {
-      const weeks = streamingWindow.weeksActive || 0;
-      const decay = 0.78;
-
-      const existingFirstWeek = updatedProject.metrics?.streaming?.viewsFirstWeek || 0;
-      const viewsFirstWeek = existingFirstWeek > 0 ? existingFirstWeek : computeSecondaryStreamingViewsFirstWeek(updatedProject);
-
-      const { total, lastWeek } = cumulativeDecayed(viewsFirstWeek, weeks, decay);
-
-      const critics = updatedProject.metrics?.criticsScore ?? 50;
-      const audience = updatedProject.metrics?.audienceScore ?? 50;
-      const avgScore = (critics + audience) / 2;
-
-      const completionRate = clamp(Math.floor(55 + (avgScore - 50) * 0.35 - weeks * 0.4), 30, 95);
-      const audienceShare = clamp(Math.floor(4 + (avgScore - 50) * 0.08), 2, 25);
-      const runtime = updatedProject.script?.estimatedRuntime || 110;
-
-      updatedProject = {
-        ...updatedProject,
-        metrics: {
-          ...(updatedProject.metrics || ({} as any)),
-          streamingViews: total,
-          streaming: {
-            viewsFirstWeek,
-            totalViews: total,
-            completionRate,
-            audienceShare,
-            watchTimeHours: Math.max(1000, Math.floor((total * runtime) / 60)),
-            subscriberGrowth: Math.max(500, Math.floor(lastWeek * 0.015)),
-          },
-        },
-      };
-    }
-
     return {
-      project: updatedProject,
+      project: {
+        ...project,
+        postTheatricalReleases: updatedReleases,
+      },
       revenueDelta,
     };
   }

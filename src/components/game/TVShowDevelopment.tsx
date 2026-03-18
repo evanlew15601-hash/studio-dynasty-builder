@@ -45,10 +45,6 @@ export const TVShowDevelopment: React.FC<TVShowDevelopmentProps> = ({
   const [editingScript, setEditingScript] = useState<Script | null>(null);
   const [scriptCharacters, setScriptCharacters] = useState<ScriptCharacter[]>([]);
 
-  const [librarySearch, setLibrarySearch] = useState('');
-  const [libraryGenre, setLibraryGenre] = useState<string>('all');
-  const [libraryStage, setLibraryStage] = useState<string>('all');
-
   const stageOrder: Script['developmentStage'][] = ['concept', 'treatment', 'first-draft', 'polish', 'final'];
 
   const canAffordWriterFee = (amount: number): boolean => {
@@ -346,13 +342,6 @@ export const TVShowDevelopment: React.FC<TVShowDevelopmentProps> = ({
     return <div className="p-6 text-sm text-muted-foreground">Loading TV show development...</div>;
   }
 
-  const genres: Genre[] = [
-    'action', 'adventure', 'comedy', 'drama', 'horror', 'thriller',
-    'romance', 'erotica', 'sci-fi', 'fantasy', 'documentary', 'animation',
-    'musical', 'western', 'war', 'biography', 'crime', 'mystery',
-    'superhero', 'family', 'sports', 'historical'
-  ];
-
   const handleCreateTVScript = () => {
     if (!newScript.title || !newScript.logline) {
       toast({
@@ -373,13 +362,12 @@ export const TVShowDevelopment: React.FC<TVShowDevelopmentProps> = ({
       cgiIntensity: 'minimal',
     };
 
-    const contentRating = computeFilmContentRating(baseCharacteristics.content, newScript.genre as Genre | undefined);
+    const contentRating = computeFilmContentRating(baseCharacteristics.content);
 
     const script: Script = {
       id: editingScript ? editingScript.id : `tv-script-${Date.now()}`,
       title: newScript.title!,
       genre: newScript.genre as Genre,
-      subgenre: newScript.subgenre?.trim() || undefined,
       logline: newScript.logline!,
       writer: newScript.writer || `${gameState.studio.name} Writing Team`,
       pages: newScript.pages || 60,
@@ -548,21 +536,7 @@ export const TVShowDevelopment: React.FC<TVShowDevelopmentProps> = ({
     (script.characteristics.pacing === 'episodic' || script.estimatedRuntime <= 60) // TV-like characteristics
   );
 
-  const filteredAvailableTVScripts = availableTVScripts.filter((script) => {
-    if (libraryGenre !== 'all' && script.genre !== libraryGenre) return false;
-    if (libraryStage !== 'all' && script.developmentStage !== libraryStage) return false;
-
-    const q = librarySearch.trim().toLowerCase();
-    if (!q) return true;
-
-    return (
-      script.title.toLowerCase().includes(q) ||
-      script.logline.toLowerCase().includes(q) ||
-      (script.subgenre || '').toLowerCase().includes(q)
-    );
-  });
-
-  const draftRating = computeFilmContentRating(newScript.characteristics?.content, newScript.genre as Genre | undefined);
+  const draftRating = computeFilmContentRating(newScript.characteristics?.content);
 
   return (
     <div className="space-y-6">
@@ -659,24 +633,17 @@ export const TVShowDevelopment: React.FC<TVShowDevelopmentProps> = ({
                       <SelectValue />
                     </SelectTrigger>
                     <SelectContent>
-                      {genres.map((genre) => (
-                        <SelectItem key={genre} value={genre}>
-                          {genre.charAt(0).toUpperCase() + genre.slice(1)}
-                        </SelectItem>
-                      ))}
+                      <SelectItem value="drama">Drama</SelectItem>
+                      <SelectItem value="comedy">Comedy</SelectItem>
+                      <SelectItem value="action">Action</SelectItem>
+                      <SelectItem value="thriller">Thriller</SelectItem>
+                      <SelectItem value="horror">Horror</SelectItem>
+                      <SelectItem value="romance">Romance</SelectItem>
+                      <SelectItem value="sci-fi">Sci-Fi</SelectItem>
+                      <SelectItem value="fantasy">Fantasy</SelectItem>
+                      <SelectItem value="documentary">Documentary</SelectItem>
                     </SelectContent>
                   </Select>
-                </div>
-
-                <div>
-                  <Label htmlFor="subgenre">Subgenre (optional)</Label>
-                  <Input
-                    id="subgenre"
-                    value={newScript.subgenre || ''}
-                    onChange={(e) => setNewScript(prev => ({ ...prev, subgenre: e.target.value }))}
-                    placeholder="e.g. workplace sitcom, noir, space opera"
-                    className="mt-1"
-                  />
                 </div>
 
                 <div>
@@ -938,46 +905,10 @@ export const TVShowDevelopment: React.FC<TVShowDevelopmentProps> = ({
       {/* TV Scripts Library */}
       <Card>
         <CardHeader>
-          <div className="flex items-start justify-between gap-3 flex-wrap">
-            <CardTitle className="flex items-center">
-              <ClapperboardIcon className="mr-2" size={18} />
-              TV Script Library
-            </CardTitle>
-            <div className="flex items-center gap-2 flex-wrap">
-              <Input
-                value={librarySearch}
-                onChange={(e) => setLibrarySearch(e.target.value)}
-                placeholder="Search title, logline, subgenre..."
-                className="h-9 w-[240px]"
-              />
-              <Select value={libraryGenre} onValueChange={setLibraryGenre}>
-                <SelectTrigger className="h-9 w-[160px]">
-                  <SelectValue placeholder="Genre" />
-                </SelectTrigger>
-                <SelectContent>
-                  <SelectItem value="all">All genres</SelectItem>
-                  {genres.map((g) => (
-                    <SelectItem key={g} value={g}>
-                      {g.charAt(0).toUpperCase() + g.slice(1)}
-                    </SelectItem>
-                  ))}
-                </SelectContent>
-              </Select>
-              <Select value={libraryStage} onValueChange={setLibraryStage}>
-                <SelectTrigger className="h-9 w-[160px]">
-                  <SelectValue placeholder="Stage" />
-                </SelectTrigger>
-                <SelectContent>
-                  <SelectItem value="all">All stages</SelectItem>
-                  <SelectItem value="concept">Concept</SelectItem>
-                  <SelectItem value="treatment">Treatment</SelectItem>
-                  <SelectItem value="first-draft">First Draft</SelectItem>
-                  <SelectItem value="polish">Polish</SelectItem>
-                  <SelectItem value="final">Final</SelectItem>
-                </SelectContent>
-              </Select>
-            </div>
-          </div>
+          <CardTitle className="flex items-center">
+            <ClapperboardIcon className="mr-2" size={18} />
+            TV Script Library
+          </CardTitle>
         </CardHeader>
         <CardContent>
           {availableTVScripts.length === 0 ? (
@@ -986,13 +917,9 @@ export const TVShowDevelopment: React.FC<TVShowDevelopmentProps> = ({
               <p>No TV scripts in development</p>
               <p className="text-sm">Create your first TV script to begin building your slate</p>
             </div>
-          ) : filteredAvailableTVScripts.length === 0 ? (
-            <div className="text-center py-8 text-muted-foreground">
-              <p>No TV scripts match your filters.</p>
-            </div>
           ) : (
             <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
-              {filteredAvailableTVScripts.map((script) => {
+              {availableTVScripts.map((script) => {
                 const stageIndex = stageOrder.indexOf(script.developmentStage || 'concept');
                 const stageProgress = ((stageIndex + 1) / stageOrder.length) * 100;
                 const greenlightReport = getScriptGreenlightReport(script, gameState);
@@ -1015,11 +942,6 @@ export const TVShowDevelopment: React.FC<TVShowDevelopmentProps> = ({
                     <CardTitle className="text-base truncate">{script.title}</CardTitle>
                     <div className="flex items-center space-x-2">
                       <Badge variant="outline">{script.genre}</Badge>
-                      {script.subgenre && (
-                        <Badge variant="outline" className="text-xs">
-                          {script.subgenre}
-                        </Badge>
-                      )}
                       <Badge variant={isFinalized ? 'default' : 'secondary'} className="text-xs capitalize">
                         {(script.developmentStage || 'concept').replace('-', ' ')}
                       </Badge>

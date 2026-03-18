@@ -125,9 +125,9 @@ describe('long-horizon stability (100+ years)', () => {
     const avgActive = windowCounts.reduce((s, n) => s + n, 0) / Math.max(1, windowCounts.length);
     const avgChurn = windowChurn.reduce((s, n) => s + n, 0) / Math.max(1, windowChurn.length);
 
-    // Loose invariants (tuning targets are 240–340 active; ~4–7% churn).
+    // Loose invariants (tuning targets are 240–320 active; ~4–7% churn).
     expect(avgActive).toBeGreaterThanOrEqual(240);
-    expect(avgActive).toBeLessThanOrEqual(350);
+    expect(avgActive).toBeLessThanOrEqual(330);
 
     expect(avgChurn).toBeGreaterThanOrEqual(0.03);
     expect(avgChurn).toBeLessThanOrEqual(0.09);

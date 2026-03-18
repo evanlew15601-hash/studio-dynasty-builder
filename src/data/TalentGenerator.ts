@@ -509,7 +509,7 @@ export class TalentGenerator {
   private selectGenres(count: number): Genre[] {
     const allGenres: Genre[] = [
       'action', 'adventure', 'comedy', 'drama', 'horror', 'thriller',
-      'romance', 'erotica', 'sci-fi', 'fantasy', 'documentary', 'animation',
+      'romance', 'sci-fi', 'fantasy', 'documentary', 'animation',
       'musical', 'western', 'war', 'biography', 'crime', 'mystery',
       'superhero', 'family', 'sports', 'historical'
     ];

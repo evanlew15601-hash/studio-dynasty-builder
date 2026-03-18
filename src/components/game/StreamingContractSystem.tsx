@@ -159,6 +159,7 @@ export const StreamingContractSystem: React.FC<StreamingContractSystemProps> = (
       return {
         id: `contract-${Date.now()}`,
         dealKind,
+        platformId,
         platform: platformId as any,
         name: `${platform.name} - ${project.title}`,
         type: project.type as any,
@@ -219,6 +220,7 @@ export const StreamingContractSystem: React.FC<StreamingContractSystemProps> = (
     return {
       id: `contract-${Date.now()}`,
       dealKind,
+      platformId,
       platform: platformId as any,
       name: `${platform.name} - ${project.title}`,
       type: contractType,
@@ -274,13 +276,13 @@ export const StreamingContractSystem: React.FC<StreamingContractSystemProps> = (
       contract.upfrontPayment,
       gameState.currentWeek,
       gameState.currentYear,
-      `${dealKind === 'cable' ? 'Cable' : 'Streaming'} contract upfront - ${platform?.name ?? contract.platform} - ${project.title}`,
+      `${dealKind === 'cable' ? 'Cable' : 'Streaming'} contract upfront - ${platform?.name ?? (contract.platformId || contract.platform)} - ${project.title}`,
       project.id
     );
 
     toast({
       title: 'Contract Signed!',
-      description: `Signed with ${platform?.name ?? contract.platform} for ${(contract.upfrontPayment / 1000000).toFixed(1)}M upfront + performance bonuses`,
+      description: `Signed with ${platform?.name ?? (contract.platformId || contract.platform)} for ${(contract.upfrontPayment / 1000000).toFixed(1)}M upfront + performance bonuses`,
     });
 
     setSelectedProject(null);
@@ -290,7 +292,7 @@ export const StreamingContractSystem: React.FC<StreamingContractSystemProps> = (
     if (!project.streamingContract) return;
 
     const contract = project.streamingContract;
-    const platform = getAllProviders(mods).find(p => p.id === contract.platform);
+    const platform = getAllProviders(mods).find(p => p.id === (contract.platformId || contract.platform));
 
     const totalViews = project.metrics?.streaming?.totalViews ?? project.metrics?.streamingViews ?? 0;
     if (totalViews <= 0) return;
@@ -349,7 +351,7 @@ export const StreamingContractSystem: React.FC<StreamingContractSystemProps> = (
         bonusEarned,
         gameState.currentWeek,
         gameState.currentYear,
-        `${contract.dealKind === 'cable' ? 'Cable' : 'Streaming'} performance bonus - ${platform?.name ?? contract.platform} - ${project.title}`,
+        `${contract.dealKind === 'cable' ? 'Cable' : 'Streaming'} performance bonus - ${platform?.name ?? (contract.platformId || contract.platform)} - ${project.title}`,
         project.id
       );
       toast({
@@ -366,7 +368,7 @@ export const StreamingContractSystem: React.FC<StreamingContractSystemProps> = (
         penalty,
         gameState.currentWeek,
         gameState.currentYear,
-        `${contract.dealKind === 'cable' ? 'Cable' : 'Streaming'} contract penalty - ${platform?.name ?? contract.platform} - ${project.title}`,
+        `${contract.dealKind === 'cable' ? 'Cable' : 'Streaming'} contract penalty - ${platform?.name ?? (contract.platformId || contract.platform)} - ${project.title}`,
         project.id
       );
       toast({
@@ -613,7 +615,7 @@ export const StreamingContractSystem: React.FC<StreamingContractSystemProps> = (
             <div className="space-y-4">
               {activeContracts.map(project => {
                 const contract = project.streamingContract!;
-                const platform = getAllProviders(mods).find(p => p.id === contract.platform);
+                const platform = getAllProviders(mods).find(p => p.id === (contract.platformId || contract.platform));
 
                 const totalViews = project.metrics?.streaming?.totalViews ?? project.metrics?.streamingViews ?? 0;
                 const completionRate = project.metrics?.streaming?.completionRate;
@@ -630,7 +632,7 @@ export const StreamingContractSystem: React.FC<StreamingContractSystemProps> = (
                           <div className="flex items-center gap-2">
                             <div className={`w-3 h-3 rounded ${platform?.color ?? 'bg-muted'}`} />
                             <span className="text-sm text-muted-foreground">
-                              {platform?.name ?? contract.platform} • {dealKindLabel}
+                              {platform?.name ?? (contract.platformId || contract.platform)} • {dealKindLabel}
                             </span>
                           </div>
                         </div>

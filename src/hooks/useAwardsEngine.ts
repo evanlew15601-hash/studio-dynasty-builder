@@ -4,10 +4,8 @@ import { getAwardShowsForYear } from '@/data/AwardsSchedule';
 import type { AwardCategoryDefinition } from '@/data/AwardsSchedule';
 import { useToast } from '@/hooks/use-toast';
 import { AwardShowCeremony } from '@/components/game/IndividualAwardShowModal';
-import { hashStringToUint32 } from '@/utils/stablePick';
-import { findRelevantTalentForAwardCategory } from '@/utils/awardsTalent';
+import { hashStringToUint32, stablePick } from '@/utils/stablePick';
 import { stableFloat01 } from '@/utils/stableRandom';
-import { computeAwardsCampaignBoost } from '@/utils/awardsCampaign';
 import { MediaEngine } from '@/components/game/MediaEngine';
 import { logDebug } from '@/utils/logger';
 
@@ -23,8 +21,6 @@ export function useAwardsEngine(
 
   const isTvProject = (project: Project) => project.type === 'series' || project.type === 'limited-series';
   const isFilmProject = (project: Project) => !isTvProject(project);
-
-  const getTalentById = (id?: string) => gameState.talent.find((t) => t.id === id);
 
   const getSeasonState = (): AwardsSeasonState => {
     const existing = gameState.awardsSeason;
@@ -107,6 +103,14 @@ export function useAwardsEngine(
       else if (share >= 8) probability += 3;
     }
 
+    // Awards campaign boost (player projects only; shared by film/TV)
+    const campaign = project.awardsCampaign;
+    if (campaign) {
+      const budgetBoost = Math.min(12, campaign.budget / 250_000);
+      const effectivenessBoost = (campaign.effectiveness || 0) * 0.1;
+      probability += budgetBoost * 0.6 + effectivenessBoost * 0.4;
+    }
+
     return Math.min(100, Math.max(0, probability));
   };
 
@@ -125,8 +129,8 @@ export function useAwardsEngine(
     showName: string;
     medium: 'film' | 'tv';
     categories: AwardCategoryDefinition[];
-    nominationsForState: Record<string, Array<{ projectId: string; score: number; talentId?: string }>>;
-    nominationsWithProjects: Record<string, Array<{ project: Project; score: number; talentId?: string }>>;
+    nominationsForState: Record<string, Array<{ projectId: string; score: number }>>;
+    nominationsWithProjects: Record<string, Array<{ project: Project; score: number }>>;
   } | null => {
     const show = getShowByKey(showId);
     if (!show) return null;
@@ -139,8 +143,8 @@ export function useAwardsEngine(
 
     const seedRoot = `awards|${gameState.universeSeed ?? 0}|Y${gameState.currentYear}|${show.id}`;
 
-    const nominationsForState: Record<string, Array<{ projectId: string; score: number; talentId?: string }>> = {};
-    const nominationsWithProjects: Record<string, Array<{ project: Project; score: number; talentId?: string }>> = {};
+    const nominationsForState: Record<string, Array<{ projectId: string; score: number }>> = {};
+    const nominationsWithProjects: Record<string, Array<{ project: Project; score: number }>> = {};
 
     categories.forEach((category) => {
       const categoryName = category.name;
@@ -200,47 +204,34 @@ export function useAwardsEngine(
 
           // Critically acclaimed actor/director boost for individual categories
           let talentBonus = 0;
-          let categoryTalentId: string | undefined;
           if (isTalentCategory(category)) {
-            const talent = findRelevantTalentForAwardCategory(gameState, project, categoryName, category);
+            const talent = findRelevantTalent(project, categoryName, category);
+            if (talent) {
+              const baseRep = talent.reputation || 50;
+              const awardsCount = talent.awards?.length || 0;
+              const fame = talent.fame ?? 0;
 
-            // Talent categories require a credited person on the project; don't fill in with random global talent.
-            if (!talent) return { project, score: 0, talentId: undefined };
+              // Reputation above/below 50 pulls score modestly.
+              const repBonus = (baseRep - 50) * 0.4; // max about ±20
+              // Prior awards and fame give additional small boosts.
+              const awardsBonus = Math.min(10, awardsCount * 2);
+              const fameBonus = Math.min(10, fame * 0.1);
 
-            categoryTalentId = talent.id;
-
-            const baseRep = talent.reputation || 50;
-            const awardsCount = talent.awards?.length || 0;
-            const fame = talent.fame ?? 0;
-
-            // Reputation above/below 50 pulls score modestly.
-            const repBonus = (baseRep - 50) * 0.4; // max about ±20
-            // Prior awards and fame give additional small boosts.
-            const awardsBonus = Math.min(10, awardsCount * 2);
-            const fameBonus = Math.min(10, fame * 0.1);
-
-            talentBonus = repBonus + awardsBonus + fameBonus;
+              talentBonus = repBonus + awardsBonus + fameBonus;
+            }
           }
-
-          const campaignBoost = computeAwardsCampaignBoost({
-            project,
-            categoryDef: category,
-            medium: show.medium,
-            week: gameState.currentWeek,
-            year: gameState.currentYear,
-          });
 
           const noise = (stableFloat01(`${seedRoot}|${categoryName}|${project.id}|noise`) * 8) - 4;
 
-          const score = Math.min(100, base + momentum + categoryBias + talentBonus + campaignBoost + noise);
-          return { project, score, talentId: categoryTalentId };
+          const score = Math.min(100, base + momentum + categoryBias + talentBonus + noise);
+          return { project, score };
         })
         .filter(({ score }) => score > 10) // Filter out clearly ineligible
         .sort((a, b) => b.score - a.score)
         .slice(0, 5);
 
       nominationsWithProjects[categoryName] = ranked;
-      nominationsForState[categoryName] = ranked.map((r) => ({ projectId: r.project.id, score: r.score, talentId: r.talentId }));
+      nominationsForState[categoryName] = ranked.map((r) => ({ projectId: r.project.id, score: r.score }));
     });
 
     return {
@@ -311,7 +302,7 @@ export function useAwardsEngine(
 
       const categoryDef = categoryDefByName.get(category);
       const talent = categoryDef && isTalentCategory(categoryDef)
-        ? findRelevantTalentForAwardCategory(gameState, project, category, categoryDef)
+        ? findRelevantTalent(project, category, categoryDef)
         : undefined;
 
       MediaEngine.queueMediaEvent({
@@ -378,6 +369,8 @@ export function useAwardsEngine(
     const eligible = getEligibleProjects(show.medium);
     const byId = new Map(eligible.map((p) => [p.id, p] as const));
 
+    const categoryDefByName = new Map(categories.map((c) => [c.name, c] as const));
+
     const flatForModal: Array<{ project: Project; category: string; won: boolean; award?: StudioAward; talentAward?: TalentAward; talentName?: string }> = [];
     const winnersThisShow: string[] = [];
     let extraTalentStudioReputation = 0;
@@ -390,9 +383,9 @@ export function useAwardsEngine(
       const nominees = (nominationsRecord.categories[category] || [])
         .map((n) => {
           const project = byId.get(n.projectId);
-          return project ? { project, score: n.score, talentId: n.talentId } : null;
+          return project ? { project, score: n.score } : null;
         })
-        .filter(Boolean) as Array<{ project: Project; score: number; talentId?: string }>;
+        .filter(Boolean) as Array<{ project: Project; score: number }>;
 
       if (nominees.length === 0) return;
 
@@ -424,20 +417,9 @@ export function useAwardsEngine(
           const catKey = hashStringToUint32(category).toString(36);
 
           if (categoryIsTalent) {
-            const relevantTalent = getTalentById(n.talentId) || findRelevantTalentForAwardCategory(gameState, n.project, category, categoryDef);
-            const expectedType = categoryDef.talent?.type;
-            const expectedGender = categoryDef.talent?.gender;
-
-            const categoryLower = category.toLowerCase();
-            const inferredGender = expectedGender || (
-              categoryLower.includes('actress')
-                ? 'Female'
-                : (categoryLower.includes('actor') && !categoryLower.includes('actress'))
-                  ? 'Male'
-                  : undefined
-            );
-
-            if (relevantTalent && (!expectedType || relevantTalent.type === expectedType) && (!inferredGender || relevantTalent.gender === inferredGender)) {
+            // Find relevant talent for this category
+            const relevantTalent = findRelevantTalent(n.project, category, categoryDef);
+            if (relevantTalent) {
               talentAward = {
                 id: `talent-award:${show.id}:${gameState.currentYear}:${catKey}:${relevantTalent.id}:${n.project.id}`,
                 talentId: relevantTalent.id,
@@ -492,7 +474,8 @@ export function useAwardsEngine(
     const playerWin = flatForModal.find(f => f.won && gameState.projects.some(p => p.id === f.project.id));
     if (playerWin) {
       const awardName = `${ceremonyName} - ${playerWin.category}`;
-      const talent = playerWin.talentAward ? getTalentById(playerWin.talentAward.talentId) : undefined;
+      const def = categoryDefByName.get(playerWin.category);
+      const talent = def && isTalentCategory(def) ? findRelevantTalent(playerWin.project, playerWin.category, def) : undefined;
 
       MediaEngine.queueMediaEvent({
         type: 'award_win',
@@ -547,14 +530,12 @@ export function useAwardsEngine(
         const nominees = (nominationsRecord.categories[category] || [])
           .map((n) => {
             const project = byId.get(n.projectId);
-            return project ? { project, score: n.score, talentId: n.talentId } : null;
+            return project ? { project, score: n.score } : null;
           })
-          .filter(Boolean) as Array<{ project: Project; score: number; talentId?: string }>;
+          .filter(Boolean) as Array<{ project: Project; score: number }>;
 
         ceremonyData.nominations[category] = nominees.map(n => {
-          const t = isTalentCategory(categoryDef)
-            ? (getTalentById(n.talentId) || findRelevantTalentForAwardCategory(gameState, n.project, category, categoryDef))
-            : undefined;
+          const t = isTalentCategory(categoryDef) ? findRelevantTalent(n.project, category, categoryDef) : undefined;
 
           const isPlayer = isPlayerProject(n.project);
           const studioName = isPlayer ? gameState.studio.name : (n.project.studioName || 'AI Studio');
@@ -575,9 +556,9 @@ export function useAwardsEngine(
         const nominees = (nominationsRecord.categories[category] || [])
           .map((n) => {
             const project = byId.get(n.projectId);
-            return project ? { project, score: n.score, talentId: n.talentId } : null;
+            return project ? { project, score: n.score } : null;
           })
-          .filter(Boolean) as Array<{ project: Project; score: number; talentId?: string }>;
+          .filter(Boolean) as Array<{ project: Project; score: number }>;
 
         const winner = nominees.find(n => flatForModal.some(f => f.project.id === n.project.id && f.category === category && f.won));
         if (winner) {
@@ -655,4 +636,119 @@ export function useAwardsEngine(
     });
     shows.forEach((s) => triggerAwardsCeremony(s.id));
   }, [gameState.currentWeek, gameState.currentYear]);
+
+  // Helper function to find relevant talent for awards categories
+  const findRelevantTalent = (project: Project, category: string, categoryDef?: AwardCategoryDefinition): TalentPerson | undefined => {
+    const categoryLower = category.toLowerCase();
+
+    // Prefer explicit cast/crew lists first
+    const castEntries = project.cast || [];
+    const crewEntries = project.crew || [];
+    const characters = project.script?.characters || [];
+
+    const getTalentById = (id?: string) => gameState.talent.find(t => t.id === id);
+    const pick = <T,>(items: T[], suffix: string) => stablePick(items, `${project.id}|${categoryLower}|${suffix}`);
+
+    const desiredTalentType = categoryDef?.talent?.type;
+    const desiredGender = categoryDef?.talent?.gender;
+    const desiredSupporting = categoryDef?.talent?.supporting;
+
+    // Director category
+    const directorCategory = desiredTalentType === 'director' || categoryLower.includes('director') || categoryLower.includes('directing');
+
+    if (directorCategory) {
+      // From cast/crew credits
+      const directorEntries = [...castEntries, ...crewEntries].filter(c => (c.role || '').toLowerCase().includes('director'));
+      const castDir = directorEntries.length > 1 ? pick(directorEntries, 'director') : directorEntries[0];
+      if (castDir) {
+        const t = getTalentById((castDir as any).talentId);
+        if (t && t.type === 'director') return t;
+      }
+
+      // Fallback to script characters
+      const directorChars = characters.filter(c => c.requiredType === 'director' && !!c.assignedTalentId);
+      const charDir = directorChars.length > 1 ? pick(directorChars, 'director-char') : directorChars[0];
+      const t = getTalentById(charDir?.assignedTalentId);
+      if (t && t.type === 'director') return t;
+
+      const directors = gameState.talent.filter(tt => tt.type === 'director');
+      return directors.length > 0 ? pick(directors, 'global-director-fallback') : undefined;
+    }
+
+    // Acting categories - deterministic selection (no Math.random), with gender handling
+    const isSupporting = desiredSupporting ?? categoryLower.includes('supporting');
+
+    const genderOkStrict = (talent: TalentPerson | undefined) => {
+      if (!talent || talent.type !== 'actor') return false;
+      if (desiredGender) return talent.gender === desiredGender;
+      if (categoryLower.includes('actress')) return talent.gender === 'Female';
+      if (categoryLower.includes('actor')) return talent.gender !== 'Female';
+      return true;
+    };
+
+    const genderOkLoose = (talent: TalentPerson | undefined) => {
+      return !!talent && talent.type === 'actor';
+    };
+
+    const byRoleMatch = (role: string) => role.toLowerCase().includes(isSupporting ? 'supporting' : 'lead');
+
+    const roleCandidatesStrict = castEntries
+      .filter(c => byRoleMatch(c.role))
+      .filter(c => genderOkStrict(getTalentById((c as any).talentId)));
+
+    const roleCandidates = roleCandidatesStrict.length > 0
+      ? roleCandidatesStrict
+      : castEntries
+          .filter(c => byRoleMatch(c.role))
+          .filter(c => genderOkLoose(getTalentById((c as any).talentId)));
+
+    if (roleCandidates.length > 0) {
+      const chosen = roleCandidates.length > 1 ? pick(roleCandidates, isSupporting ? 'supporting' : 'lead') : roleCandidates[0];
+      const talent = getTalentById((chosen as any).talentId);
+      if (talent && talent.type === 'actor') return talent;
+    }
+
+    // Any actor from cast (prefer gender-match but never return empty)
+    const anyActorCastStrict = castEntries.filter(c => genderOkStrict(getTalentById((c as any).talentId)));
+    const anyActorCast = anyActorCastStrict.length > 0
+      ? anyActorCastStrict
+      : castEntries.filter(c => genderOkLoose(getTalentById((c as any).talentId)));
+
+    if (anyActorCast.length > 0) {
+      const chosen = anyActorCast.length > 1 ? pick(anyActorCast, 'any-actor') : anyActorCast[0];
+      const talent = getTalentById((chosen as any).talentId);
+      if (talent && talent.type === 'actor') return talent;
+    }
+
+    // Fallback to script characters (prefer gender-match but never return empty)
+    const charCandidatesStrict = characters.filter(ch => {
+      if (ch.requiredType === 'director') return false;
+      const talent = getTalentById(ch.assignedTalentId);
+      if (!genderOkStrict(talent)) return false;
+      if (isSupporting) return ch.importance === 'supporting';
+      return ch.importance === 'lead';
+    });
+
+    const charCandidates = charCandidatesStrict.length > 0
+      ? charCandidatesStrict
+      : characters.filter(ch => {
+          if (ch.requiredType === 'director') return false;
+          const talent = getTalentById(ch.assignedTalentId);
+          if (!genderOkLoose(talent)) return false;
+          if (isSupporting) return ch.importance === 'supporting';
+          return ch.importance === 'lead';
+        });
+
+    const chosenChar = charCandidates.length > 1
+      ? pick(charCandidates, isSupporting ? 'supporting-char' : 'lead-char')
+      : charCandidates[0];
+
+    const talent = getTalentById(chosenChar?.assignedTalentId);
+    if (talent && talent.type === 'actor') return talent;
+
+    // Final fallback: pick any actor from the global pool.
+    const actorPoolStrict = gameState.talent.filter(t => genderOkStrict(t));
+    const actorPool = actorPoolStrict.length > 0 ? actorPoolStrict : gameState.talent.filter(t => genderOkLoose(t));
+    return actorPool.length > 0 ? pick(actorPool, 'global-actor-fallback') : undefined;
+  };
 }

@@ -28,27 +28,6 @@ If Steam Cloud is enabled for the game, Steam can sync the saves folder across m
 - Cash flow matters: keep enough budget buffer for marketing, talent, and overruns.
 - Talent relationships compound over time—invest in people you want to keep.
 
-## Governance & constraints
-
-Governance is a lightweight “stakeholder pushback” model that affects whether you can greenlight new projects.
-
-- **Board confidence (0–100)**: higher is better. Risky/expensive projects require higher confidence.
-- **Capacity (max active projects)**: how many in-flight projects the studio can reliably execute at once (based on reputation and budget).
-- **Internal pressure (0–100)**: lower is better.
-  - **Board pushback** rises when you run over capacity.
-  - **Finance** pressure rises when your cash runway is short.
-  - **Investors** pressure rises when debt is high relative to cash.
-- **External pressure (0–100)**: lower is better.
-  - **Competition** increases when rival studios out-repute you.
-  - **Talent market** increases when you’re low-reputation or your roster is burning out.
-  - **Market pressure** increases when your specialties don’t match current trends.
-
-When you greenlight a project, you may see:
-
-- **OK**: greenlight normally.
-- **Warn (pushback)**: you can proceed, but it will reduce board confidence and increase pressure.
-- **Block**: you can’t greenlight unless an **Override** is offered (overrides have bigger confidence/pressure hits).
-
 ## Mods (if enabled)
 
 If you are using mod bundles, keep a backup of your save before changing mods. Some changes can affect existing saves.

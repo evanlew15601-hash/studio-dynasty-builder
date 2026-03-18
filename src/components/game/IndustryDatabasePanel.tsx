@@ -55,7 +55,6 @@ const ALL_GENRES: Genre[] = [
   'horror',
   'thriller',
   'romance',
-  'erotica',
   'sci-fi',
   'fantasy',
   'documentary',
@@ -106,7 +105,6 @@ export const IndustryDatabasePanel: React.FC<IndustryDatabasePanelProps> = ({ sl
     gameState?.projects.length,
     gameState?.allReleases.length,
     gameState?.talent.length,
-    (gameState?.talent || []).reduce((sum, t) => sum + ((t.awards || []).length), 0),
     gameState?.competitorStudios.length,
     gameState?.studio.awards?.length || 0,
   ]);

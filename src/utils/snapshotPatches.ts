@@ -1,5 +1,4 @@
 import { ensureGameStateRoleGenders, ensureTalentDemographics } from '@/utils/demographics';
-import { normalizeDirectorRolesInGameState } from '@/utils/directorRoleNormalization';
 import { ensureGameStateFictionalAwardNames } from '@/utils/awardsNaming';
 import { ensureCompetitorStudiosLore } from '@/utils/competitorStudiosPatches';
 import { ensureTalentLore } from '@/utils/talentLorePatches';
@@ -25,22 +24,20 @@ export function patchLoadedSnapshot(
   const patchedGameStateRaw = ensureCompetitorStudiosLore(
     ensureTalentLore(
       ensureGameStateFictionalAwardNames(
-        ensureGameStateRoleGenders(
-          normalizeDirectorRolesInGameState({
-            ...snapshot.gameState,
-            talent: ensureTalentDemographics(patchedTalent),
-            franchises: applyPatchesByKey(
-              snapshot.gameState.franchises || [],
-              getPatchesForEntity(mods, 'franchise'),
-              (f) => f.id
-            ),
-            publicDomainIPs: applyPatchesByKey(
-              snapshot.gameState.publicDomainIPs || [],
-              getPatchesForEntity(mods, 'publicDomainIP'),
-              (p) => p.id
-            ),
-          })
-        )
+        ensureGameStateRoleGenders({
+          ...snapshot.gameState,
+          talent: ensureTalentDemographics(patchedTalent),
+          franchises: applyPatchesByKey(
+            snapshot.gameState.franchises || [],
+            getPatchesForEntity(mods, 'franchise'),
+            (f) => f.id
+          ),
+          publicDomainIPs: applyPatchesByKey(
+            snapshot.gameState.publicDomainIPs || [],
+            getPatchesForEntity(mods, 'publicDomainIP'),
+            (p) => p.id
+          ),
+        })
       )
     )
   );

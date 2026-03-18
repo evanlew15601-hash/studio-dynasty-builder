@@ -1,6 +1,5 @@
 import React, { useState } from 'react';
 import { GameState, Project, TalentPerson, ScriptCharacter } from '@/types/game';
-import { isTalentAvailable } from '@/utils/talentAvailability';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
@@ -289,7 +288,7 @@ export const PersistentCharacterCasting: React.FC<PersistentCharacterCastingProp
                     <div className="space-y-3">
                       {returningActors.slice(0, 3).map(history => {
                         const talent = gameState.talent.find(t => t.id === history.talentId);
-                        if (!talent || !isTalentAvailable(gameState, talent)) return null;
+                        if (!talent || talent.contractStatus !== 'available') return null;
                         
                         const offer = calculateReturningActorOffer(talent, character, [history]);
                         

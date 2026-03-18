@@ -13,7 +13,7 @@ export const useTalentMarket = (talent: TalentPerson[], currentWeek: number) => 
     genreTrends: {
       action: 1, adventure: 1, animation: 1, biography: 1, comedy: 1, crime: 1,
       documentary: 1, drama: 1, family: 1, fantasy: 1, horror: 1, musical: 1,
-      mystery: 1, romance: 1, erotica: 1, 'sci-fi': 1, thriller: 1, war: 1, western: 1,
+      mystery: 1, romance: 1, 'sci-fi': 1, thriller: 1, war: 1, western: 1,
       superhero: 1, sports: 1, historical: 1
     },
     availabilityMap: {}

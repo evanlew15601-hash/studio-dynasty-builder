@@ -1,6 +1,7 @@
 // Studio Magnate Core Game Types
 
 import type { SeasonData, StreamingContract } from './streamingTypes';
+import type { PlatformMarketState } from './platformEconomy';
 
 // Franchise System Types
 export interface Franchise {
@@ -27,14 +28,6 @@ export interface Franchise {
   criticalFatigue?: number; // 0-100, increases with poor sequels
   description?: string; // Bio/background for player familiarity
   cost: number; // Cost to license/use franchise based on cultural weight
-}
-
-export interface FranchiseInvitation {
-  franchiseId: string;
-  offeredWeekIndex: number;
-  acceptedWeekIndex: number;
-  expiresWeekIndex: number;
-  usesRemaining: number;
 }
 
 // Public Domain System Types
@@ -82,16 +75,6 @@ export interface Studio {
   awards?: StudioAward[];
   awardsThisYear?: number;
   prestige?: number; // 0-100, separate from reputation
-  /** World-franchise licenses purchased in the Marketplace (one-time fee each). */
-  licensedFranchiseIds?: string[];
-
-  /** Temporary 1-slot production invitation for a world franchise (not ownership). */
-  franchiseInvitation?: FranchiseInvitation;
-  /** Global cooldown anchor (absolute week index) for invitation offers. */
-  lastFranchiseInvitationWeekIndex?: number;
-  /** Per-franchise cooldown map (absolute week index until which offers are blocked). */
-  franchiseInvitationCooldowns?: Record<string, number>;
-
   // Worldbuilding / lore (player-facing)
   personality?: string;
   businessTendency?: string;
@@ -204,8 +187,6 @@ export interface Script {
   id: string;
   title: string;
   genre: Genre;
-  /** Optional: secondary label like "heist", "noir", "space opera". */
-  subgenre?: string;
   logline: string;
   writer: string;
   pages: number;
@@ -332,8 +313,6 @@ export interface Project {
   status: 'development' | 'pre-production' | 'production' | 'post-production' | 'marketing' | 'release' | 'distribution' | 'archived' | 'released' | 'filming' | 'completed' | 'ready-for-marketing' | 'ready-for-release' | 'scheduled-for-release';
   postTheatricalEligible?: boolean;
   theatricalEndDate?: Date;
-  theatricalEndWeek?: number;
-  theatricalEndYear?: number;
   metrics: ProjectMetrics;
   phaseDuration: number; // weeks remaining in current phase
   studioName?: string; // For AI projects, tracks which studio produced it
@@ -464,6 +443,7 @@ export interface DistributionStrategy {
 
 export interface DistributionChannel {
   platform: string;
+  platformId?: string;
   type: 'theatrical' | 'streaming' | 'vod' | 'television' | 'festival';
   revenue: RevenueModel;
   exclusivityPeriod?: number;
@@ -477,6 +457,7 @@ export interface RevenueModel {
 
 export interface ReleaseWindow {
   platform: string;
+  platformId?: string;
   startDate: Date;
   exclusivityDays: number;
 }
@@ -649,7 +630,7 @@ export interface ProducerEffect {
 
 export type Genre = 
   | 'action' | 'adventure' | 'comedy' | 'drama' | 'horror' | 'thriller'
-  | 'romance' | 'erotica' | 'sci-fi' | 'fantasy' | 'documentary' | 'animation'
+  | 'romance' | 'sci-fi' | 'fantasy' | 'documentary' | 'animation'
   | 'musical' | 'western' | 'war' | 'biography' | 'crime' | 'mystery'
   | 'superhero' | 'family' | 'sports' | 'historical';
 
@@ -904,7 +885,7 @@ export interface AwardsSeasonState {
     string,
     {
       year: number;
-      categories: Record<string, Array<{ projectId: string; score: number; talentId?: string }>>;
+      categories: Record<string, Array<{ projectId: string; score: number }>>;
     }
   >;
 }
@@ -940,6 +921,10 @@ export interface GameState {
   worldHistory?: WorldHistoryEntry[];
   worldYearbooks?: WorldYearbookEntry[];
   playerLegacy?: PlayerLegacy;
+  dlc?: {
+    streamingWars?: boolean;
+  };
+  platformMarket?: PlatformMarketState;
   // Franchise & Public Domain Systems
   franchises: Franchise[];
   publicDomainIPs: PublicDomainIP[];
@@ -1114,6 +1099,9 @@ export interface ReleaseStrategy {
   theatersCount?: number;
   /** For direct-to-streaming premieres, identifies the platform selected via a premiere deal. */
   streamingProviderId?: string;
+  streamingPlatformId?: string;
+  streamingExclusive?: boolean;
+  streamingExclusivityWeeks?: number;
   premiereDate: Date;
   rolloutPlan: ReleaseRollout[];
   specialEvents: SpecialEvent[];
@@ -1158,9 +1146,15 @@ export interface PostTheatricalRelease {
   id: string;
   projectId: string;
   platform: 'streaming' | 'digital' | 'physical' | 'tv-licensing';
+  platformId?: string;
   /** Optional platform identifier for deals (e.g., streamflix) */
   providerId?: string;
   releaseDate: Date;
+  /** Optional game-time scheduling fields (used for deterministic delayed windows). */
+  releaseWeek?: number;
+  releaseYear?: number;
+  /** Optional: player-chosen delay weeks from theatrical premiere to this window. */
+  delayWeeks?: number;
   revenue: number;
   weeklyRevenue: number;
   weeksActive: number;
@@ -1223,17 +1217,12 @@ export interface AwardsEvent {
 
 export interface AwardsCampaign {
   projectId: string;
-  /** Simple strategic focus: affects which categories are considered "targeted". */
-  focus?: 'prestige' | 'acting' | 'craft';
-  /** Substring tokens used to match award categories (e.g., "actor", "director", "cinematography"). */
   targetCategories: string[];
   budget: number;
   budgetSpent: number;
   duration: number; // weeks
   weeksRemaining: number;
   effectiveness: number; // 0-100
-  startedWeek?: number;
-  startedYear?: number;
   activities: AwardsCampaignActivity[];
 }
 

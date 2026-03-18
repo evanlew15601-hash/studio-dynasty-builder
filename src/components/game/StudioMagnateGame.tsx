@@ -4,6 +4,8 @@ import { useLoadingActions } from '@/contexts/LoadingContext';
 import { LOADING_OPERATIONS, delay } from '@/utils/loadingUtils';
 import { getWorldFranchiseCatalog } from '@/data/FranchiseCatalog';
 import { PublicDomainGenerator } from '@/data/PublicDomainGenerator';
+import { PROVIDER_DEALS } from '@/data/ProviderDealsDatabase';
+import type { PlatformMarketState } from '@/types/platformEconomy';
 import { ScriptDevelopment } from './ScriptDevelopment';
 import { CastingBoard } from './CastingBoard';
 import { ProductionManagement } from './ProductionManagement';
@@ -81,6 +83,7 @@ import { EnhancedFinancialAccuracy, applyEnhancedFinancialAccuracy } from './Enh
 import { EnhancedFranchiseSystem } from './EnhancedFranchiseSystem';
 import { FranchiseManager } from './FranchiseManager';
 import { OwnedFranchiseManager } from './OwnedFranchiseManager';
+import { FranchiseProjectCreator } from './FranchiseProjectCreator';
 
 import { EnhancedMarketingSystem } from './EnhancedMarketingSystem';
 import { PlayerCirclePanel } from './PlayerCirclePanel';
@@ -129,7 +132,6 @@ import {
   upsertOnlineLeagueTurnSubmission,
 } from '@/integrations/supabase/onlineLeagueTurnCompile';
 import { mergeLeagueReleaseSnapshotsIntoAllReleases } from '@/utils/leagueReleases';
-import { getUnavailableTalentIds, isTalentAvailable } from '@/utils/talentAvailability';
 import { dedupeReleasePoolPreferLatest } from '@/utils/releasePool';
 import type { LeagueReleasedProjectSnapshot } from '@/types/onlineLeague';
 import {
@@ -145,59 +147,6 @@ import { TalentProfileDialog } from './TalentProfileDialog';
 import { StudioIconRenderer as StudioIconRendererLazy } from './StudioIconCustomizer';
 import { SaveLoadDialog } from './SaveLoadDialog';
 import { GameSettingsDialog } from './GameSettingsDialog';
-
-const TalentMarketplaceLazy = React.lazy(async () => {
-  const m = await import('./TalentMarketplace');
-  return { default: m.TalentMarketplace };
-});
-
-const TalentAgencySystemLazy = React.lazy(async () => {
-  const m = await import('./TalentAgencySystem');
-  return { default: m.TalentAgencySystem };
-});
-
-const TalentBurnoutSystemLazy = React.lazy(async () => {
-  const m = await import('./TalentBurnoutSystem');
-  return { default: m.TalentBurnoutSystem };
-});
-
-const TalentChemistrySystemLazy = React.lazy(async () => {
-  const m = await import('./TalentChemistrySystem');
-  return { default: m.TalentChemistrySystem };
-});
-
-const TopActorsPanelLazy = React.lazy(async () => {
-  const m = await import('./TopActorsPanel');
-  return { default: m.TopActorsPanel };
-});
-
-const AdvancedTalentTestSuiteLazy = React.lazy(async () => {
-  const m = await import('./AdvancedTalentTestSuite');
-  return { default: m.AdvancedTalentTestSuite };
-});
-
-const MediaResponseDashboardFallback = () => (
-  <div className="text-center py-8 text-muted-foreground">Media Response Dashboard loading...</div>
-);
-
-const MediaDashboardLazy = React.lazy(async () => {
-  try {
-    const m = await import('./MediaDashboard');
-    return { default: m.MediaDashboard };
-  } catch {
-    const m = await import('./MediaNotifications');
-    return { default: m.MediaNotifications as any };
-  }
-});
-
-const MediaResponseDashboardLazy = React.lazy(async () => {
-  try {
-    const m = await import('./MediaResponseDashboard');
-    return { default: m.MediaResponseDashboard };
-  } catch {
-    return { default: MediaResponseDashboardFallback };
-  }
-});
 
 // Ensure AI films have credited talent so awards/filmographies have real people to reference
 function attachBasicCastForAI(project: Project, talentPool: TalentPerson[]): Project {
@@ -310,7 +259,7 @@ function attachBasicCastForAI(project: Project, talentPool: TalentPerson[]): Pro
           name: 'Director',
           description: 'Director',
           requiredType: 'director',
-          importance: 'crew',
+          importance: 'lead',
           traits: ['mandatory'],
           assignedTalentId: pickedDirector?.id,
         } as any,
@@ -504,6 +453,30 @@ function primeCompetitorTelevision(gameState: GameState): GameState {
   };
 }
 
+function createInitialPlatformMarketState(params: { currentWeek: number; currentYear: number }): PlatformMarketState {
+  const totalAddressableSubs = 100_000_000;
+
+  const rivals = PROVIDER_DEALS.filter((p) => p.dealKind === 'streaming').map((p) => ({
+    id: p.id,
+    name: p.name,
+    subscribers: Math.floor(totalAddressableSubs * 0.8 * (p.marketShare / 100)),
+    cash: Math.floor(p.marketShare * 200_000_000),
+    status: 'healthy' as const,
+    distressWeeks: 0,
+    tierMix: { adSupportedPct: 50, adFreePct: 50 },
+    priceIndex: 1,
+    catalogValue: 50,
+    freshness: 55,
+  }));
+
+  return {
+    totalAddressableSubs,
+    rivals,
+    lastUpdatedWeek: params.currentWeek,
+    lastUpdatedYear: params.currentYear,
+  };
+}
+
 interface StudioMagnateGameProps {
   onPhaseChange?: (phase: string) => void;
   gameConfig?: {
@@ -512,6 +485,7 @@ interface StudioMagnateGameProps {
     difficulty: 'easy' | 'normal' | 'hard' | 'magnate';
     startingBudget: number;
     studioIcon?: import('./StudioIconCustomizer').StudioIconConfig;
+    enableStreamingWars?: boolean;
   };
   initialGameState?: GameState;
   /**
@@ -611,10 +585,17 @@ export const StudioMagnateGame: React.FC<StudioMagnateGameProps> = ({
     // The real world state is generated in an effect below.
     const universeSeed = generateGameSeed();
 
+    const currentYear = isOnlineMode ? ONLINE_LEAGUE_START_YEAR : new Date().getFullYear();
+    const streamingWarsEnabled = !!gameConfig?.enableStreamingWars;
+
     return {
       universeSeed,
       rngState: universeSeed,
       mode: isOnlineMode ? 'online' : 'single',
+      dlc: {
+        streamingWars: streamingWarsEnabled,
+      },
+      platformMarket: streamingWarsEnabled ? createInitialPlatformMarketState({ currentWeek: 1, currentYear }) : undefined,
       studio: {
         id: 'player-studio',
         name: gameConfig?.studioName || 'Untitled Pictures',
@@ -626,7 +607,7 @@ export const StudioMagnateGame: React.FC<StudioMagnateGameProps> = ({
         lastProjectWeek: 0,
         weeksSinceLastProject: 0,
       },
-      currentYear: isOnlineMode ? ONLINE_LEAGUE_START_YEAR : new Date().getFullYear(),
+      currentYear,
       currentWeek: 1,
       currentQuarter: 1,
       projects: [],
@@ -933,6 +914,12 @@ export const StudioMagnateGame: React.FC<StudioMagnateGameProps> = ({
         universeSeed,
         rngState: universeSeed,
         mode: isOnlineMode ? 'online' : 'single',
+        dlc: {
+          streamingWars: !!gameConfig?.enableStreamingWars,
+        },
+        platformMarket: gameConfig?.enableStreamingWars
+          ? createInitialPlatformMarketState({ currentWeek: 1, currentYear: worldStartYear })
+          : undefined,
         studio,
         currentYear: worldStartYear,
         currentWeek: 1,
@@ -1058,11 +1045,6 @@ export const StudioMagnateGame: React.FC<StudioMagnateGameProps> = ({
   const setPhase = useUiStore((s) => s.setPhase);
   const selectedProjectId = useUiStore((s) => s.selectedProjectId);
   const setSelectedProjectId = useUiStore((s) => s.setSelectedProjectId);
-
-  const talentAgents = useMemo(() => {
-    if (currentPhase !== 'talent') return [];
-    return gameState.talent.filter(t => t.agent).map(t => t.agent!);
-  }, [currentPhase, gameState.talent]);
 
   const phaseInitRef = useRef(false);
   const initialPhaseNormalizedRaw = (((initialPhase === 'financials' ? 'finance' : initialPhase) as any) || 'dashboard') as string;
@@ -1675,8 +1657,6 @@ export const StudioMagnateGame: React.FC<StudioMagnateGameProps> = ({
                   ...updatedProject,
                   postTheatricalEligible: true,
                   theatricalEndDate: new Date(),
-                  theatricalEndWeek: resolvedReleaseWeek,
-                  theatricalEndYear: resolvedReleaseYear,
                   postTheatricalReleases: alreadyHasStreamingWindow
                     ? updatedProject.postTheatricalReleases
                     : [
@@ -2157,8 +2137,6 @@ export const StudioMagnateGame: React.FC<StudioMagnateGameProps> = ({
       releaseYear: gameState.currentYear,
       postTheatricalEligible: true,
       theatricalEndDate: new Date(),
-      theatricalEndWeek: gameState.currentWeek,
-      theatricalEndYear: gameState.currentYear,
       metrics: {
         inTheaters: false,
         boxOfficeTotal: 125000000,
@@ -2302,72 +2280,37 @@ export const StudioMagnateGame: React.FC<StudioMagnateGameProps> = ({
     const loadingEnabled = !options?.suppressLoading;
     const recapEnabled = !options?.suppressRecap;
 
-    if (weeklyProcessingRef.current) return Promise.resolve();
-    weeklyProcessingRef.current = true;
-
     if (loadingEnabled) {
+      if (weeklyProcessingRef.current) return;
+      weeklyProcessingRef.current = true;
       // Start weekly processing with loading
       startOperation(LOADING_OPERATIONS.WEEKLY_PROCESSING.id, LOADING_OPERATIONS.WEEKLY_PROCESSING.name, LOADING_OPERATIONS.WEEKLY_PROCESSING.estimatedTime);
       updateOperation(LOADING_OPERATIONS.WEEKLY_PROCESSING.id, 5, 'Advancing time...');
     }
 
-    const tickYieldBudgetMs = 10;
-    const yieldToBrowser = () =>
-      new Promise<void>((resolve) => {
-        if (typeof requestAnimationFrame === 'function') {
-          requestAnimationFrame(() => resolve());
-          return;
-        }
-        setTimeout(() => resolve(), 0);
-      });
+    const runTick = () => {
+      setGameState((prev) => {
+      const tickStart = performance.now();
+      const startedAtIso = new Date().toISOString();
 
-    const runTick = async () => {
-      try {
-        const prev = useGameStore.getState().game;
-        if (!prev) {
-          if (loadingEnabled) {
-            completeOperation(LOADING_OPERATIONS.WEEKLY_PROCESSING.id);
-          }
-          weeklyProcessingRef.current = false;
-          return;
-        }
+      const systems: TickSystemReport[] = [];
+      const recap: TickRecapCard[] = [];
 
-        const yieldIfNeeded = (() => {
-          let sliceStart = performance.now();
-          return async () => {
-            if (performance.now() - sliceStart < tickYieldBudgetMs) return;
-            await yieldToBrowser();
-            sliceStart = performance.now();
-          };
-        })();
+      const measure = <T,>(id: string, label: string, fn: () => T): T => {
+        const start = performance.now();
+        const result = fn();
+        systems.push({ id, label, ms: performance.now() - start });
+        return result;
+      };
 
-        const tickStart = performance.now();
-        const startedAtIso = new Date().toISOString();
+      const engineRng = createRng(prev.rngState ?? prev.universeSeed ?? 0);
+      const engineSystems = gameRegistry.getOrdered();
 
-        const systems: TickSystemReport[] = [];
-        const recap: TickRecapCard[] = [];
+      const engineTick = measure('engineTick', 'Engine tick (time + systems)', () =>
+        engineAdvanceWeek(prev, engineRng, engineSystems, { debug: diagnosticsEnabled })
+      );
 
-        const measure = <T,>(id: string, label: string, fn: () => T): T => {
-          const start = performance.now();
-          const result = fn();
-          systems.push({ id, label, ms: performance.now() - start });
-          return result;
-        };
-
-        const engineRng = createRng(prev.rngState ?? prev.universeSeed ?? 0);
-        const engineSystems = gameRegistry.getOrdered();
-
-        if (loadingEnabled) {
-          updateOperation(LOADING_OPERATIONS.WEEKLY_PROCESSING.id, 10, 'Running core simulation...');
-        }
-
-        const engineTick = measure('engineTick', 'Engine tick (time + systems)', () =>
-          engineAdvanceWeek(prev, engineRng, engineSystems, { debug: diagnosticsEnabled })
-        );
-
-        const baseAfterEngine = engineTick.nextState;
-
-        await yieldIfNeeded();
+      const baseAfterEngine = engineTick.nextState;
 
       const newTimeState = {
         currentWeek: baseAfterEngine.currentWeek,
@@ -2400,7 +2343,7 @@ export const StudioMagnateGame: React.FC<StudioMagnateGameProps> = ({
                   randomStudio,
                   newTimeState.currentWeek,
                   newTimeState.currentYear,
-                  baseAfterEngine.talent.filter(t => isTalentAvailable(baseAfterEngine, t))
+                  baseAfterEngine.talent.filter(t => t.contractStatus === 'available')
                 );
               }
             }
@@ -2437,8 +2380,6 @@ export const StudioMagnateGame: React.FC<StudioMagnateGameProps> = ({
         applyEnhancedFinancialAccuracy(updatedProjects)
       );
       updatedProjects = financialAccuracy.projects;
-
-      await yieldIfNeeded();
 
       
 
@@ -2509,10 +2450,6 @@ export const StudioMagnateGame: React.FC<StudioMagnateGameProps> = ({
             if (fallback) {
               generator.generateStudioRelease(fallback, w, slateYear);
             }
-          }
-
-          if (w % 4 === 0) {
-            await yieldIfNeeded();
           }
         }
 
@@ -2605,8 +2542,6 @@ export const StudioMagnateGame: React.FC<StudioMagnateGameProps> = ({
               }
             }
           }
-
-          await yieldIfNeeded();
         }
 
         // Queue a single media story for one competitor release happening this week.
@@ -2655,8 +2590,6 @@ export const StudioMagnateGame: React.FC<StudioMagnateGameProps> = ({
           competitorStudiosForWeek
         );
       });
-
-      await yieldIfNeeded();
       
       if (diagnosticsEnabled) {
         console.log(`Weekly reputation update: ${prev.studio.reputation} -> ${weeklyResults.studio.reputation}`);
@@ -2731,7 +2664,6 @@ export const StudioMagnateGame: React.FC<StudioMagnateGameProps> = ({
         let filmographyState: GameState = { ...baseAfterEngine, talent: updatedTalent };
         for (const released of releasedForFilmography) {
           filmographyState = TalentFilmographyManager.updateFilmographyOnRelease(filmographyState, released);
-          await yieldIfNeeded();
         }
         updatedTalent = filmographyState.talent as typeof updatedTalent;
 
@@ -2783,8 +2715,6 @@ export const StudioMagnateGame: React.FC<StudioMagnateGameProps> = ({
       const releasePool = [...baseAfterEngine.allReleases, ...newAIReleases, ...playerReleases];
 
       const dedupedReleases = dedupeReleasePoolPreferLatest(releasePool as any);
-
-      await yieldIfNeeded();
 
       const prunedReleases = dedupedReleases.filter((release) => {
         if (!('releaseWeek' in release) || !('releaseYear' in release)) return true;
@@ -2923,9 +2853,6 @@ export const StudioMagnateGame: React.FC<StudioMagnateGameProps> = ({
         }
       }
 
-      // Commit state atomically once all work is complete.
-      setGameState(() => newState);
-
       if (!options?.suppressToast) {
         toast({
           title: "New Week",
@@ -2936,42 +2863,24 @@ export const StudioMagnateGame: React.FC<StudioMagnateGameProps> = ({
       // Complete the loading operation
       if (loadingEnabled) {
         updateOperation(LOADING_OPERATIONS.WEEKLY_PROCESSING.id, 100, 'Finalizing...');
-        await yieldToBrowser();
-        completeOperation(LOADING_OPERATIONS.WEEKLY_PROCESSING.id);
-      }
-      weeklyProcessingRef.current = false;
-      } catch (e) {
-        console.error('Advance week failed', e);
-
-        if (loadingEnabled) {
+        requestAnimationFrame(() => {
           completeOperation(LOADING_OPERATIONS.WEEKLY_PROCESSING.id);
-        }
-        weeklyProcessingRef.current = false;
-
-        toast({
-          title: 'Advance Week Failed',
-          description: 'The simulation hit an unexpected error while processing the week.',
-          variant: 'destructive',
+          weeklyProcessingRef.current = false;
         });
       }
+
+      return newState;
+    });
     };
 
     // Defer the heavy tick work by one frame when showing the loading UI.
     // This allows the popup to render before the main-thread work begins.
-    return new Promise<void>((resolve) => {
-      const start = () => {
-        void runTick().finally(resolve);
-      };
-
-      if (loadingEnabled) {
-        requestAnimationFrame(start);
-      } else {
-        start();
-      }
-    });
+    if (loadingEnabled) {
+      requestAnimationFrame(runTick);
+    } else {
+      runTick();
+    }
   };
-
-  const batchAdvanceWeeksRef = useRef(false);
 
   const onlineSyncBusyRef = useRef(false);
   const initialOnlineSyncRef = useRef(false);
@@ -3058,7 +2967,9 @@ export const StudioMagnateGame: React.FC<StudioMagnateGameProps> = ({
       const readyOrderUserIds = await fetchOnlineLeagueReadyOrder({ leagueId, turn });
       const submissionsByUserId = await fetchOnlineLeagueTurnSubmissions({ leagueId, turn });
 
-      const initiallyTakenTalentIds = getUnavailableTalentIds(gameState);
+      const initiallyTakenTalentIds = new Set(
+        (gameState.talent || []).filter((t) => t.contractStatus !== 'available').map((t) => t.id)
+      );
 
       const resolution = resolveOnlineLeagueTalentConflicts({
         turn,
@@ -3194,7 +3105,7 @@ export const StudioMagnateGame: React.FC<StudioMagnateGameProps> = ({
           pendingOnlineTurnPublishRef.current = { leagueId, turn };
         }
 
-        await advanceWeekCore({ suppressDiagnostics: true });
+        advanceWeekCore({ suppressDiagnostics: true });
       })();
     },
   });
@@ -3471,7 +3382,7 @@ export const StudioMagnateGame: React.FC<StudioMagnateGameProps> = ({
 
   const handleAdvanceWeek = async (options?: { suppressToast?: boolean; suppressLoading?: boolean; suppressDiagnostics?: boolean; suppressRecap?: boolean }) => {
     if (!onlineLeagueCode?.trim()) {
-      await advanceWeekCore(options);
+      advanceWeekCore(options);
       return;
     }
 
@@ -3565,9 +3476,8 @@ export const StudioMagnateGame: React.FC<StudioMagnateGameProps> = ({
     const targetYear = Math.floor(targetAbs / 52);
     const targetWeek = (targetAbs % 52) + 1;
 
-    if (batchAdvanceWeeksRef.current || weeklyProcessingRef.current) return;
-    batchAdvanceWeeksRef.current = true;
-
+    if (weeklyProcessingRef.current) return;
+    weeklyProcessingRef.current = true;
     startOperation(
       LOADING_OPERATIONS.WEEKLY_PROCESSING.id,
       `Advancing ${totalWeeks} weeks`,
@@ -3580,12 +3490,12 @@ export const StudioMagnateGame: React.FC<StudioMagnateGameProps> = ({
     let remaining = totalWeeks;
     let isProcessing = false;
 
-    const step = async () => {
+    const step = () => {
       if (remaining <= 0 || isProcessing) return;
 
       isProcessing = true;
 
-      await advanceWeekCore({ suppressToast: true, suppressLoading: true, suppressDiagnostics: true, suppressRecap: true });
+      advanceWeekCore({ suppressToast: true, suppressLoading: true, suppressDiagnostics: true, suppressRecap: true });
       remaining -= 1;
 
       const completed = totalWeeks - remaining;
@@ -3595,21 +3505,19 @@ export const StudioMagnateGame: React.FC<StudioMagnateGameProps> = ({
         `Advancing time... (${completed}/${totalWeeks})`
       );
 
-      isProcessing = false;
-
       // Use requestAnimationFrame to yield to the browser between weeks
       // This prevents UI freezing and allows garbage collection
       if (remaining > 0) {
         requestAnimationFrame(() => {
+          isProcessing = false;
           // Add small delay to let React state settle
-          setTimeout(() => {
-            void step();
-          }, 25);
+          setTimeout(step, 25);
         });
       } else {
+        isProcessing = false;
         requestAnimationFrame(() => {
           completeOperation(LOADING_OPERATIONS.WEEKLY_PROCESSING.id);
-          batchAdvanceWeeksRef.current = false;
+          weeklyProcessingRef.current = false;
         });
         toast({
           title: 'Time Advanced',
@@ -3618,9 +3526,7 @@ export const StudioMagnateGame: React.FC<StudioMagnateGameProps> = ({
       }
     };
 
-    requestAnimationFrame(() => {
-      void step();
-    });
+    requestAnimationFrame(step);
   };
 
   const handleAdvanceToDate = (targetWeek: number, targetYear: number) => {
@@ -3957,7 +3863,7 @@ export const StudioMagnateGame: React.FC<StudioMagnateGameProps> = ({
               <DropdownMenuContent align="start" className="min-w-[200px] bg-background/95 backdrop-blur-md">
                 <DropdownMenuItem onClick={() => handlePhaseChange('franchise')}>
                   <ClapperboardIcon className="mr-2" size={16} />
-                  IP & Franchises
+                  Franchise Manager
                 </DropdownMenuItem>
                 <DropdownMenuItem onClick={() => handlePhaseChange('media')}>
                   <BarChartIcon className="mr-2" size={16} />
@@ -4074,183 +3980,167 @@ export const StudioMagnateGame: React.FC<StudioMagnateGameProps> = ({
         
         {currentPhase === 'franchise' && (
           <div className="space-y-6">
-            <Tabs defaultValue="portfolio" className="space-y-4">
-              <TabsList>
-                <TabsTrigger value="portfolio">Owned IP</TabsTrigger>
-                <TabsTrigger value="marketplace">Marketplace</TabsTrigger>
-                <TabsTrigger value="sequels">Sequels</TabsTrigger>
-              </TabsList>
+            <OwnedFranchiseManager
+              onCreateProject={(franchiseId) => {
+                // Create a basic script for a franchise film project and send it to Script Development
+                const franchise = gameState.franchises.find(f => f.id === franchiseId);
+                const script: Script = {
+                  id: `script-${Date.now()}`,
+                  title: franchise ? `${franchise.title} Entry` : 'New Franchise Film',
+                  logline: '',
+                  writer: 'Studio Writer',
+                  pages: 100,
+                  quality: 50,
+                  developmentStage: 'concept',
+                  genre: 'drama',
+                  targetAudience: 'general',
+                  estimatedRuntime: 120,
+                  franchiseId,
+                  characteristics: {
+                    tone: 'light',
+                    pacing: 'steady',
+                    dialogue: 'naturalistic',
+                    visualStyle: 'realistic',
+                    commercialAppeal: 6,
+                    criticalPotential: 5,
+                    cgiIntensity: 'minimal'
+                  },
+                  themes: [],
+                  sourceType: 'franchise',
+                  budget: 15000000,
+                  characters: [],
+                };
 
-              <TabsContent value="portfolio" className="space-y-6">
-                <OwnedFranchiseManager
-                  onCreateProject={(franchiseId) => {
-                    // Create a basic script for a franchise film project and send it to Script Development
-                    const franchise = gameState.franchises.find(f => f.id === franchiseId);
-                    const script: Script = {
-                      id: `script-${Date.now()}`,
-                      title: franchise ? `${franchise.title} Entry` : 'New Franchise Film',
-                      logline: '',
-                      writer: 'Studio Writer',
-                      pages: 100,
-                      quality: 50,
-                      developmentStage: 'concept',
-                      genre: 'drama',
-                      targetAudience: 'general',
-                      estimatedRuntime: 120,
-                      franchiseId,
-                      characteristics: {
-                        tone: 'light',
-                        pacing: 'steady',
-                        dialogue: 'naturalistic',
-                        visualStyle: 'realistic',
-                        commercialAppeal: 6,
-                        criticalPotential: 5,
-                        cgiIntensity: 'minimal'
-                      },
-                      themes: [],
-                      sourceType: 'franchise',
-                      budget: 15000000,
-                      characters: [],
-                    };
+                const finalized = finalizeScriptForSave(script, gameState);
 
-                    const finalized = finalizeScriptForSave(script, gameState);
+                // Route to Script Development instead of immediately greenlighting a project
+                setSelectedFranchise(franchiseId || null);
+                setSelectedPublicDomain(null);
+                handlePhaseChange('scripts');
 
-                    // Route to Script Development instead of immediately greenlighting a project
-                    setSelectedFranchise(franchiseId || null);
-                    setSelectedPublicDomain(null);
-                    handlePhaseChange('scripts');
+                upsertScript(finalized);
 
-                    upsertScript(finalized);
+                toast({
+                  title: 'Script Draft Created',
+                  description: `"${finalized.title}" has been created from the franchise and is ready for development.`,
+                });
+              }}
+              onCreateTVProject={(franchiseId) => {
+                // Route to Television & Streaming with this franchise pre-selected
+                setSelectedFranchise(franchiseId);
+                setSelectedPublicDomain(null);
+                handlePhaseChange('television');
+              }}
+            />
+            <EnhancedFranchiseSystem />
+            <FranchiseProjectCreator
+              onProjectCreate={(script) => {
+                const finalized = finalizeScriptForSave(script, gameState);
 
-                    toast({
-                      title: 'Script Draft Created',
-                      description: `"${finalized.title}" has been created from the franchise and is ready for development.`,
-                    });
-                  }}
-                  onCreateTVProject={(franchiseId) => {
-                    // Route to Television & Streaming with this franchise pre-selected
-                    setSelectedFranchise(franchiseId);
-                    setSelectedPublicDomain(null);
-                    handlePhaseChange('television');
-                  }}
-                />
+                setSelectedFranchise(finalized.franchiseId || null);
+                setSelectedPublicDomain(finalized.publicDomainId || null);
 
-                <EnhancedFranchiseSystem />
-              </TabsContent>
+                const isTVScript =
+                  finalized.characteristics?.pacing === 'episodic' ||
+                  (finalized.estimatedRuntime && finalized.estimatedRuntime <= 60);
 
-              
+                // Route to the appropriate development workspace
+                handlePhaseChange(isTVScript ? 'television' : 'scripts');
 
-              <TabsContent value="marketplace" className="space-y-6">
-                <FranchiseManager
-                  onCreateProject={(franchiseId, publicDomainId, cost) => {
-                    const weekIndex = (gameState.currentYear * 52) + gameState.currentWeek;
-                    const invitation = gameState.studio.franchiseInvitation;
-                    const hasInvitation =
-                      !!franchiseId &&
-                      !!invitation &&
-                      invitation.franchiseId === franchiseId &&
-                      invitation.usesRemaining > 0 &&
-                      invitation.expiresWeekIndex > weekIndex;
+                upsertScript(finalized);
+                toast({
+                  title: 'Script Draft Created',
+                  description: isTVScript
+                    ? `"${finalized.title}" is ready in TV Show Development to customize roles before greenlighting.`
+                    : `"${finalized.title}" is ready in Script Development to customize roles before greenlighting.`,
+                });
+              }}
+            />
+            <FranchiseManager
+              onCreateProject={(franchiseId, publicDomainId, cost) => {
+                // Use existing handleCreateProject logic but adapted for the new interface
+                if (cost && cost > gameState.studio.budget) {
+                  toast({
+                    title: "Insufficient Budget",
+                    description: `Cannot afford this franchise - need ${(cost / 1000000).toFixed(1)}M`,
+                    variant: "destructive"
+                  });
+                  return;
+                }
 
-                    // Use existing handleCreateProject logic but adapted for the new interface
-                    if (!hasInvitation && cost && cost > gameState.studio.budget) {
-                      toast({
-                        title: "Insufficient Budget",
-                        description: `Cannot afford this franchise - need ${(cost / 1000000).toFixed(1)}M`,
-                        variant: "destructive"
-                      });
-                      return;
-                    }
+                const franchise = franchiseId ? gameState.franchises.find(f => f.id === franchiseId) : null;
+                const publicDomain = publicDomainId ? gameState.publicDomainIPs.find(ip => ip.id === publicDomainId) : null;
+                
+                const script: Script = {
+                  id: `script-${Date.now()}`,
+                  title: franchise ? `${franchise.title} Entry` : 
+                         publicDomain ? `${publicDomain.name} Adaptation` : 
+                         'New Project',
+                  logline: '',
+                  writer: 'Studio Writer',
+                  pages: 100,
+                  quality: 50,
+                  developmentStage: 'concept',
+                  genre: 'drama',
+                  targetAudience: 'general',
+                  estimatedRuntime: 120,
+                  franchiseId,
+                  publicDomainId,
+                  characteristics: {
+                    tone: 'light',
+                    pacing: 'steady',
+                    dialogue: 'naturalistic',
+                    visualStyle: 'realistic',
+                    commercialAppeal: 6,
+                    criticalPotential: 5,
+                    cgiIntensity: 'minimal'
+                  },
+                  themes: [],
+                  sourceType: franchiseId ? 'franchise' : publicDomainId ? 'public-domain' : 'original',
+                  budget: cost ? 25000000 : 15000000, // Higher budget for licensed franchises
+                  characters: [],
+                };
 
-                    const franchise = franchiseId ? gameState.franchises.find(f => f.id === franchiseId) : null;
-                    const publicDomain = publicDomainId ? gameState.publicDomainIPs.find(ip => ip.id === publicDomainId) : null;
-                    
-                    const script: Script = {
-                      id: `script-${Date.now()}`,
-                      title: franchise ? `${franchise.title} Entry` : 
-                             publicDomain ? `${publicDomain.name} Adaptation` : 
-                             'New Project',
-                      logline: '',
-                      writer: 'Studio Writer',
-                      pages: 100,
-                      quality: 50,
-                      developmentStage: 'concept',
-                      genre: 'drama',
-                      targetAudience: 'general',
-                      estimatedRuntime: 120,
-                      franchiseId,
-                      publicDomainId,
-                      characteristics: {
-                        tone: 'light',
-                        pacing: 'steady',
-                        dialogue: 'naturalistic',
-                        visualStyle: 'realistic',
-                        commercialAppeal: 6,
-                        criticalPotential: 5,
-                        cgiIntensity: 'minimal'
-                      },
-                      themes: [],
-                      sourceType: franchiseId ? 'franchise' : publicDomainId ? 'public-domain' : 'original',
-                      budget: franchiseId ? 25000000 : 15000000, // Higher budget for franchise entries
-                      characters: [],
-                    };
+                const finalized = finalizeScriptForSave(script, gameState);
 
-                    const finalized = finalizeScriptForSave(script, gameState);
+                // Deduct franchise cost if applicable
+                if (cost) {
+                  updateBudget(-cost);
+                  
+                  toast({
+                    title: "Franchise Acquired!",
+                    description: `Spent ${(cost / 1000000).toFixed(1)}M to license franchise`,
+                  });
+                }
 
-                    // Deduct franchise cost if applicable
-                    if (cost) {
-                      updateBudget(-cost);
+                // Route to Script Development instead of directly greenlighting
+                setSelectedFranchise(franchiseId || null);
+                setSelectedPublicDomain(publicDomainId || null);
+                handlePhaseChange('scripts');
+                upsertScript(finalized);
 
-                      if (franchiseId) {
-                        const prev = gameState.studio.licensedFranchiseIds ?? [];
-                        updateStudio({
-                          licensedFranchiseIds: Array.from(new Set([...prev, franchiseId]))
-                        });
-                      }
-                      
-                      toast({
-                        title: "Franchise Acquired!",
-                        description: `Spent ${(cost / 1000000).toFixed(1)}M to license franchise`,
-                      });
-                    }
+                toast({
+                  title: "Script Draft Created",
+                  description: `"${finalized.title}" is ready in Script Development to customize roles before greenlighting.`,
+                });
+              }}
+            />
+            <SequelManagementComponent
+              onProjectCreate={(script) => {
+                // Route sequel scripts to Script Development for refinement instead of instant project creation
+                setSelectedFranchise(script.franchiseId || null);
+                setSelectedPublicDomain(null);
+                handlePhaseChange('scripts');
 
-                    if (hasInvitation) {
-                      updateStudio({ franchiseInvitation: undefined });
-                    }
+                upsertScript(script);
 
-                    // Route to Script Development instead of directly greenlighting
-                    setSelectedFranchise(franchiseId || null);
-                    setSelectedPublicDomain(publicDomainId || null);
-                    handlePhaseChange('scripts');
-                    upsertScript(finalized);
-
-                    toast({
-                      title: "Script Draft Created",
-                      description: `"${finalized.title}" is ready in Script Development to customize roles before greenlighting.`,
-                    });
-                  }}
-                />
-              </TabsContent>
-
-              <TabsContent value="sequels" className="space-y-6">
-                <SequelManagementComponent
-                  onProjectCreate={(script) => {
-                    // Route sequel scripts to Script Development for refinement instead of instant project creation
-                    setSelectedFranchise(script.franchiseId || null);
-                    setSelectedPublicDomain(null);
-                    handlePhaseChange('scripts');
-
-                    upsertScript(script);
-
-                    toast({
-                      title: 'Sequel Script Created',
-                      description: `"${script.title}" has been added to Script Development. Refine it to "final" stage before greenlighting.`,
-                    });
-                  }}
-                  onCreateFranchise={handleCreateFranchise}
-                />
-              </TabsContent>
-            </Tabs>
+                toast({
+                  title: 'Sequel Script Created',
+                  description: `"${script.title}" has been added to Script Development. Refine it to "final" stage before greenlighting.`,
+                });
+              }}
+              onCreateFranchise={handleCreateFranchise}
+            />
           </div>
         )}
         
@@ -4390,60 +4280,63 @@ export const StudioMagnateGame: React.FC<StudioMagnateGameProps> = ({
               
               <TabsContent value="marketplace">
                 <Suspense fallback={<div>Loading talent marketplace...</div>}>
-                  <TalentMarketplaceLazy
-                    talent={gameState.talent}
-                    currentWeek={gameState.currentWeek}
-                    currentYear={gameState.currentYear}
-                    onCastTalent={(talentId: string) => console.log('Cast talent:', talentId)}
-                  />
+                  {React.createElement(React.lazy(() => import('./TalentMarketplace').then(m => ({ default: m.TalentMarketplace }))), {
+                    talent: gameState.talent,
+                    currentWeek: gameState.currentWeek,
+                    currentYear: gameState.currentYear,
+                    onCastTalent: (talentId: string) => console.log('Cast talent:', talentId)
+                  })}
                 </Suspense>
               </TabsContent>
               
               <TabsContent value="agencies">
                 <Suspense fallback={<div>Loading agency system...</div>}>
-                  <TalentAgencySystemLazy
-                    agents={talentAgents}
-                    talent={gameState.talent}
-                    studioId={gameState.studio.id}
-                    currentWeek={gameState.currentWeek}
-                    currentYear={gameState.currentYear}
-                    onNegotiateDeal={(agentId: string, talentId: string, terms: any) => console.log('Negotiating deal:', { agentId, talentId, terms })}
-                    onCreateHold={(hold: any) => console.log('Creating hold:', hold)}
-                  />
+                  {React.createElement(React.lazy(() => import('./TalentAgencySystem').then(m => ({ default: m.TalentAgencySystem }))), {
+                    agents: gameState.talent.filter(t => t.agent).map(t => t.agent!),
+                    talent: gameState.talent,
+                    studioId: gameState.studio.id,
+                    currentWeek: gameState.currentWeek,
+                    currentYear: gameState.currentYear,
+                    onNegotiateDeal: (agentId: string, talentId: string, terms: any) => console.log('Negotiating deal:', { agentId, talentId, terms }),
+                    onCreateHold: (hold: any) => console.log('Creating hold:', hold)
+                  })}
                 </Suspense>
               </TabsContent>
               
               <TabsContent value="wellness">
                 <Suspense fallback={<div>Loading wellness monitor...</div>}>
-                  <TalentBurnoutSystemLazy
-                    talent={gameState.talent}
-                    currentWeek={gameState.currentWeek}
-                    currentYear={gameState.currentYear}
-                  />
+                  {React.createElement(React.lazy(() => import('./TalentBurnoutSystem').then(m => ({ default: m.TalentBurnoutSystem }))), {
+                    talent: gameState.talent,
+                    currentWeek: gameState.currentWeek,
+                    currentYear: gameState.currentYear
+                  })}
                 </Suspense>
               </TabsContent>
               
               <TabsContent value="chemistry">
                 <Suspense fallback={<div>Loading chemistry system...</div>}>
-                  <TalentChemistrySystemLazy
-                    talent={gameState.talent}
-                    chemistryEvents={[]}
-                    currentWeek={gameState.currentWeek}
-                    currentYear={gameState.currentYear}
-                  />
+                  {React.createElement(React.lazy(() => import('./TalentChemistrySystem').then(m => ({ default: m.TalentChemistrySystem }))), {
+                    talent: gameState.talent,
+                    chemistryEvents: [],
+                    currentWeek: gameState.currentWeek,
+                    currentYear: gameState.currentYear
+                  })}
                 </Suspense>
               </TabsContent>
 
               <TabsContent value="top-actors">
                 <Suspense fallback={<div>Loading top actors...</div>}>
-                  <TopActorsPanelLazy />
+                  {React.createElement(React.lazy(() => import('./TopActorsPanel').then(m => ({ default: m.TopActorsPanel }))), {})}
                 </Suspense>
               </TabsContent>
               
               {import.meta.env.DEV && (
                 <TabsContent value="test">
                   <Suspense fallback={<div>Loading test suite...</div>}>
-                    <AdvancedTalentTestSuiteLazy />
+                    {React.createElement(
+                      React.lazy(() => import('./AdvancedTalentTestSuite').then(m => ({ default: m.AdvancedTalentTestSuite }))),
+                      {}
+                    )}
                   </Suspense>
                 </TabsContent>
               )}
@@ -4524,11 +4417,17 @@ export const StudioMagnateGame: React.FC<StudioMagnateGameProps> = ({
               </TabsList>
               
               <TabsContent value="feed">
-                <MediaDashboardLazy />
+                {React.createElement(React.lazy(() => 
+                  import('./MediaDashboard').then(m => ({ default: m.MediaDashboard }))
+                  .catch(() => import('./MediaNotifications').then(m => ({ default: m.MediaNotifications as any })))
+                ), {})}
               </TabsContent>
               
               <TabsContent value="responses">
-                <MediaResponseDashboardLazy />
+                {React.createElement(React.lazy(() => 
+                  import('./MediaResponseDashboard').then(m => ({ default: m.MediaResponseDashboard }))
+                  .catch(() => ({ default: () => <div className="text-center py-8 text-muted-foreground">Media Response Dashboard loading...</div> }))
+                ), {})}
               </TabsContent>
               
               <TabsContent value="analytics">

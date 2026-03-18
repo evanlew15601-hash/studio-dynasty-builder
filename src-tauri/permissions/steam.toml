@@ -6,8 +6,12 @@ commands.allow = [
   "steamIsAvailable",
   "steam_get_persona_name",
   "steamGetPersonaName",
+  "steam_is_dlc_installed",
+  "steamIsDlcInstalled",
   "steam_unlock_achievement",
   "steamUnlockAchievement",
   "steam_open_overlay",
-  "steamOpenOverlay"
+  "steamOpenOverlay",
+  "steam_open_store_overlay",
+  "steamOpenStoreOverlay"
 ]

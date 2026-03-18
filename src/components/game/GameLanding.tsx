@@ -15,6 +15,7 @@ import { PremiumBackground } from '@/components/ui/premium-background';
 import { DatabaseManagerDialog } from '@/components/game/DatabaseManagerDialog';
 import { SupabaseConfigDialog } from '@/components/game/SupabaseConfigDialog';
 import { getSupabaseConfigStatus } from '@/integrations/supabase/client';
+import { isSteamDlcInstalled, isSteamAvailable, openSteamStoreOverlay } from '@/integrations/steam/client';
 import { cn } from '@/lib/utils';
 import { getActiveModSlot, listModSlots, setActiveModSlot } from '@/utils/moddingStore';
 import { getStoredUiSkinId, setUiSkin, UI_SKINS, type UiSkinId } from '@/utils/uiSkins';
@@ -38,6 +39,7 @@ interface GameConfig {
   difficulty: 'easy' | 'normal' | 'hard' | 'magnate';
   startingBudget: number;
   studioIcon: StudioIconConfig;
+  enableStreamingWars: boolean;
 }
 
 export const GameLanding: React.FC<GameLandingProps> = ({
@@ -65,6 +67,7 @@ export const GameLanding: React.FC<GameLandingProps> = ({
     difficulty: 'normal',
     startingBudget: 10000000,
     studioIcon: { ...DEFAULT_ICON },
+    enableStreamingWars: false,
   });
 
   useEffect(() => {
@@ -77,6 +80,53 @@ export const GameLanding: React.FC<GameLandingProps> = ({
   const hasOnlineConfig = mode !== 'online' || getSupabaseConfigStatus().configured;
   const activeSkin = UI_SKINS.find((s) => s.id === uiSkin) ?? UI_SKINS[0];
 
+  const [steamAvailable, setSteamAvailable] = useState<boolean>(false);
+  const [steamStreamingWarsOwned, setSteamStreamingWarsOwned] = useState<boolean>(false);
+
+  const streamingWarsLocalOverride =
+    typeof window !== 'undefined' && window.localStorage.getItem('studio-magnate-dlc-streaming-wars') === '1';
+
+  const dlcAppIdRaw = import.meta.env.VITE_STEAM_STREAMING_WARS_DLC_APP_ID;
+  const dlcAppId = typeof dlcAppIdRaw === 'string' ? Number.parseInt(dlcAppIdRaw, 10) : Number(dlcAppIdRaw);
+  const dlcAppIdValid = Number.isFinite(dlcAppId) && dlcAppId > 0;
+
+  const streamingWarsSectionVisible = import.meta.env.DEV || streamingWarsLocalOverride || steamAvailable;
+  const streamingWarsToggleEnabled = import.meta.env.DEV || streamingWarsLocalOverride || steamStreamingWarsOwned;
+
+  useEffect(() => {
+    if (!streamingWarsToggleEnabled) {
+      setConfig((prev) => (prev.enableStreamingWars ? { ...prev, enableStreamingWars: false } : prev));
+    }
+  }, [streamingWarsToggleEnabled]);
+
+  useEffect(() => {
+    let cancelled = false;
+
+    (async () => {
+      const available = await isSteamAvailable();
+      if (cancelled) return;
+
+      setSteamAvailable(available);
+
+      if (!available) {
+        setSteamStreamingWarsOwned(false);
+        return;
+      }
+
+      if (!dlcAppIdValid) {
+        setSteamStreamingWarsOwned(false);
+        return;
+      }
+
+      const owned = await isSteamDlcInstalled(dlcAppId);
+      if (!cancelled) setSteamStreamingWarsOwned(owned);
+    })();
+
+    return () => {
+      cancelled = true;
+    };
+  }, [dlcAppIdValid, dlcAppId]);
+
   const difficultySettings = {
     easy: { budget: 15000000, description: 'More budget, forgiving market' },
     normal: { budget: 10000000, description: 'Balanced experience' },
@@ -86,7 +136,7 @@ export const GameLanding: React.FC<GameLandingProps> = ({
 
   const genres: Genre[] = [
     'action', 'adventure', 'comedy', 'drama', 'horror', 'thriller',
-    'romance', 'erotica', 'sci-fi', 'fantasy', 'documentary', 'animation',
+    'romance', 'sci-fi', 'fantasy', 'documentary', 'animation',
     'musical', 'western', 'war', 'biography', 'crime', 'mystery',
     'superhero', 'family', 'sports', 'historical'
   ];
@@ -110,6 +160,8 @@ export const GameLanding: React.FC<GameLandingProps> = ({
       return;
     }
 
+    const enableStreamingWars = streamingWarsToggleEnabled ? config.enableStreamingWars : false;
+
     if (showCustomization) {
       if (!config.studioName.trim()) {
         return; // Require studio name
@@ -119,6 +171,7 @@ export const GameLanding: React.FC<GameLandingProps> = ({
         studioName: config.studioName.trim(),
         startingBudget: difficultySettings[config.difficulty].budget,
         studioIcon: config.studioIcon,
+        enableStreamingWars,
       });
     } else {
       // Quick start with defaults
@@ -128,6 +181,7 @@ export const GameLanding: React.FC<GameLandingProps> = ({
         difficulty: 'normal',
         startingBudget: 10000000,
         studioIcon: { ...DEFAULT_ICON },
+        enableStreamingWars,
       });
     }
   };
@@ -385,6 +439,60 @@ export const GameLanding: React.FC<GameLandingProps> = ({
                 )}
               </CardContent>
             </Card>
+
+            {streamingWarsSectionVisible && (
+              <Card className="card-golden max-w-2xl mx-auto">
+                <CardHeader className={cn(compactLanding ? 'py-4' : '')}>
+                  <CardTitle className={cn('text-foreground flex items-center', compactLanding ? 'text-lg' : 'text-xl')}>
+                    <Sparkles className="mr-2 text-primary" />
+                    Expansions
+                  </CardTitle>
+                </CardHeader>
+                <CardContent className="space-y-3">
+                  <div className="flex items-center justify-between rounded-md border border-border/50 bg-background/40 px-3 py-2">
+                    <div className="space-y-0.5">
+                      <div className="flex items-center gap-2">
+                        <div className="text-sm font-medium text-foreground">Streaming Wars</div>
+                        {steamStreamingWarsOwned ? (
+                          <Badge variant="outline" className="border-primary/50 text-primary">Owned</Badge>
+                        ) : import.meta.env.DEV || streamingWarsLocalOverride ? (
+                          <Badge variant="outline" className="border-border/60 text-muted-foreground">Dev</Badge>
+                        ) : (
+                          <Badge variant="outline" className="border-border/60 text-muted-foreground">Locked</Badge>
+                        )}
+                      </div>
+                      <div className="text-xs text-muted-foreground">Industry Evolution expansion (new game only).</div>
+                    </div>
+                    <Switch
+                      checked={config.enableStreamingWars}
+                      disabled={!streamingWarsToggleEnabled}
+                      onCheckedChange={(checked) => setConfig((prev) => ({ ...prev, enableStreamingWars: !!checked }))}
+                    />
+                  </div>
+
+                  {steamAvailable && !steamStreamingWarsOwned && dlcAppIdValid && (
+                    <div className="flex items-center justify-between rounded-md border border-border/50 bg-background/30 px-3 py-2">
+                      <div className="text-xs text-muted-foreground">
+                        Buy on Steam to unlock Streaming Wars.
+                      </div>
+                      <Button
+                        size="sm"
+                        variant="secondary"
+                        onClick={() => openSteamStoreOverlay(dlcAppId)}
+                      >
+                        View on Steam
+                      </Button>
+                    </div>
+                  )}
+
+                  {steamAvailable && !dlcAppIdValid && (
+                    <div className="rounded-md border border-border/50 bg-background/30 px-3 py-2 text-xs text-muted-foreground">
+                      Steam is available, but <span className="font-medium">VITE_STEAM_STREAMING_WARS_DLC_APP_ID</span> is not configured.
+                    </div>
+                  )}
+                </CardContent>
+              </Card>
+            )}
 
             <div className={cn('flex flex-col sm:flex-row justify-center', compactLanding ? 'gap-4' : 'gap-6')}>
               <Button
@@ -671,6 +779,53 @@ export const GameLanding: React.FC<GameLandingProps> = ({
                     ))}
                   </div>
                 </div>
+
+                {streamingWarsSectionVisible && (
+                  <div>
+                    <Label className="text-foreground text-sm">Expansions</Label>
+                    <div className="mt-2 flex items-center justify-between rounded-md border border-border/50 bg-background/40 px-3 py-2">
+                      <div className="space-y-0.5">
+                        <div className="flex items-center gap-2">
+                          <div className="text-sm font-medium text-foreground">Streaming Wars</div>
+                          {steamStreamingWarsOwned ? (
+                            <Badge variant="outline" className="border-primary/50 text-primary">Owned</Badge>
+                          ) : import.meta.env.DEV || streamingWarsLocalOverride ? (
+                            <Badge variant="outline" className="border-border/60 text-muted-foreground">Dev</Badge>
+                          ) : (
+                            <Badge variant="outline" className="border-border/60 text-muted-foreground">Locked</Badge>
+                          )}
+                        </div>
+                        <div className="text-xs text-muted-foreground">Industry Evolution expansion (new game only).</div>
+                      </div>
+                      <Switch
+                        checked={config.enableStreamingWars}
+                        disabled={!streamingWarsToggleEnabled}
+                        onCheckedChange={(checked) => setConfig((prev) => ({ ...prev, enableStreamingWars: !!checked }))}
+                      />
+                    </div>
+
+                    {steamAvailable && !steamStreamingWarsOwned && dlcAppIdValid && (
+                      <div className="mt-2 flex items-center justify-between rounded-md border border-border/50 bg-background/30 px-3 py-2">
+                        <div className="text-xs text-muted-foreground">
+                          Buy on Steam to unlock Streaming Wars.
+                        </div>
+                        <Button
+                          size="sm"
+                          variant="secondary"
+                          onClick={() => openSteamStoreOverlay(dlcAppId)}
+                        >
+                          View on Steam
+                        </Button>
+                      </div>
+                    )}
+
+                    {steamAvailable && !dlcAppIdValid && (
+                      <div className="mt-2 rounded-md border border-border/50 bg-background/30 px-3 py-2 text-xs text-muted-foreground">
+                        Steam is available, but <span className="font-medium">VITE_STEAM_STREAMING_WARS_DLC_APP_ID</span> is not configured.
+                      </div>
+                    )}
+                  </div>
+                )}
 
                 {/* Studio Icon */}
                 <StudioIconCustomizer

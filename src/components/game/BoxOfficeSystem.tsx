@@ -167,9 +167,7 @@ export class BoxOfficeSystem {
           theatricalRunLocked: true // LOCK THE RUN - NO MORE CHANGES
         },
         postTheatricalEligible: true,
-        theatricalEndDate: new Date(),
-        theatricalEndWeek: currentWeek,
-        theatricalEndYear: currentYear
+        theatricalEndDate: new Date()
       };
     }
 

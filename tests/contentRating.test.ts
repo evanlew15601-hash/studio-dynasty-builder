@@ -11,8 +11,4 @@ describe('contentRating', () => {
     expect(computeFilmContentRating({ violence: 8, nudity: 0, language: 5, substance: 3 }).label).toBe('R');
     expect(computeFilmContentRating({ violence: 10, nudity: 10, language: 10, substance: 10 }).label).toBe('NC-17');
   });
-
-  it('treats erotica as inherently adult-oriented', () => {
-    expect(computeFilmContentRating({ violence: 0, nudity: 0, language: 0, substance: 0 }, 'erotica').label).toBe('R');
-  });
 });

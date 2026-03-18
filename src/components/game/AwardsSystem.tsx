@@ -1,5 +1,5 @@
 import React, { useCallback, useMemo, useState } from 'react';
-import { Project, AwardsCampaign } from '@/types/game';
+import { Project, AwardsCampaign, StudioAward } from '@/types/game';
 import { useGameStore } from '@/game/store';
 import { useUiStore } from '@/game/uiStore';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
@@ -7,6 +7,7 @@ import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
 import { Progress } from '@/components/ui/progress';
 import { useToast } from '@/hooks/use-toast';
+import { AwardsShowModal } from './AwardsShowModal';
 import { AwardsCalendar } from './AwardsCalendar';
 import { 
   TrophyIcon, 
@@ -15,7 +16,6 @@ import {
   DollarIcon
 } from '@/components/ui/icons';
 import { getAwardShowsForYear } from '@/data/AwardsSchedule';
-import { computeAwardsCampaignBoost, getAwardsCampaignTargetTokens } from '@/utils/awardsCampaign';
 
 interface AwardsSystemProps {
   onNavigatePhase?: (phase: 'media' | 'distribution') => void;
@@ -28,13 +28,25 @@ export const AwardsSystem: React.FC<AwardsSystemProps> = ({
   const setPhase = useUiStore((s) => s.setPhase);
   const navigatePhase = onNavigatePhase ?? ((phase: 'media' | 'distribution') => setPhase(phase));
   const replaceProject = useGameStore((s) => s.replaceProject);
-  const spendStudioFunds = useGameStore((s) => s.spendStudioFunds);
+  const updateStudio = useGameStore((s) => s.updateStudio);
+  const addStudioAwards = useGameStore((s) => s.addStudioAwards);
+  const updateBudget = useGameStore((s) => s.updateBudget);
   const { toast } = useToast();
-  
+  const [showAwardsModal, setShowAwardsModal] = useState(false);
+  const [currentCeremony, setCurrentCeremony] = useState<string>('');
+  const [currentNominations, setCurrentNominations] = useState<Array<{
+    project: Project;
+    category: string;
+    won: boolean;
+    award?: StudioAward;
+  }>>([]);
+  // Track processed ceremonies to avoid duplicate triggers and store season momentum and nominations
+  const [processedCeremonies, setProcessedCeremonies] = useState<Set<string>>(new Set());
+  const [seasonMomentum, setSeasonMomentum] = useState<Record<string, number>>({});
+  const [seasonNominations, setSeasonNominations] = useState<Record<string, { year: number; categories: Record<string, Array<{ project: Project; score: number }>> }>>({});
 
   const [contenderScope, setContenderScope] = useState<'player' | 'all'>('player');
   const [page, setPage] = useState(0);
-  const [campaignFocusByProjectId, setCampaignFocusByProjectId] = useState<Record<string, 'prestige' | 'acting' | 'craft'>>({});
 
   const currentYear = gameState?.currentYear ?? new Date().getFullYear();
   const currentWeek = gameState?.currentWeek ?? 0;
@@ -49,11 +61,8 @@ export const AwardsSystem: React.FC<AwardsSystemProps> = ({
   const filmAwardsEndWeek = lastCeremonyWeekFor('film');
   const tvAwardsEndWeek = lastCeremonyWeekFor('tv');
 
-  const tvNomWeeks = awardShows.filter(s => s.medium === 'tv').map(s => s.nominationWeek);
-  const tvCampaignStartWeek = tvNomWeeks.length > 0 ? Math.max(1, Math.min(...tvNomWeeks) - 7) : 1;
-
   const filmCampaignWindowOpen = currentWeek >= 1 && currentWeek <= filmAwardsEndWeek;
-  const tvCampaignWindowOpen = currentWeek >= tvCampaignStartWeek && currentWeek <= tvAwardsEndWeek;
+  const tvCampaignWindowOpen = currentWeek >= 1 && currentWeek <= tvAwardsEndWeek;
   const isAnyCampaignWindowOpen = filmCampaignWindowOpen || tvCampaignWindowOpen;
 
   const isTvProject = useCallback(
@@ -61,14 +70,15 @@ export const AwardsSystem: React.FC<AwardsSystemProps> = ({
     []
   );
 
-  const defaultCampaignFocus = useCallback((project: Project): 'prestige' | 'acting' | 'craft' => {
-    const genre = (project.script?.genre || '').toLowerCase();
-    if (genre === 'drama' || genre === 'biography' || genre === 'historical') return 'prestige';
-    if (genre === 'action' || genre === 'sci-fi' || genre === 'fantasy' || genre === 'superhero' || genre === 'animation') return 'craft';
-    return 'acting';
-  }, []);
+  React.useEffect(() => {
+    if (!gameState) return;
 
-  
+    if (gameState.currentWeek === 1) {
+      setProcessedCeremonies(new Set());
+      setSeasonNominations({});
+      setSeasonMomentum({});
+    }
+  }, [gameState, currentYear, currentWeek]);
 
   const playerProjects = useMemo(() => gameState?.projects ?? [], [gameState?.projects]);
   const allReleases = useMemo(() => gameState?.allReleases ?? [], [gameState?.allReleases]);
@@ -140,29 +150,19 @@ export const AwardsSystem: React.FC<AwardsSystemProps> = ({
       else if (share >= 8) probability += 3;
     }
 
-    // Awards campaign boost (estimate only)
+    // Awards campaign boost (for player projects only)
     const campaign = project.awardsCampaign as AwardsCampaign | undefined;
     if (campaign) {
-      const proxyCategory = {
-        id: 'proxy',
-        name: medium === 'tv' ? 'Best Drama Series' : 'Best Picture',
-        awardKind: 'studio',
-      } as any;
-
-      probability += computeAwardsCampaignBoost({
-        project,
-        categoryDef: proxyCategory,
-        medium,
-        week: currentWeek,
-        year: currentYear,
-      }) * 2;
+      const budgetBoost = Math.min(12, campaign.budget / 250_000);
+      const effectivenessBoost = (campaign.effectiveness || 0) * 0.1;
+      probability += budgetBoost * 0.6 + effectivenessBoost * 0.4;
     }
 
     return Math.min(100, Math.max(0, probability));
-  }, [currentWeek, currentYear, isTvProject]);
+  }, [currentWeek, isTvProject]);
 
   // Start awards campaign
-  const startAwardsCampaign = (project: Project, budget: number, focus: 'prestige' | 'acting' | 'craft') => {
+  const startAwardsCampaign = (project: Project, budget: number) => {
     // Prevent campaigning for AI films
     const isPlayerProject = gameState.projects.some(p => p.id === project.id);
     if (!isPlayerProject) {
@@ -174,8 +174,7 @@ export const AwardsSystem: React.FC<AwardsSystemProps> = ({
       return;
     }
 
-    const spend = spendStudioFunds(budget);
-    if (!spend.success) {
+    if (budget > gameState.studio.budget) {
       toast({
         title: "Insufficient Budget",
         description: "Not enough studio budget for awards campaign.",
@@ -186,30 +185,18 @@ export const AwardsSystem: React.FC<AwardsSystemProps> = ({
 
     const baseEffectiveness = 60 + Math.min(20, Math.floor(budget / 500_000) * 5);
 
-    const medium: 'film' | 'tv' = isTvProject(project) ? 'tv' : 'film';
-    const windowOpen = medium === 'tv' ? tvCampaignWindowOpen : filmCampaignWindowOpen;
-    if (!windowOpen) {
-      toast({
-        title: "Campaign Window Closed",
-        description: "Awards campaigning is not available right now for this project type.",
-        variant: "destructive"
-      });
-      return;
-    }
-
-    const targetCategories = getAwardsCampaignTargetTokens(focus, medium);
+    const targetCategories = isTvProject(project)
+      ? ['Best Drama Series', 'Best Actor - Drama Series', 'Best Directing']
+      : ['Best Picture', 'Best Director', 'Best Actor'];
 
     const campaign: AwardsCampaign = {
       projectId: project.id,
-      focus,
       targetCategories,
       budget,
       budgetSpent: 0,
       duration: 8, // 8 week campaign (tracked abstractly for now)
       weeksRemaining: 8,
       effectiveness: Math.min(100, baseEffectiveness),
-      startedWeek: gameState.currentWeek,
-      startedYear: gameState.currentYear,
       activities: [
         {
           type: 'screenings',
@@ -241,7 +228,8 @@ export const AwardsSystem: React.FC<AwardsSystemProps> = ({
       awardsCampaign: campaign
     });
 
-    // Budget already deducted via spendStudioFunds
+    // Deduct budget
+    updateBudget(-budget);
 
     toast({
       title: "Awards Campaign Started!",
@@ -249,88 +237,177 @@ export const AwardsSystem: React.FC<AwardsSystemProps> = ({
     });
   };
 
-  const boostAwardsCampaign = (project: Project, amount: number) => {
-    const isPlayerProject = gameState.projects.some(p => p.id === project.id);
-    if (!isPlayerProject) {
-      toast({
-        title: "Not Allowed",
-        description: "You can only boost awards campaigns for your own projects.",
-        variant: "destructive"
-      });
-      return;
-    }
+  // Build per-show configuration (weeks sourced from centralized schedule)
+  const getShowConfig = (ceremonyName: string) => {
+    const schedule = getAwardShowsForYear(gameState.currentYear);
+    const show = schedule.find(s => s.name === ceremonyName);
 
-    const campaign = project.awardsCampaign as AwardsCampaign | undefined;
-    if (!campaign || (campaign.weeksRemaining ?? 0) <= 0) {
-      toast({
-        title: "Campaign Inactive",
-        description: "This project does not have an active awards campaign.",
-        variant: "destructive"
-      });
-      return;
-    }
+    const base = (() => {
+      switch (ceremonyName) {
+        case 'Crystal Ring':
+          return {
+            prestige: 6,
+            categories: ['Best Picture - Drama', 'Best Director'],
+            nominationWeek: 2,
+            ceremonyWeek: 6,
+            momentumBonus: 8
+          } as const;
+        case 'Critics Circle':
+          return {
+            prestige: 5,
+            categories: ['Best Film', 'Best Acting'],
+            nominationWeek: 3,
+            ceremonyWeek: 8,
+            momentumBonus: 6
+          } as const;
+        default:
+          return {
+            prestige: 10,
+            categories: ['Best Picture', 'Best Director', 'Best Actor'],
+            nominationWeek: 4,
+            ceremonyWeek: 10,
+            momentumBonus: 12
+          } as const; // Crown
+      }
+    })();
 
-    const spend = spendStudioFunds(amount);
-    if (!spend.success) {
-      toast({
-        title: "Insufficient Budget",
-        description: "Not enough studio budget to boost the campaign.",
-        variant: "destructive"
-      });
-      return;
-    }
-
-    const effectivenessBoost = Math.min(6, Math.max(1, Math.round(amount / 250_000)));
-
-    const nextCampaign: AwardsCampaign = {
-      ...campaign,
-      budget: (campaign.budget ?? 0) + amount,
-      effectiveness: Math.min(100, (campaign.effectiveness ?? 0) + effectivenessBoost),
-      activities: [
-        ...(campaign.activities || []),
-        {
-          type: 'advertising',
-          name: 'For Your Consideration Push',
-          cost: amount,
-          effectivenessBoost,
-          prestigeBoost: 0,
-        },
-      ],
+    return {
+      ...base,
+      nominationWeek: show?.nominationWeek ?? base.nominationWeek,
+      ceremonyWeek: show?.ceremonyWeek ?? base.ceremonyWeek,
     };
+  };
 
-    replaceProject({
-      ...project,
-      awardsCampaign: nextCampaign,
+  // Generate and store nominations (top 5 per category) with momentum-aware scoring
+  const announceNominations = (ceremonyName: string) => {
+    const key = `${ceremonyName}-${gameState.currentYear}`;
+    if (seasonNominations[key]) return; // idempotent
+
+    const { categories } = getShowConfig(ceremonyName);
+    const eligible = eligibleProjectsAll;
+
+    const categoriesMap: Record<string, Array<{ project: Project; score: number }>> = {};
+
+    categories.forEach(category => {
+      const ranked = eligible
+        .map(project => {
+          const base = calculateAwardsProbability(project);
+          const momentum = seasonMomentum[project.id] || 0;
+          // Slight category bias: technical vs acting vs picture kept simple
+          const categoryBias = category.toLowerCase().includes('director') ? 5 : category.toLowerCase().includes('actor') ? 3 : 0;
+          const score = Math.min(100, base + momentum + categoryBias + (Math.random() * 6 - 3));
+          return { project, score };
+        })
+        .sort((a, b) => b.score - a.score)
+        .slice(0, 5);
+      categoriesMap[category] = ranked;
     });
 
+    setSeasonNominations(prev => ({
+      ...prev,
+      [key]: { year: gameState.currentYear, categories: categoriesMap }
+    }));
+
     toast({
-      title: "Campaign Boosted",
-      description: `Added ${amount.toLocaleString()} to "${project.title}" awards push.`,
+      title: `${ceremonyName} Nominations Announced`,
+      description: `Top contenders selected across ${categories.length} categories.`,
     });
   };
 
-  const cancelAwardsCampaign = (project: Project) => {
-    const isPlayerProject = gameState.projects.some(p => p.id === project.id);
-    if (!isPlayerProject) return;
+  // Host ceremony using stored nominations; apply momentum and awards
+  const triggerAwardsCeremony = (ceremonyName: string) => {
+    const { categories, ceremonyWeek, prestige, momentumBonus } = getShowConfig(ceremonyName);
+    const key = `${ceremonyName}-${gameState.currentYear}`;
+    if (gameState.currentWeek !== ceremonyWeek) return;
+    if (processedCeremonies.has(key)) return;
 
-    const campaign = project.awardsCampaign as AwardsCampaign | undefined;
-    if (!campaign || (campaign.weeksRemaining ?? 0) <= 0) return;
+    // Ensure nominations exist
+    if (!seasonNominations[key]) {
+      announceNominations(ceremonyName);
+    }
 
-    replaceProject({
-      ...project,
-      awardsCampaign: {
-        ...campaign,
-        weeksRemaining: 0,
-      },
+    const nominationsRecord = seasonNominations[key];
+    if (!nominationsRecord) return; // safety
+
+    const flatForModal: Array<{ project: Project; category: string; won: boolean; award?: StudioAward }> = [];
+    const winnersThisShow: string[] = [];
+
+    categories.forEach(category => {
+      const nominees = nominationsRecord.categories[category] || [];
+      if (nominees.length === 0) return;
+      // Winner: weighted pick favoring top nominee with randomness
+      const weighted = nominees.map((n, idx) => ({ ...n, weight: (nominees.length - idx) * 1.5 + (seasonMomentum[n.project.id] || 0) / 10 }));
+      const totalWeight = weighted.reduce((s, w) => s + w.weight, 0);
+      let r = Math.random() * totalWeight;
+      let winner = weighted[0];
+      for (const w of weighted) { r -= w.weight; if (r <= 0) { winner = w; break; } }
+
+      nominees.forEach(n => {
+        const won = n.project.id === winner.project.id;
+        const award: StudioAward | undefined = won
+          ? {
+              id: `award-${Date.now()}-${Math.random()}`,
+              projectId: n.project.id,
+              category,
+              ceremony: ceremonyName,
+              year: gameState.currentYear,
+              prestige,
+              reputationBoost: prestige * 2,
+              revenueBoost: n.project.budget.total * (prestige / 100)
+            }
+          : undefined;
+        flatForModal.push({ project: n.project, category, won, award });
+        if (won) winnersThisShow.push(n.project.id);
+      });
     });
 
-    toast({
-      title: "Campaign Cancelled",
-      description: `Cancelled awards campaign for "${project.title}". No funds are refunded.`,
-    });
+    // Mark processed to avoid repeats
+    setProcessedCeremonies(prev => new Set(prev).add(key));
+
+    // Momentum: winners gain momentumBonus for later shows
+    if (winnersThisShow.length > 0) {
+      setSeasonMomentum(prev => {
+        const next = { ...prev };
+        winnersThisShow.forEach(pid => { next[pid] = (next[pid] || 0) + momentumBonus; });
+        return next;
+      });
+    }
+
+    if (flatForModal.length > 0) {
+      setCurrentCeremony(ceremonyName);
+      setCurrentNominations(flatForModal);
+      setShowAwardsModal(true);
+
+      // Apply player studio benefits for wins
+      const wonAwards = flatForModal.filter(n => n.won && n.award).map(n => n.award!)
+        .filter(a => gameState.projects.some(p => p.id === a.projectId));
+      if (wonAwards.length > 0) {
+        const totalReputation = wonAwards.reduce((sum, award) => sum + award.reputationBoost, 0);
+        const totalRevenue = wonAwards.reduce((sum, award) => sum + award.revenueBoost, 0);
+
+        updateStudio({
+          reputation: Math.min(100, (gameState.studio.reputation || 0) + totalReputation),
+        });
+        updateBudget(totalRevenue);
+        addStudioAwards(wonAwards);
+      }
+    }
   };
 
   
+
+  // Weekly triggers for nominations and ceremonies
+  // Note: Headless engine now handles triggers globally. This UI remains view-only.
+  // React.useEffect(() => {
+  //   if (!isAwardsSeasonActive) return;
+  //   const shows = getAwardShowsForYear(gameState.currentYear);
+  //   // Announcements
+  //   shows.forEach(s => {
+  //     if (gameState.currentWeek === s.nominationWeek) announceNominations(s.name);
+  //   });
+  //   // Ceremonies (triggerAwardsCeremony checks week and processed state internally)
+  //   shows.forEach(s => triggerAwardsCeremony(s.name));
+  // }, [gameState.currentWeek, isAwardsSeasonActive, gameState.currentYear]);
 
   React.useEffect(() => {
     setPage(0);
@@ -343,7 +420,7 @@ export const AwardsSystem: React.FC<AwardsSystemProps> = ({
       .map(project => {
         const probability = calculateAwardsProbability(project);
         const player = playerProjectIds.has(project.id);
-        const campaign = project.awardsCampaign as AwardsCampaign | undefined;
+        const campaign = player ? (project.awardsCampaign as AwardsCampaign | undefined) : undefined;
 
         return { project, probability, player, campaign };
       })
@@ -365,6 +442,13 @@ export const AwardsSystem: React.FC<AwardsSystemProps> = ({
 
   return (
     <div className="space-y-6">
+      <AwardsShowModal
+        open={showAwardsModal}
+        onClose={() => setShowAwardsModal(false)}
+        ceremony={currentCeremony}
+        nominations={currentNominations}
+        year={gameState.currentYear}
+      />
       {/* Awards Season Status */}
       <Card className="card-premium">
         <CardHeader>
@@ -380,7 +464,7 @@ export const AwardsSystem: React.FC<AwardsSystemProps> = ({
             )}
             {tvCampaignWindowOpen && (
               <Badge variant="secondary" className="ml-2">
-                TV WINDOW (W{tvCampaignStartWeek}–W{tvAwardsEndWeek || 0})
+                TV WINDOW (≤W{tvAwardsEndWeek || 0})
               </Badge>
             )}
           </CardTitle>
@@ -388,7 +472,7 @@ export const AwardsSystem: React.FC<AwardsSystemProps> = ({
             <strong>Eligibility Period:</strong> Projects released in {gameState.currentYear - 1} (January 1 - December 31)
             {isAnyCampaignWindowOpen && (
               <div className="mt-1">
-                <strong>Campaign Windows:</strong> {filmCampaignWindowOpen ? `Film ≤ Week ${filmAwardsEndWeek}` : 'Film closed'} • {tvCampaignWindowOpen ? `TV Weeks ${tvCampaignStartWeek}–${tvAwardsEndWeek}` : 'TV closed'}
+                <strong>Campaign Windows:</strong> {filmCampaignWindowOpen ? `Film ≤ Week ${filmAwardsEndWeek}` : 'Film closed'} • {tvCampaignWindowOpen ? `TV ≤ Week ${tvAwardsEndWeek}` : 'TV closed'}
               </div>
             )}
           </div>
@@ -501,155 +585,87 @@ export const AwardsSystem: React.FC<AwardsSystemProps> = ({
               </div>
             )}
 
-            {visibleContenders.map(({ project, probability, player, campaign }) => {
-              const selectedFocus = campaign?.focus || campaignFocusByProjectId[project.id] || defaultCampaignFocus(project);
-
-              return (
-                <div key={project.id} className="p-4 rounded-lg border border-border/50 bg-card/50">
-                  <div className="flex justify-between items-start mb-3">
-                    <div>
-                      <div className="font-semibold text-lg">{project.title}</div>
-                      <div className="text-sm text-muted-foreground">
-                        {isTvProject(project) ? 'TV' : 'Film'} • {project.script.genre} • Critics: {project.metrics?.criticsScore}/100 •
-                        Audience: {project.metrics?.audienceScore}/100
+            {visibleContenders.map(({ project, probability, player, campaign }) => (
+              <div key={project.id} className="p-4 rounded-lg border border-border/50 bg-card/50">
+                <div className="flex justify-between items-start mb-3">
+                  <div>
+                    <div className="font-semibold text-lg">{project.title}</div>
+                    <div className="text-sm text-muted-foreground">
+                      {isTvProject(project) ? 'TV' : 'Film'} • {project.script.genre} • Critics: {project.metrics?.criticsScore}/100 •
+                      Audience: {project.metrics?.audienceScore}/100
+                    </div>
+                    {!player && project.studioName && (
+                      <div className="text-xs text-muted-foreground mt-0.5">
+                        Studio: {project.studioName}
                       </div>
-                      {!player && project.studioName && (
-                        <div className="text-xs text-muted-foreground mt-0.5">
-                          Studio: {project.studioName}
-                        </div>
-                      )}
-                    </div>
-                    <Badge variant={probability >= 70 ? "default" : probability >= 50 ? "secondary" : "outline"}>
-                      {probability >= 70 ? 'Strong Contender' : probability >= 50 ? 'Possible Nominee' : 'Long Shot'}
-                    </Badge>
+                    )}
                   </div>
-
-                  <div className="mb-3">
-                    <div className="flex justify-between text-sm mb-1">
-                      <span>Awards Probability</span>
-                      <span>{probability.toFixed(1)}%</span>
-                    </div>
-                    <Progress value={probability} className="h-2" />
-                  </div>
-
-                  {campaign && (
-                    <div className="mb-3 flex items-center justify-between text-xs text-muted-foreground">
-                      <div className="flex items-center gap-2">
-                        <Badge variant="outline" className="text-[11px]">
-                          Awards Campaign Active
-                        </Badge>
-                        <span>
-                          Focus {selectedFocus} • Budget ${campaign.budget.toLocaleString()} • Spent ${Math.round(campaign.budgetSpent || 0).toLocaleString()} •
-                          Weeks left {campaign.weeksRemaining} • Effectiveness {Math.round(campaign.effectiveness).toString()}%
-                        </span>
-                      </div>
-                    </div>
-                  )}
-
-                  {(isTvProject(project) ? tvCampaignWindowOpen : filmCampaignWindowOpen) && player && (
-                    <div className="flex flex-col gap-2">
-                      {!campaign && (
-                        <>
-                          <div className="flex flex-wrap gap-2 items-center">
-                            <div className="text-xs text-muted-foreground mr-1">Focus:</div>
-                            <Button
-                              size="sm"
-                              variant={selectedFocus === 'prestige' ? 'default' : 'outline'}
-                              onClick={() => setCampaignFocusByProjectId(prev => ({ ...prev, [project.id]: 'prestige' }))}
-                            >
-                              Prestige
-                            </Button>
-                            <Button
-                              size="sm"
-                              variant={selectedFocus === 'acting' ? 'default' : 'outline'}
-                              onClick={() => setCampaignFocusByProjectId(prev => ({ ...prev, [project.id]: 'acting' }))}
-                            >
-                              Acting
-                            </Button>
-                            <Button
-                              size="sm"
-                              variant={selectedFocus === 'craft' ? 'default' : 'outline'}
-                              onClick={() => setCampaignFocusByProjectId(prev => ({ ...prev, [project.id]: 'craft' }))}
-                            >
-                              Craft
-                            </Button>
-                          </div>
-
-                          <div className="flex flex-wrap gap-2">
-                            <Button
-                              size="sm"
-                              onClick={() => startAwardsCampaign(project, 500000, selectedFocus)}
-                              variant="outline"
-                            >
-                              <DollarIcon className="mr-1" size={14} />
-                              Basic Campaign ($500K)
-                            </Button>
-                            <Button
-                              size="sm"
-                              onClick={() => startAwardsCampaign(project, 1500000, selectedFocus)}
-                              variant="outline"
-                            >
-                              <DollarIcon className="mr-1" size={14} />
-                              Premium Campaign ($1.5M)
-                            </Button>
-                            <Button
-                              size="sm"
-                              onClick={() => startAwardsCampaign(project, 3000000, selectedFocus)}
-                              variant="outline"
-                            >
-                              <DollarIcon className="mr-1" size={14} />
-                              Prestige Campaign ($3M)
-                            </Button>
-                          </div>
-                          <div className="text-xs text-muted-foreground">
-                            Starting early matters. Campaigns have diminishing returns and mainly help projects voters already care about.
-                          </div>
-                        </>
-                      )}
-
-                      {campaign && (campaign.weeksRemaining ?? 0) > 0 && (
-                        <>
-                          <div className="flex flex-wrap gap-2">
-                            <Button
-                              size="sm"
-                              onClick={() => boostAwardsCampaign(project, 250000)}
-                              variant="outline"
-                            >
-                              <DollarIcon className="mr-1" size={14} />
-                              Add Push ($250K)
-                            </Button>
-                            <Button
-                              size="sm"
-                              onClick={() => boostAwardsCampaign(project, 1000000)}
-                              variant="outline"
-                            >
-                              <DollarIcon className="mr-1" size={14} />
-                              Add Push ($1M)
-                            </Button>
-                            <Button
-                              size="sm"
-                              onClick={() => cancelAwardsCampaign(project)}
-                              variant="outline"
-                            >
-                              Cancel Campaign
-                            </Button>
-                          </div>
-                          <div className="text-xs text-muted-foreground">
-                            Additional spend helps most when the project is already a plausible contender.
-                          </div>
-                        </>
-                      )}
-
-                      {campaign && (campaign.weeksRemaining ?? 0) <= 0 && (
-                        <div className="text-xs text-muted-foreground">
-                          This campaign has ended.
-                        </div>
-                      )}
-                    </div>
-                  )}
+                  <Badge variant={probability >= 70 ? "default" : probability >= 50 ? "secondary" : "outline"}>
+                    {probability >= 70 ? 'Strong Contender' : probability >= 50 ? 'Possible Nominee' : 'Long Shot'}
+                  </Badge>
                 </div>
-              );
-            })}
+
+                <div className="mb-3">
+                  <div className="flex justify-between text-sm mb-1">
+                    <span>Awards Probability</span>
+                    <span>{probability.toFixed(1)}%</span>
+                  </div>
+                  <Progress value={probability} className="h-2" />
+                </div>
+
+                {campaign && (
+                  <div className="mb-3 flex items-center justify-between text-xs text-muted-foreground">
+                    <div className="flex items-center gap-2">
+                      <Badge variant="outline" className="text-[11px]">
+                        Awards Campaign Active
+                      </Badge>
+                      <span>
+                        Budget ${campaign.budget.toLocaleString()} • Effectiveness {Math.round(campaign.effectiveness).toString()}%
+                      </span>
+                    </div>
+                  </div>
+                )}
+
+                {(isTvProject(project) ? tvCampaignWindowOpen : filmCampaignWindowOpen) && player && (
+                  <div className="flex flex-col gap-2">
+                    <div className="flex flex-wrap gap-2">
+                      <Button
+                        size="sm"
+                        onClick={() => startAwardsCampaign(project, 500000)}
+                        variant="outline"
+                        disabled={!!campaign}
+                      >
+                        <DollarIcon className="mr-1" size={14} />
+                        Basic Campaign ($500K)
+                      </Button>
+                      <Button
+                        size="sm"
+                        onClick={() => startAwardsCampaign(project, 1500000)}
+                        variant="outline"
+                        disabled={!!campaign}
+                      >
+                        <DollarIcon className="mr-1" size={14} />
+                        Premium Campaign ($1.5M)
+                      </Button>
+                      <Button
+                        size="sm"
+                        onClick={() => startAwardsCampaign(project, 3000000)}
+                        variant="outline"
+                        disabled={!!campaign}
+                      >
+                        <DollarIcon className="mr-1" size={14} />
+                        Prestige Campaign ($3M)
+                      </Button>
+                    </div>
+                    {campaign && (
+                      <div className="text-xs text-muted-foreground">
+                        A campaign is already running for this project this season.
+                      </div>
+                    )}
+                  </div>
+                )}
+              </div>
+            ))}
           </CardContent>
         </Card>
       )}

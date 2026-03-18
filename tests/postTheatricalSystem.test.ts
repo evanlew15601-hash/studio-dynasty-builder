@@ -93,4 +93,19 @@ describe('PostTheatricalSystem.processWeeklyRevenue', () => {
     expect(financials.revenue).toBe(1500);
     expect(financials.transactions.filter(t => t.week === 10 && t.year === 2024).length).toBe(2);
   });
+
+  it('does not start a planned release before its scheduled game week', () => {
+    const project = makeProject();
+
+    // Schedule the streaming window for the future.
+    project.postTheatricalReleases![0].releaseWeek = 20;
+    project.postTheatricalReleases![0].releaseYear = 2024;
+
+    const early = PostTheatricalSystem.processWeeklyRevenue(project, 10, 2024, false);
+    expect(early.revenueDelta).toBe(500); // only the already-active digital window
+
+    // When we reach the scheduled week, the planned release should start.
+    const onTime = PostTheatricalSystem.processWeeklyRevenue(early.project, 20, 2024, false);
+    expect(onTime.revenueDelta).toBe(1500);
+  });
 });

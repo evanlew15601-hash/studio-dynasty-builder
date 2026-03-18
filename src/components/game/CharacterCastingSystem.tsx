@@ -2,7 +2,6 @@ import React, { useState } from 'react';
 import { Project, TalentPerson, ScriptCharacter } from '@/types/game';
 import { useGameStore } from '@/game/store';
 import { useUiStore } from '@/game/uiStore';
-import { isTalentAvailableForProject } from '@/utils/talentAvailability';
 import { talentMatchesRole } from '@/utils/castingEligibility';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
@@ -76,8 +75,8 @@ export const CharacterCastingSystem: React.FC<CharacterCastingSystemProps> = ({
 
   const getEligibleTalent = (character: ScriptCharacter): TalentPerson[] => {
     return gameState.talent.filter(talent => {
-      // Must be available (derived from current commitments)
-      if (!isTalentAvailableForProject(gameState, talent, project.id)) return false;
+      // Must be available
+      if (talent.contractStatus !== 'available') return false;
 
       // Type/age/demographic matching
       if (!talentMatchesRole(talent, character)) return false;

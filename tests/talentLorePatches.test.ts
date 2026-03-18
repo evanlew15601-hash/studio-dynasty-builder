@@ -54,32 +54,4 @@ describe('ensureTalentLore', () => {
     const patched = ensureTalentLore(gs);
     expect(patched.talent[0].biography).toBe('Custom biography stays.');
   });
-
-  it('backfills canonical pre-game awards for core talent in older saves', () => {
-    const t: TalentPerson = {
-      id: 'core:eleanor-vale',
-      name: 'Eleanor Vale',
-      type: 'actor',
-      age: 60,
-      experience: 30,
-      reputation: 84,
-      marketValue: 10_000_000,
-      genres: ['drama'],
-      contractStatus: 'available',
-      availability: { start: new Date('2050-01-01'), end: new Date('2051-01-01') },
-      awards: [],
-    };
-
-    const gs = {
-      currentYear: 2050,
-      currentWeek: 1,
-      talent: [t],
-    } as unknown as GameState;
-
-    const patched = ensureTalentLore(gs);
-    const awards = patched.talent[0].awards || [];
-
-    expect(awards.length).toBe(3);
-    expect(awards.some((a) => a.ceremony === 'Crown' && a.category === 'Best Actress' && a.year === 2008)).toBe(true);
-  });
 });

@@ -40,8 +40,8 @@ const formatMoneyDelta = (value: number) => {
 };
 
 const toneChipClass = (tone: Tone) => {
-  if (tone === 'positive') return 'border-green-200 bg-green-50 text-green-800 dark:border-green-800 dark:bg-green-950/20 dark:text-green-200';
-  if (tone === 'negative') return 'border-red-200 bg-red-50 text-red-800 dark:border-red-800 dark:bg-red-950/20 dark:text-red-200';
+  if (tone === 'positive') return 'border-green-200 bg-green-50 text-green-800';
+  if (tone === 'negative') return 'border-red-200 bg-red-50 text-red-800';
   return 'border-border/70 bg-muted/40 text-foreground';
 };
 

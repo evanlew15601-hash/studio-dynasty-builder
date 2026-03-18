@@ -245,7 +245,7 @@ function generateLightFilmography(t: WorldTalentBlueprint, currentYear: number):
   }));
 }
 
-export function buildCoreTalent(currentYear: number): TalentPerson[] {
+function buildCoreTalent(currentYear: number): TalentPerson[] {
   const activeBible = CORE_TALENT_BIBLE.filter((b) => b.careerStartYear <= currentYear);
 
   // First pass: create base people.
