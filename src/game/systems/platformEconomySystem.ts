@@ -1,8 +1,4 @@
-import type {
-  PlatformMarketState,
-  PlatformWeekKpis,
-  RivalPlatformState,
-} from '@/types/platformEconomy';
+import type { PlatformMarketState, PlatformWeekKpis, PlayerPlatformState, RivalPlatformState } from '@/types/platformEconomy';
 import type { TickSystem } from '../core/types';
 
 function clamp(n: number, min: number, max: number): number {
@@ -13,79 +9,60 @@ function clampInt(n: number, min: number, max: number): number {
   return Math.floor(clamp(n, min, max));
 }
 
-function sumSubs(rivals: RivalPlatformState[]): number {
-  return rivals.reduce((acc, r) => acc + (typeof r.subscribers === 'number' ? r.subscribers : 0), 0);
-}
-
-function normalizeTierMix(tierMix: any): { adSupportedShare: number; adFreeShare: number } {
-  const adSupportedPct = typeof tierMix?.adSupportedPct === 'number' ? tierMix.adSupportedPct : 50;
-  const adFreePct = typeof tierMix?.adFreePct === 'number' ? tierMix.adFreePct : 50;
-  const normTotal = adSupportedPct + adFreePct;
-  return {
-    adSupportedShare: normTotal > 0 ? adSupportedPct / normTotal : 0.5,
-    adFreeShare: normTotal > 0 ? adFreePct / normTotal : 0.5,
-  };
-}
-
-function computePlatformStep(params: {
-  subs: number;
+type PlatformStepInput = {
+  subscribers: number;
   cash: number;
   freshness: number;
   catalogValue: number;
   priceIndex: number;
-  promotionBudgetPerWeek: number;
-  tierMix: any;
-  fixedOps: number;
-  variableOpsPerSub: number;
-  extraCost: number;
-  /** Baseline acquisition (new signups) that does not depend on current subs. */
-  baseAcquired: number;
-  rngFloat: number;
-}): { nextSubs: number; nextCash: number; kpis: PlatformWeekKpis } {
-  const {
-    subs,
-    cash,
-    freshness,
-    catalogValue,
-    priceIndex,
-    promotionBudgetPerWeek,
-    tierMix,
-    fixedOps,
-    variableOpsPerSub,
-    extraCost,
-    baseAcquired,
-    rngFloat,
-  } = params;
+  tierMix?: { adSupportedPct: number; adFreePct: number };
+  promotionBudgetPerWeek?: number;
+  fixedOpsCost: number;
+  extraCost?: number;
+  rngFloat: () => number;
+  baseAcquired?: number;
+};
+
+function stepPlatform(input: PlatformStepInput): { nextSubs: number; nextCash: number; kpis: PlatformWeekKpis } {
+  const subs = Math.max(0, Math.floor(input.subscribers || 0));
+  const cash = typeof input.cash === 'number' ? input.cash : 0;
+
+  const freshness = clamp(input.freshness, 0, 100);
+  const catalogValue = clamp(input.catalogValue, 0, 100);
+  const priceIndex = typeof input.priceIndex === 'number' ? input.priceIndex : 1;
 
   // Base churn ~4% monthly => ~1% weekly (roughly).
   const baseChurnWeekly = 0.010;
+  const freshnessMod = clamp(1.35 - freshness / 100, 0.55, 1.9);
+  const catalogMod = clamp(1.2 - catalogValue / 180, 0.65, 1.25);
+  const priceMod = clamp(priceIndex, 0.7, 1.5);
 
-  const freshnessMod = clamp(1.25 - freshness / 100, 0.5, 1.7);
-  const catalogMod = clamp(1.15 - catalogValue / 140, 0.7, 1.25);
-  const priceMod = clamp(priceIndex, 0.75, 1.5);
-
-  const promoEffect = clamp(promotionBudgetPerWeek / 25_000_000, 0, 1.2);
-
-  const churnRate = clamp(baseChurnWeekly * freshnessMod * catalogMod * priceMod * (1 - promoEffect * 0.25), 0.002, 0.06);
+  const churnRate = clamp(baseChurnWeekly * freshnessMod * catalogMod * priceMod, 0.002, 0.06);
   const churned = Math.floor(subs * churnRate);
 
-  // Acquisition rate scales with freshness and promotion, constrained by diminishing returns.
-  const acquisitionRate = clamp(0.0035 + freshness / 35_000 + promoEffect * 0.003, 0.001, 0.03);
-
-  // Important: acquisition must be possible from 0 subs (launch period).
-  const acquired = Math.floor((subs * acquisitionRate + Math.max(0, baseAcquired)) * rngFloat);
+  // Acquisition scales with freshness and (for player) promotionBudget; allow non-zero growth from 0.
+  const acquisitionRate = clamp(0.003 + freshness / 60_000 + catalogValue / 120_000, 0.001, 0.02);
+  const baseAcquired = typeof input.baseAcquired === 'number' ? Math.max(0, Math.floor(input.baseAcquired)) : 0;
+  const acquired = baseAcquired + Math.floor(subs * acquisitionRate * input.rngFloat());
 
   const nextSubs = Math.max(0, subs - churned + acquired);
 
-  const { adSupportedShare, adFreeShare } = normalizeTierMix(tierMix);
+  // Revenue/expense proxy: ARPU based on tier mix and price index.
+  const tierMix = input.tierMix;
+  const adSupportedPct = typeof tierMix?.adSupportedPct === 'number' ? tierMix.adSupportedPct : 50;
+  const adFreePct = typeof tierMix?.adFreePct === 'number' ? tierMix.adFreePct : 50;
+  const normTotal = adSupportedPct + adFreePct;
+  const adSupportedShare = normTotal > 0 ? adSupportedPct / normTotal : 0.5;
+  const adFreeShare = normTotal > 0 ? adFreePct / normTotal : 0.5;
 
-  // Weekly ARPU proxy: scaled by priceIndex (higher price => more ARPU, but also more churn).
-  const arpuWeeklyBase = adSupportedShare * 1.2 + adFreeShare * 2.2;
-  const arpuWeekly = arpuWeeklyBase * clamp(priceIndex, 0.7, 1.6);
+  const arpuWeekly = (adSupportedShare * 1.1 + adFreeShare * 2.6) * (1 / clamp(priceIndex, 0.6, 1.7));
   const revenue = nextSubs * arpuWeekly;
 
-  const opsCost = fixedOps + nextSubs * variableOpsPerSub + promotionBudgetPerWeek + extraCost;
-  const profit = revenue - opsCost;
+  const promotion = typeof input.promotionBudgetPerWeek === 'number' ? Math.max(0, input.promotionBudgetPerWeek) : 0;
+  const extraCost = typeof input.extraCost === 'number' ? Math.max(0, input.extraCost) : 0;
+  const opsCost = input.fixedOpsCost + nextSubs * 0.06;
+  const profit = revenue - opsCost - promotion - extraCost;
+
   const nextCash = cash + profit;
 
   return {
@@ -93,14 +70,19 @@ function computePlatformStep(params: {
     nextCash,
     kpis: {
       subscribers: nextSubs,
-      netAdds: nextSubs - subs,
       churnRate,
+      netAdds: nextSubs - subs,
       revenue,
-      opsCost,
+      opsCost: opsCost + promotion + extraCost,
       profit,
-      cash: nextCash,
     },
   };
+}
+
+function sumActiveSubs(params: { player?: PlayerPlatformState; rivals: RivalPlatformState[] }): number {
+  const playerSubs = params.player && params.player.status === 'active' ? params.player.subscribers : 0;
+  const rivalSubs = params.rivals.reduce((acc, r) => acc + (r && r.status !== 'collapsed' ? (r.subscribers ?? 0) : 0), 0);
+  return (playerSubs ?? 0) + rivalSubs;
 }
 
 export const PlatformEconomySystem: TickSystem = {
@@ -111,24 +93,18 @@ export const PlatformEconomySystem: TickSystem = {
     if (state.dlc?.streamingWars !== true) return state;
 
     const market = state.platformMarket as PlatformMarketState | undefined;
-    if (!market || !Array.isArray(market.rivals)) return state;
+    if (!market) return state;
+
+    const rivalsIn = Array.isArray(market.rivals) ? market.rivals : [];
 
     const totalAddressableSubs = typeof market.totalAddressableSubs === 'number' ? market.totalAddressableSubs : 0;
 
-    const rivalsKpis: Record<string, PlatformWeekKpis> = {};
+    const rivalKpis: Array<{ id: string; subscribers: number; status: RivalPlatformState['status']; profit?: number }> = [];
 
-    const nextRivals = market.rivals.map((r) => {
+    const nextRivals = rivalsIn.map((r) => {
       if (!r) return r;
       if (r.status === 'collapsed') {
-        rivalsKpis[r.id] = {
-          subscribers: 0,
-          netAdds: 0,
-          churnRate: 0,
-          revenue: 0,
-          opsCost: 0,
-          profit: 0,
-          cash: typeof r.cash === 'number' ? r.cash : 0,
-        };
+        rivalKpis.push({ id: r.id, subscribers: 0, status: 'collapsed', profit: 0 });
         return r;
       }
 
@@ -139,98 +115,93 @@ export const PlatformEconomySystem: TickSystem = {
       const catalogValue = typeof r.catalogValue === 'number' ? clamp(r.catalogValue, 0, 100) : 50;
       const priceIndex = typeof r.priceIndex === 'number' ? r.priceIndex : 1;
 
-      const { nextSubs, nextCash, kpis } = computePlatformStep({
-        subs,
+      const step = stepPlatform({
+        subscribers: subs,
         cash,
         freshness,
         catalogValue,
         priceIndex,
-        promotionBudgetPerWeek: 0,
         tierMix: r.tierMix,
-        fixedOps: 22_000_000,
-        variableOpsPerSub: 0.07,
-        extraCost: 0,
-        baseAcquired: 0,
-        rngFloat: ctx.rng.nextFloat(0.7, 1.3),
+        fixedOpsCost: 20_000_000,
+        rngFloat: () => ctx.rng.nextFloat(0.65, 1.35),
       });
 
-      rivalsKpis[r.id] = kpis;
+      rivalKpis.push({ id: r.id, subscribers: step.kpis.subscribers, status: r.status, profit: step.kpis.profit });
 
       return {
         ...r,
-        subscribers: nextSubs,
-        cash: nextCash,
+        subscribers: step.nextSubs,
+        cash: step.nextCash,
       };
     });
 
-    const player = market.player;
+    const playerIn = market.player;
+    let playerOut = playerIn;
+    let playerKpis: PlatformWeekKpis | undefined;
 
-    const nextPlayerResult = (() => {
-      if (!player || player.status !== 'active') return { player, kpis: undefined as PlatformWeekKpis | undefined, studioBudgetDelta: 0 };
+    if (playerIn && playerIn.status === 'active') {
+      const subs = typeof playerIn.subscribers === 'number' ? playerIn.subscribers : 0;
+      const cash = typeof playerIn.cash === 'number' ? playerIn.cash : 0;
 
-      const subs = typeof player.subscribers === 'number' ? player.subscribers : 0;
-      const cash = typeof player.cash === 'number' ? player.cash : 0;
+      const freshness = typeof playerIn.freshness === 'number' ? clamp(playerIn.freshness, 0, 100) : 55;
+      const catalogValue = typeof playerIn.catalogValue === 'number' ? clamp(playerIn.catalogValue, 0, 100) : 45;
 
-      const freshness = typeof player.freshness === 'number' ? clamp(player.freshness, 0, 100) : 40;
-      const catalogValue = typeof player.catalogValue === 'number' ? clamp(player.catalogValue, 0, 100) : 35;
-      const priceIndex = typeof player.priceIndex === 'number' ? player.priceIndex : 1;
-      const promotionBudgetPerWeek = typeof player.promotionBudgetPerWeek === 'number' ? player.promotionBudgetPerWeek : 0;
+      const promotionBudgetPerWeek = typeof playerIn.promotionBudgetPerWeek === 'number' ? playerIn.promotionBudgetPerWeek : 0;
+      const priceIndex = typeof playerIn.priceIndex === 'number' ? playerIn.priceIndex : 1;
 
-      const originalsInPipeline = (state.projects || []).filter(
-        (p) => (p as any)?.streamingContract?.platformId === player.id && (p as any)?.status !== 'released'
+      const baseAcquired = Math.floor(
+        (promotionBudgetPerWeek / 1_000_000) *
+          (0.65 + freshness / 200) *
+          900 *
+          ctx.rng.nextFloat(0.75, 1.25)
+      );
+
+      const originalsInPipeline = (state.projects ?? []).filter(
+        (p) => (p as any)?.streamingContract?.platformId === playerIn.id && (p as any)?.status !== 'released'
       ).length;
 
       const contentSpendPerWeek = originalsInPipeline * 2_500_000;
 
-      const promoEffect = clamp(promotionBudgetPerWeek / 25_000_000, 0, 1.2);
-      const baseAcquired = Math.floor(15_000 + freshness * 400 + promoEffect * 80_000);
-
-      const { nextSubs, nextCash, kpis } = computePlatformStep({
-        subs,
+      const step = stepPlatform({
+        subscribers: subs,
         cash,
         freshness,
         catalogValue,
         priceIndex,
+        tierMix: playerIn.tierMix,
         promotionBudgetPerWeek,
-        tierMix: player.tierMix,
-        fixedOps: 28_000_000,
-        variableOpsPerSub: 0.09,
+        fixedOpsCost: 25_000_000,
         extraCost: contentSpendPerWeek,
+        rngFloat: () => ctx.rng.nextFloat(0.7, 1.3),
         baseAcquired,
-        rngFloat: ctx.rng.nextFloat(0.65, 1.35),
       });
 
-      // Integrate platform profit/loss into studio budget (consolidated cash flow).
-      const studioBudgetDelta = kpis.profit;
-
-      return {
-        player: {
-          ...player,
-          subscribers: nextSubs,
-          cash: nextCash,
-          contentSpendPerWeek,
-        },
-        kpis,
-        studioBudgetDelta,
+      playerOut = {
+        ...playerIn,
+        subscribers: step.nextSubs,
+        cash: step.nextCash,
+        contentSpendPerWeek,
+        distressWeeks: typeof playerIn.distressWeeks === 'number' ? playerIn.distressWeeks : 0,
       };
-    })();
+      playerKpis = step.kpis;
+    }
 
-    // Clamp total subscribers to market headroom (keep deterministic).
+    // Clamp combined subscribers to market headroom.
     let rivalsOut = nextRivals as RivalPlatformState[];
-    let playerOut = nextPlayerResult.player;
 
     if (totalAddressableSubs > 0) {
-      const playerSubs = playerOut && playerOut.status === 'active' ? (playerOut.subscribers ?? 0) : 0;
-      const totalSubs = playerSubs + sumSubs(rivalsOut);
-
-      if (totalSubs > totalAddressableSubs && totalSubs > 0) {
-        const scale = totalAddressableSubs / totalSubs;
+      const total = sumActiveSubs({ player: playerOut, rivals: rivalsOut });
+      if (total > totalAddressableSubs) {
+        const scale = totalAddressableSubs / total;
 
         if (playerOut && playerOut.status === 'active') {
           playerOut = {
             ...playerOut,
-            subscribers: clampInt((playerOut.subscribers ?? 0) * scale, 0, totalAddressableSubs),
+            subscribers: clampInt(playerOut.subscribers * scale, 0, totalAddressableSubs),
           };
+          if (playerKpis) {
+            playerKpis = { ...playerKpis, subscribers: playerOut.subscribers };
+          }
         }
 
         rivalsOut = rivalsOut.map((r) => {
@@ -243,24 +214,18 @@ export const PlatformEconomySystem: TickSystem = {
       }
     }
 
-    const nextStudio = (() => {
-      if (!nextPlayerResult.kpis) return state.studio;
-      return {
-        ...state.studio,
-        budget: (state.studio.budget ?? 0) + nextPlayerResult.studioBudgetDelta,
-      };
-    })();
+    const budgetDelta = playerKpis?.profit ?? 0;
 
     return {
       ...state,
-      studio: nextStudio,
+      studio: budgetDelta !== 0 ? { ...state.studio, budget: state.studio.budget + budgetDelta } : state.studio,
       platformMarket: {
         ...market,
         player: playerOut,
         rivals: rivalsOut,
         lastWeek: {
-          player: nextPlayerResult.kpis,
-          rivals: rivalsKpis,
+          player: playerKpis,
+          rivals: rivalKpis,
         },
         lastUpdatedWeek: ctx.week,
         lastUpdatedYear: ctx.year,
@@ -268,3 +233,5 @@ export const PlatformEconomySystem: TickSystem = {
     };
   },
 };
+
+    

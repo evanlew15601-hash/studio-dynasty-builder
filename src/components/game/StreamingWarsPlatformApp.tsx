@@ -24,6 +24,7 @@ import { useGameStore } from '@/game/store';
 import type { Genre, Project, Script } from '@/types/game';
 import type { StreamingContract } from '@/types/streamingTypes';
 import { getPlatformIdForProject } from '@/utils/platformIds';
+import { stableInt } from '@/utils/stableRandom';
 import { BarChart3, Crown, Film, Home, Swords, TrendingUp, Users } from 'lucide-react';
 
 const formatCompact = (value: number) => {
@@ -238,8 +239,11 @@ export const StreamingWarsPlatformApp: React.FC = () => {
     const spendResult = spendStudioFunds(commissionFee);
     if (!spendResult.success) return;
 
+    const idSeedRoot = `${gameState.universeSeed ?? 0}|${gameState.studio?.id ?? 'studio'}|${gameState.currentYear}:W${gameState.currentWeek}|original|${title}|${gameState.projects.length}|${gameState.scripts.length}`;
+    const idSuffix = stableInt(idSeedRoot, 100000, 999999);
+
     const script: Script = {
-      id: `script:${Date.now()}`,
+      id: `script:original:${gameState.currentYear}:W${gameState.currentWeek}:${idSuffix}`,
       title,
       genre: originalGenre,
       logline: `An original ${originalGenre} series commissioned for ${gameState.platformMarket?.player?.name ?? 'your platform'}.`,
@@ -268,7 +272,7 @@ export const StreamingWarsPlatformApp: React.FC = () => {
     const { endWeek, endYear } = addWeeks(gameState.currentWeek, gameState.currentYear, duration);
 
     const contract: StreamingContract = {
-      id: `contract:${Date.now()}`,
+      id: `contract:original:${gameState.currentYear}:W${gameState.currentWeek}:${idSuffix}`,
       dealKind: 'streaming',
       platformId: playerPlatformId,
       name: `${gameState.platformMarket?.player?.name ?? 'Your Platform'} Original - ${title}`,
@@ -293,7 +297,7 @@ export const StreamingWarsPlatformApp: React.FC = () => {
     const totalBudget = perEpisodeBudget * episodeCount;
 
     const project: Project = {
-      id: `project:${Date.now()}`,
+      id: `project:original:${gameState.currentYear}:W${gameState.currentWeek}:${idSuffix}`,
       title,
       script,
       type: 'series',

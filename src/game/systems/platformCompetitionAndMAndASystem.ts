@@ -124,7 +124,9 @@ export const PlatformCompetitionAndMAndASystem: TickSystem = {
       const subs = player.subscribers ?? 0;
       const cash = player.cash ?? 0;
 
-      const isSevereBurn = profit < -25_000_000;
+      // Hard-fail is intentionally extreme: we require deep negative cash runway AND low scale,
+      // plus continued weekly losses. This avoids punishing normal "growth-phase" losses.
+      const isSevereBurn = profit < 0;
       const isLowScale = subs < minScale;
       const isRunwayBad = cash < -500_000_000;
 

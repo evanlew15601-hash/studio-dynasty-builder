@@ -72,6 +72,8 @@ function normalizeExistingRivals(rivals: any[] | undefined, totalAddressableSubs
   return [...byId.values()];
 }
 
+
+
 function normalizePlayerPlatform(player: any | undefined): PlatformMarketState['player'] {
   if (!player || typeof player !== 'object') return undefined;
 

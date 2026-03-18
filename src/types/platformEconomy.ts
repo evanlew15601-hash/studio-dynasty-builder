@@ -14,6 +14,15 @@ export interface PlatformTierMix {
   adFreePct: number;
 }
 
+export interface PlatformWeekKpis {
+  subscribers: number;
+  churnRate: number;
+  netAdds: number;
+  revenue: number;
+  opsCost: number;
+  profit: number;
+}
+
 export interface PlayerPlatformState {
   /** Stable platform id (e.g., player-platform:<studioId>) */
   id: string;
@@ -27,31 +36,23 @@ export interface PlayerPlatformState {
   status: PlatformOperationalStatus;
   distressWeeks?: number;
 
+  /** 0–100. Computed by catalog system or set at launch. */
+  freshness?: number;
+  /** 0–100. Computed by catalog system or set at launch. */
+  catalogValue?: number;
+
   tierMix?: PlatformTierMix;
   /** Weekly promotion spend (abstracted algorithm control). */
   promotionBudgetPerWeek?: number;
   /** Abstract price competitiveness index (0.5–1.5 typical). */
   priceIndex?: number;
 
-  /** 0–100 proxy derived from releases arriving to the platform. */
-  freshness?: number;
-  /** 0–100 proxy derived from total library depth/performance. */
-  catalogValue?: number;
-
   // Optional knobs for future economy simulation
   monthlyPrice?: number;
   contentSpendPerWeek?: number;
-  vibe?: string;
-}
 
-export interface PlatformWeekKpis {
-  subscribers: number;
-  netAdds: number;
-  churnRate: number;
-  revenue: number;
-  opsCost: number;
-  profit: number;
-  cash: number;
+  /** UI-only flavor selection at launch time (e.g., prestige, reality, genre-forward). */
+  vibe?: string;
 }
 
 export interface RivalPlatformState {
@@ -78,11 +79,14 @@ export interface PlatformMarketState {
   /** Always prefer an array when present, but allow legacy undefined. */
   rivals?: RivalPlatformState[];
 
+  /** Weekly KPI snapshot for UI, recap cards, and debugging. */
   lastWeek?: {
     player?: PlatformWeekKpis;
-    rivals?: Record<string, PlatformWeekKpis>;
+    rivals?: Array<{ id: string; subscribers: number; status: RivalPlatformStatus; profit?: number }>;
   };
 
   lastUpdatedWeek?: number;
   lastUpdatedYear?: number;
 }
+
+

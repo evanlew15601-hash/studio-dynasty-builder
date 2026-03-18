@@ -283,8 +283,13 @@ export const PostTheatricalManagement: React.FC<PostTheatricalManagementProps> =
 
     const targetWeekYear = weekYearForAbsWeek(targetAbsWeek);
 
+    const releaseId = (() => {
+      const platformId = isOwnedDestination && playerPlatform ? playerPlatform.id : option.platform;
+      return `release:${project.id}:${platformId}:${targetWeekYear.year}:W${targetWeekYear.week}`;
+    })();
+
     const newRelease: PostTheatricalRelease = {
-      id: `release-${Date.now()}`,
+      id: releaseId,
       projectId: project.id,
       platform: option.platform,
       platformId: isOwnedDestination && playerPlatform ? playerPlatform.id : undefined,

@@ -33,13 +33,21 @@ export function getPostTheatricalPlatformId(release: PostTheatricalRelease | nul
 }
 
 export function getPlatformIdForProject(project: Project): string | null {
-  return (
+  const direct =
     getContractPlatformId(project.streamingContract) ||
     project.streamingPremiereDeal?.providerId ||
     getReleaseStrategyPlatformId(project.releaseStrategy) ||
     getDistributionChannelPlatformId(project.distributionStrategy?.primary) ||
-    getReleaseWindowPlatformId(project.distributionStrategy?.windows?.[0]) ||
-    getPostTheatricalPlatformId(project.postTheatricalReleases?.[0]) ||
-    null
-  );
+    getReleaseWindowPlatformId(project.distributionStrategy?.windows?.[0]);
+
+  if (direct) return direct;
+
+  const post = project.postTheatricalReleases ?? [];
+  const streaming = post.find((r) => r && r.platform === 'streaming' && (r.platformId || r.providerId));
+  if (streaming) return getPostTheatricalPlatformId(streaming);
+
+  const any = post.find((r) => r && (r.platformId || r.providerId));
+  if (any) return getPostTheatricalPlatformId(any);
+
+  return null;
 }
