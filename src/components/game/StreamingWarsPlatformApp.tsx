@@ -47,8 +47,52 @@ const formatUsdCompact = (value: number) => {
   }).format(value);
 };
 
+const formatUsd = (value: number) => {
+  return new Intl.NumberFormat(undefined, {
+    style: 'currency',
+    currency: 'USD',
+    minimumFractionDigits: 2,
+    maximumFractionDigits: 2,
+  }).format(value);
+};
+
+const clamp = (n: number, min: number, max: number) => {
+  return Math.max(min, Math.min(max, n));
+};
+
 const clampInt = (n: number, min: number, max: number) => {
-  return Math.floor(Math.max(min, Math.min(max, n)));
+  return Math.floor(clamp(n, min, max));
+};
+
+const computeMonthlyPrice = (priceIndex: number) => {
+  return Math.round(12.99 * clamp(priceIndex, 0.6, 1.7) * 100) / 100;
+};
+
+const ORIGINAL_PHASE_WEEKS: Record<'development' | 'production' | 'post-production', number> = {
+  development: 8,
+  production: 12,
+  'post-production': 6,
+};
+
+const estimateOriginalWeeksToPremiere = (project: Project): number | null => {
+  if (!project?.id?.startsWith('project:original:')) return null;
+  if (project.status === 'released') return 0;
+
+  const phase =
+    project.currentPhase === 'development' || project.currentPhase === 'production' || project.currentPhase === 'post-production'
+      ? project.currentPhase
+      : project.status === 'development' || project.status === 'production' || project.status === 'post-production'
+        ? project.status
+        : null;
+
+  if (!phase) return null;
+
+  const thisPhase = ORIGINAL_PHASE_WEEKS[phase];
+  const remainingThisPhase = typeof project.phaseDuration === 'number' && project.phaseDuration > 0 ? Math.floor(project.phaseDuration) : thisPhase;
+
+  if (phase === 'development') return remainingThisPhase + ORIGINAL_PHASE_WEEKS.production + ORIGINAL_PHASE_WEEKS['post-production'];
+  if (phase === 'production') return remainingThisPhase + ORIGINAL_PHASE_WEEKS['post-production'];
+  return remainingThisPhase;
 };
 
 const absWeek = (week: number, year: number) => {
@@ -606,7 +650,7 @@ export const StreamingWarsPlatformApp: React.FC = () => {
       },
       status: 'development',
       metrics: {},
-      phaseDuration: 4,
+      phaseDuration: 8,
       contractedTalent: [],
       developmentProgress: {
         scriptCompletion: 0,
@@ -1052,17 +1096,32 @@ export const StreamingWarsPlatformApp: React.FC = () => {
                   {originals
                     .slice()
                     .sort((a, b) => a.title.localeCompare(b.title))
-                    .map((p) => (
-                      <div key={p.id} className="flex items-center justify-between rounded-md border p-3">
-                        <div>
-                          <div className="text-sm font-medium">{p.title}</div>
-                          <div className="text-xs text-muted-foreground capitalize">
-                            {p.type.replace('-', ' ')} • {p.script?.genre} • {p.status}
+                    .map((p) => {
+                      const eta = estimateOriginalWeeksToPremiere(p);
+                      const phase =
+                        p.currentPhase === 'development' || p.currentPhase === 'production' || p.currentPhase === 'post-production'
+                          ? p.currentPhase
+                          : p.status === 'development' || p.status === 'production' || p.status === 'post-production'
+                            ? p.status
+                            : null;
+
+                      const phaseLabel = phase
+                        ? `${phase}${typeof p.phaseDuration === 'number' && p.phaseDuration > 0 ? ` • ${Math.floor(p.phaseDuration)}w left` : ''}`
+                        : p.status;
+
+                      return (
+                        <div key={p.id} className="flex items-center justify-between rounded-md border p-3 gap-3">
+                          <div className="min-w-0">
+                            <div className="text-sm font-medium truncate">{p.title}</div>
+                            <div className="text-xs text-muted-foreground capitalize truncate">
+                              {p.type.replace('-', ' ')} • {p.script?.genre} • {phaseLabel}
+                              {typeof eta === 'number' && eta > 0 ? ` • ETA ~${eta}w` : ''}
+                            </div>
                           </div>
+                          <Badge variant="outline">Original</Badge>
                         </div>
-                        <Badge variant="outline">Original</Badge>
-                      </div>
-                    ))}
+                      );
+                    })}
                 </div>
               ) : (
                 <p className="text-sm text-muted-foreground">No Originals commissioned yet.</p>
@@ -1128,7 +1187,7 @@ export const StreamingWarsPlatformApp: React.FC = () => {
                     {typeof player.monthlyPrice === 'number' && (
                       <div className="flex justify-between">
                         <span className="text-muted-foreground">Monthly price</span>
-                        <span className="font-medium">{formatUsdCompact(player.monthlyPrice)}</span>
+                        <span className="font-medium">{formatUsd(player.monthlyPrice)}</span>
                       </div>
                     )}
                     {typeof player.contentSpendPerWeek === 'number' && (
@@ -1212,6 +1271,9 @@ export const StreamingWarsPlatformApp: React.FC = () => {
                                 });
                               }}
                             />
+                            <p className="text-xs text-muted-foreground">
+                              Approx. {formatUsd(computeMonthlyPrice(player.priceIndex ?? 1))}/mo
+                            </p>
                           </div>
 
                           <div className="space-y-1">
@@ -1530,6 +1592,7 @@ export const StreamingWarsPlatformApp: React.FC = () => {
                   onChange={(e) => setLaunchPriceIndex(Math.max(0.7, Math.min(1.6, parseFloat(e.target.value || '1'))))}
                 />
                 <p className="text-xs text-muted-foreground">Higher = more ARPU, but worse churn.</p>
+                <p className="text-xs text-muted-foreground">Approx. {formatUsd(computeMonthlyPrice(launchPriceIndex))}/mo</p>
               </div>
 
               <div className="space-y-2">
@@ -1680,6 +1743,7 @@ export const StreamingWarsPlatformApp: React.FC = () => {
                 onChange={(e) => setOriginalEpisodeBudget(Math.max(250000, parseInt(e.target.value || '2500000', 10)))}
               />
               <p className="text-xs text-muted-foreground">Commissioning costs a one-time fee (to prevent spam) and increases platform burn while the show is in the pipeline.</p>
+              <p className="text-xs text-muted-foreground">It will progress automatically and premiere on your platform in ~{ORIGINAL_PHASE_WEEKS.development + ORIGINAL_PHASE_WEEKS.production + ORIGINAL_PHASE_WEEKS['post-production']} weeks.</p>
               {player?.status === 'active' && (
                 <p className="text-xs text-muted-foreground">Current Originals quality bonus: +{Math.round(player.originalsQualityBonus ?? 0)}</p>
               )}
