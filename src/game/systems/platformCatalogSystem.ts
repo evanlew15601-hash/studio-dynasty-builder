@@ -17,6 +17,62 @@ function absWeek(week: number, year: number): number {
   return year * 52 + week;
 }
 
+function clampInt(n: number, min: number, max: number): number {
+  return Math.floor(Math.max(min, Math.min(max, n)));
+}
+
+type ReleaseFormat = 'weekly' | 'binge' | 'batch';
+
+function normalizeReleaseFormat(project: Project): ReleaseFormat {
+  const f = project.releaseFormat;
+  return f === 'binge' || f === 'batch' || f === 'weekly' ? f : 'weekly';
+}
+
+function totalEpisodes(project: Project): number {
+  const n = (project.episodeCount ?? project.seasons?.[0]?.totalEpisodes ?? 0) as number;
+  if (typeof n === 'number' && n > 0) return clampInt(n, 1, 30);
+  return 0;
+}
+
+function episodesAired(project: Project, currentAbs: number, releaseAbs: number, format: ReleaseFormat): number {
+  const total = totalEpisodes(project);
+  if (total <= 0) return 0;
+
+  const seasonAiredRaw = project.seasons?.[0]?.episodesAired;
+  if (typeof seasonAiredRaw === 'number') {
+    return clampInt(seasonAiredRaw, 0, total);
+  }
+
+  if (currentAbs < releaseAbs) return 0;
+
+  if (format === 'binge') return total;
+
+  const weeksSincePremiere = Math.max(0, currentAbs - releaseAbs);
+  const batchSize = format === 'batch' ? 3 : 1;
+
+  return clampInt(Math.min(total, (weeksSincePremiere + 1) * batchSize), 0, total);
+}
+
+function effectiveArrivalAbs(project: Project, releaseAbs: number, currentAbs: number): number {
+  const format = normalizeReleaseFormat(project);
+
+  // Only series-like titles get episode cadence behavior.
+  if (project.type !== 'series' && project.type !== 'limited-series') return releaseAbs;
+
+  if (format === 'binge') return releaseAbs;
+
+  const total = totalEpisodes(project);
+  if (total <= 0) return releaseAbs;
+
+  const batchSize = format === 'batch' ? 3 : 1;
+  const aired = episodesAired(project, currentAbs, releaseAbs, format);
+  const dropsAired = aired > 0 ? Math.ceil(aired / batchSize) : 0;
+  const totalDrops = Math.max(1, Math.ceil(total / batchSize));
+
+  const lastDropIndex = clampInt(dropsAired - 1, 0, totalDrops - 1);
+  return releaseAbs + lastDropIndex;
+}
+
 type PlatformContentPresence = {
   arrivalAbs: number;
   quality: number;
@@ -75,10 +131,12 @@ function getPlatformPresence(params: {
   const directId = directPlatformId(project);
 
   if (directId === platformId) {
-    const arrivalAbs =
+    const releaseAbs =
       typeof project.releaseWeek === 'number' && typeof project.releaseYear === 'number'
         ? absWeek(project.releaseWeek, project.releaseYear)
         : currentAbs;
+
+    const arrivalAbs = effectiveArrivalAbs(project, releaseAbs, currentAbs);
 
     const exclusiveFlag = project.releaseStrategy?.streamingExclusive;
     const contractExclusive = (project as any)?.streamingContract?.exclusivityClause;

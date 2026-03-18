@@ -25,6 +25,56 @@ function absWeek(week: number, year: number): number {
   return year * 52 + week;
 }
 
+type ReleaseFormat = 'weekly' | 'binge' | 'batch';
+
+function normalizeReleaseFormat(project: Project): ReleaseFormat {
+  const f = project.releaseFormat;
+  return f === 'binge' || f === 'batch' || f === 'weekly' ? f : 'weekly';
+}
+
+function totalEpisodes(project: Project): number {
+  const n = (project.episodeCount ?? project.seasons?.[0]?.totalEpisodes ?? 0) as number;
+  if (typeof n === 'number' && n > 0) return clampInt(n, 1, 30);
+  return 0;
+}
+
+function episodesAired(project: Project, currentAbs: number, releaseAbs: number, format: ReleaseFormat): number {
+  const total = totalEpisodes(project);
+  if (total <= 0) return 0;
+
+  const seasonAiredRaw = project.seasons?.[0]?.episodesAired;
+  if (typeof seasonAiredRaw === 'number') {
+    return clampInt(seasonAiredRaw, 0, total);
+  }
+
+  if (currentAbs < releaseAbs) return 0;
+
+  if (format === 'binge') return total;
+
+  const weeksSincePremiere = Math.max(0, currentAbs - releaseAbs);
+  const batchSize = format === 'batch' ? 3 : 1;
+
+  return clampInt(Math.min(total, (weeksSincePremiere + 1) * batchSize), 0, total);
+}
+
+function effectiveArrivalAbs(project: Project, releaseAbs: number, currentAbs: number): number {
+  const format = normalizeReleaseFormat(project);
+
+  if (project.type !== 'series' && project.type !== 'limited-series') return releaseAbs;
+  if (format === 'binge') return releaseAbs;
+
+  const total = totalEpisodes(project);
+  if (total <= 0) return releaseAbs;
+
+  const batchSize = format === 'batch' ? 3 : 1;
+  const aired = episodesAired(project, currentAbs, releaseAbs, format);
+  const dropsAired = aired > 0 ? Math.ceil(aired / batchSize) : 0;
+  const totalDrops = Math.max(1, Math.ceil(total / batchSize));
+
+  const lastDropIndex = clampInt(dropsAired - 1, 0, totalDrops - 1);
+  return releaseAbs + lastDropIndex;
+}
+
 function directPlatformId(project: Project): string | null {
   return (
     getContractPlatformId(project.streamingContract) ||
@@ -91,18 +141,18 @@ function platformMoatFactor(params: {
   for (const project of projects) {
     if (!project || project.status !== 'released') continue;
 
-    const relWeek = project.releaseWeek;
-    const relYear = project.releaseYear;
-
-    if (typeof relWeek === 'number' && typeof relYear === 'number') {
-      const relAbs = absWeek(relWeek, relYear);
-      if (relAbs > currentAbs) continue;
-      if (relAbs < minAbs) continue;
-    }
-
     const directId = directPlatformId(project);
 
     if (directId === platformId) {
+      const relWeek = project.releaseWeek;
+      const relYear = project.releaseYear;
+      const relAbs =
+        typeof relWeek === 'number' && typeof relYear === 'number' ? absWeek(relWeek, relYear) : currentAbs;
+
+      const arrivalAbs = effectiveArrivalAbs(project, relAbs, currentAbs);
+      if (arrivalAbs > currentAbs) continue;
+      if (arrivalAbs < minAbs) continue;
+
       const exclusiveFlag = project.releaseStrategy?.streamingExclusive;
       const contractExclusive = (project as any)?.streamingContract?.exclusivityClause;
       const isExclusive = exclusiveFlag !== false && contractExclusive !== false;
@@ -111,17 +161,36 @@ function platformMoatFactor(params: {
     }
 
     const post = project.postTheatricalReleases ?? [];
-    const hasOnPlatform = post
+
+    const postArrivals = post
       .filter((r) => r && r.platform === 'streaming')
       .filter((r) => (r.platformId || r.providerId) === platformId)
-      .some((r) => {
+      .map((r) => {
         if (typeof r.releaseWeek === 'number' && typeof r.releaseYear === 'number') {
-          return absWeek(r.releaseWeek, r.releaseYear) <= currentAbs;
+          return absWeek(r.releaseWeek, r.releaseYear);
         }
-        return r.status === 'active' || r.status === 'declining' || (r.status === 'ended' && platformId.startsWith('player-platform:'));
-      });
 
-    if (hasOnPlatform) {
+        if (
+          typeof r.delayWeeks === 'number' &&
+          typeof project.releaseWeek === 'number' &&
+          typeof project.releaseYear === 'number'
+        ) {
+          return absWeek(project.releaseWeek, project.releaseYear) + Math.max(0, Math.floor(r.delayWeeks));
+        }
+
+        if (r.status === 'active' || r.status === 'declining' || (r.status === 'ended' && platformId.startsWith('player-platform:'))) {
+          return currentAbs;
+        }
+
+        return null;
+      })
+      .filter((x): x is number => typeof x === 'number');
+
+    const latestArrivalAbs = postArrivals.length > 0 ? Math.max(...postArrivals) : null;
+
+    if (latestArrivalAbs != null) {
+      if (latestArrivalAbs > currentAbs) continue;
+      if (latestArrivalAbs < minAbs) continue;
       factors.push(0.35);
     }
   }

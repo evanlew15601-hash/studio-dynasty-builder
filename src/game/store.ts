@@ -47,6 +47,7 @@ import { PlayerCircleDramaSystem } from './systems/playerCircleDramaSystem';
 import { StudioGovernanceSystem } from './systems/studioGovernanceSystem';
 import { PlatformMarketBootstrapSystem } from './systems/platformMarketBootstrapSystem';
 import { PlatformOriginalsPipelineSystem } from './systems/platformOriginalsPipelineSystem';
+import { PlatformOriginalsReleaseCadenceSystem } from './systems/platformOriginalsReleaseCadenceSystem';
 import { PlatformCatalogSystem } from './systems/platformCatalogSystem';
 import { PlatformEconomySystem } from './systems/platformEconomySystem';
 import { PlatformCompetitionAndMAndASystem } from './systems/platformCompetitionAndMAndASystem';
@@ -202,6 +203,7 @@ export const useGameStore: import('zustand').UseBoundStore<import('zustand').Sto
       // Streaming Wars (DLC) — systems early-return unless dlc.streamingWars is true.
       r.register(PlatformMarketBootstrapSystem);
       r.register(PlatformOriginalsPipelineSystem);
+      r.register(PlatformOriginalsReleaseCadenceSystem);
       r.register(PlatformCatalogSystem);
       r.register(PlatformEconomySystem);
       r.register(PlatformCompetitionAndMAndASystem);
