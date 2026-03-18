@@ -88,8 +88,7 @@ function makeSeries(params: { platformId: string; withSeason2: boolean }): Proje
       seasonDropoffRate: 0,
       totalBudget: 0,
       spentBudget: 0,
-      productionStatus: 'complete',
-      premiereDate: { week: 20, year: 2027 },
+      productionStatus: 'planning',
       episodes: [],
     });
   }

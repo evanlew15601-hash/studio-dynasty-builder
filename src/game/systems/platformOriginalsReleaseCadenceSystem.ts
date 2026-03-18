@@ -39,17 +39,42 @@ function normalizeReleaseFormat(project: Project, season?: SeasonData): ReleaseF
   return normalizeReleaseFormatValue(season?.releaseFormat ?? project.releaseFormat);
 }
 
-function seasonPremiereAbs(params: { season: SeasonData; seasonIndex: number; releaseAbs: number }): number | null {
-  const { season, seasonIndex, releaseAbs } = params;
+function seasonPremiereAbs(params: {
+  project: Project;
+  season: SeasonData;
+  seasonIndex: number;
+  releaseAbs: number;
+  currentAbs: number;
+}): number | null {
+  const { project, season, seasonIndex, releaseAbs, currentAbs } = params;
 
   if (season?.premiereDate && typeof season.premiereDate.week === 'number' && typeof season.premiereDate.year === 'number') {
     return absWeek(season.premiereDate.week, season.premiereDate.year);
   }
 
+  const episode1 = Array.isArray(season?.episodes) ? season.episodes.find((ep) => ep && ep.episodeNumber === 1) : null;
+  if (episode1?.airDate && typeof episode1.airDate.week === 'number' && typeof episode1.airDate.year === 'number') {
+    return absWeek(episode1.airDate.week, episode1.airDate.year);
+  }
+
   // Fallback: season 1 premieres on project release.
   if ((season.seasonNumber ?? seasonIndex + 1) === 1) return releaseAbs;
 
-  return null;
+  const format = normalizeReleaseFormat(project, season);
+  const total = seasonTotalEpisodes(project, season, seasonIndex);
+  const airedRaw = typeof season.episodesAired === 'number' ? season.episodesAired : 0;
+  const aired = clampInt(airedRaw, 0, total);
+
+  // Legacy-save inference: if episodes are marked as aired but premiereDate is missing,
+  // infer a premiere week consistent with the current abs week.
+  if (aired <= 0) return null;
+
+  if (format === 'binge') return currentAbs;
+
+  const batchSize = format === 'batch' ? 3 : 1;
+  const dropsAired = Math.max(1, Math.ceil(aired / batchSize));
+
+  return Math.max(releaseAbs, currentAbs - (dropsAired - 1));
 }
 
 function seasonTotalEpisodes(project: Project, season: SeasonData, seasonIndex: number): number {
@@ -92,12 +117,21 @@ function ensureSeasonEpisodes(params: {
         })
       );
 
+  const existingStatus = season.productionStatus;
+  const validExistingStatus =
+    existingStatus === 'planning' ||
+    existingStatus === 'filming' ||
+    existingStatus === 'post-production' ||
+    existingStatus === 'complete';
+
+  const productionStatus: SeasonData['productionStatus'] = seasonIndex === 0 ? 'complete' : (validExistingStatus ? existingStatus : 'planning');
+
   const seasonOut: SeasonData = {
     ...season,
     seasonNumber: season.seasonNumber ?? seasonIndex + 1,
     totalEpisodes,
     releaseFormat,
-    productionStatus: 'complete',
+    productionStatus,
     episodesAired: clampInt(season.episodesAired ?? 0, 0, totalEpisodes),
     episodes: paddedEpisodes,
   };
@@ -107,7 +141,7 @@ function ensureSeasonEpisodes(params: {
     season.releaseFormat !== releaseFormat ||
     paddedEpisodes.length !== (season.episodes?.length ?? 0) ||
     seasonOut.episodesAired !== (season.episodesAired ?? 0) ||
-    season.productionStatus !== 'complete';
+    seasonOut.productionStatus !== season.productionStatus;
 
   return { season: seasonOut, changed };
 }
@@ -266,7 +300,13 @@ export const PlatformOriginalsReleaseCadenceSystem: TickSystem = {
 
       let episodesOut = active.season.episodes;
 
-      if (nextAired > prevAired) {
+      const needsAirDates =
+        nextAired > 0 &&
+        active.season.episodes
+          .slice(0, nextAired)
+          .some((ep) => ep && !ep.airDate);
+
+      if (needsAirDates) {
         episodesOut = active.season.episodes.map((ep) => {
           if (!ep) return ep;
           if (ep.airDate) return ep;
