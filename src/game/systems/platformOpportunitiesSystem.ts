@@ -1,6 +1,6 @@
 import type { PlatformMarketState } from '@/types/platformEconomy';
 import type { GameEvent, Project } from '@/types/game';
-import { getPlatformIdForProject } from '@/utils/platformIds';
+import { getPlatformIdForProjectAtTime } from '@/utils/platformIds';
 import type { TickSystem } from '../core/types';
 
 function triggerDateFromWeekYear(year: number, week: number): Date {
@@ -40,9 +40,19 @@ export const PlatformOpportunitiesSystem: TickSystem = {
     if (lastLicenseOfferYear === ctx.year) return state;
 
     const playerPlatformId = player.id;
-    const releasedOnPlatform = (state.projects || []).filter(
-      (p) => p.status === 'released' && getPlatformIdForProject(p) === playerPlatformId
-    );
+    const releasedOnPlatform = (state.projects || []).filter((p) => {
+      if (getPlatformIdForProjectAtTime(p, ctx.week, ctx.year) !== playerPlatformId) return false;
+
+      // Licensing offers are meant to pressure exclusivity on DIRECT platform premieres,
+      // not post-theatrical arrivals.
+      const rs = p.releaseStrategy;
+      if (!rs || rs.type !== 'streaming') return false;
+
+      const streamId = rs.streamingPlatformId || rs.streamingProviderId;
+      if (streamId !== playerPlatformId) return false;
+
+      return rs.streamingExclusive !== false;
+    });
 
     const targetTitle = pickHighestQuality(releasedOnPlatform);
     if (!targetTitle) return state;

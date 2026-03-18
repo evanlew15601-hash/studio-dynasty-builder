@@ -4,6 +4,13 @@ import type {
   PlayerPlatformState,
   RivalPlatformState,
 } from '@/types/platformEconomy';
+import type { Project } from '@/types/game';
+import {
+  getContractPlatformId,
+  getDistributionChannelPlatformId,
+  getReleaseStrategyPlatformId,
+  getReleaseWindowPlatformId,
+} from '@/utils/platformIds';
 import type { TickSystem } from '../core/types';
 
 function clamp(n: number, min: number, max: number): number {
@@ -12,6 +19,78 @@ function clamp(n: number, min: number, max: number): number {
 
 function clampInt(n: number, min: number, max: number): number {
   return Math.floor(clamp(n, min, max));
+}
+
+function absWeek(week: number, year: number): number {
+  return year * 52 + week;
+}
+
+function directPlatformId(project: Project): string | null {
+  return (
+    getContractPlatformId(project.streamingContract) ||
+    project.streamingPremiereDeal?.providerId ||
+    getReleaseStrategyPlatformId(project.releaseStrategy) ||
+    getDistributionChannelPlatformId(project.distributionStrategy?.primary) ||
+    getReleaseWindowPlatformId(project.distributionStrategy?.windows?.[0]) ||
+    null
+  );
+}
+
+function platformMoatFactor(params: {
+  projects: Project[];
+  platformId: string;
+  week: number;
+  year: number;
+  lookbackWeeks: number;
+}): number {
+  const { projects, platformId, week, year, lookbackWeeks } = params;
+
+  const currentAbs = absWeek(week, year);
+  const minAbs = currentAbs - Math.max(1, lookbackWeeks);
+
+  const factors: number[] = [];
+
+  for (const project of projects) {
+    if (!project || project.status !== 'released') continue;
+
+    const relWeek = project.releaseWeek;
+    const relYear = project.releaseYear;
+
+    if (typeof relWeek === 'number' && typeof relYear === 'number') {
+      const relAbs = absWeek(relWeek, relYear);
+      if (relAbs > currentAbs) continue;
+      if (relAbs < minAbs) continue;
+    }
+
+    const directId = directPlatformId(project);
+
+    if (directId === platformId) {
+      const exclusiveFlag = project.releaseStrategy?.streamingExclusive;
+      const contractExclusive = (project as any)?.streamingContract?.exclusivityClause;
+      const isExclusive = exclusiveFlag !== false && contractExclusive !== false;
+      factors.push(isExclusive ? 1.0 : 0.6);
+      continue;
+    }
+
+    const post = project.postTheatricalReleases ?? [];
+    const hasOnPlatform = post
+      .filter((r) => r && r.platform === 'streaming')
+      .filter((r) => (r.platformId || r.providerId) === platformId)
+      .some((r) => {
+        if (typeof r.releaseWeek === 'number' && typeof r.releaseYear === 'number') {
+          return absWeek(r.releaseWeek, r.releaseYear) <= currentAbs;
+        }
+        return r.status === 'active' || r.status === 'declining' || (r.status === 'ended' && platformId.startsWith('player-platform:'));
+      });
+
+    if (hasOnPlatform) {
+      factors.push(0.35);
+    }
+  }
+
+  if (factors.length === 0) return 0.8;
+
+  return clamp(factors.reduce((a, b) => a + b, 0) / factors.length, 0.35, 1.0);
 }
 
 type PlatformStepInput = {
@@ -169,9 +248,18 @@ export const PlatformEconomySystem: TickSystem = {
       const promotionBudgetPerWeek = typeof playerIn.promotionBudgetPerWeek === 'number' ? playerIn.promotionBudgetPerWeek : 0;
       const priceIndex = typeof playerIn.priceIndex === 'number' ? playerIn.priceIndex : 1;
 
+      const moat = platformMoatFactor({
+        projects: (state.projects ?? []) as Project[],
+        platformId: playerIn.id,
+        week: ctx.week,
+        year: ctx.year,
+        lookbackWeeks: 26,
+      });
+
       const baseAcquired = Math.floor(
         (promotionBudgetPerWeek / 1_000_000) *
           (0.65 + freshness / 200) *
+          (0.85 + moat * 0.25) *
           900 *
           ctx.rng.nextFloat(0.75, 1.25)
       );

@@ -23,7 +23,7 @@ import {
 import { useGameStore } from '@/game/store';
 import type { Genre, Project, Script } from '@/types/game';
 import type { StreamingContract } from '@/types/streamingTypes';
-import { getPlatformIdForProject } from '@/utils/platformIds';
+import { isProjectOnPlatformAtTime } from '@/utils/platformIds';
 import { stableInt } from '@/utils/stableRandom';
 import { BarChart3, Crown, Film, Home, Swords, TrendingUp, Users } from 'lucide-react';
 
@@ -118,9 +118,10 @@ export const StreamingWarsPlatformApp: React.FC = () => {
 
     const playerPlatformId = player?.id;
 
-    const released = (gameState?.projects ?? []).filter((p) => p.status === 'released');
     const titlesOnPlatform = playerPlatformId
-      ? released.filter((p) => getPlatformIdForProject(p) === playerPlatformId)
+      ? (gameState?.projects ?? []).filter((p) =>
+          isProjectOnPlatformAtTime(p, playerPlatformId, gameState?.currentWeek ?? 0, gameState?.currentYear ?? 0)
+        )
       : [];
 
     const originals = playerPlatformId

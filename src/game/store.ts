@@ -801,15 +801,32 @@ export const useGameStore: import('zustand').UseBoundStore<import('zustand').Sto
           if (kind === 'platform:license-offer') {
             const market = s.game.platformMarket;
             const offer = Math.max(0, Math.floor((event as any)?.data?.offer ?? 0));
+            const titleProjectId = (event as any)?.data?.titleProjectId as string | undefined;
             const titleName = (event as any)?.data?.titleName as string | undefined;
             const rivalName = (event as any)?.data?.rivalName as string | undefined;
 
             const player = market?.player;
             if (market && player && player.status === 'active') {
               if (selectedChoice.id === 'accept') {
-                // Moat erosion: cash now, slightly weaker retention/differentiation.
-                player.freshness = clamp((player.freshness ?? 50) - 3, 0, 100);
-                player.catalogValue = clamp((player.catalogValue ?? 45) - 1, 0, 100);
+                if (titleProjectId) {
+                  const idx = (s.game.projects || []).findIndex((p) => p.id === titleProjectId);
+                  if (idx >= 0) {
+                    const project = s.game.projects[idx] as any;
+                    const rs = project.releaseStrategy;
+
+                    // If the title is a direct-to-streaming premiere on the player platform,
+                    // accepting a licensing offer makes it non-exclusive.
+                    if (rs && (rs.streamingPlatformId || rs.streamingProviderId) === player.id) {
+                      s.game.projects[idx] = {
+                        ...project,
+                        releaseStrategy: {
+                          ...rs,
+                          streamingExclusive: false,
+                        },
+                      };
+                    }
+                  }
+                }
 
                 const headline = `${player.name} licenses ${titleName ?? 'a breakout title'} to ${rivalName ?? 'a rival'} for ${Math.round(
                   offer / 1_000_000
