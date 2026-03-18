@@ -174,6 +174,12 @@ export const StreamingWarsPlatformApp: React.FC = () => {
     const spendResult = spendStudioFunds(launchCost);
     if (!spendResult.success) return;
 
+    const initialSubscribers = clampInt(
+      250_000 + releasedProjectsCount * 45_000 + Math.max(0, (gameState.studio.reputation ?? 0) - 60) * 35_000,
+      100_000,
+      5_000_000
+    );
+
     setGameState((prev) => {
       const market = prev.platformMarket ?? {};
 
@@ -186,12 +192,14 @@ export const StreamingWarsPlatformApp: React.FC = () => {
             name,
             launchedWeek: prev.currentWeek,
             launchedYear: prev.currentYear,
-            subscribers: 0,
-            cash: 0,
+            subscribers: initialSubscribers,
+            cash: -launchCost,
             status: 'active',
             tierMix,
             promotionBudgetPerWeek: launchPromoBudget,
             priceIndex: launchPriceIndex,
+            freshness: 35,
+            catalogValue: 20,
             vibe,
           },
         },

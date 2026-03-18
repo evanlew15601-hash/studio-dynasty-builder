@@ -120,6 +120,57 @@ const ACHIEVEMENTS: Achievement[] = [
     ),
     reward: { reputation: 5 },
     unlocked: false
+  },
+
+  // Streaming Wars (DLC)
+  {
+    id: 'streaming-wars-launch',
+    title: 'Launch Day',
+    description: 'Launch your own streaming platform',
+    icon: 'trophy',
+    category: 'milestone',
+    requirement: (state) => state.dlc?.streamingWars === true && !!state.platformMarket?.player,
+    reward: { reputation: 5 },
+    unlocked: false
+  },
+  {
+    id: 'streaming-wars-1m-subs',
+    title: 'One Million Subscribers',
+    description: 'Reach 1,000,000 subscribers on your platform',
+    icon: 'star',
+    category: 'milestone',
+    requirement: (state) =>
+      state.dlc?.streamingWars === true && (state.platformMarket?.player?.subscribers || 0) >= 1_000_000,
+    reward: { reputation: 10, budget: 5_000_000 },
+    unlocked: false
+  },
+  {
+    id: 'streaming-wars-originals-slate',
+    title: 'Originals Machine',
+    description: 'Commission 3 Originals for your platform',
+    icon: 'film',
+    category: 'creative',
+    requirement: (state) => {
+      if (state.dlc?.streamingWars !== true) return false;
+      const pid = state.platformMarket?.player?.id;
+      if (!pid) return false;
+      return state.projects.filter((p) => p.streamingContract?.platformId === pid).length >= 3;
+    },
+    reward: { reputation: 10 },
+    unlocked: false
+  },
+  {
+    id: 'streaming-wars-consolidation',
+    title: 'The Wars Begin',
+    description: 'Witness the first major streaming collapse',
+    icon: 'award',
+    category: 'special',
+    requirement: (state) => {
+      if (state.dlc?.streamingWars !== true) return false;
+      return (state.platformMarket?.rivals || []).some((r) => r.status === 'collapsed');
+    },
+    reward: { reputation: 5 },
+    unlocked: false
   }
 ];
 

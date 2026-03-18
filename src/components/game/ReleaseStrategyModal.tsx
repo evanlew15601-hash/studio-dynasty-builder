@@ -100,6 +100,11 @@ export const ReleaseStrategyModal: React.FC<ReleaseStrategyModalProps> = ({
   const signedStreamingDeal = project.streamingPremiereDeal;
   const streamingDealMissing = isStreamingFilm && !signedStreamingDeal;
 
+  const playerPlatform =
+    gameState.dlc?.streamingWars === true && gameState.platformMarket?.player?.status === 'active'
+      ? gameState.platformMarket.player
+      : null;
+
   const computeStreamingPremiereDeal = (provider: (typeof streamingProviders)[number]) => {
     const quality = project.script?.quality ?? 60;
     const qualityMultiplier = quality / 60;
@@ -202,6 +207,64 @@ export const ReleaseStrategyModal: React.FC<ReleaseStrategyModalProps> = ({
     toast({
       title: 'Streaming Deal Signed',
       description: `${provider.name} paid ${(terms.upfrontPayment / 1000000).toFixed(1)}M upfront for the premiere.`
+    });
+  };
+
+  const signPlayerPlatformPremiereDeal = () => {
+    if (!playerPlatform) return;
+
+    updateProject(project.id, {
+      streamingPremiereDeal: {
+        providerId: playerPlatform.id,
+        signedWeek: gameState.currentWeek,
+        signedYear: gameState.currentYear,
+        upfrontPayment: 0,
+        marketingSupport: 0,
+      },
+      ...(project.releaseStrategy?.type === 'streaming'
+        ? {
+            releaseStrategy: {
+              ...project.releaseStrategy,
+              streamingProviderId: playerPlatform.id,
+              streamingPlatformId: playerPlatform.id,
+              streamingExclusive: true,
+            },
+          }
+        : {}),
+      distributionStrategy: project.distributionStrategy
+        ? {
+            ...project.distributionStrategy,
+            primary: {
+              platform: playerPlatform.name,
+              platformId: playerPlatform.id,
+              type: 'streaming',
+              revenue: {
+                type: 'subscription-share',
+                studioShare: 100,
+              },
+            },
+          }
+        : {
+            primary: {
+              platform: playerPlatform.name,
+              platformId: playerPlatform.id,
+              type: 'streaming',
+              revenue: {
+                type: 'subscription-share',
+                studioShare: 100,
+              },
+            },
+            international: [],
+            windows: [],
+            marketingBudget: 0,
+          },
+    });
+
+    setSelectedStreamingProviderId(playerPlatform.id);
+
+    toast({
+      title: 'Streaming Premiere Selected',
+      description: `${project.title} will premiere on ${playerPlatform.name}.`,
     });
   };
 
@@ -502,7 +565,9 @@ export const ReleaseStrategyModal: React.FC<ReleaseStrategyModalProps> = ({
                     <div className="flex items-start justify-between">
                       <div>
                         <div className="font-semibold">
-                          {streamingProviders.find(p => p.id === signedStreamingDeal.providerId)?.name ?? signedStreamingDeal.providerId}
+                          {playerPlatform && signedStreamingDeal.providerId === playerPlatform.id
+                            ? playerPlatform.name
+                            : (streamingProviders.find(p => p.id === signedStreamingDeal.providerId)?.name ?? signedStreamingDeal.providerId)}
                         </div>
                         <div className="text-xs text-muted-foreground">
                           Signed Y{signedStreamingDeal.signedYear}W{signedStreamingDeal.signedWeek} • Upfront ${(signedStreamingDeal.upfrontPayment / 1000000).toFixed(1)}M
@@ -520,6 +585,44 @@ export const ReleaseStrategyModal: React.FC<ReleaseStrategyModalProps> = ({
                       Direct-to-streaming releases require signing a premiere deal first.
                     </p>
                     <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+                      {playerPlatform && (
+                        <Card
+                          key={playerPlatform.id}
+                          className={`transition-all ${selectedStreamingProviderId === playerPlatform.id ? 'ring-2 ring-primary bg-primary/5' : 'hover:bg-accent/50'}`}
+                        >
+                          <CardContent className="p-4 space-y-2">
+                            <div className="flex items-center gap-2">
+                              <div className="w-3 h-3 rounded bg-primary" />
+                              <div className="font-semibold">{playerPlatform.name}</div>
+                              <Badge variant="outline" className="ml-auto">
+                                Owned
+                              </Badge>
+                            </div>
+
+                            <div className="grid grid-cols-2 gap-2 text-xs">
+                              <div>
+                                <div className="text-muted-foreground">Upfront</div>
+                                <div className="font-medium">$0.0M</div>
+                              </div>
+                              <div>
+                                <div className="text-muted-foreground">Expected viewers</div>
+                                <div className="font-medium">—</div>
+                              </div>
+                            </div>
+
+                            <Button
+                              type="button"
+                              className="w-full"
+                              size="sm"
+                              variant={selectedStreamingProviderId === playerPlatform.id ? 'default' : 'outline'}
+                              onClick={signPlayerPlatformPremiereDeal}
+                            >
+                              Premiere on your platform
+                            </Button>
+                          </CardContent>
+                        </Card>
+                      )}
+
                       {streamingProviders.map((provider) => {
                         const terms = computeStreamingPremiereDeal(provider);
                         const issues: string[] = [];

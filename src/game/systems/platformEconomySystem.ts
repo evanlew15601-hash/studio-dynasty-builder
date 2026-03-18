@@ -38,6 +38,8 @@ function computePlatformStep(params: {
   fixedOps: number;
   variableOpsPerSub: number;
   extraCost: number;
+  /** Baseline acquisition (new signups) that does not depend on current subs. */
+  baseAcquired: number;
   rngFloat: number;
 }): { nextSubs: number; nextCash: number; kpis: PlatformWeekKpis } {
   const {
@@ -51,6 +53,7 @@ function computePlatformStep(params: {
     fixedOps,
     variableOpsPerSub,
     extraCost,
+    baseAcquired,
     rngFloat,
   } = params;
 
@@ -68,7 +71,9 @@ function computePlatformStep(params: {
 
   // Acquisition rate scales with freshness and promotion, constrained by diminishing returns.
   const acquisitionRate = clamp(0.0035 + freshness / 35_000 + promoEffect * 0.003, 0.001, 0.03);
-  const acquired = Math.floor(subs * acquisitionRate * rngFloat);
+
+  // Important: acquisition must be possible from 0 subs (launch period).
+  const acquired = Math.floor((subs * acquisitionRate + Math.max(0, baseAcquired)) * rngFloat);
 
   const nextSubs = Math.max(0, subs - churned + acquired);
 
@@ -145,6 +150,7 @@ export const PlatformEconomySystem: TickSystem = {
         fixedOps: 22_000_000,
         variableOpsPerSub: 0.07,
         extraCost: 0,
+        baseAcquired: 0,
         rngFloat: ctx.rng.nextFloat(0.7, 1.3),
       });
 
@@ -176,6 +182,9 @@ export const PlatformEconomySystem: TickSystem = {
 
       const contentSpendPerWeek = originalsInPipeline * 2_500_000;
 
+      const promoEffect = clamp(promotionBudgetPerWeek / 25_000_000, 0, 1.2);
+      const baseAcquired = Math.floor(15_000 + freshness * 400 + promoEffect * 80_000);
+
       const { nextSubs, nextCash, kpis } = computePlatformStep({
         subs,
         cash,
@@ -187,6 +196,7 @@ export const PlatformEconomySystem: TickSystem = {
         fixedOps: 28_000_000,
         variableOpsPerSub: 0.09,
         extraCost: contentSpendPerWeek,
+        baseAcquired,
         rngFloat: ctx.rng.nextFloat(0.65, 1.35),
       });
 
