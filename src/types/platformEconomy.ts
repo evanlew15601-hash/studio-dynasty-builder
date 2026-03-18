@@ -14,9 +14,11 @@ export interface PlatformTierMix {
   adFreePct: number;
 }
 
-export interface PlatformWeekKpis {
+export interface PlatformWeeklyKpis {
   subscribers: number;
   churnRate: number;
+  churned: number;
+  acquired: number;
   netAdds: number;
   revenue: number;
   opsCost: number;
@@ -34,12 +36,6 @@ export interface PlayerPlatformState {
   /** Platform cash proxy (used for distress modelling). */
   cash: number;
   status: PlatformOperationalStatus;
-  distressWeeks?: number;
-
-  /** 0–100. Computed by catalog system or set at launch. */
-  freshness?: number;
-  /** 0–100. Computed by catalog system or set at launch. */
-  catalogValue?: number;
 
   tierMix?: PlatformTierMix;
   /** Weekly promotion spend (abstracted algorithm control). */
@@ -47,11 +43,18 @@ export interface PlayerPlatformState {
   /** Abstract price competitiveness index (0.5–1.5 typical). */
   priceIndex?: number;
 
+  /** Proxies for “does the platform have a compelling library”. */
+  catalogValue?: number; // 0–100
+  freshness?: number; // 0–100
+
+  /** Used by hard-fail modeling. */
+  distressWeeks?: number;
+
   // Optional knobs for future economy simulation
   monthlyPrice?: number;
   contentSpendPerWeek?: number;
 
-  /** UI-only flavor selection at launch time (e.g., prestige, reality, genre-forward). */
+  /** UI flavor; does not affect simulation directly (yet). */
   vibe?: string;
 }
 
@@ -81,8 +84,8 @@ export interface PlatformMarketState {
 
   /** Weekly KPI snapshot for UI, recap cards, and debugging. */
   lastWeek?: {
-    player?: PlatformWeekKpis;
-    rivals?: Array<{ id: string; subscribers: number; status: RivalPlatformStatus; profit?: number }>;
+    player?: PlatformWeeklyKpis;
+    rivals?: Array<{ id: string; status: RivalPlatformStatus; kpis: PlatformWeeklyKpis }>;
   };
 
   lastUpdatedWeek?: number;

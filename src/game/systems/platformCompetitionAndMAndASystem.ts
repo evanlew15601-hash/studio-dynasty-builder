@@ -38,7 +38,7 @@ export const PlatformCompetitionAndMAndASystem: TickSystem = {
       const isDistress = cash < DISTRESS_CASH_THRESHOLD;
       const nextDistressWeeks = isDistress ? distressWeeks + 1 : 0;
 
-      const willCollapse = nextDistressWeeks >= COLLAPSE_AFTER_WEEKS && ctx.rng.chance(0.25);
+      const willCollapse = nextDistressWeeks >= COLLAPSE_AFTER_WEEKS;
 
       const nextStatus: RivalPlatformState['status'] = willCollapse
         ? 'collapsed'

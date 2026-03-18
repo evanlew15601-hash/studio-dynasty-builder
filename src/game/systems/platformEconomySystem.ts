@@ -1,4 +1,9 @@
-import type { PlatformMarketState, PlatformWeekKpis, PlayerPlatformState, RivalPlatformState } from '@/types/platformEconomy';
+import type {
+  PlatformMarketState,
+  PlatformWeeklyKpis,
+  PlayerPlatformState,
+  RivalPlatformState,
+} from '@/types/platformEconomy';
 import type { TickSystem } from '../core/types';
 
 function clamp(n: number, min: number, max: number): number {
@@ -23,7 +28,7 @@ type PlatformStepInput = {
   baseAcquired?: number;
 };
 
-function stepPlatform(input: PlatformStepInput): { nextSubs: number; nextCash: number; kpis: PlatformWeekKpis } {
+function stepPlatform(input: PlatformStepInput): { nextSubs: number; nextCash: number; kpis: PlatformWeeklyKpis } {
   const subs = Math.max(0, Math.floor(input.subscribers || 0));
   const cash = typeof input.cash === 'number' ? input.cash : 0;
 
@@ -56,12 +61,12 @@ function stepPlatform(input: PlatformStepInput): { nextSubs: number; nextCash: n
   const adFreeShare = normTotal > 0 ? adFreePct / normTotal : 0.5;
 
   const arpuWeekly = (adSupportedShare * 1.1 + adFreeShare * 2.6) * (1 / clamp(priceIndex, 0.6, 1.7));
-  const revenue = nextSubs * arpuWeekly;
+  const revenue = Math.floor(nextSubs * arpuWeekly);
 
   const promotion = typeof input.promotionBudgetPerWeek === 'number' ? Math.max(0, input.promotionBudgetPerWeek) : 0;
   const extraCost = typeof input.extraCost === 'number' ? Math.max(0, input.extraCost) : 0;
-  const opsCost = input.fixedOpsCost + nextSubs * 0.06;
-  const profit = revenue - opsCost - promotion - extraCost;
+  const opsCost = Math.floor(input.fixedOpsCost + nextSubs * 0.06);
+  const profit = Math.floor(revenue - opsCost - promotion - extraCost);
 
   const nextCash = cash + profit;
 
@@ -71,6 +76,8 @@ function stepPlatform(input: PlatformStepInput): { nextSubs: number; nextCash: n
     kpis: {
       subscribers: nextSubs,
       churnRate,
+      churned,
+      acquired,
       netAdds: nextSubs - subs,
       revenue,
       opsCost: opsCost + promotion + extraCost,
@@ -99,12 +106,25 @@ export const PlatformEconomySystem: TickSystem = {
 
     const totalAddressableSubs = typeof market.totalAddressableSubs === 'number' ? market.totalAddressableSubs : 0;
 
-    const rivalKpis: Array<{ id: string; subscribers: number; status: RivalPlatformState['status']; profit?: number }> = [];
+    const rivalKpis: Array<{ id: string; status: RivalPlatformState['status']; kpis: PlatformWeeklyKpis }> = [];
 
     const nextRivals = rivalsIn.map((r) => {
       if (!r) return r;
       if (r.status === 'collapsed') {
-        rivalKpis.push({ id: r.id, subscribers: 0, status: 'collapsed', profit: 0 });
+        rivalKpis.push({
+          id: r.id,
+          status: 'collapsed',
+          kpis: {
+            subscribers: 0,
+            churnRate: 0,
+            churned: 0,
+            acquired: 0,
+            netAdds: 0,
+            revenue: 0,
+            opsCost: 0,
+            profit: 0,
+          },
+        });
         return r;
       }
 
@@ -126,7 +146,7 @@ export const PlatformEconomySystem: TickSystem = {
         rngFloat: () => ctx.rng.nextFloat(0.65, 1.35),
       });
 
-      rivalKpis.push({ id: r.id, subscribers: step.kpis.subscribers, status: r.status, profit: step.kpis.profit });
+      rivalKpis.push({ id: r.id, status: r.status, kpis: step.kpis });
 
       return {
         ...r,
@@ -137,7 +157,7 @@ export const PlatformEconomySystem: TickSystem = {
 
     const playerIn = market.player;
     let playerOut = playerIn;
-    let playerKpis: PlatformWeekKpis | undefined;
+    let playerKpis: PlatformWeeklyKpis | undefined;
 
     if (playerIn && playerIn.status === 'active') {
       const subs = typeof playerIn.subscribers === 'number' ? playerIn.subscribers : 0;

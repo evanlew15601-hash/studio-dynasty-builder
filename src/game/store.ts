@@ -49,6 +49,7 @@ import { PlatformMarketBootstrapSystem } from './systems/platformMarketBootstrap
 import { PlatformCatalogSystem } from './systems/platformCatalogSystem';
 import { PlatformEconomySystem } from './systems/platformEconomySystem';
 import { PlatformCompetitionAndMAndASystem } from './systems/platformCompetitionAndMAndASystem';
+import { PlatformCrisisSystem } from './systems/platformCrisisSystem';
 import { MediaEngine } from '@/components/game/MediaEngine';
 import { getPlayerCircleDramaMediaTemplate } from './systems/playerCircleDramaModding';
 
@@ -198,6 +199,7 @@ export const useGameStore: import('zustand').UseBoundStore<import('zustand').Sto
       r.register(PlatformCatalogSystem);
       r.register(PlatformEconomySystem);
       r.register(PlatformCompetitionAndMAndASystem);
+      r.register(PlatformCrisisSystem);
 
       return r;
     })(),
@@ -701,6 +703,25 @@ export const useGameStore: import('zustand').UseBoundStore<import('zustand').Sto
                 relatedEvents: [event.id],
                 sourceType: 'trade_publication',
               });
+            }
+          }
+
+          if (kind === 'platform:churn-spike') {
+            const playerPlatformId = (event as any)?.data?.playerPlatformId as string | undefined;
+            const suggestedLoss = Math.max(0, Math.floor((event as any)?.data?.suggestedLoss ?? 0));
+
+            const player = s.game.platformMarket?.player;
+            if (player && player.status === 'active' && player.id === playerPlatformId) {
+              if (selectedChoice.id === 'retention-campaign') {
+                player.promotionBudgetPerWeek = (player.promotionBudgetPerWeek ?? 0) + 5_000_000;
+                player.freshness = clamp((player.freshness ?? 50) + 4, 0, 100);
+                player.subscribers = Math.max(0, (player.subscribers ?? 0) - Math.floor(suggestedLoss * 0.35));
+              } else if (selectedChoice.id === 'cut-price') {
+                player.priceIndex = clamp((player.priceIndex ?? 1) - 0.1, 0.7, 1.5);
+                player.subscribers = Math.max(0, (player.subscribers ?? 0) - Math.floor(suggestedLoss * 0.6));
+              } else {
+                player.subscribers = Math.max(0, (player.subscribers ?? 0) - suggestedLoss);
+              }
             }
           }
 
