@@ -100,20 +100,20 @@ export const GameLanding: React.FC<GameLandingProps> = ({
   }, [streamingWarsToggleEnabled]);
 
   useEffect(() => {
-    if (!dlcAppIdValid) {
-      setSteamAvailable(false);
-      setSteamStreamingWarsOwned(false);
-      return;
-    }
-
     let cancelled = false;
 
     (async () => {
       const available = await isSteamAvailable();
       if (cancelled) return;
+
       setSteamAvailable(available);
 
       if (!available) {
+        setSteamStreamingWarsOwned(false);
+        return;
+      }
+
+      if (!dlcAppIdValid) {
         setSteamStreamingWarsOwned(false);
         return;
       }
@@ -484,6 +484,12 @@ export const GameLanding: React.FC<GameLandingProps> = ({
                       </Button>
                     </div>
                   )}
+
+                  {steamAvailable && !dlcAppIdValid && (
+                    <div className="rounded-md border border-border/50 bg-background/30 px-3 py-2 text-xs text-muted-foreground">
+                      Steam is available, but <span className="font-medium">VITE_STEAM_STREAMING_WARS_DLC_APP_ID</span> is not configured.
+                    </div>
+                  )}
                 </CardContent>
               </Card>
             )}
@@ -810,6 +816,12 @@ export const GameLanding: React.FC<GameLandingProps> = ({
                         >
                           View on Steam
                         </Button>
+                      </div>
+                    )}
+
+                    {steamAvailable && !dlcAppIdValid && (
+                      <div className="mt-2 rounded-md border border-border/50 bg-background/30 px-3 py-2 text-xs text-muted-foreground">
+                        Steam is available, but <span className="font-medium">VITE_STEAM_STREAMING_WARS_DLC_APP_ID</span> is not configured.
                       </div>
                     )}
                   </div>

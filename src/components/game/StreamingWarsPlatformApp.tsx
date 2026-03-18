@@ -31,6 +31,7 @@ import {
   isProjectOnPlatformAtTime,
 } from '@/utils/platformIds';
 import { stableInt } from '@/utils/stableRandom';
+import { isDebugUiEnabled } from '@/utils/debugFlags';
 import { BarChart3, Crown, Film, Home, Swords, TrendingUp, Users } from 'lucide-react';
 
 const formatCompact = (value: number) => {
@@ -165,12 +166,16 @@ export const StreamingWarsPlatformApp: React.FC = () => {
 
   const launchCost = 75_000_000;
 
+  const debugUi = isDebugUiEnabled();
+
   const releasedProjectsCount = (gameState?.projects ?? []).filter((p) => p.status === 'released').length;
   const hasEnoughBudget = (gameState?.studio.budget ?? 0) >= launchCost;
   const hasEnoughReputation = (gameState?.studio.reputation ?? 0) >= 60;
   const hasEnoughReleases = releasedProjectsCount >= 12;
 
-  const canLaunchPlatform = !player && hasEnoughBudget && hasEnoughReputation && hasEnoughReleases;
+  const canLaunchPlatform =
+    !player &&
+    ((hasEnoughBudget && hasEnoughReputation && hasEnoughReleases) || debugUi);
 
   const ensureLaunchDefaults = () => {
     if (launchName.trim().length === 0) {
@@ -407,7 +412,11 @@ export const StreamingWarsPlatformApp: React.FC = () => {
 
     if (!canLaunchPlatform) return;
 
-    const spendResult = spendStudioFunds(launchCost);
+    let spendResult = spendStudioFunds(launchCost);
+    if (!spendResult.success && debugUi) {
+      updateBudget(250_000_000);
+      spendResult = spendStudioFunds(launchCost);
+    }
     if (!spendResult.success) return;
 
     const initialSubscribers = clampInt(
@@ -474,7 +483,11 @@ export const StreamingWarsPlatformApp: React.FC = () => {
     const perEpisodeBudget = clampInt(originalEpisodeBudget, 250_000, 20_000_000);
 
     const commissionFee = 15_000_000;
-    const spendResult = spendStudioFunds(commissionFee);
+    let spendResult = spendStudioFunds(commissionFee);
+    if (!spendResult.success && debugUi) {
+      updateBudget(50_000_000);
+      spendResult = spendStudioFunds(commissionFee);
+    }
     if (!spendResult.success) return;
 
     const idSeedRoot = `${gameState.universeSeed ?? 0}|${gameState.studio?.id ?? 'studio'}|${gameState.currentYear}:W${gameState.currentWeek}|original|${title}|${gameState.projects.length}|${gameState.scripts.length}`;
