@@ -18,6 +18,7 @@ export const EnhancedFranchiseSystem: React.FC<EnhancedFranchiseSystemProps> = (
   const upsertFranchise = useGameStore((s) => s.upsertFranchise);
   const appendFranchiseEntry = useGameStore((s) => s.appendFranchiseEntry);
   const updateProject = useGameStore((s) => s.updateProject);
+  const updateBudget = useGameStore((s) => s.updateBudget);
   const { toast } = useToast();
   const [isCreating, setIsCreating] = useState(false);
   
@@ -129,7 +130,7 @@ export const EnhancedFranchiseSystem: React.FC<EnhancedFranchiseSystemProps> = (
     const franchise: Franchise = {
       id: `franchise-${Date.now()}`,
       title: expectedTitle,
-      description: `Franchise based on the successful film "${project.title}"`,
+      description: `Franchise based on the film "${project.title}"`,
       originDate: new Date().toISOString().split('T')[0],
       creatorStudioId: gameState.studio.id,
       genre: project.script.genre ? [project.script.genre] : [],
@@ -151,10 +152,11 @@ export const EnhancedFranchiseSystem: React.FC<EnhancedFranchiseSystemProps> = (
     });
 
     upsertFranchise(franchise);
+    updateBudget(-cost);
     
     toast({
       title: "Franchise Established!",
-      description: `"${franchise.title}" franchise created from successful film`,
+      description: `"${franchise.title}" franchise created from your release (cost \u0024${(cost / 1000000).toFixed(1)}M)`,
     });
   };
 
@@ -195,14 +197,12 @@ export const EnhancedFranchiseSystem: React.FC<EnhancedFranchiseSystemProps> = (
     };
 
     upsertFranchise(franchise);
+    updateBudget(-cost);
     
     toast({
       title: "Original Franchise Created",
-      description: `${franchise.title} franchise established - now create films within it!`,
+      description: `${franchise.title} franchise established (cost \u0024${(cost / 1000000).toFixed(1)}M)`,
     });
-
-    // Deduct cost
-    // Note: This should be handled by the parent component's onCreateFranchise
 
     setIsCreating(false);
     setNewFranchise({
@@ -246,13 +246,13 @@ export const EnhancedFranchiseSystem: React.FC<EnhancedFranchiseSystemProps> = (
             </div>
             <Button onClick={() => setIsCreating(true)} disabled={isCreating}>
               <Plus className="h-4 w-4 mr-2" />
-              Create New IP
+              Create Original Franchise
             </Button>
           </CardTitle>
         </CardHeader>
         <CardContent>
           <div className="text-sm text-muted-foreground">
-            Build lasting intellectual properties from successful films or create original franchises from scratch.
+            Build lasting intellectual properties from your releases, or create original franchises from scratch.
           </div>
         </CardContent>
       </Card>
@@ -324,7 +324,7 @@ export const EnhancedFranchiseSystem: React.FC<EnhancedFranchiseSystemProps> = (
           </CardHeader>
           <CardContent>
             <div className="text-sm text-muted-foreground mb-4">
-              Successful projects that could spawn franchises based on box office performance and critical reception.
+              Released projects that are not yet attached to a franchise.
             </div>
             <div className="grid gap-3">
               {eligibleForFranchise.map(project => (
@@ -455,8 +455,7 @@ export const EnhancedFranchiseSystem: React.FC<EnhancedFranchiseSystemProps> = (
             <Crown className="mx-auto h-12 w-12 text-muted-foreground mb-4" />
             <h3 className="text-lg font-medium mb-2">No Franchises Yet</h3>
             <p className="text-muted-foreground mb-4">
-              Create successful films (1.5x+ box office return, 60+ critic score) to establish franchises,
-              or create original intellectual property from scratch.
+              Release a film, then turn it into a franchise (or create an original franchise from scratch).
             </p>
             <Button onClick={() => setIsCreating(true)}>
               <Plus className="h-4 w-4 mr-2" />

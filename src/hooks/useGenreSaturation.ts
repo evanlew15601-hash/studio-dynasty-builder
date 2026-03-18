@@ -33,9 +33,12 @@ export const useGenreSaturation = (allReleases: Project[], currentWeek: number, 
 
     // Count releases by genre
     const genreCounts: Record<Genre, number> = {} as Record<Genre, number>;
-    const allGenres: Genre[] = ['action', 'adventure', 'animation', 'biography', 'comedy', 'crime', 
-                               'documentary', 'drama', 'family', 'fantasy', 'horror', 'musical', 
-                               'mystery', 'romance', 'sci-fi', 'thriller', 'war', 'western'];
+    const allGenres: Genre[] = [
+      'action', 'adventure', 'comedy', 'drama', 'horror', 'thriller',
+      'romance', 'erotica', 'sci-fi', 'fantasy', 'documentary', 'animation',
+      'musical', 'western', 'war', 'biography', 'crime', 'mystery',
+      'superhero', 'family', 'sports', 'historical'
+    ];
 
     // Initialize counts
     allGenres.forEach(genre => {

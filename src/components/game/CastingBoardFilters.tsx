@@ -33,7 +33,7 @@ export const CastingBoardFilters: React.FC<CastingBoardFiltersProps> = ({
 }) => {
   const genres: Genre[] = [
     'action', 'adventure', 'comedy', 'drama', 'horror', 'thriller',
-    'romance', 'sci-fi', 'fantasy', 'documentary', 'animation',
+    'romance', 'erotica', 'sci-fi', 'fantasy', 'documentary', 'animation',
     'musical', 'western', 'war', 'biography', 'crime', 'mystery',
     'superhero', 'family', 'sports', 'historical'
   ];

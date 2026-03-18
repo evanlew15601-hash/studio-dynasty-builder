@@ -1,4 +1,4 @@
-import type { FilmContentRating, ScriptCharacteristics } from "@/types/game";
+import type { FilmContentRating, Genre, ScriptCharacteristics } from "@/types/game";
 
 export type ContentKnobs = NonNullable<ScriptCharacteristics["content"]>;
 
@@ -11,7 +11,10 @@ export function normalizeContentKnobs(content?: ScriptCharacteristics["content"]
   };
 }
 
-export function computeFilmContentRating(content?: ScriptCharacteristics["content"]): {
+export function computeFilmContentRating(
+  content?: ScriptCharacteristics["content"],
+  genre?: Genre
+): {
   label: FilmContentRating;
   score: number;
 } {
@@ -24,7 +27,12 @@ export function computeFilmContentRating(content?: ScriptCharacteristics["conten
     c.language * 1.5 +
     c.substance * 1.5;
 
-  const score = Math.max(0, Math.min(100, Math.round(scoreRaw * 2))); // ~0-100
+  let score = Math.max(0, Math.min(100, Math.round(scoreRaw * 2))); // ~0-100
+
+  // Erotica is inherently adult-oriented content.
+  if (genre === "erotica") {
+    score = Math.max(score, 56); // ensures at least R
+  }
 
   let label: FilmContentRating = "G";
   if (score > 7) label = "PG";

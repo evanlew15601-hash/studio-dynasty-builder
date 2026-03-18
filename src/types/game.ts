@@ -29,6 +29,14 @@ export interface Franchise {
   cost: number; // Cost to license/use franchise based on cultural weight
 }
 
+export interface FranchiseInvitation {
+  franchiseId: string;
+  offeredWeekIndex: number;
+  acceptedWeekIndex: number;
+  expiresWeekIndex: number;
+  usesRemaining: number;
+}
+
 // Public Domain System Types
 export interface PublicDomainIP {
   id: string;
@@ -74,6 +82,16 @@ export interface Studio {
   awards?: StudioAward[];
   awardsThisYear?: number;
   prestige?: number; // 0-100, separate from reputation
+  /** World-franchise licenses purchased in the Marketplace (one-time fee each). */
+  licensedFranchiseIds?: string[];
+
+  /** Temporary 1-slot production invitation for a world franchise (not ownership). */
+  franchiseInvitation?: FranchiseInvitation;
+  /** Global cooldown anchor (absolute week index) for invitation offers. */
+  lastFranchiseInvitationWeekIndex?: number;
+  /** Per-franchise cooldown map (absolute week index until which offers are blocked). */
+  franchiseInvitationCooldowns?: Record<string, number>;
+
   // Worldbuilding / lore (player-facing)
   personality?: string;
   businessTendency?: string;
@@ -186,6 +204,8 @@ export interface Script {
   id: string;
   title: string;
   genre: Genre;
+  /** Optional: secondary label like "heist", "noir", "space opera". */
+  subgenre?: string;
   logline: string;
   writer: string;
   pages: number;
@@ -629,7 +649,7 @@ export interface ProducerEffect {
 
 export type Genre = 
   | 'action' | 'adventure' | 'comedy' | 'drama' | 'horror' | 'thriller'
-  | 'romance' | 'sci-fi' | 'fantasy' | 'documentary' | 'animation'
+  | 'romance' | 'erotica' | 'sci-fi' | 'fantasy' | 'documentary' | 'animation'
   | 'musical' | 'western' | 'war' | 'biography' | 'crime' | 'mystery'
   | 'superhero' | 'family' | 'sports' | 'historical';
 

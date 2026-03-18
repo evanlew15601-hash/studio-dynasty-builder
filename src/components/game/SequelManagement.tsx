@@ -9,8 +9,7 @@ import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Textarea } from '@/components/ui/textarea';
 import { useToast } from '@/hooks/use-toast';
-import { Crown, Film, Users, TrendingUp, Plus, ArrowRight, Star } from 'lucide-react';
-import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger } from '@/components/ui/dialog';
+import { Crown, Film, Users, Plus, ArrowRight } from 'lucide-react';
 
 interface SequelManagementProps {
   onProjectCreate: (script: Script) => void;
@@ -51,7 +50,7 @@ export const SequelManagement: React.FC<SequelManagementProps> = ({
 
   // Get projects eligible for sequels - REMOVED SUCCESS RESTRICTIONS
   const getSequelEligibleProjects = () => {
-    return gameState.projects.filter(project => project.status === 'released');
+    return gameState.projects.filter(project => project.status === 'released' && project.type === 'feature');
   };
 
   // Get existing sequels for a project
@@ -118,7 +117,7 @@ export const SequelManagement: React.FC<SequelManagementProps> = ({
     const plan: SequelPlan = {
       originalProjectId: originalProject.id,
       title: `${originalProject.title} ${sequelNumber > 2 ? sequelNumber : 'II'}`,
-      description: `The highly anticipated sequel to the successful "${originalProject.title}"`,
+      description: `The sequel to "${originalProject.title}"`,
       budget: metrics.estimatedBudget,
       timeline: 32, // 32 weeks standard development
       returningCast,
@@ -187,15 +186,7 @@ export const SequelManagement: React.FC<SequelManagementProps> = ({
   const createSequel = () => {
     if (!sequelPlan || !selectedProject) return;
     
-    // Check budget
-    if (sequelPlan.budget > gameState.studio.budget) {
-      toast({
-        title: "Insufficient Budget",
-        description: `Need $${(sequelPlan.budget / 1000000).toFixed(1)}M to develop sequel`,
-        variant: "destructive"
-      });
-      return;
-    }
+    
     
     // Ensure franchise exists or create one
     let franchiseId = selectedProject.script?.franchiseId;
@@ -211,19 +202,19 @@ export const SequelManagement: React.FC<SequelManagementProps> = ({
         franchiseId = existing.id;
         appendFranchiseEntry(existing.id, selectedProject.id);
       } else {
-        // Create franchise from successful original
+        // Create a franchise to track entries for this film
         franchiseId = `franchise-${selectedProject.id}-${Date.now()}`;
         const newFranchise: Franchise = {
           id: franchiseId,
           title: expectedTitle,
-          description: `Franchise based on the successful film "${selectedProject.title}"`,
+          description: `Franchise based on the film "${selectedProject.title}"`,
           originDate: new Date().toISOString().split('T')[0],
           creatorStudioId: gameState.studio.id,
           genre: selectedProject.script?.genre ? [selectedProject.script.genre] : ['action'],
           tone: 'light', // Convert to valid franchise tone
           entries: [selectedProject.id],
           status: 'active',
-          franchiseTags: ['sequel-ready', 'successful'],
+          franchiseTags: ['sequel-ready'],
           culturalWeight: Math.min(90, 50 + ((selectedProject.metrics?.criticsScore || 0) / 2)),
           cost: 0
         };
@@ -309,7 +300,7 @@ export const SequelManagement: React.FC<SequelManagementProps> = ({
         </CardHeader>
         <CardContent>
           <p className="text-sm text-muted-foreground">
-            Develop sequels to successful films. Profitable franchises with returning cast create audience anticipation and box office success.
+            Develop sequels for any released film. Sequel demand and cast availability are guides to profitability, not hard gates.
           </p>
         </CardContent>
       </Card>
@@ -419,7 +410,6 @@ export const SequelManagement: React.FC<SequelManagementProps> = ({
             <div className="flex gap-3">
               <Button
                 onClick={createSequel}
-                disabled={sequelPlan.budget > gameState.studio.budget}
               >
                 <Plus className="h-4 w-4 mr-2" />
                 Start Development (${(sequelPlan.budget / 1000000).toFixed(1)}M)
@@ -493,7 +483,6 @@ export const SequelManagement: React.FC<SequelManagementProps> = ({
                   
                   <Button
                     onClick={() => startSequelDevelopment(project)}
-                    disabled={metrics.estimatedBudget > gameState.studio.budget}
                   >
                     <ArrowRight className="h-4 w-4 mr-2" />
                     Develop Sequel
@@ -510,9 +499,9 @@ export const SequelManagement: React.FC<SequelManagementProps> = ({
         <Card>
           <CardContent className="text-center py-8">
             <Film className="mx-auto h-12 w-12 text-muted-foreground mb-4" />
-            <h3 className="text-lg font-medium mb-2">No Films Ready for Sequels</h3>
+            <h3 className="text-lg font-medium mb-2">No Released Films Yet</h3>
             <p className="text-muted-foreground">
-              Create successful films (1.3x+ box office return, 55+ critic or 60+ audience score) to unlock sequel opportunities.
+              Release a film to start planning sequels.
             </p>
           </CardContent>
         </Card>

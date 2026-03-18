@@ -17,6 +17,8 @@ import type { Franchise, GameState, Project, Script, Studio, StudioAward, Talent
 import { normalizeFranchisesState } from '@/utils/franchiseNormalization';
 import { normalizePublicDomainState } from '@/utils/publicDomainNormalization';
 import { normalizeStudioGovernanceState } from '@/utils/studioGovernanceNormalization';
+import { normalizeStudioLicensesState } from '@/utils/studioLicenseNormalization';
+import { seedIconicReleasesState } from '@/utils/iconicReleases';
 import type { TickReport } from '@/types/tickReport';
 import { createTickReport } from '@/utils/tickReport';
 import type { ModBundle } from '@/types/modding';
@@ -42,6 +44,7 @@ import { WorldArchiveSystem } from './systems/worldArchiveSystem';
 import { TalentFilmographySystem } from './systems/talentFilmographySystem';
 import { TalentCareerArcSystem } from './systems/talentCareerArcSystem';
 import { IndustryGossipSystem } from './systems/industryGossipSystem';
+import { FranchiseInvitationSystem } from './systems/franchiseInvitationSystem';
 import { AiTelevisionSystem } from './systems/aiTelevisionSystem';
 import { PlayerCircleDramaSystem } from './systems/playerCircleDramaSystem';
 import { StudioGovernanceSystem } from './systems/studioGovernanceSystem';
@@ -189,6 +192,7 @@ export const useGameStore: import('zustand').UseBoundStore<import('zustand').Sto
       r.register(TalentFilmographySystem);
       r.register(TalentCareerArcSystem);
       r.register(IndustryGossipSystem);
+      r.register(FranchiseInvitationSystem);
       r.register(PlayerCircleDramaSystem);
       return r;
     })(),
@@ -201,7 +205,10 @@ export const useGameStore: import('zustand').UseBoundStore<import('zustand').Sto
       const gameSeed = seed ?? generateGameSeed();
       set((s) => {
         const next = { ...state, universeSeed: state.universeSeed ?? gameSeed, rngState: state.rngState ?? gameSeed };
-        s.game = normalizeStudioGovernanceState(normalizePublicDomainState(normalizeFranchisesState(next) as any) as any);
+        const normalized = normalizeStudioLicensesState(
+          normalizeStudioGovernanceState(normalizePublicDomainState(normalizeFranchisesState(next) as any) as any) as any
+        );
+        s.game = seedIconicReleasesState(normalized);
         s.seed = gameSeed;
         s.rng = createRng(gameSeed);
         s.initialized = true;
@@ -226,7 +233,10 @@ export const useGameStore: import('zustand').UseBoundStore<import('zustand').Sto
           universeSeed: typeof state.universeSeed === 'number' ? state.universeSeed : derivedUniverseSeed,
           rngState: typeof state.rngState === 'number' ? state.rngState : derivedRngState,
         };
-        s.game = normalizeStudioGovernanceState(normalizePublicDomainState(normalizeFranchisesState(next) as any) as any);
+        const normalized = normalizeStudioLicensesState(
+          normalizeStudioGovernanceState(normalizePublicDomainState(normalizeFranchisesState(next) as any) as any) as any
+        );
+        s.game = seedIconicReleasesState(normalized);
         s.seed = gameSeed;
         s.rng = createRng(gameSeed);
         s.initialized = true;
@@ -260,7 +270,9 @@ export const useGameStore: import('zustand').UseBoundStore<import('zustand').Sto
           universeSeed: (s.game as any)?.universeSeed,
           rngState: rng.state,
         };
-        s.game = normalizeStudioGovernanceState(normalizePublicDomainState(normalizeFranchisesState(next) as any) as any);
+        s.game = normalizeStudioLicensesState(
+          normalizeStudioGovernanceState(normalizePublicDomainState(normalizeFranchisesState(next) as any) as any) as any
+        );
         // Persist the PRNG state ("seed" here is treated as current RNG state).
         s.seed = rng.state;
         s.rng = createRng(rng.state);
@@ -310,7 +322,9 @@ export const useGameStore: import('zustand').UseBoundStore<import('zustand').Sto
           universeSeed: (s.game as any)?.universeSeed,
           rngState,
         };
-        s.game = normalizeStudioGovernanceState(normalizePublicDomainState(normalizeFranchisesState(next) as any) as any);
+        s.game = normalizeStudioLicensesState(
+          normalizeStudioGovernanceState(normalizePublicDomainState(normalizeFranchisesState(next) as any) as any) as any
+        );
         s.seed = rngState;
         s.rng = createRng(rngState);
         s.lastTickReport = report as any;
@@ -324,8 +338,17 @@ export const useGameStore: import('zustand').UseBoundStore<import('zustand').Sto
       set((s) => {
         if (!s.game) return;
         Object.assign(s.game as any, updates);
-        if ('franchises' in updates || 'publicDomainIPs' in updates || 'governance' in updates) {
-          s.game = normalizeStudioGovernanceState(normalizePublicDomainState(normalizeFranchisesState(s.game as any) as any) as any) as any;
+        if (
+          'franchises' in updates ||
+          'publicDomainIPs' in updates ||
+          'governance' in updates ||
+          'projects' in updates ||
+          'scripts' in updates ||
+          'studio' in updates
+        ) {
+          s.game = normalizeStudioLicensesState(
+            normalizeStudioGovernanceState(normalizePublicDomainState(normalizeFranchisesState(s.game as any) as any) as any) as any
+          ) as any;
         }
       });
     },
@@ -509,7 +532,9 @@ export const useGameStore: import('zustand').UseBoundStore<import('zustand').Sto
       set((s) => {
         if (!s.game) return;
         const next = updater(s.game as GameState);
-        s.game = normalizeStudioGovernanceState(normalizePublicDomainState(normalizeFranchisesState(next) as any) as any) as any;
+        s.game = normalizeStudioLicensesState(
+          normalizeStudioGovernanceState(normalizePublicDomainState(normalizeFranchisesState(next) as any) as any) as any
+        ) as any;
       });
     },
 
@@ -607,6 +632,38 @@ export const useGameStore: import('zustand').UseBoundStore<import('zustand').Sto
 
           // Event-specific effects that are awkward to model as generic consequences.
           const kind = (event as any)?.data?.kind;
+
+          if (kind === 'franchise:invitation') {
+            const franchiseId = (event as any)?.data?.franchiseId as string | undefined;
+            const offeredWeekIndex = (event as any)?.data?.offeredWeekIndex as number | undefined;
+            const expiresWeekIndex = (event as any)?.data?.expiresWeekIndex as number | undefined;
+
+            const currentWeekIndex = (s.game.currentYear * 52) + s.game.currentWeek;
+
+            if (franchiseId && selectedChoice.id === 'accept') {
+              s.game.studio.franchiseInvitation = {
+                franchiseId,
+                offeredWeekIndex: typeof offeredWeekIndex === 'number' ? offeredWeekIndex : currentWeekIndex,
+                acceptedWeekIndex: currentWeekIndex,
+                expiresWeekIndex: typeof expiresWeekIndex === 'number' ? expiresWeekIndex : currentWeekIndex + 39,
+                usesRemaining: 1,
+              };
+
+              s.game.studio.lastFranchiseInvitationWeekIndex = currentWeekIndex;
+
+              const nextCooldowns = { ...(s.game.studio.franchiseInvitationCooldowns ?? {}) };
+              nextCooldowns[franchiseId] = currentWeekIndex + 156;
+              s.game.studio.franchiseInvitationCooldowns = nextCooldowns;
+            }
+
+            if (franchiseId && selectedChoice.id === 'decline') {
+              s.game.studio.lastFranchiseInvitationWeekIndex = currentWeekIndex;
+
+              const nextCooldowns = { ...(s.game.studio.franchiseInvitationCooldowns ?? {}) };
+              nextCooldowns[franchiseId] = currentWeekIndex + 156;
+              s.game.studio.franchiseInvitationCooldowns = nextCooldowns;
+            }
+          }
 
           if (kind === 'circle:poach' && selectedChoice.id === 'let-walk') {
             const talentId = (event as any)?.data?.talentId as string | undefined;
