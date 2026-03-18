@@ -36,6 +36,44 @@ function directPlatformId(project: Project): string | null {
   );
 }
 
+type OriginalPhase = 'development' | 'production' | 'post-production';
+
+const ORIGINAL_PHASE_WEEKS: Record<OriginalPhase, number> = {
+  development: 8,
+  production: 12,
+  'post-production': 6,
+};
+
+function normalizeOriginalPhase(project: Project): OriginalPhase | null {
+  const phase = project.currentPhase;
+  if (phase === 'development' || phase === 'production' || phase === 'post-production') return phase;
+
+  const status = project.status;
+  if (status === 'development' || status === 'production' || status === 'post-production') return status;
+
+  return null;
+}
+
+function estimateOriginalWeeklySpend(project: Project): number {
+  const totalBudget = Math.max(0, Math.floor(project.budget?.total ?? 0));
+
+  const phase = normalizeOriginalPhase(project);
+  if (!phase) return 0;
+
+  // A rough approximation of cash burn by phase.
+  const phaseWeights: Record<OriginalPhase, number> = {
+    development: 0.15,
+    production: 0.65,
+    'post-production': 0.2,
+  };
+
+  const duration = ORIGINAL_PHASE_WEEKS[phase];
+  const perWeek = duration > 0 ? (totalBudget * phaseWeights[phase]) / duration : 0;
+
+  // Keep a small floor so even low-budget Originals have meaningful burn.
+  return clampInt(perWeek, 250_000, 15_000_000);
+}
+
 function platformMoatFactor(params: {
   projects: Project[];
   platformId: string;
@@ -283,9 +321,9 @@ export const PlatformEconomySystem: TickSystem = {
 
       const originalsInPipeline = (state.projects ?? []).filter(
         (p) => (p as any)?.streamingContract?.platformId === playerIn.id && (p as any)?.status !== 'released'
-      ).length;
+      ) as Project[];
 
-      const contentSpendPerWeek = originalsInPipeline * 2_500_000;
+      const contentSpendPerWeek = originalsInPipeline.reduce((acc, p) => acc + estimateOriginalWeeklySpend(p), 0);
 
       const step = stepPlatform({
         subscribers: subs,
