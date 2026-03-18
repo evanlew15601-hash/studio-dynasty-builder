@@ -103,8 +103,15 @@ export const StudioGovernanceSystem: TickSystem = {
 
     const rep = clamp(normalized.studio.reputation ?? 50, 0, 100);
 
+    const externalPressureAvg = (competitionPressure + marketPressure + talentPressure) / 3;
+
     const targetConfidence = clamp(
-      75 + (rep - 50) * 0.35 - financePressure * 0.45 - investorPressure * 0.25 - boardPressure * 0.25,
+      75 +
+        (rep - 50) * 0.35 -
+        financePressure * 0.45 -
+        investorPressure * 0.25 -
+        boardPressure * 0.25 -
+        externalPressureAvg * 0.12,
       0,
       100
     );
@@ -153,8 +160,8 @@ export const StudioGovernanceSystem: TickSystem = {
         type: 'system',
         title: 'Governance update',
         body: [
-          `Board confidence: ${sign}${confidenceDelta} → ${next.boardConfidence}/100`,
-          `Finance pressure: ${next.internalPressure.finance}/100 (runway ~${runwayLabel})`,
+          `Board confidence: ${sign}${confidenceDelta} → ${next.boardConfidence}%`,
+          `Finance pressure: ${next.internalPressure.finance}% (runway ~${runwayLabel})`,
           `Capacity: ${active}/${maxActiveProjects} active projects`,
         ].join('\n'),
         severity: confidenceDelta < 0 ? 'warning' : 'info',

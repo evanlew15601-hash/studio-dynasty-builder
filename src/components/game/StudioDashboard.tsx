@@ -37,6 +37,12 @@ export const StudioDashboard: React.FC<StudioDashboardProps> = () => {
   const internalPressure = governance?.internalPressure ?? { board: 0, finance: 0, investors: 0 };
   const externalPressure = governance?.externalPressure ?? { competition: 0, talent: 0, market: 0 };
 
+  const pressureLabel = (v: number): string => {
+    if (v >= 70) return 'High';
+    if (v >= 40) return 'Medium';
+    return 'Low';
+  };
+
   const getBestProjectForCasting = (): Project | null => {
     const castingCandidates = activeProjects.filter(p =>
       p.currentPhase === 'development' ||
@@ -311,33 +317,38 @@ export const StudioDashboard: React.FC<StudioDashboardProps> = () => {
             <div className="space-y-4">
               <div className="flex justify-between items-center">
                 <span className="text-sm text-muted-foreground">Board confidence</span>
-                <span className="studio-mono font-semibold">{Math.round(boardConfidence)}/100</span>
+                <span className="studio-mono font-semibold">{Math.round(boardConfidence)}%</span>
               </div>
               <Progress value={boardConfidence} className="h-3 bg-muted/30" />
+              <div className="text-xs text-muted-foreground">Higher is better. Low confidence makes approvals harder.</div>
 
               <div className="flex justify-between items-center py-2 px-3 rounded-lg bg-card/50">
                 <span className="text-sm text-muted-foreground">Active capacity</span>
-                <span className="studio-mono font-medium">{activeInFlight}/{capabilityMax}</span>
+                <span className="studio-mono font-medium">{activeInFlight}/{capabilityMax} projects</span>
               </div>
 
               <div className="space-y-2 text-xs">
+                <div className="text-sm font-medium text-muted-foreground">Internal pressure</div>
+
                 <div className="flex justify-between items-center">
-                  <span className="text-muted-foreground">Internal: board</span>
-                  <span className="studio-mono">{internalPressure.board}/100</span>
+                  <span className="text-muted-foreground">Board pushback</span>
+                  <span className="studio-mono">{Math.round(internalPressure.board)}% ({pressureLabel(internalPressure.board)})</span>
                 </div>
                 <Progress value={internalPressure.board} className="h-2 bg-muted/30" />
 
                 <div className="flex justify-between items-center">
-                  <span className="text-muted-foreground">Internal: finance</span>
-                  <span className="studio-mono">{internalPressure.finance}/100</span>
+                  <span className="text-muted-foreground">Finance</span>
+                  <span className="studio-mono">{Math.round(internalPressure.finance)}% ({pressureLabel(internalPressure.finance)})</span>
                 </div>
                 <Progress value={internalPressure.finance} className="h-2 bg-muted/30" />
 
                 <div className="flex justify-between items-center">
-                  <span className="text-muted-foreground">Internal: investors</span>
-                  <span className="studio-mono">{internalPressure.investors}/100</span>
+                  <span className="text-muted-foreground">Investors</span>
+                  <span className="studio-mono">{Math.round(internalPressure.investors)}% ({pressureLabel(internalPressure.investors)})</span>
                 </div>
                 <Progress value={internalPressure.investors} className="h-2 bg-muted/30" />
+
+                <div className="text-xs text-muted-foreground">Lower is better. Pressure rises when you overbook or run low on cash.</div>
               </div>
             </div>
 
@@ -346,25 +357,27 @@ export const StudioDashboard: React.FC<StudioDashboardProps> = () => {
               <div className="space-y-2 text-xs">
                 <div className="flex justify-between items-center">
                   <span className="text-muted-foreground">Competition</span>
-                  <span className="studio-mono">{externalPressure.competition}/100</span>
+                  <span className="studio-mono">{Math.round(externalPressure.competition)}% ({pressureLabel(externalPressure.competition)})</span>
                 </div>
                 <Progress value={externalPressure.competition} className="h-2 bg-muted/30" />
 
                 <div className="flex justify-between items-center">
                   <span className="text-muted-foreground">Talent market</span>
-                  <span className="studio-mono">{externalPressure.talent}/100</span>
+                  <span className="studio-mono">{Math.round(externalPressure.talent)}% ({pressureLabel(externalPressure.talent)})</span>
                 </div>
                 <Progress value={externalPressure.talent} className="h-2 bg-muted/30" />
 
                 <div className="flex justify-between items-center">
-                  <span className="text-muted-foreground">Market fit</span>
-                  <span className="studio-mono">{externalPressure.market}/100</span>
+                  <span className="text-muted-foreground">Market pressure</span>
+                  <span className="studio-mono">{Math.round(externalPressure.market)}% ({pressureLabel(externalPressure.market)})</span>
                 </div>
                 <Progress value={externalPressure.market} className="h-2 bg-muted/30" />
+
+                <div className="text-xs text-muted-foreground">Lower is better. These reflect the wider industry environment.</div>
               </div>
 
               <div className="text-xs text-muted-foreground">
-                Authority lets you choose. Capability decides what actually ships.
+                Governance affects greenlights. You can sometimes override, but it hurts confidence.
               </div>
             </div>
           </div>
