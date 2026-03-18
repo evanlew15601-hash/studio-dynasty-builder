@@ -101,6 +101,7 @@ type PlatformStepInput = {
   priceIndex: number;
   tierMix?: { adSupportedPct: number; adFreePct: number };
   promotionBudgetPerWeek?: number;
+  adLoadIndex?: number;
   fixedOpsCost: number;
   extraCost?: number;
   rngFloat: () => number;
@@ -121,7 +122,17 @@ function stepPlatform(input: PlatformStepInput): { nextSubs: number; nextCash: n
   const catalogMod = clamp(1.2 - catalogValue / 180, 0.65, 1.25);
   const priceMod = clamp(priceIndex, 0.7, 1.5);
 
-  const churnRate = clamp(baseChurnWeekly * freshnessMod * catalogMod * priceMod, 0.002, 0.06);
+  const tierMixChurn = input.tierMix;
+  const tierAdSupportedPct = typeof tierMixChurn?.adSupportedPct === 'number' ? tierMixChurn.adSupportedPct : 50;
+  const tierAdFreePct = typeof tierMixChurn?.adFreePct === 'number' ? tierMixChurn.adFreePct : 50;
+  const tierNormTotal = tierAdSupportedPct + tierAdFreePct;
+  const adSupportedShareForChurn = tierNormTotal > 0 ? tierAdSupportedPct / tierNormTotal : 0.5;
+
+  const adLoadIndex = typeof input.adLoadIndex === 'number' ? clamp(input.adLoadIndex, 0, 100) : 55;
+  const adLoadDelta = (adLoadIndex - 55) / 100;
+  const adLoadMod = clamp(1 + adSupportedShareForChurn * adLoadDelta * 0.9, 0.85, 1.35);
+
+  const churnRate = clamp(baseChurnWeekly * freshnessMod * catalogMod * priceMod * adLoadMod, 0.002, 0.06);
   const churned = Math.floor(subs * churnRate);
 
   // Acquisition scales with freshness and (for player) promotionBudget; allow non-zero growth from 0.
@@ -139,7 +150,11 @@ function stepPlatform(input: PlatformStepInput): { nextSubs: number; nextCash: n
   const adSupportedShare = normTotal > 0 ? adSupportedPct / normTotal : 0.5;
   const adFreeShare = normTotal > 0 ? adFreePct / normTotal : 0.5;
 
-  const arpuWeekly = (adSupportedShare * 1.1 + adFreeShare * 2.6) * (1 / clamp(priceIndex, 0.6, 1.7));
+  const adLoadIndexForRevenue = typeof input.adLoadIndex === 'number' ? clamp(input.adLoadIndex, 0, 100) : 55;
+  const adLoadFactor = clamp(0.8 + (adLoadIndexForRevenue / 100) * 0.7, 0.8, 1.5);
+
+  const arpuWeekly =
+    (adSupportedShare * 1.1 * adLoadFactor + adFreeShare * 2.6) * (1 / clamp(priceIndex, 0.6, 1.7));
   const revenue = Math.floor(nextSubs * arpuWeekly);
 
   const promotion = typeof input.promotionBudgetPerWeek === 'number' ? Math.max(0, input.promotionBudgetPerWeek) : 0;
@@ -222,6 +237,7 @@ export const PlatformEconomySystem: TickSystem = {
         priceIndex,
         tierMix: r.tierMix,
         fixedOpsCost: 20_000_000,
+        adLoadIndex: 55,
         rngFloat: () => ctx.rng.nextFloat(0.65, 1.35),
       });
 
@@ -278,6 +294,7 @@ export const PlatformEconomySystem: TickSystem = {
         priceIndex,
         tierMix: playerIn.tierMix,
         promotionBudgetPerWeek,
+        adLoadIndex: typeof playerIn.adLoadIndex === 'number' ? playerIn.adLoadIndex : 55,
         fixedOpsCost: 25_000_000,
         extraCost: contentSpendPerWeek,
         rngFloat: () => ctx.rng.nextFloat(0.7, 1.3),

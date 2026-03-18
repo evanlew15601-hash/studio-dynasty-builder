@@ -56,7 +56,7 @@ function pickPostTheatricalArrivalAbs(params: {
   return currentAbs;
 }
 
-function getPlayerPlatformPresence(params: {
+function getPlatformPresence(params: {
   project: Project;
   platformId: string;
   week: number;
@@ -118,20 +118,95 @@ function getPlayerPlatformPresence(params: {
   };
 }
 
+function gatherStreamingTitlesByPlatform(params: {
+  projects: Project[];
+  week: number;
+  year: number;
+}): Map<string, PlatformContentPresence[]> {
+  const { projects, week, year } = params;
+
+  const out = new Map<string, PlatformContentPresence[]>();
+
+  for (const project of projects) {
+    const directId = directPlatformId(project);
+
+    if (directId) {
+      const presence = getPlatformPresence({ project, platformId: directId, week, year });
+      if (presence) {
+        const list = out.get(directId) ?? [];
+        list.push(presence);
+        out.set(directId, list);
+      }
+    }
+
+    const post = project.postTheatricalReleases ?? [];
+
+    const postPlatforms = new Set<string>();
+
+    for (const release of post) {
+      if (!release || release.platform !== 'streaming') continue;
+      const platformId = release.platformId || release.providerId;
+      if (!platformId) continue;
+      postPlatforms.add(platformId);
+    }
+
+    for (const platformId of postPlatforms) {
+      const presence = getPlatformPresence({ project, platformId, week, year });
+      if (!presence) continue;
+
+      const list = out.get(platformId) ?? [];
+      list.push(presence);
+      out.set(platformId, list);
+    }
+  }
+
+  return out;
+}
+
 function stepRivalFreshnessCatalog(params: {
   prevFreshness: number;
   prevCatalog: number;
+  titles: PlatformContentPresence[];
+  currentAbs: number;
   jitter: number;
 }): { freshness: number; catalogValue: number } {
-  const { prevFreshness, prevCatalog, jitter } = params;
+  const { prevFreshness, prevCatalog, titles, currentAbs, jitter } = params;
 
-  // Freshness slowly decays unless catalog value is strong.
+  // Baseline decay/drift.
   const decay = 1 + jitter * 0.5;
-  const support = prevCatalog * 0.02;
-  const freshness = clamp(prevFreshness - decay + support, 0, 100);
 
-  // Catalog value is a slow-moving proxy in v0.
-  const catalogValue = clamp(prevCatalog + (jitter - 0.5), 0, 100);
+  const count = titles.length;
+  const avgQuality = count > 0 ? titles.reduce((a, t) => a + t.quality, 0) / count : 55;
+  const avgKindFactor = count > 0 ? titles.reduce((a, t) => a + t.kindFactor, 0) / count : 0.75;
+
+  const recentImpulse = titles
+    .map((t) => ({ ...t, weeksSince: Math.max(0, currentAbs - t.arrivalAbs) }))
+    .filter((t) => t.weeksSince <= 8)
+    .reduce((sum, t) => {
+      const recency = 1 - t.weeksSince / 8;
+      const qualityFactor = clamp((t.quality - 40) / 60, 0, 1);
+      return sum + recency * qualityFactor * t.kindFactor;
+    }, 0);
+
+  const lastArrivalAbs = titles.reduce((max, t) => Math.max(max, t.arrivalAbs), 0);
+  const weeksSinceLastArrival = lastArrivalAbs > 0 ? Math.max(0, currentAbs - lastArrivalAbs) : 99;
+  const gapPenalty = weeksSinceLastArrival > 14 ? Math.min(6, (weeksSinceLastArrival - 14) * 0.22) : 0;
+
+  const targetCatalog = clamp(
+    14 + Math.log10(1 + count) * 22 + avgQuality * 0.45 + avgKindFactor * 8,
+    0,
+    100
+  );
+
+  const catalogValue = clamp(prevCatalog * 0.92 + targetCatalog * 0.08 + (jitter - 0.5), 0, 100);
+
+  const support = catalogValue * 0.02;
+  const baseFreshness = clamp(prevFreshness - decay + support, 0, 100);
+
+  const recentBoost = clamp(recentImpulse * 26, 0, 28);
+  const moatPenalty = clamp((1 - avgKindFactor) * 4, 0, 4);
+
+  const freshness = clamp(baseFreshness + recentBoost - gapPenalty - moatPenalty, 0, 100);
 
   return { freshness, catalogValue };
 }
@@ -192,6 +267,14 @@ export const PlatformCatalogSystem: TickSystem = {
     const market = state.platformMarket as PlatformMarketState | undefined;
     if (!market || !Array.isArray(market.rivals)) return state;
 
+    const titlesByPlatform = gatherStreamingTitlesByPlatform({
+      projects: (state.projects ?? []) as Project[],
+      week: ctx.week,
+      year: ctx.year,
+    });
+
+    const currentAbs = absWeek(ctx.week, ctx.year);
+
     const rivals = market.rivals.map((r) => {
       if (!r || r.status === 'collapsed') return r;
 
@@ -199,7 +282,9 @@ export const PlatformCatalogSystem: TickSystem = {
       const prevCatalog = typeof r.catalogValue === 'number' ? r.catalogValue : 50;
       const jitter = ctx.rng.nextFloat(0, 1);
 
-      const next = stepRivalFreshnessCatalog({ prevFreshness, prevCatalog, jitter });
+      const titles = titlesByPlatform.get(r.id) ?? [];
+
+      const next = stepRivalFreshnessCatalog({ prevFreshness, prevCatalog, titles, currentAbs, jitter });
 
       return {
         ...r,
@@ -212,9 +297,7 @@ export const PlatformCatalogSystem: TickSystem = {
       ? (() => {
           const platformId = market.player!.id;
 
-          const titles = (state.projects ?? [])
-            .map((p) => getPlayerPlatformPresence({ project: p, platformId, week: ctx.week, year: ctx.year }))
-            .filter((p): p is PlatformContentPresence => !!p);
+          const titles = titlesByPlatform.get(platformId) ?? [];
 
           const prevFreshness = typeof market.player!.freshness === 'number' ? market.player!.freshness : 50;
           const prevCatalog = typeof market.player!.catalogValue === 'number' ? market.player!.catalogValue : 35;
@@ -223,7 +306,7 @@ export const PlatformCatalogSystem: TickSystem = {
             prevFreshness,
             prevCatalog,
             titles,
-            currentAbs: absWeek(ctx.week, ctx.year),
+            currentAbs,
             jitter: ctx.rng.nextFloat(0, 1),
           });
 

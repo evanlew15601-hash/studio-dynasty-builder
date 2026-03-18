@@ -43,6 +43,9 @@ export interface PlayerPlatformState {
   /** Abstract price competitiveness index (0.5–1.5 typical). */
   priceIndex?: number;
 
+  /** 0–100 ad load intensity (higher = more ad ARPU, worse churn on ad tier). */
+  adLoadIndex?: number;
+
   /** 0–100; retention proxy used by churn/acquisition model. */
   freshness?: number;
   /** 0–100; long-tail catalog depth proxy. */

@@ -808,22 +808,52 @@ export const useGameStore: import('zustand').UseBoundStore<import('zustand').Sto
             const player = market?.player;
             if (market && player && player.status === 'active') {
               if (selectedChoice.id === 'accept') {
-                if (titleProjectId) {
-                  const idx = (s.game.projects || []).findIndex((p) => p.id === titleProjectId);
-                  if (idx >= 0) {
-                    const project = s.game.projects[idx] as any;
-                    const rs = project.releaseStrategy;
+                const titleProjectId = (event as any)?.data?.titleProjectId as string | undefined;
+                const rivalId = (event as any)?.data?.rivalId as string | undefined;
 
-                    // If the title is a direct-to-streaming premiere on the player platform,
-                    // accepting a licensing offer makes it non-exclusive.
-                    if (rs && (rs.streamingPlatformId || rs.streamingProviderId) === player.id) {
-                      s.game.projects[idx] = {
-                        ...project,
-                        releaseStrategy: {
-                          ...rs,
-                          streamingExclusive: false,
+                // Moat erosion: cash now, slightly weaker retention/differentiation.
+                player.freshness = clamp((player.freshness ?? 50) - 3, 0, 100);
+                player.catalogValue = clamp((player.catalogValue ?? 45) - 1, 0, 100);
+
+                // Make the title non-exclusive and actually place it on the rival platform for a time-limited window.
+                if (titleProjectId && rivalId) {
+                  const project = s.game.projects.find((p) => p.id === titleProjectId);
+                  if (project) {
+                    if (project.releaseStrategy) {
+                      project.releaseStrategy.streamingExclusive = false;
+                    }
+
+                    if ((project as any)?.streamingContract && (project as any).streamingContract.platformId === player.id) {
+                      (project as any).streamingContract.exclusivityClause = false;
+                    }
+
+                    const releaseId = `release:${project.id}:${rivalId}:${s.game.currentYear}:W${s.game.currentWeek}`;
+                    const already = (project.postTheatricalReleases ?? []).some((r) => r && r.id === releaseId);
+
+                    if (!already) {
+                      const releaseDate = new Date(s.game.currentYear, 0, 1 + Math.max(0, s.game.currentWeek - 1) * 7);
+
+                      const windowWeeks = 26;
+
+                      project.postTheatricalReleases = [
+                        ...(project.postTheatricalReleases ?? []),
+                        {
+                          id: releaseId,
+                          projectId: project.id,
+                          platform: 'streaming',
+                          providerId: rivalId,
+                          releaseDate,
+                          releaseWeek: s.game.currentWeek,
+                          releaseYear: s.game.currentYear,
+                          delayWeeks: 0,
+                          revenue: offer,
+                          weeklyRevenue: 0,
+                          weeksActive: 0,
+                          status: 'planned',
+                          cost: 0,
+                          durationWeeks: windowWeeks,
                         },
-                      };
+                      ];
                     }
                   }
                 }

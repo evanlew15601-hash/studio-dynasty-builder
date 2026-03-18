@@ -93,6 +93,8 @@ function normalizePlayerPlatform(player: any | undefined): PlatformMarketState['
     promotionBudgetPerWeek:
       typeof (player as any).promotionBudgetPerWeek === 'number' ? Math.max(0, Math.floor((player as any).promotionBudgetPerWeek)) : 0,
     priceIndex: typeof (player as any).priceIndex === 'number' ? (player as any).priceIndex : 1,
+    adLoadIndex:
+      typeof (player as any).adLoadIndex === 'number' ? clamp((player as any).adLoadIndex, 0, 100) : 55,
     freshness: typeof (player as any).freshness === 'number' ? clamp((player as any).freshness, 0, 100) : undefined,
     catalogValue: typeof (player as any).catalogValue === 'number' ? clamp((player as any).catalogValue, 0, 100) : undefined,
     monthlyPrice: typeof (player as any).monthlyPrice === 'number' ? (player as any).monthlyPrice : undefined,

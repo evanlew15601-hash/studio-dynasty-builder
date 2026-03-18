@@ -23,7 +23,13 @@ import {
 import { useGameStore } from '@/game/store';
 import type { Genre, Project, Script } from '@/types/game';
 import type { StreamingContract } from '@/types/streamingTypes';
-import { isProjectOnPlatformAtTime } from '@/utils/platformIds';
+import {
+  getContractPlatformId,
+  getDistributionChannelPlatformId,
+  getReleaseStrategyPlatformId,
+  getReleaseWindowPlatformId,
+  isProjectOnPlatformAtTime,
+} from '@/utils/platformIds';
 import { stableInt } from '@/utils/stableRandom';
 import { BarChart3, Crown, Film, Home, Swords, TrendingUp, Users } from 'lucide-react';
 
@@ -75,6 +81,8 @@ export const StreamingWarsPlatformApp: React.FC = () => {
   const addProject = useGameStore((s) => s.addProject);
   const upsertScript = useGameStore((s) => s.upsertScript);
   const spendStudioFunds = useGameStore((s) => s.spendStudioFunds);
+  const updateProject = useGameStore((s) => s.updateProject);
+  const updateBudget = useGameStore((s) => s.updateBudget);
 
   const platformMarket = gameState?.platformMarket;
 
@@ -82,6 +90,7 @@ export const StreamingWarsPlatformApp: React.FC = () => {
   const [launchName, setLaunchName] = useState('');
   const [launchVibe, setLaunchVibe] = useState('prestige');
   const [launchAdSupportedPct, setLaunchAdSupportedPct] = useState(50);
+  const [launchAdLoadIndex, setLaunchAdLoadIndex] = useState(55);
   const [launchPriceIndex, setLaunchPriceIndex] = useState(1);
   const [launchPromoBudget, setLaunchPromoBudget] = useState(15_000_000);
 
@@ -90,6 +99,11 @@ export const StreamingWarsPlatformApp: React.FC = () => {
   const [originalGenre, setOriginalGenre] = useState<Genre>('drama');
   const [originalEpisodeCount, setOriginalEpisodeCount] = useState(10);
   const [originalEpisodeBudget, setOriginalEpisodeBudget] = useState(2_500_000);
+
+  const [licenseOpen, setLicenseOpen] = useState(false);
+  const [licenseProject, setLicenseProject] = useState<Project | null>(null);
+  const [licenseRivalId, setLicenseRivalId] = useState('');
+  const [licenseDurationWeeks, setLicenseDurationWeeks] = useState(26);
 
   const {
     player,
@@ -156,6 +170,109 @@ export const StreamingWarsPlatformApp: React.FC = () => {
     }
   };
 
+  const getDirectPlatformId = (project: Project): string | null => {
+    return (
+      getContractPlatformId(project.streamingContract) ||
+      project.streamingPremiereDeal?.providerId ||
+      getReleaseStrategyPlatformId(project.releaseStrategy) ||
+      getDistributionChannelPlatformId(project.distributionStrategy?.primary) ||
+      getReleaseWindowPlatformId(project.distributionStrategy?.windows?.[0]) ||
+      null
+    );
+  };
+
+  const isExclusiveTitle = (project: Project): boolean => {
+    const exclusiveFlag = project.releaseStrategy?.streamingExclusive;
+    const contractExclusive = (project.streamingContract as any)?.exclusivityClause;
+    return exclusiveFlag !== false && contractExclusive !== false;
+  };
+
+  const computeLicenseOffer = (project: Project, rivalId: string, durationWeeks: number): number => {
+    const quality = project.script?.quality ?? 60;
+    const duration = clampInt(durationWeeks, 8, 52);
+
+    const rival = rivals.find((r) => r.id === rivalId);
+    const sizeFactor = rival ? clampInt(rival.subscribers ?? 0, 0, 100_000_000) / 80_000_000 : 0.6;
+
+    const base = 18_000_000 + quality * 650_000;
+    const durationFactor = duration / 26;
+
+    return clampInt(base * durationFactor * (0.85 + sizeFactor * 0.35), 15_000_000, 280_000_000);
+  };
+
+  const openLicenseDialog = (project: Project) => {
+    if (!playerPlatformId) return;
+
+    const eligible = rivals.filter((r) => r.status !== 'collapsed');
+    if (eligible.length === 0) return;
+
+    setLicenseProject(project);
+    setLicenseRivalId(eligible[0].id);
+    setLicenseDurationWeeks(26);
+    setLicenseOpen(true);
+  };
+
+  const licenseOffer = useMemo(() => {
+    if (!licenseProject || !licenseRivalId) return 0;
+    return computeLicenseOffer(licenseProject, licenseRivalId, licenseDurationWeeks);
+  }, [licenseDurationWeeks, licenseProject, licenseRivalId]);
+
+  const onLicenseTitleToRival = () => {
+    if (!gameState) return;
+    if (!playerPlatformId) return;
+    if (!player || player.status !== 'active') return;
+    if (!licenseProject) return;
+    if (!licenseRivalId) return;
+
+    const offer = computeLicenseOffer(licenseProject, licenseRivalId, licenseDurationWeeks);
+
+    const releaseDate = new Date(gameState.currentYear, 0, 1 + Math.max(0, gameState.currentWeek - 1) * 7);
+    const releaseId = `release:${licenseProject.id}:${licenseRivalId}:${gameState.currentYear}:W${gameState.currentWeek}`;
+
+    const nextPost = (licenseProject.postTheatricalReleases ?? []).some((r) => r.id === releaseId)
+      ? licenseProject.postTheatricalReleases
+      : [
+          ...(licenseProject.postTheatricalReleases ?? []),
+          {
+            id: releaseId,
+            projectId: licenseProject.id,
+            platform: 'streaming',
+            providerId: licenseRivalId,
+            releaseDate,
+            releaseWeek: gameState.currentWeek,
+            releaseYear: gameState.currentYear,
+            delayWeeks: 0,
+            revenue: offer,
+            weeklyRevenue: 0,
+            weeksActive: 0,
+            status: 'planned',
+            cost: 0,
+            durationWeeks: clampInt(licenseDurationWeeks, 8, 52),
+          },
+        ];
+
+    updateBudget(offer);
+
+    updateProject(licenseProject.id, {
+      releaseStrategy: licenseProject.releaseStrategy
+        ? {
+            ...licenseProject.releaseStrategy,
+            streamingExclusive: false,
+          }
+        : licenseProject.releaseStrategy,
+      streamingContract:
+        licenseProject.streamingContract && licenseProject.streamingContract.platformId === playerPlatformId
+          ? {
+              ...(licenseProject.streamingContract as any),
+              exclusivityClause: false,
+            }
+          : licenseProject.streamingContract,
+      postTheatricalReleases: nextPost,
+    });
+
+    setLicenseOpen(false);
+  };
+
   const onLaunchPlatform = () => {
     if (!gameState) return;
 
@@ -200,6 +317,7 @@ export const StreamingWarsPlatformApp: React.FC = () => {
             tierMix,
             promotionBudgetPerWeek: launchPromoBudget,
             priceIndex: launchPriceIndex,
+            adLoadIndex: clampInt(launchAdLoadIndex, 0, 100),
             freshness: 35,
             catalogValue: 20,
             vibe,
@@ -579,17 +697,34 @@ export const StreamingWarsPlatformApp: React.FC = () => {
                         return bAbs - aAbs;
                       })
                       .slice(0, 8)
-                      .map((p) => (
-                        <div key={p.id} className="flex items-center justify-between rounded-md border p-3">
-                          <div>
-                            <div className="text-sm font-medium">{p.title}</div>
-                            <div className="text-xs text-muted-foreground capitalize">
-                              {p.type.replace('-', ' ')} • {p.script?.genre}
+                      .map((p) => {
+                        const directId = playerPlatformId ? getDirectPlatformId(p) : null;
+                        const canLicense =
+                          playerPlatformId &&
+                          player?.status === 'active' &&
+                          directId === playerPlatformId &&
+                          isExclusiveTitle(p) &&
+                          rivals.some((r) => r.status !== 'collapsed');
+
+                        return (
+                          <div key={p.id} className="flex items-center justify-between rounded-md border p-3">
+                            <div>
+                              <div className="text-sm font-medium">{p.title}</div>
+                              <div className="text-xs text-muted-foreground capitalize">
+                                {p.type.replace('-', ' ')} • {p.script?.genre}
+                              </div>
+                            </div>
+                            <div className="flex items-center gap-2">
+                              <Badge variant="outline">On platform</Badge>
+                              {canLicense && (
+                                <Button type="button" size="sm" variant="secondary" onClick={() => openLicenseDialog(p)}>
+                                  License out
+                                </Button>
+                              )}
                             </div>
                           </div>
-                          <Badge variant="outline">On platform</Badge>
-                        </div>
-                      ))}
+                        );
+                      })}
                   </div>
                 ) : (
                   <p className="text-sm text-muted-foreground">
@@ -810,8 +945,43 @@ export const StreamingWarsPlatformApp: React.FC = () => {
                           </div>
                         </div>
 
+                        <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+                          <div className="space-y-1">
+                            <Label className="text-xs">Ad load</Label>
+                            <Select
+                              value={String(player.adLoadIndex ?? 55)}
+                              onValueChange={(v) => {
+                                const next = clampInt(parseInt(v, 10), 0, 100);
+                                setGameState((prev) => {
+                                  if (!prev.platformMarket?.player) return prev;
+                                  if (prev.platformMarket.player.status !== 'active') return prev;
+                                  return {
+                                    ...prev,
+                                    platformMarket: {
+                                      ...prev.platformMarket,
+                                      player: {
+                                        ...prev.platformMarket.player,
+                                        adLoadIndex: next,
+                                      },
+                                    },
+                                  };
+                                });
+                              }}
+                            >
+                              <SelectTrigger>
+                                <SelectValue />
+                              </SelectTrigger>
+                              <SelectContent>
+                                <SelectItem value="30">Light</SelectItem>
+                                <SelectItem value="55">Standard</SelectItem>
+                                <SelectItem value="80">Heavy</SelectItem>
+                              </SelectContent>
+                            </Select>
+                          </div>
+                        </div>
+
                         <p className="text-xs text-muted-foreground">
-                          Higher prices increase ARPU but worsen churn. Promotion reduces churn and improves acquisition with diminishing returns.
+                          Higher prices increase ARPU but worsen churn. Promotion improves acquisition with diminishing returns. Higher ad load boosts ad ARPU but worsens churn on the ad tier.
                         </p>
                       </div>
                     )}
@@ -907,7 +1077,7 @@ export const StreamingWarsPlatformApp: React.FC = () => {
               />
             </div>
 
-            <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+            <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
               <div className="space-y-2">
                 <Label>Vibe</Label>
                 <Select value={launchVibe} onValueChange={setLaunchVibe}>
@@ -934,6 +1104,20 @@ export const StreamingWarsPlatformApp: React.FC = () => {
                   value={launchAdSupportedPct}
                   onChange={(e) => setLaunchAdSupportedPct(clampInt(parseInt(e.target.value || '0', 10), 0, 100))}
                 />
+              </div>
+
+              <div className="space-y-2">
+                <Label>Ad load</Label>
+                <Select value={String(launchAdLoadIndex)} onValueChange={(v) => setLaunchAdLoadIndex(parseInt(v, 10))}>
+                  <SelectTrigger>
+                    <SelectValue />
+                  </SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value="30">Light</SelectItem>
+                    <SelectItem value="55">Standard</SelectItem>
+                    <SelectItem value="80">Heavy</SelectItem>
+                  </SelectContent>
+                </Select>
               </div>
             </div>
 
@@ -1063,6 +1247,82 @@ export const StreamingWarsPlatformApp: React.FC = () => {
             </Button>
             <Button type="button" onClick={onCommissionOriginal} disabled={!playerPlatformId || originalTitle.trim().length === 0}>
               Commission
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
+
+      <Dialog open={licenseOpen} onOpenChange={setLicenseOpen}>
+        <DialogContent>
+          <DialogHeader>
+            <DialogTitle>License a title to a rival</DialogTitle>
+          </DialogHeader>
+
+          {licenseProject ? (
+            <div className="space-y-4">
+              <div className="rounded border p-3 text-sm">
+                <div className="flex items-center justify-between">
+                  <span className="text-muted-foreground">Title</span>
+                  <span className="font-medium">{licenseProject.title}</span>
+                </div>
+                <div className="flex items-center justify-between">
+                  <span className="text-muted-foreground">Script quality</span>
+                  <span className="font-medium">{Math.round(licenseProject.script?.quality ?? 60)}</span>
+                </div>
+              </div>
+
+              <div className="space-y-2">
+                <Label>Rival platform</Label>
+                <Select value={licenseRivalId} onValueChange={setLicenseRivalId}>
+                  <SelectTrigger>
+                    <SelectValue placeholder="Select a rival" />
+                  </SelectTrigger>
+                  <SelectContent>
+                    {rivals
+                      .filter((r) => r.status !== 'collapsed')
+                      .map((r) => (
+                        <SelectItem key={r.id} value={r.id}>
+                          {r.name}
+                        </SelectItem>
+                      ))}
+                  </SelectContent>
+                </Select>
+              </div>
+
+              <div className="space-y-2">
+                <Label htmlFor="license-duration">Window length (weeks)</Label>
+                <Input
+                  id="license-duration"
+                  type="number"
+                  min={8}
+                  max={52}
+                  value={licenseDurationWeeks}
+                  onChange={(e) => setLicenseDurationWeeks(clampInt(parseInt(e.target.value || '26', 10), 8, 52))}
+                />
+                <p className="text-xs text-muted-foreground">You get the cash upfront, but your platform loses differentiation while the window runs.</p>
+              </div>
+
+              <div className="rounded border p-3 text-sm">
+                <div className="flex items-center justify-between">
+                  <span className="text-muted-foreground">Upfront fee</span>
+                  <span className="font-medium">{formatUsdCompact(licenseOffer)}</span>
+                </div>
+                <div className="flex items-center justify-between">
+                  <span className="text-muted-foreground">Effect</span>
+                  <span className="font-medium">Exclusivity → non-exclusive</span>
+                </div>
+              </div>
+            </div>
+          ) : (
+            <p className="text-sm text-muted-foreground">Select a title first.</p>
+          )}
+
+          <DialogFooter>
+            <Button variant="secondary" type="button" onClick={() => setLicenseOpen(false)}>
+              Cancel
+            </Button>
+            <Button type="button" onClick={onLicenseTitleToRival} disabled={!licenseProject || !licenseRivalId}>
+              License
             </Button>
           </DialogFooter>
         </DialogContent>

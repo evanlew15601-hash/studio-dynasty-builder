@@ -1,5 +1,5 @@
 import { beforeEach, describe, expect, it } from 'vitest';
-import type { GameEvent, GameState } from '@/types/game';
+import type { GameState, Project } from '@/types/game';
 import { useGameStore } from '@/game/store';
 
 function makeBaseState(overrides?: Partial<GameState>): GameState {
@@ -43,55 +43,99 @@ function makeBaseState(overrides?: Partial<GameState>): GameState {
   return { ...base, ...(overrides || {}) } as GameState;
 }
 
-describe('Streaming Wars: license offer resolution updates title exclusivity', () => {
+function makeReleasedOnPlayerPlatform(params: { projectId: string; platformId: string }): Project {
+  return {
+    id: params.projectId,
+    title: 'Breakout Hit',
+    type: 'feature',
+    status: 'released',
+    currentPhase: 'released',
+    script: {
+      id: 'script-1',
+      title: 'Breakout Hit',
+      genre: 'drama',
+      logline: 'Test',
+      writer: 'Test',
+      pages: 110,
+      quality: 80,
+      budget: 30_000_000,
+      developmentStage: 'final',
+      themes: [],
+      targetAudience: 'general',
+      estimatedRuntime: 120,
+      characteristics: {
+        tone: 'balanced',
+        pacing: 'steady',
+        dialogue: 'naturalistic',
+        visualStyle: 'realistic',
+        commercialAppeal: 7,
+        criticalPotential: 7,
+        cgiIntensity: 'minimal',
+      },
+    },
+    releaseWeek: 1,
+    releaseYear: 2027,
+    budget: { total: 30_000_000, allocated: {}, spent: {}, overages: {} } as any,
+    distributionStrategy: {
+      primary: {
+        platform: 'TestFlix',
+        platformId: params.platformId,
+        type: 'streaming',
+        revenue: { type: 'subscription-share', studioShare: 1 },
+      },
+      international: [],
+      windows: [],
+      marketingBudget: 0,
+    },
+    releaseStrategy: {
+      type: 'streaming',
+      premiereDate: new Date(2027, 0, 1),
+      rolloutPlan: [],
+      specialEvents: [],
+      pressStrategy: { expectedCriticalReception: 60 },
+      streamingPlatformId: params.platformId,
+      streamingExclusive: true,
+      streamingExclusivityWeeks: 999,
+    },
+    cast: [],
+    crew: [],
+    locations: [],
+    timeline: {
+      preProduction: { start: new Date(), end: new Date() },
+      principalPhotography: { start: new Date(), end: new Date() },
+      postProduction: { start: new Date(), end: new Date() },
+      release: new Date(),
+      milestones: [],
+    },
+    metrics: {},
+    phaseDuration: 0,
+    contractedTalent: [],
+    developmentProgress: { scriptCompletion: 0, budgetApproval: 0, talentAttached: 0, locationSecured: 0, completionThreshold: 60, issues: [] },
+    postTheatricalReleases: [],
+  } as any;
+}
+
+describe('Streaming Wars: license offer resolution creates a real rival window + erodes exclusivity', () => {
   beforeEach(() => {
-    useGameStore.getState().initGame(makeBaseState({ universeSeed: 500, rngState: 500 }), 123);
+    useGameStore.getState().initGame(makeBaseState({ universeSeed: 900, rngState: 900 }), 123);
   });
 
-  it('accepting a platform:license-offer marks a direct-to-platform title as non-exclusive', () => {
-    const platformId = 'player-platform:studio-1';
-
-    const event: GameEvent = {
-      id: 'evt-license-1',
-      title: 'Licensing offer',
-      description: 'Test',
-      type: 'opportunity',
-      triggerDate: new Date(),
-      data: {
-        kind: 'platform:license-offer',
-        titleProjectId: 'p1',
-        titleName: 'Big Original',
-        offer: 50_000_000,
-        rivalName: 'StreamFlix',
-        playerPlatformId: platformId,
-      },
-      choices: [
-        {
-          id: 'accept',
-          text: 'Accept',
-          consequences: [{ type: 'budget', impact: 50_000_000, description: '+50M' }],
-        },
-        {
-          id: 'decline',
-          text: 'Decline',
-          consequences: [{ type: 'reputation', impact: 1, description: '+1 rep' }],
-        },
-      ],
-    };
+  it('accepting a license offer marks the title non-exclusive and adds a rival streaming window', () => {
+    const playerPlatformId = 'player-platform:studio-1';
 
     useGameStore.getState().initGame(
       makeBaseState({
         dlc: { streamingWars: true },
-        universeSeed: 500,
-        rngState: 500,
+        universeSeed: 900,
+        rngState: 900,
         platformMarket: {
           totalAddressableSubs: 100_000_000,
           player: {
-            id: platformId,
+            id: playerPlatformId,
             name: 'TestFlix',
             launchedWeek: 1,
             launchedYear: 2026,
-            subscribers: 3_000_000,
+            subscribers: 5_000_000,
             cash: 0,
             status: 'active',
             tierMix: { adSupportedPct: 60, adFreePct: 40 },
@@ -99,54 +143,71 @@ describe('Streaming Wars: license offer resolution updates title exclusivity', (
             priceIndex: 1.0,
             freshness: 55,
             catalogValue: 45,
+            distressWeeks: 0,
           },
-          rivals: [],
+          rivals: [
+            {
+              id: 'streamflix',
+              name: 'StreamFlix',
+              subscribers: 40_000_000,
+              cash: 2_000_000_000,
+              status: 'healthy',
+              distressWeeks: 0,
+              tierMix: { adSupportedPct: 40, adFreePct: 60 },
+              priceIndex: 1.0,
+              catalogValue: 70,
+              freshness: 60,
+            },
+          ],
         },
-        projects: [
-          {
-            id: 'p1',
-            title: 'Big Original',
-            type: 'feature',
-            status: 'released',
-            currentPhase: 'release',
-            script: { id: 's1', title: 'Big Original', genre: 'drama', logline: '', writer: '', pages: 60, quality: 80, budget: 0, developmentStage: 'concept', themes: [], targetAudience: '', estimatedRuntime: 50, characteristics: { tone: 'balanced', pacing: 'steady', dialogue: 'naturalistic', visualStyle: 'realistic', commercialAppeal: 6, criticalPotential: 6, cgiIntensity: 'minimal' } },
-            budget: { total: 1, allocated: { aboveTheLine: 0, belowTheLine: 0, postProduction: 0, marketing: 0, distribution: 0, contingency: 0 }, spent: { aboveTheLine: 0, belowTheLine: 0, postProduction: 0, marketing: 0, distribution: 0, contingency: 0 }, overages: { aboveTheLine: 0, belowTheLine: 0, postProduction: 0, marketing: 0, distribution: 0, contingency: 0 } },
-            cast: [],
-            crew: [],
-            timeline: { preProduction: { start: new Date(), end: new Date() }, principalPhotography: { start: new Date(), end: new Date() }, postProduction: { start: new Date(), end: new Date() }, release: new Date(), milestones: [] },
-            locations: [],
-            distributionStrategy: {
-              primary: { type: 'streaming', platform: 'TestFlix', platformId, revenue: { type: 'subscription-share', studioShare: 1 } },
-              international: [],
-              windows: [],
-              marketingBudget: 0,
-            },
-            releaseStrategy: {
-              type: 'streaming',
-              streamingProviderId: platformId,
-              streamingPlatformId: platformId,
-              streamingExclusive: true,
-              premiereDate: new Date(),
-              rolloutPlan: [],
-              specialEvents: [],
-              pressStrategy: { reviewScreenings: 0, pressJunkets: 0, interviews: 0, expectedCriticalReception: 0 },
-            },
-            metrics: {},
-            phaseDuration: 0,
-            contractedTalent: [],
-            developmentProgress: { scriptCompletion: 0, budgetApproval: 0, talentAttached: 0, locationSecured: 0, completionThreshold: 60, issues: [] },
-          } as any,
-        ],
-        eventQueue: [event],
+        projects: [makeReleasedOnPlayerPlatform({ projectId: 'p-1', platformId: playerPlatformId })],
       }),
       123
     );
 
-    useGameStore.getState().resolveGameEvent('evt-license-1', 'accept');
+    // Manually enqueue a license offer event that targets the released title.
+    useGameStore.getState().setGameState((s) => {
+      return {
+        ...s,
+        eventQueue: [
+          {
+            id: 'evt-1',
+            title: 'License offer',
+            description: 'Test',
+            type: 'opportunity',
+            triggerDate: new Date(2027, 0, 1),
+            data: {
+              kind: 'platform:license-offer',
+              titleProjectId: 'p-1',
+              titleName: 'Breakout Hit',
+              offer: 100_000_000,
+              rivalId: 'streamflix',
+              rivalName: 'StreamFlix',
+              playerPlatformId,
+            },
+            choices: [
+              {
+                id: 'accept',
+                text: 'Accept',
+                consequences: [{ type: 'budget', impact: 100_000_000, description: 'fee' }],
+              },
+              { id: 'decline', text: 'Decline', consequences: [] },
+            ],
+          } as any,
+        ],
+      } as any;
+    });
 
-    const next = useGameStore.getState().game!;
-    const updated = next.projects.find((p) => p.id === 'p1') as any;
+    useGameStore.getState().resolveGameEvent('evt-1', 'accept');
 
-    expect(updated.releaseStrategy.streamingExclusive).toBe(false);
+    const after = useGameStore.getState().game!;
+
+    const project = after.projects.find((p) => p.id === 'p-1')!;
+    expect(project.releaseStrategy?.streamingExclusive).toBe(false);
+
+    const window = (project.postTheatricalReleases ?? []).find((r) => r.providerId === 'streamflix' && r.platform === 'streaming');
+    expect(window).toBeTruthy();
+    expect(window?.status).toBe('planned');
+    expect(window?.durationWeeks).toBe(26);
   });
 });
