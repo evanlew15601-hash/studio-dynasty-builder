@@ -50,6 +50,10 @@ const clampInt = (n: number, min: number, max: number) => {
   return Math.floor(Math.max(min, Math.min(max, n)));
 };
 
+const absWeek = (week: number, year: number) => {
+  return year * 52 + week;
+};
+
 type BadgeVariant = 'default' | 'secondary' | 'destructive' | 'outline';
 
 const statusVariant = (status: string | undefined): BadgeVariant => {
@@ -104,6 +108,9 @@ export const StreamingWarsPlatformApp: React.FC = () => {
   const [licenseProject, setLicenseProject] = useState<Project | null>(null);
   const [licenseRivalId, setLicenseRivalId] = useState('');
   const [licenseDurationWeeks, setLicenseDurationWeeks] = useState(26);
+
+  const [titleOpen, setTitleOpen] = useState(false);
+  const [titleProject, setTitleProject] = useState<Project | null>(null);
 
   const {
     player,
@@ -216,6 +223,87 @@ export const StreamingWarsPlatformApp: React.FC = () => {
     if (!licenseProject || !licenseRivalId) return 0;
     return computeLicenseOffer(licenseProject, licenseRivalId, licenseDurationWeeks);
   }, [licenseDurationWeeks, licenseProject, licenseRivalId]);
+
+  const openTitle = (project: Project) => {
+    setTitleProject(project);
+    setTitleOpen(true);
+  };
+
+  const { heroTitle, topTen, newArrivals, originalsReleased, comingSoon } = useMemo(() => {
+    const playerPlatformId = player?.id;
+
+    if (!gameState || !playerPlatformId || player?.status !== 'active') {
+      return {
+        heroTitle: null as Project | null,
+        topTen: [] as Project[],
+        newArrivals: [] as Project[],
+        originalsReleased: [] as Project[],
+        comingSoon: [] as Array<{ project: Project; arrivalAbs?: number; label: string }>,
+      };
+    }
+
+    const week = gameState.currentWeek ?? 0;
+    const year = gameState.currentYear ?? 0;
+    const currentAbs = absWeek(week, year);
+
+    const releasedOnPlatform = titlesOnPlatform.filter((p) => p.status === 'released');
+
+    const scored = releasedOnPlatform
+      .map((p) => {
+        const quality = p.script?.quality ?? 60;
+        const relAbs = typeof p.releaseWeek === 'number' && typeof p.releaseYear === 'number' ? absWeek(p.releaseWeek, p.releaseYear) : currentAbs;
+        const weeksSince = Math.max(0, currentAbs - relAbs);
+        const recency = Math.max(0, 18 - weeksSince);
+        const noise = stableInt(`${gameState.universeSeed || 'seed'}|platform-trending|${year}:W${week}|${p.id}`, 0, 40);
+        const score = quality * 2 + recency * 5 + noise;
+        return { project: p, score };
+      })
+      .sort((a, b) => (b.score - a.score) || a.project.title.localeCompare(b.project.title));
+
+    const topTen = scored.slice(0, 10).map((x) => x.project);
+
+    const newArrivals = releasedOnPlatform
+      .slice()
+      .sort((a, b) => {
+        const aAbs = typeof a.releaseWeek === 'number' && typeof a.releaseYear === 'number' ? absWeek(a.releaseWeek, a.releaseYear) : 0;
+        const bAbs = typeof b.releaseWeek === 'number' && typeof b.releaseYear === 'number' ? absWeek(b.releaseWeek, b.releaseYear) : 0;
+        return (bAbs - aAbs) || a.title.localeCompare(b.title);
+      })
+      .slice(0, 12);
+
+    const originalsReleased = releasedOnPlatform
+      .filter((p) => p.streamingContract?.platformId === playerPlatformId)
+      .slice()
+      .sort((a, b) => (b.script?.quality ?? 0) - (a.script?.quality ?? 0))
+      .slice(0, 12);
+
+    const comingSoon: Array<{ project: Project; arrivalAbs?: number; label: string }> = [];
+
+    for (const p of gameState.projects ?? []) {
+      if (!p) continue;
+
+      if (p.streamingContract?.platformId === playerPlatformId && p.status !== 'released') {
+        comingSoon.push({ project: p, label: `Original • ${p.status}` });
+      }
+
+      for (const r of p.postTheatricalReleases ?? []) {
+        if (!r || r.platform !== 'streaming') continue;
+        const pid = (r as any).platformId || (r as any).providerId;
+        if (pid !== playerPlatformId) continue;
+        if (typeof (r as any).releaseWeek !== 'number' || typeof (r as any).releaseYear !== 'number') continue;
+        const arrivalAbs = absWeek((r as any).releaseWeek, (r as any).releaseYear);
+        if (arrivalAbs <= currentAbs) continue;
+
+        comingSoon.push({ project: p, arrivalAbs, label: 'Windowed arrival' });
+      }
+    }
+
+    comingSoon.sort((a, b) => (a.arrivalAbs ?? 999999) - (b.arrivalAbs ?? 999999));
+
+    const heroTitle = topTen[0] ?? newArrivals[0] ?? null;
+
+    return { heroTitle, topTen, newArrivals, originalsReleased, comingSoon: comingSoon.slice(0, 12) };
+  }, [gameState, player?.id, player?.status, titlesOnPlatform]);
 
   const onLicenseTitleToRival = () => {
     if (!gameState) return;
@@ -361,6 +449,10 @@ export const StreamingWarsPlatformApp: React.FC = () => {
     const idSeedRoot = `${gameState.universeSeed ?? 0}|${gameState.studio?.id ?? 'studio'}|${gameState.currentYear}:W${gameState.currentWeek}|original|${title}|${gameState.projects.length}|${gameState.scripts.length}`;
     const idSuffix = stableInt(idSeedRoot, 100000, 999999);
 
+    const qualityBonus = clampInt(gameState.platformMarket?.player?.originalsQualityBonus ?? 0, 0, 20);
+    const baseQuality = stableInt(`${idSeedRoot}|quality`, 58, 82);
+    const finalQuality = clampInt(baseQuality + qualityBonus, 40, 95);
+
     const script: Script = {
       id: `script:original:${gameState.currentYear}:W${gameState.currentWeek}:${idSuffix}`,
       title,
@@ -368,7 +460,7 @@ export const StreamingWarsPlatformApp: React.FC = () => {
       logline: `An original ${originalGenre} series commissioned for ${gameState.platformMarket?.player?.name ?? 'your platform'}.`,
       writer: 'In-house',
       pages: 60,
-      quality: 65,
+      quality: finalQuality,
       budget: perEpisodeBudget,
       developmentStage: 'concept',
       themes: [],
@@ -682,57 +774,201 @@ export const StreamingWarsPlatformApp: React.FC = () => {
           </Card>
 
           {player && player.status === 'active' && (
-            <Card>
-              <CardHeader>
-                <CardTitle className="text-base">New on {player.name}</CardTitle>
-              </CardHeader>
-              <CardContent className="space-y-3">
-                {titlesOnPlatform.length > 0 ? (
-                  <div className="space-y-2">
-                    {titlesOnPlatform
-                      .slice()
-                      .sort((a, b) => {
-                        const aAbs = (a.releaseYear ?? 0) * 52 + (a.releaseWeek ?? 0);
-                        const bAbs = (b.releaseYear ?? 0) * 52 + (b.releaseWeek ?? 0);
-                        return bAbs - aAbs;
-                      })
-                      .slice(0, 8)
-                      .map((p) => {
-                        const directId = playerPlatformId ? getDirectPlatformId(p) : null;
-                        const canLicense =
-                          playerPlatformId &&
-                          player?.status === 'active' &&
-                          directId === playerPlatformId &&
-                          isExclusiveTitle(p) &&
-                          rivals.some((r) => r.status !== 'collapsed');
+            <div className="space-y-4">
+              <Card>
+                <CardHeader>
+                  <CardTitle className="text-base">{player.name} Home</CardTitle>
+                </CardHeader>
+                <CardContent className="space-y-5">
+                  {heroTitle ? (
+                    <button
+                      type="button"
+                      onClick={() => openTitle(heroTitle)}
+                      className="w-full text-left rounded-lg border bg-gradient-to-br from-primary/10 via-card to-card p-4 hover:bg-card/80 transition"
+                    >
+                      <div className="text-xs tracking-wide text-muted-foreground uppercase">Spotlight</div>
+                      <div className="mt-1 text-xl font-semibold">{heroTitle.title}</div>
+                      <div className="mt-1 text-sm text-muted-foreground capitalize">
+                        {heroTitle.type.replace('-', ' ')} • {heroTitle.script?.genre}
+                      </div>
+                      <div className="mt-3 flex flex-wrap gap-2">
+                        {heroTitle.streamingContract?.platformId === playerPlatformId && <Badge variant="secondary">Original</Badge>}
+                        {playerPlatformId && getDirectPlatformId(heroTitle) === playerPlatformId && isExclusiveTitle(heroTitle) && (
+                          <Badge variant="outline">Exclusive</Badge>
+                        )}
+                        <Badge variant="outline">Details</Badge>
+                      </div>
+                      <div className="mt-3 text-xs text-muted-foreground">
+                        Quality: {Math.round(heroTitle.script?.quality ?? 60)} • Critics: {Math.round(heroTitle.metrics?.criticsScore ?? 0)}/100 • Audience:{' '}
+                        {Math.round(heroTitle.metrics?.audienceScore ?? 0)}/100
+                      </div>
+                    </button>
+                  ) : (
+                    <p className="text-sm text-muted-foreground">
+                      No titles are currently on your platform. Use streaming premieres, Originals, and post-theatrical windows to build your catalog.
+                    </p>
+                  )}
 
-                        return (
-                          <div key={p.id} className="flex items-center justify-between rounded-md border p-3">
-                            <div>
-                              <div className="text-sm font-medium">{p.title}</div>
-                              <div className="text-xs text-muted-foreground capitalize">
-                                {p.type.replace('-', ' ')} • {p.script?.genre}
+                  <div className="space-y-4">
+                    <div>
+                      <div className="flex items-center justify-between">
+                        <div className="text-sm font-semibold">Top 10</div>
+                        <div className="text-xs text-muted-foreground">Trending now</div>
+                      </div>
+                      {topTen.length > 0 ? (
+                        <div className="mt-2 flex gap-3 overflow-x-auto pb-2">
+                          {topTen.map((p, idx) => {
+                            const initials = p.title
+                              .split(' ')
+                              .filter(Boolean)
+                              .slice(0, 2)
+                              .map((w) => w[0]?.toUpperCase())
+                              .join('')
+                              .slice(0, 2);
+
+                            const isOriginal = p.streamingContract?.platformId === playerPlatformId;
+                            const isExclusive = playerPlatformId && getDirectPlatformId(p) === playerPlatformId && isExclusiveTitle(p);
+                            const canLicense =
+                              playerPlatformId &&
+                              player?.status === 'active' &&
+                              getDirectPlatformId(p) === playerPlatformId &&
+                              isExclusiveTitle(p) &&
+                              rivals.some((r) => r.status !== 'collapsed');
+
+                            return (
+                              <div key={p.id} className="w-[150px] shrink-0">
+                                <button
+                                  type="button"
+                                  onClick={() => openTitle(p)}
+                                  className="w-full text-left"
+                                >
+                                  <div className="relative aspect-[2/3] rounded-md border bg-gradient-to-br from-slate-900/10 via-card to-card flex items-center justify-center">
+                                    <div className="text-lg font-extrabold tracking-wider text-muted-foreground">{initials || 'TV'}</div>
+                                    <div className="absolute left-2 top-2 rounded-full border bg-background/70 px-2 py-0.5 text-[10px] font-semibold">
+                                      #{idx + 1}
+                                    </div>
+                                    {isOriginal && (
+                                      <div className="absolute left-2 bottom-2 rounded-full border bg-background/70 px-2 py-0.5 text-[10px] font-semibold">
+                                        Original
+                                      </div>
+                                    )}
+                                    {isExclusive && (
+                                      <div className="absolute right-2 bottom-2 rounded-full border bg-background/70 px-2 py-0.5 text-[10px] font-semibold">
+                                        Exclusive
+                                      </div>
+                                    )}
+                                  </div>
+                                  <div className="mt-2 text-sm font-medium truncate">{p.title}</div>
+                                  <div className="text-xs text-muted-foreground capitalize truncate">{p.script?.genre}</div>
+                                </button>
+
+                                {canLicense && (
+                                  <Button
+                                    type="button"
+                                    size="sm"
+                                    variant="secondary"
+                                    className="mt-2 w-full"
+                                    onClick={() => openLicenseDialog(p)}
+                                  >
+                                    License out
+                                  </Button>
+                                )}
                               </div>
-                            </div>
-                            <div className="flex items-center gap-2">
-                              <Badge variant="outline">On platform</Badge>
-                              {canLicense && (
-                                <Button type="button" size="sm" variant="secondary" onClick={() => openLicenseDialog(p)}>
-                                  License out
-                                </Button>
-                              )}
-                            </div>
-                          </div>
-                        );
-                      })}
+                            );
+                          })}
+                        </div>
+                      ) : (
+                        <p className="mt-2 text-sm text-muted-foreground">No titles available yet.</p>
+                      )}
+                    </div>
+
+                    <div>
+                      <div className="flex items-center justify-between">
+                        <div className="text-sm font-semibold">New releases</div>
+                        <div className="text-xs text-muted-foreground">Fresh to library</div>
+                      </div>
+                      {newArrivals.length > 0 ? (
+                        <div className="mt-2 flex gap-3 overflow-x-auto pb-2">
+                          {newArrivals.map((p) => (
+                            <button
+                              key={p.id}
+                              type="button"
+                              onClick={() => openTitle(p)}
+                              className="w-[160px] shrink-0 text-left rounded-md border bg-card/40 p-3 hover:bg-card/60 transition"
+                            >
+                              <div className="text-sm font-medium truncate">{p.title}</div>
+                              <div className="mt-1 text-xs text-muted-foreground capitalize truncate">{p.type.replace('-', ' ')} • {p.script?.genre}</div>
+                              <div className="mt-2 text-xs text-muted-foreground">Quality {Math.round(p.script?.quality ?? 60)}</div>
+                            </button>
+                          ))}
+                        </div>
+                      ) : (
+                        <p className="mt-2 text-sm text-muted-foreground">No new arrivals this week.</p>
+                      )}
+                    </div>
+
+                    <div>
+                      <div className="flex items-center justify-between">
+                        <div className="text-sm font-semibold">Originals</div>
+                        <div className="text-xs text-muted-foreground">Built for {player.name}</div>
+                      </div>
+                      {originalsReleased.length > 0 ? (
+                        <div className="mt-2 flex gap-3 overflow-x-auto pb-2">
+                          {originalsReleased.map((p) => (
+                            <button
+                              key={p.id}
+                              type="button"
+                              onClick={() => openTitle(p)}
+                              className="w-[160px] shrink-0 text-left rounded-md border bg-card/40 p-3 hover:bg-card/60 transition"
+                            >
+                              <div className="text-sm font-medium truncate">{p.title}</div>
+                              <div className="mt-1 text-xs text-muted-foreground capitalize truncate">{p.script?.genre}</div>
+                              <div className="mt-2 text-xs text-muted-foreground">Quality {Math.round(p.script?.quality ?? 60)}</div>
+                            </button>
+                          ))}
+                        </div>
+                      ) : (
+                        <p className="mt-2 text-sm text-muted-foreground">No released Originals yet.</p>
+                      )}
+                    </div>
+
+                    <div>
+                      <div className="flex items-center justify-between">
+                        <div className="text-sm font-semibold">Coming soon</div>
+                        <div className="text-xs text-muted-foreground">Pipeline + windows</div>
+                      </div>
+                      {comingSoon.length > 0 ? (
+                        <div className="mt-2 grid grid-cols-1 sm:grid-cols-2 gap-2">
+                          {comingSoon.map((x) => {
+                            const currentAbs = absWeek(gameState.currentWeek ?? 0, gameState.currentYear ?? 0);
+                            const etaWeeks = typeof x.arrivalAbs === 'number' ? Math.max(0, x.arrivalAbs - currentAbs) : null;
+
+                            return (
+                              <button
+                                key={`${x.project.id}:${x.arrivalAbs ?? 'pipeline'}`}
+                                type="button"
+                                onClick={() => openTitle(x.project)}
+                                className="text-left rounded-md border bg-card/40 p-3 hover:bg-card/60 transition"
+                              >
+                                <div className="flex items-start justify-between gap-3">
+                                  <div>
+                                    <div className="text-sm font-medium truncate">{x.project.title}</div>
+                                    <div className="mt-1 text-xs text-muted-foreground">{x.label}{etaWeeks !== null ? ` • Arrives in ${etaWeeks}w` : ''}</div>
+                                  </div>
+                                  <Badge variant="outline">Soon</Badge>
+                                </div>
+                              </button>
+                            );
+                          })}
+                        </div>
+                      ) : (
+                        <p className="mt-2 text-sm text-muted-foreground">No upcoming arrivals are scheduled.</p>
+                      )}
+                    </div>
                   </div>
-                ) : (
-                  <p className="text-sm text-muted-foreground">
-                    No titles are currently routed to your platform. Use streaming premieres, Originals, and post-theatrical windows to build your catalog.
-                  </p>
-                )}
-              </CardContent>
-            </Card>
+                </CardContent>
+              </Card>
+            </div>
           )}
         </TabsContent>
 
@@ -852,6 +1088,10 @@ export const StreamingWarsPlatformApp: React.FC = () => {
                     <div className="flex justify-between">
                       <span className="text-muted-foreground">Catalog value</span>
                       <span className="font-medium">{Math.round(player.catalogValue ?? 0)}/100</span>
+                    </div>
+                    <div className="flex justify-between">
+                      <span className="text-muted-foreground">Originals quality bonus</span>
+                      <span className="font-medium">+{Math.round(player.originalsQualityBonus ?? 0)}</span>
                     </div>
 
                     {player.status === 'active' && (
@@ -1060,6 +1300,105 @@ export const StreamingWarsPlatformApp: React.FC = () => {
         </TabsContent>
       </Tabs>
 
+      <Dialog
+        open={titleOpen}
+        onOpenChange={(open) => {
+          setTitleOpen(open);
+          if (!open) setTitleProject(null);
+        }}
+      >
+        <DialogContent className="max-w-lg">
+          <DialogHeader>
+            <DialogTitle>{titleProject?.title ?? 'Title details'}</DialogTitle>
+          </DialogHeader>
+
+          {titleProject && (
+            <div className="space-y-4">
+              <div className="grid grid-cols-2 gap-3 text-sm">
+                <div className="rounded border p-3">
+                  <div className="text-xs text-muted-foreground">Quality</div>
+                  <div className="font-semibold">{Math.round(titleProject.script?.quality ?? 60)}</div>
+                </div>
+                <div className="rounded border p-3">
+                  <div className="text-xs text-muted-foreground">Genre</div>
+                  <div className="font-semibold capitalize">{titleProject.script?.genre ?? '—'}</div>
+                </div>
+              </div>
+
+              <div className="flex flex-wrap gap-2">
+                {titleProject.streamingContract?.platformId === playerPlatformId && <Badge variant="secondary">Original</Badge>}
+                {playerPlatformId && getDirectPlatformId(titleProject) === playerPlatformId && isExclusiveTitle(titleProject) && (
+                  <Badge variant="outline">Exclusive</Badge>
+                )}
+                <Badge variant="outline" className="capitalize">{titleProject.type.replace('-', ' ')}</Badge>
+                <Badge variant="outline" className="capitalize">{titleProject.status}</Badge>
+              </div>
+
+              <div className="rounded border p-3 text-sm space-y-2">
+                <div className="flex justify-between">
+                  <span className="text-muted-foreground">On your platform</span>
+                  <span className="font-medium">
+                    {playerPlatformId &&
+                    isProjectOnPlatformAtTime(titleProject, playerPlatformId, gameState?.currentWeek ?? 0, gameState?.currentYear ?? 0)
+                      ? 'Yes'
+                      : 'No'}
+                  </span>
+                </div>
+                <div className="flex justify-between">
+                  <span className="text-muted-foreground">Critics</span>
+                  <span className="font-medium">{Math.round(titleProject.metrics?.criticsScore ?? 0)}/100</span>
+                </div>
+                <div className="flex justify-between">
+                  <span className="text-muted-foreground">Audience</span>
+                  <span className="font-medium">{Math.round(titleProject.metrics?.audienceScore ?? 0)}/100</span>
+                </div>
+              </div>
+
+              {(titleProject.postTheatricalReleases ?? []).length > 0 && (
+                <div className="rounded border p-3 text-sm">
+                  <div className="text-xs font-medium text-muted-foreground">Streaming windows</div>
+                  <div className="mt-2 space-y-1">
+                    {(titleProject.postTheatricalReleases ?? [])
+                      .filter((r) => r && r.platform === 'streaming')
+                      .slice(0, 6)
+                      .map((r) => (
+                        <div key={r.id} className="flex items-center justify-between gap-3">
+                          <div className="text-muted-foreground truncate">{(r as any).providerId || (r as any).platformId}</div>
+                          <div className="text-xs text-muted-foreground whitespace-nowrap">
+                            {(r as any).status}{typeof (r as any).durationWeeks === 'number' ? ` • ${Math.round((r as any).durationWeeks)}w` : ''}
+                          </div>
+                        </div>
+                      ))}
+                  </div>
+                </div>
+              )}
+            </div>
+          )}
+
+          <DialogFooter>
+            <Button variant="secondary" type="button" onClick={() => setTitleOpen(false)}>
+              Close
+            </Button>
+            {titleProject &&
+              playerPlatformId &&
+              player?.status === 'active' &&
+              getDirectPlatformId(titleProject) === playerPlatformId &&
+              isExclusiveTitle(titleProject) &&
+              rivals.some((r) => r.status !== 'collapsed') && (
+                <Button
+                  type="button"
+                  onClick={() => {
+                    openLicenseDialog(titleProject);
+                    setTitleOpen(false);
+                  }}
+                >
+                  License out
+                </Button>
+              )}
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
+
       <Dialog open={launchOpen} onOpenChange={setLaunchOpen}>
         <DialogContent>
           <DialogHeader>
@@ -1238,6 +1577,9 @@ export const StreamingWarsPlatformApp: React.FC = () => {
                 onChange={(e) => setOriginalEpisodeBudget(Math.max(250000, parseInt(e.target.value || '2500000', 10)))}
               />
               <p className="text-xs text-muted-foreground">Commissioning costs a one-time fee (to prevent spam) and increases platform burn while the show is in the pipeline.</p>
+              {player?.status === 'active' && (
+                <p className="text-xs text-muted-foreground">Current Originals quality bonus: +{Math.round(player.originalsQualityBonus ?? 0)}</p>
+              )}
             </div>
           </div>
 

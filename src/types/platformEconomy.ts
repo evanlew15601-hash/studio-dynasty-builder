@@ -66,6 +66,15 @@ export interface PlayerPlatformState {
   /** Internal: prevents spamming annual M&A offers. */
   lastMnaOfferYear?: number;
 
+  /** Internal: prevents spamming annual overall-deal / talent poaching events. */
+  lastTalentOfferYear?: number;
+
+  /** Internal: prevents spamming annual bidding war events. */
+  lastBiddingWarYear?: number;
+
+  /** Bonus to Originals script quality from landing showrunner / overall deals. */
+  originalsQualityBonus?: number;
+
   // Optional knobs for future economy simulation
   monthlyPrice?: number;
   contentSpendPerWeek?: number;

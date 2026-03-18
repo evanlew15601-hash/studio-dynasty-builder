@@ -108,6 +108,12 @@ function normalizePlayerPlatform(player: any | undefined): PlatformMarketState['
           ? (player as any).lastOfferYear
           : undefined,
     lastMnaOfferYear: typeof (player as any).lastMnaOfferYear === 'number' ? (player as any).lastMnaOfferYear : undefined,
+    lastTalentOfferYear:
+      typeof (player as any).lastTalentOfferYear === 'number' ? (player as any).lastTalentOfferYear : undefined,
+    lastBiddingWarYear:
+      typeof (player as any).lastBiddingWarYear === 'number' ? (player as any).lastBiddingWarYear : undefined,
+    originalsQualityBonus:
+      typeof (player as any).originalsQualityBonus === 'number' ? clamp((player as any).originalsQualityBonus, 0, 20) : 0,
   };
 }
 
