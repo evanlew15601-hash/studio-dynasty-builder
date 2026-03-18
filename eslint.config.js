@@ -9,6 +9,15 @@ const tsNoUnusedExpressions = [
   { allowShortCircuit: true, allowTernary: true, allowTaggedTemplates: true },
 ];
 
+const tsTestRules = {
+  "@typescript-eslint/no-unused-expressions": tsNoUnusedExpressions,
+  // Tests commonly use `any` for fixtures/mocks; keep the rule enabled in src/, but not in tests.
+  "@typescript-eslint/no-explicit-any": "off",
+  // Tests intentionally declare helpers/fixtures that are conditionally used.
+  "@typescript-eslint/no-unused-vars": "off",
+  "@typescript-eslint/no-empty-object-type": "off",
+};
+
 export default tseslint.config(
   {
     ignores: [
@@ -57,9 +66,7 @@ export default tseslint.config(
         ...globals.vitest,
       },
     },
-    rules: {
-      "@typescript-eslint/no-unused-expressions": tsNoUnusedExpressions,
-    },
+    rules: tsTestRules,
   },
   {
     extends: [js.configs.recommended, ...tseslint.configs.recommended],
@@ -68,9 +75,7 @@ export default tseslint.config(
       ecmaVersion: 2020,
       globals: globals.node,
     },
-    rules: {
-      "@typescript-eslint/no-unused-expressions": tsNoUnusedExpressions,
-    },
+    rules: tsTestRules,
   },
   {
     extends: [js.configs.recommended, ...tseslint.configs.recommended],
