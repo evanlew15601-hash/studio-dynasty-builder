@@ -20,7 +20,20 @@ import { MediaFinancialIntegration } from './MediaFinancialIntegration';
 
 interface PostTheatricalManagementProps {}
 
-const POST_THEATRICAL_OPTIONS = [
+type PostTheatricalOption = {
+  platform: PostTheatricalRelease['platform'];
+  name: string;
+  description: string;
+  icon: React.ComponentType<any>;
+  minimumWeeksAfterTheatrical: number;
+  baseCost: number;
+  revenueModel: string;
+  duration: number;
+  revenuePotential: string;
+  isOwnedPlatform?: boolean;
+};
+
+const POST_THEATRICAL_OPTIONS: PostTheatricalOption[] = [
   {
     platform: 'streaming',
     name: 'Streaming Release',
@@ -202,7 +215,7 @@ export const PostTheatricalManagement: React.FC<PostTheatricalManagementProps> =
     return Math.floor(performanceBase * finalMultiplier);
   };
 
-  const canReleaseOnPlatform = (project: Project, option: any): { canRelease: boolean; reason: string } => {
+  const canReleaseOnPlatform = (project: Project, option: PostTheatricalOption): { canRelease: boolean; reason: string } => {
     const playerPlatform =
       gameState.dlc?.streamingWars === true && gameState.platformMarket?.player?.status === 'active'
         ? gameState.platformMarket.player
@@ -249,7 +262,7 @@ export const PostTheatricalManagement: React.FC<PostTheatricalManagementProps> =
     return { canRelease: true, reason: '' };
   };
 
-  const launchPostTheatricalRelease = (project: Project, option: any) => {
+  const launchPostTheatricalRelease = (project: Project, option: PostTheatricalOption) => {
     const { canRelease, reason } = canReleaseOnPlatform(project, option);
 
     if (!canRelease) {
@@ -392,7 +405,7 @@ export const PostTheatricalManagement: React.FC<PostTheatricalManagementProps> =
                     ? gameState.platformMarket.player
                     : null;
 
-                const ownedOption = ownedPlatform
+                const ownedOption: PostTheatricalOption | null = ownedPlatform
                   ? {
                       platform: 'streaming',
                       name: `Arrive on ${ownedPlatform.name}`,

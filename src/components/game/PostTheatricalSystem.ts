@@ -68,7 +68,7 @@ export class PostTheatricalSystem {
         const weeksActive = 1;
         const revenue = (release.revenue || 0) + earnedThisWeek;
 
-        const ended = weeksActive >= durationWeeks;
+        const ended = weeksActive > durationWeeks;
         const nextStatus: PostTheatricalRelease['status'] = ended
           ? 'ended'
           : weeksActive >= durationWeeks * 0.8
@@ -93,7 +93,7 @@ export class PostTheatricalSystem {
         const newWeeksActive = (release.weeksActive || 0) + 1;
         const newRevenue = (release.revenue || 0) + earnedThisWeek;
 
-        const ended = newWeeksActive >= durationWeeks;
+        const ended = newWeeksActive > durationWeeks;
         const nextStatus: PostTheatricalRelease['status'] = ended
           ? 'ended'
           : newWeeksActive >= durationWeeks * 0.8
