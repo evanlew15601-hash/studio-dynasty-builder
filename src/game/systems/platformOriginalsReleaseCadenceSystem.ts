@@ -196,7 +196,7 @@ export const PlatformOriginalsReleaseCadenceSystem: TickSystem = {
       const finaleAbs = releaseAbs + (dropsTotal - 1);
       const finaleDate = nextAired >= season.totalEpisodes ? (season.finaleDate ?? fromAbs(finaleAbs)) : season.finaleDate;
 
-      const productionStatus = nextAired >= season.totalEpisodes ? 'complete' : season.productionStatus;
+      const productionStatus = 'complete';
 
       if (nextAired >= season.totalEpisodes && !season.finaleDate) {
         ctx.recap.push({

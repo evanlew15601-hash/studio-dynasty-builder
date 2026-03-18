@@ -318,7 +318,7 @@ function stepPlayerFreshnessCatalog(params: {
 export const PlatformCatalogSystem: TickSystem = {
   id: 'platformCatalog',
   label: 'Platform catalog (Streaming Wars)',
-  dependsOn: ['platformMarketBootstrap'],
+  dependsOn: ['platformMarketBootstrap', 'platformOriginalsReleaseCadence'],
   onTick: (state, ctx) => {
     if (state.dlc?.streamingWars !== true) return state;
 

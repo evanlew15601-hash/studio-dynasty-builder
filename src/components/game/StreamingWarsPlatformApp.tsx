@@ -1180,12 +1180,21 @@ export const StreamingWarsPlatformApp: React.FC = () => {
                       const rushWeeks = 2;
                       const rushCost = typeof weeklySpend === 'number' && weeklySpend > 0 ? Math.floor(weeklySpend * rushWeeks * 1.25) : null;
 
+                      const remainingForRush =
+                        phase !== null
+                          ? typeof p.phaseDuration === 'number' && p.phaseDuration > 0
+                            ? Math.floor(p.phaseDuration)
+                            : ORIGINAL_PHASE_WEEKS[phase]
+                          : 0;
+
                       const canRush =
                         player?.status === 'active' &&
                         phase !== null &&
+                        remainingForRush > 1 &&
                         p.status !== 'released' &&
                         typeof rushCost === 'number' &&
-                        rushCost > 0;
+                        rushCost > 0 &&
+                        (player.cash ?? 0) >= rushCost;
 
                       return (
                         <div key={p.id} className="flex items-center justify-between rounded-md border p-3 gap-3">
@@ -1222,7 +1231,7 @@ export const StreamingWarsPlatformApp: React.FC = () => {
 
                                       const base = ORIGINAL_PHASE_WEEKS[projPhase];
                                       const remaining = typeof proj.phaseDuration === 'number' && proj.phaseDuration > 0 ? Math.floor(proj.phaseDuration) : base;
-                                      const nextRemaining = Math.max(0, remaining - rushWeeks);
+                                      const nextRemaining = Math.max(1, remaining - rushWeeks);
 
                                       return {
                                         ...proj,

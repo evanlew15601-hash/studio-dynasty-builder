@@ -12,6 +12,19 @@ function clampInt(n: number, min: number, max: number): number {
 
 type OriginalPhase = 'development' | 'production' | 'post-production';
 
+type SeasonProductionStatus = 'planning' | 'filming' | 'post-production' | 'complete';
+
+function seasonStatusForPhase(phase: OriginalPhase): SeasonProductionStatus {
+  switch (phase) {
+    case 'development':
+      return 'planning';
+    case 'production':
+      return 'filming';
+    case 'post-production':
+      return 'post-production';
+  }
+}
+
 function defaultPhaseWeeks(phase: OriginalPhase): number {
   switch (phase) {
     case 'development':
@@ -83,11 +96,24 @@ export const PlatformOriginalsPipelineSystem: TickSystem = {
 
       if (nextRemaining > 0) {
         if (nextRemaining !== prevRemaining) changed = true;
+
+        const seasons = Array.isArray((p as any).seasons) ? ((p as any).seasons as any[]) : null;
+        const nextSeasons = seasons && seasons.length > 0
+          ? [
+              {
+                ...seasons[0],
+                productionStatus: seasonStatusForPhase(phase),
+              },
+              ...seasons.slice(1),
+            ]
+          : seasons;
+
         return {
           ...p,
           currentPhase: phase,
           status: phase,
           phaseDuration: nextRemaining,
+          ...(nextSeasons ? { seasons: nextSeasons as any } : {}),
         };
       }
 
@@ -95,11 +121,24 @@ export const PlatformOriginalsPipelineSystem: TickSystem = {
 
       if (phaseAfter) {
         changed = true;
+
+        const seasons = Array.isArray((p as any).seasons) ? ((p as any).seasons as any[]) : null;
+        const nextSeasons = seasons && seasons.length > 0
+          ? [
+              {
+                ...seasons[0],
+                productionStatus: seasonStatusForPhase(phaseAfter),
+              },
+              ...seasons.slice(1),
+            ]
+          : seasons;
+
         return {
           ...p,
           currentPhase: phaseAfter,
           status: phaseAfter,
           phaseDuration: defaultPhaseWeeks(phaseAfter),
+          ...(nextSeasons ? { seasons: nextSeasons as any } : {}),
         };
       }
 
@@ -119,6 +158,18 @@ export const PlatformOriginalsPipelineSystem: TickSystem = {
         },
       });
 
+      const seasons = Array.isArray((p as any).seasons) ? ((p as any).seasons as any[]) : null;
+      const nextSeasons = seasons && seasons.length > 0
+        ? [
+            {
+              ...seasons[0],
+              productionStatus: 'complete',
+              premiereDate: seasons[0]?.premiereDate ?? { week: ctx.week, year: ctx.year },
+            },
+            ...seasons.slice(1),
+          ]
+        : seasons;
+
       return {
         ...p,
         status: 'released',
@@ -126,6 +177,7 @@ export const PlatformOriginalsPipelineSystem: TickSystem = {
         phaseDuration: 0,
         releaseWeek: ctx.week,
         releaseYear: ctx.year,
+        ...(nextSeasons ? { seasons: nextSeasons as any } : {}),
         metrics: {
           ...(p.metrics ?? {}),
           criticsScore,
