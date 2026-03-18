@@ -4,10 +4,29 @@ import reactHooks from "eslint-plugin-react-hooks";
 import reactRefresh from "eslint-plugin-react-refresh";
 import tseslint from "typescript-eslint";
 
+const tsNoUnusedExpressions = [
+  "error",
+  { allowShortCircuit: true, allowTernary: true, allowTaggedTemplates: true },
+];
+
+const tsTestRules = {
+  "@typescript-eslint/no-unused-expressions": tsNoUnusedExpressions,
+  // Tests commonly use `any` for fixtures/mocks; keep the rule enabled in src/, but not in tests.
+  "@typescript-eslint/no-explicit-any": "off",
+  // Tests intentionally declare helpers/fixtures that are conditionally used.
+  "@typescript-eslint/no-unused-vars": "off",
+  "@typescript-eslint/no-empty-object-type": "off",
+};
+
 export default tseslint.config(
   {
     ignores: [
       "dist",
+      "coverage",
+      "playwright-report",
+      "test-results",
+      "sbom",
+      "src-tauri/target",
       "**/*.timestamp-*",
       "**/*.timestamp-*.mjs",
     ],
@@ -23,7 +42,44 @@ export default tseslint.config(
   },
   {
     extends: [js.configs.recommended, ...tseslint.configs.recommended],
-    files: ["**/*.{ts,tsx}"],
+    files: [
+      "vite.config.ts",
+      "vitest.config.ts",
+      "playwright.config.ts",
+      "types/**/*.d.ts",
+    ],
+    languageOptions: {
+      ecmaVersion: 2020,
+      globals: globals.node,
+    },
+    rules: {
+      "@typescript-eslint/no-unused-expressions": tsNoUnusedExpressions,
+    },
+  },
+  {
+    extends: [js.configs.recommended, ...tseslint.configs.recommended],
+    files: ["tests/**/*.{ts,tsx}"],
+    languageOptions: {
+      ecmaVersion: 2020,
+      globals: {
+        ...globals.node,
+        ...globals.vitest,
+      },
+    },
+    rules: tsTestRules,
+  },
+  {
+    extends: [js.configs.recommended, ...tseslint.configs.recommended],
+    files: ["e2e/**/*.{ts,tsx}"],
+    languageOptions: {
+      ecmaVersion: 2020,
+      globals: globals.node,
+    },
+    rules: tsTestRules,
+  },
+  {
+    extends: [js.configs.recommended, ...tseslint.configs.recommended],
+    files: ["src/**/*.{ts,tsx}"],
     languageOptions: {
       ecmaVersion: 2020,
       globals: globals.browser,
@@ -41,10 +97,7 @@ export default tseslint.config(
       "@typescript-eslint/no-unused-vars": "off",
       "@typescript-eslint/no-explicit-any": "off",
       "@typescript-eslint/no-empty-object-type": "off",
-      "@typescript-eslint/no-unused-expressions": [
-        "error",
-        { allowShortCircuit: true, allowTernary: true, allowTaggedTemplates: true },
-      ],
+      "@typescript-eslint/no-unused-expressions": tsNoUnusedExpressions,
     },
   }
 );

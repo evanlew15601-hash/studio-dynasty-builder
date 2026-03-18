@@ -146,6 +146,59 @@ import { StudioIconRenderer as StudioIconRendererLazy } from './StudioIconCustom
 import { SaveLoadDialog } from './SaveLoadDialog';
 import { GameSettingsDialog } from './GameSettingsDialog';
 
+const TalentMarketplaceLazy = React.lazy(async () => {
+  const m = await import('./TalentMarketplace');
+  return { default: m.TalentMarketplace };
+});
+
+const TalentAgencySystemLazy = React.lazy(async () => {
+  const m = await import('./TalentAgencySystem');
+  return { default: m.TalentAgencySystem };
+});
+
+const TalentBurnoutSystemLazy = React.lazy(async () => {
+  const m = await import('./TalentBurnoutSystem');
+  return { default: m.TalentBurnoutSystem };
+});
+
+const TalentChemistrySystemLazy = React.lazy(async () => {
+  const m = await import('./TalentChemistrySystem');
+  return { default: m.TalentChemistrySystem };
+});
+
+const TopActorsPanelLazy = React.lazy(async () => {
+  const m = await import('./TopActorsPanel');
+  return { default: m.TopActorsPanel };
+});
+
+const AdvancedTalentTestSuiteLazy = React.lazy(async () => {
+  const m = await import('./AdvancedTalentTestSuite');
+  return { default: m.AdvancedTalentTestSuite };
+});
+
+const MediaResponseDashboardFallback = () => (
+  <div className="text-center py-8 text-muted-foreground">Media Response Dashboard loading...</div>
+);
+
+const MediaDashboardLazy = React.lazy(async () => {
+  try {
+    const m = await import('./MediaDashboard');
+    return { default: m.MediaDashboard };
+  } catch {
+    const m = await import('./MediaNotifications');
+    return { default: m.MediaNotifications as any };
+  }
+});
+
+const MediaResponseDashboardLazy = React.lazy(async () => {
+  try {
+    const m = await import('./MediaResponseDashboard');
+    return { default: m.MediaResponseDashboard };
+  } catch {
+    return { default: MediaResponseDashboardFallback };
+  }
+});
+
 // Ensure AI films have credited talent so awards/filmographies have real people to reference
 function attachBasicCastForAI(project: Project, talentPool: TalentPerson[]): Project {
   try {
@@ -1005,6 +1058,11 @@ export const StudioMagnateGame: React.FC<StudioMagnateGameProps> = ({
   const setPhase = useUiStore((s) => s.setPhase);
   const selectedProjectId = useUiStore((s) => s.selectedProjectId);
   const setSelectedProjectId = useUiStore((s) => s.setSelectedProjectId);
+
+  const talentAgents = useMemo(() => {
+    if (currentPhase !== 'talent') return [];
+    return gameState.talent.filter(t => t.agent).map(t => t.agent!);
+  }, [currentPhase, gameState.talent]);
 
   const phaseInitRef = useRef(false);
   const initialPhaseNormalizedRaw = (((initialPhase === 'financials' ? 'finance' : initialPhase) as any) || 'dashboard') as string;
@@ -2244,37 +2302,72 @@ export const StudioMagnateGame: React.FC<StudioMagnateGameProps> = ({
     const loadingEnabled = !options?.suppressLoading;
     const recapEnabled = !options?.suppressRecap;
 
+    if (weeklyProcessingRef.current) return Promise.resolve();
+    weeklyProcessingRef.current = true;
+
     if (loadingEnabled) {
-      if (weeklyProcessingRef.current) return;
-      weeklyProcessingRef.current = true;
       // Start weekly processing with loading
       startOperation(LOADING_OPERATIONS.WEEKLY_PROCESSING.id, LOADING_OPERATIONS.WEEKLY_PROCESSING.name, LOADING_OPERATIONS.WEEKLY_PROCESSING.estimatedTime);
       updateOperation(LOADING_OPERATIONS.WEEKLY_PROCESSING.id, 5, 'Advancing time...');
     }
 
-    const runTick = () => {
-      setGameState((prev) => {
-      const tickStart = performance.now();
-      const startedAtIso = new Date().toISOString();
+    const tickYieldBudgetMs = 10;
+    const yieldToBrowser = () =>
+      new Promise<void>((resolve) => {
+        if (typeof requestAnimationFrame === 'function') {
+          requestAnimationFrame(() => resolve());
+          return;
+        }
+        setTimeout(() => resolve(), 0);
+      });
 
-      const systems: TickSystemReport[] = [];
-      const recap: TickRecapCard[] = [];
+    const runTick = async () => {
+      try {
+        const prev = useGameStore.getState().game;
+        if (!prev) {
+          if (loadingEnabled) {
+            completeOperation(LOADING_OPERATIONS.WEEKLY_PROCESSING.id);
+          }
+          weeklyProcessingRef.current = false;
+          return;
+        }
 
-      const measure = <T,>(id: string, label: string, fn: () => T): T => {
-        const start = performance.now();
-        const result = fn();
-        systems.push({ id, label, ms: performance.now() - start });
-        return result;
-      };
+        const yieldIfNeeded = (() => {
+          let sliceStart = performance.now();
+          return async () => {
+            if (performance.now() - sliceStart < tickYieldBudgetMs) return;
+            await yieldToBrowser();
+            sliceStart = performance.now();
+          };
+        })();
 
-      const engineRng = createRng(prev.rngState ?? prev.universeSeed ?? 0);
-      const engineSystems = gameRegistry.getOrdered();
+        const tickStart = performance.now();
+        const startedAtIso = new Date().toISOString();
 
-      const engineTick = measure('engineTick', 'Engine tick (time + systems)', () =>
-        engineAdvanceWeek(prev, engineRng, engineSystems, { debug: diagnosticsEnabled })
-      );
+        const systems: TickSystemReport[] = [];
+        const recap: TickRecapCard[] = [];
 
-      const baseAfterEngine = engineTick.nextState;
+        const measure = <T,>(id: string, label: string, fn: () => T): T => {
+          const start = performance.now();
+          const result = fn();
+          systems.push({ id, label, ms: performance.now() - start });
+          return result;
+        };
+
+        const engineRng = createRng(prev.rngState ?? prev.universeSeed ?? 0);
+        const engineSystems = gameRegistry.getOrdered();
+
+        if (loadingEnabled) {
+          updateOperation(LOADING_OPERATIONS.WEEKLY_PROCESSING.id, 10, 'Running core simulation...');
+        }
+
+        const engineTick = measure('engineTick', 'Engine tick (time + systems)', () =>
+          engineAdvanceWeek(prev, engineRng, engineSystems, { debug: diagnosticsEnabled })
+        );
+
+        const baseAfterEngine = engineTick.nextState;
+
+        await yieldIfNeeded();
 
       const newTimeState = {
         currentWeek: baseAfterEngine.currentWeek,
@@ -2345,6 +2438,8 @@ export const StudioMagnateGame: React.FC<StudioMagnateGameProps> = ({
       );
       updatedProjects = financialAccuracy.projects;
 
+      await yieldIfNeeded();
+
       
 
       if (weeklyProjectEffects.releasedProjects.length > 0) {
@@ -2414,6 +2509,10 @@ export const StudioMagnateGame: React.FC<StudioMagnateGameProps> = ({
             if (fallback) {
               generator.generateStudioRelease(fallback, w, slateYear);
             }
+          }
+
+          if (w % 4 === 0) {
+            await yieldIfNeeded();
           }
         }
 
@@ -2506,6 +2605,8 @@ export const StudioMagnateGame: React.FC<StudioMagnateGameProps> = ({
               }
             }
           }
+
+          await yieldIfNeeded();
         }
 
         // Queue a single media story for one competitor release happening this week.
@@ -2554,6 +2655,8 @@ export const StudioMagnateGame: React.FC<StudioMagnateGameProps> = ({
           competitorStudiosForWeek
         );
       });
+
+      await yieldIfNeeded();
       
       if (diagnosticsEnabled) {
         console.log(`Weekly reputation update: ${prev.studio.reputation} -> ${weeklyResults.studio.reputation}`);
@@ -2628,6 +2731,7 @@ export const StudioMagnateGame: React.FC<StudioMagnateGameProps> = ({
         let filmographyState: GameState = { ...baseAfterEngine, talent: updatedTalent };
         for (const released of releasedForFilmography) {
           filmographyState = TalentFilmographyManager.updateFilmographyOnRelease(filmographyState, released);
+          await yieldIfNeeded();
         }
         updatedTalent = filmographyState.talent as typeof updatedTalent;
 
@@ -2679,6 +2783,8 @@ export const StudioMagnateGame: React.FC<StudioMagnateGameProps> = ({
       const releasePool = [...baseAfterEngine.allReleases, ...newAIReleases, ...playerReleases];
 
       const dedupedReleases = dedupeReleasePoolPreferLatest(releasePool as any);
+
+      await yieldIfNeeded();
 
       const prunedReleases = dedupedReleases.filter((release) => {
         if (!('releaseWeek' in release) || !('releaseYear' in release)) return true;
@@ -2817,6 +2923,9 @@ export const StudioMagnateGame: React.FC<StudioMagnateGameProps> = ({
         }
       }
 
+      // Commit state atomically once all work is complete.
+      setGameState(() => newState);
+
       if (!options?.suppressToast) {
         toast({
           title: "New Week",
@@ -2827,24 +2936,42 @@ export const StudioMagnateGame: React.FC<StudioMagnateGameProps> = ({
       // Complete the loading operation
       if (loadingEnabled) {
         updateOperation(LOADING_OPERATIONS.WEEKLY_PROCESSING.id, 100, 'Finalizing...');
-        requestAnimationFrame(() => {
+        await yieldToBrowser();
+        completeOperation(LOADING_OPERATIONS.WEEKLY_PROCESSING.id);
+      }
+      weeklyProcessingRef.current = false;
+      } catch (e) {
+        console.error('Advance week failed', e);
+
+        if (loadingEnabled) {
           completeOperation(LOADING_OPERATIONS.WEEKLY_PROCESSING.id);
-          weeklyProcessingRef.current = false;
+        }
+        weeklyProcessingRef.current = false;
+
+        toast({
+          title: 'Advance Week Failed',
+          description: 'The simulation hit an unexpected error while processing the week.',
+          variant: 'destructive',
         });
       }
-
-      return newState;
-    });
     };
 
     // Defer the heavy tick work by one frame when showing the loading UI.
     // This allows the popup to render before the main-thread work begins.
-    if (loadingEnabled) {
-      requestAnimationFrame(runTick);
-    } else {
-      runTick();
-    }
+    return new Promise<void>((resolve) => {
+      const start = () => {
+        void runTick().finally(resolve);
+      };
+
+      if (loadingEnabled) {
+        requestAnimationFrame(start);
+      } else {
+        start();
+      }
+    });
   };
+
+  const batchAdvanceWeeksRef = useRef(false);
 
   const onlineSyncBusyRef = useRef(false);
   const initialOnlineSyncRef = useRef(false);
@@ -3067,7 +3194,7 @@ export const StudioMagnateGame: React.FC<StudioMagnateGameProps> = ({
           pendingOnlineTurnPublishRef.current = { leagueId, turn };
         }
 
-        advanceWeekCore({ suppressDiagnostics: true });
+        await advanceWeekCore({ suppressDiagnostics: true });
       })();
     },
   });
@@ -3344,7 +3471,7 @@ export const StudioMagnateGame: React.FC<StudioMagnateGameProps> = ({
 
   const handleAdvanceWeek = async (options?: { suppressToast?: boolean; suppressLoading?: boolean; suppressDiagnostics?: boolean; suppressRecap?: boolean }) => {
     if (!onlineLeagueCode?.trim()) {
-      advanceWeekCore(options);
+      await advanceWeekCore(options);
       return;
     }
 
@@ -3438,8 +3565,9 @@ export const StudioMagnateGame: React.FC<StudioMagnateGameProps> = ({
     const targetYear = Math.floor(targetAbs / 52);
     const targetWeek = (targetAbs % 52) + 1;
 
-    if (weeklyProcessingRef.current) return;
-    weeklyProcessingRef.current = true;
+    if (batchAdvanceWeeksRef.current || weeklyProcessingRef.current) return;
+    batchAdvanceWeeksRef.current = true;
+
     startOperation(
       LOADING_OPERATIONS.WEEKLY_PROCESSING.id,
       `Advancing ${totalWeeks} weeks`,
@@ -3452,12 +3580,12 @@ export const StudioMagnateGame: React.FC<StudioMagnateGameProps> = ({
     let remaining = totalWeeks;
     let isProcessing = false;
 
-    const step = () => {
+    const step = async () => {
       if (remaining <= 0 || isProcessing) return;
 
       isProcessing = true;
 
-      advanceWeekCore({ suppressToast: true, suppressLoading: true, suppressDiagnostics: true, suppressRecap: true });
+      await advanceWeekCore({ suppressToast: true, suppressLoading: true, suppressDiagnostics: true, suppressRecap: true });
       remaining -= 1;
 
       const completed = totalWeeks - remaining;
@@ -3467,19 +3595,21 @@ export const StudioMagnateGame: React.FC<StudioMagnateGameProps> = ({
         `Advancing time... (${completed}/${totalWeeks})`
       );
 
+      isProcessing = false;
+
       // Use requestAnimationFrame to yield to the browser between weeks
       // This prevents UI freezing and allows garbage collection
       if (remaining > 0) {
         requestAnimationFrame(() => {
-          isProcessing = false;
           // Add small delay to let React state settle
-          setTimeout(step, 25);
+          setTimeout(() => {
+            void step();
+          }, 25);
         });
       } else {
-        isProcessing = false;
         requestAnimationFrame(() => {
           completeOperation(LOADING_OPERATIONS.WEEKLY_PROCESSING.id);
-          weeklyProcessingRef.current = false;
+          batchAdvanceWeeksRef.current = false;
         });
         toast({
           title: 'Time Advanced',
@@ -3488,7 +3618,9 @@ export const StudioMagnateGame: React.FC<StudioMagnateGameProps> = ({
       }
     };
 
-    requestAnimationFrame(step);
+    requestAnimationFrame(() => {
+      void step();
+    });
   };
 
   const handleAdvanceToDate = (targetWeek: number, targetYear: number) => {
@@ -4258,63 +4390,60 @@ export const StudioMagnateGame: React.FC<StudioMagnateGameProps> = ({
               
               <TabsContent value="marketplace">
                 <Suspense fallback={<div>Loading talent marketplace...</div>}>
-                  {React.createElement(React.lazy(() => import('./TalentMarketplace').then(m => ({ default: m.TalentMarketplace }))), {
-                    talent: gameState.talent,
-                    currentWeek: gameState.currentWeek,
-                    currentYear: gameState.currentYear,
-                    onCastTalent: (talentId: string) => console.log('Cast talent:', talentId)
-                  })}
+                  <TalentMarketplaceLazy
+                    talent={gameState.talent}
+                    currentWeek={gameState.currentWeek}
+                    currentYear={gameState.currentYear}
+                    onCastTalent={(talentId: string) => console.log('Cast talent:', talentId)}
+                  />
                 </Suspense>
               </TabsContent>
               
               <TabsContent value="agencies">
                 <Suspense fallback={<div>Loading agency system...</div>}>
-                  {React.createElement(React.lazy(() => import('./TalentAgencySystem').then(m => ({ default: m.TalentAgencySystem }))), {
-                    agents: gameState.talent.filter(t => t.agent).map(t => t.agent!),
-                    talent: gameState.talent,
-                    studioId: gameState.studio.id,
-                    currentWeek: gameState.currentWeek,
-                    currentYear: gameState.currentYear,
-                    onNegotiateDeal: (agentId: string, talentId: string, terms: any) => console.log('Negotiating deal:', { agentId, talentId, terms }),
-                    onCreateHold: (hold: any) => console.log('Creating hold:', hold)
-                  })}
+                  <TalentAgencySystemLazy
+                    agents={talentAgents}
+                    talent={gameState.talent}
+                    studioId={gameState.studio.id}
+                    currentWeek={gameState.currentWeek}
+                    currentYear={gameState.currentYear}
+                    onNegotiateDeal={(agentId: string, talentId: string, terms: any) => console.log('Negotiating deal:', { agentId, talentId, terms })}
+                    onCreateHold={(hold: any) => console.log('Creating hold:', hold)}
+                  />
                 </Suspense>
               </TabsContent>
               
               <TabsContent value="wellness">
                 <Suspense fallback={<div>Loading wellness monitor...</div>}>
-                  {React.createElement(React.lazy(() => import('./TalentBurnoutSystem').then(m => ({ default: m.TalentBurnoutSystem }))), {
-                    talent: gameState.talent,
-                    currentWeek: gameState.currentWeek,
-                    currentYear: gameState.currentYear
-                  })}
+                  <TalentBurnoutSystemLazy
+                    talent={gameState.talent}
+                    currentWeek={gameState.currentWeek}
+                    currentYear={gameState.currentYear}
+                  />
                 </Suspense>
               </TabsContent>
               
               <TabsContent value="chemistry">
                 <Suspense fallback={<div>Loading chemistry system...</div>}>
-                  {React.createElement(React.lazy(() => import('./TalentChemistrySystem').then(m => ({ default: m.TalentChemistrySystem }))), {
-                    talent: gameState.talent,
-                    chemistryEvents: [],
-                    currentWeek: gameState.currentWeek,
-                    currentYear: gameState.currentYear
-                  })}
+                  <TalentChemistrySystemLazy
+                    talent={gameState.talent}
+                    chemistryEvents={[]}
+                    currentWeek={gameState.currentWeek}
+                    currentYear={gameState.currentYear}
+                  />
                 </Suspense>
               </TabsContent>
 
               <TabsContent value="top-actors">
                 <Suspense fallback={<div>Loading top actors...</div>}>
-                  {React.createElement(React.lazy(() => import('./TopActorsPanel').then(m => ({ default: m.TopActorsPanel }))), {})}
+                  <TopActorsPanelLazy />
                 </Suspense>
               </TabsContent>
               
               {import.meta.env.DEV && (
                 <TabsContent value="test">
                   <Suspense fallback={<div>Loading test suite...</div>}>
-                    {React.createElement(
-                      React.lazy(() => import('./AdvancedTalentTestSuite').then(m => ({ default: m.AdvancedTalentTestSuite }))),
-                      {}
-                    )}
+                    <AdvancedTalentTestSuiteLazy />
                   </Suspense>
                 </TabsContent>
               )}
@@ -4395,17 +4524,11 @@ export const StudioMagnateGame: React.FC<StudioMagnateGameProps> = ({
               </TabsList>
               
               <TabsContent value="feed">
-                {React.createElement(React.lazy(() => 
-                  import('./MediaDashboard').then(m => ({ default: m.MediaDashboard }))
-                  .catch(() => import('./MediaNotifications').then(m => ({ default: m.MediaNotifications as any })))
-                ), {})}
+                <MediaDashboardLazy />
               </TabsContent>
               
               <TabsContent value="responses">
-                {React.createElement(React.lazy(() => 
-                  import('./MediaResponseDashboard').then(m => ({ default: m.MediaResponseDashboard }))
-                  .catch(() => ({ default: () => <div className="text-center py-8 text-muted-foreground">Media Response Dashboard loading...</div> }))
-                ), {})}
+                <MediaResponseDashboardLazy />
               </TabsContent>
               
               <TabsContent value="analytics">
