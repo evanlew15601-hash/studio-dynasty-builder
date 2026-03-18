@@ -248,7 +248,7 @@ export const PlatformOriginalsReleaseCadenceSystem: TickSystem = {
 
       const candidates: SeasonCandidate[] = seasonsIn
         .map((season, seasonIndex) => {
-          const premiereAbs = seasonPremiereAbs({ season, seasonIndex, releaseAbs });
+          const premiereAbs = seasonPremiereAbs({ project: p, season, seasonIndex, releaseAbs, currentAbs });
           if (premiereAbs == null) return null;
           if (premiereAbs > currentAbs) return null;
 
