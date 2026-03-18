@@ -724,11 +724,59 @@ export const useGameStore: import('zustand').UseBoundStore<import('zustand').Sto
                 player.promotionBudgetPerWeek = (player.promotionBudgetPerWeek ?? 0) + 5_000_000;
                 player.freshness = clamp((player.freshness ?? 50) + 4, 0, 100);
                 player.subscribers = Math.max(0, (player.subscribers ?? 0) - Math.floor(suggestedLoss * 0.35));
+
+                const headline = `${player.name} launches an emergency retention campaign amid churn spike`;
+
+                MediaEngine.injectDeterministicMediaItem({
+                  id: `media:${event.id}:${selectedChoice.id}`,
+                  type: 'news',
+                  headline,
+                  content: headline,
+                  week: s.game.currentWeek,
+                  year: s.game.currentYear,
+                  sentiment: 'neutral',
+                  targets: { studios: [s.game.studio.id] },
+                  tags: ['streaming', 'crisis'],
+                  relatedEvents: [event.id],
+                  sourceType: 'trade_publication',
+                });
               } else if (selectedChoice.id === 'cut-price') {
                 player.priceIndex = clamp((player.priceIndex ?? 1) - 0.1, 0.7, 1.5);
                 player.subscribers = Math.max(0, (player.subscribers ?? 0) - Math.floor(suggestedLoss * 0.6));
+
+                const headline = `${player.name} cuts price to stem subscriber losses during churn spike`;
+
+                MediaEngine.injectDeterministicMediaItem({
+                  id: `media:${event.id}:${selectedChoice.id}`,
+                  type: 'news',
+                  headline,
+                  content: headline,
+                  week: s.game.currentWeek,
+                  year: s.game.currentYear,
+                  sentiment: 'neutral',
+                  targets: { studios: [s.game.studio.id] },
+                  tags: ['streaming', 'strategy'],
+                  relatedEvents: [event.id],
+                  sourceType: 'trade_publication',
+                });
               } else {
                 player.subscribers = Math.max(0, (player.subscribers ?? 0) - suggestedLoss);
+
+                const headline = `${player.name} faces backlash as churn spikes and leadership holds course`;
+
+                MediaEngine.injectDeterministicMediaItem({
+                  id: `media:${event.id}:${selectedChoice.id}`,
+                  type: 'news',
+                  headline,
+                  content: headline,
+                  week: s.game.currentWeek,
+                  year: s.game.currentYear,
+                  sentiment: 'negative',
+                  targets: { studios: [s.game.studio.id] },
+                  tags: ['streaming', 'crisis'],
+                  relatedEvents: [event.id],
+                  sourceType: 'trade_publication',
+                });
               }
             }
           }

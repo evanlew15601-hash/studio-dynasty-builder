@@ -45,6 +45,13 @@ export const PlatformMnaOffersSystem: TickSystem = {
     const basePrice = Math.floor((target.subscribers ?? 0) * 14 + (target.catalogValue ?? 50) * 1_100_000);
     const salePrice = Math.max(60_000_000, Math.floor(basePrice * ctx.rng.nextFloat(0.55, 0.8)));
 
+    ctx.recap.push({
+      type: 'market',
+      title: 'M&A opportunity',
+      body: `${target.name} is distressed. You can buy at a discount — or pass and stay independent.`,
+      severity: 'info',
+    });
+
     const event: GameEvent = {
       id: `platform:mna-offer:${ctx.year}:W${ctx.week}:${player.id}:${target.id}`,
       title: 'M&A offer: distressed platform buyout',

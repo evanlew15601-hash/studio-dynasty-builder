@@ -29,6 +29,13 @@ export const PlatformCrisisSystem: TickSystem = {
     if (isChurnSpike) {
       const subsLost = Math.max(0, -kpis.netAdds);
 
+      ctx.recap.push({
+        type: 'market',
+        title: 'Churn spike',
+        body: `${player.name} is seeing a churn spike. Choose a response to stabilize retention and avoid a death spiral.`,
+        severity: 'warning',
+      });
+
       const event: GameEvent = {
         id: `platform:churn-spike:${ctx.year}:W${ctx.week}:${player.id}`,
         title: 'Churn spike: subscriber backlash',
@@ -102,6 +109,13 @@ export const PlatformCrisisSystem: TickSystem = {
     if (!isOutageWeek || !isOutageRisk) return state;
 
     const suggestedLoss = Math.max(0, Math.floor(subs * ctx.rng.nextFloat(0.003, 0.012)));
+
+    ctx.recap.push({
+      type: 'market',
+      title: 'Service outage',
+      body: `${player.name} suffered a major outage. Your response will affect churn and press coverage.`,
+      severity: 'warning',
+    });
 
     const outageEvent: GameEvent = {
       id: `platform:outage:${ctx.year}:W${ctx.week}:${player.id}`,

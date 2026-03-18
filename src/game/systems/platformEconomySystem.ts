@@ -263,6 +263,7 @@ export const PlatformEconomySystem: TickSystem = {
 
       const promotionBudgetPerWeek = typeof playerIn.promotionBudgetPerWeek === 'number' ? playerIn.promotionBudgetPerWeek : 0;
       const priceIndex = typeof playerIn.priceIndex === 'number' ? playerIn.priceIndex : 1;
+      const monthlyPrice = Math.round(12.99 * clamp(priceIndex, 0.6, 1.7) * 100) / 100;
 
       const moat = platformMoatFactor({
         projects: (state.projects ?? []) as Project[],
@@ -305,6 +306,7 @@ export const PlatformEconomySystem: TickSystem = {
         ...playerIn,
         subscribers: step.nextSubs,
         cash: step.nextCash,
+        monthlyPrice,
         contentSpendPerWeek,
         distressWeeks: typeof playerIn.distressWeeks === 'number' ? playerIn.distressWeeks : 0,
       };

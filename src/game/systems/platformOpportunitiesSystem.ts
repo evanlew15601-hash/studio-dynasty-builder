@@ -63,6 +63,13 @@ export const PlatformOpportunitiesSystem: TickSystem = {
     const rival = (market.rivals || []).find((r) => r.status !== 'collapsed');
     const rivalName = rival?.name ?? 'a rival platform';
 
+    ctx.recap.push({
+      type: 'market',
+      title: 'Licensing offer',
+      body: `${rivalName} wants to license ${targetTitle.title}. Cash now vs platform moat later.`,
+      severity: 'info',
+    });
+
     const event: GameEvent = {
       id: `platform:license-offer:${ctx.year}:W${ctx.week}:${player.id}:${targetTitle.id}`,
       title: 'Licensing offer: global window',

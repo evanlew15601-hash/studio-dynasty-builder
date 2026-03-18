@@ -82,6 +82,98 @@ export const PlatformBiddingWarSystem: TickSystem = {
 
 Offer: ${Math.round(
         offer / 1_000_000
+      )}M USD for a ${windowWeeks}-week window.
+
+If you sell the window, you get cash now but lose platform differentiation. If you match the bid, you keep it exclusive — at a cost.`,
+      type: 'opportunity',
+      triggerDate: triggerDateFromWeekYear(ctx.year, ctx.week),
+      data: {
+        kind: 'platform:bidding-war',
+        playerPlatformId: player.id,
+        rivalId: rival.id,
+        rivalName: rival.name,
+        titleProjectId: target.id,
+        titleName: target.title,
+        offer,
+        keepCost,
+        windowWeeks,
+      },
+      choices: [
+        {
+          id: 'sell',
+          text: `Sell window (${Math.round(offer / 1_000_000)}M)`,
+          consequences: [
+            {
+              type: 'budget',
+              impact: offer,
+              description: `+${Math.round(offer / 1_000_000)}M exclusive window fee`,
+            },
+            {
+              type: 'reputation',
+              impact: -1,
+              description: '-1 studio reputation (you got outbid)',
+            },
+          ],
+        },
+        {
+          id: 'match',
+          text: `Match bid (${Math.round(keepCost / 1_000_000)}M)`,
+          requirements: [
+            {
+              type: 'budget',
+              threshold: keepCost,
+              description: `Requires ${Math.round(keepCost / 1_000_000)}M budget to keep the window exclusive`,
+            },
+          ],
+          consequences: [
+            {
+              type: 'budget',
+              impact: -keepCost,
+              description: `-${Math.round(keepCost / 1_000_000)}M defensive spend`,
+            },
+            {
+              type: 'reputation',
+              impact: 1,
+              description: '+1 studio reputation (platform-first stance)',
+            },
+          ],
+        },
+        {
+          id: 'decline',
+          text: 'Decline (hold the line)',
+          consequences: [
+            {
+              type: 'reputation',
+              impact: 1,
+              description: '+1 studio reputation (you refuse to license away exclusives)',
+            },
+          ],
+        },
+      ],
+    };
+
+    ctx.recap.push({
+      type: 'market',
+      title: 'Bidding war',
+      body: `${rival.name} is bidding for an exclusive window on ${target.title}. Sell for cash now, or pay to defend exclusivity.`,
+      severity: 'info',
+    });
+
+    return {
+      ...state,
+      platformMarket: {
+        ...market,
+        player: {
+          ...player,
+          lastBiddingWarYear: ctx.year,
+        },
+      },
+      eventQueue: [...(state.eventQueue || []), event],
+    };
+  },
+};
+}${Math.round(
+        offer / 1_000_000
       )}M for a ${windowWeeks}-week window.
 
 If you sell the window, you get cash now but lose platform differentiation. If you match the bid, you keep it exclusive — at a cost.`,

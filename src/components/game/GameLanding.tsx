@@ -15,6 +15,7 @@ import { PremiumBackground } from '@/components/ui/premium-background';
 import { DatabaseManagerDialog } from '@/components/game/DatabaseManagerDialog';
 import { SupabaseConfigDialog } from '@/components/game/SupabaseConfigDialog';
 import { getSupabaseConfigStatus } from '@/integrations/supabase/client';
+import { isSteamDlcInstalled, isSteamAvailable } from '@/integrations/steam/client';
 import { cn } from '@/lib/utils';
 import { getActiveModSlot, listModSlots, setActiveModSlot } from '@/utils/moddingStore';
 import { getStoredUiSkinId, setUiSkin, UI_SKINS, type UiSkinId } from '@/utils/uiSkins';
@@ -79,15 +80,44 @@ export const GameLanding: React.FC<GameLandingProps> = ({
   const hasOnlineConfig = mode !== 'online' || getSupabaseConfigStatus().configured;
   const activeSkin = UI_SKINS.find((s) => s.id === uiSkin) ?? UI_SKINS[0];
 
-  const streamingWarsToggleVisible =
-    import.meta.env.DEV ||
-    (typeof window !== 'undefined' && window.localStorage.getItem('studio-magnate-dlc-streaming-wars') === '1');
+  const [steamStreamingWarsOwned, setSteamStreamingWarsOwned] = useState<boolean>(false);
+
+  const streamingWarsLocalOverride =
+    typeof window !== 'undefined' && window.localStorage.getItem('studio-magnate-dlc-streaming-wars') === '1';
+
+  const streamingWarsToggleVisible = import.meta.env.DEV || streamingWarsLocalOverride || steamStreamingWarsOwned;
 
   useEffect(() => {
     if (!streamingWarsToggleVisible) {
       setConfig((prev) => (prev.enableStreamingWars ? { ...prev, enableStreamingWars: false } : prev));
     }
   }, [streamingWarsToggleVisible]);
+
+  useEffect(() => {
+    const dlcAppIdRaw = (import.meta as any).env?.VITE_STEAM_STREAMING_WARS_DLC_APP_ID;
+    const dlcAppId = typeof dlcAppIdRaw === 'string' ? Number.parseInt(dlcAppIdRaw, 10) : Number(dlcAppIdRaw);
+
+    if (!Number.isFinite(dlcAppId) || dlcAppId <= 0) {
+      setSteamStreamingWarsOwned(false);
+      return;
+    }
+
+    let cancelled = false;
+
+    (async () => {
+      if (!(await isSteamAvailable())) {
+        if (!cancelled) setSteamStreamingWarsOwned(false);
+        return;
+      }
+
+      const owned = await isSteamDlcInstalled(dlcAppId);
+      if (!cancelled) setSteamStreamingWarsOwned(owned);
+    })();
+
+    return () => {
+      cancelled = true;
+    };
+  }, []);
 
   const difficultySettings = {
     easy: { budget: 15000000, description: 'More budget, forgiving market' },

@@ -123,8 +123,8 @@ function resolveBlockingEventSafe(event: any) {
   if (kind === 'platform:overall-deal') return { choice: 'let-go' };
   if (kind === 'platform:mna-offer') return { choice: 'pass' };
   if (kind === 'platform:rival-collapse') return { choice: 'pass' };
-  if (kind === 'platform:churn-spike') return { choice: 'retention-campaign' };
-  if (kind === 'platform:outage') return { choice: 'refunds' };
+  if (kind === 'platform:churn-spike') return { choice: 'cut-price' };
+  if (kind === 'platform:outage') return { choice: 'apology' };
   if (kind === 'platform:forced-sale') return { choice: 'emergency-funding' };
 
   return { choice: event?.choices?.[0]?.id ?? 'hold-course' };

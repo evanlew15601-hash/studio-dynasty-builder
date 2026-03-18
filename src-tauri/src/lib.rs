@@ -94,6 +94,24 @@ fn steam_open_overlay(state: tauri::State<SteamState>, dialog: String) -> Result
 }
 
 #[tauri::command(rename_all = "camelCase")]
+fn steam_is_dlc_installed(state: tauri::State<SteamState>, dlc_app_id: u32) -> bool {
+  #[cfg(feature = "steam")]
+  {
+    let Some(client) = state.client.as_ref() else {
+      return false;
+    };
+
+    client.apps().is_dlc_installed(dlc_app_id.into())
+  }
+
+  #[cfg(not(feature = "steam"))]
+  {
+    let _ = (state, dlc_app_id);
+    false
+  }
+}
+
+#[tauri::command(rename_all = "camelCase")]
 fn steam_unlock_achievement(state: tauri::State<SteamState>, api_name: String) -> Result<(), String> {
   #[cfg(feature = "steam")]
   {
@@ -216,6 +234,7 @@ pub fn run() {
     .invoke_handler(tauri::generate_handler![
       steam_is_available,
       steam_get_persona_name,
+      steam_is_dlc_installed,
       steam_unlock_achievement,
       steam_open_overlay,
       get_saves_dir,

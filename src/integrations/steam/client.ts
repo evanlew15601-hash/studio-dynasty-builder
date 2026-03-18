@@ -28,6 +28,17 @@ export async function getSteamPersonaName(): Promise<string | null> {
   }
 }
 
+export async function isSteamDlcInstalled(dlcAppId: number): Promise<boolean> {
+  if (!isTauriRuntime()) return false;
+  if (!(await isSteamAvailable())) return false;
+
+  try {
+    return await invokeSteam<boolean>('steam_is_dlc_installed', { dlcAppId });
+  } catch {
+    return false;
+  }
+}
+
 export async function unlockSteamAchievement(apiName: string): Promise<void> {
   if (!isTauriRuntime()) return;
   if (!(await isSteamAvailable())) return;
