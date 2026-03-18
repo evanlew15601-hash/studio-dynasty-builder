@@ -6,8 +6,11 @@ import { Input } from '@/components/ui/input';
 import { Slider } from '@/components/ui/slider';
 import { Badge } from '@/components/ui/badge';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
+import { Switch } from '@/components/ui/switch';
 import { Project } from '@/types/game';
+import type { PlatformMarketState } from '@/types/platformEconomy';
 import type { SeasonData, EpisodeData } from '@/types/streamingTypes';
+import { PROVIDER_DEALS } from '@/data/ProviderDealsDatabase';
 import { BoxOfficeSystem } from './BoxOfficeSystem';
 import { TVRatingsSystem } from './TVRatingsSystem';
 import { stableInt } from '@/utils/stableRandom';
@@ -19,12 +22,37 @@ interface DebugControlPanelProps {
   onAdvanceToDate: (week: number, year: number) => void;
 }
 
+function createInitialPlatformMarketState(params: { currentWeek: number; currentYear: number }): PlatformMarketState {
+  const totalAddressableSubs = 100_000_000;
+
+  const rivals = PROVIDER_DEALS.filter((p) => p.dealKind === 'streaming').map((p) => ({
+    id: p.id,
+    name: p.name,
+    subscribers: Math.floor(totalAddressableSubs * 0.8 * (p.marketShare / 100)),
+    cash: Math.floor(p.marketShare * 200_000_000),
+    status: 'healthy' as const,
+    distressWeeks: 0,
+    tierMix: { adSupportedPct: 50, adFreePct: 50 },
+    priceIndex: 1,
+    catalogValue: 50,
+    freshness: 55,
+  }));
+
+  return {
+    totalAddressableSubs,
+    rivals,
+    lastUpdatedWeek: params.currentWeek,
+    lastUpdatedYear: params.currentYear,
+  };
+}
+
 export const DebugControlPanel: React.FC<DebugControlPanelProps> = ({
   onAdvanceWeeks,
   onAdvanceToDate,
 }) => {
   const debugUiEnabled = isDebugUiEnabled();
   const gameState = useGameStore((s) => s.game);
+  const setGameState = useGameStore((s) => s.setGameState);
   const updateStudio = useGameStore((s) => s.updateStudio);
   const replaceProject = useGameStore((s) => s.replaceProject);
 
@@ -53,6 +81,25 @@ export const DebugControlPanel: React.FC<DebugControlPanelProps> = ({
     Math.round(studioReputation)
   );
   const [selectedProjectId, setSelectedProjectId] = useState<string>('');
+
+  const streamingWarsEnabled = gameState?.dlc?.streamingWars === true;
+
+  const handleStreamingWarsToggle = (enabled: boolean) => {
+    if (!gameState) return;
+
+    setGameState((prev) => {
+      const dlc = { ...(prev.dlc ?? {}), streamingWars: enabled };
+      const platformMarket = enabled
+        ? prev.platformMarket ?? createInitialPlatformMarketState({ currentWeek: prev.currentWeek, currentYear: prev.currentYear })
+        : prev.platformMarket;
+
+      return {
+        ...prev,
+        dlc,
+        platformMarket,
+      };
+    });
+  };
 
   const selectedProject =
     projects.find((p) => p.id === selectedProjectId) || null;
@@ -384,6 +431,25 @@ export const DebugControlPanel: React.FC<DebugControlPanelProps> = ({
                 Advance to date
               </Button>
             </div>
+          </div>
+        </div>
+
+        {/* Expansions */}
+        <div className="pt-2 border-t border-border/40 space-y-2">
+          <div className="flex items-center gap-2 text-xs font-medium text-muted-foreground">
+            <MonitorPlay size={14} />
+            Expansions
+          </div>
+          <div className="flex items-center justify-between rounded-md border border-border/50 bg-background/40 px-3 py-2">
+            <div className="space-y-0.5">
+              <div className="text-sm font-medium text-foreground">Streaming Wars</div>
+              <div className="text-xs text-muted-foreground">Enable Streaming Wars systems and Platform tab in this save.</div>
+            </div>
+            <Switch
+              checked={streamingWarsEnabled}
+              disabled={!gameState}
+              onCheckedChange={(checked) => handleStreamingWarsToggle(!!checked)}
+            />
           </div>
         </div>
 

@@ -16,6 +16,7 @@ import { DatabaseManagerDialog } from '@/components/game/DatabaseManagerDialog';
 import { SupabaseConfigDialog } from '@/components/game/SupabaseConfigDialog';
 import { getSupabaseConfigStatus } from '@/integrations/supabase/client';
 import { isSteamDlcInstalled, isSteamAvailable, openSteamStoreOverlay } from '@/integrations/steam/client';
+import { isDebugUiEnabled } from '@/utils/debugFlags';
 import { cn } from '@/lib/utils';
 import { getActiveModSlot, listModSlots, setActiveModSlot } from '@/utils/moddingStore';
 import { getStoredUiSkinId, setUiSkin, UI_SKINS, type UiSkinId } from '@/utils/uiSkins';
@@ -86,12 +87,14 @@ export const GameLanding: React.FC<GameLandingProps> = ({
   const streamingWarsLocalOverride =
     typeof window !== 'undefined' && window.localStorage.getItem('studio-magnate-dlc-streaming-wars') === '1';
 
+  const debugUiEnabled = isDebugUiEnabled();
+
   const dlcAppIdRaw = import.meta.env.VITE_STEAM_STREAMING_WARS_DLC_APP_ID;
   const dlcAppId = typeof dlcAppIdRaw === 'string' ? Number.parseInt(dlcAppIdRaw, 10) : Number(dlcAppIdRaw);
   const dlcAppIdValid = Number.isFinite(dlcAppId) && dlcAppId > 0;
 
-  const streamingWarsSectionVisible = import.meta.env.DEV || streamingWarsLocalOverride || steamAvailable;
-  const streamingWarsToggleEnabled = import.meta.env.DEV || streamingWarsLocalOverride || steamStreamingWarsOwned;
+  const streamingWarsSectionVisible = debugUiEnabled || streamingWarsLocalOverride || steamAvailable;
+  const streamingWarsToggleEnabled = debugUiEnabled || streamingWarsLocalOverride || steamStreamingWarsOwned;
 
   useEffect(() => {
     if (!streamingWarsToggleEnabled) {
@@ -455,7 +458,7 @@ export const GameLanding: React.FC<GameLandingProps> = ({
                         <div className="text-sm font-medium text-foreground">Streaming Wars</div>
                         {steamStreamingWarsOwned ? (
                           <Badge variant="outline" className="border-primary/50 text-primary">Owned</Badge>
-                        ) : import.meta.env.DEV || streamingWarsLocalOverride ? (
+                        ) : debugUiEnabled || streamingWarsLocalOverride ? (
                           <Badge variant="outline" className="border-border/60 text-muted-foreground">Dev</Badge>
                         ) : (
                           <Badge variant="outline" className="border-border/60 text-muted-foreground">Locked</Badge>
@@ -789,7 +792,7 @@ export const GameLanding: React.FC<GameLandingProps> = ({
                           <div className="text-sm font-medium text-foreground">Streaming Wars</div>
                           {steamStreamingWarsOwned ? (
                             <Badge variant="outline" className="border-primary/50 text-primary">Owned</Badge>
-                          ) : import.meta.env.DEV || streamingWarsLocalOverride ? (
+                          ) : debugUiEnabled || streamingWarsLocalOverride ? (
                             <Badge variant="outline" className="border-border/60 text-muted-foreground">Dev</Badge>
                           ) : (
                             <Badge variant="outline" className="border-border/60 text-muted-foreground">Locked</Badge>
