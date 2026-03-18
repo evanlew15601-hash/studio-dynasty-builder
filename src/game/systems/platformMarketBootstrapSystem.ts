@@ -95,6 +95,8 @@ function normalizePlayerPlatform(player: any | undefined): PlatformMarketState['
     priceIndex: typeof (player as any).priceIndex === 'number' ? (player as any).priceIndex : 1,
     adLoadIndex:
       typeof (player as any).adLoadIndex === 'number' ? clamp((player as any).adLoadIndex, 0, 100) : 55,
+    originalsQualityBonus:
+      typeof (player as any).originalsQualityBonus === 'number' ? clamp((player as any).originalsQualityBonus, 0, 20) : 0,
     freshness: typeof (player as any).freshness === 'number' ? clamp((player as any).freshness, 0, 100) : undefined,
     catalogValue: typeof (player as any).catalogValue === 'number' ? clamp((player as any).catalogValue, 0, 100) : undefined,
     monthlyPrice: typeof (player as any).monthlyPrice === 'number' ? (player as any).monthlyPrice : undefined,
@@ -108,12 +110,8 @@ function normalizePlayerPlatform(player: any | undefined): PlatformMarketState['
           ? (player as any).lastOfferYear
           : undefined,
     lastMnaOfferYear: typeof (player as any).lastMnaOfferYear === 'number' ? (player as any).lastMnaOfferYear : undefined,
-    lastTalentOfferYear:
-      typeof (player as any).lastTalentOfferYear === 'number' ? (player as any).lastTalentOfferYear : undefined,
-    lastBiddingWarYear:
-      typeof (player as any).lastBiddingWarYear === 'number' ? (player as any).lastBiddingWarYear : undefined,
-    originalsQualityBonus:
-      typeof (player as any).originalsQualityBonus === 'number' ? clamp((player as any).originalsQualityBonus, 0, 20) : 0,
+    lastTalentOfferYear: typeof (player as any).lastTalentOfferYear === 'number' ? (player as any).lastTalentOfferYear : undefined,
+    lastBiddingWarYear: typeof (player as any).lastBiddingWarYear === 'number' ? (player as any).lastBiddingWarYear : undefined,
   };
 }
 

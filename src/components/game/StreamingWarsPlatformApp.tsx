@@ -194,6 +194,14 @@ export const StreamingWarsPlatformApp: React.FC = () => {
     return exclusiveFlag !== false && contractExclusive !== false;
   };
 
+  const hasRivalStreamingWindow = (project: Project, platformId: string): boolean => {
+    return (project.postTheatricalReleases ?? []).some((r: any) => {
+      if (!r || r.platform !== 'streaming') return false;
+      const pid = r.providerId || r.platformId;
+      return pid && pid !== platformId;
+    });
+  };
+
   const computeLicenseOffer = (project: Project, rivalId: string, durationWeeks: number): number => {
     const quality = project.script?.quality ?? 60;
     const duration = clampInt(durationWeeks, 8, 52);
@@ -358,6 +366,26 @@ export const StreamingWarsPlatformApp: React.FC = () => {
       postTheatricalReleases: nextPost,
     });
 
+    const moatPenalty = clampInt(Math.floor((clampInt(licenseDurationWeeks, 8, 52) / 52) * 4), 1, 4);
+
+    setGameState((prev) => {
+      const pm = prev.platformMarket;
+      if (!pm?.player || pm.player.status !== 'active') return prev;
+      if (pm.player.id !== playerPlatformId) return prev;
+
+      return {
+        ...prev,
+        platformMarket: {
+          ...pm,
+          player: {
+            ...pm.player,
+            freshness: clampInt((pm.player.freshness ?? 50) - moatPenalty, 0, 100),
+            catalogValue: clampInt((pm.player.catalogValue ?? 45) - 1, 0, 100),
+          },
+        },
+      };
+    });
+
     setLicenseOpen(false);
   };
 
@@ -406,6 +434,7 @@ export const StreamingWarsPlatformApp: React.FC = () => {
             promotionBudgetPerWeek: launchPromoBudget,
             priceIndex: launchPriceIndex,
             adLoadIndex: clampInt(launchAdLoadIndex, 0, 100),
+            originalsQualityBonus: 0,
             freshness: 35,
             catalogValue: 20,
             vibe,
@@ -796,6 +825,7 @@ export const StreamingWarsPlatformApp: React.FC = () => {
                         {playerPlatformId && getDirectPlatformId(heroTitle) === playerPlatformId && isExclusiveTitle(heroTitle) && (
                           <Badge variant="outline">Exclusive</Badge>
                         )}
+                        {playerPlatformId && hasRivalStreamingWindow(heroTitle, playerPlatformId) && <Badge variant="secondary">Licensed out</Badge>}
                         <Badge variant="outline">Details</Badge>
                       </div>
                       <div className="mt-3 text-xs text-muted-foreground">
@@ -828,6 +858,7 @@ export const StreamingWarsPlatformApp: React.FC = () => {
 
                             const isOriginal = p.streamingContract?.platformId === playerPlatformId;
                             const isExclusive = playerPlatformId && getDirectPlatformId(p) === playerPlatformId && isExclusiveTitle(p);
+                            const isLicensedOut = playerPlatformId && hasRivalStreamingWindow(p, playerPlatformId);
                             const canLicense =
                               playerPlatformId &&
                               player?.status === 'active' &&
@@ -855,6 +886,11 @@ export const StreamingWarsPlatformApp: React.FC = () => {
                                     {isExclusive && (
                                       <div className="absolute right-2 bottom-2 rounded-full border bg-background/70 px-2 py-0.5 text-[10px] font-semibold">
                                         Exclusive
+                                      </div>
+                                    )}
+                                    {isLicensedOut && (
+                                      <div className="absolute right-2 top-2 rounded-full border bg-background/70 px-2 py-0.5 text-[10px] font-semibold">
+                                        Windowed
                                       </div>
                                     )}
                                   </div>
@@ -981,9 +1017,16 @@ export const StreamingWarsPlatformApp: React.FC = () => {
               {!playerPlatformId ? (
                 <p className="text-sm text-muted-foreground">Launch your platform to commission Originals.</p>
               ) : (
-                <p className="text-sm text-muted-foreground">
-                  Originals increase retention, but they also increase burn while you’re still building scale.
-                </p>
+                <div className="space-y-2">
+                  <p className="text-sm text-muted-foreground">
+                    Originals increase retention, but they also increase burn while you’re still building scale.
+                  </p>
+                  {player?.status === 'active' && (player.originalsQualityBonus ?? 0) > 0 && (
+                    <p className="text-sm text-muted-foreground">
+                      Overall deal bonus: +{Math.round(player.originalsQualityBonus ?? 0)} baseline quality on newly commissioned Originals.
+                    </p>
+                  )}
+                </div>
               )}
 
               <Button type="button" onClick={() => setOriginalsOpen(true)} disabled={!playerPlatformId || player?.status !== 'active'}>

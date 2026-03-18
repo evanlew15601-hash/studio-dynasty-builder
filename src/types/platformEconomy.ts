@@ -46,10 +46,19 @@ export interface PlayerPlatformState {
   /** 0–100 ad load intensity (higher = more ad ARPU, worse churn on ad tier). */
   adLoadIndex?: number;
 
+  /** 0–20 baseline script quality bonus applied to platform Originals (from talent deal events). */
+  originalsQualityBonus?: number;
+
   /** 0–100; retention proxy used by churn/acquisition model. */
   freshness?: number;
   /** 0–100; long-tail catalog depth proxy. */
   catalogValue?: number;
+
+  /** Internal: prevents spamming annual overall-deal/talent poaching offers. */
+  lastTalentOfferYear?: number;
+
+  /** Internal: prevents spamming annual bidding war offers. */
+  lastBiddingWarYear?: number;
 
   /** Flavor: chosen at launch. */
   vibe?: string;
@@ -65,15 +74,6 @@ export interface PlayerPlatformState {
 
   /** Internal: prevents spamming annual M&A offers. */
   lastMnaOfferYear?: number;
-
-  /** Internal: prevents spamming annual overall-deal / talent poaching events. */
-  lastTalentOfferYear?: number;
-
-  /** Internal: prevents spamming annual bidding war events. */
-  lastBiddingWarYear?: number;
-
-  /** Bonus to Originals script quality from landing showrunner / overall deals. */
-  originalsQualityBonus?: number;
 
   // Optional knobs for future economy simulation
   monthlyPrice?: number;
