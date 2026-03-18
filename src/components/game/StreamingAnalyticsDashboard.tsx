@@ -486,7 +486,7 @@ export const StreamingAnalyticsDashboard: React.FC = () => {
                     <div className="grid grid-cols-2 gap-4 text-sm">
                       <div>
                         <p className="text-muted-foreground mb-1">Platform</p>
-                        <p className="font-semibold capitalize">{contract.platform}</p>
+                        <p className="font-semibold capitalize">{contract.platformId || contract.platform}</p>
                       </div>
                       <div>
                         <p className="text-muted-foreground mb-1">Performance Score</p>

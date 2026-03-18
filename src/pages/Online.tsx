@@ -21,6 +21,7 @@ type GameConfig = {
   difficulty: 'easy' | 'normal' | 'hard' | 'magnate';
   startingBudget: number;
   studioIcon?: StudioIconConfig;
+  enableStreamingWars: boolean;
 };
 
 function generateLeagueCode(): string {

@@ -144,11 +144,22 @@ export const ReleaseStrategyModal: React.FC<ReleaseStrategyModalProps> = ({
         upfrontPayment: terms.upfrontPayment,
         marketingSupport: terms.marketingSupport
       },
+      ...(project.releaseStrategy?.type === 'streaming'
+        ? {
+            releaseStrategy: {
+              ...project.releaseStrategy,
+              streamingProviderId: provider.id,
+              streamingPlatformId: provider.id,
+              streamingExclusive: true,
+            },
+          }
+        : {}),
       distributionStrategy: project.distributionStrategy
         ? {
             ...project.distributionStrategy,
             primary: {
               platform: provider.name,
+              platformId: provider.id,
               type: 'streaming',
               revenue: {
                 type: 'subscription-share',
@@ -160,6 +171,7 @@ export const ReleaseStrategyModal: React.FC<ReleaseStrategyModalProps> = ({
         : {
             primary: {
               platform: provider.name,
+              platformId: provider.id,
               type: 'streaming',
               revenue: {
                 type: 'subscription-share',
@@ -212,11 +224,15 @@ export const ReleaseStrategyModal: React.FC<ReleaseStrategyModalProps> = ({
       }
     })();
 
+    const streamingPlatformId =
+      selectedReleaseType === 'streaming' ? (project.streamingPremiereDeal?.providerId || undefined) : undefined;
+
     return {
       type: selectedReleaseType,
       theatersCount,
-      streamingProviderId:
-        selectedReleaseType === 'streaming' ? (project.streamingPremiereDeal?.providerId || undefined) : undefined,
+      streamingProviderId: streamingPlatformId,
+      streamingPlatformId,
+      streamingExclusive: selectedReleaseType === 'streaming' ? true : undefined,
       premiereDate: approxDate,
       rolloutPlan: [],
       specialEvents: [],

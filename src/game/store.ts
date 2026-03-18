@@ -45,6 +45,10 @@ import { IndustryGossipSystem } from './systems/industryGossipSystem';
 import { AiTelevisionSystem } from './systems/aiTelevisionSystem';
 import { PlayerCircleDramaSystem } from './systems/playerCircleDramaSystem';
 import { StudioGovernanceSystem } from './systems/studioGovernanceSystem';
+import { PlatformMarketBootstrapSystem } from './systems/platformMarketBootstrapSystem';
+import { PlatformCatalogSystem } from './systems/platformCatalogSystem';
+import { PlatformEconomySystem } from './systems/platformEconomySystem';
+import { PlatformCompetitionAndMAndASystem } from './systems/platformCompetitionAndMAndASystem';
 import { MediaEngine } from '@/components/game/MediaEngine';
 import { getPlayerCircleDramaMediaTemplate } from './systems/playerCircleDramaModding';
 
@@ -188,6 +192,13 @@ export const useGameStore: import('zustand').UseBoundStore<import('zustand').Sto
       r.register(TalentCareerArcSystem);
       r.register(IndustryGossipSystem);
       r.register(PlayerCircleDramaSystem);
+
+      // Streaming Wars (DLC) — systems early-return unless dlc.streamingWars is true.
+      r.register(PlatformMarketBootstrapSystem);
+      r.register(PlatformCatalogSystem);
+      r.register(PlatformEconomySystem);
+      r.register(PlatformCompetitionAndMAndASystem);
+
       return r;
     })(),
     lastTickReport: null,

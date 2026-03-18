@@ -1,25 +1,36 @@
 // Streaming and TV-specific types for Studio Magnate
 
+export type ProviderIdUnion =
+  | 'streamflix'
+  | 'primewave'
+  | 'streamhub'
+  | 'magicstream'
+  | 'orchardstream'
+  | 'premiumstream'
+  // Cable networks
+  | 'amotion'
+  | 'flux'
+  | 'dynamite'
+  | 'unity'
+  | 'sciwave'
+  | 'chronicle';
+
 export interface StreamingContract {
   id: string;
   /**
    * Type of deal. We reuse StreamingContract for both streaming platforms and linear/cable networks.
    */
   dealKind: 'streaming' | 'cable';
-  platform:
-    | 'streamflix'
-    | 'primewave'
-    | 'streamhub'
-    | 'magicstream'
-    | 'orchardstream'
-    | 'premiumstream'
-    // Cable networks
-    | 'amotion'
-    | 'flux'
-    | 'dynamite'
-    | 'unity'
-    | 'sciwave'
-    | 'chronicle';
+  /**
+   * Authoritative identifier for the platform/network used for persistence.
+   *
+   * This is the field new saves should rely on.
+   */
+  platformId: string;
+  /**
+   * Legacy provider id (kept for backwards compatibility with older saves).
+   */
+  platform?: ProviderIdUnion;
   name: string;
   type: 'series' | 'film' | 'documentary' | 'limited-series';
   duration: number; // contract length in weeks

@@ -1,0 +1,111 @@
+import type { PlatformMarketState, RivalPlatformState } from '@/types/platformEconomy';
+import { PROVIDER_DEALS } from '@/data/ProviderDealsDatabase';
+import type { TickSystem } from '../core/types';
+
+const DEFAULT_TOTAL_ADDRESSABLE_SUBS = 100_000_000;
+
+function clamp(n: number, min: number, max: number): number {
+  return Math.max(min, Math.min(max, n));
+}
+
+function normalizeTierMix(input: any): { adSupportedPct: number; adFreePct: number } {
+  const adSupportedPct = typeof input?.adSupportedPct === 'number' ? input.adSupportedPct : 50;
+  const adFreePct = typeof input?.adFreePct === 'number' ? input.adFreePct : 50;
+  const total = adSupportedPct + adFreePct;
+  if (total <= 0) return { adSupportedPct: 50, adFreePct: 50 };
+  return {
+    adSupportedPct: clamp((adSupportedPct / total) * 100, 0, 100),
+    adFreePct: clamp((adFreePct / total) * 100, 0, 100),
+  };
+}
+
+function bootstrapRivals(totalAddressableSubs: number): RivalPlatformState[] {
+  const streamingProviders = PROVIDER_DEALS.filter((p) => p.dealKind === 'streaming');
+
+  return streamingProviders.map((p) => {
+    const subscribers = Math.floor(totalAddressableSubs * 0.8 * (p.marketShare / 100));
+
+    return {
+      id: p.id,
+      name: p.name,
+      subscribers,
+      cash: Math.floor(p.marketShare * 200_000_000),
+      status: 'healthy',
+      distressWeeks: 0,
+      tierMix: { adSupportedPct: 50, adFreePct: 50 },
+      priceIndex: 1,
+      catalogValue: 50,
+      freshness: 55,
+    };
+  });
+}
+
+function normalizeExistingRivals(rivals: any[] | undefined, totalAddressableSubs: number): RivalPlatformState[] {
+  const base = Array.isArray(rivals) ? rivals : [];
+
+  const byId = new Map<string, RivalPlatformState>();
+
+  for (const r of base) {
+    if (!r || typeof r !== 'object') continue;
+    const id = typeof (r as any).id === 'string' ? (r as any).id : null;
+    if (!id) continue;
+
+    byId.set(id, {
+      id,
+      name: typeof (r as any).name === 'string' ? (r as any).name : id,
+      subscribers: typeof (r as any).subscribers === 'number' ? Math.max(0, Math.floor((r as any).subscribers)) : 0,
+      cash: typeof (r as any).cash === 'number' ? (r as any).cash : 0,
+      status: (r as any).status === 'distress' || (r as any).status === 'collapsed' ? (r as any).status : 'healthy',
+      distressWeeks: typeof (r as any).distressWeeks === 'number' ? Math.max(0, Math.floor((r as any).distressWeeks)) : 0,
+      tierMix: normalizeTierMix((r as any).tierMix),
+      priceIndex: typeof (r as any).priceIndex === 'number' ? (r as any).priceIndex : 1,
+      catalogValue: typeof (r as any).catalogValue === 'number' ? (r as any).catalogValue : 50,
+      freshness: typeof (r as any).freshness === 'number' ? clamp((r as any).freshness, 0, 100) : 55,
+    });
+  }
+
+  // Ensure at least the default provider rivals exist.
+  for (const seeded of bootstrapRivals(totalAddressableSubs)) {
+    if (!byId.has(seeded.id)) byId.set(seeded.id, seeded);
+  }
+
+  return [...byId.values()];
+}
+
+export const PlatformMarketBootstrapSystem: TickSystem = {
+  id: 'platformMarketBootstrap',
+  label: 'Platform market bootstrap (Streaming Wars)',
+  onTick: (state, ctx) => {
+    if (state.dlc?.streamingWars !== true) return state;
+
+    const raw = (state as any).platformMarket as PlatformMarketState | undefined;
+
+    const totalAddressableSubs =
+      typeof raw?.totalAddressableSubs === 'number' && raw.totalAddressableSubs > 0
+        ? raw.totalAddressableSubs
+        : DEFAULT_TOTAL_ADDRESSABLE_SUBS;
+
+    const rivals = normalizeExistingRivals(raw?.rivals as any, totalAddressableSubs);
+
+    const nextMarket: PlatformMarketState = {
+      ...raw,
+      totalAddressableSubs,
+      rivals,
+      lastUpdatedWeek: ctx.week,
+      lastUpdatedYear: ctx.year,
+    };
+
+    // Avoid unnecessary churn when already bootstrapped.
+    const already = raw && typeof raw === 'object' && Array.isArray(raw.rivals) && raw.rivals.length > 0;
+    if (already && raw.totalAddressableSubs === nextMarket.totalAddressableSubs) {
+      // Still update timestamp.
+      if (raw.lastUpdatedWeek === ctx.week && raw.lastUpdatedYear === ctx.year) return state;
+      return { ...state, platformMarket: nextMarket };
+    }
+
+    return {
+      ...state,
+      platformMarket: nextMarket,
+    };
+  },
+};

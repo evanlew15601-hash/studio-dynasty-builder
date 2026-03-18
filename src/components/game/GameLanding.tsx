@@ -38,6 +38,7 @@ interface GameConfig {
   difficulty: 'easy' | 'normal' | 'hard' | 'magnate';
   startingBudget: number;
   studioIcon: StudioIconConfig;
+  enableStreamingWars: boolean;
 }
 
 export const GameLanding: React.FC<GameLandingProps> = ({
@@ -65,6 +66,7 @@ export const GameLanding: React.FC<GameLandingProps> = ({
     difficulty: 'normal',
     startingBudget: 10000000,
     studioIcon: { ...DEFAULT_ICON },
+    enableStreamingWars: false,
   });
 
   useEffect(() => {
@@ -76,6 +78,16 @@ export const GameLanding: React.FC<GameLandingProps> = ({
 
   const hasOnlineConfig = mode !== 'online' || getSupabaseConfigStatus().configured;
   const activeSkin = UI_SKINS.find((s) => s.id === uiSkin) ?? UI_SKINS[0];
+
+  const streamingWarsToggleVisible =
+    import.meta.env.DEV ||
+    (typeof window !== 'undefined' && window.localStorage.getItem('studio-magnate-dlc-streaming-wars') === '1');
+
+  useEffect(() => {
+    if (!streamingWarsToggleVisible) {
+      setConfig((prev) => (prev.enableStreamingWars ? { ...prev, enableStreamingWars: false } : prev));
+    }
+  }, [streamingWarsToggleVisible]);
 
   const difficultySettings = {
     easy: { budget: 15000000, description: 'More budget, forgiving market' },
@@ -110,6 +122,8 @@ export const GameLanding: React.FC<GameLandingProps> = ({
       return;
     }
 
+    const enableStreamingWars = streamingWarsToggleVisible ? config.enableStreamingWars : false;
+
     if (showCustomization) {
       if (!config.studioName.trim()) {
         return; // Require studio name
@@ -119,6 +133,7 @@ export const GameLanding: React.FC<GameLandingProps> = ({
         studioName: config.studioName.trim(),
         startingBudget: difficultySettings[config.difficulty].budget,
         studioIcon: config.studioIcon,
+        enableStreamingWars,
       });
     } else {
       // Quick start with defaults
@@ -128,6 +143,7 @@ export const GameLanding: React.FC<GameLandingProps> = ({
         difficulty: 'normal',
         startingBudget: 10000000,
         studioIcon: { ...DEFAULT_ICON },
+        enableStreamingWars,
       });
     }
   };
@@ -385,6 +401,29 @@ export const GameLanding: React.FC<GameLandingProps> = ({
                 )}
               </CardContent>
             </Card>
+
+            {streamingWarsToggleVisible && (
+              <Card className="card-golden max-w-2xl mx-auto">
+                <CardHeader className={cn(compactLanding ? 'py-4' : '')}>
+                  <CardTitle className={cn('text-foreground flex items-center', compactLanding ? 'text-lg' : 'text-xl')}>
+                    <Sparkles className="mr-2 text-primary" />
+                    Expansions
+                  </CardTitle>
+                </CardHeader>
+                <CardContent className="space-y-3">
+                  <div className="flex items-center justify-between rounded-md border border-border/50 bg-background/40 px-3 py-2">
+                    <div className="space-y-0.5">
+                      <div className="text-sm font-medium text-foreground">Streaming Wars</div>
+                      <div className="text-xs text-muted-foreground">Industry Evolution expansion (new game only).</div>
+                    </div>
+                    <Switch
+                      checked={config.enableStreamingWars}
+                      onCheckedChange={(checked) => setConfig((prev) => ({ ...prev, enableStreamingWars: !!checked }))}
+                    />
+                  </div>
+                </CardContent>
+              </Card>
+            )}
 
             <div className={cn('flex flex-col sm:flex-row justify-center', compactLanding ? 'gap-4' : 'gap-6')}>
               <Button
@@ -671,6 +710,22 @@ export const GameLanding: React.FC<GameLandingProps> = ({
                     ))}
                   </div>
                 </div>
+
+                {streamingWarsToggleVisible && (
+                  <div>
+                    <Label className="text-foreground text-sm">Expansions</Label>
+                    <div className="mt-2 flex items-center justify-between rounded-md border border-border/50 bg-background/40 px-3 py-2">
+                      <div className="space-y-0.5">
+                        <div className="text-sm font-medium text-foreground">Streaming Wars</div>
+                        <div className="text-xs text-muted-foreground">Industry Evolution expansion (new game only).</div>
+                      </div>
+                      <Switch
+                        checked={config.enableStreamingWars}
+                        onCheckedChange={(checked) => setConfig((prev) => ({ ...prev, enableStreamingWars: !!checked }))}
+                      />
+                    </div>
+                  </div>
+                )}
 
                 {/* Studio Icon */}
                 <StudioIconCustomizer

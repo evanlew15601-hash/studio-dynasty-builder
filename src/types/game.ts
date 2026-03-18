@@ -1,6 +1,7 @@
 // Studio Magnate Core Game Types
 
 import type { SeasonData, StreamingContract } from './streamingTypes';
+import type { PlatformMarketState } from './platformEconomy';
 
 // Franchise System Types
 export interface Franchise {
@@ -442,6 +443,7 @@ export interface DistributionStrategy {
 
 export interface DistributionChannel {
   platform: string;
+  platformId?: string;
   type: 'theatrical' | 'streaming' | 'vod' | 'television' | 'festival';
   revenue: RevenueModel;
   exclusivityPeriod?: number;
@@ -455,6 +457,7 @@ export interface RevenueModel {
 
 export interface ReleaseWindow {
   platform: string;
+  platformId?: string;
   startDate: Date;
   exclusivityDays: number;
 }
@@ -918,6 +921,10 @@ export interface GameState {
   worldHistory?: WorldHistoryEntry[];
   worldYearbooks?: WorldYearbookEntry[];
   playerLegacy?: PlayerLegacy;
+  dlc?: {
+    streamingWars?: boolean;
+  };
+  platformMarket?: PlatformMarketState;
   // Franchise & Public Domain Systems
   franchises: Franchise[];
   publicDomainIPs: PublicDomainIP[];
@@ -1092,6 +1099,9 @@ export interface ReleaseStrategy {
   theatersCount?: number;
   /** For direct-to-streaming premieres, identifies the platform selected via a premiere deal. */
   streamingProviderId?: string;
+  streamingPlatformId?: string;
+  streamingExclusive?: boolean;
+  streamingExclusivityWeeks?: number;
   premiereDate: Date;
   rolloutPlan: ReleaseRollout[];
   specialEvents: SpecialEvent[];
@@ -1136,6 +1146,7 @@ export interface PostTheatricalRelease {
   id: string;
   projectId: string;
   platform: 'streaming' | 'digital' | 'physical' | 'tv-licensing';
+  platformId?: string;
   /** Optional platform identifier for deals (e.g., streamflix) */
   providerId?: string;
   releaseDate: Date;

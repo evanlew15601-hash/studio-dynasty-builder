@@ -1,7 +1,10 @@
 import { defineConfig, loadEnv } from "vite";
 import react from "@vitejs/plugin-react-swc";
 import path from "path";
+import { fileURLToPath } from "node:url";
 import { componentTagger } from "lovable-tagger";
+
+const rootDir = fileURLToPath(new URL(".", import.meta.url));
 
 function normalizeBase(base: string): string {
   const trimmed = base.trim();
@@ -50,9 +53,9 @@ export default defineConfig(({ mode }) => {
     ].filter(Boolean),
     resolve: {
       alias: {
-        "@": path.resolve(__dirname, "./src"),
-        "react": path.resolve(__dirname, "./node_modules/react"),
-        "react-dom": path.resolve(__dirname, "./node_modules/react-dom"),
+        "@": path.resolve(rootDir, "./src"),
+        "react": path.resolve(rootDir, "./node_modules/react"),
+        "react-dom": path.resolve(rootDir, "./node_modules/react-dom"),
       },
     },
   };

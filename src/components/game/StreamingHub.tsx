@@ -1,10 +1,15 @@
 import React from 'react';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
+import { useGameStore } from '@/game/store';
 import { StreamingContractSystem } from './StreamingContractSystem';
 import { StreamingAnalyticsDashboard } from './StreamingAnalyticsDashboard';
 import { PostTheatricalManagement } from './PostTheatricalManagement';
+import { StreamingWarsPlatformApp } from './StreamingWarsPlatformApp';
 
 export const StreamingHub: React.FC = () => {
+  const gameState = useGameStore((s) => s.game);
+  const showPlatformTab = gameState?.dlc?.streamingWars === true;
+
   return (
     <div className="space-y-6">
       <div>
@@ -21,6 +26,7 @@ export const StreamingHub: React.FC = () => {
           <TabsTrigger value="post">Secondary Windows</TabsTrigger>
           <TabsTrigger value="contracts">Contracts</TabsTrigger>
           <TabsTrigger value="analytics">Analytics</TabsTrigger>
+          {showPlatformTab && <TabsTrigger value="platform">Platform</TabsTrigger>}
         </TabsList>
 
         <TabsContent value="post">
@@ -34,6 +40,12 @@ export const StreamingHub: React.FC = () => {
         <TabsContent value="analytics">
           <StreamingAnalyticsDashboard />
         </TabsContent>
+
+        {showPlatformTab && (
+          <TabsContent value="platform">
+            <StreamingWarsPlatformApp />
+          </TabsContent>
+        )}
       </Tabs>
     </div>
   );

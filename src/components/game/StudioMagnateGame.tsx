@@ -4,6 +4,8 @@ import { useLoadingActions } from '@/contexts/LoadingContext';
 import { LOADING_OPERATIONS, delay } from '@/utils/loadingUtils';
 import { getWorldFranchiseCatalog } from '@/data/FranchiseCatalog';
 import { PublicDomainGenerator } from '@/data/PublicDomainGenerator';
+import { PROVIDER_DEALS } from '@/data/ProviderDealsDatabase';
+import type { PlatformMarketState } from '@/types/platformEconomy';
 import { ScriptDevelopment } from './ScriptDevelopment';
 import { CastingBoard } from './CastingBoard';
 import { ProductionManagement } from './ProductionManagement';
@@ -451,6 +453,30 @@ function primeCompetitorTelevision(gameState: GameState): GameState {
   };
 }
 
+function createInitialPlatformMarketState(params: { currentWeek: number; currentYear: number }): PlatformMarketState {
+  const totalAddressableSubs = 100_000_000;
+
+  const rivals = PROVIDER_DEALS.filter((p) => p.dealKind === 'streaming').map((p) => ({
+    id: p.id,
+    name: p.name,
+    subscribers: Math.floor(totalAddressableSubs * 0.8 * (p.marketShare / 100)),
+    cash: Math.floor(p.marketShare * 200_000_000),
+    status: 'healthy' as const,
+    distressWeeks: 0,
+    tierMix: { adSupportedPct: 50, adFreePct: 50 },
+    priceIndex: 1,
+    catalogValue: 50,
+    freshness: 55,
+  }));
+
+  return {
+    totalAddressableSubs,
+    rivals,
+    lastUpdatedWeek: params.currentWeek,
+    lastUpdatedYear: params.currentYear,
+  };
+}
+
 interface StudioMagnateGameProps {
   onPhaseChange?: (phase: string) => void;
   gameConfig?: {
@@ -459,6 +485,7 @@ interface StudioMagnateGameProps {
     difficulty: 'easy' | 'normal' | 'hard' | 'magnate';
     startingBudget: number;
     studioIcon?: import('./StudioIconCustomizer').StudioIconConfig;
+    enableStreamingWars?: boolean;
   };
   initialGameState?: GameState;
   /**
@@ -558,10 +585,17 @@ export const StudioMagnateGame: React.FC<StudioMagnateGameProps> = ({
     // The real world state is generated in an effect below.
     const universeSeed = generateGameSeed();
 
+    const currentYear = isOnlineMode ? ONLINE_LEAGUE_START_YEAR : new Date().getFullYear();
+    const streamingWarsEnabled = !!gameConfig?.enableStreamingWars;
+
     return {
       universeSeed,
       rngState: universeSeed,
       mode: isOnlineMode ? 'online' : 'single',
+      dlc: {
+        streamingWars: streamingWarsEnabled,
+      },
+      platformMarket: streamingWarsEnabled ? createInitialPlatformMarketState({ currentWeek: 1, currentYear }) : undefined,
       studio: {
         id: 'player-studio',
         name: gameConfig?.studioName || 'Untitled Pictures',
@@ -573,7 +607,7 @@ export const StudioMagnateGame: React.FC<StudioMagnateGameProps> = ({
         lastProjectWeek: 0,
         weeksSinceLastProject: 0,
       },
-      currentYear: isOnlineMode ? ONLINE_LEAGUE_START_YEAR : new Date().getFullYear(),
+      currentYear,
       currentWeek: 1,
       currentQuarter: 1,
       projects: [],
@@ -880,6 +914,12 @@ export const StudioMagnateGame: React.FC<StudioMagnateGameProps> = ({
         universeSeed,
         rngState: universeSeed,
         mode: isOnlineMode ? 'online' : 'single',
+        dlc: {
+          streamingWars: !!gameConfig?.enableStreamingWars,
+        },
+        platformMarket: gameConfig?.enableStreamingWars
+          ? createInitialPlatformMarketState({ currentWeek: 1, currentYear: worldStartYear })
+          : undefined,
         studio,
         currentYear: worldStartYear,
         currentWeek: 1,
