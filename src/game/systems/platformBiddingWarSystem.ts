@@ -80,7 +80,7 @@ export const PlatformBiddingWarSystem: TickSystem = {
       title: 'Bidding war: exclusive window',
       description: `${rival.name} is trying to buy an exclusive global window for ${target.title}.
 
-Offer: $${Math.round(
+Offer: ${Math.round(
         offer / 1_000_000
       )}M for a ${windowWeeks}-week window.
 
@@ -151,6 +151,13 @@ If you sell the window, you get cash now but lose platform differentiation. If y
         },
       ],
     };
+
+    ctx.recap.push({
+      type: 'market',
+      title: 'Bidding war',
+      body: `${rival.name} is bidding for an exclusive window on ${target.title}. Sell for cash now, or pay to defend exclusivity.`,
+      severity: 'info',
+    });
 
     return {
       ...state,

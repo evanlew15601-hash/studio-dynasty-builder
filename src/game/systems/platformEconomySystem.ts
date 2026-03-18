@@ -154,7 +154,7 @@ function stepPlatform(input: PlatformStepInput): { nextSubs: number; nextCash: n
   const adLoadFactor = clamp(0.8 + (adLoadIndexForRevenue / 100) * 0.7, 0.8, 1.5);
 
   const arpuWeekly =
-    (adSupportedShare * 1.1 * adLoadFactor + adFreeShare * 2.6) * (1 / clamp(priceIndex, 0.6, 1.7));
+    (adSupportedShare * 1.1 * adLoadFactor + adFreeShare * 2.6) * clamp(priceIndex, 0.6, 1.7);
   const revenue = Math.floor(nextSubs * arpuWeekly);
 
   const promotion = typeof input.promotionBudgetPerWeek === 'number' ? Math.max(0, input.promotionBudgetPerWeek) : 0;

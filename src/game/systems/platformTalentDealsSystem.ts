@@ -104,6 +104,13 @@ If you match the deal, your Originals will ship with higher baseline quality (an
       ],
     };
 
+    ctx.recap.push({
+      type: 'market',
+      title: 'Talent war: overall deal',
+      body: `${rival.name} is making a play for showrunner ${showrunner}. Match the deal to boost Originals quality — or let them go.`,
+      severity: 'info',
+    });
+
     return {
       ...state,
       platformMarket: {
