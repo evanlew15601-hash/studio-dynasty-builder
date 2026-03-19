@@ -256,8 +256,17 @@ function stepServiceQuality(params: {
 
   const runwayPenalty = cash < -350_000_000 ? -0.45 : cash < -150_000_000 ? -0.25 : cash > 250_000_000 ? 0.08 : 0;
   const profitDrift = profit >= 0 ? 0.12 : -0.22;
+  const drift = runwayPenalty + profitDrift;
 
-  return clamp(prev + runwayPenalty + profitDrift + params.rng() * 0.25 - 0.125, 0, 100);
+  let noise = params.rng() * 0.25 - 0.125;
+
+  // If you're already at very high reliability and fundamentals are improving,
+  // don't let random noise pull you down from the ceiling.
+  if (prev >= 99 && drift >= 0) {
+    noise = Math.max(0, noise);
+  }
+
+  return clamp(prev + drift + noise, 0, 100);
 }
 
 function stepRivalStrategy(r: RivalPlatformState, rng: () => number): RivalPlatformState {
