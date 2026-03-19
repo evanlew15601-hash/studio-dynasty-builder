@@ -951,15 +951,7 @@
   text-align: left;
 }
 
-.sp-continue--prestige {
-  width: 360px;
-  border-color: hsl(var(--sp-primary) / 0.12);
-  background: hsl(var(--sp-bg) / 0.22);
-}
 
-.sp-continue-poster--prestige {
-  border-color: hsl(var(--sp-primary) / 0.16);
-}
 
 .sp-continue-poster {
   aspect-ratio: 16 / 9;

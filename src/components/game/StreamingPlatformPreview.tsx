@@ -758,43 +758,6 @@ export const StreamingPlatformPreview: React.FC<{
           <>
             {activeNav === 'home' && (
               <>
-                <section className="sp-row sp-row--prestige">
-                  <div className="sp-row-head">
-                    <div className="sp-row-title">Continue watching</div>
-                    <div className="sp-row-sub">Pick up where you left off</div>
-                  </div>
-
-                  <div className="sp-row-list sp-row-list--prestige">
-                    {continueWatching.map((x) => {
-                      const initials = titleInitials(x.project.title);
-
-                      return (
-                        <button key={`prestige:continue:${x.project.id}`} type="button" className="sp-continue sp-continue--prestige" onClick={() => onSelectTitle(x.project)}>
-                          <div
-                            className="sp-continue-poster sp-continue-poster--prestige"
-                            style={{ backgroundImage: tileGradient(x.project.id, resolved.primaryHsl, resolved.accentHsl) }}
-                          >
-                            <div className="sp-continue-initials">{initials}</div>
-                          </div>
-                          <div className="sp-continue-meta">
-                            <div className="sp-continue-title">{x.project.title}</div>
-                            <div className="sp-continue-sub">Resume • {x.project.script?.genre ?? 'Unknown'}</div>
-                            <div className="sp-progress" aria-label={`Progress ${x.progressPct}%`}>
-                              <div className="sp-progress-bar" style={{ width: `${x.progressPct}%` }} />
-                            </div>
-                          </div>
-                        </button>
-                      );
-                    })}
-
-                    {continueWatching.length === 0 && (
-                      <div className="sp-pill" style={{ marginLeft: 2 }}>
-                        Nothing in progress
-                      </div>
-                    )}
-                  </div>
-                </section>
-
                 <Row
                   layout={layout}
                   title="Originals"
