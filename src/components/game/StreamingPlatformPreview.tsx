@@ -144,6 +144,7 @@ export const StreamingPlatformPreview: React.FC<{
   const [massView, setMassView] = useState<'browse' | 'search' | 'newhot'>('browse');
   const [searchQuery, setSearchQuery] = useState('');
   const [newHotTab, setNewHotTab] = useState<'coming' | 'watching'>('watching');
+  const [prestigeView, setPrestigeView] = useState<'browse' | 'collections'>('browse');
 
   const resolved = useMemo(() => {
     const primaryHsl = resolveHsl(branding?.primaryColor, ICON_COLORS, '42 88% 68%');
@@ -260,6 +261,8 @@ export const StreamingPlatformPreview: React.FC<{
   const showMassSearch = layout === 'mass' && massView === 'search';
   const showMassNewHot = layout === 'mass' && massView === 'newhot';
 
+  const showPrestigeCollections = layout === 'prestige' && prestigeView === 'collections';
+
   const shouldShowHero = layout !== 'mass' || massView === 'browse';
 
   return (
@@ -346,6 +349,7 @@ export const StreamingPlatformPreview: React.FC<{
             onClick={() => {
               setActiveNav('home');
               setMassView('browse');
+              setPrestigeView('browse');
             }}
             data-active={layout === 'mass' ? (massView === 'browse' && activeNav === 'home') : activeNav === 'home'}
           >
@@ -356,6 +360,7 @@ export const StreamingPlatformPreview: React.FC<{
             onClick={() => {
               setActiveNav('originals');
               setMassView('browse');
+              setPrestigeView('browse');
             }}
             data-active={layout === 'mass' ? (massView === 'browse' && activeNav === 'originals') : activeNav === 'originals'}
           >
@@ -366,6 +371,7 @@ export const StreamingPlatformPreview: React.FC<{
             onClick={() => {
               setActiveNav('new');
               setMassView(layout === 'mass' ? 'newhot' : 'browse');
+              setPrestigeView('browse');
               if (layout === 'mass') setNewHotTab('watching');
             }}
             data-active={layout === 'mass' ? (massView === 'browse' ? activeNav === 'new' : massView === 'newhot') : activeNav === 'new'}
@@ -424,6 +430,58 @@ export const StreamingPlatformPreview: React.FC<{
             <div className="sp-chip" style={{ cursor: 'default' }}>
               Categories
             </div>
+          </div>
+        )}
+
+        {layout === 'prestige' && (
+          <div className="sp-hubs" aria-label="Hubs">
+            <button
+              type="button"
+              className="sp-hub"
+              onClick={() => {
+                setPrestigeView('browse');
+                setActiveNav('home');
+              }}
+              data-active={prestigeView === 'browse' && activeNav === 'home'}
+            >
+              <div className="sp-hub-label">HBO</div>
+              <div className="sp-hub-sub">Originals + favorites</div>
+            </button>
+            <button
+              type="button"
+              className="sp-hub"
+              onClick={() => {
+                setPrestigeView('browse');
+                setActiveNav('originals');
+              }}
+              data-active={prestigeView === 'browse' && activeNav === 'originals'}
+            >
+              <div className="sp-hub-label">Series</div>
+              <div className="sp-hub-sub">Drama, comedy, limited</div>
+            </button>
+            <button
+              type="button"
+              className="sp-hub"
+              onClick={() => {
+                setPrestigeView('browse');
+                setActiveNav('new');
+              }}
+              data-active={prestigeView === 'browse' && activeNav === 'new'}
+            >
+              <div className="sp-hub-label">Movies</div>
+              <div className="sp-hub-sub">Premier films</div>
+            </button>
+            <button
+              type="button"
+              className="sp-hub"
+              onClick={() => {
+                setPrestigeView('collections');
+              }}
+              data-active={prestigeView === 'collections'}
+            >
+              <div className="sp-hub-label">Collections</div>
+              <div className="sp-hub-sub">Curated categories</div>
+            </button>
           </div>
         )}
 
@@ -548,6 +606,100 @@ export const StreamingPlatformPreview: React.FC<{
 
             <div className="sp-newhot-footer" />
           </section>
+        ) : showPrestigeCollections ? (
+          <section className="sp-collections">
+            <div className="sp-collections-head">
+              <div>
+                <div className="sp-collections-title">Collections</div>
+                <div className="sp-collections-sub">Curated categories</div>
+              </div>
+              <button type="button" className="sp-collections-close" onClick={() => setPrestigeView('browse')}>
+                Done
+              </button>
+            </div>
+
+            <div className="sp-collections-grid">
+              <button
+                type="button"
+                className="sp-collection"
+                onClick={() => {
+                  setPrestigeView('browse');
+                  setActiveNav('home');
+                }}
+                style={{ backgroundImage: tileGradient('prestige:collection:originals', resolved.primaryHsl, resolved.accentHsl) }}
+              >
+                <div className="sp-collection-scrim" />
+                <div className="sp-collection-content">
+                  <div className="sp-collection-title">Originals</div>
+                  <div className="sp-collection-sub">Signature series and films</div>
+                </div>
+              </button>
+
+              <button
+                type="button"
+                className="sp-collection"
+                onClick={() => {
+                  setPrestigeView('browse');
+                  setActiveNav('originals');
+                }}
+                style={{ backgroundImage: tileGradient('prestige:collection:series', resolved.primaryHsl, resolved.accentHsl) }}
+              >
+                <div className="sp-collection-scrim" />
+                <div className="sp-collection-content">
+                  <div className="sp-collection-title">Series</div>
+                  <div className="sp-collection-sub">Drama, comedy, limited</div>
+                </div>
+              </button>
+
+              <button
+                type="button"
+                className="sp-collection"
+                onClick={() => {
+                  setPrestigeView('browse');
+                  setActiveNav('new');
+                }}
+                style={{ backgroundImage: tileGradient('prestige:collection:movies', resolved.primaryHsl, resolved.accentHsl) }}
+              >
+                <div className="sp-collection-scrim" />
+                <div className="sp-collection-content">
+                  <div className="sp-collection-title">Movies</div>
+                  <div className="sp-collection-sub">Premier films</div>
+                </div>
+              </button>
+
+              <button
+                type="button"
+                className="sp-collection"
+                onClick={() => {
+                  setPrestigeView('browse');
+                  setActiveNav('new');
+                }}
+                style={{ backgroundImage: tileGradient('prestige:collection:award', resolved.primaryHsl, resolved.accentHsl) }}
+              >
+                <div className="sp-collection-scrim" />
+                <div className="sp-collection-content">
+                  <div className="sp-collection-title">Award contenders</div>
+                  <div className="sp-collection-sub">Critically acclaimed</div>
+                </div>
+              </button>
+
+              <button
+                type="button"
+                className="sp-collection"
+                onClick={() => {
+                  setPrestigeView('browse');
+                  setActiveNav('home');
+                }}
+                style={{ backgroundImage: tileGradient('prestige:collection:picks', resolved.primaryHsl, resolved.accentHsl) }}
+              >
+                <div className="sp-collection-scrim" />
+                <div className="sp-collection-content">
+                  <div className="sp-collection-title">Critics’ picks</div>
+                  <div className="sp-collection-sub">Curated premium storytelling</div>
+                </div>
+              </button>
+            </div>
+          </section>
         ) : shouldShowHero && heroTitle ? (
           <button
             type="button"
@@ -565,7 +717,13 @@ export const StreamingPlatformPreview: React.FC<{
               }
             />
             <div className="sp-hero-content">
-              <div className="sp-hero-kicker">{layout === 'prestige' ? 'Tonight' : 'Spotlight'}</div>
+              <div className="sp-hero-kicker">
+                {layout === 'prestige'
+                  ? platformId && heroTitle.streamingContract?.platformId === platformId
+                    ? `${platformName} Original`
+                    : 'Tonight'
+                  : 'Spotlight'}
+              </div>
               <div className="sp-hero-title">{heroTitle.title}</div>
               <div className="sp-hero-meta">
                 {heroTitle.type.replace('-', ' ')} • {heroTitle.script?.genre}
@@ -578,8 +736,8 @@ export const StreamingPlatformPreview: React.FC<{
                 </div>
               ) : layout === 'prestige' ? (
                 <div className="sp-hero-actions sp-hero-actions--prestige">
-                  <div className="sp-btn sp-btn--primary">Start watching</div>
-                  <div className="sp-btn">Add to list</div>
+                  <div className="sp-btn sp-btn--primary">Play</div>
+                  <div className="sp-btn">More info</div>
                 </div>
               ) : (
                 <div className="sp-badges">
@@ -754,7 +912,7 @@ export const StreamingPlatformPreview: React.FC<{
           />
         )}
 
-        {layout === 'prestige' && (
+        {layout === 'prestige' && prestigeView === 'browse' && (
           <>
             {activeNav === 'home' && (
               <>
