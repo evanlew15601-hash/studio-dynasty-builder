@@ -9,7 +9,7 @@ export type RivalPlatformStatus = 'healthy' | 'distress' | 'collapsed';
 
 export type PlatformBrandingOverlay = 'spotlight' | 'grid' | 'scanlines' | 'none';
 
-export type PlatformBrandingLayout = 'auto' | 'default' | 'mass';
+export type PlatformBrandingLayout = 'auto' | 'default' | 'mass' | 'prestige';
 
 export interface PlatformLogoConfig {
   shape: 'shield' | 'circle' | 'diamond' | 'hexagon' | 'star' | 'square';

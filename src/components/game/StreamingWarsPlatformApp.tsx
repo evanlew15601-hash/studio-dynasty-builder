@@ -1334,6 +1334,7 @@ export const StreamingWarsPlatformApp: React.FC = () => {
                       <SelectContent>
                         <SelectItem value="auto">Auto (based on vibe)</SelectItem>
                         <SelectItem value="mass">Mass market</SelectItem>
+                        <SelectItem value="prestige">Prestige</SelectItem>
                         <SelectItem value="default">Classic</SelectItem>
                       </SelectContent>
                     </Select>

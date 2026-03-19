@@ -39,7 +39,7 @@ function tileGradient(projectId: string, primaryHsl: string, accentHsl: string):
   return `linear-gradient(135deg, hsl(${a} / 0.90), hsl(${b} / 0.75), hsl(${primaryHsl} / 0.18))`;
 }
 
-type LayoutMode = 'default' | 'mass';
+type LayoutMode = 'default' | 'mass' | 'prestige';
 
 type ContinueCard = {
   project: Project;
@@ -80,22 +80,31 @@ const Row: React.FC<{
   showRank?: boolean;
   onSelectTitle: (project: Project) => void;
 }> = ({ title, subtitle, items, platformId, primaryHsl, accentHsl, layout, showRank, onSelectTitle }) => {
+  const rowClass = layout === 'mass' ? 'sp-row sp-row--mass' : layout === 'prestige' ? 'sp-row sp-row--prestige' : 'sp-row';
+  const listClass =
+    layout === 'mass' ? 'sp-row-list sp-row-list--mass' : layout === 'prestige' ? 'sp-row-list sp-row-list--prestige' : 'sp-row-list';
+
   return (
-    <section className={layout === 'mass' ? 'sp-row sp-row--mass' : 'sp-row'}>
+    <section className={rowClass}>
       <div className="sp-row-head">
         <div className="sp-row-title">{title}</div>
         <div className="sp-row-sub">{subtitle ?? 'Tap a tile for details'}</div>
       </div>
 
-      <div className={layout === 'mass' ? 'sp-row-list sp-row-list--mass' : 'sp-row-list'}>
+      <div className={listClass}>
         {items.map((p, idx) => {
           const initials = titleInitials(p.title);
           const isOriginal = !!platformId && p.streamingContract?.platformId === platformId;
 
           return (
-            <button key={p.id} type="button" className={layout === 'mass' ? 'sp-tile sp-tile--mass' : 'sp-tile'} onClick={() => onSelectTitle(p)}>
+            <button
+              key={p.id}
+              type="button"
+              className={layout === 'mass' ? 'sp-tile sp-tile--mass' : layout === 'prestige' ? 'sp-tile sp-tile--prestige' : 'sp-tile'}
+              onClick={() => onSelectTitle(p)}
+            >
               <div
-                className={layout === 'mass' ? 'sp-poster sp-poster--mass' : 'sp-poster'}
+                className={layout === 'mass' ? 'sp-poster sp-poster--mass' : layout === 'prestige' ? 'sp-poster sp-poster--prestige' : 'sp-poster'}
                 style={{ backgroundImage: tileGradient(p.id, primaryHsl, accentHsl) }}
               >
                 {layout !== 'mass' && showRank && idx < 10 && (
@@ -150,8 +159,12 @@ export const StreamingPlatformPreview: React.FC<{
   const layout: LayoutMode = useMemo(() => {
     const requested = branding?.layout;
     if (requested === 'mass') return 'mass';
+    if (requested === 'prestige') return 'prestige';
     if (requested === 'default') return 'default';
-    return vibe === 'mass' ? 'mass' : 'default';
+
+    if (vibe === 'mass') return 'mass';
+    if (vibe === 'prestige') return 'prestige';
+    return 'default';
   }, [branding?.layout, vibe]);
 
   const catalogPool = useMemo(() => {
@@ -190,6 +203,30 @@ export const StreamingPlatformPreview: React.FC<{
     return deriveCuratedRow(eligible.length > 0 ? eligible : catalogPool.filter((p) => p.id !== anchor.id), `${seed}|${genre ?? 'all'}`, 12);
   }, [catalogPool, layout, platformName]);
 
+  const prestigePicks = useMemo(() => {
+    return deriveCuratedRow(catalogPool, `prestige:picks|${platformName}`, 12);
+  }, [catalogPool, platformName]);
+
+  const prestigeAwardContenders = useMemo(() => {
+    return catalogPool
+      .slice()
+      .sort((a, b) => (b.script?.quality ?? 0) - (a.script?.quality ?? 0) || a.title.localeCompare(b.title))
+      .slice(0, 12);
+  }, [catalogPool]);
+
+  const prestigeOriginals = useMemo(() => {
+    return deriveCuratedRow(originals, `prestige:originals|${platformName}`, 14);
+  }, [originals, platformName]);
+
+  const prestigeLimitedSeries = useMemo(() => {
+    return deriveCuratedRow(prestigeOriginals, `prestige:limited|${platformName}`, 10);
+  }, [platformName, prestigeOriginals]);
+
+  const prestigePremieres = useMemo(() => {
+    const blended = [...newArrivals, ...topTen];
+    return deriveCuratedRow(blended, `prestige:premieres|${platformName}`, 12);
+  }, [newArrivals, platformName, topTen]);
+
   const searchResults = useMemo(() => {
     const q = searchQuery.trim().toLowerCase();
     if (q.length === 0) return [] as Project[];
@@ -224,18 +261,28 @@ export const StreamingPlatformPreview: React.FC<{
         '--sp-accent': resolved.accentHsl,
       } as React.CSSProperties}
     >
-      <div className={layout === 'mass' ? 'sp-shell sp-shell--mass' : 'sp-shell'}>
-        <header className={layout === 'mass' ? 'sp-topbar sp-topbar--mass' : 'sp-topbar'}>
+      <div className={layout === 'mass' ? 'sp-shell sp-shell--mass' : layout === 'prestige' ? 'sp-shell sp-shell--prestige' : 'sp-shell'}>
+        <header className={layout === 'mass' ? 'sp-topbar sp-topbar--mass' : layout === 'prestige' ? 'sp-topbar sp-topbar--prestige' : 'sp-topbar'}>
           <div className="sp-brand">
-            <div className={layout === 'mass' ? 'sp-logo sp-logo--mass' : 'sp-logo'} aria-label="Platform logo">
-              <StudioIconRenderer config={resolved.logo} size={layout === 'mass' ? 22 : 26} />
+            <div
+              className={layout === 'mass' ? 'sp-logo sp-logo--mass' : layout === 'prestige' ? 'sp-logo sp-logo--prestige' : 'sp-logo'}
+              aria-label="Platform logo"
+            >
+              <StudioIconRenderer config={resolved.logo} size={layout === 'mass' ? 22 : layout === 'prestige' ? 24 : 26} />
             </div>
-            <div className={layout === 'mass' ? 'sp-wordmark sp-wordmark--mass' : 'sp-wordmark'} title={platformName}>
+            <div
+              className={layout === 'mass' ? 'sp-wordmark sp-wordmark--mass' : layout === 'prestige' ? 'sp-wordmark sp-wordmark--prestige' : 'sp-wordmark'}
+              title={platformName}
+            >
               {platformName}
             </div>
           </div>
 
-          <div className={layout === 'mass' ? 'sp-actions sp-actions--mass' : 'sp-actions'}>
+          <div
+            className={
+              layout === 'mass' ? 'sp-actions sp-actions--mass' : layout === 'prestige' ? 'sp-actions sp-actions--prestige' : 'sp-actions'
+            }
+          >
             {layout === 'mass' ? (
               <>
                 <button
@@ -261,6 +308,15 @@ export const StreamingPlatformPreview: React.FC<{
                   <UserCircle size={16} />
                 </button>
               </>
+            ) : layout === 'prestige' ? (
+              <>
+                <button type="button" className="sp-pill sp-pill--prestige">
+                  My list
+                </button>
+                <button type="button" className="sp-pill sp-pill--prestige">
+                  Account
+                </button>
+              </>
             ) : (
               <>
                 <div className="sp-pill">Library</div>
@@ -270,7 +326,10 @@ export const StreamingPlatformPreview: React.FC<{
           </div>
         </header>
 
-        <nav className={layout === 'mass' ? 'sp-nav sp-nav--mass' : 'sp-nav'} aria-label="Platform navigation">
+        <nav
+          className={layout === 'mass' ? 'sp-nav sp-nav--mass' : layout === 'prestige' ? 'sp-nav sp-nav--prestige' : 'sp-nav'}
+          aria-label="Platform navigation"
+        >
           <button
             type="button"
             onClick={() => {
@@ -279,7 +338,7 @@ export const StreamingPlatformPreview: React.FC<{
             }}
             data-active={layout === 'mass' ? (massView === 'browse' && activeNav === 'home') : activeNav === 'home'}
           >
-            Home
+            {layout === 'prestige' ? 'Featured' : 'Home'}
           </button>
           <button
             type="button"
@@ -296,11 +355,11 @@ export const StreamingPlatformPreview: React.FC<{
             onClick={() => {
               setActiveNav('new');
               setMassView(layout === 'mass' ? 'newhot' : 'browse');
-              setNewHotTab('watching');
+              if (layout === 'mass') setNewHotTab('watching');
             }}
             data-active={layout === 'mass' ? (massView === 'browse' ? activeNav === 'new' : massView === 'newhot') : activeNav === 'new'}
           >
-            {layout === 'mass' ? 'New & Hot' : 'New'}
+            {layout === 'mass' ? 'New & Hot' : layout === 'prestige' ? 'Premieres' : 'New'}
           </button>
         </nav>
 
@@ -481,13 +540,21 @@ export const StreamingPlatformPreview: React.FC<{
         ) : shouldShowHero && heroTitle ? (
           <button
             type="button"
-            className={layout === 'mass' ? 'sp-hero sp-hero--mass' : 'sp-hero'}
+            className={layout === 'mass' ? 'sp-hero sp-hero--mass' : layout === 'prestige' ? 'sp-hero sp-hero--prestige' : 'sp-hero'}
             onClick={() => onSelectTitle(heroTitle)}
-            style={layout === 'mass' ? { backgroundImage: tileGradient(heroTitle.id, resolved.primaryHsl, resolved.accentHsl) } : undefined}
+            style={layout !== 'default' ? { backgroundImage: tileGradient(heroTitle.id, resolved.primaryHsl, resolved.accentHsl) } : undefined}
           >
-            <div className={layout === 'mass' ? 'sp-hero-scrim sp-hero-scrim--mass' : 'sp-hero-scrim'} />
+            <div
+              className={
+                layout === 'mass'
+                  ? 'sp-hero-scrim sp-hero-scrim--mass'
+                  : layout === 'prestige'
+                    ? 'sp-hero-scrim sp-hero-scrim--prestige'
+                    : 'sp-hero-scrim'
+              }
+            />
             <div className="sp-hero-content">
-              <div className="sp-hero-kicker">Spotlight</div>
+              <div className="sp-hero-kicker">{layout === 'prestige' ? 'Tonight' : 'Spotlight'}</div>
               <div className="sp-hero-title">{heroTitle.title}</div>
               <div className="sp-hero-meta">
                 {heroTitle.type.replace('-', ' ')} • {heroTitle.script?.genre}
@@ -497,6 +564,11 @@ export const StreamingPlatformPreview: React.FC<{
                 <div className="sp-hero-actions">
                   <div className="sp-btn sp-btn--primary">Play</div>
                   <div className="sp-btn">More info</div>
+                </div>
+              ) : layout === 'prestige' ? (
+                <div className="sp-hero-actions sp-hero-actions--prestige">
+                  <div className="sp-btn sp-btn--primary">Start watching</div>
+                  <div className="sp-btn">Add to list</div>
                 </div>
               ) : (
                 <div className="sp-badges">
@@ -511,10 +583,18 @@ export const StreamingPlatformPreview: React.FC<{
             </div>
           </button>
         ) : shouldShowHero ? (
-          <div className={layout === 'mass' ? 'sp-hero sp-hero--mass' : 'sp-hero'} style={{ cursor: 'default' }}>
-            <div className={layout === 'mass' ? 'sp-hero-scrim sp-hero-scrim--mass' : 'sp-hero-scrim'} />
+          <div className={layout === 'mass' ? 'sp-hero sp-hero--mass' : layout === 'prestige' ? 'sp-hero sp-hero--prestige' : 'sp-hero'} style={{ cursor: 'default' }}>
+            <div
+              className={
+                layout === 'mass'
+                  ? 'sp-hero-scrim sp-hero-scrim--mass'
+                  : layout === 'prestige'
+                    ? 'sp-hero-scrim sp-hero-scrim--prestige'
+                    : 'sp-hero-scrim'
+              }
+            />
             <div className="sp-hero-content">
-              <div className="sp-hero-kicker">Spotlight</div>
+              <div className="sp-hero-kicker">{layout === 'prestige' ? 'Spotlight' : 'Spotlight'}</div>
               <div className="sp-hero-title">No titles yet</div>
               <div className="sp-hero-meta">Add streaming windows and Originals to populate your catalog.</div>
             </div>
@@ -650,7 +730,7 @@ export const StreamingPlatformPreview: React.FC<{
           />
         )}
 
-        {layout !== 'mass' && (
+        {layout === 'default' && (
           <Row
             layout={layout}
             title={activeNav === 'home' ? 'Top picks' : activeNav === 'originals' ? 'Originals' : 'New this week'}
@@ -661,6 +741,85 @@ export const StreamingPlatformPreview: React.FC<{
             showRank={activeNav === 'home'}
             onSelectTitle={onSelectTitle}
           />
+        )}
+
+        {layout === 'prestige' && (
+          <>
+            {activeNav === 'home' && (
+              <>
+                <Row
+                  layout={layout}
+                  title="Critics’ picks"
+                  subtitle="Curated, premium storytelling"
+                  items={prestigePicks}
+                  platformId={platformId}
+                  primaryHsl={resolved.primaryHsl}
+                  accentHsl={resolved.accentHsl}
+                  onSelectTitle={onSelectTitle}
+                />
+                <Row
+                  layout={layout}
+                  title="Award contenders"
+                  subtitle="The high-end slate"
+                  items={prestigeAwardContenders}
+                  platformId={platformId}
+                  primaryHsl={resolved.primaryHsl}
+                  accentHsl={resolved.accentHsl}
+                  onSelectTitle={onSelectTitle}
+                />
+              </>
+            )}
+
+            {activeNav === 'originals' && (
+              <>
+                <Row
+                  layout={layout}
+                  title="Signature originals"
+                  subtitle="Premium series and films"
+                  items={prestigeOriginals}
+                  platformId={platformId}
+                  primaryHsl={resolved.primaryHsl}
+                  accentHsl={resolved.accentHsl}
+                  onSelectTitle={onSelectTitle}
+                />
+                <Row
+                  layout={layout}
+                  title="Limited series"
+                  subtitle="A single season, all impact"
+                  items={prestigeLimitedSeries}
+                  platformId={platformId}
+                  primaryHsl={resolved.primaryHsl}
+                  accentHsl={resolved.accentHsl}
+                  onSelectTitle={onSelectTitle}
+                />
+              </>
+            )}
+
+            {activeNav === 'new' && (
+              <>
+                <Row
+                  layout={layout}
+                  title="Premieres"
+                  subtitle="New episodes and films"
+                  items={prestigePremieres}
+                  platformId={platformId}
+                  primaryHsl={resolved.primaryHsl}
+                  accentHsl={resolved.accentHsl}
+                  onSelectTitle={onSelectTitle}
+                />
+                <Row
+                  layout={layout}
+                  title="Just added"
+                  subtitle="Recently available"
+                  items={newArrivals.slice(0, 12)}
+                  platformId={platformId}
+                  primaryHsl={resolved.primaryHsl}
+                  accentHsl={resolved.accentHsl}
+                  onSelectTitle={onSelectTitle}
+                />
+              </>
+            )}
+          </>
         )}
 
         {layout === 'mass' && (

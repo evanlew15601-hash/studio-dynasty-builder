@@ -87,7 +87,7 @@ function normalizeBrandingOverlay(input: any): PlatformBrandingOverlay {
 }
 
 function normalizeBrandingLayout(input: any): PlatformBrandingLayout | undefined {
-  if (input === 'auto' || input === 'default' || input === 'mass') return input;
+  if (input === 'auto' || input === 'default' || input === 'mass' || input === 'prestige') return input;
   return undefined;
 }
 

@@ -26,6 +26,15 @@
     0 0 0 1px hsl(var(--sp-accent) / 0.03) inset;
 }
 
+.sp-preview[data-layout="prestige"] {
+  --sp-bg: 250 22% 6%;
+  --sp-surface: 250 18% 10%;
+  border-color: hsl(var(--sp-primary) / 0.18);
+  box-shadow:
+    0 40px 110px hsl(0 0% 0% / 0.62),
+    0 0 0 1px hsl(var(--sp-primary) / 0.06) inset;
+}
+
 .sp-preview::before {
   content: "";
   position: absolute;
@@ -348,12 +357,23 @@
   backdrop-filter: none;
 }
 
+.sp-shell--prestige {
+  padding: 14px;
+  background:
+    radial-gradient(1200px 540px at 40% 0%, hsl(var(--sp-primary) / 0.14), transparent 55%),
+    linear-gradient(140deg, hsl(var(--sp-surface) / 0.88), hsl(var(--sp-bg) / 0.94));
+}
+
 .sp-topbar--mass {
   padding: 14px 14px 10px;
   background: linear-gradient(180deg, hsl(0 0% 0% / 0.78), transparent);
   position: sticky;
   top: 0;
   z-index: 5;
+}
+
+.sp-topbar--prestige {
+  padding-bottom: 10px;
 }
 
 .sp-logo--mass {
@@ -367,6 +387,30 @@
 .sp-wordmark--mass {
   font-weight: 900;
   letter-spacing: 0.02em;
+}
+
+.sp-logo--prestige {
+  width: 32px;
+  height: 32px;
+  border-radius: 12px;
+  background: hsl(var(--sp-bg) / 0.30);
+  border-color: hsl(var(--sp-primary) / 0.26);
+}
+
+.sp-wordmark--prestige {
+  font-weight: 900;
+  letter-spacing: -0.01em;
+  text-transform: none;
+}
+
+.sp-actions--prestige {
+  gap: 10px;
+}
+
+.sp-pill--prestige {
+  background: hsl(var(--sp-bg) / 0.30);
+  border-color: hsl(var(--sp-primary) / 0.20);
+  color: hsl(var(--sp-text) / 0.90);
 }
 
 .sp-actions--mass {
@@ -654,6 +698,113 @@
     radial-gradient(860px 480px at 18% 20%, hsl(var(--sp-primary) / 0.35), transparent 65%),
     linear-gradient(90deg, hsl(0 0% 0% / 0.82), transparent 65%),
     linear-gradient(180deg, transparent 15%, hsl(0 0% 0% / 0.92));
+}
+
+.sp-nav--prestige {
+  gap: 16px;
+  padding-bottom: 12px;
+}
+
+.sp-nav--prestige button {
+  border: none;
+  background: transparent;
+  padding: 0;
+  height: auto;
+  font-size: 12px;
+  letter-spacing: 0.16em;
+  text-transform: uppercase;
+  color: hsl(var(--sp-muted));
+}
+
+.sp-nav--prestige button:hover {
+  background: transparent;
+  border-color: transparent;
+  color: hsl(var(--sp-text));
+}
+
+.sp-nav--prestige button[data-active="true"] {
+  background: transparent;
+  border-color: transparent;
+  color: hsl(var(--sp-text));
+  text-decoration: underline;
+  text-decoration-color: hsl(var(--sp-primary) / 0.85);
+  text-decoration-thickness: 2px;
+  text-underline-offset: 6px;
+}
+
+.sp-hero--prestige {
+  border-radius: 18px;
+  border-color: hsl(var(--sp-primary) / 0.14);
+  min-height: 220px;
+  background-size: cover;
+  background-position: center;
+  padding: 22px;
+}
+
+.sp-hero--prestige:hover {
+  transform: translateY(-1px);
+  border-color: hsl(var(--sp-primary) / 0.32);
+}
+
+.sp-hero-scrim--prestige {
+  opacity: 1;
+  background:
+    radial-gradient(980px 520px at 22% 18%, hsl(var(--sp-primary) / 0.26), transparent 62%),
+    radial-gradient(780px 520px at 72% 82%, hsl(var(--sp-accent) / 0.08), transparent 70%),
+    linear-gradient(180deg, transparent 20%, hsl(var(--sp-bg) / 0.96));
+}
+
+.sp-hero--prestige .sp-hero-kicker {
+  color: hsl(var(--sp-text) / 0.80);
+}
+
+.sp-hero--prestige .sp-hero-title {
+  font-size: 30px;
+  letter-spacing: -0.03em;
+}
+
+.sp-hero--prestige .sp-hero-meta {
+  max-width: 420px;
+  color: hsl(var(--sp-text) / 0.70);
+}
+
+.sp-hero-actions--prestige .sp-btn {
+  background: hsl(var(--sp-bg) / 0.34);
+}
+
+.sp-row--prestige {
+  margin-top: 18px;
+}
+
+.sp-row-list--prestige {
+  margin-top: 12px;
+  gap: 14px;
+  padding-bottom: 6px;
+}
+
+.sp-tile--prestige {
+  width: 168px;
+}
+
+.sp-poster--prestige {
+  border-radius: 16px;
+  border-color: hsl(var(--sp-primary) / 0.14);
+  box-shadow:
+    0 16px 36px hsl(0 0% 0% / 0.55),
+    0 0 0 1px hsl(var(--sp-accent) / 0.04) inset;
+}
+
+.sp-poster--prestige::after {
+  background: radial-gradient(760px 420px at 36% 20%, hsl(var(--sp-primary) / 0.18), transparent 68%);
+}
+
+.sp-tile--prestige .sp-tile-title {
+  font-size: 13px;
+  font-weight: 800;
+}
+
+.sp-tile--prestige .sp-tile-meta {
+  color: hsl(var(--sp-muted) / 0.92);
 }
 
 .sp-hero--mass .sp-hero-kicker {
