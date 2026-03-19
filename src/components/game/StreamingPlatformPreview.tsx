@@ -144,7 +144,7 @@ export const StreamingPlatformPreview: React.FC<{
   const [massView, setMassView] = useState<'browse' | 'search' | 'newhot'>('browse');
   const [searchQuery, setSearchQuery] = useState('');
   const [newHotTab, setNewHotTab] = useState<'coming' | 'watching'>('watching');
-  const [prestigeView, setPrestigeView] = useState<'browse' | 'collections'>('browse');
+  const [prestigeView, setPrestigeView] = useState<'browse' | 'collections' | 'search' | 'mystuff'>('browse');
 
   const resolved = useMemo(() => {
     const primaryHsl = resolveHsl(branding?.primaryColor, ICON_COLORS, '42 88% 68%');
@@ -261,6 +261,8 @@ export const StreamingPlatformPreview: React.FC<{
   const showMassSearch = layout === 'mass' && massView === 'search';
   const showMassNewHot = layout === 'mass' && massView === 'newhot';
 
+  const showPrestigeSearch = layout === 'prestige' && prestigeView === 'search';
+  const showPrestigeMyStuff = layout === 'prestige' && prestigeView === 'mystuff';
   const showPrestigeCollections = layout === 'prestige' && prestigeView === 'collections';
 
   const shouldShowHero = layout !== 'mass' || massView === 'browse';
@@ -324,11 +326,18 @@ export const StreamingPlatformPreview: React.FC<{
               </>
             ) : layout === 'prestige' ? (
               <>
-                <button type="button" className="sp-pill sp-pill--prestige">
-                  My list
+                <button
+                  type="button"
+                  className="sp-pill sp-pill--prestige"
+                  onClick={() => {
+                    setPrestigeView('search');
+                    setSearchQuery('');
+                  }}
+                >
+                  Search
                 </button>
-                <button type="button" className="sp-pill sp-pill--prestige">
-                  Account
+                <button type="button" className="sp-pill sp-pill--prestige" onClick={() => setPrestigeView('mystuff')}>
+                  My stuff
                 </button>
               </>
             ) : (
@@ -433,7 +442,7 @@ export const StreamingPlatformPreview: React.FC<{
           </div>
         )}
 
-        {layout === 'prestige' && (
+        {layout === 'prestige' && prestigeView === 'browse' && (
           <div className="sp-hubs" aria-label="Hubs">
             <button
               type="button"
@@ -470,6 +479,29 @@ export const StreamingPlatformPreview: React.FC<{
             >
               <div className="sp-hub-label">Movies</div>
               <div className="sp-hub-sub">Premier films</div>
+            </button>
+            <button
+              type="button"
+              className="sp-hub"
+              onClick={() => {
+                setPrestigeView('mystuff');
+              }}
+              data-active={prestigeView === 'mystuff'}
+            >
+              <div className="sp-hub-label">My stuff</div>
+              <div className="sp-hub-sub">List and picks</div>
+            </button>
+            <button
+              type="button"
+              className="sp-hub"
+              onClick={() => {
+                setPrestigeView('search');
+                setSearchQuery('');
+              }}
+              data-active={prestigeView === 'search'}
+            >
+              <div className="sp-hub-label">Search</div>
+              <div className="sp-hub-sub">Titles and genres</div>
             </button>
             <button
               type="button"
@@ -606,6 +638,92 @@ export const StreamingPlatformPreview: React.FC<{
 
             <div className="sp-newhot-footer" />
           </section>
+        ) : showPrestigeSearch ? (
+          <section className="sp-search sp-search--prestige">
+            <div className="sp-searchbar sp-searchbar--prestige">
+              <input
+                className="sp-searchinput"
+                value={searchQuery}
+                onChange={(e) => setSearchQuery(e.target.value)}
+                placeholder="Search titles or genres"
+              />
+              <button type="button" className="sp-searchcancel" onClick={() => setPrestigeView('browse')}>
+                Done
+              </button>
+            </div>
+
+            {searchQuery.trim().length === 0 ? (
+              <>
+                <Row
+                  layout={layout}
+                  title="Trending"
+                  subtitle="Popular right now"
+                  items={topTen.slice(0, 12)}
+                  platformId={platformId}
+                  primaryHsl={resolved.primaryHsl}
+                  accentHsl={resolved.accentHsl}
+                  onSelectTitle={onSelectTitle}
+                />
+                <Row
+                  layout={layout}
+                  title="Browse by genre"
+                  subtitle="Try 'drama', 'comedy', etc."
+                  items={newArrivals.slice(0, 12)}
+                  platformId={platformId}
+                  primaryHsl={resolved.primaryHsl}
+                  accentHsl={resolved.accentHsl}
+                  onSelectTitle={onSelectTitle}
+                />
+              </>
+            ) : searchResults.length > 0 ? (
+              <Row
+                layout={layout}
+                title="Results"
+                subtitle={`${searchResults.length} matches`}
+                items={searchResults}
+                platformId={platformId}
+                primaryHsl={resolved.primaryHsl}
+                accentHsl={resolved.accentHsl}
+                onSelectTitle={onSelectTitle}
+              />
+            ) : (
+              <div className="sp-search-empty">No matches.</div>
+            )}
+          </section>
+        ) : showPrestigeMyStuff ? (
+          <section className="sp-collections sp-mystuff">
+            <div className="sp-collections-head">
+              <div>
+                <div className="sp-collections-title">My stuff</div>
+                <div className="sp-collections-sub">Your list and personalized picks</div>
+              </div>
+              <button type="button" className="sp-collections-close" onClick={() => setPrestigeView('browse')}>
+                Done
+              </button>
+            </div>
+
+            <Row
+              layout={layout}
+              title="My list"
+              subtitle="Saved for later"
+              items={myList}
+              platformId={platformId}
+              primaryHsl={resolved.primaryHsl}
+              accentHsl={resolved.accentHsl}
+              onSelectTitle={onSelectTitle}
+            />
+
+            <Row
+              layout={layout}
+              title="Because you watched"
+              subtitle="Recommendations"
+              items={becauseYouWatched}
+              platformId={platformId}
+              primaryHsl={resolved.primaryHsl}
+              accentHsl={resolved.accentHsl}
+              onSelectTitle={onSelectTitle}
+            />
+          </section>
         ) : showPrestigeCollections ? (
           <section className="sp-collections">
             <div className="sp-collections-head">
@@ -664,6 +782,21 @@ export const StreamingPlatformPreview: React.FC<{
                 <div className="sp-collection-content">
                   <div className="sp-collection-title">Movies</div>
                   <div className="sp-collection-sub">Premier films</div>
+                </div>
+              </button>
+
+              <button
+                type="button"
+                className="sp-collection"
+                onClick={() => {
+                  setPrestigeView('mystuff');
+                }}
+                style={{ backgroundImage: tileGradient('prestige:collection:mystuff', resolved.primaryHsl, resolved.accentHsl) }}
+              >
+                <div className="sp-collection-scrim" />
+                <div className="sp-collection-content">
+                  <div className="sp-collection-title">My stuff</div>
+                  <div className="sp-collection-sub">List and picks</div>
                 </div>
               </button>
 
@@ -916,6 +1049,59 @@ export const StreamingPlatformPreview: React.FC<{
           <>
             {activeNav === 'home' && (
               <>
+                <section className="sp-row sp-row--prestige">
+                  <div className="sp-row-head">
+                    <div className="sp-row-title">Continue watching</div>
+                    <div className="sp-row-sub">Progress is local to this preview</div>
+                  </div>
+
+                  <div className="sp-row-list sp-row-list--prestige">
+                    {continueWatching.map((x) => {
+                      const initials = titleInitials(x.project.title);
+
+                      return (
+                        <button
+                          key={`prestige:continue:${x.project.id}`}
+                          type="button"
+                          className="sp-continue sp-continue--prestige"
+                          onClick={() => onSelectTitle(x.project)}
+                        >
+                          <div
+                            className="sp-continue-poster sp-continue-poster--prestige"
+                            style={{ backgroundImage: tileGradient(x.project.id, resolved.primaryHsl, resolved.accentHsl) }}
+                          >
+                            <div className="sp-continue-initials">{initials}</div>
+                          </div>
+                          <div className="sp-continue-meta">
+                            <div className="sp-continue-title">{x.project.title}</div>
+                            <div className="sp-continue-sub">Resume • {x.project.script?.genre ?? 'Unknown'}</div>
+                            <div className="sp-progress" aria-label={`Progress ${x.progressPct}%`}>
+                              <div className="sp-progress-bar" style={{ width: `${x.progressPct}%` }} />
+                            </div>
+                          </div>
+                        </button>
+                      );
+                    })}
+
+                    {continueWatching.length === 0 && (
+                      <div className="sp-pill" style={{ marginLeft: 2 }}>
+                        Nothing in progress
+                      </div>
+                    )}
+                  </div>
+                </section>
+
+                <Row
+                  layout={layout}
+                  title="My list"
+                  subtitle="Saved for later"
+                  items={myList}
+                  platformId={platformId}
+                  primaryHsl={resolved.primaryHsl}
+                  accentHsl={resolved.accentHsl}
+                  onSelectTitle={onSelectTitle}
+                />
+
                 <Row
                   layout={layout}
                   title="Originals"

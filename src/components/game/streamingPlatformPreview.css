@@ -560,6 +560,14 @@
   padding: 12px 14px 10px;
 }
 
+.sp-search--prestige {
+  padding: 0;
+}
+
+.sp-searchbar--prestige {
+  padding: 12px 0 10px;
+}
+
 .sp-searchinput {
   flex: 1;
   height: 34px;
@@ -597,6 +605,10 @@
 
 .sp-collections {
   padding: 12px 0 4px;
+}
+
+.sp-mystuff {
+  padding-top: 12px;
 }
 
 .sp-collections-head {
@@ -1081,7 +1093,15 @@
   text-align: left;
 }
 
+.sp-continue--prestige {
+  width: 360px;
+  border-color: hsl(var(--sp-primary) / 0.14);
+  background: hsl(var(--sp-bg) / 0.20);
+}
 
+.sp-continue-poster--prestige {
+  border-color: hsl(var(--sp-primary) / 0.18);
+}
 
 .sp-continue-poster {
   aspect-ratio: 16 / 9;
