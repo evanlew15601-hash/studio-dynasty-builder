@@ -1,5 +1,6 @@
 import type { PlatformMarketState } from '@/types/platformEconomy';
 import type { GameEvent } from '@/types/game';
+import { stableInt } from '@/utils/stableRandom';
 import type { TickSystem } from '../core/types';
 
 function clamp(n: number, min: number, max: number): number {
@@ -24,8 +25,8 @@ export const PlatformMnaOffersSystem: TickSystem = {
 
     if (!market || !player || player.status !== 'active' || rivals.length === 0) return state;
 
-    // Deterministic season for strategic M&A offers (keeps it from feeling spammy).
-    if (ctx.week !== 39) return state;
+    const offerWeek = stableInt(`${state.universeSeed || 'seed'}|platform:mna-offer-week|${ctx.year}|${player.id}`, 34, 46);
+    if (ctx.week !== offerWeek) return state;
     if (player.lastMnaOfferYear === ctx.year) return state;
 
     const distressed = rivals

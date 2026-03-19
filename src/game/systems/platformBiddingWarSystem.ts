@@ -1,6 +1,7 @@
 import type { PlatformMarketState } from '@/types/platformEconomy';
 import type { GameEvent, Project } from '@/types/game';
 import { getContractPlatformId, getPlatformIdForProjectAtTime } from '@/utils/platformIds';
+import { stableInt } from '@/utils/stableRandom';
 import type { TickSystem } from '../core/types';
 
 function triggerDateFromWeekYear(year: number, week: number): Date {
@@ -56,8 +57,8 @@ export const PlatformBiddingWarSystem: TickSystem = {
 
     if (!market || !player || player.status !== 'active') return state;
 
-    // Deterministic “bidding war season”.
-    if (ctx.week !== 30) return state;
+    const offerWeek = stableInt(`${state.universeSeed || 'seed'}|platform:bidding-war-week|${ctx.year}|${player.id}`, 26, 34);
+    if (ctx.week !== offerWeek) return state;
     if (player.lastBiddingWarYear === ctx.year) return state;
 
     const rivals = (market.rivals || []).filter((r) => r && r.status !== 'collapsed');

@@ -1,6 +1,7 @@
 import { beforeEach, describe, expect, it } from 'vitest';
 import type { GameState } from '@/types/game';
 import { useGameStore } from '@/game/store';
+import { stableInt } from '@/utils/stableRandom';
 
 function makeBaseState(overrides?: Partial<GameState>): GameState {
   const base: GameState = {
@@ -48,16 +49,20 @@ describe('Streaming Wars: platform outage crisis event', () => {
     useGameStore.getState().initGame(makeBaseState({ universeSeed: 888, rngState: 888 }), 123);
   });
 
-  it('enqueues an outage event on week 26 when freshness is very low at meaningful scale', () => {
+  it('enqueues an outage event during the seeded outage week when service quality is very low at meaningful scale', () => {
+    const playerPlatformId = 'player-platform:studio-1';
+    const outageWeek = stableInt(`888|platform:outage-week|2027|${playerPlatformId}`, 22, 38);
+
     useGameStore.getState().initGame(
       makeBaseState({
         dlc: { streamingWars: true },
         universeSeed: 888,
         rngState: 888,
+        currentWeek: outageWeek - 1,
         platformMarket: {
           totalAddressableSubs: 100_000_000,
           player: {
-            id: 'player-platform:studio-1',
+            id: playerPlatformId,
             name: 'TestFlix',
             launchedWeek: 1,
             launchedYear: 2026,
@@ -67,6 +72,7 @@ describe('Streaming Wars: platform outage crisis event', () => {
             tierMix: { adSupportedPct: 60, adFreePct: 40 },
             promotionBudgetPerWeek: 0,
             priceIndex: 1.0,
+            serviceQuality: 10,
             freshness: 10,
             catalogValue: 30,
             distressWeeks: 0,
@@ -93,7 +99,7 @@ describe('Streaming Wars: platform outage crisis event', () => {
     useGameStore.getState().advanceWeek();
 
     const state = useGameStore.getState().game!;
-    expect(state.currentWeek).toBe(26);
+    expect(state.currentWeek).toBe(outageWeek);
 
     expect(state.eventQueue.length).toBe(1);
     expect((state.eventQueue[0] as any)?.data?.kind).toBe('platform:outage');

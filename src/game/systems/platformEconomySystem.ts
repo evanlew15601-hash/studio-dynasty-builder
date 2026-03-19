@@ -156,6 +156,7 @@ type PlatformStepInput = {
   tierMix?: { adSupportedPct: number; adFreePct: number };
   promotionBudgetPerWeek?: number;
   adLoadIndex?: number;
+  serviceQuality?: number;
   fixedOpsCost: number;
   extraCost?: number;
   rngFloat: () => number;
@@ -169,6 +170,7 @@ function stepPlatform(input: PlatformStepInput): { nextSubs: number; nextCash: n
   const freshness = clamp(input.freshness, 0, 100);
   const catalogValue = clamp(input.catalogValue, 0, 100);
   const priceIndex = typeof input.priceIndex === 'number' ? input.priceIndex : 1;
+  const serviceQuality = typeof input.serviceQuality === 'number' ? clamp(input.serviceQuality, 0, 100) : 55;
 
   // Base churn ~4% monthly => ~1% weekly (roughly).
   const baseChurnWeekly = 0.010;
@@ -186,7 +188,9 @@ function stepPlatform(input: PlatformStepInput): { nextSubs: number; nextCash: n
   const adLoadDelta = (adLoadIndex - 55) / 100;
   const adLoadMod = clamp(1 + adSupportedShareForChurn * adLoadDelta * 0.9, 0.85, 1.35);
 
-  const churnRate = clamp(baseChurnWeekly * freshnessMod * catalogMod * priceMod * adLoadMod, 0.002, 0.06);
+  const serviceMod = clamp(1.0 + (55 - serviceQuality) / 120, 0.75, 1.35);
+
+  const churnRate = clamp(baseChurnWeekly * freshnessMod * catalogMod * priceMod * adLoadMod * serviceMod, 0.002, 0.06);
   const churned = Math.floor(subs * churnRate);
 
   // Acquisition scales with freshness and (for player) promotionBudget; allow non-zero growth from 0.
@@ -240,6 +244,68 @@ function sumActiveSubs(params: { player?: PlayerPlatformState; rivals: RivalPlat
   return (playerSubs ?? 0) + rivalSubs;
 }
 
+function stepServiceQuality(params: {
+  prev: number | undefined;
+  profit: number;
+  cash: number;
+  rng: () => number;
+}): number {
+  const prev = typeof params.prev === 'number' ? clamp(params.prev, 0, 100) : 55;
+  const profit = params.profit;
+  const cash = params.cash;
+
+  const runwayPenalty = cash < -350_000_000 ? -0.45 : cash < -150_000_000 ? -0.25 : cash > 250_000_000 ? 0.08 : 0;
+  const profitDrift = profit >= 0 ? 0.12 : -0.22;
+
+  return clamp(prev + runwayPenalty + profitDrift + params.rng() * 0.25 - 0.125, 0, 100);
+}
+
+function stepRivalStrategy(r: RivalPlatformState, rng: () => number): RivalPlatformState {
+  const freshness = typeof r.freshness === 'number' ? clamp(r.freshness, 0, 100) : 55;
+  const catalogValue = typeof r.catalogValue === 'number' ? clamp(r.catalogValue, 0, 100) : 50;
+  const cash = typeof r.cash === 'number' ? r.cash : 0;
+
+  const prevPriceIndex = typeof r.priceIndex === 'number' ? clamp(r.priceIndex, 0.7, 1.5) : 1;
+  const prevPromo = typeof r.promotionBudgetPerWeek === 'number' ? Math.max(0, r.promotionBudgetPerWeek) : 0;
+  const prevAdLoad = typeof r.adLoadIndex === 'number' ? clamp(r.adLoadIndex, 0, 100) : 55;
+
+  let targetPriceIndex = 1.0;
+  if (freshness < 42) targetPriceIndex = 0.9;
+  else if (freshness > 70 && catalogValue > 60) targetPriceIndex = 1.05;
+
+  if (cash < -250_000_000) targetPriceIndex += 0.05;
+  if (cash > 1_000_000_000) targetPriceIndex -= 0.02;
+
+  const priceStep = clamp(targetPriceIndex - prevPriceIndex, -0.03, 0.03);
+  const nextPriceIndex = clamp(prevPriceIndex + priceStep, 0.7, 1.5);
+
+  const freshnessPressure = Math.max(0, 50 - freshness);
+  const catalogPressure = Math.max(0, 45 - catalogValue);
+
+  let targetPromo = Math.floor(5_000_000 + freshnessPressure * 450_000 + catalogPressure * 250_000);
+  if (cash < -350_000_000) targetPromo = Math.floor(targetPromo * 0.55);
+  if (cash > 1_500_000_000) targetPromo = Math.floor(targetPromo * 1.25);
+
+  targetPromo = Math.max(0, Math.min(40_000_000, targetPromo));
+
+  const nextPromo = Math.floor(prevPromo * 0.65 + targetPromo * 0.35);
+
+  let targetAdLoad = 55;
+  if (cash < -250_000_000) targetAdLoad = 72;
+  else if (cash < 0) targetAdLoad = 64;
+  else if (cash > 1_000_000_000 && freshness > 65) targetAdLoad = 50;
+
+  const adStep = clamp(targetAdLoad - prevAdLoad, -4, 4);
+  const nextAdLoad = clamp(prevAdLoad + adStep + (rng() - 0.5) * 1.2, 0, 100);
+
+  return {
+    ...r,
+    priceIndex: nextPriceIndex,
+    promotionBudgetPerWeek: nextPromo,
+    adLoadIndex: nextAdLoad,
+  };
+}
+
 export const PlatformEconomySystem: TickSystem = {
   id: 'platformEconomy',
   label: 'Platform economy (Streaming Wars)',
@@ -276,12 +342,16 @@ export const PlatformEconomySystem: TickSystem = {
         return r;
       }
 
-      const subs = typeof r.subscribers === 'number' ? r.subscribers : 0;
-      const cash = typeof r.cash === 'number' ? r.cash : 0;
+      const rngFloat = () => ctx.rng.nextFloat(0.65, 1.35);
 
-      const freshness = typeof r.freshness === 'number' ? clamp(r.freshness, 0, 100) : 55;
-      const catalogValue = typeof r.catalogValue === 'number' ? clamp(r.catalogValue, 0, 100) : 50;
-      const priceIndex = typeof r.priceIndex === 'number' ? r.priceIndex : 1;
+      const strategized = stepRivalStrategy(r, () => ctx.rng.nextFloat(0, 1));
+
+      const subs = typeof strategized.subscribers === 'number' ? strategized.subscribers : 0;
+      const cash = typeof strategized.cash === 'number' ? strategized.cash : 0;
+
+      const freshness = typeof strategized.freshness === 'number' ? clamp(strategized.freshness, 0, 100) : 55;
+      const catalogValue = typeof strategized.catalogValue === 'number' ? clamp(strategized.catalogValue, 0, 100) : 50;
+      const priceIndex = typeof strategized.priceIndex === 'number' ? strategized.priceIndex : 1;
 
       const step = stepPlatform({
         subscribers: subs,
@@ -289,18 +359,28 @@ export const PlatformEconomySystem: TickSystem = {
         freshness,
         catalogValue,
         priceIndex,
-        tierMix: r.tierMix,
+        tierMix: strategized.tierMix,
+        promotionBudgetPerWeek: strategized.promotionBudgetPerWeek,
+        adLoadIndex: strategized.adLoadIndex,
+        serviceQuality: strategized.serviceQuality,
         fixedOpsCost: 20_000_000,
-        adLoadIndex: 55,
-        rngFloat: () => ctx.rng.nextFloat(0.65, 1.35),
+        rngFloat,
       });
 
-      rivalKpis.push({ id: r.id, status: r.status, kpis: step.kpis });
+      rivalKpis.push({ id: strategized.id, status: strategized.status, kpis: step.kpis });
+
+      const nextServiceQuality = stepServiceQuality({
+        prev: strategized.serviceQuality,
+        profit: step.kpis.profit,
+        cash: step.nextCash,
+        rng: () => ctx.rng.nextFloat(0, 1),
+      });
 
       return {
-        ...r,
+        ...strategized,
         subscribers: step.nextSubs,
         cash: step.nextCash,
+        serviceQuality: nextServiceQuality,
       };
     });
 
@@ -317,6 +397,7 @@ export const PlatformEconomySystem: TickSystem = {
 
       const promotionBudgetPerWeek = typeof playerIn.promotionBudgetPerWeek === 'number' ? playerIn.promotionBudgetPerWeek : 0;
       const priceIndex = typeof playerIn.priceIndex === 'number' ? playerIn.priceIndex : 1;
+      const serviceQuality = typeof playerIn.serviceQuality === 'number' ? clamp(playerIn.serviceQuality, 0, 100) : 55;
       const monthlyPrice = Math.round(12.99 * clamp(priceIndex, 0.6, 1.7) * 100) / 100;
 
       const moat = platformMoatFactor({
@@ -350,10 +431,18 @@ export const PlatformEconomySystem: TickSystem = {
         tierMix: playerIn.tierMix,
         promotionBudgetPerWeek,
         adLoadIndex: typeof playerIn.adLoadIndex === 'number' ? playerIn.adLoadIndex : 55,
+        serviceQuality,
         fixedOpsCost: 25_000_000,
         extraCost: contentSpendPerWeek,
         rngFloat: () => ctx.rng.nextFloat(0.7, 1.3),
         baseAcquired,
+      });
+
+      const nextServiceQuality = stepServiceQuality({
+        prev: serviceQuality,
+        profit: step.kpis.profit,
+        cash: step.nextCash,
+        rng: () => ctx.rng.nextFloat(0, 1),
       });
 
       playerOut = {
@@ -362,6 +451,7 @@ export const PlatformEconomySystem: TickSystem = {
         cash: step.nextCash,
         monthlyPrice,
         contentSpendPerWeek,
+        serviceQuality: nextServiceQuality,
         distressWeeks: typeof playerIn.distressWeeks === 'number' ? playerIn.distressWeeks : 0,
       };
       playerKpis = step.kpis;

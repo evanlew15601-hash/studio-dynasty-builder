@@ -69,6 +69,9 @@ export interface PlayerPlatformState {
   /** 0–100 ad load intensity (higher = more ad ARPU, worse churn on ad tier). */
   adLoadIndex?: number;
 
+  /** 0–100 service reliability/quality (separate from content freshness). */
+  serviceQuality?: number;
+
   /** 0–20 baseline script quality bonus applied to platform Originals (from talent deal events). */
   originalsQualityBonus?: number;
 
@@ -98,6 +101,9 @@ export interface PlayerPlatformState {
   /** Internal: prevents spamming annual M&A offers. */
   lastMnaOfferYear?: number;
 
+  /** Internal: ensures the outage crisis is at most once per year. */
+  lastOutageYear?: number;
+
   // Optional knobs for future economy simulation
   monthlyPrice?: number;
   contentSpendPerWeek?: number;
@@ -114,7 +120,10 @@ export interface RivalPlatformState {
   distressWeeks?: number;
 
   tierMix?: PlatformTierMix;
+  promotionBudgetPerWeek?: number;
   priceIndex?: number;
+  adLoadIndex?: number;
+  serviceQuality?: number;
   catalogValue?: number;
   freshness?: number; // 0–100
 }

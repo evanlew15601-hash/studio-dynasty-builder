@@ -1,6 +1,7 @@
 import type { PlatformMarketState } from '@/types/platformEconomy';
 import type { GameEvent, Project } from '@/types/game';
 import { getContractPlatformId, getPlatformIdForProjectAtTime } from '@/utils/platformIds';
+import { stableInt } from '@/utils/stableRandom';
 import type { TickSystem } from '../core/types';
 
 function triggerDateFromWeekYear(year: number, week: number): Date {
@@ -39,8 +40,8 @@ export const PlatformOpportunitiesSystem: TickSystem = {
 
     if (!market || !player || player.status !== 'active') return state;
 
-    // A single predictable “licensing offer season” keeps the system deterministic and prevents spam.
-    if (ctx.week !== 13) return state;
+    const offerWeek = stableInt(`${state.universeSeed || 'seed'}|platform:license-offer-week|${ctx.year}|${player.id}`, 10, 18);
+    if (ctx.week !== offerWeek) return state;
 
     const lastLicenseOfferYear =
       typeof player.lastLicenseOfferYear === 'number'

@@ -40,7 +40,10 @@ function bootstrapRivals(totalAddressableSubs: number): RivalPlatformState[] {
       status: 'healthy',
       distressWeeks: 0,
       tierMix: { adSupportedPct: 50, adFreePct: 50 },
+      promotionBudgetPerWeek: Math.floor(5_000_000 + p.marketShare * 250_000),
       priceIndex: 1,
+      adLoadIndex: 55,
+      serviceQuality: 55,
       catalogValue: 50,
       freshness: 55,
     };
@@ -65,7 +68,11 @@ function normalizeExistingRivals(rivals: any[] | undefined, totalAddressableSubs
       status: (r as any).status === 'distress' || (r as any).status === 'collapsed' ? (r as any).status : 'healthy',
       distressWeeks: typeof (r as any).distressWeeks === 'number' ? Math.max(0, Math.floor((r as any).distressWeeks)) : 0,
       tierMix: normalizeTierMix((r as any).tierMix),
+      promotionBudgetPerWeek:
+        typeof (r as any).promotionBudgetPerWeek === 'number' ? Math.max(0, Math.floor((r as any).promotionBudgetPerWeek)) : 0,
       priceIndex: typeof (r as any).priceIndex === 'number' ? (r as any).priceIndex : 1,
+      adLoadIndex: typeof (r as any).adLoadIndex === 'number' ? clamp((r as any).adLoadIndex, 0, 100) : 55,
+      serviceQuality: typeof (r as any).serviceQuality === 'number' ? clamp((r as any).serviceQuality, 0, 100) : 55,
       catalogValue: typeof (r as any).catalogValue === 'number' ? (r as any).catalogValue : 50,
       freshness: typeof (r as any).freshness === 'number' ? clamp((r as any).freshness, 0, 100) : 55,
     });
@@ -159,6 +166,8 @@ function normalizePlayerPlatform(player: any | undefined): PlatformMarketState['
     priceIndex: typeof (player as any).priceIndex === 'number' ? (player as any).priceIndex : 1,
     adLoadIndex:
       typeof (player as any).adLoadIndex === 'number' ? clamp((player as any).adLoadIndex, 0, 100) : 55,
+    serviceQuality:
+      typeof (player as any).serviceQuality === 'number' ? clamp((player as any).serviceQuality, 0, 100) : 55,
     originalsQualityBonus:
       typeof (player as any).originalsQualityBonus === 'number' ? clamp((player as any).originalsQualityBonus, 0, 20) : 0,
     freshness: typeof (player as any).freshness === 'number' ? clamp((player as any).freshness, 0, 100) : undefined,
@@ -176,6 +185,7 @@ function normalizePlayerPlatform(player: any | undefined): PlatformMarketState['
     lastMnaOfferYear: typeof (player as any).lastMnaOfferYear === 'number' ? (player as any).lastMnaOfferYear : undefined,
     lastTalentOfferYear: typeof (player as any).lastTalentOfferYear === 'number' ? (player as any).lastTalentOfferYear : undefined,
     lastBiddingWarYear: typeof (player as any).lastBiddingWarYear === 'number' ? (player as any).lastBiddingWarYear : undefined,
+    lastOutageYear: typeof (player as any).lastOutageYear === 'number' ? (player as any).lastOutageYear : undefined,
   };
 }
 

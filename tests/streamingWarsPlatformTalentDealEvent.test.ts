@@ -1,6 +1,7 @@
 import { beforeEach, describe, expect, it } from 'vitest';
 import type { GameState } from '@/types/game';
 import { useGameStore } from '@/game/store';
+import { stableInt } from '@/utils/stableRandom';
 
 function makeBaseState(overrides?: Partial<GameState>): GameState {
   const base: GameState = {
@@ -48,12 +49,15 @@ describe('Streaming Wars: overall deal / talent poaching event', () => {
     useGameStore.getState().initGame(makeBaseState({ universeSeed: 444, rngState: 444 }), 123);
   });
 
-  it('enqueues a deterministic overall-deal event at week 20', () => {
+  it('enqueues a deterministic overall-deal event during the seeded offer week', () => {
+    const offerWeek = stableInt(`444|platform:talent-offer-week|2027|player-platform:studio-1`, 16, 24);
+
     useGameStore.getState().initGame(
       makeBaseState({
         dlc: { streamingWars: true },
         universeSeed: 444,
         rngState: 444,
+        currentWeek: offerWeek - 1,
         platformMarket: {
           totalAddressableSubs: 100_000_000,
           player: {
@@ -91,21 +95,24 @@ describe('Streaming Wars: overall deal / talent poaching event', () => {
       123
     );
 
-    useGameStore.getState().advanceWeek(); // to week 20
+    useGameStore.getState().advanceWeek();
 
     const state = useGameStore.getState().game!;
-    expect(state.currentWeek).toBe(20);
+    expect(state.currentWeek).toBe(offerWeek);
 
     expect(state.eventQueue.length).toBe(1);
     expect((state.eventQueue[0] as any)?.data?.kind).toBe('platform:overall-deal');
   });
 
   it('matching the overall deal increases Originals quality bonus (and spends budget via consequences)', () => {
+    const offerWeek = stableInt(`445|platform:talent-offer-week|2027|player-platform:studio-1`, 16, 24);
+
     useGameStore.getState().initGame(
       makeBaseState({
         dlc: { streamingWars: true },
         universeSeed: 445,
         rngState: 445,
+        currentWeek: offerWeek - 1,
         platformMarket: {
           totalAddressableSubs: 100_000_000,
           player: {
@@ -143,7 +150,7 @@ describe('Streaming Wars: overall deal / talent poaching event', () => {
       123
     );
 
-    useGameStore.getState().advanceWeek(); // to week 20
+    useGameStore.getState().advanceWeek();
 
     const withEvent = useGameStore.getState().game!;
     const event = withEvent.eventQueue[0];

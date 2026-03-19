@@ -1203,12 +1203,15 @@ export const useGameStore: import('zustand').UseBoundStore<import('zustand').Sto
               if (selectedChoice.id === 'refunds') {
                 player.subscribers = Math.max(0, (player.subscribers ?? 0) - Math.floor(suggestedLoss * 0.25));
                 player.freshness = clamp((player.freshness ?? 50) - 1, 0, 100);
+                player.serviceQuality = clamp((player.serviceQuality ?? 55) + 3, 0, 100);
               } else if (selectedChoice.id === 'apology') {
                 player.subscribers = Math.max(0, (player.subscribers ?? 0) - Math.floor(suggestedLoss * 0.55));
                 player.freshness = clamp((player.freshness ?? 50) - 2, 0, 100);
+                player.serviceQuality = clamp((player.serviceQuality ?? 55) + 2, 0, 100);
               } else {
                 player.subscribers = Math.max(0, (player.subscribers ?? 0) - suggestedLoss);
                 player.freshness = clamp((player.freshness ?? 50) - 3, 0, 100);
+                player.serviceQuality = clamp((player.serviceQuality ?? 55) + 1, 0, 100);
               }
 
               const headline = `${player.name} outage triggers churn as customers demand compensation`;
