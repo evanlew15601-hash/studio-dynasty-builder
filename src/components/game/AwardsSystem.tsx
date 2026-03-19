@@ -1,7 +1,5 @@
 import React, { useCallback, useMemo, useState } from 'react';
-import { Project, AwardsCampaign, StudioAward } from '@/types/game';
-import { stableFloat01 } from '@/utils/stableRandom';
-import { hashStringToUint32 } from '@/utils/stablePick';
+import { Project, AwardsCampaign } from '@/types/game';
 import { useGameStore } from '@/game/store';
 import { useUiStore } from '@/game/uiStore';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
@@ -9,7 +7,6 @@ import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
 import { Progress } from '@/components/ui/progress';
 import { useToast } from '@/hooks/use-toast';
-import { AwardsShowModal } from './AwardsShowModal';
 import { AwardsCalendar } from './AwardsCalendar';
 import { 
   TrophyIcon, 
@@ -30,22 +27,8 @@ export const AwardsSystem: React.FC<AwardsSystemProps> = ({
   const setPhase = useUiStore((s) => s.setPhase);
   const navigatePhase = onNavigatePhase ?? ((phase: 'media' | 'distribution') => setPhase(phase));
   const replaceProject = useGameStore((s) => s.replaceProject);
-  const updateStudio = useGameStore((s) => s.updateStudio);
-  const addStudioAwards = useGameStore((s) => s.addStudioAwards);
   const updateBudget = useGameStore((s) => s.updateBudget);
   const { toast } = useToast();
-  const [showAwardsModal, setShowAwardsModal] = useState(false);
-  const [currentCeremony, setCurrentCeremony] = useState<string>('');
-  const [currentNominations, setCurrentNominations] = useState<Array<{
-    project: Project;
-    category: string;
-    won: boolean;
-    award?: StudioAward;
-  }>>([]);
-  // Track processed ceremonies to avoid duplicate triggers and store season momentum and nominations
-  const [processedCeremonies, setProcessedCeremonies] = useState<Set<string>>(new Set());
-  const [seasonMomentum, setSeasonMomentum] = useState<Record<string, number>>({});
-  const [seasonNominations, setSeasonNominations] = useState<Record<string, { year: number; categories: Record<string, Array<{ project: Project; score: number }>> }>>({});
 
   const [contenderScope, setContenderScope] = useState<'player' | 'all'>('player');
   const [page, setPage] = useState(0);
@@ -72,15 +55,7 @@ export const AwardsSystem: React.FC<AwardsSystemProps> = ({
     []
   );
 
-  React.useEffect(() => {
-    if (!gameState) return;
-
-    if (gameState.currentWeek === 1) {
-      setProcessedCeremonies(new Set());
-      setSeasonNominations({});
-      setSeasonMomentum({});
-    }
-  }, [gameState, currentYear, currentWeek]);
+  
 
   const playerProjects = useMemo(() => gameState?.projects ?? [], [gameState?.projects]);
   const allReleases = useMemo(() => gameState?.allReleases ?? [], [gameState?.allReleases]);
@@ -240,181 +215,7 @@ export const AwardsSystem: React.FC<AwardsSystemProps> = ({
   };
 
   // Build per-show configuration (weeks sourced from centralized schedule)
-  const getShowConfig = (ceremonyName: string) => {
-    const schedule = getAwardShowsForYear(gameState.currentYear);
-    const show = schedule.find(s => s.name === ceremonyName);
-
-    const base = (() => {
-      switch (ceremonyName) {
-        case 'Crystal Ring':
-          return {
-            prestige: 6,
-            categories: ['Best Picture - Drama', 'Best Director'],
-            nominationWeek: 2,
-            ceremonyWeek: 6,
-            momentumBonus: 8
-          } as const;
-        case 'Critics Circle':
-          return {
-            prestige: 5,
-            categories: ['Best Film', 'Best Acting'],
-            nominationWeek: 3,
-            ceremonyWeek: 8,
-            momentumBonus: 6
-          } as const;
-        default:
-          return {
-            prestige: 10,
-            categories: ['Best Picture', 'Best Director', 'Best Actor'],
-            nominationWeek: 4,
-            ceremonyWeek: 10,
-            momentumBonus: 12
-          } as const; // Crown
-      }
-    })();
-
-    return {
-      ...base,
-      nominationWeek: show?.nominationWeek ?? base.nominationWeek,
-      ceremonyWeek: show?.ceremonyWeek ?? base.ceremonyWeek,
-    };
-  };
-
-  // Generate and store nominations (top 5 per category) with momentum-aware scoring
-  const announceNominations = (ceremonyName: string) => {
-    const key = `${ceremonyName}-${gameState.currentYear}`;
-    if (seasonNominations[key]) return; // idempotent
-
-    const { categories } = getShowConfig(ceremonyName);
-    const eligible = eligibleProjectsAll;
-
-    const categoriesMap: Record<string, Array<{ project: Project; score: number }>> = {};
-
-    const seedRoot = `awards-ui|${gameState.universeSeed ?? 0}|Y${gameState.currentYear}|${ceremonyName}`;
-
-    categories.forEach(category => {
-      const ranked = eligible
-        .map(project => {
-          const base = calculateAwardsProbability(project);
-          const momentum = seasonMomentum[project.id] || 0;
-          // Slight category bias: technical vs acting vs picture kept simple
-          const categoryBias = category.toLowerCase().includes('director') ? 5 : category.toLowerCase().includes('actor') ? 3 : 0;
-          const noise = (stableFloat01(`${seedRoot}|nomination-noise|${category}|${project.id}`) * 6) - 3;
-          const score = Math.min(100, base + momentum + categoryBias + noise);
-          return { project, score };
-        })
-        .sort((a, b) => b.score - a.score)
-        .slice(0, 5);
-      categoriesMap[category] = ranked;
-    });
-
-    setSeasonNominations(prev => ({
-      ...prev,
-      [key]: { year: gameState.currentYear, categories: categoriesMap }
-    }));
-
-    toast({
-      title: `${ceremonyName} Nominations Announced`,
-      description: `Top contenders selected across ${categories.length} categories.`,
-    });
-  };
-
-  // Host ceremony using stored nominations; apply momentum and awards
-  const triggerAwardsCeremony = (ceremonyName: string) => {
-    const { categories, ceremonyWeek, prestige, momentumBonus } = getShowConfig(ceremonyName);
-    const key = `${ceremonyName}-${gameState.currentYear}`;
-    if (gameState.currentWeek !== ceremonyWeek) return;
-    if (processedCeremonies.has(key)) return;
-
-    // Ensure nominations exist
-    if (!seasonNominations[key]) {
-      announceNominations(ceremonyName);
-    }
-
-    const nominationsRecord = seasonNominations[key];
-    if (!nominationsRecord) return; // safety
-
-    const flatForModal: Array<{ project: Project; category: string; won: boolean; award?: StudioAward }> = [];
-    const winnersThisShow: string[] = [];
-
-    const seedRoot = `awards-ui|${gameState.universeSeed ?? 0}|Y${gameState.currentYear}|${ceremonyName}`;
-
-    categories.forEach(category => {
-      const nominees = nominationsRecord.categories[category] || [];
-      if (nominees.length === 0) return;
-      // Winner: weighted pick favoring top nominee with deterministic noise
-      const weighted = nominees.map((n, idx) => ({ ...n, weight: (nominees.length - idx) * 1.5 + (seasonMomentum[n.project.id] || 0) / 10 }));
-      const totalWeight = weighted.reduce((s, w) => s + w.weight, 0);
-      let r = stableFloat01(`${seedRoot}|winner-roll|${category}`) * totalWeight;
-      let winner = weighted[0];
-      for (const w of weighted) { r -= w.weight; if (r <= 0) { winner = w; break; } }
-
-      nominees.forEach(n => {
-        const won = n.project.id === winner.project.id;
-        const award: StudioAward | undefined = won
-          ? {
-              id: `award_${hashStringToUint32(`${seedRoot}|${category}|${n.project.id}`).toString(36)}`,
-              projectId: n.project.id,
-              category,
-              ceremony: ceremonyName,
-              year: gameState.currentYear,
-              prestige,
-              reputationBoost: prestige * 2,
-              revenueBoost: n.project.budget.total * (prestige / 100)
-            }
-          : undefined;
-        flatForModal.push({ project: n.project, category, won, award });
-        if (won) winnersThisShow.push(n.project.id);
-      });
-    });
-
-    // Mark processed to avoid repeats
-    setProcessedCeremonies(prev => new Set(prev).add(key));
-
-    // Momentum: winners gain momentumBonus for later shows
-    if (winnersThisShow.length > 0) {
-      setSeasonMomentum(prev => {
-        const next = { ...prev };
-        winnersThisShow.forEach(pid => { next[pid] = (next[pid] || 0) + momentumBonus; });
-        return next;
-      });
-    }
-
-    if (flatForModal.length > 0) {
-      setCurrentCeremony(ceremonyName);
-      setCurrentNominations(flatForModal);
-      setShowAwardsModal(true);
-
-      // Apply player studio benefits for wins
-      const wonAwards = flatForModal.filter(n => n.won && n.award).map(n => n.award!)
-        .filter(a => gameState.projects.some(p => p.id === a.projectId));
-      if (wonAwards.length > 0) {
-        const totalReputation = wonAwards.reduce((sum, award) => sum + award.reputationBoost, 0);
-        const totalRevenue = wonAwards.reduce((sum, award) => sum + award.revenueBoost, 0);
-
-        updateStudio({
-          reputation: Math.min(100, (gameState.studio.reputation || 0) + totalReputation),
-        });
-        updateBudget(totalRevenue);
-        addStudioAwards(wonAwards);
-      }
-    }
-  };
-
   
-
-  // Weekly triggers for nominations and ceremonies
-  // Note: Headless engine now handles triggers globally. This UI remains view-only.
-  // React.useEffect(() => {
-  //   if (!isAwardsSeasonActive) return;
-  //   const shows = getAwardShowsForYear(gameState.currentYear);
-  //   // Announcements
-  //   shows.forEach(s => {
-  //     if (gameState.currentWeek === s.nominationWeek) announceNominations(s.name);
-  //   });
-  //   // Ceremonies (triggerAwardsCeremony checks week and processed state internally)
-  //   shows.forEach(s => triggerAwardsCeremony(s.name));
-  // }, [gameState.currentWeek, isAwardsSeasonActive, gameState.currentYear]);
 
   React.useEffect(() => {
     setPage(0);
@@ -449,13 +250,6 @@ export const AwardsSystem: React.FC<AwardsSystemProps> = ({
 
   return (
     <div className="space-y-6">
-      <AwardsShowModal
-        open={showAwardsModal}
-        onClose={() => setShowAwardsModal(false)}
-        ceremony={currentCeremony}
-        nominations={currentNominations}
-        year={gameState.currentYear}
-      />
       {/* Awards Season Status */}
       <Card className="card-premium">
         <CardHeader>
