@@ -95,7 +95,7 @@ export function primeCompetitorTelevision(gameState: GameState, opts?: { minAiri
       if (!profile) continue;
 
       // Generate first to know episode count, then clamp premiere so the show is mid-season (airing).
-      let rel = sg.generateStudioTvRelease(profile, gameState.currentWeek, gameState.currentYear);
+      let rel = sg.generateDeterministicStudioTvRelease(profile, gameState.currentWeek, gameState.currentYear, gameState.universeSeed ?? 0);
 
       const totalEpisodes = rel.episodeCount || 13;
       const maxBackWeeks = Math.min(8, Math.max(0, totalEpisodes - 2));

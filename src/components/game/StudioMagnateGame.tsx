@@ -469,7 +469,7 @@ export const StudioMagnateGame: React.FC<StudioMagnateGameProps> = ({
   const ONLINE_LEAGUE_START_YEAR = 2026;
   const { startOperation, updateOperation, completeOperation } = useLoadingActions();
   const weeklyProcessingRef = useRef(false);
-  const aiSlateGeneratorRef = useRef<{ year: number; nextWeek: number; generator: StudioGenerator } | null>(null);
+  const aiSlateGeneratorRef = useRef<{ year: number; nextWeek: number } | null>(null);
   
   const getPhaseWeeks = (phase: string): number => {
     switch (phase) {
@@ -685,7 +685,7 @@ export const StudioMagnateGame: React.FC<StudioMagnateGameProps> = ({
               if (cancelled) return;
 
               const profile = sg.getStudioProfile(st.name);
-              const rel = profile ? sg.generateStudioRelease(profile, w, year) : null;
+              const rel = profile ? sg.generateDeterministicStudioRelease(profile, w, year, universeSeed) : null;
               if (rel) {
                 releases.push(rel);
                 releases[releases.length - 1] = attachBasicCastForAI(releases[releases.length - 1] as Project, generatedTalent);
@@ -701,125 +701,8 @@ export const StudioMagnateGame: React.FC<StudioMagnateGameProps> = ({
             if (releasesThisWeek === 0 && competitorStudios[0]) {
               const fallback = sg.getStudioProfile(competitorStudios[0].name);
               if (fallback) {
-                const rel = sg.generateStudioRelease(fallback, w, year);
-                if (rel) {
-                  releases.push(rel);
-                } else {
-                  // Guarantee at least one release per week: synthesize a small indie release
-                  const genre = fallback.specialties[0] as Genre;
-                  const script = {
-                    id: `script-${year}-${w}-${Math.random().toString(36).slice(2, 8)}`,
-                    title: sg.generateFilmTitle(genre, fallback.name),
-                    genre,
-                    logline: 'An indie story released to keep the slate full.',
-                    writer: 'Staff Writer',
-                    pages: 100,
-                    quality: 60,
-                    budget: 12000000,
-                    developmentStage: 'final',
-                    themes: ['indie', 'festival'],
-                    targetAudience: 'general',
-                    estimatedRuntime: 110,
-                    characteristics: {
-                      tone: 'balanced',
-                      pacing: 'steady',
-                      dialogue: 'naturalistic',
-                      visualStyle: 'realistic',
-                      commercialAppeal: 5,
-                      criticalPotential: 6,
-                      cgiIntensity: 'minimal',
-                    },
-                  } as Script;
-
-                  releases.push({
-                    id: `ai-project-${year}-${w}-${Math.random().toString(36).slice(2, 6)}`,
-                    title: script.title,
-                    script,
-                    type: 'feature',
-                    currentPhase: 'release',
-                    status: 'released',
-                    phaseDuration: 0,
-                    contractedTalent: [],
-                    developmentProgress: {
-                      scriptCompletion: 100,
-                      budgetApproval: 100,
-                      talentAttached: 100,
-                      locationSecured: 100,
-                      completionThreshold: 100,
-                      issues: [],
-                    },
-                    budget: {
-                      total: script.budget,
-                      allocated: {
-                        aboveTheLine: script.budget * 0.2,
-                        belowTheLine: script.budget * 0.3,
-                        postProduction: script.budget * 0.15,
-                        marketing: script.budget * 0.25,
-                        distribution: script.budget * 0.1,
-                        contingency: 0,
-                      },
-                      spent: {
-                        aboveTheLine: script.budget * 0.2,
-                        belowTheLine: script.budget * 0.3,
-                        postProduction: script.budget * 0.15,
-                        marketing: script.budget * 0.25,
-                        distribution: script.budget * 0.1,
-                        contingency: 0,
-                      },
-                      overages: {
-                        aboveTheLine: 0,
-                        belowTheLine: 0,
-                        postProduction: 0,
-                        marketing: 0,
-                        distribution: 0,
-                        contingency: 0,
-                      },
-                    },
-                    cast: [],
-                    crew: [],
-                    timeline: {
-                      preProduction: { start: new Date(), end: new Date() },
-                      principalPhotography: { start: new Date(), end: new Date() },
-                      postProduction: { start: new Date(), end: new Date() },
-                      release: new Date(),
-                      milestones: [],
-                    },
-                    locations: [],
-                    distributionStrategy: {
-                      primary: {
-                        platform: 'Theatrical',
-                        type: 'theatrical',
-                        revenue: { type: 'box-office', studioShare: 50 },
-                      },
-                      international: [],
-                      windows: [],
-                      marketingBudget: script.budget * 0.25,
-                    },
-                    metrics: {
-                      inTheaters: true,
-                      boxOfficeTotal: Math.floor(script.budget * 2.2),
-                      theaterCount: 1200,
-                      weeksSinceRelease: 0,
-                      criticsScore: 70,
-                      audienceScore: 72,
-                      boxOfficeStatus: 'Current',
-                      theatricalRunLocked: false,
-                      boxOffice: {
-                        openingWeekend: 0,
-                        domesticTotal: 0,
-                        internationalTotal: 0,
-                        production: script.budget,
-                        marketing: script.budget * 0.25,
-                        profit: 0,
-                        theaters: 1200,
-                        weeks: 0,
-                      },
-                    },
-                    releaseWeek: w,
-                    releaseYear: year,
-                    studioName: fallback.name,
-                  } as Project);
-                }
+                const rel = sg.generateDeterministicStudioRelease(fallback, w, year, universeSeed);
+                releases.push(rel || sg.generateDeterministicIndieRelease(fallback, w, year, universeSeed));
 
                 releases[releases.length - 1] = attachBasicCastForAI(releases[releases.length - 1] as Project, generatedTalent);
               }
@@ -2368,34 +2251,14 @@ export const StudioMagnateGame: React.FC<StudioMagnateGameProps> = ({
         aiSlateGeneratorRef.current?.year !== slateYear &&
         (!hasAiSlateForYear || (maxAiWeekForYear > 0 && maxAiWeekForYear < 52))
       ) {
-        const generator = new StudioGenerator();
-
-        // Fast-forward the generator so studio release schedules roughly line up with existing releases.
-        // (This is best-effort: StudioGenerator relies on Math.random/Date.now, so exact determinism isn't possible.)
-        for (let w = 1; w <= maxAiWeekForYear; w++) {
-          let releasesThisWeek = 0;
-
-          for (const st of prev.competitorStudios) {
-            const profile = generator.getStudioProfile(st.name);
-            const rel = profile ? generator.generateStudioRelease(profile, w, slateYear) : null;
-            if (rel) releasesThisWeek += 1;
-          }
-
-          if (releasesThisWeek === 0 && prev.competitorStudios[0]) {
-            const fallback = generator.getStudioProfile(prev.competitorStudios[0].name);
-            if (fallback) {
-              generator.generateStudioRelease(fallback, w, slateYear);
-            }
-          }
-        }
-
-        aiSlateGeneratorRef.current = { year: slateYear, nextWeek: Math.max(1, maxAiWeekForYear + 1), generator };
+        aiSlateGeneratorRef.current = { year: slateYear, nextWeek: Math.max(1, maxAiWeekForYear + 1) };
       }
 
       const activeAiSlate = aiSlateGeneratorRef.current;
 
       if (activeAiSlate && activeAiSlate.year === slateYear && prev.competitorStudios.length > 0) {
-        const sg = activeAiSlate.generator;
+        const sg = new StudioGenerator();
+        const universeSeed = prev.universeSeed ?? 0;
 
         while (activeAiSlate.nextWeek <= Math.min(52, newTimeState.currentWeek)) {
           const w = activeAiSlate.nextWeek;
@@ -2405,7 +2268,7 @@ export const StudioMagnateGame: React.FC<StudioMagnateGameProps> = ({
 
           for (const st of prev.competitorStudios) {
             const profile = sg.getStudioProfile(st.name);
-            const rel = profile ? sg.generateStudioRelease(profile, w, slateYear) : null;
+            const rel = profile ? sg.generateDeterministicStudioRelease(profile, w, slateYear, universeSeed) : null;
             if (rel) {
               newAIReleases.push(attachBasicCastForAI(rel, baseAfterEngine.talent));
               releasesThisWeek += 1;
@@ -2415,67 +2278,9 @@ export const StudioMagnateGame: React.FC<StudioMagnateGameProps> = ({
           if (releasesThisWeek === 0 && prev.competitorStudios[0]) {
             const fallback = sg.getStudioProfile(prev.competitorStudios[0].name);
             if (fallback) {
-              const rel = sg.generateStudioRelease(fallback, w, slateYear);
-              if (rel) {
-                newAIReleases.push(attachBasicCastForAI(rel, baseAfterEngine.talent));
-              } else {
-                // Guarantee at least one release per week: synthesize a small indie release
-                const genre = fallback.specialties[0] as Genre;
-                const script = {
-                  id: `script-${slateYear}-${w}-${Math.random().toString(36).slice(2, 8)}`,
-                  title: sg.generateFilmTitle(genre, fallback.name),
-                  genre,
-                  logline: 'An indie story released to keep the slate full.',
-                  writer: 'Staff Writer',
-                  pages: 100,
-                  quality: 60,
-                  budget: 12000000,
-                  developmentStage: 'final',
-                  themes: ['indie','festival'],
-                  targetAudience: 'general',
-                  estimatedRuntime: 110,
-                  characteristics: { tone: 'balanced', pacing: 'steady', dialogue: 'naturalistic', visualStyle: 'realistic', commercialAppeal: 5, criticalPotential: 6, cgiIntensity: 'minimal' }
-                } as Script;
-
-                const indie: Project = {
-                  id: `ai-project-${slateYear}-${w}-${Math.random().toString(36).slice(2, 6)}`,
-                  title: script.title,
-                  script,
-                  type: 'feature',
-                  currentPhase: 'release',
-                  status: 'released',
-                  phaseDuration: 0,
-                  contractedTalent: [],
-                  developmentProgress: { scriptCompletion: 100, budgetApproval: 100, talentAttached: 100, locationSecured: 100, completionThreshold: 100, issues: [] },
-                  budget: {
-                    total: script.budget,
-                    allocated: { aboveTheLine: script.budget * 0.2, belowTheLine: script.budget * 0.3, postProduction: script.budget * 0.15, marketing: script.budget * 0.25, distribution: script.budget * 0.1, contingency: 0 },
-                    spent: { aboveTheLine: script.budget * 0.2, belowTheLine: script.budget * 0.3, postProduction: script.budget * 0.15, marketing: script.budget * 0.25, distribution: script.budget * 0.1, contingency: 0 },
-                    overages: { aboveTheLine: 0, belowTheLine: 0, postProduction: 0, marketing: 0, distribution: 0, contingency: 0 }
-                  },
-                  cast: [],
-                  crew: [],
-                  timeline: { preProduction: { start: new Date(), end: new Date() }, principalPhotography: { start: new Date(), end: new Date() }, postProduction: { start: new Date(), end: new Date() }, release: new Date(), milestones: [] },
-                  locations: [],
-                  distributionStrategy: { primary: { platform: 'Theatrical', type: 'theatrical', revenue: { type: 'box-office', studioShare: 50 } }, international: [], windows: [], marketingBudget: script.budget * 0.25 },
-                  metrics: {
-                    inTheaters: true,
-                    boxOfficeTotal: Math.floor(script.budget * 2.2),
-                    theaterCount: 1200,
-                    weeksSinceRelease: 0,
-                    criticsScore: 70,
-                    audienceScore: 72,
-                    boxOfficeStatus: 'Current',
-                    theatricalRunLocked: false,
-                    boxOffice: { openingWeekend: 0, domesticTotal: 0, internationalTotal: 0, production: script.budget, marketing: script.budget * 0.25, profit: 0, theaters: 1200, weeks: 0 }
-                  },
-                  releaseWeek: w,
-                  releaseYear: slateYear,
-                  studioName: fallback.name
-                };
-
-                newAIReleases.push(attachBasicCastForAI(indie, baseAfterEngine.talent));
-              }
+              const rel = sg.generateDeterministicStudioRelease(fallback, w, slateYear, universeSeed);
+              const ensured = rel || sg.generateDeterministicIndieRelease(fallback, w, slateYear, universeSeed);
+              newAIReleases.push(attachBasicCastForAI(ensured, baseAfterEngine.talent));
             }
           }
         }

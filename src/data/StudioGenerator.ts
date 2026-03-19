@@ -4,6 +4,7 @@ import type { ModBundle } from '@/types/modding';
 import { applyPatchesByKey, getPatchesForEntity } from '@/utils/modding';
 import { getModBundle } from '@/utils/moddingStore';
 import { stableInt } from '@/utils/stableRandom';
+import { createRng, seedFromString, type SeededRng } from '@/game/core/rng';
 
 export interface StudioProfile {
   name: string;
@@ -211,6 +212,590 @@ const TITLE_SUFFIXES = [
 export class StudioGenerator {
   private usedTitles = new Set<string>();
   private studioReleaseSchedules = new Map<string, number>(); // Track weeks since last release
+
+  private deterministicReleaseWeeks = new Map<string, Set<number>>();
+
+  private slug(input: string): string {
+    return input
+      .toLowerCase()
+      .trim()
+      .replace(/[^a-z0-9]+/g, '-')
+      .replace(/^-+|-+$/g, '');
+  }
+
+  private dateForGameWeek(year: number, week: number): Date {
+    const base = Date.UTC(year, 0, 1);
+    const offset = (Math.max(1, week) - 1) * 7 * 24 * 60 * 60 * 1000;
+    return new Date(base + offset);
+  }
+
+  private seededRng(seed: string): SeededRng {
+    return createRng(seedFromString(seed));
+  }
+
+  private getDeterministicReleaseWeeks(profile: StudioProfile, year: number, universeSeed: number): Set<number> {
+    const key = `${universeSeed}|${profile.name}|${year}`;
+    const cached = this.deterministicReleaseWeeks.get(key);
+    if (cached) return cached;
+
+    const count = Math.max(0, Math.min(52, Math.floor(profile.releaseFrequency || 0)));
+    const weeks = Array.from({ length: 52 }, (_, i) => i + 1);
+    const rng = this.seededRng(`aiStudio|schedule|${key}`);
+    const picked = rng.shuffle(weeks).slice(0, count);
+
+    const set = new Set<number>(picked);
+    this.deterministicReleaseWeeks.set(key, set);
+    return set;
+  }
+
+  private generateDeterministicFilmTitle(genre: Genre, studioName: string, rng: SeededRng): string {
+    const keywords = TITLE_KEYWORDS[genre] || TITLE_KEYWORDS.drama;
+    const structure = rng.next();
+
+    if (structure < 0.3) {
+      return rng.pick(keywords) || `${studioName.split(' ')[0]} Story`;
+    }
+
+    if (structure < 0.6) {
+      const modifier = rng.pick(TITLE_MODIFIERS) || 'The';
+      const keyword = rng.pick(keywords) || 'Story';
+      return `${modifier} ${keyword}`;
+    }
+
+    const keyword = rng.pick(keywords) || 'Story';
+    const suffix = rng.pick(TITLE_SUFFIXES) || 'Legacy';
+    return `${keyword} ${suffix}`;
+  }
+
+  private getRandomCharacterSeeded(rng: SeededRng): string {
+    const characters = [
+      'a determined detective', 'an unlikely hero', 'a skilled warrior', 'a brilliant scientist',
+      'a troubled veteran', 'a young prodigy', 'a mysterious stranger', 'a desperate parent',
+      'an ambitious lawyer', 'a retired assassin', 'a gifted artist', 'a hardened criminal'
+    ];
+    return rng.pick(characters) || 'an unlikely hero';
+  }
+
+  private getRandomActionSeeded(rng: SeededRng): string {
+    const actions = [
+      'save their family', 'stop a conspiracy', 'clear their name', 'find the truth',
+      'protect the innocent', 'uncover secrets', 'prevent disaster', 'seek revenge'
+    ];
+    return rng.pick(actions) || 'find the truth';
+  }
+
+  private getRandomTwistSeeded(rng: SeededRng): string {
+    const twists = [
+      'nothing is as it seems', 'their enemy is closer than they think', 'the real threat lies within',
+      'their past holds the key', 'time is running out', 'they are not alone'
+    ];
+    return rng.pick(twists) || 'nothing is as it seems';
+  }
+
+  private getRandomGoalSeeded(rng: SeededRng): string {
+    const goals = [
+      'reconnect with their estranged child', 'overcome their fears', 'find redemption',
+      'save their business', 'honor their legacy', 'discover their true identity'
+    ];
+    return rng.pick(goals) || 'find redemption';
+  }
+
+  private getRandomObstacleSeeded(rng: SeededRng): string {
+    const obstacles = [
+      'family disapproval', 'financial ruin', 'social prejudice', 'personal demons',
+      'professional rivalry', 'health challenges', 'legal troubles', 'cultural differences'
+    ];
+    return rng.pick(obstacles) || 'personal demons';
+  }
+
+  private getRandomSituationSeeded(rng: SeededRng): string {
+    const situations = [
+      'a case of mistaken identity', 'an unexpected inheritance', 'a social media mix-up',
+      'a workplace mishap', 'a travel disaster', 'a family reunion', 'a blind date gone wrong'
+    ];
+    return rng.pick(situations) || 'a family reunion';
+  }
+
+  private getRandomOutcomeSeeded(rng: SeededRng): string {
+    const outcomes = [
+      'hilarious consequences', 'unexpected romance', 'personal growth', 'family bonding',
+      'new friendships', 'career opportunities', 'life-changing revelations'
+    ];
+    return rng.pick(outcomes) || 'hilarious consequences';
+  }
+
+  private getRandomThreatSeeded(rng: SeededRng): string {
+    const threats = [
+      'an ancient curse', 'a supernatural entity', 'a serial killer', 'paranormal activity',
+      'a deadly virus', 'demonic possession', 'a haunted location', 'mysterious disappearances'
+    ];
+    return rng.pick(threats) || 'a supernatural entity';
+  }
+
+  private getRandomLocationSeeded(rng: SeededRng): string {
+    const locations = [
+      'an isolated cabin', 'an abandoned hospital', 'a small town', 'an old mansion',
+      'a remote island', 'a dark forest', 'a subway tunnel', 'a college campus'
+    ];
+    return rng.pick(locations) || 'a small town';
+  }
+
+  private getRandomLoversSeeded(rng: SeededRng): string {
+    const lovers = [
+      'star-crossed lovers', 'childhood friends', 'business rivals', 'unlikely partners',
+      'opposites', 'former enemies', 'coworkers', 'neighbors'
+    ];
+    return rng.pick(lovers) || 'star-crossed lovers';
+  }
+
+  private getRandomEndingSeeded(rng: SeededRng): string {
+    const endings = [
+      'true love', 'happiness', 'their destiny', 'a new beginning',
+      'forgiveness', 'acceptance', 'their soulmate', 'peace'
+    ];
+    return rng.pick(endings) || 'a new beginning';
+  }
+
+  private getRandomFutureSeeded(rng: SeededRng): string {
+    const futures = [
+      'a dystopian future', 'the year 2087', 'a post-apocalyptic world', 'a space colony',
+      'a cyberpunk city', 'an alternate timeline', 'a virtual reality', 'a parallel universe'
+    ];
+    return rng.pick(futures) || 'a dystopian future';
+  }
+
+  private getRandomTechnologySeeded(rng: SeededRng): string {
+    const tech = [
+      'a dangerous AI', 'time travel', 'mind control technology', 'alien contact',
+      'genetic manipulation', 'interdimensional travel', 'consciousness transfer', 'reality manipulation'
+    ];
+    return rng.pick(tech) || 'a dangerous AI';
+  }
+
+  private getRandomDangerousSituationSeeded(rng: SeededRng): string {
+    const situations = [
+      'a deadly game', 'a conspiracy', 'a terrorist plot', 'a murder scheme',
+      'a kidnapping', 'corporate espionage', 'witness protection failure', 'identity theft'
+    ];
+    return rng.pick(situations) || 'a conspiracy';
+  }
+
+  private getRandomQuestSeeded(rng: SeededRng): string {
+    const quests = [
+      'a perilous journey', 'a sacred mission', 'a heroic quest', 'a magical adventure',
+      'a dangerous expedition', 'a noble cause', 'a divine calling', 'an epic voyage'
+    ];
+    return rng.pick(quests) || 'a heroic quest';
+  }
+
+  private getRandomMagicalWorldSeeded(rng: SeededRng): string {
+    const worlds = [
+      'a forgotten realm', 'an enchanted kingdom', 'a mystical land', 'a magical dimension',
+      'an ancient world', 'a fairy tale kingdom', 'a legendary empire', 'a mythical realm'
+    ];
+    return rng.pick(worlds) || 'a forgotten realm';
+  }
+
+  private generateDeterministicLogline(genre: Genre, title: string, rng: SeededRng): string {
+    const templates = {
+      action: `When ${this.getRandomCharacterSeeded(rng)} must ${this.getRandomActionSeeded(rng)}, they discover ${this.getRandomTwistSeeded(rng)}.`,
+      drama: `A ${this.getRandomCharacterSeeded(rng)} struggles to ${this.getRandomGoalSeeded(rng)} while facing ${this.getRandomObstacleSeeded(rng)}.`,
+      comedy: `${this.getRandomCharacterSeeded(rng)} finds themselves in ${this.getRandomSituationSeeded(rng)} leading to ${this.getRandomOutcomeSeeded(rng)}.`,
+      horror: `${this.getRandomCharacterSeeded(rng)} encounters ${this.getRandomThreatSeeded(rng)} in ${this.getRandomLocationSeeded(rng)}.`,
+      romance: `Two ${this.getRandomLoversSeeded(rng)} must overcome ${this.getRandomObstacleSeeded(rng)} to find ${this.getRandomEndingSeeded(rng)}.`,
+      'sci-fi': `In ${this.getRandomFutureSeeded(rng)}, ${this.getRandomCharacterSeeded(rng)} discovers ${this.getRandomTechnologySeeded(rng)}.`,
+      thriller: `${this.getRandomCharacterSeeded(rng)} becomes trapped in ${this.getRandomDangerousSituationSeeded(rng)}.`,
+      fantasy: `${this.getRandomCharacterSeeded(rng)} embarks on ${this.getRandomQuestSeeded(rng)} in ${this.getRandomMagicalWorldSeeded(rng)}.`
+    };
+
+    const base = (templates as any)[genre] || (templates as any).drama;
+    return title ? `In "${title}", ${base.charAt(0).toLowerCase()}${base.slice(1)}` : base;
+  }
+
+  private generateDeterministicWriterName(rng: SeededRng): string {
+    const firstNames = ['Alex', 'Jordan', 'Casey', 'Morgan', 'Riley', 'Avery', 'Quinn', 'Taylor'];
+    const lastNames = ['Mitchell', 'Parker', 'Collins', 'Reed', 'Hayes', 'Brooks', 'Stone', 'Wells'];
+
+    const firstName = rng.pick(firstNames) || 'Alex';
+    const lastName = rng.pick(lastNames) || 'Mitchell';
+
+    return `${firstName} ${lastName}`;
+  }
+
+  private generateDeterministicThemes(genre: Genre, rng: SeededRng): string[] {
+    const themeMap: Record<string, string[]> = {
+      action: ['justice', 'redemption', 'survival', 'loyalty'],
+      drama: ['family', 'identity', 'loss', 'hope', 'growth'],
+      comedy: ['friendship', 'love', 'self-discovery', 'acceptance'],
+      horror: ['fear', 'isolation', 'survival', 'evil'],
+      romance: ['love', 'commitment', 'sacrifice', 'destiny'],
+      'sci-fi': ['technology', 'humanity', 'progress', 'ethics'],
+      thriller: ['paranoia', 'trust', 'danger', 'mystery'],
+      fantasy: ['heroism', 'magic', 'destiny', 'good vs evil']
+    };
+
+    const themes = themeMap[genre] || themeMap.drama;
+    const count = 2 + rng.nextInt(0, 1);
+    return rng.shuffle(themes).slice(0, count);
+  }
+
+  private generateDeterministicBoxOfficeTotal(budget: number, genre: Genre, rng: SeededRng): number {
+    const multiplier = this.getGenreMultiplier(genre);
+    const basePerformance = 1.5 + rng.nextFloat(0, 3);
+    return Math.floor(budget * basePerformance * multiplier);
+  }
+
+  private generateDeterministicTheaterCount(studioSize: string, rng: SeededRng): number {
+    const sizeMap = {
+      'major': { min: 2500, max: 4000 },
+      'mid-tier': { min: 1000, max: 2000 },
+      'independent': { min: 200, max: 500 }
+    };
+
+    const range = (sizeMap as any)[studioSize] || { min: 1500, max: 1500 };
+    return rng.nextInt(range.min, range.max);
+  }
+
+  private generateDeterministicCriticsScore(genre: Genre, studioReputation: number, rng: SeededRng): number {
+    const genreBase = {
+      drama: 70,
+      biography: 75,
+      historical: 72,
+      thriller: 65,
+      action: 60,
+      comedy: 62,
+      horror: 58,
+      'sci-fi': 68,
+      fantasy: 65,
+      family: 70
+    }[genre] || 65;
+
+    const reputationBonus = (studioReputation - 50) * 0.3;
+    const randomness = (rng.next() - 0.5) * 20;
+
+    return Math.max(30, Math.min(95, Math.floor(genreBase + reputationBonus + randomness)));
+  }
+
+  private generateDeterministicAudienceScore(genre: Genre, studioReputation: number, rng: SeededRng): number {
+    const genreBase = {
+      action: 75,
+      comedy: 78,
+      family: 80,
+      fantasy: 73,
+      'sci-fi': 74,
+      horror: 70,
+      thriller: 72,
+      drama: 68,
+      biography: 65,
+      historical: 67
+    }[genre] || 72;
+
+    const reputationBonus = (studioReputation - 50) * 0.2;
+    const randomness = (rng.next() - 0.5) * 25;
+
+    return Math.max(40, Math.min(95, Math.floor(genreBase + reputationBonus + randomness)));
+  }
+
+  generateDeterministicStudioRelease(studioProfile: StudioProfile, currentWeek: number, currentYear: number, universeSeed: number): Project | null {
+    const releaseWeeks = this.getDeterministicReleaseWeeks(studioProfile, currentYear, universeSeed);
+    if (!releaseWeeks.has(currentWeek)) return null;
+
+    const rng = this.seededRng(`aiStudio|release|${universeSeed}|${studioProfile.name}|${currentYear}|${currentWeek}`);
+
+    const tvChance =
+      studioProfile.riskTolerance === 'aggressive'
+        ? 0.22
+        : studioProfile.riskTolerance === 'moderate'
+          ? 0.16
+          : 0.10;
+
+    if (rng.chance(tvChance)) {
+      return this.generateDeterministicStudioTvRelease(studioProfile, currentWeek, currentYear, universeSeed, rng);
+    }
+
+    return this.generateDeterministicStudioFilmRelease(studioProfile, currentWeek, currentYear, rng);
+  }
+
+  generateDeterministicIndieRelease(studioProfile: StudioProfile, currentWeek: number, currentYear: number, universeSeed: number): Project {
+    const rng = this.seededRng(`aiStudio|indie|${universeSeed}|${studioProfile.name}|${currentYear}|${currentWeek}`);
+    return this.generateDeterministicStudioFilmRelease(
+      { ...studioProfile, riskTolerance: 'conservative', releaseFrequency: studioProfile.releaseFrequency },
+      currentWeek,
+      currentYear,
+      rng,
+      { forceIdPrefix: 'ai-indie' }
+    );
+  }
+
+  private generateDeterministicStudioFilmRelease(
+    studioProfile: StudioProfile,
+    currentWeek: number,
+    currentYear: number,
+    rng: SeededRng,
+    opts?: { forceIdPrefix?: string }
+  ): Project {
+    const genre = (rng.pick(studioProfile.specialties) || studioProfile.specialties[0] || 'drama') as Genre;
+
+    const budgetRanges = {
+      conservative: { min: 0.3, max: 0.6 },
+      moderate: { min: 0.5, max: 0.8 },
+      aggressive: { min: 0.7, max: 1.0 }
+    };
+
+    const range = budgetRanges[studioProfile.riskTolerance];
+    const budgetMultiplier = range.min + rng.next() * (range.max - range.min);
+    const projectBudget = Math.floor(studioProfile.budget * budgetMultiplier);
+
+    const studioSlug = this.slug(studioProfile.name);
+    const idPrefix = opts?.forceIdPrefix || 'ai-project';
+    const projectId = `${idPrefix}-${studioSlug}-${currentYear}-w${currentWeek}`;
+
+    const title = this.generateDeterministicFilmTitle(genre, studioProfile.name, rng);
+
+    const script: Script = {
+      id: `script-${projectId}`,
+      title,
+      genre,
+      logline: this.generateDeterministicLogline(genre, title, rng),
+      writer: this.generateDeterministicWriterName(rng),
+      pages: 90 + rng.nextInt(0, 39),
+      quality: 30 + rng.nextInt(0, 69),
+      budget: projectBudget,
+      developmentStage: 'final',
+      themes: this.generateDeterministicThemes(genre, rng),
+      targetAudience: this.selectTargetAudience(genre),
+      estimatedRuntime: 85 + rng.nextInt(0, 49),
+      characteristics: this.generateCharacteristics(genre, studioProfile)
+    };
+
+    const releaseDate = this.dateForGameWeek(currentYear, currentWeek);
+
+    const studioSize = studioProfile.budget >= 120_000_000 ? 'major' : studioProfile.budget >= 40_000_000 ? 'mid-tier' : 'independent';
+
+    return {
+      id: projectId,
+      title: script.title,
+      script,
+      type: 'feature',
+      currentPhase: 'release',
+      status: 'released',
+      phaseDuration: 0,
+      studioName: studioProfile.name,
+      contractedTalent: [],
+      developmentProgress: {
+        scriptCompletion: 100,
+        budgetApproval: 100,
+        talentAttached: 100,
+        locationSecured: 100,
+        completionThreshold: 100,
+        issues: []
+      },
+      budget: {
+        total: script.budget,
+        allocated: {
+          aboveTheLine: script.budget * 0.2,
+          belowTheLine: script.budget * 0.3,
+          postProduction: script.budget * 0.15,
+          marketing: script.budget * 0.25,
+          distribution: script.budget * 0.1,
+          contingency: 0
+        },
+        spent: {
+          aboveTheLine: script.budget * 0.2,
+          belowTheLine: script.budget * 0.3,
+          postProduction: script.budget * 0.15,
+          marketing: script.budget * 0.25,
+          distribution: script.budget * 0.1,
+          contingency: 0
+        },
+        overages: {
+          aboveTheLine: 0,
+          belowTheLine: 0,
+          postProduction: 0,
+          marketing: 0,
+          distribution: 0,
+          contingency: 0
+        }
+      },
+      cast: [],
+      crew: [],
+      timeline: {
+        preProduction: { start: releaseDate, end: releaseDate },
+        principalPhotography: { start: releaseDate, end: releaseDate },
+        postProduction: { start: releaseDate, end: releaseDate },
+        release: releaseDate,
+        milestones: []
+      },
+      locations: [],
+      distributionStrategy: {
+        primary: {
+          platform: 'Theatrical',
+          type: 'theatrical',
+          revenue: { type: 'box-office', studioShare: 50 }
+        },
+        international: [],
+        windows: [],
+        marketingBudget: script.budget * 0.25
+      },
+      metrics: {
+        inTheaters: true,
+        boxOfficeTotal: this.generateDeterministicBoxOfficeTotal(script.budget, genre, rng),
+        theaterCount: this.generateDeterministicTheaterCount(studioSize, rng),
+        weeksSinceRelease: 0,
+        criticsScore: this.generateDeterministicCriticsScore(genre, studioProfile.reputation, rng),
+        audienceScore: this.generateDeterministicAudienceScore(genre, studioProfile.reputation, rng),
+        boxOfficeStatus: 'Current' as any,
+        theatricalRunLocked: false,
+        boxOffice: {
+          openingWeekend: 0,
+          domesticTotal: 0,
+          internationalTotal: 0,
+          production: script.budget,
+          marketing: script.budget * 0.25,
+          profit: 0,
+          theaters: this.generateDeterministicTheaterCount(studioSize, rng),
+          weeks: 0
+        }
+      },
+      releaseWeek: currentWeek,
+      releaseYear: currentYear
+    } as Project;
+  }
+
+  generateDeterministicStudioTvRelease(
+    studioProfile: StudioProfile,
+    currentWeek: number,
+    currentYear: number,
+    universeSeed: number,
+    rng?: SeededRng
+  ): Project {
+    const r = rng || this.seededRng(`aiStudio|tv|${universeSeed}|${studioProfile.name}|${currentYear}|${currentWeek}`);
+
+    const genre = (r.pick(studioProfile.specialties) || studioProfile.specialties[0] || 'drama') as Genre;
+
+    const episodeCount = 8 + r.nextInt(0, 5);
+
+    const perEpisodeBudgetBase = studioProfile.budget * (0.05 + r.nextFloat(0, 0.05));
+    const perEpisodeBudget = Math.floor(perEpisodeBudgetBase);
+    const seasonBudget = perEpisodeBudget * episodeCount;
+
+    const title = `${this.generateDeterministicFilmTitle(genre, studioProfile.name, r)}: The Series`;
+
+    const studioSlug = this.slug(studioProfile.name);
+    const projectId = `ai-tv-${studioSlug}-${currentYear}-w${currentWeek}`;
+
+    const script: Script = {
+      id: `script-${projectId}`,
+      title,
+      genre,
+      logline: this.generateDeterministicLogline(genre, title, r),
+      writer: this.generateDeterministicWriterName(r),
+      pages: 55 + r.nextInt(0, 19),
+      quality: 35 + r.nextInt(0, 64),
+      budget: perEpisodeBudget,
+      developmentStage: 'final',
+      themes: this.generateDeterministicThemes(genre, r),
+      targetAudience: this.selectTargetAudience(genre),
+      estimatedRuntime: 45,
+      characteristics: {
+        ...this.generateCharacteristics(genre, studioProfile),
+        pacing: 'episodic'
+      }
+    };
+
+    const criticsScore = this.generateDeterministicCriticsScore(genre, studioProfile.reputation, r);
+    const audienceScore = this.generateDeterministicAudienceScore(genre, studioProfile.reputation, r);
+
+    const viewsFirstWeek = Math.max(100_000, Math.floor(seasonBudget / 20));
+    const tailMultiplier = 6 + r.nextFloat(0, 10);
+    const totalViews = Math.floor(viewsFirstWeek * tailMultiplier);
+
+    const releaseDate = this.dateForGameWeek(currentYear, currentWeek);
+
+    return {
+      id: projectId,
+      title,
+      script,
+      type: r.chance(0.75) ? 'series' : 'limited-series',
+      currentPhase: 'distribution',
+      status: 'released',
+      phaseDuration: 0,
+      studioName: studioProfile.name,
+      contractedTalent: [],
+      developmentProgress: {
+        scriptCompletion: 100,
+        budgetApproval: 100,
+        talentAttached: 100,
+        locationSecured: 100,
+        completionThreshold: 100,
+        issues: []
+      },
+      episodeCount,
+      budget: {
+        total: seasonBudget,
+        allocated: {
+          aboveTheLine: seasonBudget * 0.3,
+          belowTheLine: seasonBudget * 0.4,
+          postProduction: seasonBudget * 0.15,
+          marketing: seasonBudget * 0.1,
+          distribution: seasonBudget * 0.03,
+          contingency: seasonBudget * 0.02
+        },
+        spent: {
+          aboveTheLine: seasonBudget * 0.3,
+          belowTheLine: seasonBudget * 0.4,
+          postProduction: seasonBudget * 0.15,
+          marketing: seasonBudget * 0.1,
+          distribution: seasonBudget * 0.03,
+          contingency: seasonBudget * 0.02
+        },
+        overages: {
+          aboveTheLine: 0,
+          belowTheLine: 0,
+          postProduction: 0,
+          marketing: 0,
+          distribution: 0,
+          contingency: 0
+        }
+      },
+      cast: [],
+      crew: [],
+      timeline: {
+        preProduction: { start: releaseDate, end: releaseDate },
+        principalPhotography: { start: releaseDate, end: releaseDate },
+        postProduction: { start: releaseDate, end: releaseDate },
+        release: releaseDate,
+        milestones: []
+      },
+      locations: [],
+      distributionStrategy: {
+        primary: {
+          platform: 'Streaming',
+          type: 'streaming',
+          revenue: { type: 'subscription-share', studioShare: 60 }
+        },
+        international: [],
+        windows: [],
+        marketingBudget: seasonBudget * 0.1
+      },
+      metrics: {
+        weeksSinceRelease: 0,
+        criticsScore,
+        audienceScore,
+        streaming: {
+          viewsFirstWeek,
+          totalViews,
+          completionRate: Math.min(95, Math.max(35, Math.floor(55 + (criticsScore + audienceScore) * 0.2))),
+          audienceShare: Math.min(40, Math.max(3, Math.floor(4 + (audienceScore - 50) * 0.2))),
+          watchTimeHours: Math.max(1000, Math.floor((totalViews * 45) / 60)),
+          subscriberGrowth: Math.floor(viewsFirstWeek * 0.02)
+        }
+      },
+      releaseWeek: currentWeek,
+      releaseYear: currentYear,
+      releaseFormat: r.chance(0.6) ? 'weekly' : 'binge'
+    } as Project;
+  }
 
   generateFilmTitle(genre: Genre, studioName: string): string {
     const keywords = TITLE_KEYWORDS[genre] || TITLE_KEYWORDS.drama;
