@@ -32,7 +32,10 @@ import {
 } from '@/utils/platformIds';
 import { stableInt } from '@/utils/stableRandom';
 import { isDebugUiEnabled } from '@/utils/debugFlags';
-import { BarChart3, Crown, Film, Home, Swords, TrendingUp, Users } from 'lucide-react';
+import { StreamingPlatformPreview } from './StreamingPlatformPreview';
+import { StudioIconCustomizer, DEFAULT_ICON, ICON_COLORS, ACCENT_COLORS, type StudioIconConfig } from './StudioIconCustomizer';
+import type { PlayerPlatformBranding } from '@/types/platformEconomy';
+import { BarChart3, Crown, Film, Home, LayoutGrid, Swords, TrendingUp, Users } from 'lucide-react';
 
 const formatCompact = (value: number) => {
   return new Intl.NumberFormat(undefined, { notation: 'compact', maximumFractionDigits: 1 }).format(value);
@@ -73,6 +76,44 @@ const ORIGINAL_PHASE_WEEKS: Record<'development' | 'production' | 'post-producti
   production: 12,
   'post-production': 6,
 };
+
+const VIBE_BRANDING_PRESETS: Record<string, PlayerPlatformBranding> = {
+  prestige: {
+    primaryColor: 'amethyst',
+    accentColor: 'white',
+    overlay: 'none',
+    logo: { shape: 'circle', color: 'amethyst', accent: 'white' },
+  },
+  mass: {
+    primaryColor: 'crimson',
+    accentColor: 'white',
+    overlay: 'none',
+    logo: { shape: 'square', color: 'crimson', accent: 'white' },
+  },
+  bundle: {
+    primaryColor: 'emerald',
+    accentColor: 'black',
+    overlay: 'spotlight',
+    logo: { shape: 'hexagon', color: 'emerald', accent: 'black' },
+  },
+  genre: {
+    primaryColor: 'crimson',
+    accentColor: 'gold',
+    overlay: 'scanlines',
+    logo: { shape: 'star', color: 'crimson', accent: 'gold' },
+  },
+  global: {
+    primaryColor: 'amethyst',
+    accentColor: 'silver',
+    overlay: 'spotlight',
+    logo: { shape: 'diamond', color: 'amethyst', accent: 'silver' },
+  },
+};
+
+function getVibeBrandingPreset(vibe: string | undefined): PlayerPlatformBranding {
+  if (vibe && VIBE_BRANDING_PRESETS[vibe]) return VIBE_BRANDING_PRESETS[vibe];
+  return VIBE_BRANDING_PRESETS.prestige;
+}
 
 const estimateOriginalWeeksToPremiere = (project: Project): number | null => {
   if (!project?.id?.startsWith('project:original:')) return null;
@@ -232,6 +273,44 @@ export const StreamingWarsPlatformApp: React.FC = () => {
       originals,
     };
   }, [gameState?.projects, platformMarket]);
+
+  const effectiveBranding = useMemo(() => {
+    const preset = getVibeBrandingPreset(player?.vibe);
+    const branding = player?.branding ?? {};
+
+    return {
+      primaryColor: branding.primaryColor ?? preset.primaryColor,
+      accentColor: branding.accentColor ?? preset.accentColor,
+      overlay: branding.overlay ?? preset.overlay,
+      layout: branding.layout ?? 'auto',
+      logo: (branding.logo as StudioIconConfig | undefined) ?? (preset.logo as StudioIconConfig | undefined) ?? DEFAULT_ICON,
+    } satisfies PlayerPlatformBranding;
+  }, [player?.branding, player?.vibe]);
+
+  const updatePlayerBranding = (patch: Partial<PlayerPlatformBranding>) => {
+    if (!playerPlatformId) return;
+
+    setGameState((prev) => {
+      const pm = prev.platformMarket;
+      if (!pm?.player) return prev;
+      if (pm.player.id !== playerPlatformId) return prev;
+      if (pm.player.status !== 'active') return prev;
+
+      return {
+        ...prev,
+        platformMarket: {
+          ...pm,
+          player: {
+            ...pm.player,
+            branding: {
+              ...(pm.player.branding ?? {}),
+              ...patch,
+            },
+          },
+        },
+      };
+    });
+  };
 
   const launchCost = 75_000_000;
 
@@ -517,6 +596,7 @@ export const StreamingWarsPlatformApp: React.FC = () => {
             freshness: 35,
             catalogValue: 20,
             vibe,
+            branding: getVibeBrandingPreset(vibe),
           },
         },
       };
@@ -767,6 +847,10 @@ export const StreamingWarsPlatformApp: React.FC = () => {
           <TabsTrigger value="home" className="flex items-center gap-2">
             <Home className="h-4 w-4" />
             Home
+          </TabsTrigger>
+          <TabsTrigger value="app" className="flex items-center gap-2">
+            <LayoutGrid className="h-4 w-4" />
+            App
           </TabsTrigger>
           <TabsTrigger value="originals" className="flex items-center gap-2">
             <Film className="h-4 w-4" />
@@ -1122,6 +1206,177 @@ export const StreamingWarsPlatformApp: React.FC = () => {
                         <p className="mt-2 text-sm text-muted-foreground">No upcoming arrivals are scheduled.</p>
                       )}
                     </div>
+                  </div>
+                </CardContent>
+              </Card>
+            </div>
+          )}
+        </TabsContent>
+
+        <TabsContent value="app" className="space-y-4">
+          {!playerPlatformId || !player ? (
+            <Card>
+              <CardHeader>
+                <CardTitle className="text-base">Platform app</CardTitle>
+              </CardHeader>
+              <CardContent>
+                <p className="text-sm text-muted-foreground">Launch your platform to unlock the consumer-facing app preview.</p>
+              </CardContent>
+            </Card>
+          ) : player.status !== 'active' ? (
+            <Card>
+              <CardHeader>
+                <CardTitle className="text-base">Platform app</CardTitle>
+              </CardHeader>
+              <CardContent>
+                <p className="text-sm text-muted-foreground">Your platform is no longer active.</p>
+              </CardContent>
+            </Card>
+          ) : (
+            <div className="grid grid-cols-1 lg:grid-cols-3 gap-4">
+              <div className="lg:col-span-2">
+                <StreamingPlatformPreview
+                  platformId={playerPlatformId}
+                  platformName={player.name}
+                  vibe={player.vibe}
+                  branding={effectiveBranding}
+                  heroTitle={heroTitle}
+                  topTen={topTen}
+                  newArrivals={newArrivals}
+                  originals={originalsReleased}
+                  onSelectTitle={openTitle}
+                />
+              </div>
+
+              <Card className="lg:col-span-1">
+                <CardHeader>
+                  <CardTitle className="text-base">Branding</CardTitle>
+                </CardHeader>
+                <CardContent className="space-y-6">
+                  <div className="space-y-2">
+                    <Label htmlFor="platform-name">Platform name</Label>
+                    <Input
+                      id="platform-name"
+                      value={player.name}
+                      onChange={(e) => {
+                        const next = e.target.value;
+                        setGameState((prev) => {
+                          const pm = prev.platformMarket;
+                          if (!pm?.player) return prev;
+                          if (pm.player.id !== playerPlatformId) return prev;
+                          if (pm.player.status !== 'active') return prev;
+                          return {
+                            ...prev,
+                            platformMarket: {
+                              ...pm,
+                              player: {
+                                ...pm.player,
+                                name: next,
+                              },
+                            },
+                          };
+                        });
+                      }}
+                      placeholder="Your platform name"
+                    />
+                    <p className="text-xs text-muted-foreground">This name is used in contracts, events, and the in-universe app.</p>
+                  </div>
+
+                  <div>
+                    <Label className="text-muted-foreground text-xs uppercase tracking-wider mb-2 block">Primary color</Label>
+                    <div className="flex gap-2 flex-wrap">
+                      {ICON_COLORS.map((c) => (
+                        <button
+                          key={c.id}
+                          type="button"
+                          onClick={() => updatePlayerBranding({ primaryColor: c.id })}
+                          className={`w-8 h-8 rounded-full border-2 transition-all duration-200 ${
+                            effectiveBranding.primaryColor === c.id
+                              ? 'border-foreground scale-110 shadow-md'
+                              : 'border-transparent hover:border-muted-foreground/50 hover:scale-105'
+                          }`}
+                          style={{ backgroundColor: `hsl(${c.hsl})` }}
+                          title={c.label}
+                        />
+                      ))}
+                    </div>
+                  </div>
+
+                  <div>
+                    <Label className="text-muted-foreground text-xs uppercase tracking-wider mb-2 block">Accent color</Label>
+                    <div className="flex gap-2 flex-wrap">
+                      {ACCENT_COLORS.map((c) => (
+                        <button
+                          key={c.id}
+                          type="button"
+                          onClick={() => updatePlayerBranding({ accentColor: c.id })}
+                          className={`w-8 h-8 rounded-full border-2 transition-all duration-200 ${
+                            effectiveBranding.accentColor === c.id
+                              ? 'border-foreground scale-110 shadow-md'
+                              : 'border-transparent hover:border-muted-foreground/50 hover:scale-105'
+                          }`}
+                          style={{ backgroundColor: `hsl(${c.hsl})` }}
+                          title={c.label}
+                        />
+                      ))}
+                    </div>
+                  </div>
+
+                  <div className="space-y-2">
+                    <Label>App layout</Label>
+                    <Select
+                      value={effectiveBranding.layout ?? 'auto'}
+                      onValueChange={(v) => updatePlayerBranding({ layout: v as PlayerPlatformBranding['layout'] })}
+                    >
+                      <SelectTrigger>
+                        <SelectValue />
+                      </SelectTrigger>
+                      <SelectContent>
+                        <SelectItem value="auto">Auto (based on vibe)</SelectItem>
+                        <SelectItem value="mass">Mass market</SelectItem>
+                        <SelectItem value="prestige">Prestige</SelectItem>
+                        <SelectItem value="default">Classic</SelectItem>
+                      </SelectContent>
+                    </Select>
+                    <p className="text-xs text-muted-foreground">This only affects the in-universe app preview.</p>
+                  </div>
+
+                  <div className="space-y-2">
+                    <Label>Background overlay</Label>
+                    <Select
+                      value={effectiveBranding.overlay ?? 'spotlight'}
+                      onValueChange={(v) => updatePlayerBranding({ overlay: v as PlayerPlatformBranding['overlay'] })}
+                    >
+                      <SelectTrigger>
+                        <SelectValue />
+                      </SelectTrigger>
+                      <SelectContent>
+                        <SelectItem value="spotlight">Spotlight</SelectItem>
+                        <SelectItem value="grid">Grid</SelectItem>
+                        <SelectItem value="scanlines">Scanlines</SelectItem>
+                        <SelectItem value="none">None</SelectItem>
+                      </SelectContent>
+                    </Select>
+                  </div>
+
+                  <StudioIconCustomizer
+                    label="Platform logo"
+                    description="A simple mark that shows up in the app header."
+                    value={(effectiveBranding.logo as StudioIconConfig | undefined) ?? DEFAULT_ICON}
+                    onChange={(cfg) => updatePlayerBranding({ logo: cfg })}
+                  />
+
+                  <div className="flex items-center justify-between gap-2">
+                    <Button
+                      type="button"
+                      variant="secondary"
+                      onClick={() => updatePlayerBranding({ ...getVibeBrandingPreset(player.vibe), layout: 'auto' })}
+                    >
+                      Reset to vibe default
+                    </Button>
+                    <Badge variant="outline" className="capitalize">
+                      {player.vibe ?? 'prestige'}
+                    </Badge>
                   </div>
                 </CardContent>
               </Card>

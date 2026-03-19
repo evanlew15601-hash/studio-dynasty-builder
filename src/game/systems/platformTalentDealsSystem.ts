@@ -1,6 +1,7 @@
 import type { PlatformMarketState } from '@/types/platformEconomy';
 import type { GameEvent } from '@/types/game';
 import { stablePick } from '@/utils/stablePick';
+import { stableInt } from '@/utils/stableRandom';
 import type { TickSystem } from '../core/types';
 
 function triggerDateFromWeekYear(year: number, week: number): Date {
@@ -33,8 +34,8 @@ export const PlatformTalentDealsSystem: TickSystem = {
 
     if (!market || !player || player.status !== 'active') return state;
 
-    // Deterministic “overall deal season”: gives the wars some character without feeling spammy.
-    if (ctx.week !== 20) return state;
+    const offerWeek = stableInt(`${state.universeSeed || 'seed'}|platform:talent-offer-week|${ctx.year}|${player.id}`, 16, 24);
+    if (ctx.week !== offerWeek) return state;
     if (player.lastTalentOfferYear === ctx.year) return state;
 
     const rivals = (market.rivals || []).filter((r) => r && r.status !== 'collapsed');

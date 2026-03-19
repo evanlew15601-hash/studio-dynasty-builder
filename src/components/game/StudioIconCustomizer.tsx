@@ -97,19 +97,26 @@ export const StudioIconRenderer: React.FC<{
 interface StudioIconCustomizerProps {
   value: StudioIconConfig;
   onChange: (config: StudioIconConfig) => void;
+  label?: string;
+  description?: string;
 }
 
-export const StudioIconCustomizer: React.FC<StudioIconCustomizerProps> = ({ value, onChange }) => {
+export const StudioIconCustomizer: React.FC<StudioIconCustomizerProps> = ({
+  value,
+  onChange,
+  label = 'Studio Icon',
+  description = "Your studio's emblem across the industry.",
+}) => {
   return (
     <div className="space-y-4">
-      <Label className="text-foreground text-base">Studio Icon</Label>
+      <Label className="text-foreground text-base">{label}</Label>
 
       {/* Preview */}
       <div className="flex items-center gap-4">
         <div className="p-3 rounded-xl bg-secondary/50 border border-border">
           <StudioIconRenderer config={value} size={56} />
         </div>
-        <p className="text-sm text-muted-foreground">Your studio's emblem across the industry.</p>
+        <p className="text-sm text-muted-foreground">{description}</p>
       </div>
 
       {/* Shape picker */}

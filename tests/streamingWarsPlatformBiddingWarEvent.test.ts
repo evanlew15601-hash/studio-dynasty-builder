@@ -1,6 +1,7 @@
 import { beforeEach, describe, expect, it } from 'vitest';
 import type { GameState, Project } from '@/types/game';
 import { useGameStore } from '@/game/store';
+import { stableInt } from '@/utils/stableRandom';
 
 function makeBaseState(overrides?: Partial<GameState>): GameState {
   const base: GameState = {
@@ -150,14 +151,16 @@ describe('Streaming Wars: bidding war event', () => {
     useGameStore.getState().initGame(makeBaseState({ universeSeed: 888, rngState: 888 }), 123);
   });
 
-  it('enqueues a deterministic bidding war event at week 30 when an exclusive title exists', () => {
+  it('enqueues a deterministic bidding war event during the seeded offer week when an exclusive title exists', () => {
     const playerPlatformId = 'player-platform:studio-1';
+    const offerWeek = stableInt(`888|platform:bidding-war-week|2027|${playerPlatformId}`, 26, 34);
 
     useGameStore.getState().initGame(
       makeBaseState({
         dlc: { streamingWars: true },
         universeSeed: 888,
         rngState: 888,
+        currentWeek: offerWeek - 1,
         platformMarket: {
           totalAddressableSubs: 100_000_000,
           player: {
@@ -195,22 +198,24 @@ describe('Streaming Wars: bidding war event', () => {
       123
     );
 
-    useGameStore.getState().advanceWeek(); // to week 30
+    useGameStore.getState().advanceWeek();
 
     const state = useGameStore.getState().game!;
-    expect(state.currentWeek).toBe(30);
+    expect(state.currentWeek).toBe(offerWeek);
     expect(state.eventQueue.length).toBe(1);
     expect((state.eventQueue[0] as any)?.data?.kind).toBe('platform:bidding-war');
   });
 
   it('also triggers for exclusive streaming-contract Originals (no releaseStrategy needed)', () => {
     const playerPlatformId = 'player-platform:studio-1';
+    const offerWeek = stableInt(`888|platform:bidding-war-week|2027|${playerPlatformId}`, 26, 34);
 
     useGameStore.getState().initGame(
       makeBaseState({
         dlc: { streamingWars: true },
         universeSeed: 888,
         rngState: 888,
+        currentWeek: offerWeek - 1,
         platformMarket: {
           totalAddressableSubs: 100_000_000,
           player: {
@@ -248,22 +253,24 @@ describe('Streaming Wars: bidding war event', () => {
       123
     );
 
-    useGameStore.getState().advanceWeek(); // to week 30
+    useGameStore.getState().advanceWeek();
 
     const state = useGameStore.getState().game!;
-    expect(state.currentWeek).toBe(30);
+    expect(state.currentWeek).toBe(offerWeek);
     expect(state.eventQueue.length).toBe(1);
     expect((state.eventQueue[0] as any)?.data?.kind).toBe('platform:bidding-war');
   });
 
   it('selling the window makes the title non-exclusive and creates a rival streaming window', () => {
     const playerPlatformId = 'player-platform:studio-1';
+    const offerWeek = stableInt(`889|platform:bidding-war-week|2027|${playerPlatformId}`, 26, 34);
 
     useGameStore.getState().initGame(
       makeBaseState({
         dlc: { streamingWars: true },
         universeSeed: 889,
         rngState: 889,
+        currentWeek: offerWeek - 1,
         platformMarket: {
           totalAddressableSubs: 100_000_000,
           player: {
@@ -301,7 +308,7 @@ describe('Streaming Wars: bidding war event', () => {
       123
     );
 
-    useGameStore.getState().advanceWeek(); // to week 30
+    useGameStore.getState().advanceWeek();
 
     const withEvent = useGameStore.getState().game!;
     const event = withEvent.eventQueue[0];

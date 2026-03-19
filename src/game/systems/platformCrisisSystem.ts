@@ -1,5 +1,6 @@
 import type { PlatformMarketState } from '@/types/platformEconomy';
 import type { GameEvent } from '@/types/game';
+import { stableInt } from '@/utils/stableRandom';
 import type { TickSystem } from '../core/types';
 
 function triggerDateFromWeekYear(year: number, week: number): Date {
@@ -99,14 +100,17 @@ export const PlatformCrisisSystem: TickSystem = {
       };
     }
 
-    // Deterministic outage crisis: only hits when you have real scale, but low service quality.
-    const freshness = player.freshness ?? 55;
+    // Deterministic outage crisis: once per year, week is seeded by universeSeed so it doesn't feel scripted.
+    const serviceQuality = player.serviceQuality ?? 55;
     const subs = player.subscribers ?? 0;
 
-    const isOutageWeek = ctx.week === 26;
-    const isOutageRisk = freshness <= 25 && subs >= 5_000_000;
+    const outageWeek = stableInt(`${state.universeSeed || 'seed'}|platform:outage-week|${ctx.year}|${player.id}`, 22, 38);
+
+    const isOutageWeek = ctx.week === outageWeek;
+    const isOutageRisk = serviceQuality <= 35 && subs >= 5_000_000;
 
     if (!isOutageWeek || !isOutageRisk) return state;
+    if (player.lastOutageYear === ctx.year) return state;
 
     const suggestedLoss = Math.max(0, Math.floor(subs * ctx.rng.nextFloat(0.003, 0.012)));
 
@@ -174,6 +178,13 @@ export const PlatformCrisisSystem: TickSystem = {
 
     return {
       ...state,
+      platformMarket: {
+        ...market,
+        player: {
+          ...player,
+          lastOutageYear: ctx.year,
+        },
+      },
       eventQueue: [...(state.eventQueue || []), outageEvent],
     };
   },

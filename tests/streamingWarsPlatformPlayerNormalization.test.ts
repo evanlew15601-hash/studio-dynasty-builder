@@ -68,6 +68,7 @@ describe('Streaming Wars: player platform state normalization', () => {
             promotionBudgetPerWeek: 0,
             priceIndex: 1.0,
             adLoadIndex: -10,
+            serviceQuality: 200,
             originalsQualityBonus: 99,
             freshness: 55,
             catalogValue: 45,
@@ -85,6 +86,7 @@ describe('Streaming Wars: player platform state normalization', () => {
 
     const state = useGameStore.getState().game!;
     expect(state.platformMarket?.player?.adLoadIndex).toBe(0);
+    expect(state.platformMarket?.player?.serviceQuality).toBe(100);
     expect(state.platformMarket?.player?.originalsQualityBonus).toBe(20);
     expect(state.platformMarket?.player?.lastTalentOfferYear).toBe(2020);
     expect(state.platformMarket?.player?.lastBiddingWarYear).toBe(2021);

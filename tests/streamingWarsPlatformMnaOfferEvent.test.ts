@@ -1,6 +1,7 @@
 import { beforeEach, describe, expect, it } from 'vitest';
 import type { GameState } from '@/types/game';
 import { useGameStore } from '@/game/store';
+import { stableInt } from '@/utils/stableRandom';
 
 function makeBaseState(overrides?: Partial<GameState>): GameState {
   const base: GameState = {
@@ -48,12 +49,15 @@ describe('Streaming Wars: M&A offer event', () => {
     useGameStore.getState().initGame(makeBaseState({ universeSeed: 777, rngState: 777 }), 123);
   });
 
-  it('enqueues a deterministic M&A offer at week 39 when a rival is in sustained distress', () => {
+  it('enqueues a deterministic M&A offer during the seeded offer week when a rival is in sustained distress', () => {
+    const offerWeek = stableInt(`777|platform:mna-offer-week|2027|player-platform:studio-1`, 34, 46);
+
     useGameStore.getState().initGame(
       makeBaseState({
         dlc: { streamingWars: true },
         universeSeed: 777,
         rngState: 777,
+        currentWeek: offerWeek - 1,
         platformMarket: {
           totalAddressableSubs: 100_000_000,
           player: {
@@ -102,21 +106,24 @@ describe('Streaming Wars: M&A offer event', () => {
       123
     );
 
-    useGameStore.getState().advanceWeek(); // to week 39
+    useGameStore.getState().advanceWeek();
 
     const state = useGameStore.getState().game!;
-    expect(state.currentWeek).toBe(39);
+    expect(state.currentWeek).toBe(offerWeek);
 
     expect(state.eventQueue.length).toBe(1);
     expect((state.eventQueue[0] as any)?.data?.kind).toBe('platform:mna-offer');
   });
 
   it('buying the distressed platform transfers subscribers to the player platform (and spends budget via consequences)', () => {
+    const offerWeek = stableInt(`778|platform:mna-offer-week|2027|player-platform:studio-1`, 34, 46);
+
     useGameStore.getState().initGame(
       makeBaseState({
         dlc: { streamingWars: true },
         universeSeed: 778,
         rngState: 778,
+        currentWeek: offerWeek - 1,
         platformMarket: {
           totalAddressableSubs: 100_000_000,
           player: {
@@ -165,7 +172,7 @@ describe('Streaming Wars: M&A offer event', () => {
       123
     );
 
-    useGameStore.getState().advanceWeek(); // to week 39
+    useGameStore.getState().advanceWeek();
 
     const withEvent = useGameStore.getState().game!;
     const event = withEvent.eventQueue[0];

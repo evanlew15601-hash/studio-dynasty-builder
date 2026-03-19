@@ -1,6 +1,7 @@
 import { beforeEach, describe, expect, it } from 'vitest';
 import type { GameState } from '@/types/game';
 import { useGameStore } from '@/game/store';
+import { stableInt } from '@/utils/stableRandom';
 
 function makeBaseState(overrides?: Partial<GameState>): GameState {
   const base: GameState = {
@@ -48,12 +49,15 @@ describe('Streaming Wars: licensing offer event', () => {
     useGameStore.getState().initGame(makeBaseState({ universeSeed: 9001, rngState: 9001 }), 123);
   });
 
-  it('enqueues a deterministic licensing offer at week 13 when a released title exists on the player platform', () => {
+  it('enqueues a deterministic licensing offer during the seeded offer week when a released title exists on the player platform', () => {
+    const offerWeek = stableInt(`9001|platform:license-offer-week|2027|player-platform:studio-1`, 10, 18);
+
     useGameStore.getState().initGame(
       makeBaseState({
         dlc: { streamingWars: true },
         universeSeed: 9001,
         rngState: 9001,
+        currentWeek: offerWeek - 1,
         platformMarket: {
           totalAddressableSubs: 100_000_000,
           player: {
@@ -133,21 +137,24 @@ describe('Streaming Wars: licensing offer event', () => {
       123
     );
 
-    useGameStore.getState().advanceWeek(); // to week 13
+    useGameStore.getState().advanceWeek();
 
     const state = useGameStore.getState().game!;
-    expect(state.currentWeek).toBe(13);
+    expect(state.currentWeek).toBe(offerWeek);
 
     expect(state.eventQueue.length).toBe(1);
     expect((state.eventQueue[0] as any)?.data?.kind).toBe('platform:license-offer');
   });
 
   it('also triggers for exclusive streaming-contract Originals (no releaseStrategy needed)', () => {
+    const offerWeek = stableInt(`9002|platform:license-offer-week|2027|player-platform:studio-1`, 10, 18);
+
     useGameStore.getState().initGame(
       makeBaseState({
         dlc: { streamingWars: true },
         universeSeed: 9002,
         rngState: 9002,
+        currentWeek: offerWeek - 1,
         platformMarket: {
           totalAddressableSubs: 100_000_000,
           player: {
@@ -237,10 +244,10 @@ describe('Streaming Wars: licensing offer event', () => {
       123
     );
 
-    useGameStore.getState().advanceWeek(); // to week 13
+    useGameStore.getState().advanceWeek();
 
     const state = useGameStore.getState().game!;
-    expect(state.currentWeek).toBe(13);
+    expect(state.currentWeek).toBe(offerWeek);
 
     expect(state.eventQueue.length).toBe(1);
     expect((state.eventQueue[0] as any)?.data?.kind).toBe('platform:license-offer');

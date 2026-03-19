@@ -7,6 +7,27 @@
 export type PlatformOperationalStatus = 'active' | 'sold' | 'shutdown';
 export type RivalPlatformStatus = 'healthy' | 'distress' | 'collapsed';
 
+export type PlatformBrandingOverlay = 'spotlight' | 'grid' | 'scanlines' | 'none';
+
+export type PlatformBrandingLayout = 'auto' | 'default' | 'mass' | 'prestige';
+
+export interface PlatformLogoConfig {
+  shape: 'shield' | 'circle' | 'diamond' | 'hexagon' | 'star' | 'square';
+  color: string; // key from shared palette (see StudioIconCustomizer)
+  accent: string; // key from shared palette (see StudioIconCustomizer)
+}
+
+export interface PlayerPlatformBranding {
+  /** Palette id for primary UI accents. */
+  primaryColor?: string;
+  /** Palette id for UI accents + highlights. */
+  accentColor?: string;
+  overlay?: PlatformBrandingOverlay;
+  /** Controls which in-universe app template is used. */
+  layout?: PlatformBrandingLayout;
+  logo?: PlatformLogoConfig;
+}
+
 export interface PlatformTierMix {
   /** Percentage (0–100) of subs on the ad-supported tier. */
   adSupportedPct: number;
@@ -32,6 +53,8 @@ export interface PlayerPlatformState {
   launchedWeek?: number;
   launchedYear?: number;
 
+  branding?: PlayerPlatformBranding;
+
   subscribers: number;
   /** Platform cash proxy (used for distress modelling). */
   cash: number;
@@ -45,6 +68,9 @@ export interface PlayerPlatformState {
 
   /** 0–100 ad load intensity (higher = more ad ARPU, worse churn on ad tier). */
   adLoadIndex?: number;
+
+  /** 0–100 service reliability/quality (separate from content freshness). */
+  serviceQuality?: number;
 
   /** 0–20 baseline script quality bonus applied to platform Originals (from talent deal events). */
   originalsQualityBonus?: number;
@@ -75,6 +101,9 @@ export interface PlayerPlatformState {
   /** Internal: prevents spamming annual M&A offers. */
   lastMnaOfferYear?: number;
 
+  /** Internal: ensures the outage crisis is at most once per year. */
+  lastOutageYear?: number;
+
   // Optional knobs for future economy simulation
   monthlyPrice?: number;
   contentSpendPerWeek?: number;
@@ -91,7 +120,10 @@ export interface RivalPlatformState {
   distressWeeks?: number;
 
   tierMix?: PlatformTierMix;
+  promotionBudgetPerWeek?: number;
   priceIndex?: number;
+  adLoadIndex?: number;
+  serviceQuality?: number;
   catalogValue?: number;
   freshness?: number; // 0–100
 }
