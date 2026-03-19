@@ -1,4 +1,4 @@
-import React, { useEffect, useMemo, useRef, useState } from 'react';
+import React, { useEffect, useRef, useState } from 'react';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
@@ -62,7 +62,7 @@ export function DatabaseManagerDialog(props: {
   const [confirmState, setConfirmState] = useState<ConfirmState | null>(null);
   const confirmActionRef = useRef<(() => Promise<void>) | null>(null);
 
-  const allDbs = useMemo(() => listModSlots(), [props.open, activeDb]);
+  const allDbs = listModSlots();
 
   const openConfirm = (state: ConfirmState, onConfirm: () => Promise<void>) => {
     confirmActionRef.current = onConfirm;
@@ -89,7 +89,6 @@ export function DatabaseManagerDialog(props: {
     setNameInput('');
 
     void refreshSaveIndex();
-    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [props.open]);
 
   const setActive = (slotId: string) => {
@@ -191,6 +190,10 @@ export function DatabaseManagerDialog(props: {
         }
 
         const normalized = normalizeModBundle(parsed);
+        if ((normalized.mods || []).length === 0 && (normalized.patches || []).length === 0) {
+          toast({ title: 'Invalid database', description: 'JSON did not look like a mod bundle.', variant: 'destructive' });
+          return;
+        }
 
         if (importOverwrite) {
           await deleteDatabaseSavesAsync(targetDb);
