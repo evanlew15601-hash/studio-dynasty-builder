@@ -211,6 +211,7 @@ describe('Streaming Wars: cadence premiere inference', () => {
     const season2 = out.seasons?.[1];
     expect(season2?.premiereDate).toEqual({ week: 21, year: 2027 });
     expect(season2?.episodes?.[0]?.airDate).toEqual({ week: 21, year: 2027 });
-    expect(season2?.productionStatus).toBe('airing');
+    expect(season2?.productionStatus).toBe('complete');
+    expect(season2?.airingStatus).toBe('airing');
   });
 });

@@ -57,7 +57,8 @@ function createSeasonData(project: Project, seasonNumber: number): SeasonData {
     seasonDropoffRate: 0,
     totalBudget: project.budget.total || 0,
     spentBudget: 0,
-    productionStatus: project.status === 'released' ? 'airing' : 'planning',
+    productionStatus: project.status === 'released' ? 'complete' : 'planning',
+    airingStatus: project.status === 'released' ? 'airing' : undefined,
     episodes,
   };
 }
@@ -197,7 +198,7 @@ export class TVEpisodeSystem {
     }
 
     updatedSeason.episodesAired = endEpisode;
-    updatedSeason.productionStatus = updatedSeason.episodesAired >= updatedSeason.totalEpisodes ? 'complete' : 'airing';
+    updatedSeason.airingStatus = updatedSeason.episodesAired >= updatedSeason.totalEpisodes ? 'complete' : 'airing';
 
     if (!updatedSeason.premiereDate && updatedSeason.episodesAired > 0) {
       updatedSeason.premiereDate = { week: premiereWeek, year: premiereYear };

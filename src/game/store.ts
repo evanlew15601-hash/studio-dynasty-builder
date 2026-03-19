@@ -48,6 +48,7 @@ import { StudioGovernanceSystem } from './systems/studioGovernanceSystem';
 import { PlatformMarketBootstrapSystem } from './systems/platformMarketBootstrapSystem';
 import { PlatformOriginalsPipelineSystem } from './systems/platformOriginalsPipelineSystem';
 import { PlatformOriginalsReleaseCadenceSystem } from './systems/platformOriginalsReleaseCadenceSystem';
+import { SeasonAiringStatusSystem } from './systems/seasonAiringStatusSystem';
 import { PlatformCatalogSystem } from './systems/platformCatalogSystem';
 import { PlatformEconomySystem } from './systems/platformEconomySystem';
 import { PlatformCompetitionAndMAndASystem } from './systems/platformCompetitionAndMAndASystem';
@@ -204,6 +205,7 @@ export const useGameStore: import('zustand').UseBoundStore<import('zustand').Sto
       r.register(PlatformMarketBootstrapSystem);
       r.register(PlatformOriginalsPipelineSystem);
       r.register(PlatformOriginalsReleaseCadenceSystem);
+      r.register(SeasonAiringStatusSystem);
       r.register(PlatformCatalogSystem);
       r.register(PlatformEconomySystem);
       r.register(PlatformCompetitionAndMAndASystem);

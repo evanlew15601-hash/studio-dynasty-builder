@@ -12,7 +12,7 @@ function clampInt(n: number, min: number, max: number): number {
 
 type OriginalPhase = 'development' | 'production' | 'post-production';
 
-type SeasonProductionStatus = 'planning' | 'filming' | 'post-production' | 'airing' | 'complete';
+type SeasonProductionStatus = 'planning' | 'filming' | 'post-production' | 'complete';
 
 function seasonStatusForPhase(phase: OriginalPhase): SeasonProductionStatus {
   switch (phase) {
@@ -163,7 +163,8 @@ export const PlatformOriginalsPipelineSystem: TickSystem = {
         ? [
             {
               ...seasons[0],
-              productionStatus: 'airing',
+              productionStatus: 'complete',
+              airingStatus: 'airing',
               premiereDate: seasons[0]?.premiereDate ?? { week: ctx.week, year: ctx.year },
             },
             ...seasons.slice(1),

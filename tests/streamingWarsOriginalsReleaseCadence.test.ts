@@ -177,11 +177,13 @@ describe('Streaming Wars: Originals release cadence', () => {
 
     const week1 = PlatformOriginalsReleaseCadenceSystem.onTick(base as any, makeCtx(1, 1, 2027));
     expect(week1.projects?.[0]?.seasons?.[0]?.episodesAired).toBe(1);
-    expect(week1.projects?.[0]?.seasons?.[0]?.productionStatus).toBe('airing');
+    expect(week1.projects?.[0]?.seasons?.[0]?.productionStatus).toBe('complete');
+    expect(week1.projects?.[0]?.seasons?.[0]?.airingStatus).toBe('airing');
 
     const week4 = PlatformOriginalsReleaseCadenceSystem.onTick(week1 as any, makeCtx(1, 4, 2027));
     expect(week4.projects?.[0]?.seasons?.[0]?.episodesAired).toBe(4);
-    expect(week4.projects?.[0]?.seasons?.[0]?.productionStatus).toBe('airing');
+    expect(week4.projects?.[0]?.seasons?.[0]?.productionStatus).toBe('complete');
+    expect(week4.projects?.[0]?.seasons?.[0]?.airingStatus).toBe('airing');
   });
 
   it('drops all episodes immediately for binge releases', () => {
@@ -208,5 +210,6 @@ describe('Streaming Wars: Originals release cadence', () => {
     const next = PlatformOriginalsReleaseCadenceSystem.onTick(base as any, makeCtx(1, 1, 2027));
     expect(next.projects?.[0]?.seasons?.[0]?.episodesAired).toBe(10);
     expect(next.projects?.[0]?.seasons?.[0]?.productionStatus).toBe('complete');
+    expect(next.projects?.[0]?.seasons?.[0]?.airingStatus).toBe('complete');
   });
 });
