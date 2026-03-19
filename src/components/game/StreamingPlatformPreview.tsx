@@ -264,6 +264,7 @@ export const StreamingPlatformPreview: React.FC<{
   const showPrestigeSearch = layout === 'prestige' && prestigeView === 'search';
   const showPrestigeMyStuff = layout === 'prestige' && prestigeView === 'mystuff';
   const showPrestigeCollections = layout === 'prestige' && prestigeView === 'collections';
+  const showPrestigeHubs = layout === 'prestige' && prestigeView === 'browse';
 
   const shouldShowHero = layout !== 'mass' || massView === 'browse';
 
@@ -442,7 +443,7 @@ export const StreamingPlatformPreview: React.FC<{
           </div>
         )}
 
-        {layout === 'prestige' && prestigeView === 'browse' && (
+        {showPrestigeHubs && (
           <div className="sp-hubs" aria-label="Hubs">
             <button
               type="button"
