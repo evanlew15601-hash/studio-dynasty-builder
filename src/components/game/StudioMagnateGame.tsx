@@ -34,7 +34,7 @@ import { createRng, generateGameSeed, seedFromString } from '@/game/core/rng';
 import { advanceWeek as engineAdvanceWeek } from '@/game/core/tick';
 import { useUiStore } from '@/game/uiStore';
 import { AwardsSystem } from './AwardsSystem';
-import { EnhancedAwardsSystem } from './EnhancedAwardsSystem';
+import { AwardsSeasonAnalyticsPanel } from './AwardsSeasonAnalyticsPanel';
 import { RoleBasedCasting } from './RoleBasedCasting';
 import { CharacterCastingSystem } from './CharacterCastingSystem';
 import { useAwardsEngine } from '@/hooks/useAwardsEngine';
@@ -572,7 +572,7 @@ export const StudioMagnateGame: React.FC<StudioMagnateGameProps> = ({
       aiStudioState: { aiFilms: [], talentCommitments: [], nextFilmId: 1 },
       mediaState: {
         engine: { history: [], memories: [], eventQueue: [] },
-        response: { campaigns: [], reactions: [] },
+        response: { campaigns: [], reactions: [], nextCampaignId: 1 },
       },
     } as GameState;
   });
@@ -778,7 +778,7 @@ export const StudioMagnateGame: React.FC<StudioMagnateGameProps> = ({
         aiStudioState: { aiFilms: [], talentCommitments: [], nextFilmId: 1 },
         mediaState: {
           engine: { history: [], memories: [], eventQueue: [] },
-          response: { campaigns: [], reactions: [] },
+          response: { campaigns: [], reactions: [], nextCampaignId: 1 },
         },
       };
 
@@ -2721,7 +2721,7 @@ export const StudioMagnateGame: React.FC<StudioMagnateGameProps> = ({
               incoming.mediaState ??
               {
                 engine: { history: [], memories: [], eventQueue: [] },
-                response: { campaigns: [], reactions: [] },
+                response: { campaigns: [], reactions: [], nextCampaignId: 1 },
               },
           };
 
@@ -4258,7 +4258,7 @@ export const StudioMagnateGame: React.FC<StudioMagnateGameProps> = ({
             </TabsContent>
 
             <TabsContent value="season">
-              <EnhancedAwardsSystem />
+              <AwardsSeasonAnalyticsPanel />
             </TabsContent>
           </Tabs>
         )}

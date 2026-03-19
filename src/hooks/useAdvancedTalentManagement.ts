@@ -1,5 +1,7 @@
 import { useState, useEffect, useCallback } from 'react';
 import { TalentPerson, TalentAgent, TalentHold, ChemistryEvent, BurnoutCalculation } from '@/types/game';
+import { stableFloat01, stableInt } from '@/utils/stableRandom';
+import { hashStringToUint32 } from '@/utils/stablePick';
 
 interface AdvancedTalentState {
   agents: TalentAgent[];
@@ -12,7 +14,8 @@ export const useAdvancedTalentManagement = (
   talent: TalentPerson[],
   currentWeek: number,
   currentYear: number,
-  studioId: string
+  studioId: string,
+  universeSeed: number | string = 0
 ) => {
   const [state, setState] = useState<AdvancedTalentState>({
     agents: [],
@@ -156,7 +159,12 @@ export const useAdvancedTalentManagement = (
     const loyaltyBonus = getLoyaltyScore(talentId, studioId) * 0.3;
     
     const successChance = baseSuccess + powerBonus + reputationBonus + loyaltyBonus;
-    const success = Math.random() * 100 < successChance;
+
+    const currentAbsWeek = (currentYear * 52) + currentWeek;
+    const signature = `adv-talent|${universeSeed}|${currentAbsWeek}|negotiation|${agentId}|${talentId}|${JSON.stringify(terms)}`;
+    const roll = stableFloat01(signature) * 100;
+
+    const success = roll < successChance;
     
     if (success) {
       const baseCost = person.marketValue * (agent.commission / 100);
@@ -195,36 +203,50 @@ export const useAdvancedTalentManagement = (
       })
     }));
 
-    // Random chemistry events between talent
-    if (Math.random() < 0.1) { // 10% chance per week
+    // Chemistry events between talent (deterministic per save+week)
+    const currentAbsWeek = (currentYear * 52) + currentWeek;
+    const seedRoot = `adv-talent|${universeSeed}|${currentAbsWeek}|chemistry`;
+
+    if (stableFloat01(`${seedRoot}|chance`) < 0.1) {
       const availableTalent = talent.filter(t => t.contractStatus === 'contracted');
       if (availableTalent.length >= 2) {
-        const talent1 = availableTalent[Math.floor(Math.random() * availableTalent.length)];
-        const talent2 = availableTalent[Math.floor(Math.random() * availableTalent.length)];
-        
+        const idx1 = stableInt(`${seedRoot}|pickA`, 0, availableTalent.length - 1);
+        const idx2 = stableInt(`${seedRoot}|pickB`, 0, availableTalent.length - 1);
+
+        const talent1 = availableTalent[idx1];
+        const talent2 = availableTalent[idx2];
+
         if (talent1.id !== talent2.id) {
           const eventTypes = ['positive', 'negative', 'neutral'] as const;
-          const eventType = eventTypes[Math.floor(Math.random() * eventTypes.length)];
-          
-          const event: ChemistryEvent = {
-            id: `chemistry_${Date.now()}`,
-            talent1Id: talent1.id,
-            talent2Id: talent2.id,
-            projectId: 'random_interaction',
-            interactionType: eventType,
-            magnitude: Math.floor(Math.random() * 10) + 5,
-            description: eventType === 'positive' ? 'Had great working chemistry on set' :
-                        eventType === 'negative' ? 'Experienced creative differences' :
-                        'Worked together professionally',
-            week: currentWeek,
-            year: currentYear
-          };
-          
-          addChemistryEvent(event);
+          const eventType = eventTypes[stableInt(`${seedRoot}|eventType`, 0, eventTypes.length - 1)];
+
+          const magnitude = stableInt(`${seedRoot}|magnitude`, 5, 14);
+
+          const signature = `${seedRoot}|${talent1.id}|${talent2.id}|${eventType}|${magnitude}`;
+          const id = `chemistry_${hashStringToUint32(signature).toString(36)}`;
+
+          // Avoid duplicates if the hook re-runs for the same week.
+          if (!state.chemistryEvents.some((e) => e.id === id)) {
+            const event: ChemistryEvent = {
+              id,
+              talent1Id: talent1.id,
+              talent2Id: talent2.id,
+              projectId: 'random_interaction',
+              interactionType: eventType,
+              magnitude,
+              description: eventType === 'positive' ? 'Had great working chemistry on set' :
+                          eventType === 'negative' ? 'Experienced creative differences' :
+                          'Worked together professionally',
+              week: currentWeek,
+              year: currentYear
+            };
+
+            addChemistryEvent(event);
+          }
         }
       }
     }
-  }, [currentWeek, currentYear, talent, addChemistryEvent]);
+  }, [currentWeek, currentYear, state.chemistryEvents, talent, addChemistryEvent, universeSeed]);
 
   return {
     // State

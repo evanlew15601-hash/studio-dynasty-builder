@@ -891,6 +891,8 @@ export interface MediaState {
     campaigns: MediaCampaign[];
     /** Player responses to media items. */
     reactions: MediaReaction[];
+    /** Monotonic campaign ID counter (prevents collisions after reload). */
+    nextCampaignId?: number;
   };
 }
 

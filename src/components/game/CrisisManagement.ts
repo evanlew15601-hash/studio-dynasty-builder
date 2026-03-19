@@ -1,5 +1,7 @@
 import { MediaEngine } from './MediaEngine';
-import { GameState, Studio, TalentPerson, Project } from '../../types/game';
+import { GameState, Studio } from '../../types/game';
+import { stableFloat01, stableInt } from '@/utils/stableRandom';
+import { hashStringToUint32 } from '@/utils/stablePick';
 
 export interface Crisis {
   id: string;
@@ -39,17 +41,25 @@ export class CrisisManagement {
   }
 
   static triggerCrisis(gameState: GameState, forcedType?: Crisis['type']): Crisis | null {
-    // Random crisis generation based on studio activity and reputation
     const studio = gameState.studio;
     const crisisChance = this.calculateCrisisChance(studio, gameState);
-    
-    if (Math.random() > crisisChance && !forcedType) {
-      return null;
+
+    const absWeek = (gameState.currentYear * 52) + gameState.currentWeek;
+    const seedRoot = `crisis|${gameState.universeSeed ?? 0}|${absWeek}`;
+
+    if (!forcedType) {
+      const roll = stableFloat01(`${seedRoot}|chance-roll`);
+      if (roll > crisisChance) {
+        return null;
+      }
     }
 
-    const crisisType = forcedType || this.selectCrisisType(studio, gameState);
-    const crisis = this.generateCrisis(crisisType, studio, gameState);
-    
+    const crisisType = forcedType || this.selectCrisisType(studio, seedRoot);
+    const crisis = this.generateCrisis(crisisType, gameState, seedRoot);
+
+    // Avoid duplicates if called multiple times for the same save/week.
+    if (this.activeCrises.some((c) => c.id === crisis.id)) return crisis;
+
     this.activeCrises.push(crisis);
 
     const affectedProjects = crisis.affectedType === 'project' ? crisis.affectedEntities : [];
@@ -170,7 +180,7 @@ export class CrisisManagement {
     return Math.min(baseChance, 0.25); // Cap at 25%
   }
 
-  private static selectCrisisType(studio: Studio, gameState: GameState): Crisis['type'] {
+  private static selectCrisisType(studio: Studio, seedRoot: string): Crisis['type'] {
     const weights = {
       scandal: 30,
       lawsuit: 15,
@@ -181,12 +191,12 @@ export class CrisisManagement {
     };
 
     const totalWeight = Object.values(weights).reduce((sum, weight) => sum + weight, 0);
-    const random = Math.random() * totalWeight;
-    
+    const roll = stableFloat01(`${seedRoot}|type-roll`) * totalWeight;
+
     let currentWeight = 0;
     for (const [type, weight] of Object.entries(weights)) {
       currentWeight += weight;
-      if (random <= currentWeight) {
+      if (roll <= currentWeight) {
         return type as Crisis['type'];
       }
     }
@@ -194,7 +204,7 @@ export class CrisisManagement {
     return 'scandal';
   }
 
-  private static generateCrisis(type: Crisis['type'], studio: Studio, gameState: GameState): Crisis {
+  private static generateCrisis(type: Crisis['type'], gameState: GameState, seedRoot: string): Crisis {
     const crisisTemplates = {
       scandal: [
         { title: "Talent Scandal Erupts", description: "A major star is caught in a compromising situation", affectedType: 'talent' as const },
@@ -223,13 +233,16 @@ export class CrisisManagement {
     };
 
     const templates = crisisTemplates[type];
-    const template = templates[Math.floor(Math.random() * templates.length)];
-    
-    const severity = this.determineSeverity();
-    const affectedEntities = this.selectAffectedEntities(template.affectedType, gameState);
+    const template = templates[stableInt(`${seedRoot}|template`, 0, templates.length - 1)];
+
+    const severity = this.determineSeverity(seedRoot);
+    const affectedEntities = this.selectAffectedEntities(template.affectedType, gameState, seedRoot);
+
+    const signature = `${seedRoot}|${type}|${severity}|${template.affectedType}|${affectedEntities.slice().sort().join(',')}`;
+    const id = `crisis_${hashStringToUint32(signature).toString(36)}`;
 
     return {
-      id: `crisis-${Date.now()}-${Math.random().toString(36).substr(2, 9)}`,
+      id,
       type,
       severity,
       title: template.title,
@@ -246,22 +259,24 @@ export class CrisisManagement {
     };
   }
 
-  private static determineSeverity(): Crisis['severity'] {
-    const random = Math.random();
-    if (random < 0.4) return 'minor';
-    if (random < 0.7) return 'moderate';
-    if (random < 0.9) return 'major';
+  private static determineSeverity(seedRoot: string): Crisis['severity'] {
+    const roll = stableFloat01(`${seedRoot}|severity-roll`);
+    if (roll < 0.4) return 'minor';
+    if (roll < 0.7) return 'moderate';
+    if (roll < 0.9) return 'major';
     return 'critical';
   }
 
-  private static selectAffectedEntities(affectedType: Crisis['affectedType'], gameState: GameState): string[] {
+  private static selectAffectedEntities(affectedType: Crisis['affectedType'], gameState: GameState, seedRoot: string): string[] {
     if (affectedType === 'talent' && gameState.talent.length > 0) {
-      const talent = gameState.talent[Math.floor(Math.random() * gameState.talent.length)];
+      const idx = stableInt(`${seedRoot}|affected-talent`, 0, gameState.talent.length - 1);
+      const talent = gameState.talent[idx];
       return [talent.id];
     }
 
     if (affectedType === 'project' && gameState.projects.length > 0) {
-      const project = gameState.projects[Math.floor(Math.random() * gameState.projects.length)];
+      const idx = stableInt(`${seedRoot}|affected-project`, 0, gameState.projects.length - 1);
+      const project = gameState.projects[idx];
       return [project.id];
     }
 

@@ -54,7 +54,7 @@ export function patchLoadedSnapshot(
       (patchedGameStateBase as any).mediaState ??
       {
         engine: { history: [], memories: [], eventQueue: [] },
-        response: { campaigns: [], reactions: [] },
+        response: { campaigns: [], reactions: [], nextCampaignId: 1 },
       },
   };
 
@@ -79,7 +79,7 @@ export function patchLoadedSnapshot(
       aiStudioState: { aiFilms: [], talentCommitments: [], nextFilmId: 1 },
       mediaState: {
         engine: { history: [], memories: [], eventQueue: [] },
-        response: { campaigns: [], reactions: [] },
+        response: { campaigns: [], reactions: [], nextCampaignId: 1 },
       },
     },
   };

@@ -1,20 +1,26 @@
 import type { MediaCampaign, MediaReaction, MediaItem, MediaState, GameState, TalentPerson, Project } from '@/types/game';
 import { MediaEngine } from './MediaEngine';
+import { stableFloat01, stableInt } from '@/utils/stableRandom';
 
 export class MediaResponseSystem {
   private static activeCampaigns: MediaCampaign[] = [];
   private static playerReactions: MediaReaction[] = [];
+  private static nextCampaignId = 1;
 
   static hydrate(state?: MediaState): void {
     const response = state?.response;
     this.activeCampaigns = (response?.campaigns || []).slice();
     this.playerReactions = (response?.reactions || []).slice();
+
+    const fallback = this.activeCampaigns.length + 1;
+    this.nextCampaignId = response?.nextCampaignId ?? fallback;
   }
 
   static snapshot(): MediaState['response'] {
     return {
       campaigns: this.activeCampaigns.slice(),
       reactions: this.playerReactions.slice(),
+      nextCampaignId: this.nextCampaignId,
     };
   }
 
@@ -22,6 +28,7 @@ export class MediaResponseSystem {
   static cleanup(): void {
     this.activeCampaigns = [];
     this.playerReactions = [];
+    this.nextCampaignId = 1;
   }
 
   // Player response actions
@@ -34,8 +41,11 @@ export class MediaResponseSystem {
     duration: number,
     gameState: GameState
   ): MediaCampaign {
+    const id = `campaign_${this.nextCampaignId}`;
+    this.nextCampaignId += 1;
+
     const campaign: MediaCampaign = {
-      id: `campaign_${Date.now()}_${Math.random().toString(36).substr(2, 9)}`,
+      id,
       studioId,
       name,
       type,
@@ -182,7 +192,8 @@ export class MediaResponseSystem {
     };
 
     const typeHeadlines = headlines[campaign.type];
-    return typeHeadlines[Math.floor(Math.random() * typeHeadlines.length)];
+    const idx = stableInt(`campaign-headline|${campaign.id}`, 0, typeHeadlines.length - 1);
+    return typeHeadlines[idx];
   }
 
   // Calculate impact of player response to media
@@ -314,8 +325,10 @@ export class MediaResponseSystem {
           currentWeek <= campaign.duration.endWeek &&
           currentYear === campaign.duration.year) {
         
-        // Generate weekly campaign media
-        if (Math.random() < (campaign.effectiveness / 100) * 0.3) { // 30% max chance per week
+        // Generate weekly campaign media (deterministic per save+week)
+        const absWeek = (currentYear * 52) + currentWeek;
+        const roll = stableFloat01(`campaign-weekly-media|${gameState.universeSeed ?? 0}|${campaign.id}|${absWeek}`);
+        if (roll < (campaign.effectiveness / 100) * 0.3) { // 30% max chance per week
           this.generateCampaignMedia(campaign, gameState);
         }
         

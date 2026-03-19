@@ -1,5 +1,7 @@
 import React, { useCallback, useMemo, useState } from 'react';
 import { Project, AwardsCampaign, StudioAward } from '@/types/game';
+import { stableFloat01 } from '@/utils/stableRandom';
+import { hashStringToUint32 } from '@/utils/stablePick';
 import { useGameStore } from '@/game/store';
 import { useUiStore } from '@/game/uiStore';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
@@ -288,6 +290,8 @@ export const AwardsSystem: React.FC<AwardsSystemProps> = ({
 
     const categoriesMap: Record<string, Array<{ project: Project; score: number }>> = {};
 
+    const seedRoot = `awards-ui|${gameState.universeSeed ?? 0}|Y${gameState.currentYear}|${ceremonyName}`;
+
     categories.forEach(category => {
       const ranked = eligible
         .map(project => {
@@ -295,7 +299,8 @@ export const AwardsSystem: React.FC<AwardsSystemProps> = ({
           const momentum = seasonMomentum[project.id] || 0;
           // Slight category bias: technical vs acting vs picture kept simple
           const categoryBias = category.toLowerCase().includes('director') ? 5 : category.toLowerCase().includes('actor') ? 3 : 0;
-          const score = Math.min(100, base + momentum + categoryBias + (Math.random() * 6 - 3));
+          const noise = (stableFloat01(`${seedRoot}|nomination-noise|${category}|${project.id}`) * 6) - 3;
+          const score = Math.min(100, base + momentum + categoryBias + noise);
           return { project, score };
         })
         .sort((a, b) => b.score - a.score)
@@ -332,13 +337,15 @@ export const AwardsSystem: React.FC<AwardsSystemProps> = ({
     const flatForModal: Array<{ project: Project; category: string; won: boolean; award?: StudioAward }> = [];
     const winnersThisShow: string[] = [];
 
+    const seedRoot = `awards-ui|${gameState.universeSeed ?? 0}|Y${gameState.currentYear}|${ceremonyName}`;
+
     categories.forEach(category => {
       const nominees = nominationsRecord.categories[category] || [];
       if (nominees.length === 0) return;
-      // Winner: weighted pick favoring top nominee with randomness
+      // Winner: weighted pick favoring top nominee with deterministic noise
       const weighted = nominees.map((n, idx) => ({ ...n, weight: (nominees.length - idx) * 1.5 + (seasonMomentum[n.project.id] || 0) / 10 }));
       const totalWeight = weighted.reduce((s, w) => s + w.weight, 0);
-      let r = Math.random() * totalWeight;
+      let r = stableFloat01(`${seedRoot}|winner-roll|${category}`) * totalWeight;
       let winner = weighted[0];
       for (const w of weighted) { r -= w.weight; if (r <= 0) { winner = w; break; } }
 
@@ -346,7 +353,7 @@ export const AwardsSystem: React.FC<AwardsSystemProps> = ({
         const won = n.project.id === winner.project.id;
         const award: StudioAward | undefined = won
           ? {
-              id: `award-${Date.now()}-${Math.random()}`,
+              id: `award_${hashStringToUint32(`${seedRoot}|${category}|${n.project.id}`).toString(36)}`,
               projectId: n.project.id,
               category,
               ceremony: ceremonyName,

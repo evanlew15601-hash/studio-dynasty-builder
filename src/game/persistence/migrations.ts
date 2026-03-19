@@ -42,7 +42,7 @@ const migrations: MigrationEntry[] = [
             snapshot.gameState.mediaState ??
             {
               engine: { history: [], memories: [], eventQueue: [] },
-              response: { campaigns: [], reactions: [] },
+              response: { campaigns: [], reactions: [], nextCampaignId: 1 },
             },
         } as any,
         meta: {
