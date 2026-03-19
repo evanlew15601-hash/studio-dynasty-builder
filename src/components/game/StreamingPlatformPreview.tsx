@@ -139,7 +139,7 @@ export const StreamingPlatformPreview: React.FC<{
   newArrivals: Project[];
   originals: Project[];
   onSelectTitle: (project: Project) => void;
-> = ({ platformId, platformName, vibe, branding, heroTitle, topTen, newArrivals, originals, onSelectTitle }) => {
+}> = ({ platformId, platformName, vibe, branding, heroTitle, topTen, newArrivals, originals, onSelectTitle }) => {
   const [activeNav, setActiveNav] = useState<'home' | 'originals' | 'new'>('home');
   const [massView, setMassView] = useState<'browse' | 'search' | 'newhot'>('browse');
   const [searchQuery, setSearchQuery] = useState('');
