@@ -2,7 +2,7 @@ import React, { useMemo, useState } from 'react';
 import type { Project } from '@/types/game';
 import type { PlayerPlatformBranding } from '@/types/platformEconomy';
 import { stableInt } from '@/utils/stableRandom';
-import { Home, Search, Sparkles, UserCircle } from 'lucide-react';
+import { Flame, Home, Search, UserCircle } from 'lucide-react';
 import { StudioIconRenderer, DEFAULT_ICON, ICON_COLORS, ACCENT_COLORS, type StudioIconConfig } from './StudioIconCustomizer';
 import './streamingPlatformPreview.css';
 
@@ -132,8 +132,9 @@ export const StreamingPlatformPreview: React.FC<{
   onSelectTitle: (project: Project) => void;
 > = ({ platformId, platformName, vibe, branding, heroTitle, topTen, newArrivals, originals, onSelectTitle }) => {
   const [activeNav, setActiveNav] = useState<'home' | 'originals' | 'new'>('home');
-  const [massView, setMassView] = useState<'browse' | 'search'>('browse');
+  const [massView, setMassView] = useState<'browse' | 'search' | 'newhot'>('browse');
   const [searchQuery, setSearchQuery] = useState('');
+  const [newHotTab, setNewHotTab] = useState<'coming' | 'watching'>('watching');
 
   const resolved = useMemo(() => {
     const primaryHsl = resolveHsl(branding?.primaryColor, ICON_COLORS, '42 88% 68%');
@@ -209,6 +210,9 @@ export const StreamingPlatformPreview: React.FC<{
   const showMassOriginals = showMassBrowse && activeNav === 'originals';
   const showMassNew = showMassBrowse && activeNav === 'new';
   const showMassSearch = layout === 'mass' && massView === 'search';
+  const showMassNewHot = layout === 'mass' && massView === 'newhot';
+
+  const shouldShowHero = layout !== 'mass' || massView === 'browse';
 
   return (
     <div
@@ -234,7 +238,15 @@ export const StreamingPlatformPreview: React.FC<{
           <div className={layout === 'mass' ? 'sp-actions sp-actions--mass' : 'sp-actions'}>
             {layout === 'mass' ? (
               <>
-                <button type="button" className="sp-action-icon" aria-label="Search" onClick={() => setMassView('search')}>
+                <button
+                  type="button"
+                  className="sp-action-icon"
+                  aria-label="Search"
+                  onClick={() => {
+                    setMassView('search');
+                    setSearchQuery('');
+                  }}
+                >
                   <Search size={16} />
                 </button>
                 <button
@@ -283,15 +295,16 @@ export const StreamingPlatformPreview: React.FC<{
             type="button"
             onClick={() => {
               setActiveNav('new');
-              setMassView('browse');
+              setMassView(layout === 'mass' ? 'newhot' : 'browse');
+              setNewHotTab('watching');
             }}
-            data-active={layout === 'mass' ? (massView === 'browse' && activeNav === 'new') : activeNav === 'new'}
+            data-active={layout === 'mass' ? (massView === 'browse' ? activeNav === 'new' : massView === 'newhot') : activeNav === 'new'}
           >
-            New
+            {layout === 'mass' ? 'New & Hot' : 'New'}
           </button>
         </nav>
 
-        {layout === 'mass' && massView === 'browse' && (
+        {layout === 'mass' && (
           <div className="sp-chips" aria-label="Category shortcuts">
             <button
               type="button"
@@ -320,11 +333,23 @@ export const StreamingPlatformPreview: React.FC<{
               className="sp-chip"
               onClick={() => {
                 setActiveNav('new');
-                setMassView('browse');
+                setMassView('newhot');
+                setNewHotTab('watching');
               }}
-              data-active={activeNav === 'new' && massView === 'browse'}
+              data-active={massView === 'newhot'}
             >
-              New & trending
+              New & Hot
+            </button>
+            <button
+              type="button"
+              className="sp-chip"
+              onClick={() => {
+                setMassView('search');
+                setSearchQuery('');
+              }}
+              data-active={massView === 'search'}
+            >
+              Search
             </button>
             <div className="sp-chip" style={{ cursor: 'default' }}>
               Categories
@@ -384,7 +409,76 @@ export const StreamingPlatformPreview: React.FC<{
               <div className="sp-search-empty">No matches.</div>
             )}
           </section>
-        ) : heroTitle ? (
+        ) : showMassNewHot ? (
+          <section className="sp-newhot">
+            <div className="sp-newhot-head">
+              <div>
+                <div className="sp-newhot-title">New & Hot</div>
+                <div className="sp-newhot-sub">Fresh drops and what’s blowing up right now</div>
+              </div>
+            </div>
+
+            <div className="sp-newhot-tabs" role="tablist" aria-label="New and hot tabs">
+              <button type="button" onClick={() => setNewHotTab('coming')} data-active={newHotTab === 'coming'}>
+                Coming soon
+              </button>
+              <button type="button" onClick={() => setNewHotTab('watching')} data-active={newHotTab === 'watching'}>
+                Everyone’s watching
+              </button>
+            </div>
+
+            {newHotTab === 'coming' ? (
+              <div className="sp-newhot-list">
+                {newArrivals.slice(0, 12).map((p) => {
+                  const initials = titleInitials(p.title);
+                  const label = stableInt(`newhot:coming:${p.id}`, 0, 2);
+                  const meta = label === 0 ? 'Coming this week' : label === 1 ? 'New season soon' : 'Arrives Friday';
+
+                  return (
+                    <button key={`coming:${p.id}`} type="button" className="sp-newhot-item" onClick={() => onSelectTitle(p)}>
+                      <div className="sp-newhot-poster" style={{ backgroundImage: tileGradient(p.id, resolved.primaryHsl, resolved.accentHsl) }}>
+                        <div className="sp-newhot-initials">{initials}</div>
+                      </div>
+                      <div className="sp-newhot-meta">
+                        <div className="sp-newhot-item-title">{p.title}</div>
+                        <div className="sp-newhot-item-sub">{meta} • {p.script?.genre ?? 'Unknown'}</div>
+                      </div>
+                    </button>
+                  );
+                })}
+
+                {newArrivals.length === 0 && <div className="sp-newhot-empty">Nothing queued up yet.</div>}
+              </div>
+            ) : (
+              <div className="sp-newhot-list">
+                {topTen.slice(0, 12).map((p, idx) => {
+                  const initials = titleInitials(p.title);
+                  const isOriginal = !!platformId && p.streamingContract?.platformId === platformId;
+
+                  return (
+                    <button key={`watching:${p.id}`} type="button" className="sp-newhot-item sp-newhot-item--ranked" onClick={() => onSelectTitle(p)}>
+                      <div className="sp-newhot-rank" aria-hidden="true">
+                        #{idx + 1}
+                      </div>
+                      <div className="sp-newhot-poster" style={{ backgroundImage: tileGradient(p.id, resolved.primaryHsl, resolved.accentHsl) }}>
+                        {isOriginal && <div className="sp-poster-tag">Original</div>}
+                        <div className="sp-newhot-initials">{initials}</div>
+                      </div>
+                      <div className="sp-newhot-meta">
+                        <div className="sp-newhot-item-title">{p.title}</div>
+                        <div className="sp-newhot-item-sub">Trending • {p.script?.genre ?? 'Unknown'}</div>
+                      </div>
+                    </button>
+                  );
+                })}
+
+                {topTen.length === 0 && <div className="sp-newhot-empty">Nothing is trending yet.</div>}
+              </div>
+            )}
+
+            <div className="sp-newhot-footer" />
+          </section>
+        ) : shouldShowHero && heroTitle ? (
           <button
             type="button"
             className={layout === 'mass' ? 'sp-hero sp-hero--mass' : 'sp-hero'}
@@ -416,7 +510,7 @@ export const StreamingPlatformPreview: React.FC<{
               )}
             </div>
           </button>
-        ) : (
+        ) : shouldShowHero ? (
           <div className={layout === 'mass' ? 'sp-hero sp-hero--mass' : 'sp-hero'} style={{ cursor: 'default' }}>
             <div className={layout === 'mass' ? 'sp-hero-scrim sp-hero-scrim--mass' : 'sp-hero-scrim'} />
             <div className="sp-hero-content">
@@ -425,7 +519,7 @@ export const StreamingPlatformPreview: React.FC<{
               <div className="sp-hero-meta">Add streaming windows and Originals to populate your catalog.</div>
             </div>
           </div>
-        )}
+        ) : null}
 
         {showMassHome && (
           <>
@@ -590,12 +684,13 @@ export const StreamingPlatformPreview: React.FC<{
               type="button"
               onClick={() => {
                 setActiveNav('new');
-                setMassView('browse');
+                setMassView('newhot');
+                setNewHotTab('watching');
               }}
-              data-active={massView === 'browse' && activeNav === 'new'}
+              data-active={massView === 'newhot'}
             >
-              <Sparkles size={18} />
-              <span>New</span>
+              <Flame size={18} />
+              <span>New & Hot</span>
             </button>
             <button
               type="button"
