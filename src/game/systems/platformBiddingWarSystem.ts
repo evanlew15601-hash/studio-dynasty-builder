@@ -1,6 +1,6 @@
 import type { PlatformMarketState } from '@/types/platformEconomy';
 import type { GameEvent, Project } from '@/types/game';
-import { getPlatformIdForProjectAtTime } from '@/utils/platformIds';
+import { getContractPlatformId, getPlatformIdForProjectAtTime } from '@/utils/platformIds';
 import type { TickSystem } from '../core/types';
 
 function triggerDateFromWeekYear(year: number, week: number): Date {
@@ -11,19 +11,25 @@ function clampInt(n: number, min: number, max: number): number {
   return Math.floor(Math.max(min, Math.min(max, n)));
 }
 
+function isDirectExclusiveStreamingPremiere(project: Project, platformId: string): boolean {
+  const rs = project.releaseStrategy;
+  if (rs && rs.type === 'streaming') {
+    const streamId = rs.streamingPlatformId || rs.streamingProviderId;
+    if (streamId === platformId) return rs.streamingExclusive !== false;
+  }
+
+  const contractId = getContractPlatformId(project.streamingContract);
+  const contractExclusive = (project.streamingContract as any)?.exclusivityClause;
+  return contractId === platformId && contractExclusive !== false;
+}
+
 function pickHighestQualityExclusive(params: { projects: Project[]; platformId: string; week: number; year: number }): Project | null {
   const { projects, platformId, week, year } = params;
 
   const eligible = projects
     .filter((p) => p && p.status === 'released')
     .filter((p) => getPlatformIdForProjectAtTime(p, week, year) === platformId)
-    .filter((p) => {
-      const rs = p.releaseStrategy;
-      if (!rs || rs.type !== 'streaming') return false;
-      const streamId = rs.streamingPlatformId || rs.streamingProviderId;
-      if (streamId !== platformId) return false;
-      return rs.streamingExclusive !== false;
-    });
+    .filter((p) => isDirectExclusiveStreamingPremiere(p, platformId));
 
   if (eligible.length === 0) return null;
 

@@ -8,13 +8,14 @@ import {
   isPlayerPlatformId,
 } from '@/utils/platformIds';
 import type { TickSystem } from '../core/types';
+import { absWeek, effectiveArrivalAbs } from './platformRecency';
 
 function clamp(n: number, min: number, max: number): number {
   return Math.max(min, Math.min(max, n));
 }
 
-function absWeek(week: number, year: number): number {
-  return year * 52 + week;
+function clampInt(n: number, min: number, max: number): number {
+  return Math.floor(Math.max(min, Math.min(max, n)));
 }
 
 type PlatformContentPresence = {
@@ -75,10 +76,12 @@ function getPlatformPresence(params: {
   const directId = directPlatformId(project);
 
   if (directId === platformId) {
-    const arrivalAbs =
+    const releaseAbs =
       typeof project.releaseWeek === 'number' && typeof project.releaseYear === 'number'
         ? absWeek(project.releaseWeek, project.releaseYear)
         : currentAbs;
+
+    const arrivalAbs = effectiveArrivalAbs(project, releaseAbs, currentAbs);
 
     const exclusiveFlag = project.releaseStrategy?.streamingExclusive;
     const contractExclusive = (project as any)?.streamingContract?.exclusivityClause;
@@ -260,7 +263,7 @@ function stepPlayerFreshnessCatalog(params: {
 export const PlatformCatalogSystem: TickSystem = {
   id: 'platformCatalog',
   label: 'Platform catalog (Streaming Wars)',
-  dependsOn: ['platformMarketBootstrap'],
+  dependsOn: ['platformMarketBootstrap', 'platformOriginalsReleaseCadence', 'seasonAiringStatus'],
   onTick: (state, ctx) => {
     if (state.dlc?.streamingWars !== true) return state;
 

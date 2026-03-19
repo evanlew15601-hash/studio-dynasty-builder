@@ -202,6 +202,8 @@ describe('Streaming Wars: license offer resolution creates a real rival window +
 
     const after = useGameStore.getState().game!;
 
+    expect(after.platformMarket?.player?.cash).toBe(100_000_000);
+
     const project = after.projects.find((p) => p.id === 'p-1')!;
     expect(project.releaseStrategy?.streamingExclusive).toBe(false);
 

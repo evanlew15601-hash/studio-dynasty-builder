@@ -22,7 +22,7 @@ import {
 } from '@/components/ui/dialog';
 import { useGameStore } from '@/game/store';
 import type { Genre, PostTheatricalRelease, Project, Script } from '@/types/game';
-import type { StreamingContract } from '@/types/streamingTypes';
+import type { EpisodeData, SeasonData, StreamingContract } from '@/types/streamingTypes';
 import {
   getContractPlatformId,
   getDistributionChannelPlatformId,
@@ -47,8 +47,76 @@ const formatUsdCompact = (value: number) => {
   }).format(value);
 };
 
+const formatUsd = (value: number) => {
+  return new Intl.NumberFormat(undefined, {
+    style: 'currency',
+    currency: 'USD',
+    minimumFractionDigits: 2,
+    maximumFractionDigits: 2,
+  }).format(value);
+};
+
+const clamp = (n: number, min: number, max: number) => {
+  return Math.max(min, Math.min(max, n));
+};
+
 const clampInt = (n: number, min: number, max: number) => {
-  return Math.floor(Math.max(min, Math.min(max, n)));
+  return Math.floor(clamp(n, min, max));
+};
+
+const computeMonthlyPrice = (priceIndex: number) => {
+  return Math.round(12.99 * clamp(priceIndex, 0.6, 1.7) * 100) / 100;
+};
+
+const ORIGINAL_PHASE_WEEKS: Record<'development' | 'production' | 'post-production', number> = {
+  development: 8,
+  production: 12,
+  'post-production': 6,
+};
+
+const estimateOriginalWeeksToPremiere = (project: Project): number | null => {
+  if (!project?.id?.startsWith('project:original:')) return null;
+  if (project.status === 'released') return 0;
+
+  const phase =
+    project.currentPhase === 'development' || project.currentPhase === 'production' || project.currentPhase === 'post-production'
+      ? project.currentPhase
+      : project.status === 'development' || project.status === 'production' || project.status === 'post-production'
+        ? project.status
+        : null;
+
+  if (!phase) return null;
+
+  const thisPhase = ORIGINAL_PHASE_WEEKS[phase];
+  const remainingThisPhase = typeof project.phaseDuration === 'number' && project.phaseDuration > 0 ? Math.floor(project.phaseDuration) : thisPhase;
+
+  if (phase === 'development') return remainingThisPhase + ORIGINAL_PHASE_WEEKS.production + ORIGINAL_PHASE_WEEKS['post-production'];
+  if (phase === 'production') return remainingThisPhase + ORIGINAL_PHASE_WEEKS['post-production'];
+  return remainingThisPhase;
+};
+
+const estimateOriginalWeeklySpend = (project: Project): number | null => {
+  const phase =
+    project.currentPhase === 'development' || project.currentPhase === 'production' || project.currentPhase === 'post-production'
+      ? project.currentPhase
+      : project.status === 'development' || project.status === 'production' || project.status === 'post-production'
+        ? project.status
+        : null;
+
+  if (!phase) return null;
+
+  const totalBudget = Math.max(0, Math.floor(project.budget?.total ?? 0));
+
+  const phaseWeights: Record<'development' | 'production' | 'post-production', number> = {
+    development: 0.15,
+    production: 0.65,
+    'post-production': 0.2,
+  };
+
+  const duration = ORIGINAL_PHASE_WEEKS[phase];
+  const perWeek = duration > 0 ? (totalBudget * phaseWeights[phase]) / duration : 0;
+
+  return clampInt(perWeek, 250_000, 15_000_000);
 };
 
 const absWeek = (week: number, year: number) => {
@@ -105,6 +173,7 @@ export const StreamingWarsPlatformApp: React.FC = () => {
   const [originalGenre, setOriginalGenre] = useState<Genre>('drama');
   const [originalEpisodeCount, setOriginalEpisodeCount] = useState(10);
   const [originalEpisodeBudget, setOriginalEpisodeBudget] = useState(2_500_000);
+  const [originalReleaseFormat, setOriginalReleaseFormat] = useState<'weekly' | 'binge' | 'batch'>('weekly');
 
   const [licenseOpen, setLicenseOpen] = useState(false);
   const [licenseProject, setLicenseProject] = useState<Project | null>(null);
@@ -384,6 +453,7 @@ export const StreamingWarsPlatformApp: React.FC = () => {
           ...pm,
           player: {
             ...pm.player,
+            cash: (pm.player.cash ?? 0) + offer,
             freshness: clampInt((pm.player.freshness ?? 50) - moatPenalty, 0, 100),
             catalogValue: clampInt((pm.player.catalogValue ?? 45) - 1, 0, 100),
           },
@@ -550,6 +620,40 @@ export const StreamingWarsPlatformApp: React.FC = () => {
 
     const totalBudget = perEpisodeBudget * episodeCount;
 
+    const releaseFormat = originalReleaseFormat;
+
+    const episodes: EpisodeData[] = Array.from({ length: episodeCount }).map((_, idx) => {
+      const n = idx + 1;
+      return {
+        episodeNumber: n,
+        seasonNumber: 1,
+        title: `Episode ${n}`,
+        runtime: stableInt(`${idSeedRoot}|runtime:${n}`, 42, 64),
+        viewers: 0,
+        completionRate: 0,
+        averageWatchTime: 0,
+        replayViews: 0,
+        productionCost: perEpisodeBudget,
+        weeklyViews: [],
+        cumulativeViews: 0,
+        viewerRetention: 0,
+      };
+    });
+
+    const season1: SeasonData = {
+      seasonNumber: 1,
+      totalEpisodes: episodeCount,
+      episodesAired: 0,
+      releaseFormat,
+      averageViewers: 0,
+      seasonCompletionRate: 0,
+      seasonDropoffRate: 0,
+      totalBudget,
+      spentBudget: 0,
+      productionStatus: 'planning',
+      episodes,
+    };
+
     const project: Project = {
       id: `project:original:${gameState.currentYear}:W${gameState.currentWeek}:${idSuffix}`,
       title,
@@ -606,7 +710,7 @@ export const StreamingWarsPlatformApp: React.FC = () => {
       },
       status: 'development',
       metrics: {},
-      phaseDuration: 4,
+      phaseDuration: 8,
       contractedTalent: [],
       developmentProgress: {
         scriptCompletion: 0,
@@ -616,7 +720,10 @@ export const StreamingWarsPlatformApp: React.FC = () => {
         completionThreshold: 60,
         issues: [],
       },
-      releaseFormat: 'weekly',
+      seasons: [season1],
+      currentSeason: 1,
+      totalOrderedSeasons: 1,
+      releaseFormat,
       episodeCount,
       streamingContract: contract,
     };
@@ -1052,17 +1159,169 @@ export const StreamingWarsPlatformApp: React.FC = () => {
                   {originals
                     .slice()
                     .sort((a, b) => a.title.localeCompare(b.title))
-                    .map((p) => (
-                      <div key={p.id} className="flex items-center justify-between rounded-md border p-3">
-                        <div>
-                          <div className="text-sm font-medium">{p.title}</div>
-                          <div className="text-xs text-muted-foreground capitalize">
-                            {p.type.replace('-', ' ')} • {p.script?.genre} • {p.status}
+                    .map((p) => {
+                      const eta = estimateOriginalWeeksToPremiere(p);
+                      const phase =
+                        p.currentPhase === 'development' || p.currentPhase === 'production' || p.currentPhase === 'post-production'
+                          ? p.currentPhase
+                          : p.status === 'development' || p.status === 'production' || p.status === 'post-production'
+                            ? p.status
+                            : null;
+
+                      const releaseFormat = p.releaseFormat === 'binge' || p.releaseFormat === 'batch' || p.releaseFormat === 'weekly' ? p.releaseFormat : 'weekly';
+
+                      const isSeriesLike = p.type === 'series' || p.type === 'limited-series';
+
+                      const seasons = isSeriesLike && Array.isArray(p.seasons) ? p.seasons : [];
+                      const currentAbs = absWeek(gameState.currentWeek ?? 0, gameState.currentYear ?? 0);
+                      const releaseAbs =
+                        typeof p.releaseWeek === 'number' && typeof p.releaseYear === 'number' ? absWeek(p.releaseWeek, p.releaseYear) : currentAbs;
+
+                      let currentSeason = typeof p.currentSeason === 'number' && p.currentSeason > 0 ? p.currentSeason : 1;
+                      let displaySeason = seasons.find((s) => s?.seasonNumber === currentSeason) ?? seasons[0];
+
+                      if (p.status === 'released' && seasons.length > 0) {
+                        const candidates = seasons
+                          .map((s, idx) => {
+                            const seasonNumber = typeof s?.seasonNumber === 'number' ? s.seasonNumber : idx + 1;
+
+                            const premiereAbs =
+                              typeof (s as any)?.premiereDate?.week === 'number' && typeof (s as any)?.premiereDate?.year === 'number'
+                                ? absWeek((s as any).premiereDate.week, (s as any).premiereDate.year)
+                                : seasonNumber === 1
+                                  ? releaseAbs
+                                  : null;
+
+                            if (premiereAbs == null || premiereAbs > currentAbs) return null;
+
+                            const totalRaw =
+                              typeof (s as any)?.totalEpisodes === 'number'
+                                ? (s as any).totalEpisodes
+                                : seasonNumber === 1 && typeof p.episodeCount === 'number'
+                                  ? p.episodeCount
+                                  : 10;
+
+                            const total = typeof totalRaw === 'number' && totalRaw > 0 ? clampInt(totalRaw, 1, 30) : 0;
+                            const airedRaw = typeof (s as any)?.episodesAired === 'number' ? (s as any).episodesAired : 0;
+                            const aired = total > 0 ? clampInt(airedRaw, 0, total) : 0;
+
+                            return {
+                              season: s,
+                              seasonNumber,
+                              premiereAbs,
+                              isComplete: total > 0 && aired >= total,
+                            };
+                          })
+                          .filter((x): x is { season: any; seasonNumber: number; premiereAbs: number; isComplete: boolean } => x !== null);
+
+                        const active =
+                          candidates.filter((c) => !c.isComplete).sort((a, b) => b.premiereAbs - a.premiereAbs)[0] ??
+                          candidates.sort((a, b) => b.premiereAbs - a.premiereAbs)[0];
+
+                        if (active) {
+                          displaySeason = active.season;
+                          currentSeason = active.seasonNumber;
+                        }
+                      }
+
+                      const totalEpisodes = isSeriesLike
+                        ? typeof (displaySeason as any)?.totalEpisodes === 'number'
+                          ? (displaySeason as any).totalEpisodes
+                          : currentSeason === 1 && typeof p.episodeCount === 'number'
+                            ? p.episodeCount
+                            : 10
+                        : undefined;
+                      const episodesAired = isSeriesLike ? (displaySeason as any)?.episodesAired : undefined;
+
+                      const phaseLabel = phase
+                        ? `${phase}${typeof p.phaseDuration === 'number' && p.phaseDuration > 0 ? ` • ${Math.floor(p.phaseDuration)}w left` : ''}`
+                        : p.status;
+
+                      const weeklySpend = estimateOriginalWeeklySpend(p);
+                      const rushWeeks = 2;
+                      const rushCost = typeof weeklySpend === 'number' && weeklySpend > 0 ? Math.floor(weeklySpend * rushWeeks * 1.25) : null;
+
+                      const remainingForRush =
+                        phase !== null
+                          ? typeof p.phaseDuration === 'number' && p.phaseDuration > 0
+                            ? Math.floor(p.phaseDuration)
+                            : ORIGINAL_PHASE_WEEKS[phase]
+                          : 0;
+
+                      const canRush =
+                        player?.status === 'active' &&
+                        phase === 'production' &&
+                        remainingForRush > 1 &&
+                        p.status !== 'released' &&
+                        typeof rushCost === 'number' &&
+                        rushCost > 0 &&
+                        (player.cash ?? 0) >= rushCost;
+
+                      return (
+                        <div key={p.id} className="flex items-center justify-between rounded-md border p-3 gap-3">
+                          <div className="min-w-0">
+                            <div className="text-sm font-medium truncate">{p.title}</div>
+                            <div className="text-xs text-muted-foreground capitalize truncate">
+                              {p.type.replace('-', ' ')} • {p.script?.genre} • {releaseFormat} • {phaseLabel}
+                              {typeof totalEpisodes === 'number' ? ` • S${currentSeason} ${typeof episodesAired === 'number' ? episodesAired : 0}/${totalEpisodes} eps` : ''}
+                              {typeof eta === 'number' && eta > 0 ? ` • ETA ~${eta}w` : ''}
+                            </div>
+                          </div>
+                          <div className="flex items-center gap-2">
+                            {canRush && (
+                              <Button
+                                type="button"
+                                size="sm"
+                                variant="secondary"
+                                onClick={() => {
+                                  setGameState((prev) => {
+                                    if (!prev.platformMarket?.player) return prev;
+                                    if (prev.platformMarket.player.status !== 'active') return prev;
+
+                                    const projects = (prev.projects ?? []).map((proj) => {
+                                      if (!proj || proj.id !== p.id) return proj;
+
+                                      const projPhase =
+                                        proj.currentPhase === 'development' || proj.currentPhase === 'production' || proj.currentPhase === 'post-production'
+                                          ? proj.currentPhase
+                                          : proj.status === 'development' || proj.status === 'production' || proj.status === 'post-production'
+                                            ? proj.status
+                                            : null;
+
+                                      if (projPhase !== 'production') return proj;
+
+                                      const base = ORIGINAL_PHASE_WEEKS[projPhase];
+                                      const remaining = typeof proj.phaseDuration === 'number' && proj.phaseDuration > 0 ? Math.floor(proj.phaseDuration) : base;
+                                      const nextRemaining = Math.max(1, remaining - rushWeeks);
+
+                                      return {
+                                        ...proj,
+                                        phaseDuration: nextRemaining,
+                                      };
+                                    });
+
+                                    return {
+                                      ...prev,
+                                      projects,
+                                      platformMarket: {
+                                        ...prev.platformMarket,
+                                        player: {
+                                          ...prev.platformMarket.player,
+                                          cash: (prev.platformMarket.player.cash ?? 0) - (rushCost ?? 0),
+                                        },
+                                      },
+                                    };
+                                  });
+                                }}
+                              >
+                                Rush {rushWeeks}w ({formatUsdCompact(rushCost ?? 0)})
+                              </Button>
+                            )}
+                            <Badge variant="outline">Original</Badge>
                           </div>
                         </div>
-                        <Badge variant="outline">Original</Badge>
-                      </div>
-                    ))}
+                      );
+                    })}
                 </div>
               ) : (
                 <p className="text-sm text-muted-foreground">No Originals commissioned yet.</p>
@@ -1128,7 +1387,7 @@ export const StreamingWarsPlatformApp: React.FC = () => {
                     {typeof player.monthlyPrice === 'number' && (
                       <div className="flex justify-between">
                         <span className="text-muted-foreground">Monthly price</span>
-                        <span className="font-medium">{formatUsdCompact(player.monthlyPrice)}</span>
+                        <span className="font-medium">{formatUsd(player.monthlyPrice)}</span>
                       </div>
                     )}
                     {typeof player.contentSpendPerWeek === 'number' && (
@@ -1212,6 +1471,9 @@ export const StreamingWarsPlatformApp: React.FC = () => {
                                 });
                               }}
                             />
+                            <p className="text-xs text-muted-foreground">
+                              Approx. {formatUsd(computeMonthlyPrice(player.priceIndex ?? 1))}/mo
+                            </p>
                           </div>
 
                           <div className="space-y-1">
@@ -1530,6 +1792,7 @@ export const StreamingWarsPlatformApp: React.FC = () => {
                   onChange={(e) => setLaunchPriceIndex(Math.max(0.7, Math.min(1.6, parseFloat(e.target.value || '1'))))}
                 />
                 <p className="text-xs text-muted-foreground">Higher = more ARPU, but worse churn.</p>
+                <p className="text-xs text-muted-foreground">Approx. {formatUsd(computeMonthlyPrice(launchPriceIndex))}/mo</p>
               </div>
 
               <div className="space-y-2">
@@ -1633,7 +1896,7 @@ export const StreamingWarsPlatformApp: React.FC = () => {
               />
             </div>
 
-            <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+            <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
               <div className="space-y-2">
                 <Label>Genre</Label>
                 <Select value={originalGenre} onValueChange={(v) => setOriginalGenre(v as Genre)}>
@@ -1667,6 +1930,20 @@ export const StreamingWarsPlatformApp: React.FC = () => {
                   onChange={(e) => setOriginalEpisodeCount(clampInt(parseInt(e.target.value || '10', 10), 4, 22))}
                 />
               </div>
+
+              <div className="space-y-2">
+                <Label>Release format</Label>
+                <Select value={originalReleaseFormat} onValueChange={(v) => setOriginalReleaseFormat(v as 'weekly' | 'binge' | 'batch')}>
+                  <SelectTrigger>
+                    <SelectValue />
+                  </SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value="weekly">Weekly</SelectItem>
+                    <SelectItem value="batch">Batch (3 eps/week)</SelectItem>
+                    <SelectItem value="binge">Binge (all at once)</SelectItem>
+                  </SelectContent>
+                </Select>
+              </div>
             </div>
 
             <div className="space-y-2">
@@ -1680,6 +1957,8 @@ export const StreamingWarsPlatformApp: React.FC = () => {
                 onChange={(e) => setOriginalEpisodeBudget(Math.max(250000, parseInt(e.target.value || '2500000', 10)))}
               />
               <p className="text-xs text-muted-foreground">Commissioning costs a one-time fee (to prevent spam) and increases platform burn while the show is in the pipeline.</p>
+              <p className="text-xs text-muted-foreground">It will progress automatically and premiere on your platform in ~{ORIGINAL_PHASE_WEEKS.development + ORIGINAL_PHASE_WEEKS.production + ORIGINAL_PHASE_WEEKS['post-production']} weeks.</p>
+              <p className="text-xs text-muted-foreground">Weekly and batch releases keep freshness elevated longer than binge drops.</p>
               {player?.status === 'active' && (
                 <p className="text-xs text-muted-foreground">Current Originals quality bonus: +{Math.round(player.originalsQualityBonus ?? 0)}</p>
               )}

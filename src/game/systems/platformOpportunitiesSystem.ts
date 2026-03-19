@@ -1,6 +1,6 @@
 import type { PlatformMarketState } from '@/types/platformEconomy';
 import type { GameEvent, Project } from '@/types/game';
-import { getPlatformIdForProjectAtTime } from '@/utils/platformIds';
+import { getContractPlatformId, getPlatformIdForProjectAtTime } from '@/utils/platformIds';
 import type { TickSystem } from '../core/types';
 
 function triggerDateFromWeekYear(year: number, week: number): Date {
@@ -12,6 +12,18 @@ function pickHighestQuality(projects: Project[]): Project | null {
   return projects
     .slice()
     .sort((a, b) => (b.script?.quality ?? 60) - (a.script?.quality ?? 60))[0];
+}
+
+function isDirectExclusiveStreamingPremiere(project: Project, platformId: string): boolean {
+  const rs = project.releaseStrategy;
+  if (rs && rs.type === 'streaming') {
+    const streamId = rs.streamingPlatformId || rs.streamingProviderId;
+    if (streamId === platformId) return rs.streamingExclusive !== false;
+  }
+
+  const contractId = getContractPlatformId(project.streamingContract);
+  const contractExclusive = (project.streamingContract as any)?.exclusivityClause;
+  return contractId === platformId && contractExclusive !== false;
 }
 
 export const PlatformOpportunitiesSystem: TickSystem = {
@@ -45,13 +57,7 @@ export const PlatformOpportunitiesSystem: TickSystem = {
 
       // Licensing offers are meant to pressure exclusivity on DIRECT platform premieres,
       // not post-theatrical arrivals.
-      const rs = p.releaseStrategy;
-      if (!rs || rs.type !== 'streaming') return false;
-
-      const streamId = rs.streamingPlatformId || rs.streamingProviderId;
-      if (streamId !== playerPlatformId) return false;
-
-      return rs.streamingExclusive !== false;
+      return isDirectExclusiveStreamingPremiere(p, playerPlatformId);
     });
 
     const targetTitle = pickHighestQuality(releasedOnPlatform);
