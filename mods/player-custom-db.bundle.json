@@ -1,0 +1,13 @@
+{
+  "version": 1,
+  "mods": [
+    {
+      "id": "player-custom-db",
+      "name": "Player Custom DB",
+      "version": "1.0.0",
+      "enabled": true,
+      "priority": 0
+    }
+  ],
+  "patches": []
+}
