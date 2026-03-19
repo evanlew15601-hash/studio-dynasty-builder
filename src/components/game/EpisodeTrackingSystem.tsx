@@ -74,7 +74,7 @@ export const EpisodeTrackingSystem: React.FC = () => {
       seasonDropoffRate: 0,
       totalBudget: project.budget.total || 0,
       spentBudget: 0,
-      productionStatus: 'complete',
+      productionStatus: project.status === 'released' ? 'airing' : 'planning',
       episodes
     };
   };
@@ -222,6 +222,7 @@ export const EpisodeTrackingSystem: React.FC = () => {
 
     // Update season stats
     currentSeason.episodesAired = endEpisode;
+    currentSeason.productionStatus = currentSeason.episodesAired >= currentSeason.totalEpisodes ? 'complete' : 'airing';
     currentSeason.releaseFormat = format;
     currentSeason.averageViewers = Math.floor(
       currentSeason.episodes

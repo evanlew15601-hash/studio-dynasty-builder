@@ -57,7 +57,7 @@ function createSeasonData(project: Project, seasonNumber: number): SeasonData {
     seasonDropoffRate: 0,
     totalBudget: project.budget.total || 0,
     spentBudget: 0,
-    productionStatus: 'complete',
+    productionStatus: project.status === 'released' ? 'airing' : 'planning',
     episodes,
   };
 }
@@ -197,6 +197,7 @@ export class TVEpisodeSystem {
     }
 
     updatedSeason.episodesAired = endEpisode;
+    updatedSeason.productionStatus = updatedSeason.episodesAired >= updatedSeason.totalEpisodes ? 'complete' : 'airing';
 
     if (!updatedSeason.premiereDate && updatedSeason.episodesAired > 0) {
       updatedSeason.premiereDate = { week: premiereWeek, year: premiereYear };
