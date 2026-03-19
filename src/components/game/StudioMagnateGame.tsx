@@ -63,7 +63,7 @@ import {
   DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu";
 import { StudioGenerator } from '../../data/StudioGenerator';
-import { useTalentMarket } from '../../hooks/useTalentMarket';
+
 import { useGenreSaturation } from '../../hooks/useGenreSaturation';
 import { useAchievements } from '../../hooks/useAchievements';
 import { DeepReputationSystem } from './DeepReputationSystem';
@@ -569,6 +569,11 @@ export const StudioMagnateGame: React.FC<StudioMagnateGameProps> = ({
       franchises: [],
       publicDomainIPs: [],
       aiStudioProjects: [],
+      aiStudioState: { aiFilms: [], talentCommitments: [], nextFilmId: 1 },
+      mediaState: {
+        engine: { history: [], memories: [], eventQueue: [] },
+        response: { campaigns: [], reactions: [] },
+      },
     } as GameState;
   });
 
@@ -770,6 +775,11 @@ export const StudioMagnateGame: React.FC<StudioMagnateGameProps> = ({
         ),
         publicDomainIPs: PublicDomainGenerator.generateInitialPublicDomainIPs(50, mods),
         aiStudioProjects: [] as Project[],
+        aiStudioState: { aiFilms: [], talentCommitments: [], nextFilmId: 1 },
+        mediaState: {
+          engine: { history: [], memories: [], eventQueue: [] },
+          response: { campaigns: [], reactions: [] },
+        },
       };
 
       updateOperation(
@@ -853,8 +863,19 @@ export const StudioMagnateGame: React.FC<StudioMagnateGameProps> = ({
 
   const gameState = storeGameState ?? bootstrapGameState;
 
+  // Keep singleton-style managers in sync with persisted state.
+  useEffect(() => {
+    if (isOnlineMode) {
+      AIStudioManager.resetAISystem();
+    } else {
+      AIStudioManager.hydrate(gameState.aiStudioState);
+    }
+
+    MediaEngine.hydrate(gameState.mediaState);
+    MediaResponseSystem.hydrate(gameState.mediaState);
+  }, [gameState.aiStudioState, gameState.mediaState, isOnlineMode]);
+
   // Market dynamics hooks  
-  const talentMarket = useTalentMarket(gameState.talent, gameState.currentWeek);
   const genreSaturation = useGenreSaturation(
     gameState.allReleases.filter((item) => 'script' in item) as any,
     gameState.currentWeek,
@@ -1481,7 +1502,7 @@ export const StudioMagnateGame: React.FC<StudioMagnateGameProps> = ({
                     : [
                         ...(updatedProject.postTheatricalReleases || []),
                         {
-                          id: `release-${Date.now()}`,
+                          id: `release-${updatedProject.id}-${resolvedReleaseYear}-${resolvedReleaseWeek}-streaming`,
                           projectId: updatedProject.id,
                           platform: 'streaming',
                           providerId:
@@ -2131,6 +2152,13 @@ export const StudioMagnateGame: React.FC<StudioMagnateGameProps> = ({
 
       const baseAfterEngine = engineTick.nextState;
 
+      // Hydrate singleton-style runtime systems from persisted game state before they run.
+      if (!isOnlineMode) {
+        AIStudioManager.hydrate(baseAfterEngine.aiStudioState);
+      }
+      MediaEngine.hydrate(baseAfterEngine.mediaState);
+      MediaResponseSystem.hydrate(baseAfterEngine.mediaState);
+
       const newTimeState = {
         currentWeek: baseAfterEngine.currentWeek,
         currentYear: baseAfterEngine.currentYear,
@@ -2152,22 +2180,22 @@ export const StudioMagnateGame: React.FC<StudioMagnateGameProps> = ({
       // Process AI studio timelines and potential new film starts
       if (!isOnlineMode) {
         measure('ai', 'AI studios', () => {
-          try {
-            AIStudioManager.processWeeklyAIFilms(newTimeState.currentWeek, newTimeState.currentYear);
-            if (baseAfterEngine.competitorStudios.length > 0) {
-              const shouldStartAIFilm = (newTimeState.currentWeek % 4 === 1) || Math.random() < 0.35;
-              if (shouldStartAIFilm) {
-                const randomStudio = baseAfterEngine.competitorStudios[Math.floor(Math.random() * baseAfterEngine.competitorStudios.length)];
+          AIStudioManager.processWeeklyAIFilms(newTimeState.currentWeek, newTimeState.currentYear, engineRng);
+
+          if (baseAfterEngine.competitorStudios.length > 0) {
+            const shouldStartAIFilm = (newTimeState.currentWeek % 4 === 1) || engineRng.chance(0.35);
+            if (shouldStartAIFilm) {
+              const randomStudio = engineRng.pick(baseAfterEngine.competitorStudios);
+              if (randomStudio) {
                 AIStudioManager.createAIFilm(
                   randomStudio,
                   newTimeState.currentWeek,
                   newTimeState.currentYear,
-                  baseAfterEngine.talent.filter(t => t.contractStatus === 'available')
+                  baseAfterEngine.talent.filter(t => t.contractStatus === 'available'),
+                  engineRng
                 );
               }
             }
-          } catch (e) {
-            console.warn('AI Studio processing error', e);
           }
         });
       }
@@ -2471,17 +2499,22 @@ export const StudioMagnateGame: React.FC<StudioMagnateGameProps> = ({
           })
         : prunedReleases;
 
-      // Also prune old box office history if it exists
+      const keepYears = 12;
+      const minHistoryYear = newTimeState.currentYear - keepYears;
+
+      // Also prune old box office history if it exists (align with WorldArchiveSystem).
       const prunedBoxOfficeHistory = (baseAfterEngine.boxOfficeHistory || []).filter((entry: any) => {
-        if (!entry.week || !entry.year) return true;
-        const entryAbsWeek = (entry.year * 52) + entry.week;
-        return (currentAbsoluteWeek - entryAbsWeek) <= MAX_RELEASE_AGE_WEEKS;
+        if (!entry.year) return true;
+        return entry.year >= minHistoryYear;
       });
 
-      // Prune old top films history
-      const prunedTopFilmsHistory = (baseAfterEngine.topFilmsHistory || []).slice(-52); // Keep last 52 entries max
+      // Prune old top films history (align with WorldArchiveSystem).
+      const prunedTopFilmsHistory = (baseAfterEngine.topFilmsHistory || []).filter((entry: any) => {
+        if (!entry.year) return true;
+        return entry.year >= minHistoryYear;
+      });
 
-      const newState = {
+      let newState = {
         ...baseAfterEngine,
         rngState: engineRng.state,
         currentWeek: newTimeState.currentWeek,
@@ -2567,6 +2600,18 @@ export const StudioMagnateGame: React.FC<StudioMagnateGameProps> = ({
       if (diagnosticsEnabled) {
         SystemIntegration.runDiagnostics(newState);
       }
+
+      // Persist singleton system state into GameState so save/load is stable.
+      newState = {
+        ...newState,
+        aiStudioState: isOnlineMode
+          ? { aiFilms: [], talentCommitments: [], nextFilmId: 1 }
+          : AIStudioManager.snapshot(),
+        mediaState: {
+          engine: MediaEngine.snapshot(),
+          response: MediaResponseSystem.snapshot(),
+        },
+      };
 
       // Post-tick persistence: schedule after the tick commits.
       pendingPostTickStateRef.current = newState;
@@ -2671,6 +2716,13 @@ export const StudioMagnateGame: React.FC<StudioMagnateGameProps> = ({
             ...incoming,
             universeSeed: derivedUniverseSeed,
             rngState: derivedRngState,
+            aiStudioState: incoming.aiStudioState ?? { aiFilms: [], talentCommitments: [], nextFilmId: 1 },
+            mediaState:
+              incoming.mediaState ??
+              {
+                engine: { history: [], memories: [], eventQueue: [] },
+                response: { campaigns: [], reactions: [] },
+              },
           };
 
           loadGameToStore(seeded, seeded.rngState ?? seeded.universeSeed);

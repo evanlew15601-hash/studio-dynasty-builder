@@ -1,5 +1,7 @@
 // Integration Tests for AI Studio System
 import { AIStudioManager } from './AIStudioManager';
+import { createRng } from '@/game/core/rng';
+
 export class AIStudioIntegrationTests {
   
   // **CHECKPOINT 1 TEST**: Basic AI film creation
@@ -16,7 +18,7 @@ export class AIStudioIntegrationTests {
     } as any;
 
     try {
-      const film = AIStudioManager.createAIFilm(testStudio, 10, 2024, []);
+      const film = AIStudioManager.createAIFilm(testStudio, 10, 2024, [], createRng(101));
       
       const validations = [
         film.id.startsWith('ai-film-'),
@@ -64,7 +66,7 @@ export class AIStudioIntegrationTests {
         specialties: ['action' as const]
       } as any;
       
-      const film = AIStudioManager.createAIFilm(testStudio, 8, 2024, []);
+      const film = AIStudioManager.createAIFilm(testStudio, 8, 2024, [], createRng(202));
       const castingSuccess = AIStudioManager.castTalentInAIFilm(
         film.id,
         testTalent as any,
@@ -117,14 +119,15 @@ export class AIStudioIntegrationTests {
         specialties: ['sci-fi' as const]
       } as any;
 
-      const film = AIStudioManager.createAIFilm(testStudio, 1, 2024, []);
+      const rng = createRng(303);
+      const film = AIStudioManager.createAIFilm(testStudio, 1, 2024, [], rng);
       const initialStatus = film.status;
       
       // Simulate progression through weeks
-      AIStudioManager.processWeeklyAIFilms(3, 2024); // Week 3 - should move to casting
+      AIStudioManager.processWeeklyAIFilms(3, 2024, rng); // Week 3 - should move to casting
       const afterWeek3 = AIStudioManager.getAllAIFilms().find(f => f.id === film.id);
       
-      AIStudioManager.processWeeklyAIFilms(5, 2024); // Week 5 - should move to production
+      AIStudioManager.processWeeklyAIFilms(5, 2024, rng); // Week 5 - should move to production
       const afterWeek5 = AIStudioManager.getAllAIFilms().find(f => f.id === film.id);
       
       const validations = [

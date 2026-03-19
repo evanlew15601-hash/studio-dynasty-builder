@@ -45,7 +45,18 @@ export function patchLoadedSnapshot(
     )
   );
 
-  const patchedGameState = normalizePublicDomainState(normalizeFranchisesState(patchedGameStateRaw as any) as any);
+  const patchedGameStateBase = normalizePublicDomainState(normalizeFranchisesState(patchedGameStateRaw as any) as any);
+
+  const patchedGameState = {
+    ...patchedGameStateBase,
+    aiStudioState: (patchedGameStateBase as any).aiStudioState ?? { aiFilms: [], talentCommitments: [], nextFilmId: 1 },
+    mediaState:
+      (patchedGameStateBase as any).mediaState ??
+      {
+        engine: { history: [], memories: [], eventQueue: [] },
+        response: { campaigns: [], reactions: [] },
+      },
+  };
 
   if (opts.mode === 'single') {
     return {
@@ -65,6 +76,11 @@ export function patchLoadedSnapshot(
       mode: 'online',
       competitorStudios: [],
       aiStudioProjects: [],
+      aiStudioState: { aiFilms: [], talentCommitments: [], nextFilmId: 1 },
+      mediaState: {
+        engine: { history: [], memories: [], eventQueue: [] },
+        response: { campaigns: [], reactions: [] },
+      },
     },
   };
 }

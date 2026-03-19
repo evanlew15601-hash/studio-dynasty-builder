@@ -1,4 +1,4 @@
-import { MediaEvent, MediaItem, MediaMemory, GameState, TalentPerson, Project, Studio, MediaSource } from '@/types/game';
+import type { MediaEvent, MediaItem, MediaMemory, MediaState, GameState, TalentPerson, Project, Studio, MediaSource } from '@/types/game';
 import { MediaSourceGenerator } from '@/data/MediaSourceGenerator';
 import { MediaContentGenerator } from '@/data/MediaContentGenerator';
 import { hashStringToUint32 } from '@/utils/stablePick';
@@ -8,6 +8,42 @@ class MediaEngine {
   private static mediaHistory: MediaItem[] = [];
   private static mediaMemory: Map<string, MediaMemory> = new Map();
   private static eventQueue: MediaEvent[] = [];
+
+  static hydrate(state?: MediaState): void {
+    const engine = state?.engine;
+    if (!engine) {
+      this.mediaHistory = [];
+      this.mediaMemory.clear();
+      this.eventQueue = [];
+      return;
+    }
+
+    this.mediaHistory = (engine.history || []).slice();
+    this.mediaMemory = new Map((engine.memories || []).map((m) => [m.entityId, m] as const));
+    this.eventQueue = (engine.eventQueue || []).slice();
+  }
+
+  static snapshot(): MediaState['engine'] {
+    // Keep state bounded to avoid bloating save files.
+    const history = this.mediaHistory.slice(-250);
+
+    const memories = Array.from(this.mediaMemory.values()).map((m) => {
+      const sentimentHistory = (m.sentimentHistory || []).slice(-52);
+      const majorStories = (m.majorStories || []).slice(-50);
+      const lastMajorStory = m.lastMajorStory;
+
+      return {
+        ...m,
+        sentimentHistory,
+        majorStories,
+        lastMajorStory,
+      };
+    });
+
+    const eventQueue = this.eventQueue.slice(-250);
+
+    return { history, memories, eventQueue };
+  }
 
   // Initialize media sources
   static initialize() {
@@ -19,7 +55,17 @@ class MediaEngine {
 
   // Add media event to queue for processing
   static queueMediaEvent(event: (Omit<MediaEvent, 'id' | 'processed'> & { id?: string })): string {
-    const id = event.id || `event_${Date.now()}_${Math.random().toString(36).substr(2, 9)}`;
+    const id =
+      event.id ||
+      (() => {
+        const studios = (event.entities?.studios || []).slice().sort().join(',');
+        const talent = (event.entities?.talent || []).slice().sort().join(',');
+        const projects = (event.entities?.projects || []).slice().sort().join(',');
+        const films = (event.entities?.films || []).slice().sort().join(',');
+
+        const signature = `${event.type}|${event.triggerType}|Y${event.year}W${event.week}|s:${studios}|t:${talent}|p:${projects}|f:${films}`;
+        return `event_${hashStringToUint32(signature).toString(36)}`;
+      })();
 
     // Allow deterministic callers to avoid accidental duplicate queueing.
     if (this.eventQueue.some((e) => e.id === id)) return id;
@@ -68,9 +114,12 @@ class MediaEngine {
     }
 
     // Clean up processed events older than 52 weeks to prevent memory leaks
-    this.eventQueue = this.eventQueue.filter(event => 
-      !event.processed || (gameState.currentWeek - event.week < 52 && gameState.currentYear === event.year)
-    );
+    const currentAbsWeek = (gameState.currentYear * 52) + gameState.currentWeek;
+    this.eventQueue = this.eventQueue.filter(event => {
+      if (!event.processed) return true;
+      const eventAbsWeek = (event.year * 52) + event.week;
+      return (currentAbsWeek - eventAbsWeek) < 52;
+    });
 
     // Limit media history to prevent memory growth (keep last 1000 items)
     if (this.mediaHistory.length > 1000) {
@@ -351,9 +400,11 @@ class MediaEngine {
       }
 
       // Keep only recent sentiment history (last 52 weeks)
-      memory.sentimentHistory = memory.sentimentHistory.filter(entry =>
-        mediaItem.publishDate.week - entry.week < 52 && mediaItem.publishDate.year >= entry.year
-      );
+      const itemAbsWeek = (mediaItem.publishDate.year * 52) + mediaItem.publishDate.week;
+      memory.sentimentHistory = memory.sentimentHistory.filter(entry => {
+        const entryAbsWeek = (entry.year * 52) + entry.week;
+        return (itemAbsWeek - entryAbsWeek) < 52;
+      });
 
       this.mediaMemory.set(entityId, memory);
     };

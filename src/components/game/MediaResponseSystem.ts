@@ -1,9 +1,22 @@
-import { MediaCampaign, MediaReaction, MediaItem, GameState, TalentPerson, Project } from '@/types/game';
+import type { MediaCampaign, MediaReaction, MediaItem, MediaState, GameState, TalentPerson, Project } from '@/types/game';
 import { MediaEngine } from './MediaEngine';
 
 export class MediaResponseSystem {
   private static activeCampaigns: MediaCampaign[] = [];
   private static playerReactions: MediaReaction[] = [];
+
+  static hydrate(state?: MediaState): void {
+    const response = state?.response;
+    this.activeCampaigns = (response?.campaigns || []).slice();
+    this.playerReactions = (response?.reactions || []).slice();
+  }
+
+  static snapshot(): MediaState['response'] {
+    return {
+      campaigns: this.activeCampaigns.slice(),
+      reactions: this.playerReactions.slice(),
+    };
+  }
 
   // Memory management
   static cleanup(): void {

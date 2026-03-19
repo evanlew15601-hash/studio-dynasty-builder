@@ -37,6 +37,13 @@ const migrations: MigrationEntry[] = [
           franchises: snapshot.gameState.franchises ?? [],
           publicDomainIPs: snapshot.gameState.publicDomainIPs ?? [],
           aiStudioProjects: snapshot.gameState.aiStudioProjects ?? [],
+          aiStudioState: snapshot.gameState.aiStudioState ?? { aiFilms: [], talentCommitments: [], nextFilmId: 1 },
+          mediaState:
+            snapshot.gameState.mediaState ??
+            {
+              engine: { history: [], memories: [], eventQueue: [] },
+              response: { campaigns: [], reactions: [] },
+            },
         } as any,
         meta: {
           ...snapshot.meta,

@@ -877,6 +877,83 @@ export interface StudioGovernance {
   lastUpdatedWeekIndex?: number;
 }
 
+export interface MediaState {
+  engine: {
+    /** Recent media items (bounded; primarily for UI + response center). */
+    history: MediaItem[];
+    /** Media memory entries (bounded to recent sentiment windows). */
+    memories: MediaMemory[];
+    /** Pending media events (processed by MediaEngine). */
+    eventQueue: MediaEvent[];
+  };
+  response: {
+    /** Active + historical PR campaigns. */
+    campaigns: MediaCampaign[];
+    /** Player responses to media items. */
+    reactions: MediaReaction[];
+  };
+}
+
+export interface AIFilmProject {
+  id: string;
+  title: string;
+  studioId: string;
+  studioName: string;
+  script: {
+    genre: string;
+    quality: number;
+    budget: number;
+  };
+  status: 'development' | 'casting' | 'production' | 'post-production' | 'marketing' | 'released';
+  timeline: {
+    startWeek: number;
+    startYear: number;
+    productionWeeks: number;
+    expectedReleaseWeek: number;
+    expectedReleaseYear: number;
+  };
+  cast: {
+    role: string;
+    talentId: string;
+    talentName: string;
+    weeklyPay: number;
+    commitmentWeeks: number[];
+  }[];
+  budget: {
+    production: number;
+    marketing: number;
+    total: number;
+  };
+  performance?: {
+    boxOffice: number;
+    criticsScore: number;
+    audienceScore: number;
+    awards: string[];
+  };
+}
+
+export interface TalentCommitment {
+  talentId: string;
+  talentName: string;
+  filmId: string;
+  role: string;
+  studio: string;
+  commitmentWeeks: number[]; // Absolute week indices (year*52 + weekOfYear)
+  weeklyPay: number;
+  startWeek: number; // week-of-year (1-52)
+  endWeek: number; // week-of-year (1-52)
+  startYear: number;
+  endYear: number;
+  startAbsWeek: number;
+  endAbsWeek: number;
+}
+
+export interface AIStudioState {
+  aiFilms: AIFilmProject[];
+  talentCommitments: TalentCommitment[];
+  nextFilmId: number;
+}
+
 export interface AwardsSeasonState {
   year: number;
   processedCeremonies: string[];
@@ -897,6 +974,10 @@ export interface GameState {
   rngState?: number;
   /** Optional: identifies how this state was created (useful for Online League rules). */
   mode?: 'single' | 'online';
+  /** Persisted runtime state for AI studio films + talent commitments. */
+  aiStudioState?: AIStudioState;
+  /** Persisted runtime state for media systems (media memory, PR campaigns, etc.). */
+  mediaState?: MediaState;
   studio: Studio;
   /** Studio governance + constraint model (optional for backwards-compatible saves). */
   governance?: StudioGovernance;

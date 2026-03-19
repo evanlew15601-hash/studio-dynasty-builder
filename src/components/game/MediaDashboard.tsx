@@ -6,6 +6,7 @@ import { Button } from '@/components/ui/button';
 import { ScrollArea } from '@/components/ui/scroll-area';
 import { MediaItem, MediaSource } from '@/types/game';
 import { MediaEngine } from './MediaEngine';
+import { MediaResponseSystem } from './MediaResponseSystem';
 import { MediaReputationIntegration } from './MediaReputationIntegration';
 import { useGameStore } from '@/game/store';
 import { useUiStore } from '@/game/uiStore';
@@ -36,6 +37,7 @@ export const MediaDashboard: React.FC<MediaDashboardProps> = ({
   onNavigatePhase
 }) => {
   const gameState = useGameStore((s) => s.game);
+  const mergeGameState = useGameStore((s) => s.mergeGameState);
   const setPhase = useUiStore((s) => s.setPhase);
   const navigatePhase = onNavigatePhase ?? ((phase: 'reputation' | 'awards') => setPhase(phase));
   const [recentMedia, setRecentMedia] = useState<MediaItem[]>([]);
@@ -56,6 +58,14 @@ export const MediaDashboard: React.FC<MediaDashboardProps> = ({
 
     // Keep the dashboard live as weeks advance (and auto-drain queued events)
     MediaEngine.processMediaEvents(gameState);
+
+    mergeGameState({
+      mediaState: {
+        engine: MediaEngine.snapshot(),
+        response: MediaResponseSystem.snapshot(),
+      },
+    });
+
     updateMediaData();
   }, [gameState?.currentWeek, gameState?.currentYear]);
 
