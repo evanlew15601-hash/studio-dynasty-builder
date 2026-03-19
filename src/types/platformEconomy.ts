@@ -7,6 +7,23 @@
 export type PlatformOperationalStatus = 'active' | 'sold' | 'shutdown';
 export type RivalPlatformStatus = 'healthy' | 'distress' | 'collapsed';
 
+export type PlatformBrandingOverlay = 'spotlight' | 'grid' | 'scanlines' | 'none';
+
+export interface PlatformLogoConfig {
+  shape: 'shield' | 'circle' | 'diamond' | 'hexagon' | 'star' | 'square';
+  color: string; // key from shared palette (see StudioIconCustomizer)
+  accent: string; // key from shared palette (see StudioIconCustomizer)
+}
+
+export interface PlayerPlatformBranding {
+  /** Palette id for primary UI accents. */
+  primaryColor?: string;
+  /** Palette id for UI accents + highlights. */
+  accentColor?: string;
+  overlay?: PlatformBrandingOverlay;
+  logo?: PlatformLogoConfig;
+}
+
 export interface PlatformTierMix {
   /** Percentage (0–100) of subs on the ad-supported tier. */
   adSupportedPct: number;
@@ -31,6 +48,8 @@ export interface PlayerPlatformState {
   name: string;
   launchedWeek?: number;
   launchedYear?: number;
+
+  branding?: PlayerPlatformBranding;
 
   subscribers: number;
   /** Platform cash proxy (used for distress modelling). */

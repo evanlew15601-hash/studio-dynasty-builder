@@ -1,4 +1,10 @@
-import type { PlatformMarketState, RivalPlatformState } from '@/types/platformEconomy';
+import type {
+  PlatformBrandingOverlay,
+  PlatformLogoConfig,
+  PlatformMarketState,
+  PlayerPlatformBranding,
+  RivalPlatformState,
+} from '@/types/platformEconomy';
 import { PROVIDER_DEALS } from '@/data/ProviderDealsDatabase';
 import type { TickSystem } from '../core/types';
 
@@ -74,6 +80,55 @@ function normalizeExistingRivals(rivals: any[] | undefined, totalAddressableSubs
 
 
 
+function normalizeBrandingOverlay(input: any): PlatformBrandingOverlay {
+  if (input === 'spotlight' || input === 'grid' || input === 'scanlines' || input === 'none') return input;
+  return 'spotlight';
+}
+
+function normalizeLogo(input: any): PlatformLogoConfig | undefined {
+  if (!input || typeof input !== 'object') return undefined;
+
+  const shape = (input as any).shape;
+  const normalizedShape =
+    shape === 'shield' ||
+    shape === 'circle' ||
+    shape === 'diamond' ||
+    shape === 'hexagon' ||
+    shape === 'star' ||
+    shape === 'square'
+      ? shape
+      : undefined;
+
+  const color = typeof (input as any).color === 'string' ? (input as any).color : undefined;
+  const accent = typeof (input as any).accent === 'string' ? (input as any).accent : undefined;
+
+  if (!normalizedShape || !color || !accent) return undefined;
+
+  return {
+    shape: normalizedShape,
+    color,
+    accent,
+  };
+}
+
+function normalizeBranding(input: any): PlayerPlatformBranding | undefined {
+  if (!input || typeof input !== 'object') return undefined;
+
+  const primaryColor = typeof (input as any).primaryColor === 'string' ? (input as any).primaryColor : undefined;
+  const accentColor = typeof (input as any).accentColor === 'string' ? (input as any).accentColor : undefined;
+  const overlay = normalizeBrandingOverlay((input as any).overlay);
+  const logo = normalizeLogo((input as any).logo);
+
+  if (!primaryColor && !accentColor && !logo && overlay === 'spotlight') return undefined;
+
+  return {
+    primaryColor,
+    accentColor,
+    overlay,
+    logo,
+  };
+}
+
 function normalizePlayerPlatform(player: any | undefined): PlatformMarketState['player'] {
   if (!player || typeof player !== 'object') return undefined;
 
@@ -85,6 +140,7 @@ function normalizePlayerPlatform(player: any | undefined): PlatformMarketState['
     name: typeof (player as any).name === 'string' ? (player as any).name : 'Your Platform',
     launchedWeek: typeof (player as any).launchedWeek === 'number' ? (player as any).launchedWeek : undefined,
     launchedYear: typeof (player as any).launchedYear === 'number' ? (player as any).launchedYear : undefined,
+    branding: normalizeBranding((player as any).branding),
     subscribers: typeof (player as any).subscribers === 'number' ? Math.max(0, Math.floor((player as any).subscribers)) : 0,
     cash: typeof (player as any).cash === 'number' ? (player as any).cash : 0,
     status: normalizedStatus,
