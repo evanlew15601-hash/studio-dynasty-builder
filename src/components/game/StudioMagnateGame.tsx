@@ -1354,33 +1354,50 @@ export const StudioMagnateGame: React.FC<StudioMagnateGameProps> = ({
                timeState.currentYear
              );
            } else {
+             // Box office simulation is now handled by the deterministic engine tick.
+             // Here, we only credit the studio share + ledger entries based on the engine result.
              if (diagnosticsEnabled) {
-               console.log(`    PROCESSING BOX OFFICE: ${project.title}`);
-               console.log(`    PRE-REVENUE: boxOfficeTotal = ${updatedProject.metrics?.boxOfficeTotal || 0}`);
+               console.log(`    BOX OFFICE (ENGINE): ${project.title}`);
+               console.log(`    boxOfficeTotal = ${updatedProject.metrics?.boxOfficeTotal || 0}`);
              }
-             
-             const previousTotal = updatedProject.metrics?.boxOfficeTotal || 0;
-             
-             updatedProject = BoxOfficeSystem.processWeeklyRevenue(
-               updatedProject, 
-               timeState.currentWeek, 
-               timeState.currentYear
-             );
-             
-             const newTotal = updatedProject.metrics?.boxOfficeTotal || 0;
-             const weeklyBoxOfficeRevenue = newTotal - previousTotal;
-             
+
+             const releaseWeek = updatedProject.releaseWeek;
+             const releaseYear = updatedProject.releaseYear;
+
+             const expectedWeeksSinceRelease =
+               typeof releaseWeek === 'number' && typeof releaseYear === 'number'
+                 ? TimeSystem.calculateWeeksSince(releaseWeek, releaseYear, timeState.currentWeek, timeState.currentYear)
+                 : 0;
+
+             const currentWeeksSinceRelease =
+               typeof updatedProject.metrics?.weeksSinceRelease === 'number'
+                 ? updatedProject.metrics.weeksSinceRelease
+                 : expectedWeeksSinceRelease;
+
+             const weeklyBoxOfficeRevenue =
+               expectedWeeksSinceRelease >= 1 &&
+               currentWeeksSinceRelease === expectedWeeksSinceRelease &&
+               updatedProject.metrics?.theatricalRunLocked !== true
+                 ? (updatedProject.metrics?.lastWeeklyRevenue || 0)
+                 : 0;
+
              if (diagnosticsEnabled) {
-               console.log(`    POST-REVENUE: boxOfficeTotal = ${newTotal}`);
-               console.log(`    WEEKLY BOX OFFICE EARNED: ${weeklyBoxOfficeRevenue.toLocaleString()}`);
+               console.log(`    WEEKLY BOX OFFICE (ENGINE): ${weeklyBoxOfficeRevenue.toLocaleString()}`);
              }
-             
-             // Add box office revenue to studio budget (studio keeps percentage after exhibitor cut)
+
              if (weeklyBoxOfficeRevenue > 0) {
-               const studioShare = weeklyBoxOfficeRevenue * 0.55; // Studios typically get 55% of domestic box office
+               const alreadyRecorded = FinancialEngine.getFilmFinancials(updatedProject.id).transactions.some(
+                 t => t.type === 'revenue' && t.category === 'boxoffice' && t.week === timeState.currentWeek && t.year === timeState.currentYear
+               );
+
+               if (!alreadyRecorded) {
+                 FinancialEngine.recordFilmRevenue(updatedProject.id, weeklyBoxOfficeRevenue, timeState.currentWeek, timeState.currentYear, `Week ${expectedWeeksSinceRelease + 1}`);
+               }
+
+               const studioShare = weeklyBoxOfficeRevenue * 0.55;
                if (diagnosticsEnabled) {
-                  console.log(`    STUDIO SHARE (55%): ${studioShare.toLocaleString()}`);
-                }
+                 console.log(`    STUDIO SHARE (55%): ${studioShare.toLocaleString()}`);
+               }
 
                studioRevenueDelta += studioShare;
              }
