@@ -158,16 +158,17 @@ export const PlatformOriginalsPipelineSystem: TickSystem = {
         },
       });
 
-      const seasonsOut = seasonsIn && seasonsIn.length > 0
-        ? [
-            {
+      const seasonsOut: SeasonData[] | null = seasonsIn && seasonsIn.length > 0
+        ? (() => {
+            const season0: SeasonData = {
               ...seasonsIn[0],
               productionStatus: 'complete',
               airingStatus: 'airing',
               premiereDate: seasonsIn[0]?.premiereDate ?? { week: ctx.week, year: ctx.year },
-            },
-            ...seasonsIn.slice(1),
-          ]
+            };
+
+            return [season0, ...seasonsIn.slice(1)];
+          })()
         : seasonsIn;
 
       return {
