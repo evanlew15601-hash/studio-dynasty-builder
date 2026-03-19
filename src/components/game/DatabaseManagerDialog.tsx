@@ -141,27 +141,57 @@ export function DatabaseManagerDialog(props: {
     queueMicrotask(() => importInputRef.current?.click());
   };
 
-  const handleImportDatabaseJson = async () => {
-    const picked = normalizeDbNameOrToast(nameInput);
-    if (!picked) return;
+  const guessDatabaseName = (bundle: { mods?: { id?: unknown }[] } | null | undefined, filename: string): string => {
+    const modId = typeof bundle?.mods?.[0]?.id === 'string' ? bundle.mods[0].id : '';
+    const fromMod = normalizeSlotId(modId);
+    if (fromMod && fromMod !== 'default') return fromMod;
 
-    const exists = listModSlots().includes(picked);
-    if (exists) {
-      openConfirm(
-        {
-          title: 'Overwrite database?',
-          description: `Database "${picked}" already exists. Importing will replace its mod bundle and delete ALL saves for that database.`,
-          actionLabel: 'Overwrite & import',
-          destructive: true,
-        },
-        async () => {
-          beginImportFlow(picked, true);
-        }
-      );
+    const baseFilename = filename.replace(/\.[^.]+$/, '');
+    const fromFile = normalizeSlotId(baseFilename);
+    if (fromFile && fromFile !== 'default') return fromFile;
+
+    return 'imported-db';
+  };
+
+  const makeUniqueDatabaseName = (base: string): string => {
+    const slots = listModSlots();
+    if (!slots.includes(base)) return base;
+
+    let n = 2;
+    while (slots.includes(`${base}-${n}`)) n++;
+    return `${base}-${n}`;
+  };
+
+  const handleImportDatabaseJson = async () => {
+    const raw = nameInput.trim();
+
+    // If the user provides a name, import into that exact database (with overwrite confirmation).
+    if (raw) {
+      const picked = normalizeDbNameOrToast(raw);
+      if (!picked) return;
+
+      const exists = listModSlots().includes(picked);
+      if (exists) {
+        openConfirm(
+          {
+            title: 'Overwrite database?',
+            description: `Database "${picked}" already exists. Importing will replace its mod bundle and delete ALL saves for that database.`,
+            actionLabel: 'Overwrite & import',
+            destructive: true,
+          },
+          async () => {
+            beginImportFlow(picked, true);
+          }
+        );
+        return;
+      }
+
+      beginImportFlow(picked, false);
       return;
     }
 
-    beginImportFlow(picked, false);
+    // Otherwise, auto-create a new database name based on the bundle's modId / filename.
+    beginImportFlow('__auto__', false);
   };
 
   const handleImportFile: React.ChangeEventHandler<HTMLInputElement> = (e) => {
@@ -169,8 +199,7 @@ export function DatabaseManagerDialog(props: {
     e.target.value = '';
     if (!file) return;
 
-    const targetDb = importTargetDb;
-    if (!targetDb) return;
+    let targetDb = importTargetDb;
 
     void (async () => {
       setWorking(true);
@@ -192,6 +221,21 @@ export function DatabaseManagerDialog(props: {
         const normalized = normalizeModBundle(parsed);
         if ((normalized.mods || []).length === 0 && (normalized.patches || []).length === 0) {
           toast({ title: 'Invalid database', description: 'JSON did not look like a mod bundle.', variant: 'destructive' });
+          return;
+        }
+
+        if (!targetDb || targetDb === '__auto__') {
+          const base = guessDatabaseName(normalized as any, file.name);
+          targetDb = makeUniqueDatabaseName(base);
+        }
+
+        if (!targetDb || targetDb === '__auto__') {
+          toast({ title: 'Import failed', description: 'Could not determine a database name for this import.', variant: 'destructive' });
+          return;
+        }
+
+        if (targetDb === 'default') {
+          toast({ title: 'Invalid database name', description: 'The default database cannot be overwritten. Import into a different name.', variant: 'destructive' });
           return;
         }
 
