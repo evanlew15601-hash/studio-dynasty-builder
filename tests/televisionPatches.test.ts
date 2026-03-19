@@ -171,6 +171,12 @@ describe('televisionPatches.primeCompetitorTelevision', () => {
     const state = makeBaseState({
       universeSeed: 111,
       competitorStudios: studios,
+      talent: [
+        { id: 't-dir-1', name: 'Director One', type: 'director', gender: 'Male', marketValue: 10_000_000, reputation: 70 } as any,
+        { id: 't-act-1', name: 'Actor One', type: 'actor', gender: 'Female', marketValue: 8_000_000, reputation: 65 } as any,
+        { id: 't-act-2', name: 'Actor Two', type: 'actor', gender: 'Male', marketValue: 6_000_000, reputation: 60 } as any,
+        { id: 't-act-3', name: 'Actor Three', type: 'actor', gender: 'Male', marketValue: 5_000_000, reputation: 55 } as any,
+      ],
       allReleases: [makeFilmRelease(2026, 1)],
     });
 
@@ -189,5 +195,112 @@ describe('televisionPatches.primeCompetitorTelevision', () => {
       });
 
     expect(airing.length).toBeGreaterThanOrEqual(2);
+
+    // Seeded competitor TV should have credited talent so awards/filmographies can reference real people.
+    for (const p of airing) {
+      const creditedCharacterIds = (p.script?.characters || []).map((c: any) => c.assignedTalentId).filter(Boolean);
+      const creditedCastIds = (p.cast || []).map((c: any) => c.talentId).filter(Boolean);
+      const creditedCrewIds = (p.crew || []).map((c: any) => c.talentId).filter(Boolean);
+
+      expect([...creditedCharacterIds, ...creditedCastIds, ...creditedCrewIds].length).toBeGreaterThan(0);
+    }
+  });
+
+  it('seeds even when allReleases is empty', () => {
+    const studios: Studio[] = [
+      {
+        id: 'studio-a',
+        name: 'Crimson Peak Entertainment',
+        reputation: 70,
+        budget: 50_000_000,
+        founded: 1990,
+        specialties: ['horror'] as any,
+        awards: [],
+        debt: 0,
+        lastProjectWeek: 0,
+        weeksSinceLastProject: 0,
+      } as any,
+      {
+        id: 'studio-b',
+        name: 'Golden Horizon Studios',
+        reputation: 75,
+        budget: 70_000_000,
+        founded: 1980,
+        specialties: ['drama'] as any,
+        awards: [],
+        debt: 0,
+        lastProjectWeek: 0,
+        weeksSinceLastProject: 0,
+      } as any,
+    ];
+
+    const state = makeBaseState({
+      universeSeed: 111,
+      competitorStudios: studios,
+      talent: [
+        { id: 't-dir-1', name: 'Director One', type: 'director', gender: 'Male', marketValue: 10_000_000, reputation: 70 } as any,
+        { id: 't-act-1', name: 'Actor One', type: 'actor', gender: 'Female', marketValue: 8_000_000, reputation: 65 } as any,
+        { id: 't-act-2', name: 'Actor Two', type: 'actor', gender: 'Male', marketValue: 6_000_000, reputation: 60 } as any,
+      ],
+    });
+
+    const next = primeCompetitorTelevision(state, { minAiring: 2 });
+
+    const competitorNames = new Set(studios.map((s) => s.name));
+
+    const airing = (next.allReleases as any[])
+      .filter((p: any) => (p.type === 'series' || p.type === 'limited-series'))
+      .filter((p: any) => competitorNames.has(p.studioName))
+      .filter((p: any) => {
+        const season = p.seasons?.[0];
+        const aired = season?.episodesAired || 0;
+        const total = season?.totalEpisodes || p.episodeCount || 0;
+        return aired > 0 && total > 0 && aired < total;
+      });
+
+    expect(airing.length).toBeGreaterThanOrEqual(2);
+  });
+
+  it('is idempotent once the minimum airing shows exist', () => {
+    const studios: Studio[] = [
+      {
+        id: 'studio-a',
+        name: 'Crimson Peak Entertainment',
+        reputation: 70,
+        budget: 50_000_000,
+        founded: 1990,
+        specialties: ['horror'] as any,
+        awards: [],
+        debt: 0,
+        lastProjectWeek: 0,
+        weeksSinceLastProject: 0,
+      } as any,
+    ];
+
+    const base = makeBaseState({
+      universeSeed: 111,
+      competitorStudios: studios,
+      talent: [
+        { id: 't-dir-1', name: 'Director One', type: 'director', gender: 'Male', marketValue: 10_000_000, reputation: 70 } as any,
+        { id: 't-act-1', name: 'Actor One', type: 'actor', gender: 'Female', marketValue: 8_000_000, reputation: 65 } as any,
+        { id: 't-act-2', name: 'Actor Two', type: 'actor', gender: 'Male', marketValue: 6_000_000, reputation: 60 } as any,
+      ],
+      allReleases: [makeFilmRelease(2026, 1)],
+    });
+
+    const first = primeCompetitorTelevision(base, { minAiring: 2 });
+    const second = primeCompetitorTelevision(first, { minAiring: 2 });
+
+    const ids1 = (first.allReleases as any[])
+      .filter((p: any) => (p.type === 'series' || p.type === 'limited-series'))
+      .map((p: any) => p.id)
+      .sort();
+
+    const ids2 = (second.allReleases as any[])
+      .filter((p: any) => (p.type === 'series' || p.type === 'limited-series'))
+      .map((p: any) => p.id)
+      .sort();
+
+    expect(ids2).toEqual(ids1);
   });
 });

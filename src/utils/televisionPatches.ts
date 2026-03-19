@@ -2,6 +2,7 @@ import type { GameState, Project } from '@/types/game';
 import { TVEpisodeSystem } from '@/components/game/TVEpisodeSystem';
 import { TVRatingsSystem } from '@/components/game/TVRatingsSystem';
 import { StudioGenerator } from '@/data/StudioGenerator';
+import { attachBasicCastForAI } from '@/utils/attachBasicCastForAI';
 import { stableInt } from '@/utils/stableRandom';
 
 function absWeek(week: number, year: number): number {
@@ -42,7 +43,6 @@ function isAiringNow(project: Project, currentWeek: number, currentYear: number)
  */
 export function primeCompetitorTelevision(gameState: GameState, opts?: { minAiring?: number }): GameState {
   const allReleases = gameState.allReleases || [];
-  if (allReleases.length === 0) return gameState;
 
   const minAiring = opts?.minAiring ?? 2;
 
@@ -121,6 +121,7 @@ export function primeCompetitorTelevision(gameState: GameState, opts?: { minAiri
         },
       } as Project;
 
+      rel = attachBasicCastForAI(rel, gameState.talent || []);
       rel = processTvToCurrent(rel, gameState.currentWeek, gameState.currentYear);
 
       seeded.push(rel);
