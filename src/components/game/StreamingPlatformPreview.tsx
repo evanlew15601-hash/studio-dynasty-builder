@@ -218,9 +218,20 @@ export const StreamingPlatformPreview: React.FC<{
     return deriveCuratedRow(originals, `prestige:originals|${platformName}`, 14);
   }, [originals, platformName]);
 
+  const prestigeSeries = useMemo(() => {
+    const pool = catalogPool.filter((p) => p.type === 'series' || p.type === 'limited-series');
+    return deriveCuratedRow(pool.length > 0 ? pool : catalogPool, `prestige:series|${platformName}`, 14);
+  }, [catalogPool, platformName]);
+
   const prestigeLimitedSeries = useMemo(() => {
-    return deriveCuratedRow(prestigeOriginals, `prestige:limited|${platformName}`, 10);
-  }, [platformName, prestigeOriginals]);
+    const pool = catalogPool.filter((p) => p.type === 'limited-series');
+    return deriveCuratedRow(pool.length > 0 ? pool : prestigeSeries, `prestige:limited|${platformName}`, 10);
+  }, [catalogPool, platformName, prestigeSeries]);
+
+  const prestigeMovies = useMemo(() => {
+    const pool = catalogPool.filter((p) => p.type === 'feature');
+    return deriveCuratedRow(pool.length > 0 ? pool : catalogPool, `prestige:movies|${platformName}`, 14);
+  }, [catalogPool, platformName]);
 
   const prestigePremieres = useMemo(() => {
     const blended = [...newArrivals, ...topTen];
@@ -348,7 +359,7 @@ export const StreamingPlatformPreview: React.FC<{
             }}
             data-active={layout === 'mass' ? (massView === 'browse' && activeNav === 'originals') : activeNav === 'originals'}
           >
-            Originals
+            {layout === 'prestige' ? 'Series' : 'Originals'}
           </button>
           <button
             type="button"
@@ -359,7 +370,7 @@ export const StreamingPlatformPreview: React.FC<{
             }}
             data-active={layout === 'mass' ? (massView === 'browse' ? activeNav === 'new' : massView === 'newhot') : activeNav === 'new'}
           >
-            {layout === 'mass' ? 'New & Hot' : layout === 'prestige' ? 'Premieres' : 'New'}
+            {layout === 'mass' ? 'New & Hot' : layout === 'prestige' ? 'Movies' : 'New'}
           </button>
         </nav>
 
@@ -747,21 +758,70 @@ export const StreamingPlatformPreview: React.FC<{
           <>
             {activeNav === 'home' && (
               <>
+                <section className="sp-row sp-row--prestige">
+                  <div className="sp-row-head">
+                    <div className="sp-row-title">Continue watching</div>
+                    <div className="sp-row-sub">Pick up where you left off</div>
+                  </div>
+
+                  <div className="sp-row-list sp-row-list--prestige">
+                    {continueWatching.map((x) => {
+                      const initials = titleInitials(x.project.title);
+
+                      return (
+                        <button key={`prestige:continue:${x.project.id}`} type="button" className="sp-continue sp-continue--prestige" onClick={() => onSelectTitle(x.project)}>
+                          <div
+                            className="sp-continue-poster sp-continue-poster--prestige"
+                            style={{ backgroundImage: tileGradient(x.project.id, resolved.primaryHsl, resolved.accentHsl) }}
+                          >
+                            <div className="sp-continue-initials">{initials}</div>
+                          </div>
+                          <div className="sp-continue-meta">
+                            <div className="sp-continue-title">{x.project.title}</div>
+                            <div className="sp-continue-sub">Resume • {x.project.script?.genre ?? 'Unknown'}</div>
+                            <div className="sp-progress" aria-label={`Progress ${x.progressPct}%`}>
+                              <div className="sp-progress-bar" style={{ width: `${x.progressPct}%` }} />
+                            </div>
+                          </div>
+                        </button>
+                      );
+                    })}
+
+                    {continueWatching.length === 0 && (
+                      <div className="sp-pill" style={{ marginLeft: 2 }}>
+                        Nothing in progress
+                      </div>
+                    )}
+                  </div>
+                </section>
+
                 <Row
                   layout={layout}
-                  title="Critics’ picks"
-                  subtitle="Curated, premium storytelling"
-                  items={prestigePicks}
+                  title="Originals"
+                  subtitle="The signature slate"
+                  items={prestigeOriginals}
                   platformId={platformId}
                   primaryHsl={resolved.primaryHsl}
                   accentHsl={resolved.accentHsl}
                   onSelectTitle={onSelectTitle}
                 />
+
                 <Row
                   layout={layout}
-                  title="Award contenders"
-                  subtitle="The high-end slate"
-                  items={prestigeAwardContenders}
+                  title="New & notable"
+                  subtitle="Fresh episodes and films"
+                  items={prestigePremieres}
+                  platformId={platformId}
+                  primaryHsl={resolved.primaryHsl}
+                  accentHsl={resolved.accentHsl}
+                  onSelectTitle={onSelectTitle}
+                />
+
+                <Row
+                  layout={layout}
+                  title="Critics’ picks"
+                  subtitle="Curated, premium storytelling"
+                  items={prestigePicks}
                   platformId={platformId}
                   primaryHsl={resolved.primaryHsl}
                   accentHsl={resolved.accentHsl}
@@ -774,9 +834,9 @@ export const StreamingPlatformPreview: React.FC<{
               <>
                 <Row
                   layout={layout}
-                  title="Signature originals"
-                  subtitle="Premium series and films"
-                  items={prestigeOriginals}
+                  title="Series"
+                  subtitle="Premium drama and comedy"
+                  items={prestigeSeries}
                   platformId={platformId}
                   primaryHsl={resolved.primaryHsl}
                   accentHsl={resolved.accentHsl}
@@ -799,9 +859,9 @@ export const StreamingPlatformPreview: React.FC<{
               <>
                 <Row
                   layout={layout}
-                  title="Premieres"
-                  subtitle="New episodes and films"
-                  items={prestigePremieres}
+                  title="Movies"
+                  subtitle="Big-screen stories, home viewing"
+                  items={prestigeMovies}
                   platformId={platformId}
                   primaryHsl={resolved.primaryHsl}
                   accentHsl={resolved.accentHsl}
@@ -809,9 +869,9 @@ export const StreamingPlatformPreview: React.FC<{
                 />
                 <Row
                   layout={layout}
-                  title="Just added"
-                  subtitle="Recently available"
-                  items={newArrivals.slice(0, 12)}
+                  title="Award contenders"
+                  subtitle="Critically acclaimed releases"
+                  items={prestigeAwardContenders}
                   platformId={platformId}
                   primaryHsl={resolved.primaryHsl}
                   accentHsl={resolved.accentHsl}

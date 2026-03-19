@@ -79,10 +79,10 @@ const ORIGINAL_PHASE_WEEKS: Record<'development' | 'production' | 'post-producti
 
 const VIBE_BRANDING_PRESETS: Record<string, PlayerPlatformBranding> = {
   prestige: {
-    primaryColor: 'gold',
+    primaryColor: 'amethyst',
     accentColor: 'white',
-    overlay: 'spotlight',
-    logo: { shape: 'shield', color: 'gold', accent: 'white' },
+    overlay: 'none',
+    logo: { shape: 'circle', color: 'amethyst', accent: 'white' },
   },
   mass: {
     primaryColor: 'crimson',

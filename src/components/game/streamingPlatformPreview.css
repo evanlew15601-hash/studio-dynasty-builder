@@ -360,8 +360,9 @@
 .sp-shell--prestige {
   padding: 14px;
   background:
-    radial-gradient(1200px 540px at 40% 0%, hsl(var(--sp-primary) / 0.14), transparent 55%),
-    linear-gradient(140deg, hsl(var(--sp-surface) / 0.88), hsl(var(--sp-bg) / 0.94));
+    radial-gradient(1100px 520px at 22% 0%, hsl(var(--sp-primary) / 0.20), transparent 58%),
+    radial-gradient(900px 520px at 74% 26%, hsl(var(--sp-primary) / 0.12), transparent 62%),
+    linear-gradient(150deg, hsl(var(--sp-surface) / 0.90), hsl(var(--sp-bg) / 0.96));
 }
 
 .sp-topbar--mass {
@@ -772,6 +773,17 @@
   background: hsl(var(--sp-bg) / 0.34);
 }
 
+.sp-hero--prestige .sp-btn {
+  border-color: hsl(var(--sp-text) / 0.14);
+  background: hsl(0 0% 0% / 0.28);
+}
+
+.sp-hero--prestige .sp-btn--primary {
+  background: hsl(var(--sp-text));
+  border-color: transparent;
+  color: hsl(var(--sp-bg));
+}
+
 .sp-row--prestige {
   margin-top: 18px;
 }
@@ -783,10 +795,11 @@
 }
 
 .sp-tile--prestige {
-  width: 168px;
+  width: 210px;
 }
 
 .sp-poster--prestige {
+  aspect-ratio: 16 / 9;
   border-radius: 16px;
   border-color: hsl(var(--sp-primary) / 0.14);
   box-shadow:
@@ -936,6 +949,16 @@
   background: hsl(0 0% 0% / 0.22);
   padding: 10px;
   text-align: left;
+}
+
+.sp-continue--prestige {
+  width: 360px;
+  border-color: hsl(var(--sp-primary) / 0.12);
+  background: hsl(var(--sp-bg) / 0.22);
+}
+
+.sp-continue-poster--prestige {
+  border-color: hsl(var(--sp-primary) / 0.16);
 }
 
 .sp-continue-poster {
