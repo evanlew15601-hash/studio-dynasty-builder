@@ -1,5 +1,5 @@
 import React, { useEffect, useMemo, useRef, useState, Suspense } from 'react';
-import type { GameState, Studio, Project, Script, TalentPerson, Genre, MarketingStrategy, ReleaseStrategy, ProductionPhase } from '@/types/game';
+import type { GameState, Studio, Project, Script, TalentPerson, Genre, MarketingStrategy, ReleaseStrategy, ProductionPhase, PostTheatricalRelease } from '@/types/game';
 import { useLoadingActions } from '@/contexts/LoadingContext';
 import { LOADING_OPERATIONS, delay } from '@/utils/loadingUtils';
 import { getWorldFranchiseCatalog } from '@/data/FranchiseCatalog';
@@ -12,7 +12,7 @@ import { ProductionManagement } from './ProductionManagement';
 import { StreamingHub } from './StreamingHub';
 import { Metaboxd } from './Metaboxd';
 import { OnlineLeague } from './OnlineLeague';
-import { PostTheatricalSystem } from './PostTheatricalSystem';
+
 import { StudioDashboard } from './StudioDashboard';
 import { FinancialDashboard } from './FinancialDashboard';
 import { IntegrationMonitor } from './IntegrationMonitor';
@@ -1169,6 +1169,40 @@ export const StudioMagnateGame: React.FC<StudioMagnateGameProps> = ({
       
       let updatedProject = { ...project };
 
+      // If the deterministic engine tick advanced a scheduled theatrical release, treat it as a release
+      // for UI-side recap/media/filmography processing.
+      const prevProject = baseState.projects.find((p) => p.id === project.id);
+      const engineReleasedThisWeek =
+        prevProject?.status !== 'released' &&
+        project.status === 'released' &&
+        project.releaseWeek === timeState.currentWeek &&
+        project.releaseYear === timeState.currentYear;
+
+      if (engineReleasedThisWeek) {
+        const openingWeekRevenue =
+          project.metrics?.lastWeeklyRevenue || project.metrics?.boxOfficeTotal || 0;
+
+        MediaEngine.queueMediaEvent({
+          type: 'release',
+          triggerType: 'automatic',
+          priority: 'high',
+          entities: {
+            studios: [baseState.studio.id],
+            projects: [project.id],
+            talent: (project.cast || []).map(c => c.talentId)
+          },
+          eventData: { project },
+          week: timeState.currentWeek,
+          year: timeState.currentYear
+        });
+
+        if (openingWeekRevenue > 0 && project.type !== 'series' && project.type !== 'limited-series') {
+          MediaEngine.triggerBoxOfficeReport(project, openingWeekRevenue, baseState);
+        }
+
+        releasedProjects.push(project);
+      }
+
       // Process development phase
       if (project.currentPhase === 'development') {
         updatedProject = processDevelopmentProgress(project, timeState.currentWeek);
@@ -1375,9 +1409,7 @@ export const StudioMagnateGame: React.FC<StudioMagnateGameProps> = ({
                  : expectedWeeksSinceRelease;
 
              const weeklyBoxOfficeRevenue =
-               expectedWeeksSinceRelease >= 1 &&
-               currentWeeksSinceRelease === expectedWeeksSinceRelease &&
-               updatedProject.metrics?.theatricalRunLocked !== true
+               currentWeeksSinceRelease === expectedWeeksSinceRelease && updatedProject.metrics?.theatricalRunLocked !== true
                  ? (updatedProject.metrics?.lastWeeklyRevenue || 0)
                  : 0;
 
@@ -1460,26 +1492,68 @@ export const StudioMagnateGame: React.FC<StudioMagnateGameProps> = ({
     }
   }
 
-      // Process post-theatrical releases revenue
+      // Post-theatrical revenue is processed by the deterministic engine tick.
+      // Here we only compute the delta for the studio budget + ledger.
       if (updatedProject.postTheatricalReleases && updatedProject.postTheatricalReleases.length > 0) {
-        if (diagnosticsEnabled) {
-          console.log(`    PROCESSING POST-THEATRICAL: ${updatedProject.title}`);
+        const prevProjectState = baseState.projects.find((p) => p.id === updatedProject.id);
+        const prevById = new Map<string, number>();
+        for (const r of prevProjectState?.postTheatricalReleases || []) {
+          prevById.set(r.id, Math.round((r as any)?.revenue || 0));
         }
 
-        const postTheatrical = PostTheatricalSystem.processWeeklyRevenue(
-          updatedProject,
-          timeState.currentWeek,
-          timeState.currentYear,
-          diagnosticsEnabled
-        );
+        const earnedByPlatform: Partial<Record<PostTheatricalRelease['platform'], number>> = {};
 
-        updatedProject = postTheatrical.project;
+        for (const r of updatedProject.postTheatricalReleases) {
+          if (!r) continue;
+          if (r.lastProcessedWeek !== timeState.currentWeek || r.lastProcessedYear !== timeState.currentYear) continue;
 
-        if (postTheatrical.revenueDelta > 0) {
+          const prevRevenue = prevById.get(r.id) || 0;
+          const nextRevenue = Math.round((r as any)?.revenue || 0);
+          const delta = nextRevenue - prevRevenue;
+          if (delta <= 0) continue;
+
+          earnedByPlatform[r.platform] = (earnedByPlatform[r.platform] || 0) + delta;
+        }
+
+        const revenueDelta = Object.values(earnedByPlatform).reduce((sum, v) => sum + (v || 0), 0);
+
+        if (revenueDelta > 0) {
           if (diagnosticsEnabled) {
-            console.log(`      TOTAL WEEKLY POST-THEATRICAL: +${postTheatrical.revenueDelta.toLocaleString()}`);
+            console.log(`      TOTAL WEEKLY POST-THEATRICAL (ENGINE): +${revenueDelta.toLocaleString()}`);
           }
-          studioRevenueDelta += postTheatrical.revenueDelta;
+
+          studioRevenueDelta += revenueDelta;
+
+          const existing = FinancialEngine.getFilmFinancials(updatedProject.id).transactions;
+
+          (Object.entries(earnedByPlatform) as Array<[PostTheatricalRelease['platform'], number]>).forEach(([platform, amount]) => {
+              if (!amount || amount <= 0) return;
+
+              const category = platform === 'streaming' ? 'streaming' : 'licensing';
+              const description = `Post-theatrical - ${platform}`;
+
+              const alreadyRecorded = existing.some(
+                (t) =>
+                  t.type === 'revenue' &&
+                  t.category === category &&
+                  t.week === timeState.currentWeek &&
+                  t.year === timeState.currentYear &&
+                  t.description === description
+              );
+
+              if (!alreadyRecorded) {
+                FinancialEngine.recordTransaction(
+                  'revenue',
+                  category,
+                  amount,
+                  timeState.currentWeek,
+                  timeState.currentYear,
+                  description,
+                  updatedProject.id
+                );
+              }
+            }
+          );
         }
       }
 

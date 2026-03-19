@@ -248,6 +248,7 @@ function mergeTopFilmsWeek(history: TopFilmsWeek[], week: number, year: number, 
 export const BoxOfficeSystem: TickSystem = {
   id: 'boxOffice',
   label: 'Box office (theatrical)',
+  dependsOn: ['scheduledReleases'],
   onTick: (state, ctx) => {
     const currentAbs = absWeek(ctx.week, ctx.year);
 
