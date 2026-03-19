@@ -163,7 +163,7 @@ export const StreamingPlatformPreview: React.FC<{
     if (requested === 'default') return 'default';
 
     if (vibe === 'mass') return 'mass';
-    if (vibe === 'prestige') return 'prestige';
+    if (!vibe || vibe === 'prestige') return 'prestige';
     return 'default';
   }, [branding?.layout, vibe]);
 
