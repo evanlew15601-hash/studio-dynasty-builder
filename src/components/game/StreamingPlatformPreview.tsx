@@ -487,7 +487,7 @@ export const StreamingPlatformPreview: React.FC<{
               onClick={() => {
                 setPrestigeView('mystuff');
               }}
-              data-active={prestigeView === 'mystuff'}
+              data-active={false}
             >
               <div className="sp-hub-label">My stuff</div>
               <div className="sp-hub-sub">List and picks</div>
@@ -499,7 +499,7 @@ export const StreamingPlatformPreview: React.FC<{
                 setPrestigeView('search');
                 setSearchQuery('');
               }}
-              data-active={prestigeView === 'search'}
+              data-active={false}
             >
               <div className="sp-hub-label">Search</div>
               <div className="sp-hub-sub">Titles and genres</div>
@@ -510,7 +510,7 @@ export const StreamingPlatformPreview: React.FC<{
               onClick={() => {
                 setPrestigeView('collections');
               }}
-              data-active={prestigeView === 'collections'}
+              data-active={false}
             >
               <div className="sp-hub-label">Collections</div>
               <div className="sp-hub-sub">Curated categories</div>
