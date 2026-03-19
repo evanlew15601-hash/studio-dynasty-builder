@@ -266,7 +266,7 @@ function stepServiceQuality(params: {
     noise = Math.max(0, noise);
   }
 
-  return clamp(prev + drift + noise, 0, 100);
+  return clamp(Math.round(prev + drift + noise), 0, 100);
 }
 
 function stepRivalStrategy(r: RivalPlatformState, rng: () => number): RivalPlatformState {
