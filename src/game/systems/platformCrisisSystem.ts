@@ -14,7 +14,11 @@ export const PlatformCrisisSystem: TickSystem = {
   dependsOn: ['platformCompetition'],
   onTick: (state, ctx) => {
     if (state.dlc?.streamingWars !== true) return state;
-    if ((state.eventQueue || []).length > 0) return state;
+
+    // Avoid stacking multiple crisis events at once, but don't let unrelated non-crisis events
+    // (e.g., market/opportunity notifications) starve platform crisis pacing.
+    const hasQueuedCrisis = (state.eventQueue || []).some((e) => e.type === 'crisis');
+    if (hasQueuedCrisis) return state;
 
     const market = state.platformMarket as PlatformMarketState | undefined;
     const player = market?.player;
