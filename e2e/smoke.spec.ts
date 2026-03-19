@@ -33,4 +33,5 @@ test('can quick start a new game', async ({ page }) => {
   await page.getByRole('button', { name: /^Settings$/ }).click();
   await expect(page.getByRole('heading', { name: /^Settings$/ })).toBeVisible();
   await expect(page.getByText(/^UI Skin$/)).toBeVisible();
+  await expect(page.getByText(/^Window Size$/)).toBeVisible();
 });
