@@ -1,5 +1,6 @@
 import type { PlatformMarketState } from '@/types/platformEconomy';
 import type { Project } from '@/types/game';
+import type { SeasonData } from '@/types/streamingTypes';
 import type { TickSystem } from '../core/types';
 
 function clamp(n: number, min: number, max: number): number {
@@ -80,8 +81,7 @@ export const PlatformOriginalsPipelineSystem: TickSystem = {
 
     let changed = false;
 
-    const projectsOut = projectsIn.map((p) => {
-      if (!p) return p;
+    const projectsOut: Project[] = projectsIn.map((p): Project => {
       if (!isStreamingWarsOriginal(p, playerPlatformId)) return p;
       if (p.status === 'released' || p.status === 'archived') return p;
 
@@ -94,26 +94,27 @@ export const PlatformOriginalsPipelineSystem: TickSystem = {
 
       const nextRemaining = Math.max(0, prevRemaining - 1);
 
+      const seasonsIn = Array.isArray(p.seasons) ? (p.seasons as SeasonData[]) : null;
+
       if (nextRemaining > 0) {
         if (nextRemaining !== prevRemaining) changed = true;
 
-        const seasons = Array.isArray((p as any).seasons) ? ((p as any).seasons as any[]) : null;
-        const nextSeasons = seasons && seasons.length > 0
+        const seasonsOut = seasonsIn && seasonsIn.length > 0
           ? [
               {
-                ...seasons[0],
+                ...seasonsIn[0],
                 productionStatus: seasonStatusForPhase(phase),
               },
-              ...seasons.slice(1),
+              ...seasonsIn.slice(1),
             ]
-          : seasons;
+          : seasonsIn;
 
         return {
           ...p,
           currentPhase: phase,
           status: phase,
           phaseDuration: nextRemaining,
-          ...(nextSeasons ? { seasons: nextSeasons as any } : {}),
+          ...(seasonsOut ? { seasons: seasonsOut } : {}),
         };
       }
 
@@ -122,23 +123,22 @@ export const PlatformOriginalsPipelineSystem: TickSystem = {
       if (phaseAfter) {
         changed = true;
 
-        const seasons = Array.isArray((p as any).seasons) ? ((p as any).seasons as any[]) : null;
-        const nextSeasons = seasons && seasons.length > 0
+        const seasonsOut = seasonsIn && seasonsIn.length > 0
           ? [
               {
-                ...seasons[0],
+                ...seasonsIn[0],
                 productionStatus: seasonStatusForPhase(phaseAfter),
               },
-              ...seasons.slice(1),
+              ...seasonsIn.slice(1),
             ]
-          : seasons;
+          : seasonsIn;
 
         return {
           ...p,
           currentPhase: phaseAfter,
           status: phaseAfter,
           phaseDuration: defaultPhaseWeeks(phaseAfter),
-          ...(nextSeasons ? { seasons: nextSeasons as any } : {}),
+          ...(seasonsOut ? { seasons: seasonsOut } : {}),
         };
       }
 
@@ -158,18 +158,17 @@ export const PlatformOriginalsPipelineSystem: TickSystem = {
         },
       });
 
-      const seasons = Array.isArray((p as any).seasons) ? ((p as any).seasons as any[]) : null;
-      const nextSeasons = seasons && seasons.length > 0
+      const seasonsOut = seasonsIn && seasonsIn.length > 0
         ? [
             {
-              ...seasons[0],
+              ...seasonsIn[0],
               productionStatus: 'complete',
               airingStatus: 'airing',
-              premiereDate: seasons[0]?.premiereDate ?? { week: ctx.week, year: ctx.year },
+              premiereDate: seasonsIn[0]?.premiereDate ?? { week: ctx.week, year: ctx.year },
             },
-            ...seasons.slice(1),
+            ...seasonsIn.slice(1),
           ]
-        : seasons;
+        : seasonsIn;
 
       return {
         ...p,
@@ -178,7 +177,7 @@ export const PlatformOriginalsPipelineSystem: TickSystem = {
         phaseDuration: 0,
         releaseWeek: ctx.week,
         releaseYear: ctx.year,
-        ...(nextSeasons ? { seasons: nextSeasons as any } : {}),
+        ...(seasonsOut ? { seasons: seasonsOut } : {}),
         metrics: {
           ...(p.metrics ?? {}),
           criticsScore,
