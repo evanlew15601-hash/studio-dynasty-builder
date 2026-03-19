@@ -1,5 +1,7 @@
 // Unified Financial Engine - Single source of truth for all financial transactions
 import { Studio, Project } from '@/types/game';
+import { getActiveSaveSlotId } from '@/utils/saveLoad';
+import { getActiveModSlot } from '@/utils/moddingStore';
 import { formatMoneyCompact } from '@/utils/money';
 export interface Transaction {
   id: string;
@@ -34,15 +36,39 @@ export interface FinancialSummary {
 export class FinancialEngine {
   private static transactions: Transaction[] = [];
   private static nextTransactionId = 1;
-  private static readonly STORAGE_KEY = 'studio-magnate-ledger';
+
+  private static readonly LEGACY_STORAGE_KEY = 'studio-magnate-ledger';
+  private static loadedStorageKey: string | null = null;
+
+  private static getStorageKey(): string {
+    const modSlotId = getActiveModSlot();
+    const saveSlotId = getActiveSaveSlotId(modSlotId);
+    return `studio-magnate-ledger:${modSlotId}:${saveSlotId}`;
+  }
 
   // Load any persisted ledger on first import
   private static ensureLoaded() {
+    const storageKey = this.getStorageKey();
+
+    // Switch ledger context when changing save slot / mod slot.
+    if (this.loadedStorageKey !== storageKey) {
+      this.transactions = [];
+      this.nextTransactionId = 1;
+      this.loadedStorageKey = storageKey;
+    }
+
     if (this.transactions.length === 0) {
       try {
-        const raw = typeof window !== 'undefined' ? window.localStorage.getItem(this.STORAGE_KEY) : null;
-        if (raw) {
-          const parsed = JSON.parse(raw) as { transactions: Transaction[]; nextId?: number };
+        const raw = typeof window !== 'undefined' ? window.localStorage.getItem(storageKey) : null;
+        const legacyRaw =
+          typeof window !== 'undefined' && window.localStorage.getItem(this.LEGACY_STORAGE_KEY)
+            ? window.localStorage.getItem(this.LEGACY_STORAGE_KEY)
+            : null;
+
+        const data = raw || legacyRaw;
+
+        if (data) {
+          const parsed = JSON.parse(data) as { transactions: Transaction[]; nextId?: number };
           this.transactions = Array.isArray((parsed as any).transactions) ? parsed.transactions : (parsed as any);
           // Backward compatibility if only array was stored
           const lastId = this.transactions.reduce((max, t) => {
@@ -50,6 +76,12 @@ export class FinancialEngine {
             return Math.max(max, n);
           }, 0);
           this.nextTransactionId = (parsed as any).nextId || lastId + 1 || 1;
+
+          // If we loaded legacy storage, immediately migrate it into the scoped key.
+          if (!raw && legacyRaw && typeof window !== 'undefined') {
+            window.localStorage.setItem(storageKey, JSON.stringify({ transactions: this.transactions, nextId: this.nextTransactionId }));
+            window.localStorage.removeItem(this.LEGACY_STORAGE_KEY);
+          }
         }
       } catch (e) {
         // If parsing fails, start fresh but don't crash the game
@@ -62,15 +94,16 @@ export class FinancialEngine {
   private static persist() {
     try {
       if (typeof window !== 'undefined') {
+        const storageKey = this.getStorageKey();
         const payload = JSON.stringify({ transactions: this.transactions, nextId: this.nextTransactionId });
         // Check if payload is too large (>4MB to leave headroom for 5MB limit)
         if (payload.length > 4 * 1024 * 1024) {
           console.warn('FinancialEngine: Ledger too large, pruning old transactions');
           this.pruneOldTransactions(104); // Keep last 2 years
           const prunedPayload = JSON.stringify({ transactions: this.transactions, nextId: this.nextTransactionId });
-          window.localStorage.setItem(this.STORAGE_KEY, prunedPayload);
+          window.localStorage.setItem(storageKey, prunedPayload);
         } else {
-          window.localStorage.setItem(this.STORAGE_KEY, payload);
+          window.localStorage.setItem(storageKey, payload);
         }
       }
     } catch (e) {
@@ -79,11 +112,12 @@ export class FinancialEngine {
         console.warn('FinancialEngine: localStorage quota exceeded, pruning old transactions');
         this.pruneOldTransactions(52); // Keep only last year
         try {
+          const storageKey = this.getStorageKey();
           const prunedPayload = JSON.stringify({ transactions: this.transactions, nextId: this.nextTransactionId });
-          window.localStorage.setItem(this.STORAGE_KEY, prunedPayload);
+          window.localStorage.setItem(storageKey, prunedPayload);
         } catch {
           // If still failing, clear and restart
-          window.localStorage.removeItem(this.STORAGE_KEY);
+          window.localStorage.removeItem(this.getStorageKey());
           console.warn('FinancialEngine: Had to clear ledger due to storage limits');
         }
       }
@@ -144,7 +178,7 @@ export class FinancialEngine {
 
     if (typeof window !== 'undefined') {
       try {
-        window.localStorage.removeItem(this.STORAGE_KEY);
+        window.localStorage.removeItem(this.getStorageKey());
       } catch {
         // ignore
       }

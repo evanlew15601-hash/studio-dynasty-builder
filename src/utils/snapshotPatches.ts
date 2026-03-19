@@ -7,12 +7,15 @@ import { normalizeFranchisesState } from '@/utils/franchiseNormalization';
 import { normalizePublicDomainState } from '@/utils/publicDomainNormalization';
 import { getModBundle } from '@/utils/moddingStore';
 import { applyPatchesByKey, getPatchesForEntity } from '@/utils/modding';
+import { reviveIsoDates } from '@/utils/reviveIsoDates';
 import type { SaveGameSnapshot } from '@/utils/saveLoad';
 
 export function patchLoadedSnapshot(
   snapshot: SaveGameSnapshot,
   opts: { mode: 'single' | 'online' }
 ): SaveGameSnapshot {
+  reviveIsoDates(snapshot.gameState);
+
   const mods = getModBundle();
 
   const patchedTalent = applyPatchesByKey(
