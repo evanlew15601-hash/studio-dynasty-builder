@@ -1369,7 +1369,7 @@ export const StreamingWarsPlatformApp: React.FC = () => {
                     <Button
                       type="button"
                       variant="secondary"
-                      onClick={() => updatePlayerBranding(getVibeBrandingPreset(player.vibe))}
+                      onClick={() => updatePlayerBranding({ ...getVibeBrandingPreset(player.vibe), layout: 'auto' })}
                     >
                       Reset to vibe default
                     </Button>

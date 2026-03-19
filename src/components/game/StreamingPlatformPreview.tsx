@@ -2,7 +2,7 @@ import React, { useMemo, useState } from 'react';
 import type { Project } from '@/types/game';
 import type { PlayerPlatformBranding } from '@/types/platformEconomy';
 import { stableInt } from '@/utils/stableRandom';
-import { Search, UserCircle } from 'lucide-react';
+import { Home, Search, Sparkles, UserCircle } from 'lucide-react';
 import { StudioIconRenderer, DEFAULT_ICON, ICON_COLORS, ACCENT_COLORS, type StudioIconConfig } from './StudioIconCustomizer';
 import './streamingPlatformPreview.css';
 
@@ -46,11 +46,27 @@ type ContinueCard = {
   progressPct: number;
 };
 
+type RankedProject = {
+  project: Project;
+  score: number;
+};
+
 function deriveContinueWatching(projects: Project[], seed: string): ContinueCard[] {
   return projects.slice(0, 8).map((project, idx) => {
     const pct = stableInt(`${seed}|p:${project.id}|${idx}`, 8, 94);
     return { project, progressPct: pct };
   });
+}
+
+function deriveCuratedRow(projects: Project[], seed: string, max: number): Project[] {
+  const ranked: RankedProject[] = projects.map((project) => ({
+    project,
+    score: stableInt(`${seed}|${project.id}`, 0, 1_000_000),
+  }));
+
+  ranked.sort((a, b) => (b.score - a.score) || a.project.title.localeCompare(b.project.title));
+
+  return ranked.slice(0, max).map((x) => x.project);
 }
 
 const Row: React.FC<{
@@ -114,8 +130,10 @@ export const StreamingPlatformPreview: React.FC<{
   newArrivals: Project[];
   originals: Project[];
   onSelectTitle: (project: Project) => void;
-}> = ({ platformId, platformName, vibe, branding, heroTitle, topTen, newArrivals, originals, onSelectTitle }) => {
+> = ({ platformId, platformName, vibe, branding, heroTitle, topTen, newArrivals, originals, onSelectTitle }) => {
   const [activeNav, setActiveNav] = useState<'home' | 'originals' | 'new'>('home');
+  const [massView, setMassView] = useState<'browse' | 'search'>('browse');
+  const [searchQuery, setSearchQuery] = useState('');
 
   const resolved = useMemo(() => {
     const primaryHsl = resolveHsl(branding?.primaryColor, ICON_COLORS, '42 88% 68%');
@@ -135,6 +153,18 @@ export const StreamingPlatformPreview: React.FC<{
     return vibe === 'mass' ? 'mass' : 'default';
   }, [branding?.layout, vibe]);
 
+  const catalogPool = useMemo(() => {
+    const all = [...topTen, ...newArrivals, ...originals];
+    const seen = new Set<string>();
+
+    return all.filter((p) => {
+      if (!p?.id) return false;
+      if (seen.has(p.id)) return false;
+      seen.add(p.id);
+      return true;
+    });
+  }, [newArrivals, originals, topTen]);
+
   const continuePool = useMemo(() => {
     const pool = topTen.length > 0 ? topTen : newArrivals.length > 0 ? newArrivals : originals;
     return pool;
@@ -144,9 +174,41 @@ export const StreamingPlatformPreview: React.FC<{
     return deriveContinueWatching(continuePool, `continue|${platformName}|${layout}`);
   }, [continuePool, layout, platformName]);
 
-  const showMassHome = layout === 'mass' && activeNav === 'home';
-  const showMassOriginals = layout === 'mass' && activeNav === 'originals';
-  const showMassNew = layout === 'mass' && activeNav === 'new';
+  const myList = useMemo(() => {
+    return deriveCuratedRow(catalogPool, `mylist|${platformName}|${layout}`, 14);
+  }, [catalogPool, layout, platformName]);
+
+  const becauseYouWatched = useMemo(() => {
+    const seed = `because|${platformName}|${layout}`;
+    const anchor = catalogPool.length > 0 ? catalogPool[stableInt(`${seed}|anchor`, 0, Math.max(0, catalogPool.length - 1))] : null;
+    if (!anchor) return [] as Project[];
+
+    const genre = anchor.script?.genre;
+    const eligible = catalogPool.filter((p) => p.id !== anchor.id && (genre ? p.script?.genre === genre : true));
+
+    return deriveCuratedRow(eligible.length > 0 ? eligible : catalogPool.filter((p) => p.id !== anchor.id), `${seed}|${genre ?? 'all'}`, 12);
+  }, [catalogPool, layout, platformName]);
+
+  const searchResults = useMemo(() => {
+    const q = searchQuery.trim().toLowerCase();
+    if (q.length === 0) return [] as Project[];
+
+    const matches = catalogPool.filter((p) => {
+      if (!p) return false;
+      const title = (p.title ?? '').toLowerCase();
+      const genre = (p.script?.genre ?? '').toLowerCase();
+      return title.includes(q) || genre.includes(q);
+    });
+
+    return matches.slice(0, 18);
+  }, [catalogPool, searchQuery]);
+
+  const showMassBrowse = layout === 'mass' && massView === 'browse';
+
+  const showMassHome = showMassBrowse && activeNav === 'home';
+  const showMassOriginals = showMassBrowse && activeNav === 'originals';
+  const showMassNew = showMassBrowse && activeNav === 'new';
+  const showMassSearch = layout === 'mass' && massView === 'search';
 
   return (
     <div
@@ -172,12 +234,20 @@ export const StreamingPlatformPreview: React.FC<{
           <div className={layout === 'mass' ? 'sp-actions sp-actions--mass' : 'sp-actions'}>
             {layout === 'mass' ? (
               <>
-                <div className="sp-action-icon" aria-label="Search">
+                <button type="button" className="sp-action-icon" aria-label="Search" onClick={() => setMassView('search')}>
                   <Search size={16} />
-                </div>
-                <div className="sp-action-icon" aria-label="Profile">
+                </button>
+                <button
+                  type="button"
+                  className="sp-action-icon"
+                  aria-label="Profile"
+                  onClick={() => {
+                    setMassView('browse');
+                    setActiveNav('home');
+                  }}
+                >
                   <UserCircle size={16} />
-                </div>
+                </button>
               </>
             ) : (
               <>
@@ -189,18 +259,132 @@ export const StreamingPlatformPreview: React.FC<{
         </header>
 
         <nav className={layout === 'mass' ? 'sp-nav sp-nav--mass' : 'sp-nav'} aria-label="Platform navigation">
-          <button type="button" onClick={() => setActiveNav('home')} data-active={activeNav === 'home'}>
+          <button
+            type="button"
+            onClick={() => {
+              setActiveNav('home');
+              setMassView('browse');
+            }}
+            data-active={layout === 'mass' ? (massView === 'browse' && activeNav === 'home') : activeNav === 'home'}
+          >
             Home
           </button>
-          <button type="button" onClick={() => setActiveNav('originals')} data-active={activeNav === 'originals'}>
+          <button
+            type="button"
+            onClick={() => {
+              setActiveNav('originals');
+              setMassView('browse');
+            }}
+            data-active={layout === 'mass' ? (massView === 'browse' && activeNav === 'originals') : activeNav === 'originals'}
+          >
             Originals
           </button>
-          <button type="button" onClick={() => setActiveNav('new')} data-active={activeNav === 'new'}>
+          <button
+            type="button"
+            onClick={() => {
+              setActiveNav('new');
+              setMassView('browse');
+            }}
+            data-active={layout === 'mass' ? (massView === 'browse' && activeNav === 'new') : activeNav === 'new'}
+          >
             New
           </button>
         </nav>
 
-        {heroTitle ? (
+        {layout === 'mass' && massView === 'browse' && (
+          <div className="sp-chips" aria-label="Category shortcuts">
+            <button
+              type="button"
+              className="sp-chip"
+              onClick={() => {
+                setActiveNav('home');
+                setMassView('browse');
+              }}
+              data-active={activeNav === 'home' && massView === 'browse'}
+            >
+              For you
+            </button>
+            <button
+              type="button"
+              className="sp-chip"
+              onClick={() => {
+                setActiveNav('originals');
+                setMassView('browse');
+              }}
+              data-active={activeNav === 'originals' && massView === 'browse'}
+            >
+              Originals
+            </button>
+            <button
+              type="button"
+              className="sp-chip"
+              onClick={() => {
+                setActiveNav('new');
+                setMassView('browse');
+              }}
+              data-active={activeNav === 'new' && massView === 'browse'}
+            >
+              New & trending
+            </button>
+            <div className="sp-chip" style={{ cursor: 'default' }}>
+              Categories
+            </div>
+          </div>
+        )}
+
+        {showMassSearch ? (
+          <section className="sp-search">
+            <div className="sp-searchbar">
+              <input
+                className="sp-searchinput"
+                value={searchQuery}
+                onChange={(e) => setSearchQuery(e.target.value)}
+                placeholder="Search titles or genres"
+              />
+              <button type="button" className="sp-searchcancel" onClick={() => setMassView('browse')}>
+                Cancel
+              </button>
+            </div>
+
+            {searchQuery.trim().length === 0 ? (
+              <>
+                <Row
+                  layout={layout}
+                  title="Trending searches"
+                  subtitle="Most searched this week"
+                  items={topTen.slice(0, 12)}
+                  platformId={platformId}
+                  primaryHsl={resolved.primaryHsl}
+                  accentHsl={resolved.accentHsl}
+                  onSelectTitle={onSelectTitle}
+                />
+                <Row
+                  layout={layout}
+                  title="Browse by genre"
+                  subtitle="Type 'drama', 'comedy', etc."
+                  items={newArrivals.slice(0, 12)}
+                  platformId={platformId}
+                  primaryHsl={resolved.primaryHsl}
+                  accentHsl={resolved.accentHsl}
+                  onSelectTitle={onSelectTitle}
+                />
+              </>
+            ) : searchResults.length > 0 ? (
+              <Row
+                layout={layout}
+                title="Results"
+                subtitle={`${searchResults.length} matches`}
+                items={searchResults}
+                platformId={platformId}
+                primaryHsl={resolved.primaryHsl}
+                accentHsl={resolved.accentHsl}
+                onSelectTitle={onSelectTitle}
+              />
+            ) : (
+              <div className="sp-search-empty">No matches.</div>
+            )}
+          </section>
+        ) : heroTitle ? (
           <button
             type="button"
             className={layout === 'mass' ? 'sp-hero sp-hero--mass' : 'sp-hero'}
@@ -313,6 +497,28 @@ export const StreamingPlatformPreview: React.FC<{
 
             <Row
               layout={layout}
+              title="My list"
+              subtitle="Saved for later"
+              items={myList}
+              platformId={platformId}
+              primaryHsl={resolved.primaryHsl}
+              accentHsl={resolved.accentHsl}
+              onSelectTitle={onSelectTitle}
+            />
+
+            <Row
+              layout={layout}
+              title="Because you watched"
+              subtitle="More like what you started"
+              items={becauseYouWatched}
+              platformId={platformId}
+              primaryHsl={resolved.primaryHsl}
+              accentHsl={resolved.accentHsl}
+              onSelectTitle={onSelectTitle}
+            />
+
+            <Row
+              layout={layout}
               title="New this week"
               subtitle="Fresh additions"
               items={newArrivals.slice(0, 12)}
@@ -361,6 +567,48 @@ export const StreamingPlatformPreview: React.FC<{
             showRank={activeNav === 'home'}
             onSelectTitle={onSelectTitle}
           />
+        )}
+
+        {layout === 'mass' && (
+          <footer className="sp-bottomnav" aria-label="Bottom navigation">
+            <button
+              type="button"
+              onClick={() => {
+                setActiveNav('home');
+                setMassView('browse');
+              }}
+              data-active={massView === 'browse' && activeNav === 'home'}
+            >
+              <Home size={18} />
+              <span>Home</span>
+            </button>
+            <button type="button" onClick={() => setMassView('search')} data-active={massView === 'search'}>
+              <Search size={18} />
+              <span>Search</span>
+            </button>
+            <button
+              type="button"
+              onClick={() => {
+                setActiveNav('new');
+                setMassView('browse');
+              }}
+              data-active={massView === 'browse' && activeNav === 'new'}
+            >
+              <Sparkles size={18} />
+              <span>New</span>
+            </button>
+            <button
+              type="button"
+              onClick={() => {
+                setActiveNav('home');
+                setMassView('browse');
+              }}
+              data-active={false}
+            >
+              <UserCircle size={18} />
+              <span>Profile</span>
+            </button>
+          </footer>
         )}
       </div>
     </div>
