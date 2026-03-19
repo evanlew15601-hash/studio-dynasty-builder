@@ -1,7 +1,7 @@
 import { beforeEach, describe, expect, it } from 'vitest';
 import type { GameState } from '@/types/game';
 import { useGameStore } from '@/game/store';
-import { PROVIDER_DEALS } from '@/data/ProviderDealsDatabase';
+import { getStreamingProviders } from '@/data/ProviderDealsDatabase';
 
 function makeBaseState(overrides?: Partial<GameState>): GameState {
   const base: GameState = {
@@ -60,7 +60,7 @@ describe('Streaming Wars: platform market tick integration', () => {
   });
 
   it('bootstraps platformMarket and rivals when DLC is enabled (deterministic)', () => {
-    const expectedRivals = PROVIDER_DEALS.filter((p) => p.dealKind === 'streaming').length;
+    const expectedRivals = getStreamingProviders().length;
 
     // Run 1
     useGameStore.getState().initGame(

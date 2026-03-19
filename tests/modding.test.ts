@@ -48,6 +48,37 @@ describe('mod patch overlay (Option A)', () => {
     expect(getProviderProfile('streaming', 'streamflix', mods)?.averageRate).toBe(222);
   });
 
+  it('can override the entire provider catalog (useful for downloadable database packs)', () => {
+    const mods: ModBundle = {
+      version: 1,
+      mods: [{ id: 'm1', name: 'Real World Providers', version: '1.0.0', enabled: true, priority: 0 }],
+      patches: [
+        {
+          id: 'p1',
+          modId: 'm1',
+          entityType: 'providerDealCatalog',
+          op: 'insert',
+          payload: [
+            {
+              id: 'netflix',
+              dealKind: 'streaming',
+              name: 'Netflix',
+              color: 'bg-red-600',
+              marketShare: 25,
+              averageRate: 2500000,
+              bonusMultiplier: 1.15,
+              requirements: { minQuality: 50, preferredGenres: ['drama'] },
+              expectations: { viewersPerShare: 1000000, completionRate: 60, subscriberGrowthRate: 0.04 },
+            },
+          ],
+        },
+      ],
+    };
+
+    expect(getProviderProfile('streaming', 'streamflix', mods)).toBeUndefined();
+    expect(getProviderProfile('streaming', 'netflix', mods)?.name).toBe('Netflix');
+  });
+
   it('can replace a franchise role set while still getting director + cameo defaults', () => {
     const franchise: Franchise = {
       id: 'f-1',

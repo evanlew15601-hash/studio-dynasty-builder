@@ -265,6 +265,15 @@ export const ALL_PROVIDERS = PROVIDER_DEALS;
 
 export function getEffectiveProviderDeals(mods?: ModBundle): ProviderDealProfile[] {
   const bundle = mods ?? getModBundle();
+
+  const catalogOverride = getPatchesForEntity(bundle, 'providerDealCatalog').find(
+    (p) => p.op === 'insert' && Array.isArray(p.payload)
+  );
+
+  if (catalogOverride) {
+    return catalogOverride.payload as ProviderDealProfile[];
+  }
+
   const patches = getPatchesForEntity(bundle, 'providerDeal');
   return applyPatchesByKey(PROVIDER_DEALS, patches, (p) => p.id);
 }

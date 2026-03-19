@@ -79,4 +79,37 @@ describe('Studio profiles modding', () => {
     const patched = getEffectiveStudioProfiles(bundle);
     expect(patched.find((s) => s.name === target)).toBeFalsy();
   });
+
+  it('can override the entire studio profile catalog', () => {
+    const bundle: ModBundle = {
+      version: 1,
+      mods: [{ id: 'test', name: 'test', version: '1.0.0', enabled: true, priority: 0 }],
+      patches: [
+        {
+          id: 'studioProfileCatalog:test',
+          modId: 'test',
+          entityType: 'studioProfileCatalog',
+          op: 'insert',
+          payload: [
+            {
+              name: 'Real World Studio A',
+              personality: 'A real-world studio profile override',
+              budget: 100000000,
+              reputation: 80,
+              specialties: ['drama'],
+              businessTendency: 'Blockbusters and awards plays',
+              riskTolerance: 'moderate',
+              releaseFrequency: 4,
+              brandIdentity: 'A recognizable brand',
+              biography: 'A studio used to verify catalog overrides.',
+            },
+          ],
+        },
+      ],
+    };
+
+    const patched = getEffectiveStudioProfiles(bundle);
+    expect(patched).toHaveLength(1);
+    expect(patched[0]?.name).toBe('Real World Studio A');
+  });
 });

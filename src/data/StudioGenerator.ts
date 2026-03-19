@@ -180,6 +180,15 @@ export const STUDIO_PROFILES: StudioProfile[] = [
 
 export function getEffectiveStudioProfiles(mods?: ModBundle): StudioProfile[] {
   const bundle = mods ?? getModBundle();
+
+  const catalogOverride = getPatchesForEntity(bundle, 'studioProfileCatalog').find(
+    (p) => p.op === 'insert' && Array.isArray(p.payload)
+  );
+
+  if (catalogOverride) {
+    return catalogOverride.payload as StudioProfile[];
+  }
+
   const patches = getPatchesForEntity(bundle, 'studioProfile');
   return applyPatchesByKey(STUDIO_PROFILES, patches, (s) => s.name);
 }

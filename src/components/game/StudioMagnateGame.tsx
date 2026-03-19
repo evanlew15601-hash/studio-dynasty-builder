@@ -1,10 +1,10 @@
 import React, { useEffect, useMemo, useRef, useState, Suspense } from 'react';
-import type { GameState, Studio, Project, Script, TalentPerson, Genre, MarketingStrategy, ReleaseStrategy, ProductionPhase, ScriptCharacter } from '@/types/game';
+import type { GameState, Studio, Project, Script, TalentPerson, Genre, MarketingStrategy, ReleaseStrategy, ProductionPhase, ScriptCharacter, Franchise } from '@/types/game';
 import { useLoadingActions } from '@/contexts/LoadingContext';
 import { LOADING_OPERATIONS, delay } from '@/utils/loadingUtils';
 import { getWorldFranchiseCatalog } from '@/data/FranchiseCatalog';
 import { PublicDomainGenerator } from '@/data/PublicDomainGenerator';
-import { PROVIDER_DEALS } from '@/data/ProviderDealsDatabase';
+import { getStreamingProviders } from '@/data/ProviderDealsDatabase';
 import type { PlatformMarketState } from '@/types/platformEconomy';
 import { ScriptDevelopment } from './ScriptDevelopment';
 import { CastingBoard } from './CastingBoard';
@@ -456,7 +456,7 @@ function primeCompetitorTelevision(gameState: GameState): GameState {
 function createInitialPlatformMarketState(params: { currentWeek: number; currentYear: number }): PlatformMarketState {
   const totalAddressableSubs = 100_000_000;
 
-  const rivals = PROVIDER_DEALS.filter((p) => p.dealKind === 'streaming').map((p) => ({
+  const rivals = getStreamingProviders().map((p) => ({
     id: p.id,
     name: p.name,
     subscribers: Math.floor(totalAddressableSubs * 0.8 * (p.marketShare / 100)),
@@ -703,11 +703,15 @@ export const StudioMagnateGame: React.FC<StudioMagnateGameProps> = ({
 
       const worldStartYear = isOnlineMode ? ONLINE_LEAGUE_START_YEAR : new Date().getFullYear();
 
-      const generatedTalent = applyPatchesByKey(
-        generateInitialTalentPool({ currentYear: worldStartYear }),
-        getPatchesForEntity(mods, 'talent'),
-        (t) => t.id
+      const talentPoolOverride = getPatchesForEntity(mods, 'talentPool').find(
+        (p) => p.op === 'insert' && Array.isArray(p.payload)
       );
+
+      const baseTalent = talentPoolOverride
+        ? (talentPoolOverride.payload as TalentPerson[])
+        : generateInitialTalentPool({ currentYear: worldStartYear });
+
+      const generatedTalent = applyPatchesByKey(baseTalent, getPatchesForEntity(mods, 'talent'), (t) => t.id);
 
       let competitorStudios: Studio[] = [];
 
@@ -944,11 +948,17 @@ export const StudioMagnateGame: React.FC<StudioMagnateGameProps> = ({
         industryTrends: [],
         allReleases: releases,
         topFilmsHistory: [],
-        franchises: applyPatchesByKey(
-          getWorldFranchiseCatalog(999),
-          getPatchesForEntity(mods, 'franchise'),
-          (f) => f.id
-        ),
+        franchises: (() => {
+          const franchiseCatalogOverride = getPatchesForEntity(mods, 'franchiseCatalog').find(
+            (p) => p.op === 'insert' && Array.isArray(p.payload)
+          );
+
+          const baseFranchises: Franchise[] = franchiseCatalogOverride
+            ? (franchiseCatalogOverride.payload as Franchise[])
+            : getWorldFranchiseCatalog(999);
+
+          return applyPatchesByKey(baseFranchises, getPatchesForEntity(mods, 'franchise'), (f) => f.id);
+        })(),
         publicDomainIPs: PublicDomainGenerator.generateInitialPublicDomainIPs(50, mods),
         aiStudioProjects: [] as Project[],
       };

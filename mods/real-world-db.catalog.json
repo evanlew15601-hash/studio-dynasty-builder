@@ -1,0 +1,189 @@
+{
+  "modId": "real-world-db",
+  "modName": "Real World Database (sample)",
+  "modVersion": "0.1.0",
+  "providers": [
+    {
+      "id": "netflix",
+      "dealKind": "streaming",
+      "name": "Netflix",
+      "color": "bg-red-600",
+      "marketShare": 24,
+      "averageRate": 2500000,
+      "bonusMultiplier": 1.15,
+      "requirements": { "minQuality": 50, "preferredGenres": ["drama", "thriller", "crime"] },
+      "expectations": { "viewersPerShare": 1000000, "completionRate": 62, "subscriberGrowthRate": 0.04 }
+    },
+    {
+      "id": "prime-video",
+      "dealKind": "streaming",
+      "name": "Prime Video",
+      "color": "bg-blue-600",
+      "marketShare": 18,
+      "averageRate": 2200000,
+      "bonusMultiplier": 1.1,
+      "requirements": { "minQuality": 48, "preferredGenres": ["action", "comedy", "drama"] },
+      "expectations": { "viewersPerShare": 950000, "completionRate": 60, "subscriberGrowthRate": 0.035 }
+    },
+    {
+      "id": "disney-plus",
+      "dealKind": "streaming",
+      "name": "Disney+",
+      "color": "bg-indigo-600",
+      "marketShare": 14,
+      "averageRate": 2800000,
+      "bonusMultiplier": 1.2,
+      "requirements": { "minQuality": 55, "preferredGenres": ["family", "animation", "fantasy", "adventure", "superhero"] },
+      "expectations": { "viewersPerShare": 1050000, "completionRate": 66, "subscriberGrowthRate": 0.03 }
+    },
+    {
+      "id": "max",
+      "dealKind": "streaming",
+      "name": "Max",
+      "color": "bg-purple-600",
+      "marketShare": 10,
+      "averageRate": 2600000,
+      "bonusMultiplier": 1.18,
+      "requirements": { "minQuality": 56, "preferredGenres": ["drama", "crime", "thriller", "historical"] },
+      "expectations": { "viewersPerShare": 900000, "completionRate": 64, "subscriberGrowthRate": 0.02 }
+    },
+    {
+      "id": "paramount-plus",
+      "dealKind": "streaming",
+      "name": "Paramount+",
+      "color": "bg-sky-600",
+      "marketShare": 7,
+      "averageRate": 1700000,
+      "bonusMultiplier": 1.05,
+      "requirements": { "minQuality": 47, "preferredGenres": ["action", "crime", "comedy"] },
+      "expectations": { "viewersPerShare": 800000, "completionRate": 58, "subscriberGrowthRate": 0.015 }
+    },
+    {
+      "id": "amc",
+      "dealKind": "cable",
+      "name": "AMC",
+      "color": "bg-zinc-700",
+      "marketShare": 6,
+      "averageRate": 1100000,
+      "bonusMultiplier": 1.0,
+      "requirements": { "minQuality": 50, "preferredGenres": ["drama", "crime", "thriller"] },
+      "expectations": { "viewersPerShare": 650000, "completionRate": 52, "subscriberGrowthRate": 0.01 }
+    }
+  ],
+  "studios": [
+    {
+      "name": "Warner Bros.",
+      "personality": "Legacy studio with a deep bench of franchises and prestige swings",
+      "budget": 220000000,
+      "reputation": 78,
+      "specialties": ["action", "drama", "superhero"],
+      "businessTendency": "Tentpoles, awards plays, and a perpetual sequel pipeline",
+      "riskTolerance": "moderate",
+      "releaseFrequency": 5,
+      "brandIdentity": "Big IP, recognizable talent, and global distribution muscle",
+      "foundedYear": 1923,
+      "biography": "A century-old studio that balances blockbuster ambition with periodic prestige resets."
+    },
+    {
+      "name": "Universal Pictures",
+      "personality": "Commercially minded hit-maker with strong genre instincts",
+      "budget": 200000000,
+      "reputation": 76,
+      "specialties": ["action", "comedy", "horror"],
+      "businessTendency": "Wide releases, reliable crowd-pleasers, and scalable franchises",
+      "riskTolerance": "moderate",
+      "releaseFrequency": 6,
+      "brandIdentity": "Broad appeal and strong marketing execution",
+      "foundedYear": 1912,
+      "biography": "A major studio known for turning genre lanes into repeatable engines."
+    },
+    {
+      "name": "Paramount Pictures",
+      "personality": "Prestige heritage with a modern franchise strategy",
+      "budget": 170000000,
+      "reputation": 74,
+      "specialties": ["action", "drama", "historical"],
+      "businessTendency": "Star vehicles, established brands, and selective prestige",
+      "riskTolerance": "moderate",
+      "releaseFrequency": 4,
+      "brandIdentity": "Classic studio sheen and curated slates",
+      "foundedYear": 1912,
+      "biography": "An iconic studio balancing legacy with modern market realities."
+    },
+    {
+      "name": "A24",
+      "personality": "Taste-forward boutique with sharp creative curation",
+      "budget": 35000000,
+      "reputation": 88,
+      "specialties": ["drama", "horror", "thriller"],
+      "businessTendency": "Distinctive auteur projects and breakout indie hits",
+      "riskTolerance": "aggressive",
+      "releaseFrequency": 10,
+      "brandIdentity": "Auteur credibility and strong cultural conversation",
+      "foundedYear": 2012,
+      "biography": "A modern indie label built on strong curation and repeat collaboration with directors."
+    }
+  ],
+  "franchises": [
+    {
+      "id": "rw:star-wars",
+      "title": "Star Wars",
+      "originDate": "1977-05-25",
+      "creatorStudioId": "rw:system",
+      "genre": ["sci-fi", "action"],
+      "tone": "pulpy",
+      "parodySource": "Star Saga",
+      "entries": [],
+      "status": "active",
+      "franchiseTags": ["space", "rebellion", "mythic"],
+      "culturalWeight": 95,
+      "description": "Iconic space opera spanning generations.",
+      "cost": 500000000
+    },
+    {
+      "id": "rw:marvel",
+      "title": "Marvel Cinematic Universe",
+      "originDate": "2008-05-02",
+      "creatorStudioId": "rw:system",
+      "genre": ["action", "adventure", "superhero"],
+      "tone": "pulpy",
+      "parodySource": "Hero Collective Universe",
+      "entries": [],
+      "status": "active",
+      "franchiseTags": ["superheroes", "shared-universe"],
+      "culturalWeight": 96,
+      "description": "Interconnected superhero films with frequent crossovers.",
+      "cost": 650000000
+    },
+    {
+      "id": "rw:harry-potter",
+      "title": "Harry Potter",
+      "originDate": "2001-11-16",
+      "creatorStudioId": "rw:system",
+      "genre": ["fantasy", "family"],
+      "tone": "light",
+      "parodySource": "Wizard Academy",
+      "entries": [],
+      "status": "active",
+      "franchiseTags": ["magic", "school", "coming-of-age"],
+      "culturalWeight": 92,
+      "description": "A wizarding fantasy series centered on a magical school.",
+      "cost": 420000000
+    },
+    {
+      "id": "rw:lotr",
+      "title": "The Lord of the Rings",
+      "originDate": "2001-12-19",
+      "creatorStudioId": "rw:system",
+      "genre": ["fantasy", "adventure"],
+      "tone": "epic",
+      "parodySource": "Rings of Destiny",
+      "entries": [],
+      "status": "active",
+      "franchiseTags": ["quest", "lore", "kingdoms"],
+      "culturalWeight": 93,
+      "description": "Epic quest fantasy with deep lore and mythic stakes.",
+      "cost": 480000000
+    }
+  ]
+}

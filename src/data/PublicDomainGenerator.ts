@@ -11,8 +11,16 @@ export class PublicDomainGenerator {
   }
 
   static generateInitialPublicDomainIPs(count: number = 20, mods?: ModBundle): PublicDomainIP[] {
-    const base = PublicDomainGenerator.getBasePublicDomainIPs(count);
     const bundle = mods ?? getModBundle();
+
+    const catalogOverride = getPatchesForEntity(bundle, 'publicDomainCatalog').find(
+      (p) => p.op === 'insert' && Array.isArray(p.payload)
+    );
+
+    const base = catalogOverride
+      ? (catalogOverride.payload as PublicDomainIP[]).slice(0, count)
+      : PublicDomainGenerator.getBasePublicDomainIPs(count);
+
     return applyPatchesByKey(base, getPatchesForEntity(bundle, 'publicDomainIP'), (p) => p.id);
   }
 }

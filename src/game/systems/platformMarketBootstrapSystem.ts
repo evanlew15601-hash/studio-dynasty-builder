@@ -6,7 +6,7 @@ import type {
   PlayerPlatformBranding,
   RivalPlatformState,
 } from '@/types/platformEconomy';
-import { PROVIDER_DEALS } from '@/data/ProviderDealsDatabase';
+import { getStreamingProviders } from '@/data/ProviderDealsDatabase';
 import type { TickSystem } from '../core/types';
 
 const DEFAULT_TOTAL_ADDRESSABLE_SUBS = 100_000_000;
@@ -27,7 +27,7 @@ function normalizeTierMix(input: any): { adSupportedPct: number; adFreePct: numb
 }
 
 function bootstrapRivals(totalAddressableSubs: number): RivalPlatformState[] {
-  const streamingProviders = PROVIDER_DEALS.filter((p) => p.dealKind === 'streaming');
+  const streamingProviders = getStreamingProviders();
 
   return streamingProviders.map((p) => {
     const subscribers = Math.floor(totalAddressableSubs * 0.8 * (p.marketShare / 100));

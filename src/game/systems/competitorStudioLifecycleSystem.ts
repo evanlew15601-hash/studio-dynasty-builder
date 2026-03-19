@@ -1,5 +1,5 @@
 import type { GameState, Studio, WorldHistoryEntry } from '@/types/game';
-import { StudioGenerator, STUDIO_PROFILES } from '@/data/StudioGenerator';
+import { StudioGenerator, getEffectiveStudioProfiles } from '@/data/StudioGenerator';
 import { stableInt } from '@/utils/stableRandom';
 import { stablePick } from '@/utils/stablePick';
 import { pushWorldHistory } from '@/utils/worldHistory';
@@ -50,7 +50,7 @@ function spawnStudio(params: {
 }): Studio | null {
   const { sg, year, seed, existingNames } = params;
 
-  const profileNames = (STUDIO_PROFILES || []).map((p) => p.name);
+  const profileNames = (getEffectiveStudioProfiles() || []).map((p) => p.name);
 
   // Prefer unused profiles.
   const pool = profileNames.filter((n) => !existingNames.has(n));
