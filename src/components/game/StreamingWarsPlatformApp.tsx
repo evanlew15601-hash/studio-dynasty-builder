@@ -85,10 +85,10 @@ const VIBE_BRANDING_PRESETS: Record<string, PlayerPlatformBranding> = {
     logo: { shape: 'shield', color: 'gold', accent: 'white' },
   },
   mass: {
-    primaryColor: 'sapphire',
+    primaryColor: 'crimson',
     accentColor: 'white',
-    overlay: 'grid',
-    logo: { shape: 'square', color: 'sapphire', accent: 'white' },
+    overlay: 'none',
+    logo: { shape: 'square', color: 'crimson', accent: 'white' },
   },
   bundle: {
     primaryColor: 'emerald',
@@ -282,6 +282,7 @@ export const StreamingWarsPlatformApp: React.FC = () => {
       primaryColor: branding.primaryColor ?? preset.primaryColor,
       accentColor: branding.accentColor ?? preset.accentColor,
       overlay: branding.overlay ?? preset.overlay,
+      layout: branding.layout ?? 'auto',
       logo: (branding.logo as StudioIconConfig | undefined) ?? (preset.logo as StudioIconConfig | undefined) ?? DEFAULT_ICON,
     } satisfies PlayerPlatformBranding;
   }, [player?.branding, player?.vibe]);
@@ -1237,6 +1238,7 @@ export const StreamingWarsPlatformApp: React.FC = () => {
                 <StreamingPlatformPreview
                   platformId={playerPlatformId}
                   platformName={player.name}
+                  vibe={player.vibe}
                   branding={effectiveBranding}
                   heroTitle={heroTitle}
                   topTen={topTen}
@@ -1318,6 +1320,24 @@ export const StreamingWarsPlatformApp: React.FC = () => {
                         />
                       ))}
                     </div>
+                  </div>
+
+                  <div className="space-y-2">
+                    <Label>App layout</Label>
+                    <Select
+                      value={effectiveBranding.layout ?? 'auto'}
+                      onValueChange={(v) => updatePlayerBranding({ layout: v as PlayerPlatformBranding['layout'] })}
+                    >
+                      <SelectTrigger>
+                        <SelectValue />
+                      </SelectTrigger>
+                      <SelectContent>
+                        <SelectItem value="auto">Auto (based on vibe)</SelectItem>
+                        <SelectItem value="mass">Mass market</SelectItem>
+                        <SelectItem value="default">Classic</SelectItem>
+                      </SelectContent>
+                    </Select>
+                    <p className="text-xs text-muted-foreground">This only affects the in-universe app preview.</p>
                   </div>
 
                   <div className="space-y-2">

@@ -1,4 +1,5 @@
 import type {
+  PlatformBrandingLayout,
   PlatformBrandingOverlay,
   PlatformLogoConfig,
   PlatformMarketState,
@@ -85,6 +86,11 @@ function normalizeBrandingOverlay(input: any): PlatformBrandingOverlay {
   return 'spotlight';
 }
 
+function normalizeBrandingLayout(input: any): PlatformBrandingLayout | undefined {
+  if (input === 'auto' || input === 'default' || input === 'mass') return input;
+  return undefined;
+}
+
 function normalizeLogo(input: any): PlatformLogoConfig | undefined {
   if (!input || typeof input !== 'object') return undefined;
 
@@ -117,14 +123,16 @@ function normalizeBranding(input: any): PlayerPlatformBranding | undefined {
   const primaryColor = typeof (input as any).primaryColor === 'string' ? (input as any).primaryColor : undefined;
   const accentColor = typeof (input as any).accentColor === 'string' ? (input as any).accentColor : undefined;
   const overlay = normalizeBrandingOverlay((input as any).overlay);
+  const layout = normalizeBrandingLayout((input as any).layout);
   const logo = normalizeLogo((input as any).logo);
 
-  if (!primaryColor && !accentColor && !logo && overlay === 'spotlight') return undefined;
+  if (!primaryColor && !accentColor && !logo && overlay === 'spotlight' && !layout) return undefined;
 
   return {
     primaryColor,
     accentColor,
     overlay,
+    layout,
     logo,
   };
 }
