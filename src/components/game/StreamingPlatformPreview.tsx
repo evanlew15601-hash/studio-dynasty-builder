@@ -1,4 +1,4 @@
-import React, { useMemo, useState } from 'react';
+import React, { useEffect, useMemo, useState } from 'react';
 import type { Project } from '@/types/game';
 import type { PlayerPlatformBranding } from '@/types/platformEconomy';
 import { stableInt } from '@/utils/stableRandom';
@@ -167,6 +167,14 @@ export const StreamingPlatformPreview: React.FC<{
     if (!vibe || vibe === 'prestige') return 'prestige';
     return 'default';
   }, [branding?.layout, vibe]);
+
+  useEffect(() => {
+    setActiveNav('home');
+    setSearchQuery('');
+    setMassView('browse');
+    setNewHotTab('watching');
+    setPrestigeView('browse');
+  }, [layout]);
 
   const catalogPool = useMemo(() => {
     const all = [...topTen, ...newArrivals, ...originals];
