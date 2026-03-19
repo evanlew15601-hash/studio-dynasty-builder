@@ -32,6 +32,7 @@ import {
   setActiveModSlot,
 } from '@/utils/moddingStore';
 import { deleteDatabaseSavesAsync, listSaveSlotsAsync, moveDatabaseSavesAsync, normalizeSlotId } from '@/utils/saveLoad';
+import { normalizeModBundle } from '@/utils/modding';
 
 type ConfirmState = {
   title: string;
@@ -50,6 +51,10 @@ export function DatabaseManagerDialog(props: {
   const [activeDb, setActiveDb] = useState(() => getActiveModSlot());
   const [nameInput, setNameInput] = useState('');
   const [working, setWorking] = useState(false);
+
+  const importInputRef = useRef<HTMLInputElement | null>(null);
+  const [importTargetDb, setImportTargetDb] = useState<string | null>(null);
+  const [importOverwrite, setImportOverwrite] = useState(false);
 
   const [saveSlotsByDb, setSaveSlotsByDb] = useState<Record<string, string[]>>({});
 
@@ -127,6 +132,85 @@ export function DatabaseManagerDialog(props: {
     );
 
     return true;
+  };
+
+  const beginImportFlow = (targetDb: string, overwriteTarget: boolean) => {
+    setImportTargetDb(targetDb);
+    setImportOverwrite(overwriteTarget);
+
+    // Triggered by a user gesture (button click / confirm), so the file picker is allowed.
+    queueMicrotask(() => importInputRef.current?.click());
+  };
+
+  const handleImportDatabaseJson = async () => {
+    const picked = normalizeDbNameOrToast(nameInput);
+    if (!picked) return;
+
+    const exists = listModSlots().includes(picked);
+    if (exists) {
+      openConfirm(
+        {
+          title: 'Overwrite database?',
+          description: `Database "${picked}" already exists. Importing will replace its mod bundle and delete ALL saves for that database.`,
+          actionLabel: 'Overwrite & import',
+          destructive: true,
+        },
+        async () => {
+          beginImportFlow(picked, true);
+        }
+      );
+      return;
+    }
+
+    beginImportFlow(picked, false);
+  };
+
+  const handleImportFile: React.ChangeEventHandler<HTMLInputElement> = (e) => {
+    const file = e.target.files?.[0];
+    e.target.value = '';
+    if (!file) return;
+
+    const targetDb = importTargetDb;
+    if (!targetDb) return;
+
+    void (async () => {
+      setWorking(true);
+      try {
+        const text = await file.text();
+        const parsed = JSON.parse(text) as unknown;
+
+        if (!parsed || typeof parsed !== 'object') {
+          toast({ title: 'Invalid database', description: 'JSON did not look like a mod bundle.', variant: 'destructive' });
+          return;
+        }
+
+        const version = (parsed as any).version;
+        if (version != null && version !== 1) {
+          toast({ title: 'Invalid database', description: 'Unsupported mod bundle version.', variant: 'destructive' });
+          return;
+        }
+
+        const normalized = normalizeModBundle(parsed);
+
+        if (importOverwrite) {
+          await deleteDatabaseSavesAsync(targetDb);
+        }
+
+        saveModBundleToSlot(targetDb, normalized);
+        setActive(targetDb);
+
+        toast({ title: 'Database imported', description: `Imported mod bundle into "${targetDb}".` });
+        setNameInput('');
+        await refreshSaveIndex();
+      } catch (error) {
+        console.error('Failed to import database', error);
+        toast({ title: 'Import failed', description: 'Could not import that database JSON.', variant: 'destructive' });
+      } finally {
+        setWorking(false);
+        setImportTargetDb(null);
+        setImportOverwrite(false);
+      }
+    })();
   };
 
   const performCreate = async (picked: string, overwriteTarget: boolean) => {
@@ -302,9 +386,18 @@ export function DatabaseManagerDialog(props: {
           <DialogHeader>
             <DialogTitle>Database Manager</DialogTitle>
             <DialogDescription>
-              Databases are TEW-style: each database has its own saves. Loading/importing will not auto-switch databases.
+              Databases are TEW-style: each database has its own saves. Loading a save will not auto-switch databases.
             </DialogDescription>
           </DialogHeader>
+
+          <input
+            ref={importInputRef}
+            type="file"
+            accept="application/json"
+            className="hidden"
+            onChange={handleImportFile}
+            disabled={working}
+          />
 
           <div className="space-y-4">
             <div className="space-y-2">
@@ -361,6 +454,9 @@ export function DatabaseManagerDialog(props: {
               </Button>
               <Button type="button" variant="secondary" disabled={working} onClick={() => void handleDuplicate()}>
                 Duplicate from active
+              </Button>
+              <Button type="button" variant="secondary" disabled={working} onClick={() => void handleImportDatabaseJson()}>
+                Import JSON
               </Button>
               <Button
                 type="button"
