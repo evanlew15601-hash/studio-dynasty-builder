@@ -7,6 +7,7 @@ import { Badge } from '@/components/ui/badge';
 import { Separator } from '@/components/ui/separator';
 import { useToast } from '@/hooks/use-toast';
 import { useGameStore } from '@/game/store';
+import { nextNumericId } from '@/utils/idAllocator';
 import { 
   PlayIcon, 
   TvIcon,
@@ -187,7 +188,7 @@ export const MarketingActivities: React.FC<MarketingActivitiesProps> = ({
 
     // FIXED: Properly deduct cost from studio budget via callback
     const newActivity: MarketingActivity = {
-      id: `activity-${Date.now()}`,
+      id: nextNumericId('activity', activeActivities.map((a) => a.id)),
       type: activity.type as any,
       name: activity.name,
       cost,

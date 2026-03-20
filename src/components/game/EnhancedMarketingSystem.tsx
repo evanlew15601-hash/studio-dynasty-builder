@@ -8,6 +8,7 @@ import { useToast } from '@/hooks/use-toast';
 import { Project } from '@/types/game';
 import { useGameStore } from '@/game/store';
 import { TrendingUp, Target, Zap, Users, Globe, Tv, Radio, Newspaper, Play, Monitor } from 'lucide-react';
+import { nextNumericId } from '@/utils/idAllocator';
 
 interface EnhancedMarketingSystemProps {
   project: Project;
@@ -238,10 +239,15 @@ export const EnhancedMarketingSystem: React.FC<EnhancedMarketingSystemProps> = (
 
     // Create a proper marketingCampaign object that progresses weekly
     // Do NOT apply buzz instantly — let the weekly loop handle it
+    const nextActivityId = nextNumericId(
+      'activity',
+      (project.marketingCampaign?.activities || []).map((a) => a.id)
+    );
+
     const campaignActivities = selectedCampaigns.map(id => {
       const campaign = availableCampaigns.find(c => c.id === id);
       return {
-        id: `activity-${id}-${Date.now()}`,
+        id: `activity-${id}-${nextActivityId}`,
         type: 'social-campaign' as const,
         name: campaign?.name || id,
         cost: totalCost / selectedCampaigns.length,
@@ -264,7 +270,10 @@ export const EnhancedMarketingSystem: React.FC<EnhancedMarketingSystemProps> = (
       status: nextStatus,
       phaseDuration: -1, // Manual control — campaign duration drives this
       marketingCampaign: {
-        id: `campaign-${Date.now()}`,
+        id: nextNumericId(
+          'campaign',
+          gameState.projects.flatMap((p) => (p.marketingCampaign?.id ? [p.marketingCampaign.id] : []))
+        ),
         strategy: { type: 'digital', channels: [], targeting: { demographic: [], psychographic: [], geographic: [], platforms: [] } } as any,
         budgetAllocated: totalCost,
         budgetSpent: 0,

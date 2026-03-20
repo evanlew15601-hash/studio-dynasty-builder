@@ -10,6 +10,8 @@ import { Textarea } from '@/components/ui/textarea';
 import { useToast } from '@/hooks/use-toast';
 import { Crown, Users, Plus, Film } from 'lucide-react';
 import { FinancialEngine } from './FinancialEngine';
+import { nextNumericId } from '@/utils/idAllocator';
+import { triggerDateFromWeekYear } from '@/utils/gameTime';
 
 interface EnhancedFranchiseSystemProps {}
 
@@ -127,10 +129,10 @@ export const EnhancedFranchiseSystem: React.FC<EnhancedFranchiseSystemProps> = (
     }
 
     const franchise: Franchise = {
-      id: `franchise-${Date.now()}`,
+      id: nextNumericId('franchise', gameState.franchises.map((f) => f.id)),
       title: expectedTitle,
       description: `Franchise based on the successful film "${project.title}"`,
-      originDate: new Date().toISOString().split('T')[0],
+      originDate: triggerDateFromWeekYear(gameState.currentYear, gameState.currentWeek).toISOString().split('T')[0],
       creatorStudioId: gameState.studio.id,
       genre: project.script.genre ? [project.script.genre] : [],
       tone: (project.script as any).tone || 'light',
@@ -180,10 +182,10 @@ export const EnhancedFranchiseSystem: React.FC<EnhancedFranchiseSystemProps> = (
     }
 
     const franchise: Franchise = {
-      id: `franchise-${Date.now()}`,
+      id: nextNumericId('franchise', gameState.franchises.map((f) => f.id)),
       title: newFranchise.title,
       description: newFranchise.description,
-      originDate: new Date().toISOString().split('T')[0],
+      originDate: triggerDateFromWeekYear(gameState.currentYear, gameState.currentWeek).toISOString().split('T')[0],
       creatorStudioId: gameState.studio.id,
       genre: newFranchise.genre as any,
       tone: newFranchise.tone,

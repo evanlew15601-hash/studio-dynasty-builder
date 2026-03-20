@@ -26,6 +26,8 @@ import { TalentFilmographyManager } from '@/utils/talentFilmographyManager';
 import { primeCompetitorTelevision } from '@/utils/televisionPatches';
 import { attachBasicCastForAI } from '@/utils/attachBasicCastForAI';
 import { stableInt } from '@/utils/stableRandom';
+import { nextNumericId } from '@/utils/idAllocator';
+import { triggerDateFromWeekYear } from '@/utils/gameTime';
 import { createRng, generateGameSeed, seedFromString } from '@/game/core/rng';
 import { advanceWeek as engineAdvanceWeek } from '@/game/core/tick';
 import { useUiStore } from '@/game/uiStore';
@@ -817,8 +819,19 @@ export const StudioMagnateGame: React.FC<StudioMagnateGameProps> = ({
 
   // Central helper: build a base project from a script, then apply any overrides
   const createProjectFromScript = (script: Script, overrides?: Partial<Project>): Project => {
+    const existingIds = [
+      ...(gameState.projects || []).map((p) => p.id),
+      ...((gameState.allReleases as any[]) || [])
+        .map((r) => (r && typeof r === 'object' && typeof (r as any).id === 'string' ? (r as any).id : ''))
+        .filter(Boolean),
+    ];
+
+    const projectId = nextNumericId('project', existingIds);
+    const timelineStart = triggerDateFromWeekYear(gameState.currentYear, gameState.currentWeek);
+    const addDays = (d: Date, days: number) => new Date(d.getTime() + days * 24 * 60 * 60 * 1000);
+
     const baseProject: Project = {
-      id: `project-${Date.now()}`,
+      id: projectId,
       title: script.title,
       script,
       type: 'feature',
@@ -864,18 +877,18 @@ export const StudioMagnateGame: React.FC<StudioMagnateGameProps> = ({
       crew: [],
       timeline: {
         preProduction: {
-          start: new Date(),
-          end: new Date(Date.now() + 90 * 24 * 60 * 60 * 1000)
+          start: timelineStart,
+          end: addDays(timelineStart, 90)
         },
         principalPhotography: {
-          start: new Date(Date.now() + 90 * 24 * 60 * 60 * 1000),
-          end: new Date(Date.now() + 150 * 24 * 60 * 60 * 1000)
+          start: addDays(timelineStart, 90),
+          end: addDays(timelineStart, 150)
         },
         postProduction: {
-          start: new Date(Date.now() + 150 * 24 * 60 * 60 * 1000),
-          end: new Date(Date.now() + 240 * 24 * 60 * 60 * 1000)
+          start: addDays(timelineStart, 150),
+          end: addDays(timelineStart, 240)
         },
-        release: new Date(Date.now() + 365 * 24 * 60 * 60 * 1000),
+        release: addDays(timelineStart, 365),
         milestones: []
       },
       locations: [],
@@ -1043,7 +1056,10 @@ export const StudioMagnateGame: React.FC<StudioMagnateGameProps> = ({
       ...project,
       currentPhase: 'marketing' as any,
       marketingCampaign: {
-        id: `campaign-${Date.now()}`,
+        id: nextNumericId(
+          'campaign',
+          gameState.projects.flatMap((p) => (p.marketingCampaign?.id ? [p.marketingCampaign.id] : []))
+        ),
         strategy,
         budgetAllocated: budget,
         budgetSpent: 0,
@@ -2823,7 +2839,7 @@ export const StudioMagnateGame: React.FC<StudioMagnateGameProps> = ({
                 // Create a basic script for a franchise film project and send it to Script Development
                 const franchise = gameState.franchises.find(f => f.id === franchiseId);
                 const script: Script = {
-                  id: `script-${Date.now()}`,
+                  id: nextNumericId('script', gameState.scripts.map((s) => s.id)),
                   title: franchise ? `${franchise.title} Entry` : 'New Franchise Film',
                   logline: '',
                   writer: 'Studio Writer',
@@ -2910,7 +2926,7 @@ export const StudioMagnateGame: React.FC<StudioMagnateGameProps> = ({
                 const publicDomain = publicDomainId ? gameState.publicDomainIPs.find(ip => ip.id === publicDomainId) : null;
                 
                 const script: Script = {
-                  id: `script-${Date.now()}`,
+                  id: nextNumericId('script', gameState.scripts.map((s) => s.id)),
                   title: franchise ? `${franchise.title} Entry` : 
                          publicDomain ? `${publicDomain.name} Adaptation` : 
                          'New Project',

@@ -8,6 +8,7 @@ import { MarketingCampaignModal } from './MarketingCampaignModal';
 import { ReleaseStrategyModal } from './ReleaseStrategyModal';
 import { MarketingActivities } from './MarketingActivities';
 import { useGameStore } from '@/game/store';
+import { nextNumericId } from '@/utils/idAllocator';
 import { 
   MarketingIcon, 
   TrendingIcon,
@@ -385,7 +386,10 @@ export const MarketingReleaseManagement: React.FC<MarketingReleaseManagementProp
               status: (hasScheduledRelease ? 'scheduled-for-release' : 'marketing') as any,
               phaseDuration: -1,
               marketingCampaign: {
-                id: `campaign-${Date.now()}`,
+                id: nextNumericId(
+                  'campaign',
+                  gameState.projects.flatMap((p) => (p.marketingCampaign?.id ? [p.marketingCampaign.id] : []))
+                ),
                 strategy,
                 budgetAllocated: budget,
                 budgetSpent: 0,

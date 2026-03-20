@@ -7,6 +7,7 @@ import { Alert, AlertDescription } from '@/components/ui/alert';
 import { useToast } from '@/hooks/use-toast';
 import { GameState } from '@/types/game';
 import { DollarSign, AlertTriangle, TrendingDown, Calculator, CreditCard } from 'lucide-react';
+import { nextNumericId } from '@/utils/idAllocator';
 
 interface Loan {
   id: string;
@@ -206,7 +207,7 @@ export const LoanSystem: React.FC<LoanSystemProps> = ({
     const weeklyPayment = calculateWeeklyPayment(amount, offer.interestRate, offer.termWeeks);
     
     const newLoan: Loan = {
-      id: `loan-${Date.now()}`,
+      id: nextNumericId('loan', activeLoans.map((l) => l.id)),
       amount,
       interestRate: offer.interestRate,
       termWeeks: offer.termWeeks,
