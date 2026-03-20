@@ -26,6 +26,17 @@ function computeCastBusyUntil(project: Project, currentAbsWeek: number): Map<str
   return out;
 }
 
+function inferBaseContractStatus(state: GameState, talentId: string): TalentPerson['contractStatusBase'] {
+  // Best-effort for old saves that used contractStatus='busy' without preserving the prior status.
+  // If they appear in any project contractedTalent list, treat them as contracted.
+  for (const p of state.projects || []) {
+    const contracted = (p?.contractedTalent || []).some((c) => c?.talentId === talentId);
+    if (contracted) return 'contracted';
+  }
+
+  return 'available';
+}
+
 export const TalentAvailabilitySystem: TickSystem = {
   id: 'talentAvailability',
   label: 'Talent availability',
@@ -60,7 +71,7 @@ export const TalentAvailabilitySystem: TickSystem = {
       let busyUntil = t0.busyUntilWeek;
 
       if (status === 'busy' && typeof busyUntil === 'number' && busyUntil <= currentAbs) {
-        status = base ?? 'available';
+        status = base ?? inferBaseContractStatus(state, t0.id) ?? 'available';
         base = undefined;
         busyUntil = undefined;
       }

@@ -102,6 +102,39 @@ describe('TalentAvailabilitySystem', () => {
     expect(next.talent[0].busyUntilWeek).toBeUndefined();
   });
 
+  it('infers contracted base status from project contractedTalent for old saves', () => {
+    const state = makeBaseState({
+      currentWeek: 10,
+      currentYear: 2024,
+      projects: [
+        {
+          id: 'p1',
+          title: 'Film',
+          type: 'feature',
+          status: 'production',
+          currentPhase: 'production',
+          cast: [],
+          crew: [],
+          contractedTalent: [{ talentId: 't1' }],
+        } as any,
+      ],
+      talent: [
+        makeTalent({
+          id: 't1',
+          name: 'Actor',
+          contractStatus: 'busy',
+          busyUntilWeek: 2024 * 52 + 10,
+        }),
+      ],
+    });
+
+    const next = TalentAvailabilitySystem.onTick(state, { week: 10, year: 2024, recap: [] } as any);
+
+    expect(next.talent[0].contractStatus).toBe('contracted');
+    expect(next.talent[0].contractStatusBase).toBeUndefined();
+    expect(next.talent[0].busyUntilWeek).toBeUndefined();
+  });
+
   it('marks cast talent busy while a project is in production (preserving contract status)', () => {
     const state = makeBaseState({
       currentWeek: 5,

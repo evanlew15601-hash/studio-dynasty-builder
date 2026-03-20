@@ -912,7 +912,9 @@ export const useGameStore: import('zustand').UseBoundStore<import('zustand').Sto
                     const already = (project.postTheatricalReleases ?? []).some((r) => r && r.id === releaseId);
 
                     if (!already) {
-                      const releaseDate = new Date(s.game.currentYear, 0, 1 + Math.max(0, s.game.currentWeek - 1) * 7);
+                      const releaseDate = new Date(
+                        Date.UTC(s.game.currentYear, 0, 1 + Math.max(0, s.game.currentWeek - 1) * 7)
+                      );
 
                       const windowWeeks = 26;
 
@@ -1071,7 +1073,9 @@ export const useGameStore: import('zustand').UseBoundStore<import('zustand').Sto
                     const already = (project.postTheatricalReleases ?? []).some((r) => r && r.id === releaseId);
 
                     if (!already) {
-                      const releaseDate = new Date(s.game.currentYear, 0, 1 + Math.max(0, s.game.currentWeek - 1) * 7);
+                      const releaseDate = new Date(
+                        Date.UTC(s.game.currentYear, 0, 1 + Math.max(0, s.game.currentWeek - 1) * 7)
+                      );
 
                       project.postTheatricalReleases = [
                         ...(project.postTheatricalReleases ?? []),
