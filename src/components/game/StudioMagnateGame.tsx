@@ -63,7 +63,7 @@ import { StudioGenerator } from '../../data/StudioGenerator';
 
 import { useGenreSaturation } from '../../hooks/useGenreSaturation';
 import { useAchievements } from '../../hooks/useAchievements';
-import { DeepReputationSystem } from './DeepReputationSystem';
+
 import { Button } from '@/components/ui/button';
 import { Card, CardContent } from '@/components/ui/card';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
@@ -106,8 +106,7 @@ import { RoleDatabase } from '../../data/RoleDatabase';
 import { importRolesForScript } from '@/utils/roleImport';
 import { finalizeScriptForSave } from '@/utils/scriptFinalization';
 import { MediaEngine } from './MediaEngine';
-import { MediaFinancialIntegration } from './MediaFinancialIntegration';
-import { MediaReputationIntegration } from './MediaReputationIntegration';
+
 import { MediaResponseSystem } from './MediaResponseSystem';
 import { CrisisManagement } from './CrisisManagement';
 import { MediaRelationships } from './MediaRelationships';
@@ -230,7 +229,7 @@ export const StudioMagnateGame: React.FC<StudioMagnateGameProps> = ({
   const ONLINE_LEAGUE_START_YEAR = 2026;
   const { startOperation, updateOperation, completeOperation } = useLoadingActions();
   const weeklyProcessingRef = useRef(false);
-  const aiSlateGeneratorRef = useRef<{ year: number; nextWeek: number } | null>(null);
+  
   
   const getPhaseWeeks = (phase: string): number => {
     switch (phase) {
@@ -1168,27 +1167,6 @@ export const StudioMagnateGame: React.FC<StudioMagnateGameProps> = ({
         project.releaseYear === timeState.currentYear;
 
       if (engineReleasedThisWeek) {
-        const openingWeekRevenue =
-          project.metrics?.lastWeeklyRevenue || project.metrics?.boxOfficeTotal || 0;
-
-        MediaEngine.queueMediaEvent({
-          type: 'release',
-          triggerType: 'automatic',
-          priority: 'high',
-          entities: {
-            studios: [baseState.studio.id],
-            projects: [project.id],
-            talent: (project.cast || []).map(c => c.talentId)
-          },
-          eventData: { project },
-          week: timeState.currentWeek,
-          year: timeState.currentYear
-        });
-
-        if (openingWeekRevenue > 0 && project.type !== 'series' && project.type !== 'limited-series') {
-          MediaEngine.triggerBoxOfficeReport(project, openingWeekRevenue, baseState);
-        }
-
         releasedProjects.push(project);
       }
 
@@ -1527,28 +1505,7 @@ export const StudioMagnateGame: React.FC<StudioMagnateGameProps> = ({
         console.log(`NEW TIME STATE: Y${newTimeState.currentYear}W${newTimeState.currentWeek}`);
       }
       
-      // Process AI studio timelines and potential new film starts
-      if (!isOnlineMode) {
-        measure('ai', 'AI studios', () => {
-          AIStudioManager.processWeeklyAIFilms(newTimeState.currentWeek, newTimeState.currentYear, engineRng);
-
-          if (baseAfterEngine.competitorStudios.length > 0) {
-            const shouldStartAIFilm = (newTimeState.currentWeek % 4 === 1) || engineRng.chance(0.35);
-            if (shouldStartAIFilm) {
-              const randomStudio = engineRng.pick(baseAfterEngine.competitorStudios);
-              if (randomStudio) {
-                AIStudioManager.createAIFilm(
-                  randomStudio,
-                  newTimeState.currentWeek,
-                  newTimeState.currentYear,
-                  baseAfterEngine.talent.filter(t => t.contractStatus === 'available'),
-                  engineRng
-                );
-              }
-            }
-          }
-        });
-      }
+      // AI studio film simulation is now handled by the deterministic engine tick.
       
       let updatedProjects = baseAfterEngine.projects;
 
@@ -1598,201 +1555,21 @@ export const StudioMagnateGame: React.FC<StudioMagnateGameProps> = ({
         });
       }
 
-      const newAIReleases: Project[] = [];
+      
 
       if (loadingEnabled) {
         updateOperation(LOADING_OPERATIONS.WEEKLY_PROCESSING.id, 90, 'Finalizing updates...');
       }
 
-      if (!isOnlineMode) {
-        // If the simulation has advanced into a year without a pre-generated competitor slate,
-        // generate competitor releases incrementally (generating all 52 weeks in one tick can freeze the tab).
-        const hasAiSlateForYear = prev.allReleases.some(
-          (r): r is Project => 'script' in r && r.releaseYear === newTimeState.currentYear
-        );
+      // Competitor theatrical releases are now generated inside the deterministic engine tick.
 
-      const slateYear = newTimeState.currentYear;
-
-      // If we have a partial slate (e.g., older saves), attempt to resume generation.
-      const maxAiWeekForYear = prev.allReleases
-        .filter((r): r is Project =>
-          'script' in r &&
-          (r as any).releaseYear === slateYear &&
-          !!(r as any).releaseWeek &&
-          !!(r as any).studioName &&
-          (r as any).studioName !== prev.studio.name
-        )
-        .reduce((max, r) => Math.max(max, r.releaseWeek || 0), 0);
-
-      if (
-        prev.competitorStudios.length > 0 &&
-        aiSlateGeneratorRef.current?.year !== slateYear &&
-        (!hasAiSlateForYear || (maxAiWeekForYear > 0 && maxAiWeekForYear < 52))
-      ) {
-        aiSlateGeneratorRef.current = { year: slateYear, nextWeek: Math.max(1, maxAiWeekForYear + 1) };
-      }
-
-      const activeAiSlate = aiSlateGeneratorRef.current;
-
-      if (activeAiSlate && activeAiSlate.year === slateYear && prev.competitorStudios.length > 0) {
-        const sg = new StudioGenerator();
-        const universeSeed = prev.universeSeed ?? 0;
-
-        while (activeAiSlate.nextWeek <= Math.min(52, newTimeState.currentWeek)) {
-          const w = activeAiSlate.nextWeek;
-          activeAiSlate.nextWeek += 1;
-
-          let releasesThisWeek = 0;
-
-          for (const st of prev.competitorStudios) {
-            const profile = sg.getStudioProfile(st.name);
-            const rel = profile ? sg.generateDeterministicStudioRelease(profile, w, slateYear, universeSeed) : null;
-            if (rel) {
-              newAIReleases.push(attachBasicCastForAI(rel, baseAfterEngine.talent));
-              releasesThisWeek += 1;
-            }
-          }
-
-          if (releasesThisWeek === 0 && prev.competitorStudios[0]) {
-            const fallback = sg.getStudioProfile(prev.competitorStudios[0].name);
-            if (fallback) {
-              const rel = sg.generateDeterministicStudioRelease(fallback, w, slateYear, universeSeed);
-              const ensured = rel || sg.generateDeterministicIndieRelease(fallback, w, slateYear, universeSeed);
-              newAIReleases.push(attachBasicCastForAI(ensured, baseAfterEngine.talent));
-            }
-          }
-        }
-
-        // Queue a single media story for one competitor release happening this week.
-        const thisWeekRelease = newAIReleases.find(r => r.releaseWeek === newTimeState.currentWeek);
-        if (thisWeekRelease) {
-          const studio = prev.competitorStudios.find(s => s.name === thisWeekRelease.studioName) || prev.competitorStudios[0];
-
-          MediaEngine.queueMediaEvent({
-            type: 'release',
-            triggerType: 'competitor_action',
-            priority: 'low',
-            entities: {
-              studios: studio ? [studio.id] : undefined,
-              projects: [thisWeekRelease.id],
-              talent: (thisWeekRelease.cast || []).slice(0, 2).map(c => c.talentId)
-            },
-            eventData: { project: thisWeekRelease },
-            week: newTimeState.currentWeek,
-            year: slateYear
-          });
-        }
-
-        if (diagnosticsEnabled && newAIReleases.length > 0) {
-          console.log(`AI SLATE: Generated competitor releases for ${slateYear} (+${newAIReleases.length} this tick) (week ${newTimeState.currentWeek})`);
-        }
-
-        if (activeAiSlate.nextWeek > 52) {
-          aiSlateGeneratorRef.current = null;
-        }
-      }
-      }
-      
       const competitorStudiosForWeek = isOnlineMode ? leagueCompetitorStudios : baseAfterEngine.competitorStudios;
 
-      // Update industry context and calculate deep reputation
-      const deepRepResult = measure('reputation', 'Reputation', () => {
-        DeepReputationSystem.updateIndustryContext([...competitorStudiosForWeek, baseAfterEngine.studio], newTimeState);
-        return DeepReputationSystem.calculateDeepReputation(
-          baseAfterEngine.studio,
-          updatedProjects,
-          baseAfterEngine.talent,
-          newTimeState,
-          competitorStudiosForWeek
-        );
-      });
+      // Studio reputation and talent availability are now handled by the deterministic engine tick.
+      const enhancedStudio = baseAfterEngine.studio;
+      const updatedTalent = baseAfterEngine.talent || [];
 
-      if (diagnosticsEnabled) {
-        console.log(`Weekly reputation update: ${prev.studio.reputation} -> ${baseAfterEngine.studio.reputation}`);
-        console.log(`Deep reputation: Overall ${deepRepResult.reputation.toFixed(1)}`);
-      }
-
-      // Apply deep reputation to studio
-      const enhancedStudio = {
-        ...baseAfterEngine.studio,
-        reputation: deepRepResult.reputation,
-      };
       
-      // Talent availability is now maintained by the deterministic engine tick.
-      // Here we only overlay AI studio commitments (which are still managed outside the engine).
-      let updatedTalent = baseAfterEngine.talent || [];
-
-      if (!isOnlineMode) {
-        updatedTalent = updatedTalent.map(t => {
-          const commitment = AIStudioManager.getTalentCommitment(t.id, newTimeState.currentWeek, newTimeState.currentYear);
-          if (!commitment) return t;
-
-          const endAbsWeek = commitment.endAbsWeek;
-          const existingBusyUntil = typeof t.busyUntilWeek === 'number' ? t.busyUntilWeek : 0;
-
-          const base = t.contractStatusBase || (t.contractStatus !== 'busy' && t.contractStatus !== 'retired' ? t.contractStatus : undefined);
-
-          return {
-            ...t,
-            contractStatus: 'busy',
-            contractStatusBase: base,
-            busyUntilWeek: Math.max(existingBusyUntil, endAbsWeek)
-          };
-        });
-      }
-
-      // Apply filmography/fame updates for newly released projects (no nested setState)
-      const releasedForFilmography = [
-        ...weeklyProjectEffects.releasedProjects,
-        ...newAIReleases.filter(r => r.status === 'released')
-      ];
-
-      if (releasedForFilmography.length > 0) {
-        const beforeById = new Map(
-          updatedTalent.map(t => [t.id, { filmographyCount: (t.filmography || []).length, fame: t.fame ?? 0 }] as const)
-        );
-
-        let filmographyState: GameState = { ...baseAfterEngine, talent: updatedTalent };
-        for (const released of releasedForFilmography) {
-          filmographyState = TalentFilmographyManager.updateFilmographyOnRelease(filmographyState, released);
-        }
-        updatedTalent = filmographyState.talent as typeof updatedTalent;
-
-        const changes = updatedTalent
-          .map(t => {
-            const before = beforeById.get(t.id);
-            if (!before) return null;
-            const afterCount = (t.filmography || []).length;
-            const deltaCredits = afterCount - before.filmographyCount;
-            if (deltaCredits <= 0) return null;
-            const fameAfter = t.fame ?? 0;
-            const fameDelta = fameAfter - before.fame;
-            return { name: t.name, deltaCredits, fameDelta };
-          })
-          .filter(Boolean) as Array<{ name: string; deltaCredits: number; fameDelta: number }>;
-
-        if (recapEnabled && changes.length > 0) {
-          const totalFameDelta = changes.reduce((sum, c) => sum + c.fameDelta, 0);
-          const visible = changes.slice(0, 8);
-          const remaining = changes.length - visible.length;
-
-          recap.push({
-            type: 'talent',
-            title: `Filmographies updated (${changes.length} talent)`,
-            body:
-              visible
-                .map(c => {
-                  const fame = Number.isFinite(c.fameDelta) && Math.abs(c.fameDelta) > 0.01
-                    ? `, Fame ${c.fameDelta > 0 ? '+' : ''}${c.fameDelta.toFixed(1)}`
-                    : '';
-                  const credits = c.deltaCredits === 1 ? '1 new credit' : `${c.deltaCredits} new credits`;
-                  return `• ${c.name}: ${credits}${fame}`;
-                })
-                .join('\n') + (remaining > 0 ? `\n…and ${remaining} more` : ''),
-            severity: totalFameDelta > 0.1 ? 'good' : totalFameDelta < -0.1 ? 'bad' : 'info',
-          });
-        }
-      }
 
       // Memory management: prune old releases to prevent unbounded growth
       // Keep only releases from the last 3 in-game years (156 weeks) 
@@ -1803,7 +1580,7 @@ export const StudioMagnateGame: React.FC<StudioMagnateGameProps> = ({
         (p) => p.status === 'released' && !!p.releaseWeek && !!p.releaseYear
       );
 
-      const releasePool = [...baseAfterEngine.allReleases, ...newAIReleases, ...playerReleases];
+      const releasePool = [...baseAfterEngine.allReleases, ...playerReleases];
 
       const dedupedReleases = dedupeReleasePoolPreferLatest(releasePool as any);
 
@@ -1856,61 +1633,7 @@ export const StudioMagnateGame: React.FC<StudioMagnateGameProps> = ({
         topFilmsHistory: prunedTopFilmsHistory,
       };
 
-      // Advance ongoing PR campaigns (Response Center) each week so timers and effects progress
-      try {
-        MediaResponseSystem.processWeeklyCampaigns(newState);
-      } catch (e) {
-        console.warn('Media response campaign processing error', e);
-      }
-
-      // Process media events and run system integration checks
-      try {
-        const triggeredEvents = MediaEngine.triggerAutomaticEvents(newState, prev);
-        const newMediaItems = MediaEngine.processMediaEvents(newState);
-        if ((newMediaItems.length > 0 || triggeredEvents.length > 0) && diagnosticsEnabled) {
-          console.log(`MEDIA: Generated ${newMediaItems.length} articles, triggered ${triggeredEvents.length} events`);
-        }
-
-        // Apply financial side-effects from media coverage (lightweight integration)
-        try {
-          MediaFinancialIntegration.applyFinancialEffects(newState);
-        } catch (e) {
-          console.warn('Media financial integration error', e);
-        }
-      } catch (e) {
-        console.warn('Media engine processing error', e);
-      }
-
-      // Apply media-driven reputation changes on top of deep reputation (in-place on newState)
-      const repBeforeMedia = newState.studio.reputation;
-      try {
-        MediaReputationIntegration.processWeeklyReputationUpdates(newState);
-      } catch (e) {
-        console.warn('Media reputation integration error', e);
-      }
-      const repAfterMedia = newState.studio.reputation;
-
-      if (recapEnabled) {
-        const repDelta = repAfterMedia - prev.studio.reputation;
-        if (Math.abs(repDelta) >= 0.05) {
-          recap.push({
-            type: 'market',
-            title: 'Studio reputation updated',
-            body: `Reputation ${prev.studio.reputation.toFixed(1)} → ${repAfterMedia.toFixed(1)} (${repDelta > 0 ? '+' : ''}${repDelta.toFixed(1)})`,
-            severity: repDelta > 0.05 ? 'good' : repDelta < -0.05 ? 'bad' : 'info',
-          });
-        }
-
-        const mediaDelta = repAfterMedia - repBeforeMedia;
-        if (Math.abs(mediaDelta) >= 0.05) {
-          recap.push({
-            type: 'media',
-            title: 'Media impact on reputation',
-            body: `Media adjusted reputation ${mediaDelta > 0 ? '+' : ''}${mediaDelta.toFixed(1)} this week.`,
-            severity: mediaDelta > 0.05 ? 'good' : mediaDelta < -0.05 ? 'bad' : 'info',
-          });
-        }
-      }
+      
 
       // Perform memory cleanup for static classes every 10 weeks
       if (newTimeState.currentWeek % 10 === 0) {
@@ -2364,7 +2087,7 @@ export const StudioMagnateGame: React.FC<StudioMagnateGameProps> = ({
 
     // Online leagues should only contain player-controlled studios.
     AIStudioManager.resetAISystem();
-    aiSlateGeneratorRef.current = null;
+    
 
     const currentNames = (gameState.competitorStudios || []).map((s) => s.name).sort().join('|');
     const nextNames = leagueCompetitorStudios.map((s) => s.name).sort().join('|');

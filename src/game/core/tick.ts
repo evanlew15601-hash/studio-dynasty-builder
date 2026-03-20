@@ -53,6 +53,7 @@ export function advanceWeek(
     quarter: newTime.currentQuarter,
     recap: [],
     debug,
+    prevState: state,
   };
 
   const systemReports: TickSystemReport[] = [

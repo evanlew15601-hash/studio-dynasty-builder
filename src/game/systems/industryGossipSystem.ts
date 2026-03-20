@@ -253,7 +253,7 @@ function buildScandalEvent(params: {
 export const IndustryGossipSystem: TickSystem = {
   id: 'industryGossip',
   label: 'Industry gossip',
-  dependsOn: ['talentCareerArcs'],
+  dependsOn: ['mediaHydration'],
   onTick: (state, ctx) => {
     if (state.mode === 'online') return state;
 

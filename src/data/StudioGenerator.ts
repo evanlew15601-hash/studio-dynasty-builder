@@ -516,6 +516,25 @@ export class StudioGenerator {
     return this.generateDeterministicStudioFilmRelease(studioProfile, currentWeek, currentYear, rng);
   }
 
+  /**
+   * Deterministic competitor release generator (film-only).
+   *
+   * This exists so the engine can generate AI theatrical releases without also
+   * generating TV slates (handled separately by AiTelevisionSystem).
+   */
+  generateDeterministicStudioFilmReleaseOnly(
+    studioProfile: StudioProfile,
+    currentWeek: number,
+    currentYear: number,
+    universeSeed: number
+  ): Project | null {
+    const releaseWeeks = this.getDeterministicReleaseWeeks(studioProfile, currentYear, universeSeed);
+    if (!releaseWeeks.has(currentWeek)) return null;
+
+    const rng = this.seededRng(`aiStudio|release-film|${universeSeed}|${studioProfile.name}|${currentYear}|${currentWeek}`);
+    return this.generateDeterministicStudioFilmRelease(studioProfile, currentWeek, currentYear, rng);
+  }
+
   generateDeterministicIndieRelease(studioProfile: StudioProfile, currentWeek: number, currentYear: number, universeSeed: number): Project {
     const rng = this.seededRng(`aiStudio|indie|${universeSeed}|${studioProfile.name}|${currentYear}|${currentWeek}`);
     return this.generateDeterministicStudioFilmRelease(

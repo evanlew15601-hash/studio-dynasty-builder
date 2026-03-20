@@ -237,6 +237,46 @@ class MediaEngine {
         });
         triggeredEvents.push(eventId);
       }
+
+      // Check for releases (player projects) so the news feed reacts immediately.
+      const newlyReleased = gameState.projects.filter(project => {
+        if (project.status !== 'released') return false;
+        const prev = previousState.projects.find(p => p.id === project.id);
+        if (prev?.status === 'released') return false;
+
+        const releaseWeek = (project as any).releaseWeek ?? (project as any).scheduledReleaseWeek;
+        const releaseYear = (project as any).releaseYear ?? (project as any).scheduledReleaseYear;
+
+        return releaseWeek === gameState.currentWeek && releaseYear === gameState.currentYear;
+      });
+
+      for (const project of newlyReleased) {
+        const releaseEventId = this.queueMediaEvent({
+          type: 'release',
+          triggerType: 'automatic',
+          priority: 'high',
+          entities: {
+            studios: [gameState.studio.id],
+            projects: [project.id],
+            talent: project.cast?.map(c => c.talentId) || []
+          },
+          eventData: { project },
+          week: gameState.currentWeek,
+          year: gameState.currentYear
+        });
+        triggeredEvents.push(releaseEventId);
+
+        const isTv = project.type === 'series' || project.type === 'limited-series';
+        const isStreaming = project.releaseStrategy?.type === 'streaming';
+
+        if (!isTv && !isStreaming) {
+          const earnings = (project.metrics as any)?.lastWeeklyRevenue ?? 0;
+          if (earnings > 0) {
+            const boxOfficeEventId = this.triggerBoxOfficeReport(project, earnings, gameState);
+            triggeredEvents.push(boxOfficeEventId);
+          }
+        }
+      }
     }
 
     const absWeek = (gameState.currentYear * 52) + gameState.currentWeek;
@@ -268,7 +308,7 @@ class MediaEngine {
     }
 
     // Competitor / industry release coverage (gives the feed non-player stories)
-    if (stableFloat01(`${seedRoot}|release-coverage-chance`) < 0.35 && (gameState.allReleases?.length || 0) > 0) {
+    if ((gameState.allReleases?.length || 0) > 0) {
       const releasesThisWeek = (gameState.allReleases || [])
         .filter((r): r is Project => (r as any)?.script)
         .filter(p => (p.releaseWeek === gameState.currentWeek && p.releaseYear === gameState.currentYear));

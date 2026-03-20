@@ -53,6 +53,11 @@ import { BoxOfficeSystem } from './systems/boxOfficeSystem';
 import { PostTheatricalRevenueSystem } from './systems/postTheatricalRevenueSystem';
 import { StudioEconomySystem } from './systems/studioEconomySystem';
 import { StudioRevenueSystem } from './systems/studioRevenueSystem';
+import { LoanPaymentSystem } from './systems/loanPaymentSystem';
+import { AiStudioFilmSystem } from './systems/aiStudioFilmSystem';
+import { CompetitorFilmReleaseSystem } from './systems/competitorFilmReleaseSystem';
+import { MediaHydrationSystem } from './systems/mediaHydrationSystem';
+import { MediaWeeklySystem } from './systems/mediaWeeklySystem';
 import { PlayerCircleDramaSystem } from './systems/playerCircleDramaSystem';
 import { StudioGovernanceSystem } from './systems/studioGovernanceSystem';
 import { AwardsSeasonSystem } from './systems/awardsSeasonSystem';
@@ -69,6 +74,7 @@ import { PlatformMnaOffersSystem } from './systems/platformMnaOffersSystem';
 import { PlatformTalentDealsSystem } from './systems/platformTalentDealsSystem';
 import { PlatformBiddingWarSystem } from './systems/platformBiddingWarSystem';
 import { MediaEngine } from '@/components/game/MediaEngine';
+import { MediaResponseSystem } from '@/components/game/MediaResponseSystem';
 import { getPlayerCircleDramaMediaTemplate } from './systems/playerCircleDramaModding';
 
 // ---------------------------------------------------------------------------
@@ -193,6 +199,7 @@ export const useGameStore: import('zustand').UseBoundStore<import('zustand').Sto
     rng: null,
     registry: (() => {
       const r = new SystemRegistry();
+      r.register(MediaHydrationSystem);
       r.register(TalentLifecycleSystem);
       r.register(TalentBurnoutSystem);
       r.register(TalentRetirementSystem);
@@ -207,15 +214,18 @@ export const useGameStore: import('zustand').UseBoundStore<import('zustand').Sto
       r.register(WorldArchiveSystem);
       r.register(TalentDebutSystem);
       r.register(AiTelevisionSystem);
+      r.register(AiStudioFilmSystem);
       r.register(ProjectLifecycleSystem);
       r.register(TalentAvailabilitySystem);
       r.register(MarketingCampaignSystem);
       r.register(ScheduledReleaseSystem);
+      r.register(CompetitorFilmReleaseSystem);
       r.register(TelevisionPerformanceSystem);
       r.register(StreamingPerformanceSystem);
       r.register(BoxOfficeSystem);
       r.register(PostTheatricalRevenueSystem);
       r.register(StudioRevenueSystem);
+      r.register(LoanPaymentSystem);
       r.register(StudioEconomySystem);
       r.register(TalentFilmographySystem);
       r.register(TalentCareerArcSystem);
@@ -236,6 +246,10 @@ export const useGameStore: import('zustand').UseBoundStore<import('zustand').Sto
       r.register(PlatformBiddingWarSystem);
       r.register(PlatformMnaOffersSystem);
       r.register(PlatformOpportunitiesSystem);
+
+      // Media processing needs to run at the end so all systems that queue/inject media
+      // (industry gossip, player circle, competitor releases) are captured in snapshots.
+      r.register(MediaWeeklySystem);
 
       return r;
     })(),
@@ -591,6 +605,10 @@ export const useGameStore: import('zustand').UseBoundStore<import('zustand').Sto
 
       set((s) => {
         if (!s.game) return;
+
+        // Keep media side-effects deterministic + persisted.
+        MediaEngine.hydrate(s.game.mediaState);
+        MediaResponseSystem.hydrate(s.game.mediaState);
 
         const idx = (s.game.eventQueue || []).findIndex((e) => e.id === eventId);
         if (idx < 0) return;
@@ -1425,6 +1443,11 @@ export const useGameStore: import('zustand').UseBoundStore<import('zustand').Sto
         }
 
         s.game.eventQueue.splice(idx, 1);
+
+        s.game.mediaState = {
+          engine: MediaEngine.snapshot(),
+          response: MediaResponseSystem.snapshot(),
+        };
       });
     },
   }))
