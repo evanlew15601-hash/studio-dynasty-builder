@@ -66,7 +66,16 @@ export function attachBasicCastForAI(project: Project, talentPool: TalentPerson[
       existingSupportingTalent[1] ??
       stablePick(actors.filter(a => !usedIds.has(a.id)), `${project.id}|supporting2`);
 
-    const mkTerms = () => ({ duration: new Date(0), exclusivity: false, merchandising: false, sequelOptions: 0 });
+    const mkTerms = () => {
+      const y = project.releaseYear;
+      const w = project.releaseWeek;
+      const duration =
+        typeof y === 'number' && typeof w === 'number'
+          ? new Date(Date.UTC(y, 0, 1 + Math.max(0, w - 1) * 7))
+          : new Date(0);
+
+      return { duration, exclusivity: false, merchandising: false, sequelOptions: 0 };
+    };
 
     // Build/patch script characters (used by filmography + fallbacks)
     let characters: ScriptCharacter[] = existingCharacters.map(c => {

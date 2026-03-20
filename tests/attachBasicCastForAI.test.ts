@@ -35,6 +35,8 @@ function makeBaseProject(): Project {
     currentPhase: 'release',
     phaseDuration: 0,
     studioName: 'AI Studio',
+    releaseWeek: 5,
+    releaseYear: 2027,
     script: {
       id: 's1',
       title: 'AI Film',
@@ -72,7 +74,7 @@ function makeBaseProject(): Project {
 }
 
 describe('attachBasicCastForAI', () => {
-  it('does not introduce nondeterministic contract terms dates', () => {
+  it('uses a stable game-week date for contract terms (no wall-clock Date)', () => {
     const talent: TalentPerson[] = [
       makeTalent({ id: 'd1', type: 'director', name: 'Director', gender: 'Female' }),
       makeTalent({ id: 'a1', type: 'actor', name: 'Lead', gender: 'Male' }),
@@ -88,9 +90,12 @@ describe('attachBasicCastForAI', () => {
       .filter(Boolean) as Date[];
 
     expect(terms.length).toBeGreaterThan(0);
+
+    const expected = Date.UTC(2027, 0, 1 + (5 - 1) * 7);
+
     for (const d of terms) {
       expect(d).toBeInstanceOf(Date);
-      expect(d.getTime()).toBe(0);
+      expect(d.getTime()).toBe(expected);
     }
   });
 });

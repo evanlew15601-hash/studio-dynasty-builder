@@ -133,9 +133,7 @@ export const PostTheatricalManagement: React.FC<PostTheatricalManagementProps> =
   };
 
   const dateForWeekYear = (year: number, week: number): Date => {
-    const base = new Date(year, 0, 1);
-    base.setDate(base.getDate() + (week - 1) * 7);
-    return base;
+    return new Date(Date.UTC(year, 0, 1 + Math.max(0, week - 1) * 7));
   };
 
   const weekYearForAbsWeek = (absWeek: number): { week: number; year: number } => {
