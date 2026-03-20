@@ -1,5 +1,6 @@
 import type { GameState, Project } from '@/types/game';
 import type { TickSystem } from '../core/types';
+import { triggerDateFromWeekYear } from '@/utils/gameTime';
 import { StreamingFilmSystem } from '@/components/game/StreamingFilmSystem';
 
 function isProjectLike(value: any): value is Project {
