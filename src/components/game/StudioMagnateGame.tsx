@@ -1157,7 +1157,7 @@ export const StudioMagnateGame: React.FC<StudioMagnateGameProps> = ({
         console.log(`    BEFORE: boxOfficeTotal = ${project.metrics?.boxOfficeTotal || 0}`);
       }
       
-      let updatedProject = { ...project };
+      const updatedProject = { ...project };
 
       // If the deterministic engine tick advanced a scheduled theatrical release, treat it as a release
       // for UI-side recap/media/filmography processing.
