@@ -66,7 +66,7 @@ export function attachBasicCastForAI(project: Project, talentPool: TalentPerson[
       existingSupportingTalent[1] ??
       stablePick(actors.filter(a => !usedIds.has(a.id)), `${project.id}|supporting2`);
 
-    const mkTerms = () => ({ duration: new Date(), exclusivity: false, merchandising: false, sequelOptions: 0 });
+    const mkTerms = () => ({ duration: new Date(0), exclusivity: false, merchandising: false, sequelOptions: 0 });
 
     // Build/patch script characters (used by filmography + fallbacks)
     let characters: ScriptCharacter[] = existingCharacters.map(c => {
