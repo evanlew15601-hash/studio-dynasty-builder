@@ -224,7 +224,11 @@ function patchKeyFor(bundle: ModBundle, modId: string, entityType: string): stri
     .join('|');
 }
 
-export const ModsPanel: React.FC = () => {
+export interface ModsPanelProps {
+  showDatabaseControls?: boolean;
+}
+
+export const ModsPanel: React.FC<ModsPanelProps> = ({ showDatabaseControls = true }) => {
   const { toast } = useToast();
   const importRef = useRef<HTMLInputElement | null>(null);
   const importPublicDomainCsvRef = useRef<HTMLInputElement | null>(null);
@@ -2356,11 +2360,13 @@ export const ModsPanel: React.FC = () => {
 
   return (
     <>
-      <DatabaseManagerDialog
-        open={dbManagerOpen}
-        onOpenChange={setDbManagerOpen}
-        onDatabaseChanged={(db) => handleDatabaseChange(db)}
-      />
+      {showDatabaseControls ? (
+        <DatabaseManagerDialog
+          open={dbManagerOpen}
+          onOpenChange={setDbManagerOpen}
+          onDatabaseChanged={(db) => handleDatabaseChange(db)}
+        />
+      ) : null}
 
       <AlertDialog open={clearConfirmOpen} onOpenChange={setClearConfirmOpen}>
         <AlertDialogContent>
@@ -2427,29 +2433,38 @@ export const ModsPanel: React.FC = () => {
         </div>
 
         <div className="grid grid-cols-1 lg:grid-cols-3 gap-3">
-          <div className="space-y-1">
-            <Label className="text-xs text-muted-foreground">Database</Label>
-            <Select value={activeSlot} onValueChange={handleDatabaseChange}>
-              <SelectTrigger>
-                <SelectValue placeholder="Select database" />
-              </SelectTrigger>
-              <SelectContent>
-                {listModSlots().map((slot) => (
-                  <SelectItem key={slot} value={slot}>
-                    {slot}
-                  </SelectItem>
-                ))}
-              </SelectContent>
-            </Select>
-            <div className="text-xs text-muted-foreground">
-              Databases isolate mod bundles and saves. Use Manage… to duplicate/rename/delete.
+          {showDatabaseControls ? (
+            <div className="space-y-1">
+              <Label className="text-xs text-muted-foreground">Database</Label>
+              <Select value={activeSlot} onValueChange={handleDatabaseChange}>
+                <SelectTrigger>
+                  <SelectValue placeholder="Select database" />
+                </SelectTrigger>
+                <SelectContent>
+                  {listModSlots().map((slot) => (
+                    <SelectItem key={slot} value={slot}>
+                      {slot}
+                    </SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
+              <div className="text-xs text-muted-foreground">
+                Databases isolate mod bundles and saves. Use Manage… to duplicate/rename/delete.
+              </div>
             </div>
-          </div>
+          ) : (
+            <div className="space-y-1">
+              <Label className="text-xs text-muted-foreground">Database</Label>
+              <Input value={activeSlot} readOnly />
+            </div>
+          )}
 
           <div className="flex flex-wrap items-end justify-end gap-2 lg:col-span-2">
-            <Button size="sm" variant="secondary" onClick={() => setDbManagerOpen(true)}>
-              Manage…
-            </Button>
+            {showDatabaseControls ? (
+              <Button size="sm" variant="secondary" onClick={() => setDbManagerOpen(true)}>
+                Manage…
+              </Button>
+            ) : null}
             <Button size="sm" variant="secondary" onClick={handleReload}>
               Reload
             </Button>
