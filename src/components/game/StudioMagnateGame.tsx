@@ -1196,10 +1196,7 @@ export const StudioMagnateGame: React.FC<StudioMagnateGameProps> = ({
         releasedProjects.push(project);
       }
 
-      // Process development phase
-      if (project.currentPhase === 'development') {
-        updatedProject = processDevelopmentProgress(project, timeState.currentWeek);
-      }
+      // Development progress + phase timers are processed by the deterministic engine tick.
       
       // Handle scheduled releases when their date arrives
       let justReleased = false;
@@ -1408,60 +1405,7 @@ export const StudioMagnateGame: React.FC<StudioMagnateGameProps> = ({
          }
        }
 
-      // Process marketing campaigns and advance to release phase when complete
-      if (updatedProject.marketingCampaign && updatedProject.marketingCampaign.weeksRemaining > 0) {
-    const updatedActivities = updatedProject.marketingCampaign.activities.map(activity => ({
-      ...activity,
-      weeksRemaining: Math.max(0, activity.weeksRemaining - 1),
-      status: activity.weeksRemaining <= 1 ? 'completed' as const : activity.status
-    }));
-
-    const newWeeksRemaining = Math.max(0, updatedProject.marketingCampaign.weeksRemaining - 1);
-
-    // Calculate weekly buzz growth from campaign spending
-    const campaignBudget = updatedProject.marketingCampaign.budgetAllocated || 0;
-    const weeklySpend = campaignBudget / updatedProject.marketingCampaign.duration;
-    const weeklyBuzzGrowth = Math.max(2, Math.floor(weeklySpend / 500000)); // ~2-10 buzz per week
-    const buzzCap = (updatedProject.type === 'series' || updatedProject.type === 'limited-series') ? 250 : 150;
-    const newBuzz = Math.min(buzzCap, (updatedProject.marketingCampaign.buzz || 0) + weeklyBuzzGrowth);
-    const newBudgetSpent = (updatedProject.marketingCampaign.budgetSpent || 0) + weeklySpend;
-
-    updatedProject = {
-      ...updatedProject,
-      marketingCampaign: {
-        ...updatedProject.marketingCampaign,
-        activities: updatedActivities,
-        weeksRemaining: newWeeksRemaining,
-        buzz: newBuzz,
-        budgetSpent: Math.min(campaignBudget, newBudgetSpent),
-        effectiveness: Math.min(100, (updatedProject.marketingCampaign.effectiveness || 50) + 2)
-      },
-      // CRITICAL: Sync buzz to marketingData so UI and release validation can see it
-      marketingData: {
-        ...updatedProject.marketingData,
-        currentBuzz: newBuzz,
-        totalSpent: updatedProject.marketingData?.totalSpent || campaignBudget,
-        campaigns: updatedProject.marketingData?.campaigns || []
-      }
-    };
-
-    // When marketing is complete, move to release phase
-    if (newWeeksRemaining === 0) {
-      if (diagnosticsEnabled) {
-        console.log(`MARKETING COMPLETE: ${project.title} - Moving to release phase`);
-      }
-
-      const hasScheduledRelease = !!updatedProject.scheduledReleaseWeek && !!updatedProject.scheduledReleaseYear;
-
-      updatedProject = {
-        ...updatedProject,
-        currentPhase: 'release',
-        status: (hasScheduledRelease ? 'scheduled-for-release' : 'ready-for-release') as any,
-        readyForRelease: !hasScheduledRelease,
-        ...(hasScheduledRelease ? { phaseDuration: -1 } : {})
-      };
-    }
-  }
+      // Marketing campaign countdown + completion are processed by the deterministic engine tick.
 
       // Post-theatrical revenue is processed by the deterministic engine tick.
       // Here we only compute the delta for the studio budget + ledger.
@@ -1528,137 +1472,7 @@ export const StudioMagnateGame: React.FC<StudioMagnateGameProps> = ({
         }
       }
 
-      // CRITICAL: Only process phase timers for specific phases (skip if phaseDuration is -1, which means manual control)
-      if (updatedProject.phaseDuration !== undefined && updatedProject.phaseDuration > 0) {
-        const newPhaseDuration = updatedProject.phaseDuration - 1;
-        
-        if (diagnosticsEnabled) {
-          console.log(`⏱️ Phase timer for ${updatedProject.title}: ${updatedProject.phaseDuration} -> ${newPhaseDuration} (${updatedProject.currentPhase})`);
-        }
-        
-        if (newPhaseDuration === 0) {
-          const nextPhase = getNextPhase(updatedProject.currentPhase);
-          
-          // STOP auto-progression at post-production - stay in post-production until manual marketing
-          if (updatedProject.currentPhase === 'post-production') {
-            if (diagnosticsEnabled) {
-              console.log(`  → POST-PRODUCTION COMPLETE: ${updatedProject.title} ready for marketing`);
-            }
-            updatedProject = {
-              ...updatedProject,
-              phaseDuration: 0,
-              status: 'ready-for-marketing' as any,
-              readyForMarketing: true
-            };
-            
-            if (toastEnabled) {
-              toast({
-                title: "Post-Production Complete!",
-                description: `${updatedProject.title} is ready for marketing campaign`,
-              });
-            }
-          }
-          // STOP auto-progression at marketing - only advance when campaign completes
-          else if (updatedProject.currentPhase === 'marketing' && updatedProject.marketingCampaign && updatedProject.marketingCampaign.weeksRemaining === 0) {
-            if (diagnosticsEnabled) {
-              console.log(`  → MARKETING COMPLETE: ${updatedProject.title} ready for release`);
-            }
-
-            const hasScheduledRelease = !!updatedProject.scheduledReleaseWeek && !!updatedProject.scheduledReleaseYear;
-
-            updatedProject = {
-              ...updatedProject,
-              currentPhase: 'release',
-              phaseDuration: hasScheduledRelease ? -1 : 0,
-              status: (hasScheduledRelease ? 'scheduled-for-release' : 'ready-for-release') as any,
-              readyForRelease: !hasScheduledRelease
-            };
-            
-            if (toastEnabled) {
-              toast({
-                title: "Marketing Campaign Complete!",
-                description: hasScheduledRelease
-                  ? `${updatedProject.title} is scheduled for release in Y${updatedProject.scheduledReleaseYear}W${updatedProject.scheduledReleaseWeek}.`
-                  : `${updatedProject.title} is ready for release strategy`,
-              });
-            }
-          }
-          // Normal progression with gating for early phases
-          else if (['development', 'pre-production', 'production'].includes(updatedProject.currentPhase)) {
-            // Gate: ensure roles imported before leaving development
-            if (updatedProject.currentPhase === 'development' && nextPhase === 'pre-production') {
-              const roles = updatedProject.script?.characters && updatedProject.script.characters.length > 0
-                ? updatedProject.script.characters
-                : importRolesForScript(updatedProject.script!, baseState);
-              if (!roles || roles.length === 0) {
-                console.warn(`Cannot advance ${updatedProject.title}: no roles imported yet`);
-                updatedProject = { ...updatedProject, phaseDuration: 2 };
-                if (toastEnabled) {
-                  toast({ title: 'Roles Required', description: `${updatedProject.title} needs characters imported before pre-production`, variant: 'destructive' });
-                }
-              } else {
-                updatedProject = {
-                  ...updatedProject,
-                  script: { ...updatedProject.script!, characters: roles },
-                  currentPhase: nextPhase,
-                  phaseDuration: getPhaseWeeks(nextPhase),
-                  status: nextPhase as any
-                };
-                if (toastEnabled) {
-                  toast({ title: 'Phase Complete!', description: `${updatedProject.title} advanced to ${nextPhase.replace('-', ' ')}` });
-                }
-              }
-            }
-            // Gate: require Director + Lead actor before entering production
-            else if (updatedProject.currentPhase === 'pre-production' && nextPhase === 'production') {
-              const chars = updatedProject.script?.characters || [];
-              const hasDirector = chars.some(c => c.requiredType === 'director' && c.assignedTalentId);
-              const hasLead = chars.some(c => c.importance === 'lead' && c.requiredType !== 'director' && c.assignedTalentId);
-              if (!hasDirector || !hasLead) {
-                console.warn(`Cannot advance ${updatedProject.title}: missing mandatory cast (director=${hasDirector}, lead=${hasLead})`);
-                updatedProject = { ...updatedProject, phaseDuration: 2 };
-                if (toastEnabled) {
-                  toast({ title: 'Cast Required', description: 'Attach a Director and Lead before production', variant: 'destructive' });
-                }
-              } else {
-                updatedProject = {
-                  ...updatedProject,
-                  currentPhase: nextPhase,
-                  phaseDuration: getPhaseWeeks(nextPhase),
-                  status: nextPhase as any
-                };
-                if (toastEnabled) {
-                  toast({ title: 'Phase Complete!', description: `${updatedProject.title} advanced to ${nextPhase.replace('-', ' ')}` });
-                }
-              }
-            }
-            // Other early phases progress normally
-            else {
-              const nextDuration = getPhaseWeeks(nextPhase);
-              updatedProject = {
-                ...updatedProject,
-                currentPhase: nextPhase,
-                phaseDuration: nextDuration,
-                status: nextPhase as any
-              };
-              if (toastEnabled) {
-                toast({ title: 'Phase Complete!', description: `${updatedProject.title} advanced to ${nextPhase.replace('-', ' ')}` });
-              }
-            }
-          }
-        } else {
-          // Only countdown for active phases - FIXED: Include post-production
-          const shouldCountdown = ['development', 'pre-production', 'production', 'post-production'].includes(updatedProject.currentPhase) ||
-                                 (updatedProject.currentPhase === 'marketing' && updatedProject.marketingCampaign);
-          
-          if (shouldCountdown) {
-            updatedProject = {
-              ...updatedProject,
-              phaseDuration: newPhaseDuration
-            };
-          }
-        }
-      }
+      // Phase timers + auto phase transitions are processed by the deterministic engine tick.
 
       return updatedProject;
     });
@@ -1674,41 +1488,7 @@ export const StudioMagnateGame: React.FC<StudioMagnateGameProps> = ({
     };
   };
 
-  const getNextPhase = (currentPhase: string): ProductionPhase => {
-    switch (currentPhase) {
-      case 'development': return 'pre-production';
-      case 'pre-production': return 'production';
-      case 'production': return 'post-production';
-      case 'post-production': return 'marketing';
-      case 'marketing': return 'release';
-      case 'release': return 'distribution';
-      default: return currentPhase as ProductionPhase;
-    }
-  };
-
-  const processDevelopmentProgress = (project: Project, currentWeek: number): Project => {
-    const progress = project.developmentProgress;
-    
-    let weeklyIncrease = 5;
-    
-    if (project.cast.length > 0) weeklyIncrease += 3;
-    if (project.crew.some(c => gameState.talent.find(t => t.id === c.talentId)?.type === 'director')) {
-      weeklyIncrease += 5;
-    }
-    
-    const newProgress = {
-      ...progress,
-      scriptCompletion: Math.min(100, progress.scriptCompletion + weeklyIncrease),
-      budgetApproval: project.cast.length > 0 ? Math.min(100, progress.budgetApproval + weeklyIncrease) : progress.budgetApproval,
-      talentAttached: project.cast.length > 0 ? Math.min(100, progress.talentAttached + 10) : progress.talentAttached,
-      locationSecured: Math.min(100, progress.locationSecured + weeklyIncrease)
-    };
-    
-    return {
-      ...project,
-      developmentProgress: newProgress
-    };
-  };
+  
 
   // DEBUG: Quick test function to skip to post-theatrical phase
   const skipToPostTheatrical = () => {

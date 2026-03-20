@@ -69,6 +69,7 @@ function ensureStreamingPremiereWindow(project: Project, week: number, year: num
 export const ScheduledReleaseSystem: TickSystem = {
   id: 'scheduledReleases',
   label: 'Scheduled releases',
+  dependsOn: ['marketingCampaigns'],
   onTick: (state, ctx) => {
     const currentAbs = ctx.year * 52 + ctx.week;
 
@@ -96,11 +97,18 @@ export const ScheduledReleaseSystem: TickSystem = {
     const updatedById = new Map<string, Project>();
 
     for (const project0 of unique) {
-      if (!project0 || project0.status !== 'scheduled-for-release') continue;
+      if (!project0) continue;
 
       const w = typeof project0.scheduledReleaseWeek === 'number' ? project0.scheduledReleaseWeek : null;
       const y = typeof project0.scheduledReleaseYear === 'number' ? project0.scheduledReleaseYear : null;
       if (!w || !y) continue;
+
+      const isScheduledForRelease = project0.status === 'scheduled-for-release';
+      const isLegacyReleasePhase = (project0.currentPhase as any) === 'release';
+
+      // Compatibility: older saves sometimes stored projects in the "release" phase with a planned
+      // scheduledReleaseWeek/Year but without setting status="scheduled-for-release".
+      if (!isScheduledForRelease && !isLegacyReleasePhase) continue;
 
       const releaseAbs = y * 52 + w;
       if (currentAbs < releaseAbs) continue;

@@ -43,6 +43,8 @@ import { TalentFilmographySystem } from './systems/talentFilmographySystem';
 import { TalentCareerArcSystem } from './systems/talentCareerArcSystem';
 import { IndustryGossipSystem } from './systems/industryGossipSystem';
 import { AiTelevisionSystem } from './systems/aiTelevisionSystem';
+import { ProjectLifecycleSystem } from './systems/projectLifecycleSystem';
+import { MarketingCampaignSystem } from './systems/marketingCampaignSystem';
 import { ScheduledReleaseSystem } from './systems/scheduledReleaseSystem';
 import { TelevisionPerformanceSystem } from './systems/televisionPerformanceSystem';
 import { StreamingPerformanceSystem } from './systems/streamingPerformanceSystem';
@@ -202,6 +204,8 @@ export const useGameStore: import('zustand').UseBoundStore<import('zustand').Sto
       r.register(WorldArchiveSystem);
       r.register(TalentDebutSystem);
       r.register(AiTelevisionSystem);
+      r.register(ProjectLifecycleSystem);
+      r.register(MarketingCampaignSystem);
       r.register(ScheduledReleaseSystem);
       r.register(TelevisionPerformanceSystem);
       r.register(StreamingPerformanceSystem);
