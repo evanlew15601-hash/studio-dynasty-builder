@@ -89,7 +89,7 @@ function makeReleasedOnPlayerPlatform(params: { projectId: string; platformId: s
     },
     releaseStrategy: {
       type: 'streaming',
-      premiereDate: new Date(2027, 0, 1),
+      premiereDate: new Date(Date.UTC(2027, 0, 1)),
       rolloutPlan: [],
       specialEvents: [],
       pressStrategy: { expectedCriticalReception: 60 },
@@ -175,7 +175,7 @@ describe('Streaming Wars: license offer resolution creates a real rival window +
             title: 'License offer',
             description: 'Test',
             type: 'opportunity',
-            triggerDate: new Date(2027, 0, 1),
+            triggerDate: new Date(Date.UTC(2027, 0, 1)),
             data: {
               kind: 'platform:license-offer',
               titleProjectId: 'p-1',

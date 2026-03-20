@@ -476,7 +476,7 @@ export const StreamingWarsPlatformApp: React.FC = () => {
 
     const offer = computeLicenseOffer(licenseProject, licenseRivalId, licenseDurationWeeks);
 
-    const releaseDate = new Date(gameState.currentYear, 0, 1 + Math.max(0, gameState.currentWeek - 1) * 7);
+    const releaseDate = new Date(Date.UTC(gameState.currentYear, 0, 1 + Math.max(0, gameState.currentWeek - 1) * 7));
     const releaseId = `release:${licenseProject.id}:${licenseRivalId}:${gameState.currentYear}:W${gameState.currentWeek}`;
 
     const newWindow: PostTheatricalRelease = {

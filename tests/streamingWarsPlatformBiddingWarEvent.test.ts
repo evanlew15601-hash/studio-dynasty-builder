@@ -90,7 +90,7 @@ function makeReleasedOnPlayerPlatform(params: { projectId: string; platformId: s
     },
     releaseStrategy: {
       type: 'streaming',
-      premiereDate: new Date(2027, 0, 1),
+      premiereDate: new Date(Date.UTC(2027, 0, 1)),
       rolloutPlan: [],
       specialEvents: [],
       pressStrategy: { expectedCriticalReception: 60 },

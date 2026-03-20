@@ -54,7 +54,7 @@ describe('Streaming Wars: platform crisis pacing', () => {
       title: 'FYI: market note',
       description: 'A non-crisis event already in the queue.',
       type: 'market',
-      triggerDate: new Date(2027, 0, 1),
+      triggerDate: new Date(Date.UTC(2027, 0, 1)),
       choices: [{ id: 'ok', text: 'Ok', consequences: [] }],
     };
 
