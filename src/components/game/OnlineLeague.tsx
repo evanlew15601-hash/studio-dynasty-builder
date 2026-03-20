@@ -1,4 +1,4 @@
-import React, { useEffect, useMemo, useRef, useState } from 'react';
+import React, { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
@@ -248,7 +248,8 @@ export const OnlineLeague: React.FC<OnlineLeagueProps> = ({ initialLeagueCode })
   }, [
     gameState?.currentWeek,
     gameState?.currentYear,
-    
+
+    gameState?.studio?.name,
     gameState?.studio?.reputation,
     gameState?.projects,
     leagueStudioName,
@@ -256,6 +257,7 @@ export const OnlineLeague: React.FC<OnlineLeagueProps> = ({ initialLeagueCode })
     activeLeagueId,
     supabase,
     userId,
+    refreshSnapshots,
   ]);
 
   const members = useMemo(() => {
@@ -326,7 +328,7 @@ export const OnlineLeague: React.FC<OnlineLeagueProps> = ({ initialLeagueCode })
     ];
   }, [members, persistedMembers]);
 
-  const refreshSnapshots = async (leagueId: string) => {
+  const refreshSnapshots = useCallback(async (leagueId: string) => {
     if (!supabase) return;
 
     const { data, error: loadError } = await supabase
@@ -336,9 +338,9 @@ export const OnlineLeague: React.FC<OnlineLeagueProps> = ({ initialLeagueCode })
 
     if (loadError) return;
     setPersistedSnapshots((data || []) as any);
-  };
+  }, [supabase]);
 
-  const resolveLeagueStudioName = async (leagueId: string, fallback: string) => {
+  const resolveLeagueStudioName = useCallback(async (leagueId: string, fallback: string) => {
     if (!supabase) return fallback;
     if (!userId) return fallback;
 
@@ -350,7 +352,7 @@ export const OnlineLeague: React.FC<OnlineLeagueProps> = ({ initialLeagueCode })
       .maybeSingle();
 
     return (data?.studio_name || fallback).trim();
-  };
+  }, [supabase, userId]);
 
   useEffect(() => {
     if (!activeLeagueId) {
@@ -367,7 +369,7 @@ export const OnlineLeague: React.FC<OnlineLeagueProps> = ({ initialLeagueCode })
     return () => {
       window.clearInterval(handle);
     };
-  }, [activeLeagueId, supabase]);
+  }, [activeLeagueId, refreshSnapshots]);
 
   const handleCreateLeague = async () => {
     if (!supabase) return;
@@ -485,7 +487,16 @@ export const OnlineLeague: React.FC<OnlineLeagueProps> = ({ initialLeagueCode })
         setActiveLeagueId(data);
         refreshSnapshots(data);
       });
-  }, [initialLeagueCode, activeLeagueCode, supabase, authStatus, gameState]);
+  }, [
+    initialLeagueCode,
+    activeLeagueCode,
+    supabase,
+    authStatus,
+    gameState,
+    leagueStudioName,
+    resolveLeagueStudioName,
+    refreshSnapshots,
+  ]);
 
   return (
     <div className="space-y-6">

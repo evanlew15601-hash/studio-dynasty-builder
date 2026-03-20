@@ -1,4 +1,4 @@
-import React, { useEffect, useState } from 'react';
+import React, { useEffect, useRef, useState } from 'react';
 import type { Studio } from '@/types/game';
 import { useGameStore } from '@/game/store';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
@@ -50,7 +50,6 @@ interface MarketUndercurrent {
 
 export const BackgroundSimulation: React.FC<BackgroundSimulationProps> = () => {
   const gameState = useGameStore((s) => s.game);
-  const gameStateReady = !!gameState;
 
   const [backgroundActivities, setBackgroundActivities] = useState<BackgroundActivity[]>([]);
   const [competitorActivities, setCompetitorActivities] = useState<CompetitorActivity[]>([]);
@@ -58,13 +57,16 @@ export const BackgroundSimulation: React.FC<BackgroundSimulationProps> = () => {
   const [marketUndercurrents, setMarketUndercurrents] = useState<MarketUndercurrent[]>([]);
   const [simulationIntensity, setSimulationIntensity] = useState(75); // How active the background is
 
-  // Initialize background systems
-  useEffect(() => {
-    if (!gameState) return;
-    initializeBackgroundSystems();
-  }, [gameStateReady]);
+  const initForUniverseSeedRef = useRef<number | null>(null);
 
-  const initializeBackgroundSystems = () => {
+  // Initialize background systems (once per loaded save/game).
+  useEffect(() => {
+    const universeSeed = gameState?.universeSeed;
+    if (typeof universeSeed !== 'number') return;
+
+    if (initForUniverseSeedRef.current === universeSeed) return;
+    initForUniverseSeedRef.current = universeSeed;
+
     // Initialize market undercurrents
     const undercurrents: MarketUndercurrent[] = [
       {
@@ -102,7 +104,7 @@ export const BackgroundSimulation: React.FC<BackgroundSimulationProps> = () => {
         careerEvents: []
       }));
     setTalentEvolution(topTalent);
-  };
+  }, [gameState?.universeSeed]);
 
   // Generate new background activities each week
   const generateBackgroundActivity = (): BackgroundActivity | null => {

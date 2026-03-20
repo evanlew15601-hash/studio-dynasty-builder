@@ -621,7 +621,18 @@ export const StudioMagnateGame: React.FC<StudioMagnateGameProps> = ({
       cancelled = true;
       completeOperation(LOADING_OPERATIONS.GAME_INIT.id);
     };
-  }, [newGameInitAttempt]);
+  }, [
+    completeOperation,
+    gameConfig,
+    initGame,
+    initialGameState,
+    isOnlineMode,
+    newGameInitAttempt,
+    startOperation,
+    storeGameState,
+    toast,
+    updateOperation,
+  ]);
 
   const gameState = storeGameState ?? bootstrapGameState;
 
