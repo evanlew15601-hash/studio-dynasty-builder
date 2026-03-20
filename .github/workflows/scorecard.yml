@@ -15,7 +15,7 @@ jobs:
       contents: read
 
     steps:
-      - uses: actions/checkout@v6
+      - uses: actions/checkout@v4
         with:
           persist-credentials: false
 
@@ -27,7 +27,7 @@ jobs:
           publish_results: false
 
       - name: Upload Scorecard results
-        uses: actions/upload-artifact@v6
+        uses: actions/upload-artifact@v4
         with:
           name: ossf-scorecard
           path: scorecard.json
