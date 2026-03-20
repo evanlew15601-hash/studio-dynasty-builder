@@ -33,7 +33,7 @@ export const AiStudioFilmSystem: TickSystem = {
         if (studio) {
           const availableTalent = (state.talent || []).filter((t) => t.contractStatus === 'available');
           if (availableTalent.length > 0) {
-            AIStudioManager.createAIFilm(studio, availableTalent, ctx.week, ctx.year, ctx.rng);
+            AIStudioManager.createAIFilm(studio, ctx.week, ctx.year, availableTalent, ctx.rng);
           }
         }
       }
