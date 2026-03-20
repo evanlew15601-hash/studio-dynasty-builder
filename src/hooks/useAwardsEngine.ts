@@ -1,5 +1,5 @@
 import { useEffect } from 'react';
-import { AwardsSeasonState, GameState, Project, Studio, StudioAward, TalentAward, TalentPerson } from '@/types/game';
+import { AwardsSeasonState, GameEvent, GameState, Project, Studio, StudioAward, TalentAward, TalentPerson } from '@/types/game';
 import { getAwardShowsForYear } from '@/data/AwardsSchedule';
 import type { AwardCategoryDefinition } from '@/data/AwardsSchedule';
 import { useToast } from '@/hooks/use-toast';
@@ -15,7 +15,8 @@ export function useAwardsEngine(
   onStudioUpdate: (updates: Partial<Studio>) => void,
   onTalentUpdate?: (talentId: string, updates: Partial<TalentPerson>) => void,
   onAwardShowTrigger?: (ceremony: AwardShowCeremony) => void,
-  onGameStateUpdate?: (updates: Partial<GameState>) => void
+  onGameStateUpdate?: (updates: Partial<GameState>) => void,
+  options?: { suppressAwardShowEvents?: boolean }
 ) {
   const { toast } = useToast();
 
@@ -37,6 +38,11 @@ export function useAwardsEngine(
     if (!onGameStateUpdate) return;
     onGameStateUpdate({ awardsSeason: next });
   };
+
+  function triggerDateFromWeekYear(year: number, week: number): Date {
+    // Game years are not real-world years; we just need a stable Date for UI ordering.
+    return new Date(year, 0, 1 + Math.max(0, week - 1) * 7);
+  }
 
   // Film awards are clustered early in the year (legacy behavior). We still keep the
   // seasonal genre bias there, but nominations/ceremonies can occur later.
@@ -579,8 +585,40 @@ export function useAwardsEngine(
         }
       });
 
-      // Trigger award show modal if callback provided
-      if (onAwardShowTrigger) {
+      if (!options?.suppressAwardShowEvents && onGameStateUpdate) {
+        const eventId = `awards:ceremony:${show.id}:${gameState.currentYear}`;
+        const alreadyQueued = (gameState.eventQueue || []).some((e) => e?.id === eventId);
+
+        if (!alreadyQueued) {
+          const awardEvent: GameEvent = {
+            id: eventId,
+            title: `${ceremonyName} Awards`,
+            description: `The ${ceremonyName} Awards are live this week.\n\nYou can watch the ceremony now, or skip and review the results later in the Awards tab.`,
+            type: 'opportunity',
+            triggerDate: triggerDateFromWeekYear(gameState.currentYear, gameState.currentWeek),
+            data: {
+              kind: 'awards:ceremony',
+              ceremony: ceremonyData,
+              showId: show.id,
+              year: gameState.currentYear,
+            },
+            choices: [
+              {
+                id: 'watch',
+                text: 'Watch the show',
+              },
+              {
+                id: 'skip',
+                text: 'Skip (view results later)',
+              },
+            ],
+          };
+
+          onGameStateUpdate({
+            eventQueue: [...(gameState.eventQueue || []), awardEvent],
+          });
+        }
+      } else if (onAwardShowTrigger) {
         onAwardShowTrigger(ceremonyData);
       }
 
@@ -603,10 +641,7 @@ export function useAwardsEngine(
       logDebug(
         `[AwardsEngine] ${ceremonyName} ceremony processed for Y${gameState.currentYear} (awards: ${flatForModal.length})`
       );
-      toast({
-        title: `${ceremonyName} Winners Announced`,
-        description: `${flatForModal.filter((f) => f.won).length} category winners selected.`,
-      });
+      
     }
   };
 

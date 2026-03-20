@@ -1019,7 +1019,9 @@ export const StudioMagnateGame: React.FC<StudioMagnateGameProps> = ({
   };
 
   // Always run awards engine in the background (independent of UI phase)
-  useAwardsEngine(gameState, handleStudioUpdate, handleTalentUpdate, handleAwardShow, mergeGameState);
+  useAwardsEngine(gameState, handleStudioUpdate, handleTalentUpdate, handleAwardShow, mergeGameState, {
+    suppressAwardShowEvents: isOnlineMode && !onlineHostSync,
+  });
 
   
 
@@ -4144,7 +4146,17 @@ export const StudioMagnateGame: React.FC<StudioMagnateGameProps> = ({
         )}
       </div>
 
-      <GameEventModal />
+      <GameEventModal
+        onChoice={(event, choiceId) => {
+          const kind = (event as any)?.data?.kind;
+          if (kind !== 'awards:ceremony') return;
+          if (choiceId !== 'watch') return;
+
+          const ceremony = (event as any)?.data?.ceremony as AwardShowCeremony | undefined;
+          if (!ceremony) return;
+          handleAwardShow(ceremony);
+        }}
+      />
 
       {/* First Week Box Office Modal */}
       {firstWeekModalProject && (

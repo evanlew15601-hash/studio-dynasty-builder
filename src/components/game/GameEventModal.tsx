@@ -26,7 +26,9 @@ function consequenceTone(c: EventConsequence): 'default' | 'destructive' | 'seco
   return 'default';
 }
 
-export const GameEventModal: React.FC = () => {
+export const GameEventModal: React.FC<{
+  onChoice?: (event: GameEvent, choiceId: string | number | undefined) => void;
+}> = ({ onChoice }) => {
   const game = useGameStore((s) => s.game);
   const resolve = useGameStore((s) => s.resolveGameEvent);
 
@@ -60,7 +62,11 @@ export const GameEventModal: React.FC = () => {
                       <Button
                         size="sm"
                         disabled={!availability.ok}
-                        onClick={() => resolve(event.id, choice.id ?? idx)}
+                        onClick={() => {
+                          const choiceId = choice.id ?? idx;
+                          onChoice?.(event, choiceId);
+                          resolve(event.id, choiceId);
+                        }}
                       >
                         Choose
                       </Button>
