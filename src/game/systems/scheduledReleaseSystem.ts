@@ -15,9 +15,7 @@ function isPrimaryStreamingFilm(project: Project): boolean {
   return !isTvProject(project) && project.releaseStrategy?.type === 'streaming';
 }
 
-function triggerDateFromWeekYear(year: number, week: number): Date {
-  return new Date(Date.UTC(year, 0, 1 + Math.max(0, week - 1) * 7));
-}
+
 
 function ensureStreamingPremiereWindow(project: Project, week: number, year: number): Project {
   const alreadyHasStreamingWindow = (project.postTheatricalReleases || []).some((r) => r && r.platform === 'streaming');

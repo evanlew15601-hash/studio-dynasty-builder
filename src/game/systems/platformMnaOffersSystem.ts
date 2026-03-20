@@ -1,15 +1,14 @@
 import type { PlatformMarketState } from '@/types/platformEconomy';
 import type { GameEvent } from '@/types/game';
 import { stableInt } from '@/utils/stableRandom';
+import { triggerDateFromWeekYear } from '@/utils/gameTime';
 import type { TickSystem } from '../core/types';
 
 function clamp(n: number, min: number, max: number): number {
   return Math.max(min, Math.min(max, n));
 }
 
-function triggerDateFromWeekYear(year: number, week: number): Date {
-  return new Date(Date.UTC(year, 0, 1 + Math.max(0, week - 1) * 7));
-}
+
 
 export const PlatformMnaOffersSystem: TickSystem = {
   id: 'platformMnaOffers',

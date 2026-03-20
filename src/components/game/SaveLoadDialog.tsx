@@ -49,7 +49,7 @@ function formatSlotLabel(row: SaveSlotRow): string {
   if (row.studioName) parts.push(row.studioName);
   if (row.year != null && row.week != null) parts.push(`W${row.week}, ${row.year}`);
   if (row.modSlotId) parts.push(`DB: ${row.modSlotId}`);
-  if (row.savedAt) parts.push(new Date(row.savedAt).toLocaleString());
+  if (row.savedAt) parts.push(new Date(row.savedAt).toUTCString());
   return parts.join(' • ');
 }
 

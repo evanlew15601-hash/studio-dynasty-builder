@@ -1,14 +1,13 @@
 import type { BoxOfficeRelease, BoxOfficeWeek, GameState, Project, TopFilmEntry, TopFilmsWeek } from '@/types/game';
 import { stableInt } from '@/utils/stableRandom';
+import { triggerDateFromWeekYear } from '@/utils/gameTime';
 import type { TickSystem } from '../core/types';
 
 function absWeek(week: number, year: number): number {
   return year * 52 + week;
 }
 
-function triggerDateFromWeekYear(year: number, week: number): Date {
-  return new Date(Date.UTC(year, 0, 1 + Math.max(0, week - 1) * 7));
-}
+
 
 function isProjectLike(value: any): value is Project {
   return !!value && typeof value === 'object' && typeof value.id === 'string' && 'script' in value;

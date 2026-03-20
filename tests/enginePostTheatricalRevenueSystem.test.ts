@@ -46,7 +46,7 @@ function makeBaseState(overrides?: Partial<GameState>): GameState {
 }
 
 describe('Engine post-theatrical revenue system', () => {
-  it('starts a planned window on its scheduled week and increments revenue', () => {
+  it('starts a planned window at its scheduled week and increments revenue', () => {
     const project: Project = {
       id: 'p1',
       title: 'Test Release',

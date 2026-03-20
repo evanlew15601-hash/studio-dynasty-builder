@@ -12,12 +12,10 @@ import { getAwardShowsForYear } from '@/data/AwardsSchedule';
 import type { AwardCategoryDefinition, AwardShowDefinition } from '@/data/AwardsSchedule';
 import { hashStringToUint32, stablePick } from '@/utils/stablePick';
 import { stableFloat01 } from '@/utils/stableRandom';
+import { triggerDateFromWeekYear } from '@/utils/gameTime';
 import type { TickSystem } from '../core/types';
 
-function triggerDateFromWeekYear(year: number, week: number): Date {
-  // Game years are not real-world years; we just need a stable Date for UI ordering.
-  return new Date(Date.UTC(year, 0, 1 + Math.max(0, week - 1) * 7));
-}
+
 
 function isTvProject(project: Project): boolean {
   return project.type === 'series' || project.type === 'limited-series';
