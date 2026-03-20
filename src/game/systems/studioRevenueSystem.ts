@@ -54,7 +54,7 @@ function earnedPostTheatricalThisWeek(params: {
 export const StudioRevenueSystem: TickSystem = {
   id: 'studioRevenue',
   label: 'Studio revenue',
-  dependsOn: ['studioEconomy'],
+  dependsOn: ['boxOffice', 'postTheatricalRevenue'],
   onTick: (state, ctx) => {
     const currentAbs = absWeek(ctx.week, ctx.year);
 

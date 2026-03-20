@@ -1,6 +1,8 @@
 import { describe, expect, it } from 'vitest';
 import type { GameState, Project } from '@/types/game';
 import { createRng } from '@/game/core/rng';
+import { advanceWeek } from '@/game/core/tick';
+import { SystemRegistry } from '@/game/core/registry';
 import { StudioEconomySystem } from '@/game/systems/studioEconomySystem';
 import { StudioRevenueSystem } from '@/game/systems/studioRevenueSystem';
 
@@ -143,5 +145,50 @@ describe('Studio economy + revenue systems', () => {
     );
 
     expect(Math.round(next.studio.budget)).toBe(570_000);
+  });
+
+  it('does not take debt for overhead when revenue covers it in the same tick', () => {
+    const released: Project = {
+      id: 'p3',
+      title: 'Release 2',
+      type: 'feature',
+      currentPhase: 'distribution' as any,
+      status: 'released',
+      budget: { total: 10_000_000 } as any,
+      script: {} as any,
+      cast: [],
+      crew: [],
+      timeline: {} as any,
+      locations: [],
+      distributionStrategy: {} as any,
+      metrics: {
+        weeksSinceRelease: 1,
+        lastWeeklyRevenue: 1_000_000,
+        theatricalRunLocked: false,
+      } as any,
+      phaseDuration: -1,
+      contractedTalent: [],
+      developmentProgress: {} as any,
+      releaseWeek: 10,
+      releaseYear: 2024,
+      releaseStrategy: { type: 'wide' } as any,
+    };
+
+    const registry = new SystemRegistry();
+    registry.register(StudioRevenueSystem);
+    registry.register(StudioEconomySystem);
+
+    const state = makeBaseState({
+      currentWeek: 10,
+      currentYear: 2024,
+      currentQuarter: 2,
+      studio: { ...makeBaseState().studio, budget: 0, debt: 0 },
+      projects: [released],
+    });
+
+    const result = advanceWeek(state, createRng(1), registry.getOrdered());
+
+    expect(result.nextState.studio.debt || 0).toBe(0);
+    expect(Math.round(result.nextState.studio.budget || 0)).toBe(525_000);
   });
 });

@@ -1717,20 +1717,12 @@ export const StudioMagnateGame: React.FC<StudioMagnateGameProps> = ({
         reputation: deepRepResult.reputation,
       };
       
-      // Update talent availability (prevent double-booking during filming)
+      // Talent availability is now maintained by the deterministic engine tick.
+      // Here we only overlay AI studio commitments (which are still managed outside the engine).
       const currentAbsWeek = (newTimeState.currentYear * 52) + newTimeState.currentWeek;
-      let updatedTalent = (baseAfterEngine.talent || []).map(t => {
-        let status = t.contractStatus;
-        let busyUntil = t.busyUntilWeek;
-        if (status === 'busy' && typeof busyUntil === 'number' && busyUntil <= currentAbsWeek) {
-          status = 'available';
-          busyUntil = undefined;
-        }
-        return { ...t, contractStatus: status, busyUntilWeek: busyUntil };
-      });
+      let updatedTalent = baseAfterEngine.talent || [];
 
       if (!isOnlineMode) {
-        // Mark talent as busy if they're currently committed to an AI studio project
         updatedTalent = updatedTalent.map(t => {
           const commitment = AIStudioManager.getTalentCommitment(t.id, newTimeState.currentWeek, newTimeState.currentYear);
           if (!commitment) return t;
@@ -1745,24 +1737,6 @@ export const StudioMagnateGame: React.FC<StudioMagnateGameProps> = ({
           };
         });
       }
-
-      // Mark cast as busy for projects in production
-      updatedProjects.forEach(p => {
-        if (p.currentPhase === 'production' || p.status === 'filming') {
-          p.cast?.forEach(c => {
-            const idx = updatedTalent.findIndex(t => t.id === c.talentId);
-            if (idx >= 0) {
-              const isCameo = c.role.toLowerCase().includes('cameo') || c.role.toLowerCase().includes('minor');
-              const durationWeeks = isCameo ? 2 : 8;
-              updatedTalent[idx] = {
-                ...updatedTalent[idx],
-                contractStatus: 'busy',
-                busyUntilWeek: currentAbsWeek + durationWeeks
-              };
-            }
-          });
-        }
-      });
 
       // Apply filmography/fame updates for newly released projects (no nested setState)
       const releasedForFilmography = [

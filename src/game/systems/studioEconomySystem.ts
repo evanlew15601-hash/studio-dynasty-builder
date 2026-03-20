@@ -24,7 +24,7 @@ function isActiveOverheadProject(project: Project): boolean {
 export const StudioEconomySystem: TickSystem = {
   id: 'studioEconomy',
   label: 'Studio economy',
-  dependsOn: ['postTheatricalRevenue'],
+  dependsOn: ['studioRevenue'],
   onTick: (state) => {
     const projects = state.projects || [];
 
