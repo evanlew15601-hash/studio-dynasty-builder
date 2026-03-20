@@ -29,7 +29,7 @@ export const LoanPaymentSystem: TickSystem = {
       if (loan0.status !== 'active') return loan0;
       if (loan0.remainingBalance <= 0) return { ...loan0, remainingBalance: 0, weeksRemaining: 0, status: 'paid' };
 
-      let loan = { ...loan0 };
+      const loan = { ...loan0 };
 
       if (loan.weeksRemaining <= 0) {
         loan.status = 'defaulted';
