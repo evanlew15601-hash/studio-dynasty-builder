@@ -56,10 +56,12 @@ export const TalentAvailabilitySystem: TickSystem = {
       if (t0.contractStatus === 'retired') return t0;
 
       let status = t0.contractStatus;
+      let base = t0.contractStatusBase;
       let busyUntil = t0.busyUntilWeek;
 
       if (status === 'busy' && typeof busyUntil === 'number' && busyUntil <= currentAbs) {
-        status = 'available';
+        status = base ?? 'available';
+        base = undefined;
         busyUntil = undefined;
       }
 
@@ -67,15 +69,24 @@ export const TalentAvailabilitySystem: TickSystem = {
       if (typeof requiredUntil === 'number' && requiredUntil > 0) {
         const existing = typeof busyUntil === 'number' ? busyUntil : 0;
         busyUntil = Math.max(existing, requiredUntil);
+
+        if (status !== 'busy') {
+          base = status;
+        }
+
         status = 'busy';
+      } else if (status !== 'busy' && base) {
+        // Defensive cleanup: the base status is only meaningful while busy.
+        base = undefined;
       }
 
       const statusChanged = status !== t0.contractStatus;
+      const baseChanged = base !== t0.contractStatusBase;
       const busyUntilChanged = busyUntil !== t0.busyUntilWeek;
 
-      if (statusChanged || busyUntilChanged) {
+      if (statusChanged || baseChanged || busyUntilChanged) {
         changed = true;
-        return { ...t0, contractStatus: status, busyUntilWeek: busyUntil };
+        return { ...t0, contractStatus: status, contractStatusBase: base, busyUntilWeek: busyUntil };
       }
 
       return t0;

@@ -1730,9 +1730,12 @@ export const StudioMagnateGame: React.FC<StudioMagnateGameProps> = ({
           const endAbsWeek = commitment.endAbsWeek;
           const existingBusyUntil = typeof t.busyUntilWeek === 'number' ? t.busyUntilWeek : 0;
 
+          const base = t.contractStatusBase || (t.contractStatus !== 'busy' && t.contractStatus !== 'retired' ? t.contractStatus : undefined);
+
           return {
             ...t,
             contractStatus: 'busy',
+            contractStatusBase: base,
             busyUntilWeek: Math.max(existingBusyUntil, endAbsWeek)
           };
         });

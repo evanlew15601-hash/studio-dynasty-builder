@@ -132,6 +132,11 @@ export interface TalentPerson {
   specialties?: Genre[];
   genres: Genre[];
   contractStatus: 'available' | 'contracted' | 'exclusive' | 'retired' | 'busy';
+  /**
+   * When contractStatus is temporarily set to 'busy', this stores the prior status
+   * so we can restore it when the busy window ends.
+   */
+  contractStatusBase?: 'available' | 'contracted' | 'exclusive';
   busyUntilWeek?: number;
   salary?: number;
   awards?: TalentAward[];

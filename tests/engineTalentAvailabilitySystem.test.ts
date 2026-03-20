@@ -1,6 +1,5 @@
 import { describe, expect, it } from 'vitest';
-import type { GameState } from '@/types/game';
-import { createRng } from '@/game/core/rng';
+import type { GameState, TalentPerson } from '@/types/game';
 import { TalentAvailabilitySystem } from '@/game/systems/talentAvailabilitySystem';
 
 function makeBaseState(overrides?: Partial<GameState>): GameState {
@@ -42,47 +41,77 @@ function makeBaseState(overrides?: Partial<GameState>): GameState {
   } as GameState;
 }
 
+function makeTalent(overrides: Partial<TalentPerson> & Pick<TalentPerson, 'id' | 'name'>): TalentPerson {
+  return {
+    id: overrides.id,
+    name: overrides.name,
+    type: 'actor',
+    age: 35,
+    experience: 10,
+    reputation: 80,
+    marketValue: 5_000_000,
+    genres: ['drama'],
+    contractStatus: 'available',
+    availability: { start: new Date(0), end: new Date(0) },
+    ...overrides,
+  } as TalentPerson;
+}
+
 describe('TalentAvailabilitySystem', () => {
-  it('clears expired busy status', () => {
+  it('clears busy status when busyUntilWeek has passed', () => {
     const state = makeBaseState({
+      currentWeek: 10,
+      currentYear: 2024,
+      projects: [],
       talent: [
-        {
+        makeTalent({
           id: 't1',
-          name: 'Actor 1',
-          type: 'actor',
+          name: 'Actor',
           contractStatus: 'busy',
           busyUntilWeek: 2024 * 52 + 10,
-          age: 30,
-          gender: 'Male',
-          fame: 0,
-          reputation: 50,
-          marketValue: 100_000,
-        } as any,
+        }),
       ],
     });
 
-    const ctx = { rng: createRng(1), week: 10, year: 2024, quarter: 2, recap: [], debug: false };
+    const next = TalentAvailabilitySystem.onTick(state, { week: 10, year: 2024, recap: [] } as any);
 
-    const next = TalentAvailabilitySystem.onTick(state, ctx as any);
     expect(next.talent[0].contractStatus).toBe('available');
     expect(next.talent[0].busyUntilWeek).toBeUndefined();
   });
 
-  it('marks cast talent busy while a project is in production', () => {
+  it('restores contracted status after the busy window ends', () => {
+    const state = makeBaseState({
+      currentWeek: 10,
+      currentYear: 2024,
+      projects: [],
+      talent: [
+        makeTalent({
+          id: 't1',
+          name: 'Actor',
+          contractStatus: 'busy',
+          contractStatusBase: 'contracted',
+          busyUntilWeek: 2024 * 52 + 10,
+        }),
+      ],
+    });
+
+    const next = TalentAvailabilitySystem.onTick(state, { week: 10, year: 2024, recap: [] } as any);
+
+    expect(next.talent[0].contractStatus).toBe('contracted');
+    expect(next.talent[0].contractStatusBase).toBeUndefined();
+    expect(next.talent[0].busyUntilWeek).toBeUndefined();
+  });
+
+  it('marks cast talent busy while a project is in production (preserving contract status)', () => {
     const state = makeBaseState({
       currentWeek: 5,
+      currentYear: 2024,
       talent: [
-        {
+        makeTalent({
           id: 't1',
           name: 'Actor 1',
-          type: 'actor',
-          contractStatus: 'available',
-          age: 30,
-          gender: 'Male',
-          fame: 0,
-          reputation: 50,
-          marketValue: 100_000,
-        } as any,
+          contractStatus: 'contracted',
+        }),
       ],
       projects: [
         {
@@ -106,29 +135,23 @@ describe('TalentAvailabilitySystem', () => {
       ],
     });
 
-    const ctx = { rng: createRng(1), week: 5, year: 2024, quarter: 2, recap: [], debug: false };
-
-    const next = TalentAvailabilitySystem.onTick(state, ctx as any);
+    const next = TalentAvailabilitySystem.onTick(state, { week: 5, year: 2024, recap: [] } as any);
 
     expect(next.talent[0].contractStatus).toBe('busy');
+    expect(next.talent[0].contractStatusBase).toBe('contracted');
     expect(next.talent[0].busyUntilWeek).toBe(2024 * 52 + 5 + 8);
   });
 
   it('uses shorter busy windows for cameos', () => {
     const state = makeBaseState({
       currentWeek: 5,
+      currentYear: 2024,
       talent: [
-        {
+        makeTalent({
           id: 't1',
           name: 'Actor 1',
-          type: 'actor',
-          contractStatus: 'available',
-          age: 30,
-          gender: 'Male',
-          fame: 0,
-          reputation: 50,
-          marketValue: 100_000,
-        } as any,
+          contractStatus: 'contracted',
+        }),
       ],
       projects: [
         {
@@ -152,11 +175,10 @@ describe('TalentAvailabilitySystem', () => {
       ],
     });
 
-    const ctx = { rng: createRng(1), week: 5, year: 2024, quarter: 2, recap: [], debug: false };
-
-    const next = TalentAvailabilitySystem.onTick(state, ctx as any);
+    const next = TalentAvailabilitySystem.onTick(state, { week: 5, year: 2024, recap: [] } as any);
 
     expect(next.talent[0].contractStatus).toBe('busy');
+    expect(next.talent[0].contractStatusBase).toBe('contracted');
     expect(next.talent[0].busyUntilWeek).toBe(2024 * 52 + 5 + 2);
   });
 });
