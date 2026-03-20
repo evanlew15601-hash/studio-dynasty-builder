@@ -1,8 +1,8 @@
 import type { GameState, TalentPerson } from '@/types/game';
 import type { TickSystem } from '../core/types';
-import { MediaEngine } from '@/components/game/MediaEngine';
-import { MediaResponseSystem } from '@/components/game/MediaResponseSystem';
-import { MediaReputationIntegration } from '@/components/game/MediaReputationIntegration';
+import { MediaEngine } from '@/game/media/mediaEngine';
+import { MediaResponseSystem } from '@/game/media/mediaResponseSystem';
+import { MediaReputationIntegration } from '@/game/media/mediaReputationIntegration';
 
 export const MediaWeeklySystem: TickSystem = {
   id: 'mediaWeekly',

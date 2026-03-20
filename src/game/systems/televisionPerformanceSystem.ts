@@ -1,7 +1,7 @@
 import type { GameState, Project } from '@/types/game';
 import type { TickSystem } from '../core/types';
-import { TVEpisodeSystem } from '@/components/game/TVEpisodeSystem';
-import { TVRatingsSystem } from '@/components/game/TVRatingsSystem';
+import { TVEpisodeSystem } from '@/game/sim/tvEpisodeSystem';
+import { TVRatingsSystem } from '@/game/sim/tvRatingsSystem';
 
 function isTvProject(project: Project): boolean {
   const kind = (project.type as any) as string;

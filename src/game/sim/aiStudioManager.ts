@@ -1,7 +1,6 @@
 // AI Studio Manager - Handles competitor studio film production
 import type { AIStudioState, AIFilmProject, Studio, TalentCommitment, TalentPerson } from '@/types/game';
 import type { SeededRng } from '@/game/core/rng';
-import { FinancialEngine } from './FinancialEngine';
 
 const emptyState = (): AIStudioState => ({ aiFilms: [], talentCommitments: [], nextFilmId: 1 });
 
@@ -286,34 +285,7 @@ export class AIStudioManager {
         }
       }
 
-      // Record weekly expenses during production
-      if (film.status === 'production' || film.status === 'post-production') {
-        const weeklyProductionCost = film.budget.production * 0.05; // 5% per week
-        FinancialEngine.recordTransaction(
-          'expense',
-          'production',
-          weeklyProductionCost,
-          currentWeek,
-          currentYear,
-          `AI Studio production - ${film.title}`,
-          film.id
-        );
-
-        // Pay talent weekly
-        film.cast.forEach(castMember => {
-          if (castMember.commitmentWeeks.includes(currentAbsWeek)) {
-            FinancialEngine.recordTransaction(
-              'expense',
-              'talent',
-              castMember.weeklyPay,
-              currentWeek,
-              currentYear,
-              `AI Studio talent payment - ${castMember.talentName}`,
-              film.id
-            );
-          }
-        });
-      }
+      
     });
 
     // Clean up expired commitments
@@ -353,16 +325,7 @@ export class AIStudioManager {
       awards: [] // Will be populated by awards system
     };
 
-    // Record AI film revenue
-    FinancialEngine.recordTransaction(
-      'revenue',
-      'boxoffice',
-      boxOffice,
-      currentWeek,
-      currentYear,
-      `AI Film box office - ${film.title}`,
-      film.id
-    );
+    
 
     console.log(`AI RELEASE: "${film.title}" released - \u0024${(boxOffice/1000000).toFixed(1)}M box office`);
     

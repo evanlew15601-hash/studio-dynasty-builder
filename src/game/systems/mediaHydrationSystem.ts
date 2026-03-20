@@ -1,7 +1,7 @@
 import type { GameState, MediaState } from '@/types/game';
 import type { TickSystem } from '../core/types';
-import { MediaEngine } from '@/components/game/MediaEngine';
-import { MediaResponseSystem } from '@/components/game/MediaResponseSystem';
+import { MediaEngine } from '@/game/media/mediaEngine';
+import { MediaResponseSystem } from '@/game/media/mediaResponseSystem';
 
 const EMPTY_MEDIA_STATE: MediaState = {
   engine: { history: [], memories: [], eventQueue: [] },

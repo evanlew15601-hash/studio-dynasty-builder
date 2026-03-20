@@ -1,7 +1,7 @@
 import type { GameState, Project, Studio } from '@/types/game';
 import type { TickSystem } from '../core/types';
-import { TVEpisodeSystem } from '@/components/game/TVEpisodeSystem';
-import { TVRatingsSystem } from '@/components/game/TVRatingsSystem';
+import { TVEpisodeSystem } from '@/game/sim/tvEpisodeSystem';
+import { TVRatingsSystem } from '@/game/sim/tvRatingsSystem';
 import { stableInt } from '@/utils/stableRandom';
 
 function isTvProject(p: Project): boolean {

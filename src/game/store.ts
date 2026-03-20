@@ -73,8 +73,8 @@ import { PlatformOpportunitiesSystem } from './systems/platformOpportunitiesSyst
 import { PlatformMnaOffersSystem } from './systems/platformMnaOffersSystem';
 import { PlatformTalentDealsSystem } from './systems/platformTalentDealsSystem';
 import { PlatformBiddingWarSystem } from './systems/platformBiddingWarSystem';
-import { MediaEngine } from '@/components/game/MediaEngine';
-import { MediaResponseSystem } from '@/components/game/MediaResponseSystem';
+import { MediaEngine } from '@/game/media/mediaEngine';
+import { MediaResponseSystem } from '@/game/media/mediaResponseSystem';
 import { getPlayerCircleDramaMediaTemplate } from './systems/playerCircleDramaModding';
 
 // ---------------------------------------------------------------------------

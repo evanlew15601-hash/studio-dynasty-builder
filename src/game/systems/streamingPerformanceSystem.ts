@@ -1,6 +1,6 @@
 import type { GameState, Project } from '@/types/game';
 import type { TickSystem } from '../core/types';
-import { StreamingFilmSystem } from '@/components/game/StreamingFilmSystem';
+import { StreamingFilmSystem } from '@/game/sim/streamingFilmSystem';
 
 function isProjectLike(value: any): value is Project {
   return !!value && typeof value === 'object' && typeof value.id === 'string' && 'script' in value;

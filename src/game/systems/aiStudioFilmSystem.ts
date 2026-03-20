@@ -1,6 +1,6 @@
 import type { AIStudioState, GameState, TalentCommitment, TalentPerson } from '@/types/game';
 import type { TickSystem } from '../core/types';
-import { AIStudioManager } from '@/components/game/AIStudioManager';
+import { AIStudioManager } from '@/game/sim/aiStudioManager';
 
 function absWeek(week: number, year: number): number {
   return year * 52 + week;
