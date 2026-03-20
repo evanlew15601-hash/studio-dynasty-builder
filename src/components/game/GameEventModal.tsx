@@ -1,4 +1,4 @@
-import React, { useMemo } from 'react';
+import React from 'react';
 import type { EventChoice, EventConsequence, GameEvent } from '@/types/game';
 import { useGameStore } from '@/game/store';
 import { Dialog, DialogContent, DialogFooter, DialogHeader, DialogTitle } from '@/components/ui/dialog';
@@ -37,7 +37,7 @@ export const GameEventModal: React.FC<{
   const budget = game?.studio.budget ?? 0;
   const reputation = game?.studio.reputation ?? 0;
 
-  const choices = useMemo(() => event?.choices || [], [event?.id]);
+  const choices = event?.choices || [];
 
   if (!game || !event) return null;
 

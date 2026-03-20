@@ -430,7 +430,7 @@ export const StudioMagnateGame: React.FC<StudioMagnateGameProps> = ({
         await delay(0);
 
         const sg = new StudioGenerator();
-        const currentYear = new Date().getFullYear();
+        const currentYear = worldStartYear;
         const yearsToSeed = [currentYear - 1, currentYear];
         const totalWeeks = yearsToSeed.length * 52;
         let processedWeeks = 0;
@@ -1339,6 +1339,8 @@ export const StudioMagnateGame: React.FC<StudioMagnateGameProps> = ({
   // DEBUG: Quick test function to skip to post-theatrical phase
   const skipToPostTheatrical = () => {
     console.log('SKIPPING TO POST-THEATRICAL TESTING MODE');
+
+    const now = new Date(Date.UTC(gameState.currentYear, 0, 1 + (Math.max(1, gameState.currentWeek) - 1) * 7));
     
     // Use existing project or create minimal one
     const existingProject = gameState.projects[0];
@@ -1402,10 +1404,10 @@ export const StudioMagnateGame: React.FC<StudioMagnateGameProps> = ({
           }
         },
         timeline: { 
-          preProduction: { start: new Date(), end: new Date() },
-          principalPhotography: { start: new Date(), end: new Date() },
-          postProduction: { start: new Date(), end: new Date() },
-          release: new Date(),
+          preProduction: { start: now, end: now },
+          principalPhotography: { start: now, end: now },
+          postProduction: { start: now, end: now },
+          release: now,
           milestones: []
         },
         distributionStrategy: null,
@@ -1428,7 +1430,7 @@ export const StudioMagnateGame: React.FC<StudioMagnateGameProps> = ({
       releaseWeek: gameState.currentWeek - 10,
       releaseYear: gameState.currentYear,
       postTheatricalEligible: true,
-      theatricalEndDate: new Date(),
+      theatricalEndDate: now,
       metrics: {
         inTheaters: false,
         boxOfficeTotal: 125000000,

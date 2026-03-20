@@ -31,6 +31,24 @@ describe('StudioGenerator deterministic AI releases', () => {
     expect(b).toEqual(a);
   });
 
+  it('produces a fully deterministic release object (including script characteristics)', () => {
+    const seed = 4242;
+    const year = 2026;
+
+    const aGen = new StudioGenerator();
+    const aProfile = getStudioProfileOrThrow(aGen, 'Crimson Peak Entertainment');
+
+    const aRelease = Array.from({ length: 52 }, (_, i) => aGen.generateDeterministicStudioRelease(aProfile, i + 1, year, seed)).find(Boolean);
+    expect(aRelease).toBeTruthy();
+
+    const bGen = new StudioGenerator();
+    const bProfile = getStudioProfileOrThrow(bGen, 'Crimson Peak Entertainment');
+
+    const bRelease = Array.from({ length: 52 }, (_, i) => bGen.generateDeterministicStudioRelease(bProfile, i + 1, year, seed)).find(Boolean);
+
+    expect(bRelease).toEqual(aRelease);
+  });
+
   it('does not depend on earlier weeks being generated (resume safety)', () => {
     const seed = 9001;
     const year = 2026;

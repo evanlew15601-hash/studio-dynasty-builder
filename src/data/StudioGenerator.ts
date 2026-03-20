@@ -565,7 +565,7 @@ export class StudioGenerator {
       themes: this.generateDeterministicThemes(genre, rng),
       targetAudience: this.selectTargetAudience(genre),
       estimatedRuntime: 85 + rng.nextInt(0, 49),
-      characteristics: this.generateCharacteristics(genre, studioProfile)
+      characteristics: this.generateDeterministicCharacteristics(genre, studioProfile, rng)
     };
 
     const releaseDate = this.dateForGameWeek(currentYear, currentWeek);
@@ -698,7 +698,7 @@ export class StudioGenerator {
       targetAudience: this.selectTargetAudience(genre),
       estimatedRuntime: 45,
       characteristics: {
-        ...this.generateCharacteristics(genre, studioProfile),
+        ...this.generateDeterministicCharacteristics(genre, studioProfile, r),
         pacing: 'episodic'
       }
     };
@@ -1055,6 +1055,18 @@ export class StudioGenerator {
       visualStyle: this.selectVisualStyle(genre),
       commercialAppeal: 3 + Math.floor(Math.random() * 7),
       criticalPotential: 2 + Math.floor(Math.random() * 8),
+      cgiIntensity: this.selectCGIIntensity(genre)
+    };
+  }
+
+  private generateDeterministicCharacteristics(genre: Genre, studioProfile: StudioProfile, rng: SeededRng): any {
+    return {
+      tone: this.selectTone(genre),
+      pacing: this.selectPacing(genre),
+      dialogue: this.selectDialogue(studioProfile.personality),
+      visualStyle: this.selectVisualStyle(genre),
+      commercialAppeal: 3 + rng.nextInt(0, 6),
+      criticalPotential: 2 + rng.nextInt(0, 7),
       cgiIntensity: this.selectCGIIntensity(genre)
     };
   }

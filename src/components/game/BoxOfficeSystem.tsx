@@ -167,7 +167,7 @@ export class BoxOfficeSystem {
           theatricalRunLocked: true // LOCK THE RUN - NO MORE CHANGES
         },
         postTheatricalEligible: true,
-        theatricalEndDate: new Date()
+        theatricalEndDate: new Date(Date.UTC(currentYear, 0, 1 + (Math.max(1, currentWeek) - 1) * 7))
       };
     }
 
