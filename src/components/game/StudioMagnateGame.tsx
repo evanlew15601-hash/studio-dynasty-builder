@@ -36,7 +36,7 @@ import { AwardsSystem } from './AwardsSystem';
 import { AwardsSeasonAnalyticsPanel } from './AwardsSeasonAnalyticsPanel';
 import { RoleBasedCasting } from './RoleBasedCasting';
 import { CharacterCastingSystem } from './CharacterCastingSystem';
-import { useAwardsEngine } from '@/hooks/useAwardsEngine';
+
 import { useOnlineLeagueTickGate } from '@/hooks/useOnlineLeagueTickGate';
 import { getAwardShowsForYear } from '@/data/AwardsSchedule';
 import { fetchOnlineLeagueSnapshots } from '@/integrations/supabase/onlineLeagueSnapshots';
@@ -991,13 +991,7 @@ export const StudioMagnateGame: React.FC<StudioMagnateGameProps> = ({
     setTimeout(() => completeOperation('project-create'), 500);
   };
 
-  const handleStudioUpdate = (updates: Partial<Studio>) => {
-    updateStudio(updates);
-  };
-
-  const handleTalentUpdate = (talentId: string, updates: Partial<TalentPerson>) => {
-    updateTalent(talentId, updates);
-  };
+  
 
   const handleCreateFranchise = (franchise: any) => {
     upsertFranchise(franchise);
@@ -1019,10 +1013,7 @@ export const StudioMagnateGame: React.FC<StudioMagnateGameProps> = ({
     setShowAwardModal(true);
   };
 
-  // Always run awards engine in the background (independent of UI phase)
-  useAwardsEngine(gameState, handleStudioUpdate, handleTalentUpdate, handleAwardShow, mergeGameState, {
-    suppressAwardShowEvents: isOnlineMode && !onlineHostSync,
-  });
+  
 
   
 

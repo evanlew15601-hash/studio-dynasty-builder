@@ -50,6 +50,7 @@ import { BoxOfficeSystem } from './systems/boxOfficeSystem';
 import { PostTheatricalRevenueSystem } from './systems/postTheatricalRevenueSystem';
 import { PlayerCircleDramaSystem } from './systems/playerCircleDramaSystem';
 import { StudioGovernanceSystem } from './systems/studioGovernanceSystem';
+import { AwardsSeasonSystem } from './systems/awardsSeasonSystem';
 import { PlatformMarketBootstrapSystem } from './systems/platformMarketBootstrapSystem';
 import { PlatformOriginalsPipelineSystem } from './systems/platformOriginalsPipelineSystem';
 import { PlatformOriginalsReleaseCadenceSystem } from './systems/platformOriginalsReleaseCadenceSystem';
@@ -210,6 +211,7 @@ export const useGameStore: import('zustand').UseBoundStore<import('zustand').Sto
       r.register(TalentCareerArcSystem);
       r.register(IndustryGossipSystem);
       r.register(PlayerCircleDramaSystem);
+      r.register(AwardsSeasonSystem);
 
       // Streaming Wars (DLC) — systems early-return unless dlc.streamingWars is true.
       r.register(PlatformMarketBootstrapSystem);
