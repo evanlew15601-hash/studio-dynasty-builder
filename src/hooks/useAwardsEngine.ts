@@ -606,10 +606,12 @@ export function useAwardsEngine(
               {
                 id: 'watch',
                 text: 'Watch the show',
+                consequences: [],
               },
               {
                 id: 'skip',
                 text: 'Skip (view results later)',
+                consequences: [],
               },
             ],
           };
