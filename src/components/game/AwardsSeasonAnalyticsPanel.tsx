@@ -78,8 +78,8 @@ export const AwardsSeasonAnalyticsPanel: React.FC = () => {
           .slice()
           .sort(([a], [b]) => a.localeCompare(b))
           .map(([key, record]) => {
-            const lastDash = key.lastIndexOf('-');
-            const showId = lastDash > 0 ? key.slice(0, lastDash) : key;
+            const match = key.match(/^(.*)-(\d+)$/);
+            const showId = match ? match[1] : key;
             const show = schedule.find((s) => s.id === showId) ?? schedule.find((s) => s.name === showId);
 
             const ceremony = season.ceremonyHistory?.[show?.id || showId];

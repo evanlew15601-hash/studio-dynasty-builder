@@ -4148,12 +4148,8 @@ export const StudioMagnateGame: React.FC<StudioMagnateGameProps> = ({
           const year = (event as any)?.data?.year as number | undefined;
           if (!showId || !year) return;
 
-          const latest = useGameStore.getState().game;
-          if (!latest) return;
-
-          const ceremony = buildAwardShowCeremonyForModal(latest, showId, year);
+          const ceremony = buildAwardShowCeremonyForModal(gameState, showId, year);
           if (!ceremony) return;
-
           handleAwardShow(ceremony);
         }}
       />
