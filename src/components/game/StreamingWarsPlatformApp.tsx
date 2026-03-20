@@ -1615,36 +1615,96 @@ export const StreamingWarsPlatformApp: React.FC = () => {
                       <span className="font-medium">{formatUsdCompact(player.cash ?? 0)}</span>
                     </div>
 
-                    {platformMarket?.lastWeek?.player && (
-                      <>
-                        <div className="flex justify-between">
-                          <span className="text-muted-foreground">Net adds (last tick)</span>
-                          <span className="font-medium">{formatCompact(platformMarket.lastWeek.player.netAdds)}</span>
-                        </div>
-                        <div className="flex justify-between">
-                          <span className="text-muted-foreground">Churn (last tick)</span>
-                          <span className="font-medium">{(platformMarket.lastWeek.player.churnRate * 100).toFixed(2)}%</span>
-                        </div>
-                        <div className="flex justify-between">
-                          <span className="text-muted-foreground">Revenue (last tick)</span>
-                          <span className="font-medium">{formatUsdCompact(platformMarket.lastWeek.player.revenue)}</span>
-                        </div>
-                        <div className="flex justify-between">
-                          <span className="text-muted-foreground">Ops cost (last tick)</span>
-                          <span className="font-medium">{formatUsdCompact(platformMarket.lastWeek.player.opsCost)}</span>
-                        </div>
-                        <div className="flex justify-between">
-                          <span className="text-muted-foreground">Profit (last tick)</span>
-                          <span className={platformMarket.lastWeek.player.profit >= 0 ? 'font-medium text-green-700' : 'font-medium text-red-700'}>
-                            {formatUsdCompact(platformMarket.lastWeek.player.profit)}
-                          </span>
-                        </div>
-                      </>
-                    )}
-                    {typeof player.monthlyPrice === 'number' && (
+                    {platformMarket?.lastWeek?.player && (() => {
+                      const kpis = platformMarket.lastWeek.player;
+                      const churnPct = kpis.churnRate * 100;
+
+                      const guidance: string[] = [];
+
+                      if (kpis.netAdds < 0) {
+                        guidance.push('Net adds are negative. Consider lowering price, reducing ad load, increasing promotion, or improving service quality.');
+                      }
+
+                      if (kpis.churnRate > 0.04) {
+                        guidance.push('Churn is spiking. Reduce price/ad load and keep Originals cadence steady to stabilize retention.');
+                      } else if (kpis.churnRate > 0.03) {
+                        guidance.push('Churn is elevated. Watch pricing/ad load and consider a short promo boost.');
+                      }
+
+                      if (kpis.profit < 0) {
+                        guidance.push('You are burning cash. Reduce weekly promotion spend or raise price slightly to improve unit economics.');
+                      }
+
+                      if ((player.freshness ?? 0) < 45) {
+                        guidance.push('Freshness is low. Release Originals or acquire an exclusive license to lift retention.');
+                      }
+
+                      if ((player.catalogValue ?? 0) < 45) {
+                        guidance.push('Catalog value is low. Add windowed titles or win a library pack to improve acquisition.');
+                      }
+
+                      const churnTone = churnPct > 4 ? 'font-medium text-red-700' : churnPct > 3 ? 'font-medium text-yellow-700' : 'font-medium';
+                      const netAddsTone = kpis.netAdds > 0 ? 'font-medium text-green-700' : kpis.netAdds < 0 ? 'font-medium text-red-700' : 'font-medium';
+
+                      return (
+                        <>
+                          <div className="flex justify-between">
+                            <span className="text-muted-foreground">Acquired (last tick)</span>
+                            <span className="font-medium">{formatCompact(kpis.acquired)}</span>
+                          </div>
+                          <div className="flex justify-between">
+                            <span className="text-muted-foreground">Churned (last tick)</span>
+                            <span className="font-medium">{formatCompact(kpis.churned)}</span>
+                          </div>
+                          <div className="flex justify-between">
+                            <span className="text-muted-foreground">Net adds (last tick)</span>
+                            <span className={netAddsTone}>
+                              {kpis.netAdds > 0 ? '+' : ''}{formatCompact(kpis.netAdds)}
+                            </span>
+                          </div>
+                          <div className="flex justify-between">
+                            <span className="text-muted-foreground">Churn (last tick)</span>
+                            <span className={churnTone}>{churnPct.toFixed(2)}%</span>
+                          </div>
+                          <div className="flex justify-between">
+                            <span className="text-muted-foreground">Revenue (last tick)</span>
+                            <span className="font-medium">{formatUsdCompact(kpis.revenue)}</span>
+                          </div>
+                          <div className="flex justify-between">
+                            <span className="text-muted-foreground">Ops cost (last tick)</span>
+                            <span className="font-medium">{formatUsdCompact(kpis.opsCost)}</span>
+                          </div>
+                          <div className="flex justify-between">
+                            <span className="text-muted-foreground">Profit (last tick)</span>
+                            <span className={kpis.profit >= 0 ? 'font-medium text-green-700' : 'font-medium text-red-700'}>
+                              {formatUsdCompact(kpis.profit)}
+                            </span>
+                          </div>
+
+                          {player.status === 'active' && (
+                            <div className="pt-3 border-t space-y-2">
+                              <div className="text-xs font-medium text-muted-foreground">Guidance</div>
+                              {guidance.length > 0 ? (
+                                <ul className="text-xs text-muted-foreground list-disc pl-4 space-y-1">
+                                  {guidance.slice(0, 3).map((tip) => (
+                                    <li key={tip}>{tip}</li>
+                                  ))}
+                                </ul>
+                              ) : (
+                                <p className="text-xs text-muted-foreground">Stable week. Keep Originals cadence steady and watch churn.</p>
+                              )}
+                            </div>
+                          )}
+                        </>
+                      );
+                    })()}
+
+                    {player && (
                       <div className="flex justify-between">
-                        <span className="text-muted-foreground">Monthly price</span>
-                        <span className="font-medium">{formatUsd(player.monthlyPrice)}</span>
+                        <span className="text-muted-foreground">{typeof player.monthlyPrice === 'number' ? 'Monthly price' : 'Monthly price (est.)'}</span>
+                        <span className="font-medium">
+                          {formatUsd(typeof player.monthlyPrice === 'number' ? player.monthlyPrice : computeMonthlyPrice(player.priceIndex ?? 1))}
+                        </span>
                       </div>
                     )}
                     {typeof player.contentSpendPerWeek === 'number' && (

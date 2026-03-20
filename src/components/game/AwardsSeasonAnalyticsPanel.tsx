@@ -6,7 +6,8 @@ import { Button } from '@/components/ui/button';
 import { getAwardShowsForYear } from '@/data/AwardsSchedule';
 import { buildAwardShowCeremonyForModal } from '@/utils/awardsCeremony';
 import type { Project } from '@/types/game';
-import { IndividualAwardShowModal, type AwardShowCeremony } from './IndividualAwardShowModal';
+import type { AwardShowCeremony } from '@/types/awardsShow';
+import { IndividualAwardShowModal } from './IndividualAwardShowModal';
 
 export const AwardsSeasonAnalyticsPanel: React.FC = () => {
   const gameState = useGameStore((s) => s.game);

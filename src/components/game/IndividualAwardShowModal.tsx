@@ -7,23 +7,9 @@ import { Badge } from '@/components/ui/badge';
 import { Progress } from '@/components/ui/progress';
 import { TrophyIcon, StarIcon, CalendarIcon } from '@/components/ui/icons';
 import { X } from 'lucide-react';
-import { Project, StudioAward } from '@/types/game';
-
-export interface AwardShowNomination {
-  project: Project & { studioId?: string };
-  category: string;
-  score: number;
-  won?: boolean;
-  award?: StudioAward;
-  talentName?: string; // added to visually credit actors/directors
-}
-
-export interface AwardShowCeremony {
-  ceremonyName: string;
-  year: number;
-  nominations: Record<string, AwardShowNomination[]>; // category -> nominations
-  winners: Record<string, AwardShowNomination>; // category -> winner
-}
+import type { Project } from '@/types/game';
+import type { AwardShowCeremony } from '@/types/awardsShow';
+export type { AwardShowCeremony, AwardShowNomination } from '@/types/awardsShow';
 
 interface IndividualAwardShowModalProps {
   isOpen: boolean;

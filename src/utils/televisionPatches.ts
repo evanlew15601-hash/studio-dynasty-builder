@@ -1,6 +1,6 @@
 import type { GameState, Project } from '@/types/game';
-import { TVEpisodeSystem } from '@/components/game/TVEpisodeSystem';
-import { TVRatingsSystem } from '@/components/game/TVRatingsSystem';
+import { TVEpisodeSystem } from '@/game/sim/tvEpisodeSystem';
+import { TVRatingsSystem } from '@/game/sim/tvRatingsSystem';
 import { StudioGenerator } from '@/data/StudioGenerator';
 import { attachBasicCastForAI } from '@/utils/attachBasicCastForAI';
 import { stableInt } from '@/utils/stableRandom';

@@ -1,4 +1,4 @@
-import type { AwardShowCeremony, AwardShowNomination } from '@/components/game/IndividualAwardShowModal';
+import type { AwardShowCeremony, AwardShowNomination } from '@/types/awardsShow';
 import { getAwardShowsForYear } from '@/data/AwardsSchedule';
 import type { AwardCategoryDefinition } from '@/data/AwardsSchedule';
 import type { GameState, Project, StudioAward } from '@/types/game';

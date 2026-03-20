@@ -42,7 +42,8 @@ import { fetchOnlineLeagueSnapshots } from '@/integrations/supabase/onlineLeague
 import { computeLeagueAwardsCeremony, type LeagueAwardsCeremony } from '@/utils/leagueAwards';
 import { buildAwardShowCeremonyForModal } from '@/utils/awardsCeremony';
 import { LeagueAwardsCeremonyModal } from './LeagueAwardsCeremonyModal';
-import { IndividualAwardShowModal, AwardShowCeremony } from './IndividualAwardShowModal';
+import type { AwardShowCeremony } from '@/types/awardsShow';
+import { IndividualAwardShowModal } from './IndividualAwardShowModal';
 import { FirstWeekBoxOfficeModal } from './FirstWeekBoxOfficeModal';
 import { EnhancedLoanSystem } from './EnhancedLoanSystem';
 import { MarketCompetition } from './MarketCompetition';
