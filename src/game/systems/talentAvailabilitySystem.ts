@@ -26,8 +26,28 @@ function computeCastBusyUntil(project: Project, currentAbsWeek: number): Map<str
   return out;
 }
 
-function inferBaseContractStatus(state: GameState, talentId: string): TalentPerson['contractStatusBase'] {
+function inferBaseContractStatus(
+  state: GameState,
+  talentId: string,
+  currentAbsWeek: number
+): NonNullable<TalentPerson['contractStatusBase']> {
   // Best-effort for old saves that used contractStatus='busy' without preserving the prior status.
+
+  // If they have an active exclusive hold, restore to exclusive.
+  const talent = (state.talent || []).find((t) => t.id === talentId);
+  for (const hold of talent?.futureHolds || []) {
+    if (!hold) continue;
+    if (hold.type !== 'exclusive') continue;
+    if (hold.status !== 'confirmed' && hold.status !== 'pending') continue;
+
+    const startAbs = absWeek(hold.startWeek, hold.year);
+    const endAbs = absWeek(hold.endWeek, hold.year);
+
+    if (currentAbsWeek >= startAbs && currentAbsWeek <= endAbs) {
+      return 'exclusive';
+    }
+  }
+
   // If they appear in any project contractedTalent list, treat them as contracted.
   for (const p of state.projects || []) {
     const contracted = (p?.contractedTalent || []).some((c) => c?.talentId === talentId);
@@ -71,7 +91,7 @@ export const TalentAvailabilitySystem: TickSystem = {
       let busyUntil = t0.busyUntilWeek;
 
       if (status === 'busy' && typeof busyUntil === 'number' && busyUntil <= currentAbs) {
-        status = base ?? inferBaseContractStatus(state, t0.id) ?? 'available';
+        status = base ?? inferBaseContractStatus(state, t0.id, currentAbs);
         base = undefined;
         busyUntil = undefined;
       }

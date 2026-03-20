@@ -7,7 +7,7 @@ function absWeek(week: number, year: number): number {
 }
 
 function triggerDateFromWeekYear(year: number, week: number): Date {
-  return new Date(year, 0, 1 + Math.max(0, week - 1) * 7);
+  return new Date(Date.UTC(year, 0, 1 + Math.max(0, week - 1) * 7));
 }
 
 function isProjectLike(value: any): value is Project {

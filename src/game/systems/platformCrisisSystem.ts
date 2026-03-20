@@ -5,7 +5,7 @@ import type { TickSystem } from '../core/types';
 
 function triggerDateFromWeekYear(year: number, week: number): Date {
   // Game years are not real-world years; we just need a stable Date for UI ordering.
-  return new Date(year, 0, 1 + Math.max(0, week - 1) * 7);
+  return new Date(Date.UTC(year, 0, 1 + Math.max(0, week - 1) * 7));
 }
 
 export const PlatformCrisisSystem: TickSystem = {

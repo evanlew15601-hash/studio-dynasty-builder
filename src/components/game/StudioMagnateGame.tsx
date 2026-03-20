@@ -369,7 +369,6 @@ export const StudioMagnateGame: React.FC<StudioMagnateGameProps> = ({
   const newGameInitStartedRef = useRef(false);
   const [newGameInitAttempt, setNewGameInitAttempt] = useState(0);
 
-  // eslint-disable-next-line react-hooks/exhaustive-deps
   useEffect(() => {
     if (storeGameState) return;
     if (initialGameState) return;
@@ -1719,7 +1718,6 @@ export const StudioMagnateGame: React.FC<StudioMagnateGameProps> = ({
       
       // Talent availability is now maintained by the deterministic engine tick.
       // Here we only overlay AI studio commitments (which are still managed outside the engine).
-      const currentAbsWeek = (newTimeState.currentYear * 52) + newTimeState.currentWeek;
       let updatedTalent = baseAfterEngine.talent || [];
 
       if (!isOnlineMode) {

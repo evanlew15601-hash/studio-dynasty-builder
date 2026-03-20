@@ -135,6 +135,40 @@ describe('TalentAvailabilitySystem', () => {
     expect(next.talent[0].busyUntilWeek).toBeUndefined();
   });
 
+  it('infers exclusive base status from active exclusive holds for old saves', () => {
+    const state = makeBaseState({
+      currentWeek: 10,
+      currentYear: 2024,
+      projects: [],
+      talent: [
+        makeTalent({
+          id: 't1',
+          name: 'Actor',
+          contractStatus: 'busy',
+          busyUntilWeek: 2024 * 52 + 10,
+          futureHolds: [
+            {
+              id: 'hold-1',
+              talentId: 't1',
+              studioId: 'studio-1',
+              startWeek: 1,
+              endWeek: 52,
+              year: 2024,
+              type: 'exclusive',
+              status: 'confirmed',
+            },
+          ],
+        }),
+      ],
+    });
+
+    const next = TalentAvailabilitySystem.onTick(state, { week: 10, year: 2024, recap: [] } as any);
+
+    expect(next.talent[0].contractStatus).toBe('exclusive');
+    expect(next.talent[0].contractStatusBase).toBeUndefined();
+    expect(next.talent[0].busyUntilWeek).toBeUndefined();
+  });
+
   it('marks cast talent busy while a project is in production (preserving contract status)', () => {
     const state = makeBaseState({
       currentWeek: 5,

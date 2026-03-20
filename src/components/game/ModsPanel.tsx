@@ -342,7 +342,6 @@ export const ModsPanel: React.FC = () => {
       const b = getModBundle();
       syncFromBundle(b, true);
     }
-    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [activeSlot]);
 
   const handleSave = () => {
