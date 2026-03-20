@@ -124,7 +124,9 @@ describe('Engine post-theatrical revenue system', () => {
     expect(next.currentWeek).toBe(10);
 
     const updated = next.projects[0];
-    const window = updated.postTheatricalReleases?.[0]!;
+    const window = updated.postTheatricalReleases?.[0];
+    expect(window).toBeTruthy();
+    if (!window) throw new Error('Expected post-theatrical window to exist');
 
     expect(window.lastProcessedWeek).toBe(10);
     expect(window.lastProcessedYear).toBe(2024);
@@ -212,7 +214,10 @@ describe('Engine post-theatrical revenue system', () => {
 
     expect(next.currentWeek).toBe(8);
 
-    const window = next.projects[0].postTheatricalReleases?.[0]!;
+    const window = next.projects[0].postTheatricalReleases?.[0];
+    expect(window).toBeTruthy();
+    if (!window) throw new Error('Expected post-theatrical window to exist');
+
     expect(window.status).toBe('planned');
     expect(window.revenue).toBe(0);
     expect(window.lastProcessedWeek).toBe(8);
