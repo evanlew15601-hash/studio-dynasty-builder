@@ -22,7 +22,6 @@ import { LeagueStandings } from './LeagueStandings';
 import { TimeSystem, TimeState } from './TimeSystem';
 import { BoxOfficeSystem } from './BoxOfficeSystem';
 import { StreamingFilmSystem } from './StreamingFilmSystem';
-import { TVRatingsSystem } from './TVRatingsSystem';
 import { TVEpisodeSystem } from './TVEpisodeSystem';
 import { FinancialEngine } from './FinancialEngine';
 import { updateProjectFinancials } from './FinancialCalculations';
@@ -1363,31 +1362,10 @@ export const StudioMagnateGame: React.FC<StudioMagnateGameProps> = ({
       // Process box office for released films (but skip on the week they just released)
        if (updatedProject.status === 'released' && !justReleased) {
          if (project.type === 'series' || project.type === 'limited-series') {
-           if (diagnosticsEnabled) {
-             console.log(`    PROCESSING TV RATINGS: ${project.title}`);
-           }
-
-           updatedProject = TVEpisodeSystem.ensureSeason(updatedProject);
-           updatedProject = TVEpisodeSystem.autoReleaseEpisodesIfDue(updatedProject, timeState.currentWeek, timeState.currentYear);
-           updatedProject = TVEpisodeSystem.processWeeklyEpisodeDecay(updatedProject, timeState.currentWeek, timeState.currentYear);
-
-           updatedProject = TVRatingsSystem.processWeeklyRatings(
-             updatedProject,
-             timeState.currentWeek,
-             timeState.currentYear
-           );
+           // TV episode scheduling + ratings are handled by the deterministic engine tick.
+         } else if (updatedProject.releaseStrategy?.type === 'streaming') {
+           // Streaming view metrics are handled by the deterministic engine tick.
          } else {
-           if (updatedProject.releaseStrategy?.type === 'streaming') {
-             if (diagnosticsEnabled) {
-               console.log(`    PROCESSING STREAMING: ${project.title}`);
-             }
-
-             updatedProject = StreamingFilmSystem.processWeeklyPerformance(
-               updatedProject,
-               timeState.currentWeek,
-               timeState.currentYear
-             );
-           } else {
              // Box office simulation is now handled by the deterministic engine tick.
              // Here, we only credit the studio share + ledger entries based on the engine result.
              if (diagnosticsEnabled) {
@@ -1433,7 +1411,6 @@ export const StudioMagnateGame: React.FC<StudioMagnateGameProps> = ({
 
                studioRevenueDelta += studioShare;
              }
-           }
          }
        }
 
