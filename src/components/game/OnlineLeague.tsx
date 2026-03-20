@@ -85,6 +85,32 @@ export const OnlineLeague: React.FC<OnlineLeagueProps> = ({ initialLeagueCode })
 
   const canUseOnline = !!supabase;
 
+  const refreshSnapshots = useCallback(async (leagueId: string) => {
+    if (!supabase) return;
+
+    const { data, error: loadError } = await supabase
+      .from('online_league_snapshots')
+      .select('league_id, user_id, studio_name, reputation, week, year, released_titles, updated_at')
+      .eq('league_id', leagueId);
+
+    if (loadError) return;
+    setPersistedSnapshots((data || []) as any);
+  }, [supabase]);
+
+  const resolveLeagueStudioName = useCallback(async (leagueId: string, fallback: string) => {
+    if (!supabase) return fallback;
+    if (!userId) return fallback;
+
+    const { data } = await supabase
+      .from('online_league_members')
+      .select('studio_name')
+      .eq('league_id', leagueId)
+      .eq('user_id', userId)
+      .maybeSingle();
+
+    return (data?.studio_name || fallback).trim();
+  }, [supabase, userId]);
+
   useEffect(() => {
     if (initialLeagueCode && !leagueCodeInput) {
       setLeagueCodeInput(initialLeagueCode);
@@ -327,32 +353,6 @@ export const OnlineLeague: React.FC<OnlineLeagueProps> = ({ initialLeagueCode })
       topBy('releasedTitles', 'Most releases', (c) => `${c.releasedTitles} released`),
     ];
   }, [members, persistedMembers]);
-
-  const refreshSnapshots = useCallback(async (leagueId: string) => {
-    if (!supabase) return;
-
-    const { data, error: loadError } = await supabase
-      .from('online_league_snapshots')
-      .select('league_id, user_id, studio_name, reputation, week, year, released_titles, updated_at')
-      .eq('league_id', leagueId);
-
-    if (loadError) return;
-    setPersistedSnapshots((data || []) as any);
-  }, [supabase]);
-
-  const resolveLeagueStudioName = useCallback(async (leagueId: string, fallback: string) => {
-    if (!supabase) return fallback;
-    if (!userId) return fallback;
-
-    const { data } = await supabase
-      .from('online_league_members')
-      .select('studio_name')
-      .eq('league_id', leagueId)
-      .eq('user_id', userId)
-      .maybeSingle();
-
-    return (data?.studio_name || fallback).trim();
-  }, [supabase, userId]);
 
   useEffect(() => {
     if (!activeLeagueId) {
