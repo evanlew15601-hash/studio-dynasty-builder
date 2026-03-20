@@ -282,7 +282,7 @@ export const StudioMagnateGame: React.FC<StudioMagnateGameProps> = ({
     // The real world state is generated in an effect below.
     const universeSeed = generateGameSeed();
 
-    const currentYear = isOnlineMode ? ONLINE_LEAGUE_START_YEAR : new Date().getFullYear();
+    const currentYear = isOnlineMode ? ONLINE_LEAGUE_START_YEAR : new Date().getUTCFullYear();
     const streamingWarsEnabled = !!gameConfig?.enableStreamingWars;
 
     return {
@@ -402,7 +402,7 @@ export const StudioMagnateGame: React.FC<StudioMagnateGameProps> = ({
       updateOperation(LOADING_OPERATIONS.GAME_INIT.id, 10, 'Generating talent pool...');
       await delay(0);
 
-      const worldStartYear = isOnlineMode ? ONLINE_LEAGUE_START_YEAR : new Date().getFullYear();
+      const worldStartYear = isOnlineMode ? ONLINE_LEAGUE_START_YEAR : new Date().getUTCFullYear();
 
       const generatedTalent = applyPatchesByKey(
         generateInitialTalentPool({ currentYear: worldStartYear }),

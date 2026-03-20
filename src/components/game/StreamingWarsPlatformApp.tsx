@@ -734,6 +734,8 @@ export const StreamingWarsPlatformApp: React.FC = () => {
       episodes,
     };
 
+    const now = new Date(Date.UTC(gameState.currentYear, 0, 1 + (Math.max(1, gameState.currentWeek) - 1) * 7));
+
     const project: Project = {
       id: `project:original:${gameState.currentYear}:W${gameState.currentWeek}:${idSuffix}`,
       title,
@@ -770,10 +772,10 @@ export const StreamingWarsPlatformApp: React.FC = () => {
       cast: [],
       crew: [],
       timeline: {
-        preProduction: { start: new Date(), end: new Date() },
-        principalPhotography: { start: new Date(), end: new Date() },
-        postProduction: { start: new Date(), end: new Date() },
-        release: new Date(),
+        preProduction: { start: now, end: now },
+        principalPhotography: { start: now, end: now },
+        postProduction: { start: now, end: now },
+        release: now,
         milestones: [],
       },
       locations: [],

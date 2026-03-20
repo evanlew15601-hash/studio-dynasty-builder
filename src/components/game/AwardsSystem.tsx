@@ -33,7 +33,7 @@ export const AwardsSystem: React.FC<AwardsSystemProps> = ({
   const [contenderScope, setContenderScope] = useState<'player' | 'all'>('player');
   const [page, setPage] = useState(0);
 
-  const currentYear = gameState?.currentYear ?? new Date().getFullYear();
+  const currentYear = gameState?.currentYear ?? new Date().getUTCFullYear();
   const currentWeek = gameState?.currentWeek ?? 0;
 
   const awardShows = useMemo(() => getAwardShowsForYear(currentYear), [currentYear]);

@@ -1164,6 +1164,8 @@ export class StudioGenerator {
     const genre = studioProfile.specialties[Math.floor(Math.random() * studioProfile.specialties.length)];
     const script = this.generateScript(genre, studioProfile);
 
+    const releaseDate = this.dateForGameWeek(currentYear, currentWeek);
+
     const project: Project = {
       id: `ai-project-${Date.now()}-${Math.random().toString(36).substr(2, 9)}`,
       title: script.title,
@@ -1253,6 +1255,14 @@ export class StudioGenerator {
       releaseYear: currentYear
     };
 
+    project.timeline = {
+      preProduction: { start: releaseDate, end: releaseDate },
+      principalPhotography: { start: releaseDate, end: releaseDate },
+      postProduction: { start: releaseDate, end: releaseDate },
+      release: releaseDate,
+      milestones: []
+    };
+
     return project;
   }
 
@@ -1294,7 +1304,9 @@ export class StudioGenerator {
     const tailMultiplier = 6 + Math.random() * 10;
     const totalViews = Math.floor(viewsFirstWeek * tailMultiplier);
 
-    return {
+    const releaseDate = this.dateForGameWeek(currentYear, currentWeek);
+
+    const project: Project = {
       id: `ai-tv-${Date.now()}-${Math.random().toString(36).substr(2, 9)}`,
       title,
       script,
@@ -1377,6 +1389,16 @@ export class StudioGenerator {
       releaseYear: currentYear,
       releaseFormat: Math.random() < 0.6 ? 'weekly' : 'binge'
     };
+
+    project.timeline = {
+      preProduction: { start: releaseDate, end: releaseDate },
+      principalPhotography: { start: releaseDate, end: releaseDate },
+      postProduction: { start: releaseDate, end: releaseDate },
+      release: releaseDate,
+      milestones: []
+    };
+
+    return project;
   }
 
   getAllStudios(mods?: ModBundle): Studio[] {
