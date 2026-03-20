@@ -1,5 +1,5 @@
 import { useEffect } from 'react';
-import { AwardsSeasonState, GameEvent, GameState, Project, Studio, StudioAward, TalentAward, TalentPerson } from '@/types/game';
+import { AwardsCeremonyRecord, AwardsSeasonState, GameEvent, GameState, Project, Studio, StudioAward, TalentAward, TalentPerson } from '@/types/game';
 import { getAwardShowsForYear } from '@/data/AwardsSchedule';
 import type { AwardCategoryDefinition } from '@/data/AwardsSchedule';
 import { useToast } from '@/hooks/use-toast';
@@ -31,6 +31,7 @@ export function useAwardsEngine(
       processedCeremonies: [],
       seasonMomentum: {},
       seasonNominations: {},
+      ceremonyHistory: {},
     };
   };
 
@@ -516,6 +517,60 @@ export function useAwardsEngine(
       };
     }
 
+    // Persist a lightweight ceremony record so the player can "watch" now or later without
+    // bloating the save with full Project objects.
+    {
+      const ceremonyHistory = { ...(season.ceremonyHistory || {}) };
+      const record: AwardsCeremonyRecord = {
+        showId: show.id,
+        year: gameState.currentYear,
+        ceremonyName,
+        prestige,
+        nominations: {},
+        winners: {},
+      };
+
+      categories.forEach((categoryDef) => {
+        const category = categoryDef.name;
+        const storedNominees = nominationsRecord.categories[category] || [];
+        if (storedNominees.length === 0) return;
+
+        record.nominations[category] = storedNominees.map((n) => {
+          const project = byId.get(n.projectId);
+          const talentId =
+            project && isTalentCategory(categoryDef)
+              ? findRelevantTalent(project, category, categoryDef)?.id
+              : undefined;
+
+          return {
+            projectId: n.projectId,
+            score: n.score,
+            talentId,
+          };
+        });
+
+        const winner = flatForModal.find((f) => f.category === category && f.won);
+        if (!winner) return;
+
+        const winnerScore = storedNominees.find((n) => n.projectId === winner.project.id)?.score ?? winner.project.metrics?.criticsScore ?? 0;
+        const winnerTalentId = isTalentCategory(categoryDef)
+          ? findRelevantTalent(winner.project, category, categoryDef)?.id
+          : undefined;
+
+        record.winners[category] = {
+          projectId: winner.project.id,
+          score: winnerScore,
+          talentId: winnerTalentId,
+        };
+      });
+
+      ceremonyHistory[show.id] = record;
+      season = {
+        ...season,
+        ceremonyHistory,
+      };
+    }
+
     setSeasonState(season);
 
     if (flatForModal.length > 0) {
@@ -539,6 +594,8 @@ export function useAwardsEngine(
             return project ? { project, score: n.score } : null;
           })
           .filter(Boolean) as Array<{ project: Project; score: number }>;
+
+        if (nominees.length === 0) return;
 
         ceremonyData.nominations[category] = nominees.map(n => {
           const t = isTalentCategory(categoryDef) ? findRelevantTalent(n.project, category, categoryDef) : undefined;
@@ -565,6 +622,8 @@ export function useAwardsEngine(
             return project ? { project, score: n.score } : null;
           })
           .filter(Boolean) as Array<{ project: Project; score: number }>;
+
+        if (nominees.length === 0) return;
 
         const winner = nominees.find(n => flatForModal.some(f => f.project.id === n.project.id && f.category === category && f.won));
         if (winner) {
@@ -598,7 +657,6 @@ export function useAwardsEngine(
             triggerDate: triggerDateFromWeekYear(gameState.currentYear, gameState.currentWeek),
             data: {
               kind: 'awards:ceremony',
-              ceremony: ceremonyData,
               showId: show.id,
               year: gameState.currentYear,
             },
@@ -659,6 +717,7 @@ export function useAwardsEngine(
       processedCeremonies: [],
       seasonMomentum: {},
       seasonNominations: {},
+      ceremonyHistory: {},
     });
 
     logDebug(`[AwardsEngine] Reset season state for Y${gameState.currentYear}`);

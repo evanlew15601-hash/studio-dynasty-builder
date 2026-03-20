@@ -956,6 +956,15 @@ export interface AIStudioState {
   nextFilmId: number;
 }
 
+export interface AwardsCeremonyRecord {
+  showId: string;
+  year: number;
+  ceremonyName: string;
+  prestige: number;
+  nominations: Record<string, Array<{ projectId: string; score: number; talentId?: string }>>;
+  winners: Record<string, { projectId: string; score: number; talentId?: string }>;
+}
+
 export interface AwardsSeasonState {
   year: number;
   processedCeremonies: string[];
@@ -967,6 +976,9 @@ export interface AwardsSeasonState {
       categories: Record<string, Array<{ projectId: string; score: number }>>;
     }
   >;
+
+  /** Optional ceremony cache for "watch now"/"watch later" UI. */
+  ceremonyHistory?: Record<string, AwardsCeremonyRecord>;
 }
 
 export interface GameState {

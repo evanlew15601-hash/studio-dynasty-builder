@@ -41,6 +41,7 @@ import { useOnlineLeagueTickGate } from '@/hooks/useOnlineLeagueTickGate';
 import { getAwardShowsForYear } from '@/data/AwardsSchedule';
 import { fetchOnlineLeagueSnapshots } from '@/integrations/supabase/onlineLeagueSnapshots';
 import { computeLeagueAwardsCeremony, type LeagueAwardsCeremony } from '@/utils/leagueAwards';
+import { buildAwardShowCeremonyForModal } from '@/utils/awardsCeremony';
 import { LeagueAwardsCeremonyModal } from './LeagueAwardsCeremonyModal';
 import { IndividualAwardShowModal, AwardShowCeremony } from './IndividualAwardShowModal';
 import { FirstWeekBoxOfficeModal } from './FirstWeekBoxOfficeModal';
@@ -4152,8 +4153,16 @@ export const StudioMagnateGame: React.FC<StudioMagnateGameProps> = ({
           if (kind !== 'awards:ceremony') return;
           if (choiceId !== 'watch') return;
 
-          const ceremony = (event as any)?.data?.ceremony as AwardShowCeremony | undefined;
+          const showId = (event as any)?.data?.showId as string | undefined;
+          const year = (event as any)?.data?.year as number | undefined;
+          if (!showId || !year) return;
+
+          const latest = useGameStore.getState().game;
+          if (!latest) return;
+
+          const ceremony = buildAwardShowCeremonyForModal(latest, showId, year);
           if (!ceremony) return;
+
           handleAwardShow(ceremony);
         }}
       />
