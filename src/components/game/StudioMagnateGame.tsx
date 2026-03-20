@@ -20,9 +20,6 @@ import { AIStudioManager } from './AIStudioManager';
 import { CompetitorMonitor } from './CompetitorMonitor';
 import { LeagueStandings } from './LeagueStandings';
 import { TimeSystem, TimeState } from './TimeSystem';
-import { BoxOfficeSystem } from './BoxOfficeSystem';
-import { StreamingFilmSystem } from './StreamingFilmSystem';
-import { TVEpisodeSystem } from './TVEpisodeSystem';
 import { FinancialEngine } from './FinancialEngine';
 import { updateProjectFinancials } from './FinancialCalculations';
 import { TalentFilmographyManager } from '@/utils/talentFilmographyManager';
@@ -1198,160 +1195,10 @@ export const StudioMagnateGame: React.FC<StudioMagnateGameProps> = ({
 
       // Development progress + phase timers are processed by the deterministic engine tick.
       
-      // Handle scheduled releases when their date arrives
-      let justReleased = false;
-      // scheduledReleaseWeek/Year is the canonical planned release date
-      const effectiveReleaseWeek = project.scheduledReleaseWeek || project.releaseWeek;
-      const effectiveReleaseYear = project.scheduledReleaseYear || project.releaseYear;
-      const hasPlannedReleaseDate = !!project.scheduledReleaseWeek && !!project.scheduledReleaseYear;
-      const isScheduledLike = project.status === 'scheduled-for-release' || (project.currentPhase === 'release' && hasPlannedReleaseDate);
-      if (isScheduledLike && effectiveReleaseWeek && effectiveReleaseYear) {
-        const currentAbsoluteWeek = (timeState.currentYear * 52) + timeState.currentWeek;
-        const releaseAbsoluteWeek = (effectiveReleaseYear * 52) + effectiveReleaseWeek;
-        
-          if (currentAbsoluteWeek >= releaseAbsoluteWeek) {
-            if (diagnosticsEnabled) {
-              console.log(`RELEASE DATE ARRIVED: ${project.title}`);
-              console.log(`    PRE-RELEASE: boxOfficeTotal = ${project.metrics?.boxOfficeTotal || 0}`);
-            }
-            const resolvedReleaseWeek = effectiveReleaseWeek;
-            const resolvedReleaseYear = effectiveReleaseYear;
-
-            // Normalize release date fields so downstream systems (TV ratings / box office / post-theatrical)
-            // always have a canonical releaseWeek/releaseYear, even if the project was scheduled via
-            // scheduledReleaseWeek/scheduledReleaseYear.
-            updatedProject = {
-              ...updatedProject,
-              releaseWeek: resolvedReleaseWeek,
-              releaseYear: resolvedReleaseYear,
-              scheduledReleaseWeek: resolvedReleaseWeek,
-              scheduledReleaseYear: resolvedReleaseYear,
-            };
-
-            let openingWeekRevenue = 0;
-
-            if (project.type === 'series' || project.type === 'limited-series') {
-              // TV: do not initialize ratings until the first episode actually airs.
-              updatedProject = {
-                ...updatedProject,
-                status: 'released' as const,
-                currentPhase: 'distribution' as const,
-                phaseDuration: -1,
-              };
-
-              // Ensure season exists and perform the premiere drop if due (weekly/batch/binge).
-              updatedProject = TVEpisodeSystem.ensureSeason(updatedProject);
-              updatedProject = TVEpisodeSystem.autoReleaseEpisodesIfDue(updatedProject, timeState.currentWeek, timeState.currentYear);
-              updatedProject = TVEpisodeSystem.processWeeklyEpisodeDecay(updatedProject, timeState.currentWeek, timeState.currentYear);
-            } else {
-              const isPrimaryStreaming = updatedProject.releaseStrategy?.type === 'streaming';
-
-              if (isPrimaryStreaming) {
-                const premierePlatformLabel =
-                  updatedProject.distributionStrategy?.primary?.type === 'streaming'
-                    ? updatedProject.distributionStrategy.primary.platform
-                    : undefined;
-
-                updatedProject = StreamingFilmSystem.initializeRelease(
-                  updatedProject,
-                  resolvedReleaseWeek,
-                  resolvedReleaseYear,
-                  premierePlatformLabel
-                );
-
-                const alreadyHasStreamingWindow = (updatedProject.postTheatricalReleases || []).some(
-                  (r) => r.platform === 'streaming'
-                );
-
-                const critics = updatedProject.metrics?.criticsScore || 50;
-                const audience = updatedProject.metrics?.audienceScore || 50;
-                const avgScore = (critics + audience) / 2;
-
-                const buzz = updatedProject.marketingData?.currentBuzz ?? updatedProject.marketingCampaign?.buzz ?? 0;
-                const viewsFirstWeek = updatedProject.metrics?.streaming?.viewsFirstWeek || 0;
-
-                const scoreMultiplier = Math.min(1.4, Math.max(0.6, avgScore / 70));
-                const buzzMultiplier = 1 + Math.min(0.5, Math.max(0, buzz / 250));
-
-                const estimatedTotalRevenue = Math.max(
-                  100_000,
-                  Math.floor(viewsFirstWeek * 0.35 * scoreMultiplier * buzzMultiplier)
-                );
-
-                const durationWeeks = 26;
-                const weeklyRevenue = Math.max(10_000, Math.round(estimatedTotalRevenue / durationWeeks));
-
-                updatedProject = {
-                  ...updatedProject,
-                  postTheatricalEligible: true,
-                  theatricalEndDate: new Date(),
-                  postTheatricalReleases: alreadyHasStreamingWindow
-                    ? updatedProject.postTheatricalReleases
-                    : [
-                        ...(updatedProject.postTheatricalReleases || []),
-                        {
-                          id: `release-${updatedProject.id}-${resolvedReleaseYear}-${resolvedReleaseWeek}-streaming`,
-                          projectId: updatedProject.id,
-                          platform: 'streaming',
-                          providerId:
-                            updatedProject.releaseStrategy?.streamingProviderId ||
-                            updatedProject.streamingPremiereDeal?.providerId ||
-                            undefined,
-                          releaseDate: new Date(),
-                          revenue: 0,
-                          weeklyRevenue,
-                          weeksActive: 0,
-                          status: 'planned',
-                          cost: 0,
-                          durationWeeks,
-                        },
-                      ],
-                };
-              } else {
-                updatedProject = {
-                  ...BoxOfficeSystem.initializeRelease(updatedProject, resolvedReleaseWeek, resolvedReleaseYear),
-                  currentPhase: 'distribution' as const,
-                  phaseDuration: -1,
-                };
-
-                openingWeekRevenue = updatedProject.metrics?.boxOfficeTotal || 0;
-                if (openingWeekRevenue > 0) {
-                  studioRevenueDelta += openingWeekRevenue * 0.55;
-                }
-              }
-            }
-
-            // Media coverage for player releases (release + opening weekend)
-            MediaEngine.queueMediaEvent({
-              type: 'release',
-              triggerType: 'automatic',
-              priority: 'high',
-              entities: {
-                studios: [baseState.studio.id],
-                projects: [updatedProject.id],
-                talent: (updatedProject.cast || []).map(c => c.talentId)
-              },
-              eventData: { project: updatedProject },
-              week: timeState.currentWeek,
-              year: timeState.currentYear
-            });
-
-            if (openingWeekRevenue > 0 && updatedProject.type !== 'series' && updatedProject.type !== 'limited-series') {
-              MediaEngine.triggerBoxOfficeReport(updatedProject, openingWeekRevenue, baseState);
-            }
-
-            if (diagnosticsEnabled) {
-              console.log(`    POST-RELEASE: boxOfficeTotal = ${updatedProject.metrics?.boxOfficeTotal || 0}`);
-            }
-            justReleased = true; // Flag to skip processing on release week
-
-            // Track releases for end-of-week filmography updates (no nested setState)
-            releasedProjects.push(updatedProject);
-          }
-      }
+      // Scheduled releases are handled by the deterministic engine tick (ScheduledReleaseSystem).
       
-      // Process box office for released films (but skip on the week they just released)
-       if (updatedProject.status === 'released' && !justReleased) {
+      // Process box office for released films
+       if (updatedProject.status === 'released') {
          if (project.type === 'series' || project.type === 'limited-series') {
            // TV episode scheduling + ratings are handled by the deterministic engine tick.
          } else if (updatedProject.releaseStrategy?.type === 'streaming') {
@@ -1605,111 +1452,7 @@ export const StudioMagnateGame: React.FC<StudioMagnateGameProps> = ({
     });
   };
 
-  // Process weekly costs, debt payments, and reputation changes
-  const processWeeklyCosts = (currentState: GameState, projects: Project[], diagnosticsEnabled: boolean) => {
-    const studio = { ...currentState.studio };
-    
-    // Calculate weekly operational costs (basic studio overhead)
-    const baseOperationalCost = 25000; // $25k per week base cost (gentler)
-    const projectCount = projects.filter(p => ['development', 'pre-production', 'production', 'post-production'].includes(p.status)).length;
-    const operationalCost = baseOperationalCost + (projectCount * 10000); // $10k per active project
-    
-    if (diagnosticsEnabled) {
-      console.log(`WEEKLY COSTS: Base ${baseOperationalCost.toLocaleString()} + Projects ${(projectCount * 10000).toLocaleString()}`);
-    }
-    
-    // Calculate production phase costs (spread over full phase duration)
-    let productionCosts = 0;
-    projects.forEach(project => {
-      if (project.currentPhase === 'production') {
-        const weeklyProductionCost = project.budget.total * 0.7 / getPhaseWeeks('production'); // 70% of budget over production weeks
-        productionCosts += weeklyProductionCost;
-        if (diagnosticsEnabled) {
-          console.log(`Production cost for ${project.title}: ${weeklyProductionCost.toLocaleString()}`);
-        }
-      }
-    });
-    
-    const totalWeeklyCosts = operationalCost + productionCosts;
-    
-    // Deduct costs from budget
-    studio.budget -= totalWeeklyCosts;
-    
-    // Handle debt if budget goes negative (easier loan terms)
-    if (studio.budget < 0) {
-      const loanAmount = Math.abs(studio.budget);
-      studio.debt = (studio.debt || 0) + loanAmount;
-      studio.budget = 0;
-      
-      if (loanAmount > 0 && diagnosticsEnabled) {
-        console.log(`Auto-loan: ${loanAmount.toLocaleString()}`);
-      }
-    }
-    
-    // Pay down debt automatically if budget is positive (5% of surplus goes to debt)
-    if (studio.budget > 1000000 && studio.debt && studio.debt > 0) { // Only pay debt if budget > $1M
-      const debtPayment = Math.min(studio.debt, studio.budget * 0.05);
-      studio.debt -= debtPayment;
-      studio.budget -= debtPayment;
-      if (diagnosticsEnabled) {
-        console.log(`Auto debt payment: ${debtPayment.toLocaleString()}. Remaining debt: ${studio.debt.toLocaleString()}`);
-      }
-    }
-    
-    // Very low weekly interest on debt (1% annually = ~0.02% weekly)
-    if (studio.debt && studio.debt > 0) {
-      const weeklyInterest = studio.debt * 0.0002;
-      studio.debt += weeklyInterest;
-    }
-    
-    // Track weeks since last project for reputation system
-    studio.weeksSinceLastProject = (studio.weeksSinceLastProject || 0) + 1;
-    
-    // More forgiving reputation decay (only after 12 weeks = ~3 months)
-    if (studio.weeksSinceLastProject > 12) {
-      const reputationLoss = Math.min(1, (studio.weeksSinceLastProject - 12) * 0.25); // Very gentle decay
-      studio.reputation = Math.max(0, studio.reputation - reputationLoss);
-      if (reputationLoss > 0 && diagnosticsEnabled) {
-        console.log(`Reputation declined by ${reputationLoss.toFixed(1)} (${studio.weeksSinceLastProject} weeks since last project)`);
-      }
-    }
-    
-    // Reputation changes from box office performance (check completed theatrical runs)
-    projects.forEach(project => {
-      if (project.status === 'released' && project.metrics?.boxOfficeTotal && project.metrics?.inTheaters === false) {
-        const totalRevenue = project.metrics.boxOfficeTotal;
-        const budget = project.budget.total;
-        const profitMargin = (totalRevenue * 0.55) / budget; // Studio share vs budget
-        
-        if (diagnosticsEnabled) {
-          console.log(`Checking reputation for ${project.title}: Profit margin ${(profitMargin * 100).toFixed(0)}%`);
-        }
-        
-        if (profitMargin > 2.0) { // 200% return - huge success
-          studio.reputation = Math.min(100, studio.reputation + 3);
-          if (diagnosticsEnabled) {
-            console.log(`Big reputation boost from blockbuster ${project.title} (${(profitMargin * 100).toFixed(0)}% return): ${studio.reputation}`);
-          }
-        } else if (profitMargin > 1.2) { // 120% return - solid hit
-          studio.reputation = Math.min(100, studio.reputation + 1);
-          if (diagnosticsEnabled) {
-            console.log(`Reputation boost from successful ${project.title}: ${studio.reputation}`);
-          }
-        } else if (profitMargin < 0.3) { // Less than 30% return - bomb
-          studio.reputation = Math.max(0, studio.reputation - 2);
-          if (diagnosticsEnabled) {
-            console.log(`Reputation hit from bomb ${project.title}: ${studio.reputation}`);
-          }
-        }
-      }
-    });
-    
-    if (diagnosticsEnabled) {
-      console.log(`STUDIO STATUS: Budget: ${studio.budget.toLocaleString()}, Debt: ${(studio.debt || 0).toLocaleString()}, Reputation: ${studio.reputation.toFixed(1)}`);
-    }
-    
-    return { studio };
-  };
+  
 
   const advanceWeekCore = (options?: { suppressToast?: boolean; suppressLoading?: boolean; suppressDiagnostics?: boolean; suppressRecap?: boolean }) => {
     const diagnosticsEnabled = import.meta.env.DEV && !options?.suppressDiagnostics;
@@ -1949,33 +1692,29 @@ export const StudioMagnateGame: React.FC<StudioMagnateGameProps> = ({
       }
       }
       
-      // Process weekly costs and reputation with deep system
-      const weeklyResults = measure('weeklyCosts', 'Weekly costs & debt', () => processWeeklyCosts(baseAfterEngine, updatedProjects, diagnosticsEnabled));
-      
       const competitorStudiosForWeek = isOnlineMode ? leagueCompetitorStudios : baseAfterEngine.competitorStudios;
 
       // Update industry context and calculate deep reputation
       const deepRepResult = measure('reputation', 'Reputation', () => {
         DeepReputationSystem.updateIndustryContext([...competitorStudiosForWeek, baseAfterEngine.studio], newTimeState);
         return DeepReputationSystem.calculateDeepReputation(
-          weeklyResults.studio,
+          baseAfterEngine.studio,
           updatedProjects,
           baseAfterEngine.talent,
           newTimeState,
           competitorStudiosForWeek
         );
       });
-      
+
       if (diagnosticsEnabled) {
-        console.log(`Weekly reputation update: ${prev.studio.reputation} -> ${weeklyResults.studio.reputation}`);
+        console.log(`Weekly reputation update: ${prev.studio.reputation} -> ${baseAfterEngine.studio.reputation}`);
         console.log(`Deep reputation: Overall ${deepRepResult.reputation.toFixed(1)}`);
       }
-      
+
       // Apply deep reputation to studio
       const enhancedStudio = {
-        ...weeklyResults.studio,
+        ...baseAfterEngine.studio,
         reputation: deepRepResult.reputation,
-        budget: weeklyResults.studio.budget + weeklyProjectEffects.studioRevenueDelta
       };
       
       // Update talent availability (prevent double-booking during filming)

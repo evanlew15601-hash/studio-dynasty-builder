@@ -50,6 +50,8 @@ import { TelevisionPerformanceSystem } from './systems/televisionPerformanceSyst
 import { StreamingPerformanceSystem } from './systems/streamingPerformanceSystem';
 import { BoxOfficeSystem } from './systems/boxOfficeSystem';
 import { PostTheatricalRevenueSystem } from './systems/postTheatricalRevenueSystem';
+import { StudioEconomySystem } from './systems/studioEconomySystem';
+import { StudioRevenueSystem } from './systems/studioRevenueSystem';
 import { PlayerCircleDramaSystem } from './systems/playerCircleDramaSystem';
 import { StudioGovernanceSystem } from './systems/studioGovernanceSystem';
 import { AwardsSeasonSystem } from './systems/awardsSeasonSystem';
@@ -211,6 +213,8 @@ export const useGameStore: import('zustand').UseBoundStore<import('zustand').Sto
       r.register(StreamingPerformanceSystem);
       r.register(BoxOfficeSystem);
       r.register(PostTheatricalRevenueSystem);
+      r.register(StudioEconomySystem);
+      r.register(StudioRevenueSystem);
       r.register(TalentFilmographySystem);
       r.register(TalentCareerArcSystem);
       r.register(IndustryGossipSystem);
