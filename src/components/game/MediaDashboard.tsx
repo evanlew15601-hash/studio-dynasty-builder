@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react';
+import React, { useCallback, useEffect, useRef, useState } from 'react';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
@@ -45,19 +45,32 @@ export const MediaDashboard: React.FC<MediaDashboardProps> = ({
   const [selectedFilter, setSelectedFilter] = useState<'all' | 'positive' | 'negative' | 'player'>('all');
   const [selectedSource, setSelectedSource] = useState<string>('all');
 
+  const updateMediaData = useCallback(() => {
+    const media = MediaEngine.getRecentMedia(50);
+    const stats = MediaEngine.getMediaStats();
+    setRecentMedia(media);
+    setMediaStats(stats);
+  }, []);
+
+  const gameStateRef = useRef(gameState);
+  useEffect(() => {
+    gameStateRef.current = gameState;
+  }, [gameState]);
+
   useEffect(() => {
     // Initialize media engine
     MediaEngine.initialize();
-    
+
     // Load recent media and stats
     updateMediaData();
-  }, []);
+  }, [updateMediaData]);
 
   useEffect(() => {
-    if (!gameState) return;
+    const current = gameStateRef.current;
+    if (!current) return;
 
     // Keep the dashboard live as weeks advance (and auto-drain queued events)
-    MediaEngine.processMediaEvents(gameState);
+    MediaEngine.processMediaEvents(current);
 
     mergeGameState({
       mediaState: {
@@ -67,14 +80,7 @@ export const MediaDashboard: React.FC<MediaDashboardProps> = ({
     });
 
     updateMediaData();
-  }, [gameState?.currentWeek, gameState?.currentYear]);
-
-  const updateMediaData = () => {
-    const media = MediaEngine.getRecentMedia(50);
-    const stats = MediaEngine.getMediaStats();
-    setRecentMedia(media);
-    setMediaStats(stats);
-  };
+  }, [gameState?.currentWeek, gameState?.currentYear, mergeGameState, updateMediaData]);
 
   if (!gameState) {
     return <div className="p-6 text-sm text-muted-foreground">Loading media dashboard...</div>;
@@ -158,6 +164,8 @@ export const MediaDashboard: React.FC<MediaDashboardProps> = ({
   };
 
   const generateTestEvent = () => {
+    if (!gameState) return;
+
     // Trigger a test media event
     if (gameState.projects.length > 0 && gameState.talent.length > 0) {
       const project = gameState.projects[0];
@@ -172,6 +180,8 @@ export const MediaDashboard: React.FC<MediaDashboardProps> = ({
   };
 
   const processQueuedEvents = () => {
+    if (!gameState) return;
+
     const newItems = MediaEngine.processMediaEvents(gameState);
     updateMediaData();
     onProcessEvents?.();

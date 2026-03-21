@@ -1,4 +1,4 @@
-import React, { useEffect, useMemo, useState } from 'react';
+import React, { useCallback, useEffect, useMemo, useState } from 'react';
 import type { GameEvent, GameState } from '@/types/game';
 import { Dialog, DialogContent, DialogFooter, DialogHeader, DialogTitle } from '@/components/ui/dialog';
 import { Button } from '@/components/ui/button';
@@ -42,7 +42,7 @@ export const InboxDialog: React.FC<{
 
   const canUseOnlineInbox = isOnlineMode && !!leagueId;
 
-  const refreshOnlineMessages = async () => {
+  const refreshOnlineMessages = useCallback(async () => {
     if (!canUseOnlineInbox) {
       setOnlineMessages([]);
       return;
@@ -62,9 +62,9 @@ export const InboxDialog: React.FC<{
     } finally {
       setLoadingMessages(false);
     }
-  };
+  }, [canUseOnlineInbox, leagueId, toast]);
 
-  const markAllOnlineRead = async () => {
+  const markAllOnlineRead = useCallback(async () => {
     if (!canUseOnlineInbox) return;
     if (!onlineMessages.length) return;
 
@@ -79,12 +79,12 @@ export const InboxDialog: React.FC<{
         variant: 'destructive',
       });
     }
-  };
+  }, [canUseOnlineInbox, onlineMessages, toast]);
 
   useEffect(() => {
     if (!open) return;
     void refreshOnlineMessages();
-  }, [open, leagueId, isOnlineMode]);
+  }, [open, refreshOnlineMessages]);
 
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
