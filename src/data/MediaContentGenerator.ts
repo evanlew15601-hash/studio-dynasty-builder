@@ -367,6 +367,10 @@ export class MediaContentGenerator {
     const headlines = this.getPatchedHeadlines(mods);
 
     if (event.type === 'release') {
+      const bundle = mods ?? getModBundle();
+      const patches = getPatchesForEntity(bundle, 'mediaHeadlineTemplates');
+      const releasePatched = patches.some((p) => p.target === 'release');
+
       const project = entities.projects?.[0] ?? (event.eventData?.project as Project | undefined);
       const kind = (project?.type as any) as string | undefined;
       const isTv = kind === 'series' || kind === 'limited-series';
@@ -374,18 +378,21 @@ export class MediaContentGenerator {
         project?.releaseStrategy?.type === 'streaming' ||
         (project as any)?.distributionStrategy?.primary?.type === 'streaming';
 
-      if (isTv) {
-        const templates = this.contextualReleaseHeadlines.tv;
-        const idx = stableInt(`${seed}|headline-template`, 0, Math.max(0, templates.length - 1));
-        const template = templates[idx] ?? templates[0];
-        return this.replaceVariables(template, event, entities, seed);
-      }
+      // Only apply built-in contextual defaults if release templates aren't explicitly overridden by mods.
+      if (!releasePatched) {
+        if (isTv) {
+          const templates = this.contextualReleaseHeadlines.tv;
+          const idx = stableInt(`${seed}|headline-template`, 0, Math.max(0, templates.length - 1));
+          const template = templates[idx] ?? templates[0];
+          return this.replaceVariables(template, event, entities, seed);
+        }
 
-      if (isStreaming) {
-        const templates = this.contextualReleaseHeadlines.streaming;
-        const idx = stableInt(`${seed}|headline-template`, 0, Math.max(0, templates.length - 1));
-        const template = templates[idx] ?? templates[0];
-        return this.replaceVariables(template, event, entities, seed);
+        if (isStreaming) {
+          const templates = this.contextualReleaseHeadlines.streaming;
+          const idx = stableInt(`${seed}|headline-template`, 0, Math.max(0, templates.length - 1));
+          const template = templates[idx] ?? templates[0];
+          return this.replaceVariables(template, event, entities, seed);
+        }
       }
     }
 
@@ -409,6 +416,10 @@ export class MediaContentGenerator {
     const templatesByType = this.getPatchedContentTemplates(mods);
 
     if (event.type === 'release') {
+      const bundle = mods ?? getModBundle();
+      const patches = getPatchesForEntity(bundle, 'mediaContentTemplates');
+      const releasePatched = patches.some((p) => p.target === 'release');
+
       const project = entities.projects?.[0] ?? (event.eventData?.project as Project | undefined);
       const kind = (project?.type as any) as string | undefined;
       const isTv = kind === 'series' || kind === 'limited-series';
@@ -416,32 +427,35 @@ export class MediaContentGenerator {
         project?.releaseStrategy?.type === 'streaming' ||
         (project as any)?.distributionStrategy?.primary?.type === 'streaming';
 
-      if (isTv) {
-        const templates = this.contextualReleaseContentTemplates.tv;
-        const idx = stableInt(`${seed}|content-template`, 0, Math.max(0, templates.length - 1));
-        const template = templates[idx] ?? templates[0];
+      // Only apply built-in contextual defaults if release templates aren't explicitly overridden by mods.
+      if (!releasePatched) {
+        if (isTv) {
+          const templates = this.contextualReleaseContentTemplates.tv;
+          const idx = stableInt(`${seed}|content-template`, 0, Math.max(0, templates.length - 1));
+          const template = templates[idx] ?? templates[0];
 
-        let content = this.replaceVariables(template, event, entities, seed);
-        if (sentiment === 'positive') {
-          content += " Industry insiders are optimistic about the show's potential.";
-        } else if (sentiment === 'negative') {
-          content += " Some industry observers have expressed concerns about the premiere.";
+          let content = this.replaceVariables(template, event, entities, seed);
+          if (sentiment === 'positive') {
+            content += " Industry insiders are optimistic about the show's potential.";
+          } else if (sentiment === 'negative') {
+            content += " Some industry observers have expressed concerns about the premiere.";
+          }
+          return content;
         }
-        return content;
-      }
 
-      if (isStreaming) {
-        const templates = this.contextualReleaseContentTemplates.streaming;
-        const idx = stableInt(`${seed}|content-template`, 0, Math.max(0, templates.length - 1));
-        const template = templates[idx] ?? templates[0];
+        if (isStreaming) {
+          const templates = this.contextualReleaseContentTemplates.streaming;
+          const idx = stableInt(`${seed}|content-template`, 0, Math.max(0, templates.length - 1));
+          const template = templates[idx] ?? templates[0];
 
-        let content = this.replaceVariables(template, event, entities, seed);
-        if (sentiment === 'positive') {
-          content += " Industry insiders are optimistic about the release's potential.";
-        } else if (sentiment === 'negative') {
-          content += " Some industry observers have expressed concerns about the release.";
+          let content = this.replaceVariables(template, event, entities, seed);
+          if (sentiment === 'positive') {
+            content += " Industry insiders are optimistic about the release's potential.";
+          } else if (sentiment === 'negative') {
+            content += " Some industry observers have expressed concerns about the release.";
+          }
+          return content;
         }
-        return content;
       }
     }
 

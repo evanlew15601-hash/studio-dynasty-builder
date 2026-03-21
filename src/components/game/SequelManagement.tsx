@@ -137,7 +137,13 @@ export const SequelManagement: React.FC<SequelManagementProps> = ({
     
     // Get returning cast from original
     const returningCast = (originalProject.script?.characters || [])
-      .filter(char => char.assignedTalentId && char.importance !== 'minor')
+      .filter(char => {
+        if (!char.assignedTalentId) return false;
+        if (char.importance === 'minor') return false;
+
+        const requiredType = char.importance === 'crew' ? 'director' : (char.requiredType || 'actor');
+        return requiredType === 'actor';
+      })
       .map(char => ({
         characterId: getCharacterKey(char),
         talentId: char.assignedTalentId!,
@@ -518,10 +524,16 @@ export const SequelManagement: React.FC<SequelManagementProps> = ({
                     <div className="text-sm">
                       <span className="text-muted-foreground">Cast Available:</span>
                       <span className="ml-1 font-medium">
-                        {(project.script?.characters || []).filter(c => 
-                          c.assignedTalentId && 
-                          gameState.talent.find(t => t.id === c.assignedTalentId)?.contractStatus === 'available'
-                        ).length}/{(project.script?.characters || []).filter(c => c.assignedTalentId).length}
+                        {(project.script?.characters || []).filter(c => {
+                          if (!c.assignedTalentId) return false;
+                          const requiredType = c.importance === 'crew' ? 'director' : (c.requiredType || 'actor');
+                          if (requiredType !== 'actor') return false;
+                          return gameState.talent.find(t => t.id === c.assignedTalentId)?.contractStatus === 'available';
+                        }).length}/{(project.script?.characters || []).filter(c => {
+                          if (!c.assignedTalentId) return false;
+                          const requiredType = c.importance === 'crew' ? 'director' : (c.requiredType || 'actor');
+                          return requiredType === 'actor';
+                        }).length}
                       </span>
                     </div>
                     

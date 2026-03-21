@@ -32,8 +32,8 @@ export const RoleBasedCasting: React.FC<RoleBasedCastingProps> = ({
 
     // Determine if TV and whether mandatory roles are missing
     const combined = [...existing, ...importedRoles];
-    const hasDirector = combined.some(c => c.requiredType === 'director');
-    const hasLead = combined.some(c => c.importance === 'lead' && c.requiredType === 'actor');
+    const hasDirector = combined.some(c => (c.importance === 'crew' ? 'director' : (c.requiredType || 'actor')) === 'director');
+    const hasLead = combined.some(c => c.importance === 'lead' && (c.importance === 'crew' ? 'director' : (c.requiredType || 'actor')) === 'actor');
 
     const rolesToCreate: ScriptCharacter[] = [];
 
@@ -81,6 +81,10 @@ export const RoleBasedCasting: React.FC<RoleBasedCastingProps> = ({
   if (!gameState) {
     return <div className="p-6 text-sm text-muted-foreground">Loading casting system...</div>;
   }
+
+  const resolveRequiredType = (role: ScriptCharacter): 'actor' | 'director' => {
+    return role.importance === 'crew' ? 'director' : (role.requiredType || 'actor');
+  };
 
   const getAvailableTalent = (role: ScriptCharacter) => {
     return gameState.talent.filter(talent => {
@@ -180,12 +184,8 @@ export const RoleBasedCasting: React.FC<RoleBasedCastingProps> = ({
   };
 
   const { cast, total } = getCastingProgress();
-  const hasDirector = project.script?.characters?.some(c => 
-    c.requiredType === 'director' && c.assignedTalentId
-  );
-  const hasLead = project.script?.characters?.some(c => 
-    c.importance === 'lead' && c.requiredType === 'actor' && c.assignedTalentId
-  );
+  const hasDirector = project.script?.characters?.some(c => resolveRequiredType(c) === 'director' && c.assignedTalentId);
+  const hasLead = project.script?.characters?.some(c => c.importance === 'lead' && resolveRequiredType(c) === 'actor' && c.assignedTalentId);
   const canProceed = hasDirector && hasLead;
 
   return (
@@ -250,20 +250,23 @@ export const RoleBasedCasting: React.FC<RoleBasedCastingProps> = ({
       {/* Character Roles */}
       <div className="grid gap-4">
         {project.script?.characters?.map((character) => {
+          const requiredType = resolveRequiredType(character);
+          const isDirectorRole = requiredType === 'director';
+
           const availableTalent = getAvailableTalent(character);
           const castTalent = character.assignedTalentId 
             ? gameState.talent.find(t => t.id === character.assignedTalentId)
             : null;
 
           return (
-            <Card key={character.id} className={castTalent ? "border-green-200" : "border-amber-200"}>
+            <Card key={character.id} className={castTalent ? "border-green-200 dark:border-green-800" : "border-amber-200 dark:border-amber-800"}>
               <CardHeader>
                 <div className="flex items-center justify-between">
                   <div>
                     <CardTitle className="flex items-center gap-2">
                       {character.importance === 'lead' && <Crown className="h-4 w-4 text-yellow-500" />}
                       {character.importance === 'supporting' && <Star className="h-4 w-4 text-blue-500" />}
-                      {character.requiredType === 'director' && <User className="h-4 w-4 text-purple-500" />}
+                      {isDirectorRole && <User className="h-4 w-4 text-purple-500" />}
                       {character.name}
                     </CardTitle>
                     <p className="text-sm text-muted-foreground">{character.description}</p>
@@ -273,7 +276,7 @@ export const RoleBasedCasting: React.FC<RoleBasedCastingProps> = ({
                       {character.importance}
                     </Badge>
                     <Badge variant="outline" className="capitalize">
-                      {character.requiredType || 'actor'}
+                      {requiredType}
                     </Badge>
                     {castTalent && (
                       <Badge variant="default" className="flex items-center gap-1">
@@ -286,9 +289,9 @@ export const RoleBasedCasting: React.FC<RoleBasedCastingProps> = ({
               </CardHeader>
               <CardContent>
                 {castTalent ? (
-                  <div className="flex items-center justify-between p-3 bg-green-50 rounded">
+                  <div className="flex items-center justify-between p-3 rounded border border-green-200 dark:border-green-800 bg-green-50 dark:bg-green-950/20">
                     <div>
-                      <p className="font-medium">{castTalent.name}</p>
+                      <p className="font-medium text-foreground">{castTalent.name}</p>
                       <p className="text-sm text-muted-foreground">
                         ${(castTalent.marketValue / 1000000).toFixed(1)}M • Rep: {Math.round(castTalent.reputation)}
                       </p>
@@ -299,14 +302,14 @@ export const RoleBasedCasting: React.FC<RoleBasedCastingProps> = ({
                   </div>
                 ) : (
                   <div className="space-y-3">
-                    <p className="text-sm text-amber-600">
+                    <p className="text-sm text-amber-700 dark:text-amber-300">
                       Role not cast • {availableTalent.length} available candidates
                     </p>
                     <div className="grid gap-2 max-h-40 overflow-y-auto">
                       {availableTalent.slice(0, 5).map((talent) => (
-                        <div key={talent.id} className="flex items-center justify-between p-2 border rounded">
+                        <div key={talent.id} className="flex items-center justify-between p-2 border rounded bg-card">
                           <div>
-                            <p className="font-medium text-sm">{talent.name}</p>
+                            <p className="font-medium text-sm text-foreground">{talent.name}</p>
                             <p className="text-xs text-muted-foreground">
                               ${(talent.marketValue / 1000000).toFixed(1)}M • Rep: {Math.round(talent.reputation)}
                             </p>
