@@ -590,9 +590,9 @@ export function validateGameState(state: GameState): CoreLoopIssue[] {
   // Check 14: Platform market invariants (no negative cash/subs, no NaNs)
   // ---------------------------------------------------------------------------
 
-  const market = (state as any).platformMarket as any;
-  if (market) {
-    const allPlatforms = [market.player, ...(market.rivals || [])].filter(Boolean);
+  const platformMarket = (state as any).platformMarket as any;
+  if (platformMarket) {
+    const allPlatforms = [platformMarket.player, ...(platformMarket.rivals || [])].filter(Boolean);
     for (const p of allPlatforms) {
       const pid = p?.id ?? 'unknown-platform';
 
