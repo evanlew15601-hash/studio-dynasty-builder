@@ -32,8 +32,13 @@ export const RoleBasedCasting: React.FC<RoleBasedCastingProps> = ({
 
     // Determine if TV and whether mandatory roles are missing
     const combined = [...existing, ...importedRoles];
-    const hasDirector = combined.some(c => (c.importance === 'crew' ? 'director' : (c.requiredType || 'actor')) === 'director');
-    const hasLead = combined.some(c => c.importance === 'lead' && (c.importance === 'crew' ? 'director' : (c.requiredType || 'actor')) === 'actor');
+
+    const resolveRequiredType = (c: ScriptCharacter): 'actor' | 'director' => {
+      return c.importance === 'crew' ? 'director' : (c.requiredType || 'actor');
+    };
+
+    const hasDirector = combined.some(c => resolveRequiredType(c) === 'director');
+    const hasLead = combined.some(c => c.importance === 'lead' && resolveRequiredType(c) === 'actor');
 
     const rolesToCreate: ScriptCharacter[] = [];
 
