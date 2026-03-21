@@ -1,6 +1,7 @@
 import type { GameState, Project } from '@/types/game';
 import type { TickSystem } from '../core/types';
 import { importRolesForScript } from '@/utils/roleImport';
+import { isDirectorRole } from '@/utils/scriptRoles';
 
 function isProjectLike(value: any): value is Project {
   return !!value && typeof value === 'object' && typeof value.id === 'string' && 'script' in value;
@@ -157,8 +158,8 @@ export const ProjectLifecycleSystem: TickSystem = {
       // Gate: require Director + Lead actor before entering production.
       if (p.currentPhase === 'pre-production' && nextPhase === 'production') {
         const chars = p.script?.characters || [];
-        const hasDirector = chars.some((c) => c.requiredType === 'director' && !!c.assignedTalentId);
-        const hasLead = chars.some((c) => c.importance === 'lead' && c.requiredType !== 'director' && !!c.assignedTalentId);
+        const hasDirector = chars.some((c) => isDirectorRole(c) && !!c.assignedTalentId);
+        const hasLead = chars.some((c) => c.importance === 'lead' && !isDirectorRole(c) && !!c.assignedTalentId);
 
         if (!hasDirector || !hasLead) {
           p = { ...p, phaseDuration: 2 };

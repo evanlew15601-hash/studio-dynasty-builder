@@ -8,6 +8,7 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@
 import { Project } from '@/types/game';
 import { BarChart3, TrendingUp, Users, Globe, Clock, Star, Award, Target } from 'lucide-react';
 import { useGameStore } from '@/game/store';
+import { isPrimaryStreamingFilm } from '@/utils/projectMedium';
 
 export const StreamingAnalyticsDashboard: React.FC = () => {
   const gameState = useGameStore((s) => s.game);
@@ -34,7 +35,7 @@ export const StreamingAnalyticsDashboard: React.FC = () => {
   const getStreamingProjects = (): Project[] => {
     return gameState.projects.filter(p => {
       const isTV = p.type === 'series' || p.type === 'limited-series';
-      const isStreamingFilm = (p.type === 'feature' || p.type === 'documentary') && p.releaseStrategy?.type === 'streaming';
+      const isStreamingFilm = isPrimaryStreamingFilm(p);
 
       return (isTV || isStreamingFilm) && p.status === 'released' && !!p.metrics?.streaming;
     });
@@ -533,7 +534,7 @@ export const StreamingAnalyticsDashboard: React.FC = () => {
                       </div>
                     )}
                   </>
-                ) : project.releaseStrategy?.type === 'streaming' && project.streamingPremiereDeal ? (
+                ) : isPrimaryStreamingFilm(project) && project.streamingPremiereDeal ? (
                   <div className="grid grid-cols-2 gap-4 text-sm">
                     <div>
                       <p className="text-muted-foreground mb-1">Premiere deal</p>

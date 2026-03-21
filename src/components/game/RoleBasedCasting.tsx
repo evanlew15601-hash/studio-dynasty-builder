@@ -8,6 +8,8 @@ import { talentMatchesRole } from '@/utils/castingEligibility';
 import { Users, User, Crown, Star, CheckCircle } from 'lucide-react';
 import { importRolesForScript } from '@/utils/roleImport';
 import { useGameStore } from '@/game/store';
+import { describeTalentInterest, recordStudioNegotiationOutcome } from '@/utils/talentNegotiation';
+import { TalentNegotiationDialog } from './TalentNegotiationDialog';
 
 interface RoleBasedCastingProps {
   project: Project;
@@ -19,7 +21,9 @@ export const RoleBasedCasting: React.FC<RoleBasedCastingProps> = ({
   const gameState = useGameStore((s) => s.game);
   const project = useGameStore((s) => s.game?.projects.find(p => p.id === propProject.id) || propProject);
   const updateProject = useGameStore((s) => s.updateProject);
+  const updateTalent = useGameStore((s) => s.updateTalent);
   const { toast } = useToast();
+  const [negotiationTarget, setNegotiationTarget] = React.useState<{ role: ScriptCharacter; talent: TalentPerson } | null>(null);
 
   // Import roles when project changes or script updates (auto-add mandatory TV roles)
   React.useEffect(() => {
@@ -32,8 +36,13 @@ export const RoleBasedCasting: React.FC<RoleBasedCastingProps> = ({
 
     // Determine if TV and whether mandatory roles are missing
     const combined = [...existing, ...importedRoles];
-    const hasDirector = combined.some(c => c.requiredType === 'director');
-    const hasLead = combined.some(c => c.importance === 'lead' && c.requiredType === 'actor');
+
+    const resolveRequiredType = (c: ScriptCharacter): 'actor' | 'director' => {
+      return c.importance === 'crew' ? 'director' : (c.requiredType || 'actor');
+    };
+
+    const hasDirector = combined.some(c => resolveRequiredType(c) === 'director');
+    const hasLead = combined.some(c => c.importance === 'lead' && resolveRequiredType(c) === 'actor');
 
     const rolesToCreate: ScriptCharacter[] = [];
 
@@ -82,6 +91,10 @@ export const RoleBasedCasting: React.FC<RoleBasedCastingProps> = ({
     return <div className="p-6 text-sm text-muted-foreground">Loading casting system...</div>;
   }
 
+  const resolveRequiredType = (role: ScriptCharacter): 'actor' | 'director' => {
+    return role.importance === 'crew' ? 'director' : (role.requiredType || 'actor');
+  };
+
   const getAvailableTalent = (role: ScriptCharacter) => {
     return gameState.talent.filter(talent => {
       if (talent.contractStatus !== 'available') return false;
@@ -90,32 +103,93 @@ export const RoleBasedCasting: React.FC<RoleBasedCastingProps> = ({
   };
 
   const handleCastTalent = (character: ScriptCharacter, talent: TalentPerson) => {
-    const contractCost = talent.marketValue * 0.1; // 10% of market value
-    
-    if (contractCost > gameState.studio.budget) {
-      toast({
-        title: "Insufficient Budget",
-        description: `Cannot afford ${talent.name} - need $${(contractCost / 1000000).toFixed(1)}M`,
-        variant: "destructive"
-      });
-      return;
-    }
+    setNegotiationTarget({ role: character, talent });
+  };
+
+  const finalizeCastTalent = (result: { interestScore: number; askWeeklyPay: number; weeklyPay: number; contractWeeks: number }) => {
+    if (!negotiationTarget) return;
+
+    const { role: character, talent } = negotiationTarget;
+    const requiredType = resolveRequiredType(character);
+    const contractWeeks = result.contractWeeks;
+    const weeklyPay = result.weeklyPay;
 
     const updatedCharacters = (project.script?.characters || []).map(c =>
       c.id === character.id ? { ...c, assignedTalentId: talent.id } : c
     );
 
+    const roleLabel = requiredType === 'director'
+      ? 'Director'
+      : character.importance === 'lead'
+        ? `Lead - ${character.name}`
+        : `Supporting - ${character.name}`;
+
+    const castEntry = {
+      talentId: talent.id,
+      role: roleLabel,
+      salary: weeklyPay,
+      points: requiredType === 'director' ? 15 : 10,
+      contractTerms: {
+        duration: new Date(Date.now() + contractWeeks * 7 * 24 * 60 * 60 * 1000),
+        exclusivity: true,
+        merchandising: true,
+        sequelOptions: project.script?.franchiseId && character.importance === 'lead' ? 2 : 1
+      }
+    } as any;
+
+    const contractedEntry = {
+      talentId: talent.id,
+      role: roleLabel,
+      weeklyPay,
+      contractWeeks,
+      weeksRemaining: contractWeeks,
+      startWeek: gameState.currentWeek
+    };
+
+    const nextCast = requiredType === 'actor'
+      ? [...(project.cast || []).filter(r => r.role !== roleLabel), castEntry]
+      : (project.cast || []);
+
+    const nextCrew = requiredType === 'director'
+      ? [...(project.crew || []).filter(r => r.role !== roleLabel), castEntry]
+      : (project.crew || []);
+
+    const nextContractedTalent = [
+      ...((project.contractedTalent || []).filter(ct => ct.role !== roleLabel)),
+      contractedEntry
+    ];
+
     updateProject(project.id, {
+      cast: nextCast,
+      crew: nextCrew,
+      contractedTalent: nextContractedTalent,
       script: {
         ...project.script,
         characters: updatedCharacters
       }
     } as any);
-    
-    toast({
-      title: "Role Cast",
-      description: `${talent.name} has been cast as ${character.name}`,
+
+    updateTalent(talent.id, {
+      contractStatus: 'contracted' as const,
+      currentContractWeeks: contractWeeks,
+      studioInterest: recordStudioNegotiationOutcome({
+        talent,
+        studioId: gameState.studio.id,
+        currentWeek: gameState.currentWeek,
+        currentYear: gameState.currentYear,
+        interestScore: result.interestScore,
+        outcome: 'signed',
+      }),
     });
+
+    const interest = describeTalentInterest(result.interestScore);
+
+    toast({
+      title: "Talent Signed",
+      description: `${talent.name} accepted (${interest.label}) — ${(weeklyPay / 1000).toFixed(0)}k/week for ${contractWeeks} weeks`,
+    });
+
+    setNegotiationTarget(null);
   };
 
   const importRolesFromSource = () => {
@@ -180,16 +254,61 @@ export const RoleBasedCasting: React.FC<RoleBasedCastingProps> = ({
   };
 
   const { cast, total } = getCastingProgress();
-  const hasDirector = project.script?.characters?.some(c => 
-    c.requiredType === 'director' && c.assignedTalentId
-  );
-  const hasLead = project.script?.characters?.some(c => 
-    c.importance === 'lead' && c.requiredType === 'actor' && c.assignedTalentId
-  );
+  const hasDirector = project.script?.characters?.some(c => resolveRequiredType(c) === 'director' && c.assignedTalentId);
+  const hasLead = project.script?.characters?.some(c => c.importance === 'lead' && resolveRequiredType(c) === 'actor' && c.assignedTalentId);
   const canProceed = hasDirector && hasLead;
 
   return (
     <div className="space-y-6">
+      {negotiationTarget && (
+        <TalentNegotiationDialog
+          open={true}
+          onOpenChange={(open) => setNegotiationTarget(open ? negotiationTarget : null)}
+          studio={gameState.studio}
+          project={project}
+          talent={negotiationTarget.talent}
+          roleLabel={resolveRequiredType(negotiationTarget.role) === 'director'
+            ? 'Director'
+            : negotiationTarget.role.importance === 'lead'
+              ? `Lead - ${negotiationTarget.role.name}`
+              : `Supporting - ${negotiationTarget.role.name}`}
+          requiredType={resolveRequiredType(negotiationTarget.role)}
+          importance={negotiationTarget.role.importance}
+          currentWeek={gameState.currentWeek}
+          currentYear={gameState.currentYear}
+          onAccepted={finalizeCastTalent}
+          onRejected={(res) => {
+            const interestLabel = describeTalentInterest(res.interestScore).label;
+
+            if (res.reason === 'too-low' || res.reason === 'not-interested') {
+              updateTalent(negotiationTarget.talent.id, {
+                studioInterest: recordStudioNegotiationOutcome({
+                  talent: negotiationTarget.talent,
+                  studioId: gameState.studio.id,
+                  currentWeek: gameState.currentWeek,
+                  currentYear: gameState.currentYear,
+                  interestScore: res.interestScore,
+                  outcome: 'rejected',
+                }),
+              });
+            }
+
+            toast({
+              title: `${negotiationTarget.talent.name}: ${interestLabel}`,
+              description:
+                res.reason === 'held'
+                  ? 'This talent is not currently available.'
+                  : res.reason === 'cooldown'
+                    ? 'Their agent isn’t taking meetings with your studio right now.'
+                    : `Offer declined. (Ask: ${'\u0024'}${(res.askWeeklyPay / 1000).toFixed(0)}k/week)`,
+              variant: 'destructive',
+            });
+
+            setNegotiationTarget(null);
+          }}
+        />
+      )}
+
       {/* Header with Progress */}
       <Card>
         <CardHeader>
@@ -250,20 +369,23 @@ export const RoleBasedCasting: React.FC<RoleBasedCastingProps> = ({
       {/* Character Roles */}
       <div className="grid gap-4">
         {project.script?.characters?.map((character) => {
+          const requiredType = resolveRequiredType(character);
+          const isDirectorRole = requiredType === 'director';
+
           const availableTalent = getAvailableTalent(character);
           const castTalent = character.assignedTalentId 
             ? gameState.talent.find(t => t.id === character.assignedTalentId)
             : null;
 
           return (
-            <Card key={character.id} className={castTalent ? "border-green-200" : "border-amber-200"}>
+            <Card key={character.id} className={castTalent ? "border-green-200 dark:border-green-800" : "border-amber-200 dark:border-amber-800"}>
               <CardHeader>
                 <div className="flex items-center justify-between">
                   <div>
                     <CardTitle className="flex items-center gap-2">
                       {character.importance === 'lead' && <Crown className="h-4 w-4 text-yellow-500" />}
                       {character.importance === 'supporting' && <Star className="h-4 w-4 text-blue-500" />}
-                      {character.requiredType === 'director' && <User className="h-4 w-4 text-purple-500" />}
+                      {isDirectorRole && <User className="h-4 w-4 text-purple-500" />}
                       {character.name}
                     </CardTitle>
                     <p className="text-sm text-muted-foreground">{character.description}</p>
@@ -273,7 +395,7 @@ export const RoleBasedCasting: React.FC<RoleBasedCastingProps> = ({
                       {character.importance}
                     </Badge>
                     <Badge variant="outline" className="capitalize">
-                      {character.requiredType || 'actor'}
+                      {requiredType}
                     </Badge>
                     {castTalent && (
                       <Badge variant="default" className="flex items-center gap-1">
@@ -286,9 +408,9 @@ export const RoleBasedCasting: React.FC<RoleBasedCastingProps> = ({
               </CardHeader>
               <CardContent>
                 {castTalent ? (
-                  <div className="flex items-center justify-between p-3 bg-green-50 rounded">
+                  <div className="flex items-center justify-between p-3 rounded border border-green-200 dark:border-green-800 bg-green-50 dark:bg-green-950/20">
                     <div>
-                      <p className="font-medium">{castTalent.name}</p>
+                      <p className="font-medium text-foreground">{castTalent.name}</p>
                       <p className="text-sm text-muted-foreground">
                         ${(castTalent.marketValue / 1000000).toFixed(1)}M • Rep: {Math.round(castTalent.reputation)}
                       </p>
@@ -299,14 +421,14 @@ export const RoleBasedCasting: React.FC<RoleBasedCastingProps> = ({
                   </div>
                 ) : (
                   <div className="space-y-3">
-                    <p className="text-sm text-amber-600">
+                    <p className="text-sm text-amber-700 dark:text-amber-300">
                       Role not cast • {availableTalent.length} available candidates
                     </p>
                     <div className="grid gap-2 max-h-40 overflow-y-auto">
                       {availableTalent.slice(0, 5).map((talent) => (
-                        <div key={talent.id} className="flex items-center justify-between p-2 border rounded">
+                        <div key={talent.id} className="flex items-center justify-between p-2 border rounded bg-card">
                           <div>
-                            <p className="font-medium text-sm">{talent.name}</p>
+                            <p className="font-medium text-sm text-foreground">{talent.name}</p>
                             <p className="text-xs text-muted-foreground">
                               ${(talent.marketValue / 1000000).toFixed(1)}M • Rep: {Math.round(talent.reputation)}
                             </p>

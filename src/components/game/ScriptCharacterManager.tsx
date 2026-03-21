@@ -278,7 +278,7 @@ export const ScriptCharacterManager: React.FC<ScriptCharacterManagerProps> = ({
                   </div>
                 </div>
 
-                {(newCharacter.requiredType || 'actor') !== 'director' && (
+                {newCharacter.importance !== 'crew' && (newCharacter.requiredType || 'actor') !== 'director' && (
                   <>
                     <div>
                       <Label>Required Gender</Label>

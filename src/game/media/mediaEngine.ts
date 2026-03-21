@@ -3,6 +3,15 @@ import { MediaSourceGenerator } from '@/data/MediaSourceGenerator';
 import { MediaContentGenerator } from '@/data/MediaContentGenerator';
 import { hashStringToUint32 } from '@/utils/stablePick';
 import { stableFloat01, stableInt } from '@/utils/stableRandom';
+import { isPrimaryStreamingFilm, isTvProject } from '@/utils/projectMedium';
+import { current, isDraft } from 'immer';
+
+function clone<T>(value: T): T {
+  if (typeof (globalThis as any).structuredClone === 'function') {
+    return (globalThis as any).structuredClone(value);
+  }
+  return JSON.parse(JSON.stringify(value)) as T;
+}
 
 class MediaEngine {
   private static mediaHistory: MediaItem[] = [];
@@ -18,9 +27,13 @@ class MediaEngine {
       return;
     }
 
-    this.mediaHistory = (engine.history || []).slice();
-    this.mediaMemory = new Map((engine.memories || []).map((m) => [m.entityId, m] as const));
-    this.eventQueue = (engine.eventQueue || []).slice();
+    // Copy values out of Immer drafts (Zustand+Immer store can call hydrate from inside set()).
+    // Retaining draft references here would later crash with: "Cannot perform 'get' on a proxy that has been revoked".
+    const src = (isDraft(engine) ? current(engine as any) : engine) as NonNullable<MediaState['engine']>;
+
+    this.mediaHistory = (src.history || []).map((m) => clone(m));
+    this.mediaMemory = new Map((src.memories || []).map((m) => [m.entityId, clone(m)] as const));
+    this.eventQueue = (src.eventQueue || []).map((e) => clone(e));
   }
 
   static snapshot(): MediaState['engine'] {
@@ -266,8 +279,8 @@ class MediaEngine {
         });
         triggeredEvents.push(releaseEventId);
 
-        const isTv = project.type === 'series' || project.type === 'limited-series';
-        const isStreaming = project.releaseStrategy?.type === 'streaming';
+        const isTv = isTvProject(project);
+        const isStreaming = isPrimaryStreamingFilm(project);
 
         if (!isTv && !isStreaming) {
           const earnings = (project.metrics as any)?.lastWeeklyRevenue ?? 0;

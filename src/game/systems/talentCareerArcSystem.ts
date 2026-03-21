@@ -1,5 +1,6 @@
 import type { CareerEvent, GameState, Project, TalentPerson, WorldHistoryEntry } from '@/types/game';
 import { pushWorldHistory } from '@/utils/worldHistory';
+import { isDirectorRole } from '@/utils/scriptRoles';
 import type { TickSystem } from '../core/types';
 
 function clamp(n: number, min: number, max: number): number {
@@ -30,7 +31,7 @@ function extractKeyCredits(p: Project): { directorIds: string[]; leadActorIds: s
     const tid = ch.assignedTalentId;
     if (!tid) continue;
 
-    if (ch.requiredType === 'director') {
+    if (isDirectorRole(ch)) {
       if (!directorIds.includes(tid)) directorIds.push(tid);
       continue;
     }

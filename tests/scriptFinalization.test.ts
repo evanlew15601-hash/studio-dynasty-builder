@@ -1,6 +1,6 @@
 import { afterEach, describe, expect, it, vi } from 'vitest';
 import type { Franchise, GameState, Script } from '@/types/game';
-import { finalizeScriptForGreenlight, getScriptGreenlightReport } from '@/utils/scriptFinalization';
+import { finalizeScriptForGreenlight, finalizeScriptForSave, getScriptGreenlightReport } from '@/utils/scriptFinalization';
 
 function makeBaseGameState(): GameState {
   return {
@@ -113,6 +113,133 @@ describe('script finalization', () => {
     expect(finalized.characters?.some(c => c.requiredType !== 'director' && c.importance === 'lead')).toBe(true);
     expect(finalized.characters?.some(c => c.importance === 'minor')).toBe(true);
     expect(report.fixesApplied).toContain('Imported roles from source IP');
+  });
+
+  it('seeds franchise character continuity (casting + local overrides) when starting a new franchise script with no characters', () => {
+    const franchise: Franchise = {
+      id: 'f-1',
+      title: 'Space Saga',
+      originDate: '2024-01-01',
+      creatorStudioId: 'studio-1',
+      genre: ['sci-fi'],
+      tone: 'epic',
+      parodySource: 'Star Saga',
+      entries: ['p-1'],
+      status: 'active',
+      franchiseTags: [],
+      culturalWeight: 50,
+      cost: 0,
+    };
+
+    const gameState = makeBaseGameState();
+    gameState.franchises = [franchise];
+    gameState.talent = [
+      {
+        id: 'talent-1',
+        name: 'Actor One',
+        type: 'actor',
+        age: 30,
+        experience: 10,
+        reputation: 60,
+        marketValue: 5_000_000,
+        genres: ['sci-fi'],
+        contractStatus: 'available',
+        availability: { start: new Date('2024-01-01'), end: new Date('2024-12-31') },
+      } as any,
+      {
+        id: 'talent-dir',
+        name: 'Director One',
+        type: 'director',
+        age: 45,
+        experience: 20,
+        reputation: 70,
+        marketValue: 8_000_000,
+        genres: ['sci-fi'],
+        contractStatus: 'available',
+        availability: { start: new Date('2024-01-01'), end: new Date('2024-12-31') },
+      } as any,
+    ];
+
+    gameState.projects = [
+      {
+        id: 'p-1',
+        title: 'Space Saga Origins',
+        status: 'released',
+        releaseYear: 2024,
+        releaseWeek: 1,
+        script: {
+          id: 'script-prev',
+          title: 'Space Saga Origins',
+          genre: 'sci-fi',
+          logline: 'prev',
+          writer: 'In-house',
+          pages: 120,
+          quality: 70,
+          budget: 10_000_000,
+          developmentStage: 'final',
+          themes: [],
+          targetAudience: 'general',
+          estimatedRuntime: 120,
+          characteristics: {
+            tone: 'balanced',
+            pacing: 'steady',
+            dialogue: 'naturalistic',
+            visualStyle: 'realistic',
+            commercialAppeal: 5,
+            criticalPotential: 5,
+            cgiIntensity: 'minimal',
+          },
+          sourceType: 'franchise',
+          franchiseId: franchise.id,
+          characters: [
+            {
+              id: 'director',
+              name: 'Director',
+              importance: 'crew',
+              requiredType: 'director',
+              franchiseId: franchise.id,
+              franchiseCharacterId: 'director',
+              roleTemplateId: 'director',
+              locked: true,
+              assignedTalentId: 'talent-dir',
+            },
+            {
+              id: 'char_hero_pilot',
+              name: 'Hero Pilot',
+              importance: 'lead',
+              requiredType: 'actor',
+              requiredGender: 'Male',
+              franchiseId: franchise.id,
+              franchiseCharacterId: 'char_hero_pilot',
+              roleTemplateId: 'lead_hero',
+              locked: true,
+              assignedTalentId: 'talent-1',
+              localOverrides: {
+                name: 'Captain Patchwalker',
+              },
+            },
+          ],
+        },
+      } as any,
+    ];
+
+    const script = makeValidScript({
+      genre: 'sci-fi',
+      sourceType: 'franchise',
+      franchiseId: franchise.id,
+      characters: [],
+      developmentStage: 'concept',
+    });
+
+    const finalized = finalizeScriptForSave(script, gameState);
+    const hero = finalized.characters?.find((c) => c.franchiseCharacterId === 'char_hero_pilot');
+    const director = finalized.characters?.find((c) => c.requiredType === 'director');
+
+    expect(hero?.assignedTalentId).toBe('talent-1');
+    expect(hero?.name).toBe('Captain Patchwalker');
+
+    // Directors do not automatically return for future franchise entries.
+    expect(director?.assignedTalentId).toBeUndefined();
   });
 
   it('does not force final stage when blocking validation errors exist', () => {

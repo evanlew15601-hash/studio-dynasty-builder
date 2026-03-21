@@ -287,6 +287,90 @@ describe('Engine scheduled release system', () => {
     expect(streamingWindow?.lastProcessedYear).toBe(2024);
   });
 
+  it('releases scheduled streaming films when releaseStrategy is missing but distributionStrategy is streaming', () => {
+    const project: Project = {
+      id: 'p-stream-legacy',
+      title: 'Streaming Premiere (Legacy)',
+      script: {
+        id: 's-stream-legacy',
+        title: 'Streaming Premiere (Legacy)',
+        genre: 'drama',
+        logline: '',
+        writer: 'x',
+        pages: 100,
+        quality: 50,
+        budget: 10_000_000,
+        developmentStage: 'final',
+        themes: [],
+        targetAudience: 'general',
+        estimatedRuntime: 100,
+        characteristics: {
+          tone: 'balanced',
+          pacing: 'steady',
+          dialogue: 'naturalistic',
+          visualStyle: 'realistic',
+          commercialAppeal: 5,
+          criticalPotential: 5,
+          cgiIntensity: 'minimal',
+        },
+      },
+      type: 'feature',
+      currentPhase: 'release' as any,
+      budget: { total: 10_000_000 } as any,
+      cast: [],
+      crew: [],
+      timeline: {} as any,
+      locations: [],
+      distributionStrategy: {
+        primary: {
+          platform: 'StreamFlix',
+          type: 'streaming',
+          revenue: { type: 'subscription-share', studioShare: 60 },
+        },
+        international: [],
+        windows: [],
+        marketingBudget: 0,
+      } as any,
+      status: 'scheduled-for-release',
+      metrics: {},
+      phaseDuration: -1,
+      contractedTalent: [],
+      developmentProgress: {
+        scriptCompletion: 100,
+        budgetApproval: 100,
+        talentAttached: 100,
+        locationSecured: 100,
+        completionThreshold: 100,
+        issues: [],
+      },
+      scheduledReleaseWeek: 10,
+      scheduledReleaseYear: 2024,
+      // releaseStrategy intentionally omitted (legacy saves/mods)
+    };
+
+    const state = makeBaseState({ projects: [project] });
+
+    const result = advanceWeek(state, createRng(1), [ScheduledReleaseSystem, BoxOfficeSystem, PostTheatricalRevenueSystem]);
+    const next = result.nextState;
+
+    expect(next.currentWeek).toBe(10);
+
+    const updated = next.projects[0];
+    expect(updated.status).toBe('released');
+    expect(updated.releaseWeek).toBe(10);
+    expect(updated.releaseYear).toBe(2024);
+
+    expect(updated.metrics?.streaming?.viewsFirstWeek || 0).toBeGreaterThan(0);
+
+    // Should not be treated as a theatrical release.
+    const boxOfficeWeek = next.boxOfficeHistory.find((w) => w.week === 10 && w.year === 2024);
+    const containsProject = (boxOfficeWeek?.releases || []).some((r) => r.projectId === project.id);
+    expect(containsProject).toBe(false);
+
+    const streamingWindow = (updated.postTheatricalReleases || []).find((r) => r.platform === 'streaming');
+    expect(streamingWindow).toBeTruthy();
+  });
+
   it('releases scheduled TV projects and advances episode airing + ratings in the same tick', () => {
     const project: Project = {
       id: 'p-tv',

@@ -1,20 +1,9 @@
 import type { GameState, PostTheatricalRelease, Project } from '@/types/game';
 import type { TickSystem } from '../core/types';
+import { isTheatricalFilm } from '@/utils/projectMedium';
 
 function absWeek(week: number, year: number): number {
   return year * 52 + week;
-}
-
-function isTvProject(project: Project): boolean {
-  return project.type === 'series' || project.type === 'limited-series';
-}
-
-function isPrimaryStreamingFilm(project: Project): boolean {
-  return !isTvProject(project) && project.releaseStrategy?.type === 'streaming';
-}
-
-function isTheatricalFilm(project: Project): boolean {
-  return !isTvProject(project) && !isPrimaryStreamingFilm(project);
 }
 
 function getReleaseWeekYear(project: Project): { week: number; year: number } | null {
@@ -61,7 +50,10 @@ export const StudioRevenueSystem: TickSystem = {
     let budgetDelta = 0;
 
     for (const project of state.projects || []) {
-      if (!project || project.status !== 'released') continue;
+      const status = project?.status;
+      const isReleasedLike =
+        status === 'released' || status === 'distribution' || status === 'archived' || status === 'completed';
+      if (!project || !isReleasedLike) continue;
 
       if (isTheatricalFilm(project)) {
         const rel = getReleaseWeekYear(project);

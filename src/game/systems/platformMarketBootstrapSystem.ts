@@ -1,4 +1,5 @@
 import type {
+  PlatformBrandRegistryEntry,
   PlatformBrandingLayout,
   PlatformBrandingOverlay,
   PlatformLogoConfig,
@@ -144,6 +145,31 @@ function normalizeBranding(input: any): PlayerPlatformBranding | undefined {
   };
 }
 
+function normalizeBrandRegistry(input: any): PlatformBrandRegistryEntry[] {
+  const rows = Array.isArray(input) ? input : [];
+  const out: PlatformBrandRegistryEntry[] = [];
+  const seen = new Set<string>();
+
+  for (const r of rows) {
+    if (!r || typeof r !== 'object') continue;
+    const name = typeof (r as any).name === 'string' ? (r as any).name.trim() : '';
+    if (!name) continue;
+    const key = name.toLowerCase();
+    if (seen.has(key)) continue;
+    seen.add(key);
+
+    out.push({
+      name,
+      ownerId: typeof (r as any).ownerId === 'string' ? (r as any).ownerId : undefined,
+      ownerName: typeof (r as any).ownerName === 'string' ? (r as any).ownerName : undefined,
+      acquiredWeek: typeof (r as any).acquiredWeek === 'number' ? Math.floor((r as any).acquiredWeek) : undefined,
+      acquiredYear: typeof (r as any).acquiredYear === 'number' ? Math.floor((r as any).acquiredYear) : undefined,
+    });
+  }
+
+  return out;
+}
+
 function normalizePlayerPlatform(player: any | undefined): PlatformMarketState['player'] {
   if (!player || typeof player !== 'object') return undefined;
 
@@ -155,6 +181,8 @@ function normalizePlayerPlatform(player: any | undefined): PlatformMarketState['
     name: typeof (player as any).name === 'string' ? (player as any).name : 'Your Platform',
     launchedWeek: typeof (player as any).launchedWeek === 'number' ? (player as any).launchedWeek : undefined,
     launchedYear: typeof (player as any).launchedYear === 'number' ? (player as any).launchedYear : undefined,
+    closedWeek: typeof (player as any).closedWeek === 'number' ? (player as any).closedWeek : undefined,
+    closedYear: typeof (player as any).closedYear === 'number' ? (player as any).closedYear : undefined,
     branding: normalizeBranding((player as any).branding),
     subscribers: typeof (player as any).subscribers === 'number' ? Math.max(0, Math.floor((player as any).subscribers)) : 0,
     cash: typeof (player as any).cash === 'number' ? (player as any).cash : 0,
@@ -204,12 +232,14 @@ export const PlatformMarketBootstrapSystem: TickSystem = {
 
     const rivals = normalizeExistingRivals(raw?.rivals as any, totalAddressableSubs);
     const player = normalizePlayerPlatform(raw?.player as any);
+    const brandRegistry = normalizeBrandRegistry((raw as any)?.brandRegistry);
 
     const nextMarket: PlatformMarketState = {
       ...raw,
       totalAddressableSubs,
       player,
       rivals,
+      brandRegistry,
       lastUpdatedWeek: ctx.week,
       lastUpdatedYear: ctx.year,
     };

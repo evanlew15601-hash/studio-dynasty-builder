@@ -1,6 +1,14 @@
 import type { MediaCampaign, MediaReaction, MediaItem, MediaState, GameState, TalentPerson, Project } from '@/types/game';
 import { MediaEngine } from './mediaEngine';
 import { stableFloat01, stableInt } from '@/utils/stableRandom';
+import { current, isDraft } from 'immer';
+
+function clone<T>(value: T): T {
+  if (typeof (globalThis as any).structuredClone === 'function') {
+    return (globalThis as any).structuredClone(value);
+  }
+  return JSON.parse(JSON.stringify(value)) as T;
+}
 
 export class MediaResponseSystem {
   private static activeCampaigns: MediaCampaign[] = [];
@@ -9,11 +17,13 @@ export class MediaResponseSystem {
 
   static hydrate(state?: MediaState): void {
     const response = state?.response;
-    this.activeCampaigns = (response?.campaigns || []).slice();
-    this.playerReactions = (response?.reactions || []).slice();
+    const src = response && isDraft(response) ? current(response as any) : response;
+
+    this.activeCampaigns = (src?.campaigns || []).map((c) => clone(c));
+    this.playerReactions = (src?.reactions || []).map((r) => clone(r));
 
     const fallback = this.activeCampaigns.length + 1;
-    this.nextCampaignId = response?.nextCampaignId ?? fallback;
+    this.nextCampaignId = src?.nextCampaignId ?? fallback;
   }
 
   static snapshot(): MediaState['response'] {

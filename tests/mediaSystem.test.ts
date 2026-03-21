@@ -1,4 +1,5 @@
 import { describe, expect, it, afterEach, vi } from 'vitest';
+import { produce } from 'immer';
 import { MediaContentGenerator } from '@/data/MediaContentGenerator';
 import { MediaEngine } from '@/components/game/MediaEngine';
 import { CrisisManagement } from '@/components/game/CrisisManagement';
@@ -119,6 +120,61 @@ describe('media system', () => {
     expect(secondPass.length).toBe(0);
   });
 
+  it('can hydrate from an Immer draft without retaining revoked proxies', () => {
+    const playerStudio = { id: 'player-studio', name: 'Player Studio', reputation: 50, budget: 1000000, founded: 2025, specialties: ['drama'] };
+    const playerProject = makeMinimalProject({
+      id: 'player-project-1',
+      title: 'Player Premiere',
+      studioName: playerStudio.name,
+      releaseWeek: 1,
+      releaseYear: 2025,
+      cast: [{ talentId: 'talent-1' }]
+    });
+
+    const gameState: any = {
+      studio: playerStudio,
+      currentWeek: 1,
+      currentYear: 2025,
+      projects: [playerProject],
+      talent: [makeMinimalTalent()],
+      competitorStudios: [],
+      allReleases: [],
+      aiStudioProjects: [],
+    };
+
+    MediaEngine.queueMediaEvent({
+      type: 'release',
+      triggerType: 'automatic',
+      priority: 'low',
+      entities: {
+        studios: [playerStudio.id],
+        projects: [playerProject.id],
+        talent: ['talent-1']
+      },
+      eventData: { project: playerProject },
+      week: 1,
+      year: 2025
+    } as any);
+
+    const firstPass = MediaEngine.processMediaEvents(gameState);
+    expect(firstPass.length).toBe(1);
+
+    const persisted = { engine: MediaEngine.snapshot(), response: { campaigns: [], reactions: [] } } as any;
+
+    MediaEngine.cleanup();
+
+    produce(persisted, (draft) => {
+      MediaEngine.hydrate(draft as any);
+    });
+
+    const memory = MediaEngine.getMediaMemory(playerStudio.id);
+    expect(memory).toBeTruthy();
+
+    // Access nested props to ensure we didn't retain Immer draft proxies.
+    const firstSentiment = memory?.sentimentHistory?.[0]?.sentiment;
+    expect(firstSentiment).toBeTruthy();
+  });
+
   it('does not leak raw {Placeholders} when event lacks a project/studio', () => {
     vi.spyOn(Math, 'random').mockReturnValue(0);
 
@@ -232,6 +288,51 @@ describe('media system', () => {
     const combined = `${items[0].headline} ${items[0].content}`;
     expect(combined).toContain(competitorProject.title);
     expect(combined).not.toMatch(/\{[A-Za-z]+\}/);
+  });
+
+  it('does not describe TV premieres as theatrical releases', () => {
+    const competitorStudio = makeMinimalStudio({ id: 'studio-competitor', name: 'Crimson Peak Entertainment' });
+    const competitorProject = makeMinimalProject({
+      id: 'ai-series-1',
+      title: 'Midnight Storm (Series)',
+      studioName: competitorStudio.name,
+      type: 'series',
+      releaseWeek: 1,
+      releaseYear: 2025,
+      cast: [{ talentId: 'talent-1' }]
+    });
+
+    const gameState: any = {
+      studio: { id: 'player-studio', name: 'Player Studio', reputation: 50, budget: 1000000, founded: 2025, specialties: ['drama'] },
+      currentWeek: 1,
+      currentYear: 2025,
+      projects: [],
+      talent: [makeMinimalTalent()],
+      competitorStudios: [competitorStudio],
+      allReleases: [competitorProject],
+      aiStudioProjects: [],
+    };
+
+    MediaEngine.queueMediaEvent({
+      type: 'release',
+      triggerType: 'competitor_action',
+      priority: 'low',
+      entities: {
+        studios: [competitorStudio.id],
+        projects: [competitorProject.id],
+        talent: ['talent-1']
+      },
+      eventData: { project: competitorProject },
+      week: 1,
+      year: 2025
+    } as any);
+
+    const items = MediaEngine.processMediaEvents(gameState);
+    expect(items.length).toBe(1);
+
+    const combined = `${items[0].headline} ${items[0].content}`;
+    expect(combined).toContain(competitorProject.title);
+    expect(combined).not.toMatch(/theater/i);
   });
 
   it('generates award nomination stories without placeholder leaks', () => {

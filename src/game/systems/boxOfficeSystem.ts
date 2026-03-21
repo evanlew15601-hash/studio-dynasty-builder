@@ -2,6 +2,7 @@ import type { BoxOfficeRelease, BoxOfficeWeek, GameState, Project, TopFilmEntry,
 import { stableInt } from '@/utils/stableRandom';
 import { triggerDateFromWeekYear } from '@/utils/gameTime';
 import type { TickSystem } from '../core/types';
+import { isPrimaryStreamingFilm, isTvProject } from '@/utils/projectMedium';
 
 function absWeek(week: number, year: number): number {
   return year * 52 + week;
@@ -14,12 +15,8 @@ function isProjectLike(value: any): value is Project {
 }
 
 function isTheatricalProject(project: Project): boolean {
-  const kind = (project.type as any) as string;
-  if (kind === 'series' || kind === 'limited-series') return false;
-
-  const releaseType = project.releaseStrategy?.type;
-  if (releaseType === 'streaming') return false;
-
+  if (isTvProject(project)) return false;
+  if (isPrimaryStreamingFilm(project)) return false;
   return true;
 }
 

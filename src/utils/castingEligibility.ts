@@ -1,7 +1,9 @@
 import type { ScriptCharacter, TalentPerson } from '@/types/game';
+import { getRoleRequiredType } from '@/utils/scriptRoles';
 
 export function talentMatchesRole(talent: TalentPerson, role: ScriptCharacter): boolean {
-  const requiredType = role.requiredType || (role.importance === 'crew' ? 'director' : 'actor');
+  // Crew roles should always pull from the director pool, even if older/invalid data stored requiredType incorrectly.
+  const requiredType = getRoleRequiredType(role);
 
   if (talent.type !== requiredType) return false;
 
@@ -10,11 +12,11 @@ export function talentMatchesRole(talent: TalentPerson, role: ScriptCharacter): 
     if (talent.age < minAge || talent.age > maxAge) return false;
   }
 
-  // Gender is mandatory for actor roles (used for actor/actress-style casting).
+  // Gender is mandatory for actor roles. We allow legacy roles with missing requiredGender
+  // (older data/imports), treating them as "any gender".
   if (requiredType !== 'director') {
-    if (!role.requiredGender) return false;
-    if (!talent.gender) return false;
-    if (talent.gender !== role.requiredGender) return false;
+    if (role.requiredGender && talent.gender && talent.gender !== role.requiredGender) return false;
+    if (role.requiredGender && !talent.gender) return false;
   }
 
   if (role.requiredRace) {

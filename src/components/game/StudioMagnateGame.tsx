@@ -28,6 +28,8 @@ import { attachBasicCastForAI } from '@/utils/attachBasicCastForAI';
 import { stableInt } from '@/utils/stableRandom';
 import { nextNumericId } from '@/utils/idAllocator';
 import { triggerDateFromWeekYear } from '@/utils/gameTime';
+import { isTvScript } from '@/utils/scriptMedium';
+import { isPrimaryStreamingFilm } from '@/utils/projectMedium';
 import { createRng, generateGameSeed, seedFromString } from '@/game/core/rng';
 import { advanceWeek as engineAdvanceWeek } from '@/game/core/tick';
 import { useUiStore } from '@/game/uiStore';
@@ -1206,7 +1208,7 @@ export const StudioMagnateGame: React.FC<StudioMagnateGameProps> = ({
        if (updatedProject.status === 'released') {
          if (project.type === 'series' || project.type === 'limited-series') {
            // TV episode scheduling + ratings are handled by the deterministic engine tick.
-         } else if (updatedProject.releaseStrategy?.type === 'streaming') {
+         } else if (isPrimaryStreamingFilm(updatedProject)) {
            // Streaming view metrics are handled by the deterministic engine tick.
          } else {
              // Box office simulation is now handled by the deterministic engine tick.
@@ -1463,6 +1465,17 @@ export const StudioMagnateGame: React.FC<StudioMagnateGameProps> = ({
 
   const advanceWeekCore = (options?: { suppressToast?: boolean; suppressLoading?: boolean; suppressDiagnostics?: boolean; suppressRecap?: boolean }) => {
     const diagnosticsEnabled = import.meta.env.DEV && !options?.suppressDiagnostics;
+
+    const pendingDecisions = (gameState.eventQueue || []).length;
+    if (pendingDecisions > 0) {
+      toast({
+        title: 'Decisions pending',
+        description: `Resolve ${pendingDecisions === 1 ? 'the open event' : `${pendingDecisions} open events`} before advancing the week.`,
+        variant: 'destructive',
+      });
+      setInboxOpen(true);
+      return;
+    }
 
     if (diagnosticsEnabled) {
       console.log(`ADVANCING WEEK: Current Y${gameState.currentYear}W${gameState.currentWeek}`);
@@ -2247,6 +2260,17 @@ export const StudioMagnateGame: React.FC<StudioMagnateGameProps> = ({
   };
 
   const handleAdvanceWeek = async (options?: { suppressToast?: boolean; suppressLoading?: boolean; suppressDiagnostics?: boolean; suppressRecap?: boolean }) => {
+    const pendingDecisions = (gameState.eventQueue || []).length;
+    if (pendingDecisions > 0) {
+      toast({
+        title: 'Decisions pending',
+        description: `Resolve ${pendingDecisions === 1 ? 'the open event' : `${pendingDecisions} open events`} before advancing.`,
+        variant: 'destructive',
+      });
+      setInboxOpen(true);
+      return;
+    }
+
     if (!onlineLeagueCode?.trim()) {
       advanceWeekCore(options);
       return;
@@ -2993,16 +3017,20 @@ export const StudioMagnateGame: React.FC<StudioMagnateGameProps> = ({
             />
             <SequelManagementComponent
               onProjectCreate={(script) => {
-                // Route sequel scripts to Script Development for refinement instead of instant project creation
+                // Route sequel scripts to the appropriate development screen for refinement.
+                const toTv = isTvScript(script);
+
                 setSelectedFranchise(script.franchiseId || null);
                 setSelectedPublicDomain(null);
-                handlePhaseChange('scripts');
+                handlePhaseChange(toTv ? 'television' : 'scripts');
 
                 upsertScript(script);
 
                 toast({
                   title: 'Sequel Script Created',
-                  description: `"${script.title}" has been added to Script Development. Refine it to "final" stage before greenlighting.`,
+                  description: toTv
+                    ? `"${script.title}" has been added to TV Show Development. Refine it to "final" stage before greenlighting.`
+                    : `"${script.title}" has been added to Script Development. Refine it to "final" stage before greenlighting.`,
                 });
               }}
               onCreateFranchise={handleCreateFranchise}

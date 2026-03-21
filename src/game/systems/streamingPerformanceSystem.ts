@@ -1,18 +1,10 @@
 import type { GameState, Project } from '@/types/game';
 import type { TickSystem } from '../core/types';
 import { StreamingFilmSystem } from '@/game/sim/streamingFilmSystem';
+import { isPrimaryStreamingFilm } from '@/utils/projectMedium';
 
 function isProjectLike(value: any): value is Project {
   return !!value && typeof value === 'object' && typeof value.id === 'string' && 'script' in value;
-}
-
-function isTvProject(project: Project): boolean {
-  const kind = (project.type as any) as string;
-  return kind === 'series' || kind === 'limited-series';
-}
-
-function isPrimaryStreamingFilm(project: Project): boolean {
-  return !isTvProject(project) && project.releaseStrategy?.type === 'streaming';
 }
 
 function absWeek(week: number, year: number): number {

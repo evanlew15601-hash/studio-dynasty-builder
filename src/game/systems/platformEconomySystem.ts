@@ -176,7 +176,9 @@ function stepPlatform(input: PlatformStepInput): { nextSubs: number; nextCash: n
   const baseChurnWeekly = 0.010;
   const freshnessMod = clamp(1.35 - freshness / 100, 0.55, 1.9);
   const catalogMod = clamp(1.2 - catalogValue / 180, 0.65, 1.25);
-  const priceMod = clamp(priceIndex, 0.7, 1.5);
+  // Price elasticity: avoid treating priceIndex as a direct multiplier on churn.
+  // >1 increases churn, <1 reduces churn, but with a softer slope.
+  const priceMod = clamp(1 + (priceIndex - 1) * 0.8, 0.75, 1.35);
 
   const tierMixChurn = input.tierMix;
   const tierAdSupportedPct = typeof tierMixChurn?.adSupportedPct === 'number' ? tierMixChurn.adSupportedPct : 50;
@@ -194,7 +196,9 @@ function stepPlatform(input: PlatformStepInput): { nextSubs: number; nextCash: n
   const churned = Math.floor(subs * churnRate);
 
   // Acquisition scales with freshness and (for player) promotionBudget; allow non-zero growth from 0.
-  const acquisitionRate = clamp(0.003 + freshness / 60_000 + catalogValue / 120_000, 0.001, 0.02);
+  // Lower prices help acquisition a bit; higher prices slow new adds.
+  const priceAcqMod = clamp(1.15 - (priceIndex - 1) * 0.6, 0.65, 1.4);
+  const acquisitionRate = clamp((0.003 + freshness / 60_000 + catalogValue / 120_000) * priceAcqMod, 0.001, 0.02);
   const baseAcquired = typeof input.baseAcquired === 'number' ? Math.max(0, Math.floor(input.baseAcquired)) : 0;
   const acquired = baseAcquired + Math.floor(subs * acquisitionRate * input.rngFloat());
 
@@ -211,8 +215,10 @@ function stepPlatform(input: PlatformStepInput): { nextSubs: number; nextCash: n
   const adLoadIndexForRevenue = typeof input.adLoadIndex === 'number' ? clamp(input.adLoadIndex, 0, 100) : 55;
   const adLoadFactor = clamp(0.8 + (adLoadIndexForRevenue / 100) * 0.7, 0.8, 1.5);
 
+  // ARPU is a simplified weekly revenue proxy. Coefficients are tuned so that a 12.99/mo-ish
+  // baseline corresponds to roughly ~$3/week for an ad-free subscriber at priceIndex=1.
   const arpuWeekly =
-    (adSupportedShare * 1.1 * adLoadFactor + adFreeShare * 2.6) * clamp(priceIndex, 0.6, 1.7);
+    (adSupportedShare * 1.6 * adLoadFactor + adFreeShare * 3.4) * clamp(priceIndex, 0.6, 1.7);
   const revenue = Math.floor(nextSubs * arpuWeekly);
 
   const promotion = typeof input.promotionBudgetPerWeek === 'number' ? Math.max(0, input.promotionBudgetPerWeek) : 0;
@@ -431,6 +437,9 @@ export const PlatformEconomySystem: TickSystem = {
 
       const contentSpendPerWeek = originalsInPipeline.reduce((acc, p) => acc + estimateOriginalWeeklySpend(p), 0);
 
+      const fixedOpsCost =
+        8_000_000 + Math.max(0, Math.floor(subs / 1_000_000)) * 600_000;
+
       const step = stepPlatform({
         subscribers: subs,
         cash,
@@ -441,7 +450,7 @@ export const PlatformEconomySystem: TickSystem = {
         promotionBudgetPerWeek,
         adLoadIndex: typeof playerIn.adLoadIndex === 'number' ? playerIn.adLoadIndex : 55,
         serviceQuality,
-        fixedOpsCost: 25_000_000,
+        fixedOpsCost,
         extraCost: contentSpendPerWeek,
         rngFloat: () => ctx.rng.nextFloat(0.7, 1.3),
         baseAcquired,

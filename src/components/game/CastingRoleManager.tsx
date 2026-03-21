@@ -9,7 +9,7 @@ import { Avatar, AvatarFallback } from '@/components/ui/avatar';
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from '@/components/ui/dialog';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
-import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
+
 import { useToast } from '@/hooks/use-toast';
 import { CastingIcon, TalentIcon } from '@/components/ui/icons';
 import { Search } from 'lucide-react';
@@ -17,7 +17,8 @@ import { Search } from 'lucide-react';
 interface RoleCast {
   characterId: string;
   characterName: string;
-  roleType: string;
+  roleType: 'director' | 'lead' | 'supporting' | 'character';
+  requiredType: 'actor' | 'director';
   talentId?: string;
   talentName?: string;
   salary?: number;
@@ -42,20 +43,40 @@ export const CastingRoleManager: React.FC<CastingRoleManagerProps> = ({
   const [castingDialogOpen, setCastingDialogOpen] = useState(false);
   const [selectedRole, setSelectedRole] = useState<RoleCast | null>(null);
   const [talentFilter, setTalentFilter] = useState('');
-  const [roleTypeFilter, setRoleTypeFilter] = useState('all');
 
   // Initialize roles from script characters and current cast
   const initializeRoles = (): RoleCast[] => {
     const roles: RoleCast[] = [];
-    
+
+    const resolveRequiredType = (character: ScriptCharacter): 'actor' | 'director' => {
+      return character.importance === 'crew' ? 'director' : (character.requiredType || 'actor');
+    };
+
+    const resolveRoleType = (character: ScriptCharacter, requiredType: 'actor' | 'director'): RoleCast['roleType'] => {
+      if (requiredType === 'director') return 'director';
+      if (character.importance === 'lead') return 'lead';
+      if (character.importance === 'supporting') return 'supporting';
+      return 'character';
+    };
+
+    const findExisting = (characterName: string, requiredType: 'actor' | 'director') => {
+      const pool = requiredType === 'director' ? (project.crew || []) : (project.cast || []);
+      return pool.find((c) => c.role === characterName) || pool.find((c) => c.role?.endsWith(`- ${characterName}`));
+    };
+
     // Add script characters
     if (project.script?.characters) {
       project.script.characters.forEach(character => {
-        const existingCast = project.cast?.find(c => c.role === character.name);
+        const requiredType = resolveRequiredType(character);
+        const roleType = resolveRoleType(character, requiredType);
+
+        const existingCast = findExisting(character.name, requiredType);
+
         roles.push({
           characterId: character.id,
           characterName: character.name,
-          roleType: character.importance,
+          roleType,
+          requiredType,
           talentId: existingCast?.talentId,
           talentName: existingCast ? availableTalent.find(t => t.id === existingCast.talentId)?.name : undefined,
           salary: existingCast?.salary,
@@ -67,14 +88,20 @@ export const CastingRoleManager: React.FC<CastingRoleManagerProps> = ({
     }
 
     // Add essential roles if not in script
-    const essentialRoles = ['Director', 'Lead Actor', 'Supporting Actor'];
+    const essentialRoles: Array<{ id: string; name: string; roleType: RoleCast['roleType']; requiredType: RoleCast['requiredType'] }> = [
+      { id: 'director', name: 'Director', roleType: 'director', requiredType: 'director' },
+      { id: 'lead', name: 'Lead Actor', roleType: 'lead', requiredType: 'actor' },
+      { id: 'supporting', name: 'Supporting Actor', roleType: 'supporting', requiredType: 'actor' },
+    ];
+
     essentialRoles.forEach(role => {
-      if (!roles.find(r => r.roleType === role.toLowerCase().replace(' ', '_'))) {
-        const existingCast = project.cast?.find(c => c.role === role);
+      if (!roles.find(r => r.characterName === role.name)) {
+        const existingCast = findExisting(role.name, role.requiredType);
         roles.push({
-          characterId: `essential_${role.toLowerCase().replace(' ', '_')}`,
-          characterName: role,
-          roleType: role.toLowerCase().replace(' ', '_'),
+          characterId: `essential_${role.id}`,
+          characterName: role.name,
+          roleType: role.roleType,
+          requiredType: role.requiredType,
           talentId: existingCast?.talentId,
           talentName: existingCast ? availableTalent.find(t => t.id === existingCast.talentId)?.name : undefined,
           salary: existingCast?.salary,
@@ -99,9 +126,8 @@ export const CastingRoleManager: React.FC<CastingRoleManagerProps> = ({
 
       // Filter by role type compatibility
       if (selectedRole) {
-        const roleType = selectedRole.roleType;
-        if (roleType === 'director' && talent.type !== 'director') return false;
-        if (['lead', 'supporting', 'character'].includes(roleType) && talent.type !== 'actor') return false;
+        if (selectedRole.requiredType === 'director' && talent.type !== 'director') return false;
+        if (selectedRole.requiredType === 'actor' && talent.type !== 'actor') return false;
       }
 
       // Only available talent
@@ -110,7 +136,7 @@ export const CastingRoleManager: React.FC<CastingRoleManagerProps> = ({
   };
 
   const calculateTalentCost = (talent: TalentPerson): number => {
-    const contractWeeks = selectedRole?.roleType === 'director' ? 20 : 16;
+    const contractWeeks = selectedRole?.requiredType === 'director' ? 20 : 16;
     const weeklySalary = talent.marketValue / 52;
     return weeklySalary * contractWeeks;
   };
@@ -140,21 +166,35 @@ export const CastingRoleManager: React.FC<CastingRoleManagerProps> = ({
             talentId: talent.id,
             talentName: talent.name,
             salary: talent.marketValue / 52,
-            contractWeeks: selectedRole.roleType === 'director' ? 20 : 16
+            contractWeeks: selectedRole.requiredType === 'director' ? 20 : 16
           }
         : role
     );
 
     setProjectRoles(updatedRoles);
 
-    // Update project cast
-    const updatedCast = updatedRoles
-      .filter(role => role.talentId)
+    const castEntries = updatedRoles
+      .filter(role => role.talentId && role.requiredType === 'actor')
       .map(role => ({
         talentId: role.talentId!,
         role: role.characterName,
         salary: role.salary!,
-        points: role.roleType === 'director' ? 15 : 10,
+        points: 10,
+        contractTerms: {
+          duration: new Date(Date.now() + role.contractWeeks! * 7 * 24 * 60 * 60 * 1000),
+          exclusivity: true,
+          merchandising: true,
+          sequelOptions: project.script?.franchiseId ? 2 : 1
+        }
+      }));
+
+    const crewEntries = updatedRoles
+      .filter(role => role.talentId && role.requiredType === 'director')
+      .map(role => ({
+        talentId: role.talentId!,
+        role: role.characterName,
+        salary: role.salary!,
+        points: 15,
         contractTerms: {
           duration: new Date(Date.now() + role.contractWeeks! * 7 * 24 * 60 * 60 * 1000),
           exclusivity: true,
@@ -165,7 +205,8 @@ export const CastingRoleManager: React.FC<CastingRoleManagerProps> = ({
 
     const updatedProject = {
       ...project,
-      cast: updatedCast
+      cast: castEntries,
+      crew: crewEntries,
     };
 
     onCastingUpdate(updatedProject);
@@ -188,14 +229,28 @@ export const CastingRoleManager: React.FC<CastingRoleManagerProps> = ({
 
     setProjectRoles(updatedRoles);
 
-    // Update project
-    const updatedCast = updatedRoles
-      .filter(role => role.talentId)
+    const castEntries = updatedRoles
+      .filter(role => role.talentId && role.requiredType === 'actor')
       .map(role => ({
         talentId: role.talentId!,
         role: role.characterName,
         salary: role.salary!,
-        points: role.roleType === 'director' ? 15 : 10,
+        points: 10,
+        contractTerms: {
+          duration: new Date(Date.now() + role.contractWeeks! * 7 * 24 * 60 * 60 * 1000),
+          exclusivity: true,
+          merchandising: true,
+          sequelOptions: project.script?.franchiseId ? 2 : 1
+        }
+      }));
+
+    const crewEntries = updatedRoles
+      .filter(role => role.talentId && role.requiredType === 'director')
+      .map(role => ({
+        talentId: role.talentId!,
+        role: role.characterName,
+        salary: role.salary!,
+        points: 15,
         contractTerms: {
           duration: new Date(Date.now() + role.contractWeeks! * 7 * 24 * 60 * 60 * 1000),
           exclusivity: true,
@@ -206,7 +261,8 @@ export const CastingRoleManager: React.FC<CastingRoleManagerProps> = ({
 
     onCastingUpdate({
       ...project,
-      cast: updatedCast
+      cast: castEntries,
+      crew: crewEntries,
     });
 
     toast({
@@ -221,13 +277,18 @@ export const CastingRoleManager: React.FC<CastingRoleManagerProps> = ({
     setCastingDialogOpen(true);
   };
 
-  const getRoleTypeColor = (roleType: string) => {
+  const getRoleTypeColor = (roleType: RoleCast['roleType']) => {
     switch (roleType) {
-      case 'director': return 'bg-primary/15 text-primary';
-      case 'lead': return 'bg-destructive/10 text-destructive';
-      case 'supporting': return 'bg-accent/15 text-accent';
-      case 'character': return 'bg-green-500/10 text-green-600';
-      default: return 'bg-muted/50 text-muted-foreground';
+      case 'director':
+        return 'bg-purple-500/10 text-purple-700 dark:text-purple-300 border-purple-500/30';
+      case 'lead':
+        return 'bg-yellow-500/10 text-yellow-800 dark:text-yellow-300 border-yellow-500/30';
+      case 'supporting':
+        return 'bg-blue-500/10 text-blue-800 dark:text-blue-300 border-blue-500/30';
+      case 'character':
+        return 'bg-emerald-500/10 text-emerald-800 dark:text-emerald-300 border-emerald-500/30';
+      default:
+        return 'bg-muted/50 text-muted-foreground';
     }
   };
 
@@ -290,7 +351,7 @@ export const CastingRoleManager: React.FC<CastingRoleManagerProps> = ({
                         <div className="text-sm text-muted-foreground">as {role.characterName}</div>
                         <div className="flex items-center gap-2 mt-1">
                           <Badge variant="outline" className={getRoleTypeColor(role.roleType)}>
-                            {role.roleType.replace('_', ' ')}
+                            {role.roleType}
                           </Badge>
                           {talent && (
                             <Badge variant="secondary">${(talent.marketValue / 1000000).toFixed(0)}M</Badge>
@@ -326,7 +387,7 @@ export const CastingRoleManager: React.FC<CastingRoleManagerProps> = ({
                   <div className="text-center">
                     <div className="font-medium">{role.characterName}</div>
                     <Badge variant="outline" className={`mt-2 ${getRoleTypeColor(role.roleType)}`}>
-                      {role.roleType.replace('_', ' ')}
+                      {role.roleType}
                     </Badge>
                     <Button
                       className="w-full mt-3"
@@ -348,7 +409,7 @@ export const CastingRoleManager: React.FC<CastingRoleManagerProps> = ({
         <DialogContent className="max-w-4xl max-h-[80vh] overflow-y-auto">
           <DialogHeader>
             <DialogTitle>
-              Cast {selectedRole?.characterName} ({selectedRole?.roleType.replace('_', ' ')})
+              Cast {selectedRole?.characterName} ({selectedRole?.roleType})
             </DialogTitle>
           </DialogHeader>
 
@@ -400,7 +461,7 @@ export const CastingRoleManager: React.FC<CastingRoleManagerProps> = ({
                             ${(cost / 1000000).toFixed(0)}M total cost
                           </Badge>
                           {talent.awards && talent.awards.length > 0 && (
-                            <Badge variant="secondary" className="bg-yellow-100 text-yellow-800">
+                            <Badge variant="secondary" className="bg-yellow-500/10 text-yellow-800 dark:text-yellow-300">
                               {talent.awards.length} Awards
                             </Badge>
                           )}

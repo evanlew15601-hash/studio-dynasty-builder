@@ -8,6 +8,7 @@ import { normalizePublicDomainState } from '@/utils/publicDomainNormalization';
 import { getModBundle } from '@/utils/moddingStore';
 import { applyPatchesByKey, getPatchesForEntity } from '@/utils/modding';
 import { reviveIsoDates } from '@/utils/reviveIsoDates';
+import { normalizeProjectCreditsState } from '@/utils/projectCreditsNormalization';
 import type { SaveGameSnapshot } from '@/utils/saveLoad';
 
 export function patchLoadedSnapshot(
@@ -45,7 +46,9 @@ export function patchLoadedSnapshot(
     )
   );
 
-  const patchedGameStateBase = normalizePublicDomainState(normalizeFranchisesState(patchedGameStateRaw as any) as any);
+  const patchedGameStateBase = normalizeProjectCreditsState(
+    normalizePublicDomainState(normalizeFranchisesState(patchedGameStateRaw as any) as any)
+  );
 
   const patchedGameState = {
     ...patchedGameStateBase,

@@ -32,6 +32,8 @@ import {
 } from '@/utils/platformIds';
 import { stableInt } from '@/utils/stableRandom';
 import { isDebugUiEnabled } from '@/utils/debugFlags';
+import { triggerDateFromWeekYear } from '@/utils/gameTime';
+import { getPlatformRelaunchWindow } from '@/utils/platformRelaunch';
 import { StreamingPlatformPreview } from './StreamingPlatformPreview';
 import { StudioIconCustomizer, DEFAULT_ICON, ICON_COLORS, ACCENT_COLORS, type StudioIconConfig } from './StudioIconCustomizer';
 import type { PlayerPlatformBranding } from '@/types/platformEconomy';
@@ -209,6 +211,9 @@ export const StreamingWarsPlatformApp: React.FC = () => {
   const [launchPriceIndex, setLaunchPriceIndex] = useState(1);
   const [launchPromoBudget, setLaunchPromoBudget] = useState(15_000_000);
 
+  const [brandingConflictOpen, setBrandingConflictOpen] = useState(false);
+  const [brandingConflictMessage, setBrandingConflictMessage] = useState('');
+
   const [originalsOpen, setOriginalsOpen] = useState(false);
   const [originalTitle, setOriginalTitle] = useState('');
   const [originalGenre, setOriginalGenre] = useState<Genre>('drama');
@@ -321,9 +326,23 @@ export const StreamingWarsPlatformApp: React.FC = () => {
   const hasEnoughReputation = (gameState?.studio.reputation ?? 0) >= 60;
   const hasEnoughReleases = releasedProjectsCount >= 12;
 
-  const canLaunchPlatform =
+  const relaunchWindow = getPlatformRelaunchWindow({
+    player,
+    currentWeek: gameState?.currentWeek ?? 0,
+    currentYear: gameState?.currentYear ?? 0,
+  });
+
+  const canLaunchNewPlatform =
     !player &&
     ((hasEnoughBudget && hasEnoughReputation && hasEnoughReleases) || debugUi);
+
+  const canRelaunchPlatform =
+    !!player &&
+    player.status !== 'active' &&
+    relaunchWindow.canRelaunch &&
+    ((hasEnoughBudget && hasEnoughReputation) || debugUi);
+
+  const canLaunchPlatform = canLaunchNewPlatform || canRelaunchPlatform;
 
   const ensureLaunchDefaults = () => {
     if (launchName.trim().length === 0) {
@@ -369,6 +388,25 @@ export const StreamingWarsPlatformApp: React.FC = () => {
     return clampInt(base * durationFactor * (0.85 + sizeFactor * 0.35), 15_000_000, 280_000_000);
   };
 
+  type StrategicSaleOffer = {
+    buyerId: string;
+    buyerName: string;
+    salePrice: number;
+    transferredSubs: number;
+    transferredCatalog: number;
+  };
+
+  type OutputDealOffer = {
+    buyerId: string;
+    buyerName: string;
+    upfrontPayment: number;
+    termWeeks: number;
+    windowDelayWeeks: number;
+    windowDurationWeeks: number;
+  };
+
+  
+
   const openLicenseDialog = (project: Project) => {
     if (!playerPlatformId) return;
 
@@ -385,6 +423,571 @@ export const StreamingWarsPlatformApp: React.FC = () => {
     if (!licenseProject || !licenseRivalId) return 0;
     return computeLicenseOffer(licenseProject, licenseRivalId, licenseDurationWeeks);
   }, [licenseDurationWeeks, licenseProject, licenseRivalId]);
+
+  const strategicSaleOffers = useMemo((): StrategicSaleOffer[] => {
+    if (!player || player.status !== 'active') return [];
+
+    const eligible = rivals.filter((r) => r.status !== 'collapsed');
+    if (eligible.length === 0) return [];
+
+    const subs = Math.max(0, Math.floor(player.subscribers ?? 0));
+    const freshness = clamp(player.freshness ?? 50, 0, 100);
+    const catalogValue = clamp(player.catalogValue ?? 40, 0, 100);
+    const serviceQuality = clamp(player.serviceQuality ?? 55, 0, 100);
+
+    const profit = platformMarket?.lastWeek?.player?.profit ?? 0;
+    const annualProfit = Math.max(0, profit) * 52;
+    const profitComponent = profit > 0 ? annualProfit * 3.5 : 0;
+
+    const qualityComponent = freshness * 1_200_000 + catalogValue * 1_000_000 + serviceQuality * 600_000;
+
+    const seedBase = `${gameState?.universeSeed ?? 0}|platform:strategic-sale|${gameState?.currentYear ?? 0}:W${gameState?.currentWeek ?? 0}|${player.id}`;
+
+    return eligible
+      .map((rival) => {
+        const sizeRatio = totalAddressableSubs > 0 ? clamp((rival.subscribers ?? 0) / totalAddressableSubs, 0, 1) : 0.4;
+        const perSub = clamp(28 + sizeRatio * 18, 24, 48);
+
+        const base = subs * perSub + qualityComponent + profitComponent;
+
+        const jitter = stableInt(`${seedBase}|${rival.id}|jitter`, -7, 7) / 100;
+        const salePrice = clampInt(base * (1 + jitter), 75_000_000, 12_000_000_000);
+
+        const transferPct = stableInt(`${seedBase}|${rival.id}|transfer`, 86, 95) / 100;
+        const transferredSubs = Math.floor(subs * transferPct);
+        const transferredCatalog = clamp((player.catalogValue ?? 40) * transferPct, 0, 100);
+
+        return {
+          buyerId: rival.id,
+          buyerName: rival.name,
+          salePrice,
+          transferredSubs,
+          transferredCatalog,
+        };
+      })
+      .sort((a, b) => b.salePrice - a.salePrice);
+  }, [
+    gameState?.currentWeek,
+    gameState?.currentYear,
+    gameState?.universeSeed,
+    platformMarket?.lastWeek?.player?.profit,
+    player,
+    rivals,
+    totalAddressableSubs,
+  ]);
+
+  const bestStrategicSaleOffer = strategicSaleOffers[0] ?? null;
+
+  const outputDealOffers = useMemo((): OutputDealOffer[] => {
+    if (!player || player.status !== 'active') return [];
+    if (player.outputDeal) return [];
+
+    const eligible = rivals.filter((r) => r.status !== 'collapsed');
+    if (eligible.length === 0) return [];
+
+    const subs = Math.max(0, Math.floor(player.subscribers ?? 0));
+    const freshness = clamp(player.freshness ?? 50, 0, 100);
+    const catalogValue = clamp(player.catalogValue ?? 40, 0, 100);
+
+    const termWeeks = 52;
+    const windowDelayWeeks = 14;
+    const windowDurationWeeks = 26;
+
+    const base = 85_000_000 + subs * 11 + freshness * 850_000 + catalogValue * 700_000;
+
+    const seedBase = `${gameState?.universeSeed ?? 0}|platform:output-deal|${gameState?.currentYear ?? 0}:W${gameState?.currentWeek ?? 0}|${player.id}`;
+
+    return eligible
+      .map((rival) => {
+        const sizeBoost = clampInt((rival.subscribers ?? 0) / 1_000_000, 0, 120) * 3_200_000;
+        const jitter = stableInt(`${seedBase}|${rival.id}|jitter`, -8, 10) / 100;
+
+        const upfrontPayment = clampInt((base + sizeBoost) * (1 + jitter), 60_000_000, 4_500_000_000);
+
+        return {
+          buyerId: rival.id,
+          buyerName: rival.name,
+          upfrontPayment,
+          termWeeks,
+          windowDelayWeeks,
+          windowDurationWeeks,
+        };
+      })
+      .sort((a, b) => b.upfrontPayment - a.upfrontPayment);
+  }, [
+    gameState?.currentWeek,
+    gameState?.currentYear,
+    gameState?.universeSeed,
+    player,
+    rivals,
+  ]);
+
+  const bestOutputDealOffer = outputDealOffers[0] ?? null;
+
+  const outputDealBuyout = useMemo(() => {
+    if (!gameState) return null;
+    if (!player || player.status !== 'active') return null;
+    if (!player.outputDeal) return null;
+
+    const currentAbs = absWeek(gameState.currentWeek ?? 0, gameState.currentYear ?? 0);
+    const endAbs = absWeek(player.outputDeal.endWeek, player.outputDeal.endYear);
+    const remainingWeeks = Math.max(0, endAbs - currentAbs);
+
+    const base = Math.floor(player.outputDeal.upfrontPayment * 0.45);
+    const timeComponent = remainingWeeks * 2_500_000;
+
+    const buyoutCost = clampInt(base + timeComponent, 40_000_000, Math.max(80_000_000, player.outputDeal.upfrontPayment));
+
+    return { buyoutCost, remainingWeeks };
+  }, [gameState, player]);
+
+  const shutdownPlan = useMemo(() => {
+    if (!player || player.status !== 'active') return null;
+
+    const subs = Math.max(0, Math.floor(player.subscribers ?? 0));
+    const catalogValue = clamp(player.catalogValue ?? 40, 0, 100);
+
+    const proceeds = clampInt(12_000_000 + subs * 8 + catalogValue * 650_000, 10_000_000, 950_000_000);
+
+    const recipient = rivals
+      .filter((r) => r.status !== 'collapsed')
+      .sort((a, b) => (b.subscribers ?? 0) - (a.subscribers ?? 0))[0];
+
+    const transferredSubs = recipient ? Math.floor(subs * 0.65) : 0;
+
+    return {
+      proceeds,
+      transferredSubs,
+      recipientId: recipient?.id,
+      recipientName: recipient?.name,
+    };
+  }, [player, rivals]);
+
+  const libraryPackageTitles = useMemo(() => {
+    if (!gameState) return [] as Project[];
+    if (!playerPlatformId) return [] as Project[];
+    if (!player || player.status !== 'active') return [] as Project[];
+
+    return titlesOnPlatform
+      .filter((p) => p && p.status === 'released')
+      .filter((p) => getDirectPlatformId(p) === playerPlatformId)
+      .filter((p) => isExclusiveTitle(p))
+      .filter((p) => !hasRivalStreamingWindow(p, playerPlatformId))
+      .slice()
+      .sort((a, b) => {
+        const aAbs = typeof a.releaseWeek === 'number' && typeof a.releaseYear === 'number' ? absWeek(a.releaseWeek, a.releaseYear) : 0;
+        const bAbs = typeof b.releaseWeek === 'number' && typeof b.releaseYear === 'number' ? absWeek(b.releaseWeek, b.releaseYear) : 0;
+        return (bAbs - aAbs) || a.title.localeCompare(b.title);
+      })
+      .slice(0, 4);
+  }, [gameState, player, playerPlatformId, titlesOnPlatform]);
+
+  const libraryLicensingOffers = useMemo(() => {
+    if (!player || player.status !== 'active') return [] as Array<{ buyerId: string; buyerName: string; licenseFee: number; windowWeeks: number; titleProjectIds: string[] }>;
+    if (libraryPackageTitles.length === 0) return [] as Array<{ buyerId: string; buyerName: string; licenseFee: number; windowWeeks: number; titleProjectIds: string[] }>;
+
+    const titleProjectIds = libraryPackageTitles.map((t) => t.id);
+
+    const totalQuality = libraryPackageTitles.reduce((sum, p) => sum + (p.script?.quality ?? 60), 0);
+    const subs = Math.max(0, Math.floor(player.subscribers ?? 0));
+
+    const base = 30_000_000 + totalQuality * 650_000 + subs * 7;
+
+    const seedBase = `${gameState?.universeSeed ?? 0}|platform:library-package|${gameState?.currentYear ?? 0}:W${gameState?.currentWeek ?? 0}|${player.id}`;
+
+    const windowWeeks = 26;
+
+    return rivals
+      .filter((r) => r.status !== 'collapsed')
+      .map((r) => {
+        const sizeBoost = clampInt((r.subscribers ?? 0) / 1_000_000, 0, 120) * 900_000;
+        const jitter = stableInt(`${seedBase}|${r.id}|jitter`, -8, 10) / 100;
+        const licenseFee = clampInt((base + sizeBoost) * (1 + jitter), 20_000_000, 650_000_000);
+
+        return {
+          buyerId: r.id,
+          buyerName: r.name,
+          licenseFee,
+          windowWeeks,
+          titleProjectIds,
+        };
+      })
+      .sort((a, b) => b.licenseFee - a.licenseFee);
+  }, [gameState?.currentWeek, gameState?.currentYear, gameState?.universeSeed, libraryPackageTitles, player, rivals]);
+
+  const librarySyndicationPayouts = useMemo(() => {
+    if (libraryLicensingOffers.length === 0) {
+      return { top2: 0, all: 0 };
+    }
+
+    const top2 =
+      libraryLicensingOffers.length >= 2
+        ? Math.floor(libraryLicensingOffers[0].licenseFee * 0.78 + libraryLicensingOffers[1].licenseFee * 0.78)
+        : 0;
+
+    const all = Math.floor(libraryLicensingOffers.reduce((sum, o) => sum + o.licenseFee, 0) * 0.55);
+
+    return { top2, all };
+  }, [libraryLicensingOffers]);
+
+  const queueStrategicSaleEvent = () => {
+    if (!player || player.status !== 'active') return;
+    if (!gameState) return;
+
+    const offers = strategicSaleOffers;
+    if (offers.length === 0) return;
+
+    setGameState((prev) => {
+      if ((prev.eventQueue || []).length > 0) return prev;
+
+      const pm = prev.platformMarket;
+      const pl = pm?.player;
+      if (!pm || !pl || pl.status !== 'active') return prev;
+
+      const year = prev.currentYear;
+      const week = prev.currentWeek;
+      const eventId = `platform:strategic-sale:${year}:W${week}:${pl.id}`;
+
+      if ((prev.eventQueue || []).some((e) => e.id === eventId)) return prev;
+
+      const title = `Strategic sale: ${pl.name}`;
+      const description = `Rivals are willing to buy ${pl.name}. You'll receive cash upfront, your subscribers transfer to the buyer, and the brand is locked (no relaunch under the same name).`;
+
+      return {
+        ...prev,
+        eventQueue: [
+          ...(prev.eventQueue || []),
+          {
+            id: eventId,
+            title,
+            description,
+            type: 'market',
+            triggerDate: triggerDateFromWeekYear(year, week),
+            data: {
+              kind: 'platform:strategic-sale',
+              playerPlatformId: pl.id,
+              offers,
+            },
+            choices: [
+              ...offers.map((o) => ({
+                id: `sell:${o.buyerId}`,
+                text: `Sell to ${o.buyerName} (${formatUsdCompact(o.salePrice)})`,
+                consequences: [
+                  { type: 'budget', impact: o.salePrice, description: `${pl.name} sale proceeds` },
+                  { type: 'reputation', impact: -1, description: 'Strategic exit optics' },
+                ],
+              })),
+              { id: 'keep', text: 'Stay independent', consequences: [] },
+            ],
+          } as any,
+        ],
+      } as any;
+    });
+  };
+
+  const queueOutputDealEvent = () => {
+    if (!player || player.status !== 'active') return;
+    if (!gameState) return;
+    if (player.outputDeal) return;
+
+    const offers = outputDealOffers;
+    if (offers.length === 0) return;
+
+    setGameState((prev) => {
+      if ((prev.eventQueue || []).length > 0) return prev;
+
+      const pm = prev.platformMarket;
+      const pl = pm?.player;
+      if (!pm || !pl || pl.status !== 'active') return prev;
+      if ((pl as any).outputDeal) return prev;
+
+      const year = prev.currentYear;
+      const week = prev.currentWeek;
+      const eventId = `platform:output-deal:${year}:W${week}:${pl.id}`;
+
+      if ((prev.eventQueue || []).some((e) => e.id === eventId)) return prev;
+
+      const title = `Output deal: ${pl.name}`;
+      const description = `Rivals want a pay-one output deal for your future theatrical releases. You get a big minimum guarantee now, but your exclusivity moat weakens over the next year.`;
+
+      return {
+        ...prev,
+        eventQueue: [
+          ...(prev.eventQueue || []),
+          {
+            id: eventId,
+            title,
+            description,
+            type: 'market',
+            triggerDate: triggerDateFromWeekYear(year, week),
+            data: {
+              kind: 'platform:output-deal',
+              playerPlatformId: pl.id,
+              offers,
+            },
+            choices: [
+              ...offers.map((o) => ({
+                id: `output:${o.buyerId}`,
+                text: `Sign with ${o.buyerName} (${formatUsdCompact(o.upfrontPayment)})`,
+                consequences: [
+                  { type: 'budget', impact: o.upfrontPayment, description: 'Output deal guarantee' },
+                  { type: 'reputation', impact: -1, description: 'Exclusivity optics' },
+                ],
+              })),
+              { id: 'pass', text: 'Pass (stay exclusive)', consequences: [] },
+            ],
+          } as any,
+        ],
+      } as any;
+    });
+  };
+
+  const queueOutputDealBuyoutEvent = () => {
+    if (!player || player.status !== 'active') return;
+    if (!gameState) return;
+    if (!player.outputDeal) return;
+
+    setGameState((prev) => {
+      if ((prev.eventQueue || []).length > 0) return prev;
+
+      const pm = prev.platformMarket;
+      const pl = pm?.player;
+      const deal = (pl as any)?.outputDeal;
+      if (!pm || !pl || pl.status !== 'active' || !deal) return prev;
+
+      const year = prev.currentYear;
+      const week = prev.currentWeek;
+      const eventId = `platform:output-deal-buyout:${year}:W${week}:${pl.id}`;
+
+      if ((prev.eventQueue || []).some((e) => e.id === eventId)) return prev;
+
+      const currentAbs = absWeek(week, year);
+      const endAbs = absWeek(deal.endWeek, deal.endYear);
+      const remainingWeeks = Math.max(0, endAbs - currentAbs);
+
+      const base = Math.floor((deal.upfrontPayment ?? 0) * 0.45);
+      const timeComponent = remainingWeeks * 2_500_000;
+      const buyoutCost = clampInt(base + timeComponent, 40_000_000, Math.max(80_000_000, deal.upfrontPayment ?? 0));
+
+      const title = `Buy out output deal: ${pl.name}`;
+      const description = `You can pay a termination fee to end the output deal early. Future theatrical releases will remain exclusive unless you sign a new agreement.`;
+
+      return {
+        ...prev,
+        eventQueue: [
+          ...(prev.eventQueue || []),
+          {
+            id: eventId,
+            title,
+            description,
+            type: 'market',
+            triggerDate: triggerDateFromWeekYear(year, week),
+            data: {
+              kind: 'platform:output-deal-buyout',
+              playerPlatformId: pl.id,
+              buyoutCost,
+              remainingWeeks,
+              partnerId: deal.partnerId,
+              partnerName: deal.partnerName,
+            },
+            choices: [
+              {
+                id: 'buyout',
+                text: `Pay buyout (${formatUsdCompact(buyoutCost)})`,
+                consequences: [{ type: 'budget', impact: -buyoutCost, description: 'Termination fee' }],
+              },
+              { id: 'keep', text: 'Keep the output deal', consequences: [] },
+            ],
+          } as any,
+        ],
+      } as any;
+    });
+  };
+
+  const queueVoluntaryShutdownEvent = () => {
+    if (!player || player.status !== 'active') return;
+    if (!gameState) return;
+    if (!shutdownPlan) return;
+
+    setGameState((prev) => {
+      if ((prev.eventQueue || []).length > 0) return prev;
+
+      const pm = prev.platformMarket;
+      const pl = pm?.player;
+      if (!pm || !pl || pl.status !== 'active') return prev;
+
+      const year = prev.currentYear;
+      const week = prev.currentWeek;
+      const eventId = `platform:voluntary-shutdown:${year}:W${week}:${pl.id}`;
+
+      if ((prev.eventQueue || []).some((e) => e.id === eventId)) return prev;
+
+      const title = `Voluntary shutdown: ${pl.name}`;
+      const description = `You can shut down ${pl.name} now to stop the bleed. You'll take a one-time liquidation payout, but most subscribers will churn into rival services and the brand will be locked.`;
+
+      return {
+        ...prev,
+        eventQueue: [
+          ...(prev.eventQueue || []),
+          {
+            id: eventId,
+            title,
+            description,
+            type: 'crisis',
+            triggerDate: triggerDateFromWeekYear(year, week),
+            data: {
+              kind: 'platform:voluntary-shutdown',
+              playerPlatformId: pl.id,
+              proceeds: shutdownPlan.proceeds,
+              transferredSubs: shutdownPlan.transferredSubs,
+              recipientId: shutdownPlan.recipientId,
+              recipientName: shutdownPlan.recipientName,
+            },
+            choices: [
+              {
+                id: 'shutdown',
+                text: `Shut down (${formatUsdCompact(shutdownPlan.proceeds)} proceeds)`,
+                consequences: [
+                  { type: 'budget', impact: shutdownPlan.proceeds, description: 'Liquidation proceeds' },
+                  { type: 'reputation', impact: -3, description: 'Shutdown optics' },
+                ],
+              },
+              { id: 'keep', text: 'Keep the platform running', consequences: [] },
+            ],
+          } as any,
+        ],
+      } as any;
+    });
+  };
+
+  const queueLibraryLicensingEvent = () => {
+    if (!player || player.status !== 'active') return;
+    if (!gameState) return;
+
+    const offers = libraryLicensingOffers;
+    if (offers.length === 0) return;
+
+    setGameState((prev) => {
+      if ((prev.eventQueue || []).length > 0) return prev;
+
+      const pm = prev.platformMarket;
+      const pl = pm?.player;
+      if (!pm || !pl || pl.status !== 'active') return prev;
+
+      const year = prev.currentYear;
+      const week = prev.currentWeek;
+      const eventId = `platform:library-licensing:${year}:W${week}:${pl.id}`;
+
+      if ((prev.eventQueue || []).some((e) => e.id === eventId)) return prev;
+
+      const titles = offers[0]?.titleProjectIds?.length ?? 0;
+
+      const title = `Library package: ${pl.name}`;
+      const description = `Rivals want a time-limited package of your exclusives (${titles} titles). You get cash now, but your moat weakens and churn rises.`;
+
+      return {
+        ...prev,
+        eventQueue: [
+          ...(prev.eventQueue || []),
+          {
+            id: eventId,
+            title,
+            description,
+            type: 'market',
+            triggerDate: triggerDateFromWeekYear(year, week),
+            data: {
+              kind: 'platform:library-licensing',
+              playerPlatformId: pl.id,
+              offers,
+            },
+            choices: [
+              ...offers.map((o) => ({
+                id: `license:${o.buyerId}`,
+                text: `License to ${o.buyerName} (${formatUsdCompact(o.licenseFee)})`,
+                consequences: [
+                  { type: 'budget', impact: o.licenseFee, description: 'Licensing fee' },
+                  { type: 'reputation', impact: -1, description: 'Exclusivity optics' },
+                ],
+              })),
+              { id: 'keep', text: 'Keep the library exclusive', consequences: [] },
+            ],
+          } as any,
+        ],
+      } as any;
+    });
+  };
+
+  const queueLibrarySyndicationEvent = () => {
+    if (!player || player.status !== 'active') return;
+    if (!gameState) return;
+
+    const offers = libraryLicensingOffers;
+    if (offers.length < 2) return;
+
+    const top2Payout = librarySyndicationPayouts.top2;
+    const allPayout = librarySyndicationPayouts.all;
+
+    if (top2Payout <= 0 && allPayout <= 0) return;
+
+    setGameState((prev) => {
+      if ((prev.eventQueue || []).length > 0) return prev;
+
+      const pm = prev.platformMarket;
+      const pl = pm?.player;
+      if (!pm || !pl || pl.status !== 'active') return prev;
+
+      const year = prev.currentYear;
+      const week = prev.currentWeek;
+      const eventId = `platform:library-syndication:${year}:W${week}:${pl.id}`;
+
+      if ((prev.eventQueue || []).some((e) => e.id === eventId)) return prev;
+
+      const titles = offers[0]?.titleProjectIds?.length ?? 0;
+
+      const title = `Library syndication: ${pl.name}`;
+      const description = `Instead of one buyer, you can syndicate a package of your exclusives (${titles} titles) across multiple rival services. You get cash now, but exclusivity erosion is severe.`;
+
+      return {
+        ...prev,
+        eventQueue: [
+          ...(prev.eventQueue || []),
+          {
+            id: eventId,
+            title,
+            description,
+            type: 'market',
+            triggerDate: triggerDateFromWeekYear(year, week),
+            data: {
+              kind: 'platform:library-syndication',
+              playerPlatformId: pl.id,
+              offers,
+              top2Payout,
+              allPayout,
+            },
+            choices: [
+              {
+                id: 'syndicate:top2',
+                text: `Syndicate to top 2 (${formatUsdCompact(top2Payout)})`,
+                consequences: [
+                  { type: 'budget', impact: top2Payout, description: 'Syndication proceeds' },
+                  { type: 'reputation', impact: -2, description: 'Exclusivity optics' },
+                ],
+              },
+              {
+                id: 'syndicate:all',
+                text: `Syndicate to all rivals (${formatUsdCompact(allPayout)})`,
+                consequences: [
+                  { type: 'budget', impact: allPayout, description: 'Syndication proceeds' },
+                  { type: 'reputation', impact: -3, description: 'Exclusivity optics' },
+                ],
+              },
+              { id: 'keep', text: 'Keep the library exclusive', consequences: [] },
+            ],
+          } as any,
+        ],
+      } as any;
+    });
+  };
 
   const openTitle = (project: Project) => {
     setTitleProject(project);
@@ -553,6 +1156,33 @@ export const StreamingWarsPlatformApp: React.FC = () => {
 
     const platformId = `player-platform:${gameState.studio.id}`;
 
+    const proposedKey = name.trim().toLowerCase();
+    const rivalNameMatch = rivals.find((r) => r && r.status !== 'collapsed' && r.name.trim().toLowerCase() === proposedKey);
+    const registryMatch = (platformMarket?.brandRegistry ?? []).find(
+      (b) => b && typeof b.name === 'string' && b.name.trim().toLowerCase() === proposedKey
+    );
+
+    const relaunching = !!player && player.status !== 'active';
+
+    // Prevent reusing a retired/sold brand, and prevent name collisions with rivals.
+    if (
+      (relaunching && player && player.name.trim().toLowerCase() === proposedKey) ||
+      !!rivalNameMatch ||
+      !!registryMatch
+    ) {
+      const ownerLabel = registryMatch?.ownerName || rivalNameMatch?.name || 'another service';
+      const reason =
+        relaunching && player && player.name.trim().toLowerCase() === proposedKey
+          ? 'That brand is tied up in the aftermath of your previous platform.'
+          : `That name is already in use by ${ownerLabel}.`;
+
+      setBrandingConflictMessage(
+        `${reason}\n\nIn-universe: the trademark lawyers (and app stores) won’t let you relaunch under a conflicting brand. Pick a new platform name.`
+      );
+      setBrandingConflictOpen(true);
+      return;
+    }
+
     const tierMix = {
       adSupportedPct: clampInt(launchAdSupportedPct, 0, 100),
       adFreePct: clampInt(100 - launchAdSupportedPct, 0, 100),
@@ -576,15 +1206,30 @@ export const StreamingWarsPlatformApp: React.FC = () => {
     setGameState((prev) => {
       const market = prev.platformMarket ?? {};
 
+      const registry = Array.isArray((market as any).brandRegistry) ? [...((market as any).brandRegistry as any[])] : [];
+      const key = name.trim().toLowerCase();
+      if (key && !registry.some((e) => typeof e?.name === 'string' && e.name.trim().toLowerCase() === key)) {
+        registry.push({
+          name: name.trim(),
+          ownerId: platformId,
+          ownerName: prev.studio.name,
+          acquiredWeek: prev.currentWeek,
+          acquiredYear: prev.currentYear,
+        });
+      }
+
       return {
         ...prev,
         platformMarket: {
           ...market,
+          brandRegistry: registry,
           player: {
             id: platformId,
             name,
             launchedWeek: prev.currentWeek,
             launchedYear: prev.currentYear,
+            closedWeek: undefined,
+            closedYear: undefined,
             subscribers: initialSubscribers,
             cash: -launchCost,
             status: 'active',
@@ -920,12 +1565,33 @@ export const StreamingWarsPlatformApp: React.FC = () => {
               <CardContent className="space-y-3">
                 <p className="text-sm text-muted-foreground">
                   {player.status === 'sold'
-                    ? `You no longer own ${player.name}. The platform loop is locked for the rest of this save.`
-                    : `${player.name} has been shut down. The platform loop is locked for the rest of this save.`}
+                    ? `You sold ${player.name}. If you want back into streaming, you can relaunch a new service once the dust settles.`
+                    : `${player.name} has been shut down. You can relaunch a new service once the cooldown ends (and you can afford it).`}
                 </p>
-                <Badge variant={statusVariant(player.status)} className="capitalize w-fit">
-                  {player.status}
-                </Badge>
+
+                {relaunchWindow.weeksRemaining > 0 && (
+                  <p className="text-xs text-muted-foreground">Relaunch available in {relaunchWindow.weeksRemaining} weeks.</p>
+                )}
+
+                <div className="flex items-center gap-2">
+                  <Badge variant={statusVariant(player.status)} className="capitalize w-fit">
+                    {player.status}
+                  </Badge>
+                  <Badge variant="outline" className="w-fit">
+                    Relaunch cost: {formatUsdCompact(launchCost)}
+                  </Badge>
+                </div>
+
+                <Button
+                  type="button"
+                  onClick={() => {
+                    ensureLaunchDefaults();
+                    setLaunchOpen(true);
+                  }}
+                  disabled={!canRelaunchPlatform}
+                >
+                  Relaunch Platform
+                </Button>
               </CardContent>
             </Card>
           )}
@@ -1011,6 +1677,116 @@ export const StreamingWarsPlatformApp: React.FC = () => {
 
           {player && player.status === 'active' && (
             <div className="space-y-4">
+              <Card>
+                <CardHeader>
+                  <CardTitle className="text-base">Strategic options</CardTitle>
+                </CardHeader>
+                <CardContent className="space-y-3">
+                  <p className="text-sm text-muted-foreground">
+                    If you want out of streaming, you can sell {player.name} to a rival. Or you can sign an output deal to monetize future releases while keeping the platform running.
+                  </p>
+
+                  <div className="grid grid-cols-1 sm:grid-cols-4 gap-2 text-xs">
+                    <div className="rounded border p-2">
+                      <div className="text-muted-foreground">Best sale offer</div>
+                      <div className="font-medium">{bestStrategicSaleOffer ? formatUsdCompact(bestStrategicSaleOffer.salePrice) : '—'}</div>
+                    </div>
+                    <div className="rounded border p-2">
+                      <div className="text-muted-foreground">Subscribers transferred</div>
+                      <div className="font-medium">
+                        {bestStrategicSaleOffer && player.subscribers > 0
+                          ? `${Math.round((bestStrategicSaleOffer.transferredSubs / player.subscribers) * 100)}%`
+                          : '—'}
+                      </div>
+                    </div>
+                    <div className="rounded border p-2">
+                      <div className="text-muted-foreground">Interested buyers</div>
+                      <div className="font-medium">{strategicSaleOffers.length}</div>
+                    </div>
+                    <div className="rounded border p-2">
+                      <div className="text-muted-foreground">Best output deal</div>
+                      <div className="font-medium">
+                        {player.outputDeal
+                          ? `Active: ${player.outputDeal.partnerName}`
+                          : bestOutputDealOffer
+                            ? formatUsdCompact(bestOutputDealOffer.upfrontPayment)
+                            : '—'}
+                      </div>
+                      {!player.outputDeal && bestOutputDealOffer && (
+                        <div className="text-muted-foreground">Term {Math.round(bestOutputDealOffer.termWeeks / 52)}y • {bestOutputDealOffer.windowDelayWeeks}w delay</div>
+                      )}
+                      {player.outputDeal && (
+                        <div className="text-muted-foreground">Ends Y{player.outputDeal.endYear}W{player.outputDeal.endWeek}</div>
+                      )}
+                    </div>
+                  </div>
+
+                  <div className="flex flex-col sm:flex-row gap-2">
+                    <Button
+                      type="button"
+                      variant="destructive"
+                      onClick={queueStrategicSaleEvent}
+                      disabled={(gameState.eventQueue || []).length > 0 || strategicSaleOffers.length === 0}
+                    >
+                      Explore strategic sale
+                    </Button>
+
+                    <Button
+                      type="button"
+                      variant="outline"
+                      onClick={queueVoluntaryShutdownEvent}
+                      disabled={(gameState.eventQueue || []).length > 0 || !shutdownPlan}
+                    >
+                      Explore shutdown ({shutdownPlan ? formatUsdCompact(shutdownPlan.proceeds) : '—'})
+                    </Button>
+
+                    <Button
+                      type="button"
+                      variant="secondary"
+                      onClick={queueOutputDealEvent}
+                      disabled={(gameState.eventQueue || []).length > 0 || outputDealOffers.length === 0 || !!player.outputDeal}
+                    >
+                      Explore output deal ({bestOutputDealOffer ? formatUsdCompact(bestOutputDealOffer.upfrontPayment) : '—'})
+                    </Button>
+
+                    {player.outputDeal && outputDealBuyout && (
+                      <Button
+                        type="button"
+                        variant="outline"
+                        onClick={queueOutputDealBuyoutEvent}
+                        disabled={(gameState.eventQueue || []).length > 0}
+                      >
+                        Buy out output deal ({formatUsdCompact(outputDealBuyout.buyoutCost)})
+                      </Button>
+                    )}
+
+                    <Button
+                      type="button"
+                      variant="secondary"
+                      onClick={queueLibraryLicensingEvent}
+                      disabled={(gameState.eventQueue || []).length > 0 || libraryLicensingOffers.length === 0}
+                    >
+                      Package license ({libraryLicensingOffers.length > 0 ? formatUsdCompact(libraryLicensingOffers[0].licenseFee) : '—'})
+                    </Button>
+
+                    <Button
+                      type="button"
+                      variant="secondary"
+                      onClick={queueLibrarySyndicationEvent}
+                      disabled={(gameState.eventQueue || []).length > 0 || libraryLicensingOffers.length < 2}
+                    >
+                      Syndicate package ({libraryLicensingOffers.length > 1 ? formatUsdCompact(librarySyndicationPayouts.top2) : '—'})
+                    </Button>
+                  </div>
+
+                  {(gameState.eventQueue || []).length > 0 && (
+                    <p className="text-xs text-muted-foreground">
+                      Resolve your current pending event before starting a sale process.
+                    </p>
+                  )}
+                </CardContent>
+              </Card>
+
               <Card>
                 <CardHeader>
                   <CardTitle className="text-base">{player.name} Home</CardTitle>
@@ -2031,6 +2807,22 @@ export const StreamingWarsPlatformApp: React.FC = () => {
                   License out
                 </Button>
               )}
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
+
+      <Dialog open={brandingConflictOpen} onOpenChange={setBrandingConflictOpen}>
+        <DialogContent>
+          <DialogHeader>
+            <DialogTitle>Branding conflict</DialogTitle>
+          </DialogHeader>
+
+          <div className="text-sm text-muted-foreground whitespace-pre-line">{brandingConflictMessage}</div>
+
+          <DialogFooter>
+            <Button type="button" onClick={() => setBrandingConflictOpen(false)}>
+              Ok
+            </Button>
           </DialogFooter>
         </DialogContent>
       </Dialog>

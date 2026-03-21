@@ -109,6 +109,15 @@ export interface ScriptCharacter {
   requiredGender?: Gender;
   requiredRace?: Race;
   requiredNationality?: string;
+  /** Optional: negotiation result for this role (used by casting UIs before confirmation). */
+  negotiatedContract?: {
+    weeklyPay: number;
+    contractWeeks: number;
+    interestScore: number;
+    askWeeklyPay: number;
+    negotiatedWeek: number;
+    negotiatedYear: number;
+  };
   // Franchise/IP linkage for imported roles
   franchiseId?: string; // Global franchise this role belongs to (immutable linkage)
   franchiseCharacterId?: string; // Stable character_id from franchise DB
@@ -177,6 +186,17 @@ export interface TalentPerson {
   chemistry?: { [talentId: string]: number }; // -100 to 100 chemistry with other talent
   futureHolds?: TalentHold[]; // Pre-contracts and reservations
   recentProjects?: string[]; // Last 5 project IDs for burnout tracking
+  /**
+   * Per-studio relationship/interest memory used for negotiation.
+   * interest: 0-100 (50 = neutral)
+   */
+  studioInterest?: {
+    [studioId: string]: {
+      interest: number;
+      lastContactWeekIndex?: number;
+      rejectedUntilWeekIndex?: number;
+    };
+  };
   // Fame & filmography
   fame?: number; // 0-100 star power that affects box office
   filmography?: Array<{
