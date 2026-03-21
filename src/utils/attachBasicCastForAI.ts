@@ -1,5 +1,6 @@
 import type { Project, ScriptCharacter, TalentPerson } from '@/types/game';
 import { stablePick } from '@/utils/stablePick';
+import { isDirectorRole } from '@/utils/scriptRoles';
 
 // Ensure AI films have credited talent so awards/filmographies have real people to reference
 export function attachBasicCastForAI(project: Project, talentPool: TalentPerson[]): Project {
@@ -13,15 +14,15 @@ export function attachBasicCastForAI(project: Project, talentPool: TalentPerson[
     const hasDirector =
       existingCrew.some(c => c.role.toLowerCase().includes('director') && !!c.talentId) ||
       existingCast.some(c => c.role.toLowerCase().includes('director') && !!c.talentId) ||
-      existingCharacters.some(c => c.requiredType === 'director' && !!c.assignedTalentId);
+      existingCharacters.some(c => isDirectorRole(c) && !!c.assignedTalentId);
 
     const hasLead =
       existingCast.some(c => c.role.toLowerCase().includes('lead') && !!c.talentId) ||
-      existingCharacters.some(c => c.requiredType !== 'director' && c.importance === 'lead' && !!c.assignedTalentId);
+      existingCharacters.some(c => !isDirectorRole(c) && c.importance === 'lead' && !!c.assignedTalentId);
 
     const hasSupporting =
       existingCast.some(c => c.role.toLowerCase().includes('supporting') && !!c.talentId) ||
-      existingCharacters.some(c => c.requiredType !== 'director' && c.importance === 'supporting' && !!c.assignedTalentId);
+      existingCharacters.some(c => !isDirectorRole(c) && c.importance === 'supporting' && !!c.assignedTalentId);
 
     // If the project already has credited character assignments, don't overwrite them.
     // (If it only has a cast list, we still ensure script characters exist for filmography.)
@@ -37,11 +38,11 @@ export function attachBasicCastForAI(project: Project, talentPool: TalentPerson[
     const existingDirectorId =
       existingCrew.find(c => c.role.toLowerCase().includes('director'))?.talentId ||
       existingCast.find(c => c.role.toLowerCase().includes('director'))?.talentId ||
-      existingCharacters.find(c => c.requiredType === 'director')?.assignedTalentId;
+      existingCharacters.find(c => isDirectorRole(c))?.assignedTalentId;
 
     const existingLeadId =
       existingCast.find(c => c.role.toLowerCase().includes('lead') && !c.role.toLowerCase().includes('supporting'))?.talentId ||
-      existingCharacters.find(c => c.requiredType !== 'director' && c.importance === 'lead')?.assignedTalentId;
+      existingCharacters.find(c => !isDirectorRole(c) && c.importance === 'lead')?.assignedTalentId;
 
     const existingSupportingIds = existingCast
       .filter(c => c.role.toLowerCase().includes('supporting') && !!c.talentId)
@@ -79,11 +80,11 @@ export function attachBasicCastForAI(project: Project, talentPool: TalentPerson[
 
     // Build/patch script characters (used by filmography + fallbacks)
     let characters: ScriptCharacter[] = existingCharacters.map(c => {
-      if (c.requiredType === 'director' && !c.assignedTalentId && pickedDirector) {
+      if (isDirectorRole(c) && !c.assignedTalentId && pickedDirector) {
         return { ...c, assignedTalentId: pickedDirector.id };
       }
 
-      if (c.requiredType !== 'director' && c.importance === 'lead' && !c.assignedTalentId && pickedLead) {
+      if (!isDirectorRole(c) && c.importance === 'lead' && !c.assignedTalentId && pickedLead) {
         return { ...c, requiredGender: c.requiredGender || pickedLead.gender || 'Male', assignedTalentId: pickedLead.id };
       }
 
@@ -97,7 +98,7 @@ export function attachBasicCastForAI(project: Project, talentPool: TalentPerson[
       characters = characters.map(c => {
         if (
           si < supportingPicks.length &&
-          c.requiredType !== 'director' &&
+          !isDirectorRole(c) &&
           c.importance === 'supporting' &&
           !c.assignedTalentId
         ) {
@@ -109,9 +110,9 @@ export function attachBasicCastForAI(project: Project, talentPool: TalentPerson[
       });
     }
 
-    const hasDirectorChar = characters.some(c => c.requiredType === 'director');
-    const hasLeadChar = characters.some(c => c.requiredType !== 'director' && c.importance === 'lead');
-    const supportingChars = characters.filter(c => c.requiredType !== 'director' && c.importance === 'supporting');
+    const hasDirectorChar = characters.some(c => isDirectorRole(c));
+    const hasLeadChar = characters.some(c => !isDirectorRole(c) && c.importance === 'lead');
+    const supportingChars = characters.filter(c => !isDirectorRole(c) && c.importance === 'supporting');
 
     if (!hasDirectorChar) {
       characters = [
@@ -121,7 +122,7 @@ export function attachBasicCastForAI(project: Project, talentPool: TalentPerson[
           name: 'Director',
           description: 'Director',
           requiredType: 'director',
-          importance: 'lead',
+          importance: 'crew',
           traits: ['mandatory'],
           assignedTalentId: pickedDirector?.id,
         } as any,

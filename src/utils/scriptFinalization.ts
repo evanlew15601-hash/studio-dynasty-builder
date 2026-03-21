@@ -1,6 +1,7 @@
 import { GameState, Script, ScriptCharacter, Gender } from '@/types/game';
 import { importRolesForScript } from '@/utils/roleImport';
 import { stablePick } from '@/utils/stablePick';
+import { isDirectorRole } from '@/utils/scriptRoles';
 
 function absWeek(week: unknown, year: unknown): number | null {
   if (typeof week !== 'number' || typeof year !== 'number') return null;
@@ -65,8 +66,8 @@ function pickFranchiseSeedCharacters(script: Script, gameState: GameState): Scri
   return existingChars.map((c0) => {
     const c = cloneScriptCharacter(c0);
 
-    // Minor/cameo roles usually aren't worth locking in; they can be recast freely.
-    if (c.importance === 'minor') {
+    // Directors and minor/cameo roles usually aren't worth locking in; they can be recast freely.
+    if (isDirectorRole(c) || c.importance === 'minor') {
       c.assignedTalentId = undefined;
     }
 

@@ -146,6 +146,18 @@ describe('script finalization', () => {
         contractStatus: 'available',
         availability: { start: new Date('2024-01-01'), end: new Date('2024-12-31') },
       } as any,
+      {
+        id: 'talent-dir',
+        name: 'Director One',
+        type: 'director',
+        age: 45,
+        experience: 20,
+        reputation: 70,
+        marketValue: 8_000_000,
+        genres: ['sci-fi'],
+        contractStatus: 'available',
+        availability: { start: new Date('2024-01-01'), end: new Date('2024-12-31') },
+      } as any,
     ];
 
     gameState.projects = [
@@ -181,6 +193,17 @@ describe('script finalization', () => {
           franchiseId: franchise.id,
           characters: [
             {
+              id: 'director',
+              name: 'Director',
+              importance: 'crew',
+              requiredType: 'director',
+              franchiseId: franchise.id,
+              franchiseCharacterId: 'director',
+              roleTemplateId: 'director',
+              locked: true,
+              assignedTalentId: 'talent-dir',
+            },
+            {
               id: 'char_hero_pilot',
               name: 'Hero Pilot',
               importance: 'lead',
@@ -210,9 +233,13 @@ describe('script finalization', () => {
 
     const finalized = finalizeScriptForSave(script, gameState);
     const hero = finalized.characters?.find((c) => c.franchiseCharacterId === 'char_hero_pilot');
+    const director = finalized.characters?.find((c) => c.requiredType === 'director');
 
     expect(hero?.assignedTalentId).toBe('talent-1');
     expect(hero?.name).toBe('Captain Patchwalker');
+
+    // Directors do not automatically return for future franchise entries.
+    expect(director?.assignedTalentId).toBeUndefined();
   });
 
   it('does not force final stage when blocking validation errors exist', () => {

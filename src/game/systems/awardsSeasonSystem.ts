@@ -14,6 +14,7 @@ import { hashStringToUint32, stablePick } from '@/utils/stablePick';
 import { stableFloat01 } from '@/utils/stableRandom';
 import { triggerDateFromWeekYear } from '@/utils/gameTime';
 import type { TickSystem } from '../core/types';
+import { isDirectorRole } from '@/utils/scriptRoles';
 
 
 
@@ -188,7 +189,7 @@ function findRelevantTalent(params: {
     }
 
     // Fallback to script characters
-    const directorChars = characters.filter((c) => c.requiredType === 'director' && !!c.assignedTalentId);
+    const directorChars = characters.filter((c) => isDirectorRole(c) && !!c.assignedTalentId);
     const charDir = directorChars.length > 1 ? pick(directorChars, 'director-char') : directorChars[0];
     const t = getTalentById(charDir?.assignedTalentId);
     if (t && t.type === 'director') return t;
@@ -244,7 +245,7 @@ function findRelevantTalent(params: {
 
   // Fallback to script characters (prefer gender-match but never return empty)
   const charCandidatesStrict = characters.filter((ch) => {
-    if (ch.requiredType === 'director') return false;
+    if (isDirectorRole(ch)) return false;
     const talent = getTalentById(ch.assignedTalentId);
     if (!genderOkStrict(talent)) return false;
     if (isSupporting) return ch.importance === 'supporting';
@@ -255,7 +256,7 @@ function findRelevantTalent(params: {
     charCandidatesStrict.length > 0
       ? charCandidatesStrict
       : characters.filter((ch) => {
-          if (ch.requiredType === 'director') return false;
+          if (isDirectorRole(ch)) return false;
           const talent = getTalentById(ch.assignedTalentId);
           if (!genderOkLoose(talent)) return false;
           if (isSupporting) return ch.importance === 'supporting';
@@ -342,12 +343,23 @@ function computeNominations(params: {
 
           if (categoryLower.includes('animated') && genre !== 'animation') return { project, score: 0, talentId: undefined as string | undefined };
 
-          if (categoryLower.includes('comedy') && (categoryLower.includes('best picture') || isTalentCategory(category))) {
+          const isPictureOrTalent = categoryLower.includes('best picture') || isTalentCategory(category);
+          const wantsComedy = categoryLower.includes('comedy');
+          const wantsMusical = categoryLower.includes('musical');
+          const wantsDrama = categoryLower.includes('drama');
+
+          if (wantsComedy && wantsMusical && isPictureOrTalent) {
+            if (!(genre === 'comedy' || genre === 'musical')) return { project, score: 0, talentId: undefined as string | undefined };
+            categoryBias += 3;
+          } else if (wantsComedy && isPictureOrTalent) {
             if (genre !== 'comedy') return { project, score: 0, talentId: undefined as string | undefined };
+            categoryBias += 3;
+          } else if (wantsMusical && isPictureOrTalent) {
+            if (genre !== 'musical') return { project, score: 0, talentId: undefined as string | undefined };
             categoryBias += 3;
           }
 
-          if (categoryLower.includes('drama') && (categoryLower.includes('best picture') || isTalentCategory(category))) {
+          if (wantsDrama && isPictureOrTalent) {
             if (!isDramaBucket) return { project, score: 0, talentId: undefined as string | undefined };
             categoryBias += 5;
           }
@@ -361,7 +373,13 @@ function computeNominations(params: {
           }
 
           if (categoryLower.includes('comedy series')) {
-            if (project.script.genre !== 'comedy') return { project, score: 0, talentId: undefined as string | undefined };
+            // Some schedules use Comedy/Musical for TV as well.
+            const wantsMusical = categoryLower.includes('musical');
+            if (wantsMusical) {
+              if (!(project.script.genre === 'comedy' || project.script.genre === 'musical')) return { project, score: 0, talentId: undefined as string | undefined };
+            } else {
+              if (project.script.genre !== 'comedy') return { project, score: 0, talentId: undefined as string | undefined };
+            }
             categoryBias += 4;
           }
 

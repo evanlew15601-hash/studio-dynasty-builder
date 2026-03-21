@@ -41,7 +41,7 @@ describe('talentMatchesRole', () => {
     expect(talentMatchesRole(wrongNation, role)).toBe(false);
   });
 
-  it('requires a gender requirement for actor roles', () => {
+  it('allows legacy actor roles with missing requiredGender (treats as any gender)', () => {
     const role: ScriptCharacter = {
       id: 'role-1',
       name: 'Lead',
@@ -63,7 +63,8 @@ describe('talentMatchesRole', () => {
       availability: { start: new Date(), end: new Date() },
     };
 
-    expect(talentMatchesRole(actor, role)).toBe(false);
+    expect(talentMatchesRole(actor, role)).toBe(true);
+    expect(talentMatchesRole(actor, { ...role, requiredGender: 'Male' })).toBe(false);
     expect(talentMatchesRole(actor, { ...role, requiredGender: 'Female' })).toBe(true);
   });
 

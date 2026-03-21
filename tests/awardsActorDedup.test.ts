@@ -109,7 +109,7 @@ describe('AwardsSeasonSystem actor dedupe', () => {
       title: 'Punchline City',
       status: 'released',
       type: 'feature',
-      script: { id: 's-comedy-b', title: 'Punchline City', genre: 'comedy', characteristics: { criticalPotential: 7 } },
+      script: { id: 's-comedy-b', title: 'Punchline City', genre: 'musical', characteristics: { criticalPotential: 7 } },
       budget: { total: 9_000_000 },
       metrics: { criticsScore: 86, audienceScore: 85, boxOfficeTotal: 45_000_000 },
       cast: [{ talentId: actorB.id, role: 'lead' }],

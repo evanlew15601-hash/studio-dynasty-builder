@@ -3,6 +3,7 @@ import { Project } from '../../types/game';
 import { TimeState } from './TimeSystem';
 import { CalendarManager } from './CalendarManager';
 import { FinancialEngine } from './FinancialEngine';
+import { isDirectorRole } from '@/utils/scriptRoles';
 
 export interface ReleaseValidation {
   canRelease: boolean;
@@ -48,8 +49,8 @@ export class ReleaseSystem {
     
     // Check cast - look at script characters with assigned talent (correct data structure)
     const assignedTalent = project.script?.characters?.filter(c => c.assignedTalentId) || [];
-    const hasDirector = assignedTalent.some(c => c.requiredType === 'director');
-    const hasLead = assignedTalent.some(c => c.importance === 'lead' && c.requiredType !== 'director');
+    const hasDirector = assignedTalent.some(c => isDirectorRole(c));
+    const hasLead = assignedTalent.some(c => c.importance === 'lead' && !isDirectorRole(c));
     
     // Also check legacy cast array as fallback
     const legacyCast = project.cast || [];

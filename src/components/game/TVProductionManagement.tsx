@@ -16,6 +16,7 @@ import {
   ScriptIcon
 } from '@/components/ui/icons';
 import { useGameStore } from '@/game/store';
+import { isDirectorRole } from '@/utils/scriptRoles';
 
 export const TVProductionManagement: React.FC = () => {
   const gameState = useGameStore((s) => s.game);
@@ -196,8 +197,8 @@ export const TVProductionManagement: React.FC = () => {
                       {(() => {
                         const characters = project.script?.characters || [];
                         const castCount = characters.filter(c => c.assignedTalentId).length;
-                        const hasDirector = characters.some(c => c.requiredType === 'director' && c.assignedTalentId);
-                        const hasLead = characters.some(c => c.importance === 'lead' && c.requiredType === 'actor' && c.assignedTalentId);
+                        const hasDirector = characters.some(c => isDirectorRole(c) && c.assignedTalentId);
+                        const hasLead = characters.some(c => c.importance === 'lead' && !isDirectorRole(c) && c.assignedTalentId);
                         const progress = characters.length > 0 ? (castCount / characters.length) * 100 : 0;
                         
                         return (

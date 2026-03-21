@@ -6,6 +6,7 @@ import { Button } from '@/components/ui/button';
 import { Progress } from '@/components/ui/progress';
 import { Badge } from '@/components/ui/badge';
 import { useToast } from '@/hooks/use-toast';
+import { isDirectorRole } from '@/utils/scriptRoles';
 import { DevelopmentProgressModal } from './DevelopmentProgressModal';
 import { 
   ProductionIcon, 
@@ -71,8 +72,8 @@ export const ProductionManagement: React.FC<ProductionManagementProps> = ({
       case 'pre-production': {
         // Gate: require Director + Lead Actor before entering production
         const chars = project.script?.characters || [];
-        const hasDirector = chars.some(c => c.requiredType === 'director' && c.assignedTalentId);
-        const hasLead = chars.some(c => c.importance === 'lead' && c.requiredType !== 'director' && c.assignedTalentId);
+        const hasDirector = chars.some(c => isDirectorRole(c) && c.assignedTalentId);
+        const hasLead = chars.some(c => c.importance === 'lead' && !isDirectorRole(c) && c.assignedTalentId);
         if (!hasDirector || !hasLead) {
           toast({
             title: 'Cast Required',

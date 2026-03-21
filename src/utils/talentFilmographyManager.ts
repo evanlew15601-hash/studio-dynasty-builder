@@ -1,6 +1,7 @@
 // Talent Filmography Management
 import { GameState, TalentPerson, Project } from '@/types/game';
 import { logDebug } from '@/utils/logger';
+import { isDirectorRole } from '@/utils/scriptRoles';
 
 export const TalentFilmographyManager = {
   /**
@@ -27,7 +28,7 @@ export const TalentFilmographyManager = {
     for (const ch of characters) {
       if (!ch.assignedTalentId) continue;
 
-      if (ch.requiredType === 'director') {
+      if (isDirectorRole(ch)) {
         setRole(ch.assignedTalentId, 'Director', 3);
       } else if (ch.importance === 'lead') {
         setRole(ch.assignedTalentId, 'Lead Actor', 2);

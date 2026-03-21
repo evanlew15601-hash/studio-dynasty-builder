@@ -7,6 +7,7 @@ import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
 import { Avatar, AvatarFallback } from '@/components/ui/avatar';
 import { useToast } from '@/hooks/use-toast';
+import { isDirectorRole } from '@/utils/scriptRoles';
 import { CastingBoardFilters, CastingFilters } from './CastingBoardFilters';
 import { 
   CastingIcon, 
@@ -124,7 +125,7 @@ export const CastingBoard: React.FC<CastingBoardProps> = ({
 
       if (talent.type === 'director') {
         // Prefer an existing director role
-        const directorIndex = existingChars.findIndex(c => c.requiredType === 'director');
+        const directorIndex = existingChars.findIndex(c => isDirectorRole(c));
         if (directorIndex >= 0) {
           updatedCharacters = existingChars.map((c, idx) =>
             idx === directorIndex ? { ...c, assignedTalentId: talent.id } : c

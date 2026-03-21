@@ -3,6 +3,7 @@ import { Project, TalentPerson, ScriptCharacter } from '@/types/game';
 import { useGameStore } from '@/game/store';
 import { useUiStore } from '@/game/uiStore';
 import { talentMatchesRole } from '@/utils/castingEligibility';
+import { isDirectorRole } from '@/utils/scriptRoles';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
@@ -199,8 +200,6 @@ export const CharacterCastingSystem: React.FC<CharacterCastingSystemProps> = ({
       return;
     }
 
-    const isDirectorRole = (c: ScriptCharacter) => (c.importance === 'crew' ? 'director' : (c.requiredType || 'actor')) === 'director';
-
     const directorSlots = slots.filter(s => s.talent && isDirectorRole(s.character));
     const actorSlots = slots.filter(s => s.talent && !isDirectorRole(s.character));
 
@@ -248,7 +247,7 @@ const contracted = slots
   .filter(s => s.talent)
   .map(s => ({
     talentId: (s.talent as TalentPerson).id,
-    role: s.character.requiredType === 'director'
+    role: isDirectorRole(s.character)
       ? 'Director'
       : s.character.importance === 'lead'
         ? `Lead - ${s.character.name}`
