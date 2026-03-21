@@ -305,6 +305,10 @@ export const useGameStore: import('zustand').UseBoundStore<import('zustand').Sto
       const { game, rng, registry } = get();
       if (!game || !rng) return null;
 
+      // Core gameplay loop: do not advance time while there are unresolved blocking events.
+      // (TEW-style guard to prevent "skipping past" important decisions.)
+      if ((game.eventQueue || []).length > 0) return null;
+
       const systems = registry.getOrdered();
 
       if (import.meta.env.DEV) {

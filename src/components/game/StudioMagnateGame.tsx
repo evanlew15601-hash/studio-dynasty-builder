@@ -1466,6 +1466,17 @@ export const StudioMagnateGame: React.FC<StudioMagnateGameProps> = ({
   const advanceWeekCore = (options?: { suppressToast?: boolean; suppressLoading?: boolean; suppressDiagnostics?: boolean; suppressRecap?: boolean }) => {
     const diagnosticsEnabled = import.meta.env.DEV && !options?.suppressDiagnostics;
 
+    const pendingDecisions = (gameState.eventQueue || []).length;
+    if (pendingDecisions > 0) {
+      toast({
+        title: 'Decisions pending',
+        description: `Resolve ${pendingDecisions === 1 ? 'the open event' : `${pendingDecisions} open events`} before advancing the week.`,
+        variant: 'destructive',
+      });
+      setInboxOpen(true);
+      return;
+    }
+
     if (diagnosticsEnabled) {
       console.log(`ADVANCING WEEK: Current Y${gameState.currentYear}W${gameState.currentWeek}`);
       console.log(`Projects count: ${gameState.projects.length}`);
@@ -2249,6 +2260,17 @@ export const StudioMagnateGame: React.FC<StudioMagnateGameProps> = ({
   };
 
   const handleAdvanceWeek = async (options?: { suppressToast?: boolean; suppressLoading?: boolean; suppressDiagnostics?: boolean; suppressRecap?: boolean }) => {
+    const pendingDecisions = (gameState.eventQueue || []).length;
+    if (pendingDecisions > 0) {
+      toast({
+        title: 'Decisions pending',
+        description: `Resolve ${pendingDecisions === 1 ? 'the open event' : `${pendingDecisions} open events`} before advancing.`,
+        variant: 'destructive',
+      });
+      setInboxOpen(true);
+      return;
+    }
+
     if (!onlineLeagueCode?.trim()) {
       advanceWeekCore(options);
       return;
