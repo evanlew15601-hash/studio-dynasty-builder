@@ -911,3 +911,27 @@ All colors MUST be HSL.
            text-sm px-3 py-2 rounded-lg animate-slide-up;
   }
 }
+
+@layer utilities {
+  .perf-cv-auto {
+    content-visibility: auto;
+    contain-intrinsic-size: 1px 420px;
+  }
+
+  .perf-cv-row {
+    content-visibility: auto;
+    contain-intrinsic-size: 1px 96px;
+  }
+
+  .perf-will-change-height {
+    will-change: height;
+  }
+
+  .perf-will-change-width {
+    will-change: width;
+  }
+
+  .perf-will-change-transform {
+    will-change: transform;
+  }
+}

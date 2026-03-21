@@ -90,7 +90,7 @@ export const PostTheatricalManagement: React.FC<PostTheatricalManagementProps> =
 
   const [ownedPlatformDelayByProject, setOwnedPlatformDelayByProject] = useState<Record<string, number>>({});
 
-  const diagnosticsEnabled = import.meta.env.DEV;
+  const diagnosticsEnabled = import.meta.env.DEV && window.localStorage.getItem('debug:postTheatrical') === '1';
 
   if (!gameState) {
     return <div className="p-6 text-sm text-muted-foreground">Loading post-theatrical distribution...</div>;
@@ -409,7 +409,7 @@ export const PostTheatricalManagement: React.FC<PostTheatricalManagementProps> =
                   : null;
                 
                 return (
-                  <Card key={project.id} className="border-2 border-primary/20">
+                  <Card key={project.id} className="border-2 border-primary/20 perf-cv-auto">
                     <CardContent className="p-6">
                       <div className="flex items-start justify-between mb-4">
                         <div>
@@ -588,7 +588,7 @@ export const PostTheatricalManagement: React.FC<PostTheatricalManagementProps> =
                 if (!project) return null;
 
                 return (
-                  <div key={release.id} className="flex items-center justify-between p-4 rounded-lg border">
+                  <div key={release.id} className="flex items-center justify-between p-4 rounded-lg border perf-cv-row">
                     <div className="flex items-center gap-3">
                       <div className="p-2 rounded-lg bg-success/20">
                         <CheckIcon className="w-5 h-5 text-success" />

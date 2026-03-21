@@ -400,7 +400,7 @@ export const StreamingContractSystem: React.FC<StreamingContractSystemProps> = (
           ) : (
             <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
               {eligibleProjects.map(project => (
-                <Card key={project.id} className="border">
+                <Card key={project.id} className="border perf-cv-auto">
                   <CardContent className="p-4">
                     <div className="flex items-start justify-between mb-3">
                       <div>
@@ -453,7 +453,7 @@ export const StreamingContractSystem: React.FC<StreamingContractSystemProps> = (
                                 const isEpisodic = typeof contract.episodeRate === 'number';
 
                                 return (
-                                  <Card key={provider.id} className="border">
+                                  <Card key={provider.id} className="border perf-cv-row">
                                     <CardContent className="p-4">
                                       <div className="flex items-center gap-2 mb-3">
                                         <div className={`w-3 h-3 rounded ${provider.color}`} />
@@ -526,7 +526,7 @@ export const StreamingContractSystem: React.FC<StreamingContractSystemProps> = (
                                   const contract = generateContract(project, provider.id, 'cable');
 
                                   return (
-                                    <Card key={provider.id} className="border">
+                                    <Card key={provider.id} className="border perf-cv-row">
                                       <CardContent className="p-4">
                                         <div className="flex items-center gap-2 mb-3">
                                           <div className={`w-3 h-3 rounded ${provider.color}`} />

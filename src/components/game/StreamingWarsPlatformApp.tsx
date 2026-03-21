@@ -39,26 +39,35 @@ import { StudioIconCustomizer, DEFAULT_ICON, ICON_COLORS, ACCENT_COLORS, type St
 import type { PlayerPlatformBranding } from '@/types/platformEconomy';
 import { BarChart3, Crown, Film, Home, LayoutGrid, Swords, TrendingUp, Users } from 'lucide-react';
 
+const COMPACT_NUMBER_FORMAT = new Intl.NumberFormat(undefined, {
+  notation: 'compact',
+  maximumFractionDigits: 1,
+});
+
+const USD_COMPACT_FORMAT = new Intl.NumberFormat(undefined, {
+  style: 'currency',
+  currency: 'USD',
+  notation: 'compact',
+  maximumFractionDigits: 1,
+});
+
+const USD_FORMAT = new Intl.NumberFormat(undefined, {
+  style: 'currency',
+  currency: 'USD',
+  minimumFractionDigits: 2,
+  maximumFractionDigits: 2,
+});
+
 const formatCompact = (value: number) => {
-  return new Intl.NumberFormat(undefined, { notation: 'compact', maximumFractionDigits: 1 }).format(value);
+  return COMPACT_NUMBER_FORMAT.format(value);
 };
 
 const formatUsdCompact = (value: number) => {
-  return new Intl.NumberFormat(undefined, {
-    style: 'currency',
-    currency: 'USD',
-    notation: 'compact',
-    maximumFractionDigits: 1,
-  }).format(value);
+  return USD_COMPACT_FORMAT.format(value);
 };
 
 const formatUsd = (value: number) => {
-  return new Intl.NumberFormat(undefined, {
-    style: 'currency',
-    currency: 'USD',
-    minimumFractionDigits: 2,
-    maximumFractionDigits: 2,
-  }).format(value);
+  return USD_FORMAT.format(value);
 };
 
 const clamp = (n: number, min: number, max: number) => {
@@ -1967,7 +1976,7 @@ export const StreamingWarsPlatformApp: React.FC = () => {
                                 key={`${x.project.id}:${x.arrivalAbs ?? 'pipeline'}`}
                                 type="button"
                                 onClick={() => openTitle(x.project)}
-                                className="text-left rounded-md border bg-card/40 p-3 hover:bg-card/60 transition"
+                                className="text-left rounded-md border bg-card/40 p-3 hover:bg-card/60 transition perf-cv-row"
                               >
                                 <div className="flex items-start justify-between gap-3">
                                   <div>
@@ -2291,7 +2300,7 @@ export const StreamingWarsPlatformApp: React.FC = () => {
                         (player.cash ?? 0) >= rushCost;
 
                       return (
-                        <div key={p.id} className="flex items-center justify-between rounded-md border p-3 gap-3">
+                        <div key={p.id} className="flex items-center justify-between rounded-md border p-3 gap-3 perf-cv-row">
                           <div className="min-w-0">
                             <div className="text-sm font-medium truncate">{p.title}</div>
                             <div className="text-xs text-muted-foreground capitalize truncate">
