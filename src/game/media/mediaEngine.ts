@@ -3,6 +3,7 @@ import { MediaSourceGenerator } from '@/data/MediaSourceGenerator';
 import { MediaContentGenerator } from '@/data/MediaContentGenerator';
 import { hashStringToUint32 } from '@/utils/stablePick';
 import { stableFloat01, stableInt } from '@/utils/stableRandom';
+import { isPrimaryStreamingFilm, isTvProject } from '@/utils/projectMedium';
 import { current, isDraft } from 'immer';
 
 function clone<T>(value: T): T {
@@ -278,8 +279,8 @@ class MediaEngine {
         });
         triggeredEvents.push(releaseEventId);
 
-        const isTv = project.type === 'series' || project.type === 'limited-series';
-        const isStreaming = project.releaseStrategy?.type === 'streaming';
+        const isTv = isTvProject(project);
+        const isStreaming = isPrimaryStreamingFilm(project);
 
         if (!isTv && !isStreaming) {
           const earnings = (project.metrics as any)?.lastWeeklyRevenue ?? 0;

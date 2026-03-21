@@ -3,6 +3,7 @@ import type { GameState, Project } from '@/types/game';
 import { useGameStore } from '@/game/store';
 import { stableInt } from '@/utils/stableRandom';
 import { stablePick } from '@/utils/stablePick';
+import { isPrimaryStreamingFilm } from '@/utils/projectMedium';
 import './metaboxd.css';
 
 type MetaboxdTitleKind = 'film' | 'tv';
@@ -301,7 +302,7 @@ function projectToMetaboxdTitle(gameState: GameState, project: Project): Metabox
   const boxOfficeTotal = project.metrics?.boxOfficeTotal;
   const streamingViews = project.metrics?.streamingViews ?? project.metrics?.streaming?.totalViews;
 
-  const releaseLabel = project.metrics?.boxOfficeStatus || (project.releaseStrategy?.type === 'streaming' ? 'Streaming Premiere' : undefined);
+  const releaseLabel = project.metrics?.boxOfficeStatus || (isPrimaryStreamingFilm(project) ? 'Streaming Premiere' : undefined);
   const logline = project.script?.logline;
 
   const source = (() => {

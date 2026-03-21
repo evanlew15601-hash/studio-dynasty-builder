@@ -1,5 +1,6 @@
 import type { GameState, TalentPerson } from '@/types/game';
 import type { LeagueReleasedProjectSnapshot, OnlineLeagueTurnStateSlice } from '@/types/onlineLeague';
+import { isPrimaryStreamingFilm } from '@/utils/projectMedium';
 
 export type OnlineLeagueSignTalentCommand = {
   type: 'SIGN_TALENT';
@@ -117,7 +118,7 @@ export function buildOnlineLeagueTurnSubmission(params: {
       })();
 
       const releaseLabel =
-        p.metrics?.boxOfficeStatus || (p.releaseStrategy?.type === 'streaming' ? 'Streaming Premiere' : undefined);
+        p.metrics?.boxOfficeStatus || (isPrimaryStreamingFilm(p) ? 'Streaming Premiere' : undefined);
 
       return {
         id: p.id,

@@ -9,6 +9,7 @@ import { ReleaseStrategyModal } from './ReleaseStrategyModal';
 import { MarketingActivities } from './MarketingActivities';
 import { useGameStore } from '@/game/store';
 import { nextNumericId } from '@/utils/idAllocator';
+import { isPrimaryStreamingFilm } from '@/utils/projectMedium';
 import { 
   MarketingIcon, 
   TrendingIcon,
@@ -221,7 +222,7 @@ export const MarketingReleaseManagement: React.FC<MarketingReleaseManagementProp
                       <div>
                         <h3 className="font-semibold text-lg">{project.title}</h3>
                         <p className="text-sm text-muted-foreground">
-                          {project.script?.genre || 'Unknown'} • {project.type === 'series' || project.type === 'limited-series' ? 'TV Series - Ready for air date' : (project.releaseStrategy?.type === 'streaming' ? 'Ready for streaming premiere' : 'Ready for theatrical release')}
+                          {project.script?.genre || 'Unknown'} • {project.type === 'series' || project.type === 'limited-series' ? 'TV Series - Ready for air date' : (isPrimaryStreamingFilm(project) ? 'Ready for streaming premiere' : 'Ready for theatrical release')}
                         </p>
                       </div>
                       <div className="flex items-center gap-2">

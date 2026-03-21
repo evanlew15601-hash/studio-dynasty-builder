@@ -17,6 +17,7 @@ import {
   CheckIcon
 } from '@/components/ui/icons';
 import { MediaFinancialIntegration } from './MediaFinancialIntegration';
+import { isPrimaryStreamingFilm } from '@/utils/projectMedium';
 
 interface PostTheatricalManagementProps {}
 
@@ -117,7 +118,7 @@ export const PostTheatricalManagement: React.FC<PostTheatricalManagementProps> =
 
     // Assume theatrical run lasted the weeks since release from metrics. For direct-to-streaming films,
     // treat the theatrical run as 0 so secondary windows can unlock relative to the streaming premiere.
-    const theatricalRunWeeks = project.releaseStrategy?.type === 'streaming' ? 0 : (project.metrics.weeksSinceRelease || 0);
+    const theatricalRunWeeks = isPrimaryStreamingFilm(project) ? 0 : (project.metrics.weeksSinceRelease || 0);
     const weeksSinceTheatricalEnd = Math.max(0, weeksSinceRelease - theatricalRunWeeks);
 
     if (diagnosticsEnabled) {
@@ -221,7 +222,7 @@ export const PostTheatricalManagement: React.FC<PostTheatricalManagementProps> =
 
     const isOwnedDestination = option.isOwnedPlatform === true;
 
-    if (!isOwnedDestination && project.releaseStrategy?.type === 'streaming' && option.platform === 'streaming') {
+    if (!isOwnedDestination && isPrimaryStreamingFilm(project) && option.platform === 'streaming') {
       return { canRelease: false, reason: 'Primary streaming release' };
     }
 
