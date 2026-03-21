@@ -159,7 +159,7 @@ export const CastingRoleManager: React.FC<CastingRoleManagerProps> = ({
           duration: new Date(Date.now() + role.contractWeeks! * 7 * 24 * 60 * 60 * 1000),
           exclusivity: true,
           merchandising: true,
-          sequelOptions: 1
+          sequelOptions: project.script?.franchiseId ? 2 : 1
         }
       }));
 
@@ -200,7 +200,7 @@ export const CastingRoleManager: React.FC<CastingRoleManagerProps> = ({
           duration: new Date(Date.now() + role.contractWeeks! * 7 * 24 * 60 * 60 * 1000),
           exclusivity: true,
           merchandising: true,
-          sequelOptions: 1
+          sequelOptions: project.script?.franchiseId ? 2 : 1
         }
       }));
 

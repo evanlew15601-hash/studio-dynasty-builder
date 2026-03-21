@@ -96,7 +96,7 @@ export const CastingBoard: React.FC<CastingBoardProps> = ({
         duration: new Date(Date.now() + contractWeeks * 7 * 24 * 60 * 60 * 1000),
         exclusivity: true,
         merchandising: true,
-        sequelOptions: 1
+        sequelOptions: selectedProject.script?.franchiseId ? 2 : 1
       }
     };
 

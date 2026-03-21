@@ -47,6 +47,10 @@ export const SequelManagement: React.FC<SequelManagementProps> = ({
   const [sequelPlan, setSequelPlan] = useState<SequelPlan | null>(null);
   const [isCreating, setIsCreating] = useState(false);
 
+  const getCharacterKey = (character: { id: string; franchiseCharacterId?: string; roleTemplateId?: string }) => {
+    return character.franchiseCharacterId || character.roleTemplateId || character.id;
+  };
+
   if (!gameState) {
     return <div className="p-6 text-sm text-muted-foreground">Loading sequel planning...</div>;
   }
@@ -111,7 +115,7 @@ export const SequelManagement: React.FC<SequelManagementProps> = ({
     const returningCast = (originalProject.script?.characters || [])
       .filter(char => char.assignedTalentId && char.importance !== 'minor')
       .map(char => ({
-        characterId: char.id,
+        characterId: getCharacterKey(char),
         talentId: char.assignedTalentId!,
         confirmed: false,
         negotiationStatus: 'pending' as const
@@ -155,7 +159,7 @@ export const SequelManagement: React.FC<SequelManagementProps> = ({
     if (!talent) return;
     
     // Simple negotiation simulation
-    const originalCharacter = selectedProject?.script?.characters?.find(c => c.id === characterId);
+    const originalCharacter = selectedProject?.script?.characters?.find(c => getCharacterKey(c) === characterId);
 
     const seedBase = `${gameState.universeSeed ?? 0}|sequelNegotiation|${sequelPlan.originalProjectId}|${sequelPlan.sequelNumber}|${characterId}|${talentId}`;
     const sequelSuccess = stableFloat01(`${seedBase}|roll`);
@@ -276,13 +280,10 @@ export const SequelManagement: React.FC<SequelManagementProps> = ({
       },
       characters: (selectedProject.script?.characters || []).map(char => ({
         ...char,
-        id: `sequel-char-${sequelScriptId}-${char.id}`,
         // Keep assigned talent if they're confirmed for sequel
         assignedTalentId: sequelPlan.returningCast.find(cast => 
-          cast.characterId === char.id && cast.confirmed
+          cast.characterId === getCharacterKey(char) && cast.confirmed
         )?.talentId || undefined,
-        // Update character for sequel context
-        description: `${char.description} (returning character)`
       })),
       franchiseId,
       sourceType: 'franchise'
@@ -374,7 +375,7 @@ export const SequelManagement: React.FC<SequelManagementProps> = ({
               <div className="space-y-3">
                 {sequelPlan.returningCast.map(cast => {
                   const talent = gameState.talent.find(t => t.id === cast.talentId);
-                  const character = selectedProject.script?.characters?.find(c => c.id === cast.characterId);
+                  const character = selectedProject.script?.characters?.find(c => getCharacterKey(c) === cast.characterId);
                   
                   if (!talent || !character) return null;
                   

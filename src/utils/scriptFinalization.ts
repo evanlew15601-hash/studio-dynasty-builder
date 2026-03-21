@@ -2,6 +2,82 @@ import { GameState, Script, ScriptCharacter, Gender } from '@/types/game';
 import { importRolesForScript } from '@/utils/roleImport';
 import { stablePick } from '@/utils/stablePick';
 
+function absWeek(week: unknown, year: unknown): number | null {
+  if (typeof week !== 'number' || typeof year !== 'number') return null;
+  if (!Number.isFinite(week) || !Number.isFinite(year)) return null;
+  return year * 52 + week;
+}
+
+function cloneScriptCharacter(c: ScriptCharacter): ScriptCharacter {
+  return {
+    ...c,
+    traits: c.traits ? [...c.traits] : undefined,
+    relationships: c.relationships ? c.relationships.map((r) => ({ ...r })) : undefined,
+    ageRange: c.ageRange ? ([...c.ageRange] as any) : undefined,
+    localOverrides: c.localOverrides
+      ? {
+          ...c.localOverrides,
+          traits: c.localOverrides.traits ? [...c.localOverrides.traits] : undefined,
+          ageRange: c.localOverrides.ageRange ? ([...c.localOverrides.ageRange] as any) : undefined,
+        }
+      : undefined,
+  };
+}
+
+function pickFranchiseSeedCharacters(script: Script, gameState: GameState): ScriptCharacter[] | null {
+  if (script.sourceType !== 'franchise' || !script.franchiseId) return null;
+
+  const candidates = (gameState.projects || []).filter((p) => {
+    const fid = (p as any)?.script?.franchiseId;
+    const chars = (p as any)?.script?.characters;
+    return fid === script.franchiseId && Array.isArray(chars) && chars.length > 0;
+  });
+
+  if (candidates.length === 0) return null;
+
+  const best = candidates
+    .map((p) => {
+      // Prefer released entries with explicit release date.
+      const releasedAbs = absWeek((p as any).releaseWeek, (p as any).releaseYear);
+      const scheduledAbs = absWeek((p as any).scheduledReleaseWeek, (p as any).scheduledReleaseYear);
+      const franchisePosition = typeof (p as any).franchisePosition === 'number' ? (p as any).franchisePosition : null;
+
+      const score =
+        (p as any).status === 'released' && releasedAbs !== null
+          ? 2_000_000_000 + releasedAbs
+          : releasedAbs !== null
+            ? 1_500_000_000 + releasedAbs
+            : scheduledAbs !== null
+              ? 1_000_000_000 + scheduledAbs
+              : franchisePosition !== null
+                ? 500_000_000 + franchisePosition
+                : 0;
+
+      return { p, score };
+    })
+    .sort((a, b) => b.score - a.score)[0]?.p;
+
+  const existingChars = ((best as any)?.script?.characters || []) as ScriptCharacter[];
+  if (!Array.isArray(existingChars) || existingChars.length === 0) return null;
+
+  const talentIds = new Set((gameState.talent || []).map((t) => t.id));
+
+  return existingChars.map((c0) => {
+    const c = cloneScriptCharacter(c0);
+
+    // Minor/cameo roles usually aren't worth locking in; they can be recast freely.
+    if (c.importance === 'minor') {
+      c.assignedTalentId = undefined;
+    }
+
+    if (c.assignedTalentId && !talentIds.has(c.assignedTalentId)) {
+      c.assignedTalentId = undefined;
+    }
+
+    return c;
+  });
+}
+
 export type ScriptFinalizationIssueLevel = 'error' | 'warning';
 
 export interface ScriptFinalizationIssue {
@@ -159,6 +235,11 @@ function validateRoles(chars: ScriptCharacter[]): ScriptFinalizationIssue[] {
 export function finalizeScriptForSave(input: Script, gameState: GameState): Script {
   let characters = [...(input.characters || [])];
 
+  if (characters.length === 0) {
+    const seeded = pickFranchiseSeedCharacters(input, gameState);
+    if (seeded) characters = seeded;
+  }
+
   if ((input.sourceType === 'franchise' && input.franchiseId) || (input.sourceType === 'public-domain' && input.publicDomainId)) {
     characters = importRolesForScript({ ...input, characters }, gameState);
   }
@@ -177,6 +258,11 @@ export function finalizeScriptForGreenlight(input: Script, gameState: GameState)
 
   // Start from existing roles.
   let characters = [...(input.characters || [])];
+
+  if (characters.length === 0) {
+    const seeded = pickFranchiseSeedCharacters(input, gameState);
+    if (seeded) characters = seeded;
+  }
 
   // If this is a franchise or public domain script, import/merge curated roles.
   if ((input.sourceType === 'franchise' && input.franchiseId) || (input.sourceType === 'public-domain' && input.publicDomainId)) {

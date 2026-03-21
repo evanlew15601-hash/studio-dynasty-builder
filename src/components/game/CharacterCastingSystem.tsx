@@ -196,6 +196,8 @@ export const CharacterCastingSystem: React.FC<CharacterCastingSystemProps> = ({
     const directorSlots = slots.filter(s => s.talent && s.character.requiredType === 'director');
     const actorSlots = slots.filter(s => s.talent && s.character.requiredType !== 'director');
 
+    const isFranchiseProject = !!project.script?.franchiseId;
+
     // Directors belong in crew; only actors belong in cast.
     const castEntries = actorSlots.map(s => ({
       talentId: (s.talent as TalentPerson).id,
@@ -208,7 +210,7 @@ export const CharacterCastingSystem: React.FC<CharacterCastingSystemProps> = ({
         duration: new Date(Date.now() + 1000 * 60 * 60 * 24 * 90),
         exclusivity: false,
         merchandising: false,
-        sequelOptions: 1
+        sequelOptions: isFranchiseProject && s.character.importance === 'lead' ? 2 : 1
       }
     }));
 
