@@ -19,25 +19,29 @@
 
 Each category is scored **0–10**, then multiplied by its **weight**.
 
+### Weighting profile: **Tycoon-casual**
+
+This weighting assumes the game should be **challenging without being frustrating** (high value on clarity + pacing; moderate value on depth; lower value on punishing fail states).
+
 | Category | Weight | What a 9–10 looks like | What a 4–6 looks like |
 |---|---:|---|---|
-| **1) Core loop clarity & agency** | 20 | Player always knows what to do next; decisions are meaningful weekly; minimal “busywork”. | Loop exists but unclear; player frequently asks “what now?” |
-| **2) Strategic depth & system interlock** | 20 | Many levers that interact; choices have second-order effects; multiple viable strategies. | Lots of features, but they don’t meaningfully connect (or one dominates). |
-| **3) Feedback, legibility & UI affordances** | 15 | Outcomes are explained; dashboards/recaps tell the story; player can attribute cause→effect. | Data exists but is noisy/overwhelming or missing key “why did that happen?” |
-| **4) Challenge, balance & fail states** | 15 | Difficulty meaningfully changes constraints; economy is stable; failure is possible but fair. | Difficulty is mostly starting resources; economy/AI feel swingy or exploitable. |
-| **5) Pacing & friction** | 10 | Week-to-week cadence feels good; actions are low-click; no long dead zones. | Lots of clicking/tabs; waiting/idle time; frequent context switching. |
+| **1) Core loop clarity & agency** | 25 | Player always knows what to do next; decisions are meaningful weekly; minimal “busywork”. | Loop exists but unclear; player frequently asks “what now?” |
+| **2) Feedback, legibility & UI affordances** | 20 | Outcomes are explained; dashboards/recaps tell the story; player can attribute cause→effect. | Data exists but is noisy/overwhelming or missing key “why did that happen?” |
+| **3) Pacing & friction** | 15 | Week-to-week cadence feels good; actions are low-click; no long dead zones. | Lots of clicking/tabs; waiting/idle time; frequent context switching. |
+| **4) Strategic depth & system interlock** | 15 | Many levers that interact; choices have second-order effects; multiple viable strategies. | Lots of features, but they don’t meaningfully connect (or one dominates). |
+| **5) Challenge, balance & fail states** | 10 | Constraints create tension but don’t punish curiosity; recovery paths exist; difficulty scaling is systemic. | Difficulty is mostly starting resources; economy/AI feel swingy or exploitable. |
 | **6) Narrative emergence & character attachment** | 10 | Talent/studio stories emerge; rivals and careers are memorable; drama is varied but not spammy. | Some events exist, but feel repetitive or disconnected from outcomes. |
-| **7) Replayability & long-horizon motivation** | 10 | New runs feel meaningfully different; long-run arcs/eras/records create “just one more year”. | Runs feel similar; long-run goals are thin or mostly cosmetic. |
+| **7) Replayability & long-horizon motivation** | 5 | New runs feel meaningfully different; long-run arcs/eras/records create “just one more year”. | Runs feel similar; long-run goals are thin or mostly cosmetic. |
 
 ---
 
 ## Scorecard (with repo evidence)
 
-### Final score: **72 / 100**
+### Final score: **73 / 100**
 
-This lands in “solid and engaging, with noticeable friction/tuning gaps.” The game appears **very feature-rich**, with a **deterministic weekly simulation engine** and many interacting subsystems, but the *player-facing clarity* and *balance/difficulty depth* look like the main limiters to a higher playability score.
+This lands in “solid and engaging, with noticeable friction/tuning gaps.” With the **tycoon-casual weighting** (challenge without frustration), the game’s strengths are its **deterministic weekly simulation engine** and wide set of interacting subsystems, while the main limiters remain **player-facing clarity** (onboarding + explanation of outcomes) and **difficulty/balance depth** beyond starting resources.
 
-### 1) Core loop clarity & agency — **7.5 / 10 → 15 / 20**
+### 1) Core loop clarity & agency — **7.5 / 10 → 18.8 / 25**
 
 **What’s strong**
 - Clear intended loop: **script → casting → production → marketing → release → revenue/awards**.
@@ -47,9 +51,29 @@ This lands in “solid and engaging, with noticeable friction/tuning gaps.” Th
 
 **What holds it back**
 - **Help/onboarding is short** and largely non-mechanical; many subsystems are not explained in-game: `src/content/help.md`.
-- The game has many panels (media, lore, awards, franchises, etc.) which can dilute the “core next step” unless the player follows the Next Actions Bar religiously.
+- The game has many panels (media, lore, awards, franchises, etc.) which can dilute the “core next step” unless guidance stays prominent.
 
-### 2) Strategic depth & system interlock — **8 / 10 → 16 / 20**
+### 2) Feedback, legibility & UI affordances — **7.5 / 10 → 15 / 20**
+
+**What’s strong**
+- Week Recap and per-system reporting exists in the engine (and is tested): `src/game/core/tick.ts`, `src/utils/tickReport.ts`.
+- Narrative summaries exist (yearbooks + milestones), which helps long runs feel coherent: `src/game/systems/worldYearbookSystem.ts`, `src/game/systems/worldMilestonesSystem.ts`.
+- The dashboard surfaces key “tycoon UI” concepts (projects, trends, governance constraints): `src/components/game/StudioDashboard.tsx`.
+
+**What holds it back**
+- Some dashboard values look placeholder/simplified (e.g., fixed “Quarterly Revenue +$2.0M” presentation), which can reduce trust in the feedback loop.
+- The UI breadth is very high; without careful prioritization, players may get *data-rich but decision-poor* screens.
+
+### 3) Pacing & friction — **7 / 10 → 10.5 / 15**
+
+**What’s strong**
+- Weekly cadence with deterministic systems is a good fit for this genre; the engine is designed to keep week advancement consistent.
+- “Softlock smoke test” suggests the loop can run long without stalling on events: `tests/softlockSmoke.test.ts`.
+
+**What holds it back**
+- The gameplay surface area is extremely broad (many tabs + subpanels). Even if each is good, the overall experience risks heavy context switching.
+
+### 4) Strategic depth & system interlock — **8 / 10 → 12 / 15**
 
 **What’s strong**
 - A large number of systems interact through the deterministic tick pipeline (projects, economy, box office, awards, post-theatrical, governance, talent lifecycle/retirement, genre trends, gossip/drama):
@@ -64,18 +88,7 @@ This lands in “solid and engaging, with noticeable friction/tuning gaps.” Th
 **What holds it back**
 - Some gameplay logic appears duplicated between legacy/UI-oriented systems and the engine (even if the repo is moving toward engine ownership). This can create “rules drift” risk and player confusion about what truly drives outcomes.
 
-### 3) Feedback, legibility & UI affordances — **7.5 / 10 → 11 / 15**
-
-**What’s strong**
-- Week Recap and per-system reporting exists in the engine (and is tested): `src/game/core/tick.ts`, `src/utils/tickReport.ts`.
-- Narrative summaries exist (yearbooks + milestones), which helps long runs feel coherent: `src/game/systems/worldYearbookSystem.ts`, `src/game/systems/worldMilestonesSystem.ts`.
-- The dashboard surfaces key “tycoon UI” concepts (projects, trends, governance constraints): `src/components/game/StudioDashboard.tsx`.
-
-**What holds it back**
-- Some dashboard values look placeholder/simplified (e.g., fixed “Quarterly Revenue +$2.0M” presentation), which can reduce trust in the feedback loop.
-- The UI breadth is very high; without careful prioritization, players may get *data-rich but decision-poor* screens.
-
-### 4) Challenge, balance & fail states — **6 / 10 → 9 / 15**
+### 5) Challenge, balance & fail states — **6 / 10 → 6 / 10**
 
 **What’s strong**
 - There is an actual **money/debt runway** model and recurring costs:
@@ -87,15 +100,6 @@ This lands in “solid and engaging, with noticeable friction/tuning gaps.” Th
 - Difficulty appears **primarily starting budget** (easy/normal/hard/magnate). There’s limited evidence of systemic difficulty scaling beyond initial resources: `src/components/game/GameLanding.tsx`.
 - Core economic numbers are relatively simple (fixed overhead constants, linear-ish multipliers), which can produce dominant strategies unless tuned carefully.
 
-### 5) Pacing & friction — **7 / 10 → 7 / 10**
-
-**What’s strong**
-- Weekly cadence with deterministic systems is a good fit for this genre; the engine is designed to keep week advancement consistent.
-- “Softlock smoke test” suggests the loop can run long without stalling on events: `tests/softlockSmoke.test.ts`.
-
-**What holds it back**
-- The gameplay surface area is extremely broad (many tabs + subpanels). Even if each is good, the overall experience risks heavy context switching.
-
 ### 6) Narrative emergence & character attachment — **7 / 10 → 7 / 10**
 
 **What’s strong**
@@ -105,7 +109,7 @@ This lands in “solid and engaging, with noticeable friction/tuning gaps.” Th
 **What holds it back**
 - The “drama” layer currently looks like a **limited set of event archetypes** (feud/poach), which may feel repetitive without enough variety or stronger ties to specific projects and outcomes.
 
-### 7) Replayability & long-horizon motivation — **7 / 10 → 7 / 10**
+### 7) Replayability & long-horizon motivation — **7 / 10 → 3.5 / 5**
 
 **What’s strong**
 - Procedural + deterministic world generation enables varied runs and reproducibility.
@@ -117,7 +121,7 @@ This lands in “solid and engaging, with noticeable friction/tuning gaps.” Th
 
 ---
 
-## Summary: why this is a 72 (not an 85)
+## Summary: why this is a 73 (not an 85)
 
 The game already has many characteristics of a strong management sim:
 
@@ -136,7 +140,7 @@ The main playability risks visible from the repo are:
 ## “If you fixed only three playability things” (non-shipping)
 
 1. **Strengthen onboarding for the first 10 in-game weeks** (explicit tutorialized goals and explanation of why numbers changed).
-2. **Make difficulty affect systems, not just starting cash** (e.g., tighter market multipliers, harder negotiations, higher overhead/interest, stronger competitors).
+2. **Build “challenge without frustration” rails**: keep pressure, but add recovery and clarity (e.g., clearer runway warnings, optional bailouts/bridge loans, fewer surprise negative cascades).
 3. **Tighten the feedback loop**: for every major outcome (box office, awards odds, negotiation acceptance), show a compact “because X, Y, Z” breakdown.
 
 ---
