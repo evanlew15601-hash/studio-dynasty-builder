@@ -32,6 +32,24 @@ function isTalentCategory(category: AwardCategoryDefinition): boolean {
   return cl.includes('actor') || cl.includes('actress') || cl.includes('director') || cl.includes('directing');
 }
 
+function isActorCategory(category: AwardCategoryDefinition): boolean {
+  if (category.talent?.type === 'actor') return true;
+  const cl = category.name.toLowerCase();
+  if (cl.includes('director') || cl.includes('directing')) return false;
+  return cl.includes('actor') || cl.includes('actress');
+}
+
+function actorDedupKey(category: AwardCategoryDefinition): string {
+  const gender = category.talent?.gender;
+  if (gender) return gender;
+
+  const cl = category.name.toLowerCase();
+  if (cl.includes('actress')) return 'Female';
+  if (cl.includes('actor')) return 'Male';
+
+  return 'any';
+}
+
 function getSeasonState(state: GameState, year: number): AwardsSeasonState {
   const existing = state.awardsSeason;
   if (existing && existing.year === year) return existing;
@@ -274,6 +292,9 @@ function computeNominations(params: {
   const nominationsForState: Record<string, Array<{ projectId: string; score: number }>> = {};
   const nominationsWithProjects: Record<string, Array<{ project: Project; score: number }>> = {};
 
+  const actorCandidatesByCategory: Record<string, Array<{ project: Project; score: number; talentId: string }>> = {};
+  const actorCategories = new Set<string>();
+
   categories.forEach((category) => {
     const categoryName = category.name;
     const categoryLower = categoryName.toLowerCase();
@@ -281,15 +302,15 @@ function computeNominations(params: {
     const ranked = eligible
       .map((project) => {
         if (category.eligibility?.projectTypes && !category.eligibility.projectTypes.includes(project.type)) {
-          return { project, score: 0 };
+          return { project, score: 0, talentId: undefined as string | undefined };
         }
 
         if (category.eligibility?.genres && !category.eligibility.genres.includes(project.script.genre)) {
-          return { project, score: 0 };
+          return { project, score: 0, talentId: undefined as string | undefined };
         }
 
         if (category.eligibility?.requireAnimation && project.script.genre !== 'animation') {
-          return { project, score: 0 };
+          return { project, score: 0, talentId: undefined as string | undefined };
         }
 
         const base = calculateAwardsProbability({
@@ -314,20 +335,31 @@ function computeNominations(params: {
 
         // Medium-aware category gating / bias (fallback logic driven by the category name)
         if (show.medium === 'film') {
-          if (categoryLower.includes('animated') && project.script.genre !== 'animation') return { project, score: 0 };
-          if (categoryLower.includes('comedy') && project.script.genre !== 'comedy') categoryBias -= 3;
-          if (categoryLower.includes('drama') && ['drama', 'biography', 'historical'].includes(project.script.genre || '')) categoryBias += 5;
+          const genre = project.script.genre;
+          const isDramaBucket = ['drama', 'biography', 'historical'].includes(genre || '');
+
+          if (categoryLower.includes('animated') && genre !== 'animation') return { project, score: 0, talentId: undefined as string | undefined };
+
+          if (categoryLower.includes('comedy') && (categoryLower.includes('best picture') || isTalentCategory(category))) {
+            if (genre !== 'comedy') return { project, score: 0, talentId: undefined as string | undefined };
+            categoryBias += 3;
+          }
+
+          if (categoryLower.includes('drama') && (categoryLower.includes('best picture') || isTalentCategory(category))) {
+            if (!isDramaBucket) return { project, score: 0, talentId: undefined as string | undefined };
+            categoryBias += 5;
+          }
         } else {
           // TV awards
-          if (categoryLower.includes('limited series') && project.type !== 'limited-series') return { project, score: 0 };
+          if (categoryLower.includes('limited series') && project.type !== 'limited-series') return { project, score: 0, talentId: undefined as string | undefined };
 
           if (categoryLower.includes('drama series')) {
-            if (project.script.genre !== 'drama') return { project, score: 0 };
+            if (project.script.genre !== 'drama') return { project, score: 0, talentId: undefined as string | undefined };
             categoryBias += 4;
           }
 
           if (categoryLower.includes('comedy series')) {
-            if (project.script.genre !== 'comedy') return { project, score: 0 };
+            if (project.script.genre !== 'comedy') return { project, score: 0, talentId: undefined as string | undefined };
             categoryBias += 4;
           }
 
@@ -339,12 +371,15 @@ function computeNominations(params: {
 
         // Critically acclaimed actor/director boost for individual categories
         let talentBonus = 0;
+        let talentId: string | undefined;
+
         if (isTalentCategory(category)) {
-          const talent = findRelevantTalent({ state, project, category: categoryName, categoryDef: category });
-          if (talent) {
-            const baseRep = talent.reputation || 50;
-            const awardsCount = talent.awards?.length || 0;
-            const fame = talent.fame ?? 0;
+          const relevantTalent = findRelevantTalent({ state, project, category: categoryName, categoryDef: category });
+
+          if (relevantTalent) {
+            const baseRep = relevantTalent.reputation || 50;
+            const awardsCount = relevantTalent.awards?.length || 0;
+            const fame = relevantTalent.fame ?? 0;
 
             // Reputation above/below 50 pulls score modestly.
             const repBonus = (baseRep - 50) * 0.4; // max about ±20
@@ -353,21 +388,74 @@ function computeNominations(params: {
             const fameBonus = Math.min(10, fame * 0.1);
 
             talentBonus = repBonus + awardsBonus + fameBonus;
+
+            if (isActorCategory(category)) {
+              const desiredGender = category.talent?.gender;
+              const castIds = new Set((project.cast || []).map((c: any) => c?.talentId).filter(Boolean));
+              const characterIds = new Set((project.script?.characters || []).map((c: any) => c?.assignedTalentId).filter(Boolean));
+
+              const appearsInProject = castIds.has(relevantTalent.id) || characterIds.has(relevantTalent.id);
+              const genderOk = desiredGender ? relevantTalent.gender === desiredGender : true;
+
+              if (appearsInProject && genderOk) {
+                talentId = relevantTalent.id;
+              } else {
+                talentId = undefined;
+              }
+            } else {
+              talentId = relevantTalent.id;
+            }
           }
         }
 
         const noise = stableFloat01(`${seedRoot}|${categoryName}|${project.id}|noise`) * 8 - 4;
 
         const score = Math.min(100, base + momentum + categoryBias + talentBonus + noise);
-        return { project, score };
+        return { project, score, talentId };
       })
       .filter(({ score }) => score > 10)
       .sort((a, b) => b.score - a.score)
-      .slice(0, 5);
+      .slice(0, 12);
 
-    nominationsWithProjects[categoryName] = ranked;
-    nominationsForState[categoryName] = ranked.map((r) => ({ projectId: r.project.id, score: r.score }));
+    if (isActorCategory(category)) {
+      actorCategories.add(categoryName);
+      actorCandidatesByCategory[categoryName] = ranked
+        .filter((r) => !!r.talentId)
+        .map((r) => ({ project: r.project, score: r.score, talentId: r.talentId! }));
+      return;
+    }
+
+    const top = ranked.slice(0, 5).map((r) => ({ project: r.project, score: r.score }));
+    nominationsWithProjects[categoryName] = top;
+    nominationsForState[categoryName] = top.map((r) => ({ projectId: r.project.id, score: r.score }));
   });
+
+  if (actorCategories.size > 0) {
+    const usedTalentIdsByKey = new Map<string, Set<string>>();
+
+    for (const categoryDef of categories) {
+      if (!isActorCategory(categoryDef)) continue;
+
+      const categoryName = categoryDef.name;
+      const candidates = actorCandidatesByCategory[categoryName] || [];
+
+      const key = actorDedupKey(categoryDef);
+      const used = usedTalentIdsByKey.get(key) || new Set<string>();
+      usedTalentIdsByKey.set(key, used);
+
+      const picked: Array<{ project: Project; score: number }> = [];
+
+      for (const cand of candidates) {
+        if (used.has(cand.talentId)) continue;
+        picked.push({ project: cand.project, score: cand.score });
+        used.add(cand.talentId);
+        if (picked.length >= 5) break;
+      }
+
+      nominationsWithProjects[categoryName] = picked;
+      nominationsForState[categoryName] = picked.map((r) => ({ projectId: r.project.id, score: r.score }));
+    }
+  }
 
   return { nominationsForState, nominationsWithProjects };
 }
