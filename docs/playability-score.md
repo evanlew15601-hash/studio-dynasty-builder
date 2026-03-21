@@ -39,7 +39,7 @@ This weighting assumes the game should be **challenging without being frustratin
 
 ### Final score: **73 / 100**
 
-This lands in “solid and engaging, with noticeable friction/tuning gaps.” With the **tycoon-casual weighting** (challenge without frustration), the game’s strengths are its **deterministic weekly simulation engine** and wide set of interacting subsystems, while the main limiters remain **player-facing clarity** (onboarding + explanation of outcomes) and **difficulty/balance depth** beyond starting resources.
+This lands in “solid and engaging, with noticeable friction/tuning gaps.” With the **tycoon-casual weighting** (challenge without frustration, and *few intentional fail states* as a positive), the game’s strengths are its **deterministic weekly simulation engine** and wide set of interacting subsystems, while the main limiters remain **player-facing clarity** (onboarding + explanation of outcomes) and **systemic difficulty scaling** beyond starting resources.
 
 ### 1) Core loop clarity & agency — **7.5 / 10 → 18.8 / 25**
 
@@ -88,17 +88,18 @@ This lands in “solid and engaging, with noticeable friction/tuning gaps.” Wi
 **What holds it back**
 - Some gameplay logic appears duplicated between legacy/UI-oriented systems and the engine (even if the repo is moving toward engine ownership). This can create “rules drift” risk and player confusion about what truly drives outcomes.
 
-### 5) Challenge, balance & fail states — **6 / 10 → 6 / 10**
+### 5) Challenge, balance & fail states — **6.5 / 10 → 6.5 / 10**
 
 **What’s strong**
-- There is an actual **money/debt runway** model and recurring costs:
+- The game seems intentionally **"challenging without being punishing"**: the loop prevents skipping past important decisions, reducing accidental failure spirals: `src/game/store.ts` + `tests/advanceWeekBlockedByPendingEvents.test.ts`.
+- There is a real **money/debt runway** model and recurring costs:
   - Studio overhead + production cost drain + debt interest: `src/game/systems/studioEconomySystem.ts`.
   - Payroll and contract expiry: `src/game/systems/talentContractsSystem.ts`.
 - Competition exists via deterministic competitor releases and comparative pressure: `src/game/systems/competitorFilmReleaseSystem.ts`, `src/game/systems/studioGovernanceSystem.ts`.
 
-**What holds it back**
-- Difficulty appears **primarily starting budget** (easy/normal/hard/magnate). There’s limited evidence of systemic difficulty scaling beyond initial resources: `src/components/game/GameLanding.tsx`.
-- Core economic numbers are relatively simple (fixed overhead constants, linear-ish multipliers), which can produce dominant strategies unless tuned carefully.
+**What holds it back (for systemic difficulty scaling)**
+- Difficulty appears **primarily starting budget** (easy/normal/hard/magnate). There’s limited evidence of *ongoing* systemic scaling (AI aggressiveness, market multipliers, negotiation hardness, etc.) beyond initial resources: `src/components/game/GameLanding.tsx`.
+- Core economic numbers are relatively simple (fixed overhead constants, linear-ish multipliers), which can create dominant strategies unless tuned carefully.
 
 ### 6) Narrative emergence & character attachment — **7 / 10 → 7 / 10**
 
@@ -121,7 +122,7 @@ This lands in “solid and engaging, with noticeable friction/tuning gaps.” Wi
 
 ---
 
-## Summary: why this is a 73 (not an 85)
+## Summary: why this is a 73 (not an 85) under a tycoon-casual lens
 
 The game already has many characteristics of a strong management sim:
 
@@ -131,7 +132,7 @@ The game already has many characteristics of a strong management sim:
 
 The main playability risks visible from the repo are:
 
-- **Difficulty/balance depth**: difficulty largely looks like starting budget; economy numbers may need more tuning to ensure multiple viable strategies.
+- **Systemic difficulty scaling**: difficulty largely looks like starting budget; economy/AI/multipliers may need deeper scaling so challenge increases without relying on punishing fail states.
 - **Clarity vs breadth**: many panels/features can dilute the “decision funnel” unless guidance/recaps are exceptionally good.
 - **Consistency of feedback**: any placeholder or overly-simplified UI stats can undermine the core management-game satisfaction loop.
 
@@ -140,7 +141,7 @@ The main playability risks visible from the repo are:
 ## “If you fixed only three playability things” (non-shipping)
 
 1. **Strengthen onboarding for the first 10 in-game weeks** (explicit tutorialized goals and explanation of why numbers changed).
-2. **Build “challenge without frustration” rails**: keep pressure, but add recovery and clarity (e.g., clearer runway warnings, optional bailouts/bridge loans, fewer surprise negative cascades).
+2. **Add systemic difficulty scaling (without harsher fail states)**: keep the cozy tycoon feel, but scale challenge via market/AI multipliers, negotiation difficulty, cost pressure, etc. (not just starting cash).
 3. **Tighten the feedback loop**: for every major outcome (box office, awards odds, negotiation acceptance), show a compact “because X, Y, Z” breakdown.
 
 ---
