@@ -648,11 +648,17 @@ export const AwardsSeasonSystem: TickSystem = {
               const existing = updatedTalentById.get(relevantTalent.id) || relevantTalent;
               const currentAwards = existing.awards || [];
 
+              const hasAlready = currentAwards.some((a: any) => {
+                if (!a) return false;
+                if (typeof a === 'string') return a === talentAward.id;
+                return (a as any).id === talentAward.id;
+              });
+
               updatedTalentById.set(relevantTalent.id, {
                 ...existing,
                 reputation: Math.min(100, existing.reputation + talentAward.reputationBoost),
                 marketValue: existing.marketValue + (talentAward.marketValueBoost || 0),
-                awards: [...currentAwards, talentAward],
+                awards: hasAlready ? currentAwards : [...currentAwards, talentAward],
               });
 
               if (playerProjectIds.has(n.project.id)) {
@@ -687,11 +693,24 @@ export const AwardsSeasonSystem: TickSystem = {
         const totalReputation = totalReputationFromAwards + extraTalentStudioReputation;
         const totalRevenue = wonStudioAwards.reduce((sum, award) => sum + (award.revenueBoost || 0), 0);
 
+        const currentStudioAwards = studio.awards || [];
+        const combined = [...currentStudioAwards, ...wonStudioAwards];
+        const deduped: StudioAward[] = [];
+        const seen = new Set<string>();
+        for (const a of combined) {
+          if (!a) continue;
+          const id = (a as any).id;
+          if (!id) continue;
+          if (seen.has(id)) continue;
+          seen.add(id);
+          deduped.push(a);
+        }
+
         studio = {
           ...studio,
           reputation: Math.min(100, (studio.reputation || 0) + totalReputation),
           budget: (studio.budget || 0) + totalRevenue,
-          awards: [...(studio.awards || []), ...wonStudioAwards],
+          awards: deduped,
         };
         changed = true;
       }
