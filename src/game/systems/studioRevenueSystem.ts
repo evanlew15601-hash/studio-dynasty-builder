@@ -50,7 +50,10 @@ export const StudioRevenueSystem: TickSystem = {
     let budgetDelta = 0;
 
     for (const project of state.projects || []) {
-      if (!project || project.status !== 'released') continue;
+      const status = project?.status;
+      const isReleasedLike =
+        status === 'released' || status === 'distribution' || status === 'archived' || status === 'completed';
+      if (!project || !isReleasedLike) continue;
 
       if (isTheatricalFilm(project)) {
         const rel = getReleaseWeekYear(project);

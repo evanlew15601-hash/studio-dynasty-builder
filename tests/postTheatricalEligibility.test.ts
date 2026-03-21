@@ -5,8 +5,11 @@ import { getTheatricalEndAbs, getWeeksSinceTheatricalEnd, isPostTheatricalEligib
 
 function makeTheatricalFilm(params: {
   id: string;
-  releaseWeek: number;
-  releaseYear: number;
+  releaseWeek?: number;
+  releaseYear?: number;
+  scheduledReleaseWeek?: number;
+  scheduledReleaseYear?: number;
+  status?: Project['status'];
   ended?: boolean;
   theatricalEndWeek?: number;
   theatricalEndYear?: number;
@@ -27,9 +30,11 @@ function makeTheatricalFilm(params: {
     timeline: {} as any,
     locations: [],
     distributionStrategy: { primary: { platform: 'Theaters', type: 'theatrical', revenue: { type: 'box-office', studioShare: 1 } }, international: [], windows: [], marketingBudget: 0 } as any,
-    status: 'released',
+    status: params.status ?? 'released',
     releaseWeek: params.releaseWeek,
     releaseYear: params.releaseYear,
+    scheduledReleaseWeek: params.scheduledReleaseWeek,
+    scheduledReleaseYear: params.scheduledReleaseYear,
     theatricalEndDate:
       params.ended && hasEndDate && params.theatricalEndWeek && params.theatricalEndYear
         ? triggerDateFromWeekYear(params.theatricalEndYear, params.theatricalEndWeek)
@@ -81,6 +86,25 @@ describe('postTheatrical eligibility helpers', () => {
     // Age is 30 weeks; assume run ended at 20.
     expect(getTheatricalEndAbs(film, currentAbs)).toBe(2027 * 52 + 21);
     expect(getWeeksSinceTheatricalEnd(film, currentAbs)).toBe(10);
+    expect(isPostTheatricalEligibleProject(film, currentAbs)).toBe(true);
+  });
+
+  it('treats distribution/archived statuses as released-like and falls back to scheduledReleaseWeek/Year', () => {
+    const film = makeTheatricalFilm({
+      id: 'p3',
+      status: 'distribution',
+      releaseWeek: undefined,
+      releaseYear: undefined,
+      scheduledReleaseWeek: 1,
+      scheduledReleaseYear: 2027,
+      ended: true,
+      hasEndDate: false,
+      weeksSinceRelease: 30,
+    });
+
+    const currentAbs = 2027 * 52 + 31;
+
+    expect(getTheatricalEndAbs(film, currentAbs)).toBe(2027 * 52 + 21);
     expect(isPostTheatricalEligibleProject(film, currentAbs)).toBe(true);
   });
 });

@@ -10,9 +10,21 @@ export function absWeek(week: number, year: number): number {
 }
 
 export function getReleaseAbs(project: Project): number | null {
-  const week = typeof project.releaseWeek === 'number' ? project.releaseWeek : null;
-  const year = typeof project.releaseYear === 'number' ? project.releaseYear : null;
-  if (!week || !year) return null;
+  const week =
+    typeof project.releaseWeek === 'number'
+      ? project.releaseWeek
+      : typeof project.scheduledReleaseWeek === 'number'
+        ? project.scheduledReleaseWeek
+        : null;
+
+  const year =
+    typeof project.releaseYear === 'number'
+      ? project.releaseYear
+      : typeof project.scheduledReleaseYear === 'number'
+        ? project.scheduledReleaseYear
+        : null;
+
+  if (week == null || year == null) return null;
   return absWeek(week, year);
 }
 
@@ -74,7 +86,11 @@ export function getWeeksSinceTheatricalEnd(project: Project, currentAbs: number)
 export function isPostTheatricalEligibleProject(project: Project, currentAbs: number): boolean {
   if (!project) return false;
   if (isTvProject(project)) return false;
-  if (project.status !== 'released') return false;
+
+  const status = project.status;
+  const isReleasedLike =
+    status === 'released' || status === 'distribution' || status === 'archived' || status === 'completed';
+  if (!isReleasedLike) return false;
 
   const releaseAbs = getReleaseAbs(project);
   if (releaseAbs == null) return false;

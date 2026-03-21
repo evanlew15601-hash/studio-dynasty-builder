@@ -524,6 +524,23 @@ export const StreamingWarsPlatformApp: React.FC = () => {
 
   const bestOutputDealOffer = outputDealOffers[0] ?? null;
 
+  const outputDealBuyout = useMemo(() => {
+    if (!gameState) return null;
+    if (!player || player.status !== 'active') return null;
+    if (!player.outputDeal) return null;
+
+    const currentAbs = absWeek(gameState.currentWeek ?? 0, gameState.currentYear ?? 0);
+    const endAbs = absWeek(player.outputDeal.endWeek, player.outputDeal.endYear);
+    const remainingWeeks = Math.max(0, endAbs - currentAbs);
+
+    const base = Math.floor(player.outputDeal.upfrontPayment * 0.45);
+    const timeComponent = remainingWeeks * 2_500_000;
+
+    const buyoutCost = clampInt(base + timeComponent, 40_000_000, Math.max(80_000_000, player.outputDeal.upfrontPayment));
+
+    return { buyoutCost, remainingWeeks };
+  }, [gameState, player]);
+
   const shutdownPlan = useMemo(() => {
     if (!player || player.status !== 'active') return null;
 
@@ -718,6 +735,68 @@ export const StreamingWarsPlatformApp: React.FC = () => {
                 ],
               })),
               { id: 'pass', text: 'Pass (stay exclusive)', consequences: [] },
+            ],
+          } as any,
+        ],
+      } as any;
+    });
+  };
+
+  const queueOutputDealBuyoutEvent = () => {
+    if (!player || player.status !== 'active') return;
+    if (!gameState) return;
+    if (!player.outputDeal) return;
+
+    setGameState((prev) => {
+      if ((prev.eventQueue || []).length > 0) return prev;
+
+      const pm = prev.platformMarket;
+      const pl = pm?.player;
+      const deal = (pl as any)?.outputDeal;
+      if (!pm || !pl || pl.status !== 'active' || !deal) return prev;
+
+      const year = prev.currentYear;
+      const week = prev.currentWeek;
+      const eventId = `platform:output-deal-buyout:${year}:W${week}:${pl.id}`;
+
+      if ((prev.eventQueue || []).some((e) => e.id === eventId)) return prev;
+
+      const currentAbs = absWeek(week, year);
+      const endAbs = absWeek(deal.endWeek, deal.endYear);
+      const remainingWeeks = Math.max(0, endAbs - currentAbs);
+
+      const base = Math.floor((deal.upfrontPayment ?? 0) * 0.45);
+      const timeComponent = remainingWeeks * 2_500_000;
+      const buyoutCost = clampInt(base + timeComponent, 40_000_000, Math.max(80_000_000, deal.upfrontPayment ?? 0));
+
+      const title = `Buy out output deal: ${pl.name}`;
+      const description = `You can pay a termination fee to end the output deal early. Future theatrical releases will remain exclusive unless you sign a new agreement.`;
+
+      return {
+        ...prev,
+        eventQueue: [
+          ...(prev.eventQueue || []),
+          {
+            id: eventId,
+            title,
+            description,
+            type: 'market',
+            triggerDate: triggerDateFromWeekYear(year, week),
+            data: {
+              kind: 'platform:output-deal-buyout',
+              playerPlatformId: pl.id,
+              buyoutCost,
+              remainingWeeks,
+              partnerId: deal.partnerId,
+              partnerName: deal.partnerName,
+            },
+            choices: [
+              {
+                id: 'buyout',
+                text: `Pay buyout (${formatUsdCompact(buyoutCost)})`,
+                consequences: [{ type: 'budget', impact: -buyoutCost, description: 'Termination fee' }],
+              },
+              { id: 'keep', text: 'Keep the output deal', consequences: [] },
             ],
           } as any,
         ],
@@ -1669,6 +1748,17 @@ export const StreamingWarsPlatformApp: React.FC = () => {
                     >
                       Explore output deal ({bestOutputDealOffer ? formatUsdCompact(bestOutputDealOffer.upfrontPayment) : '—'})
                     </Button>
+
+                    {player.outputDeal && outputDealBuyout && (
+                      <Button
+                        type="button"
+                        variant="outline"
+                        onClick={queueOutputDealBuyoutEvent}
+                        disabled={(gameState.eventQueue || []).length > 0}
+                      >
+                        Buy out output deal ({formatUsdCompact(outputDealBuyout.buyoutCost)})
+                      </Button>
+                    )}
 
                     <Button
                       type="button"

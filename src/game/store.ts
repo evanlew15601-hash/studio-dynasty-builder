@@ -1458,6 +1458,55 @@ export const useGameStore: import('zustand').UseBoundStore<import('zustand').Sto
             }
           }
 
+          if (kind === 'platform:output-deal-buyout') {
+            const market = s.game.platformMarket;
+            const player = market?.player;
+
+            const buyoutCost = Math.max(0, Math.floor((event as any)?.data?.buyoutCost ?? 0));
+            const partnerName = (event as any)?.data?.partnerName as string | undefined;
+
+            if (market && player && player.status === 'active') {
+              if (selectedChoice.id === 'buyout') {
+                (player as any).outputDeal = undefined;
+                player.freshness = clamp((player.freshness ?? 50) + 1, 0, 100);
+
+                const headline = `${player.name} buys out its output deal with ${partnerName ?? 'a rival'} for ${Math.round(
+                  buyoutCost / 1_000_000
+                )}M`;
+
+                MediaEngine.injectDeterministicMediaItem({
+                  id: `media:${event.id}:${selectedChoice.id}`,
+                  type: 'news',
+                  headline,
+                  content: headline,
+                  week: s.game.currentWeek,
+                  year: s.game.currentYear,
+                  sentiment: 'neutral',
+                  targets: { studios: [s.game.studio.id] },
+                  tags: ['streaming', 'licensing', 'output-deal'],
+                  relatedEvents: [event.id],
+                  sourceType: 'trade_publication',
+                });
+              } else {
+                const headline = `${player.name} keeps its output deal with ${partnerName ?? 'a rival'} in place`;
+
+                MediaEngine.injectDeterministicMediaItem({
+                  id: `media:${event.id}:${selectedChoice.id}`,
+                  type: 'news',
+                  headline,
+                  content: headline,
+                  week: s.game.currentWeek,
+                  year: s.game.currentYear,
+                  sentiment: 'neutral',
+                  targets: { studios: [s.game.studio.id] },
+                  tags: ['streaming', 'strategy'],
+                  relatedEvents: [event.id],
+                  sourceType: 'trade_publication',
+                });
+              }
+            }
+          }
+
           if (kind === 'platform:voluntary-shutdown') {
             const market = s.game.platformMarket;
             const player = market?.player;

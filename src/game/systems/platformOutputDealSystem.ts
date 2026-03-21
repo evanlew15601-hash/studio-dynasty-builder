@@ -91,10 +91,10 @@ export const PlatformOutputDealSystem: TickSystem = {
     const updatedById = new Map<string, Project>();
 
     for (const project0 of candidates) {
-      if (!project0 || project0.status !== 'released') continue;
-
-      // Player-only: skip AI studio releases.
-      if (project0.studioName && project0.studioName !== state.studio.name) continue;
+      const status = project0?.status;
+      const isReleasedLike =
+        status === 'released' || status === 'distribution' || status === 'archived' || status === 'completed';
+      if (!project0 || !isReleasedLike) continue;
 
       if (!isTheatricalFilm(project0)) continue;
 
