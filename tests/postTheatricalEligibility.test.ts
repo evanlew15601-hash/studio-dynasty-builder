@@ -1,7 +1,7 @@
 import { describe, expect, it } from 'vitest';
 import type { Project } from '@/types/game';
 import { triggerDateFromWeekYear } from '@/utils/gameTime';
-import { getTheatricalEndAbs, getWeeksSinceTheatricalEnd, isPostTheatricalEligibleProject } from '@/utils/postTheatrical';
+import { getOwnedPlatformArrivalAbs, getTheatricalEndAbs, getWeeksSinceTheatricalEnd, isPostTheatricalEligibleProject } from '@/utils/postTheatrical';
 
 function makeTheatricalFilm(params: {
   id: string;
@@ -106,5 +106,26 @@ describe('postTheatrical eligibility helpers', () => {
 
     expect(getTheatricalEndAbs(film, currentAbs)).toBe(2027 * 52 + 21);
     expect(isPostTheatricalEligibleProject(film, currentAbs)).toBe(true);
+  });
+
+  it('computes owned-platform arrival relative to theatrical end (not release date)', () => {
+    const film = makeTheatricalFilm({
+      id: 'p4',
+      releaseWeek: 1,
+      releaseYear: 2027,
+      ended: true,
+      theatricalEndWeek: 10,
+      theatricalEndYear: 2027,
+      weeksSinceRelease: 20,
+    });
+
+    // Current time: week 12, theatrical ended at week 10.
+    const currentAbs = 2027 * 52 + 12;
+
+    // With a 4-week delay, earliest should be end(10)+4 => week 14.
+    expect(getOwnedPlatformArrivalAbs(film, currentAbs, 4)).toBe(2027 * 52 + 14);
+
+    // If the delay window already elapsed, arrival becomes immediate (>= currentAbs).
+    expect(getOwnedPlatformArrivalAbs(film, currentAbs, 0)).toBe(currentAbs);
   });
 });

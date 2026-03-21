@@ -3,12 +3,14 @@ import type { PostTheatricalRelease, Project } from '@/types/game';
 import {
   getContractPlatformId,
   getDistributionChannelPlatformId,
+  getPostTheatricalPlatformId,
   getReleaseStrategyPlatformId,
   getReleaseWindowPlatformId,
   isPlayerPlatformId,
 } from '@/utils/platformIds';
 import type { TickSystem } from '../core/types';
 import { absWeek, effectiveArrivalAbs } from './platformRecency';
+import { getTheatricalEndAbs } from '@/utils/postTheatrical';
 
 function clamp(n: number, min: number, max: number): number {
   return Math.max(min, Math.min(max, n));
@@ -42,16 +44,24 @@ function pickPostTheatricalArrivalAbs(params: {
 }): number {
   const { project, release, currentAbs } = params;
 
+  const platformId = getPostTheatricalPlatformId(release);
+  const endAbs = isPlayerPlatformId(platformId) ? getTheatricalEndAbs(project, currentAbs) : null;
+
   if (typeof release.releaseWeek === 'number' && typeof release.releaseYear === 'number') {
-    return absWeek(release.releaseWeek, release.releaseYear);
+    const explicit = absWeek(release.releaseWeek, release.releaseYear);
+    return endAbs != null ? Math.max(explicit, endAbs) : explicit;
   }
 
-  if (
-    typeof release.delayWeeks === 'number' &&
-    typeof project.releaseWeek === 'number' &&
-    typeof project.releaseYear === 'number'
-  ) {
-    return absWeek(project.releaseWeek, project.releaseYear) + Math.max(0, Math.floor(release.delayWeeks));
+  if (typeof release.delayWeeks === 'number') {
+    const delay = Math.max(0, Math.floor(release.delayWeeks));
+
+    if (endAbs != null) {
+      return endAbs + delay;
+    }
+
+    if (typeof project.releaseWeek === 'number' && typeof project.releaseYear === 'number') {
+      return absWeek(project.releaseWeek, project.releaseYear) + delay;
+    }
   }
 
   return currentAbs;

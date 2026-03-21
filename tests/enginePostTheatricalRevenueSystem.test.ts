@@ -223,4 +223,99 @@ describe('Engine post-theatrical revenue system', () => {
     expect(window.lastProcessedWeek).toBe(8);
     expect(window.lastProcessedYear).toBe(2024);
   });
+
+  it('does not start a player-platform window before theatrical end (guardrail)', () => {
+    const project: Project = {
+      id: 'p3',
+      title: 'Theatrical Feature',
+      script: {
+        id: 's3',
+        title: 'Theatrical Feature',
+        genre: 'drama',
+        logline: '',
+        writer: 'x',
+        pages: 100,
+        quality: 50,
+        budget: 10_000_000,
+        developmentStage: 'final',
+        themes: [],
+        targetAudience: 'general',
+        estimatedRuntime: 100,
+        characteristics: {
+          tone: 'balanced',
+          pacing: 'steady',
+          dialogue: 'naturalistic',
+          visualStyle: 'realistic',
+          commercialAppeal: 5,
+          criticalPotential: 5,
+          cgiIntensity: 'minimal',
+        },
+      },
+      type: 'feature',
+      currentPhase: 'distribution' as any,
+      budget: { total: 10_000_000 } as any,
+      cast: [],
+      crew: [],
+      timeline: {} as any,
+      locations: [],
+      distributionStrategy: {} as any,
+      status: 'released',
+      metrics: {
+        inTheaters: true,
+        boxOfficeStatus: 'Active',
+      } as any,
+      phaseDuration: 0,
+      contractedTalent: [],
+      developmentProgress: {
+        scriptCompletion: 100,
+        budgetApproval: 100,
+        talentAttached: 100,
+        locationSecured: 100,
+        completionThreshold: 100,
+        issues: [],
+      },
+      releaseWeek: 1,
+      releaseYear: 2024,
+      postTheatricalReleases: [
+        {
+          id: 'post-3',
+          projectId: 'p3',
+          platform: 'streaming',
+          platformId: 'player-platform:studio-1',
+          releaseDate: new Date(Date.UTC(2024, 0, 1)),
+          // Malformed schedule: tries to start immediately even though theatrical is still active.
+          releaseWeek: 9,
+          releaseYear: 2024,
+          delayWeeks: 0,
+          revenue: 0,
+          weeklyRevenue: 250_000,
+          weeksActive: 0,
+          status: 'planned',
+          cost: 0,
+          durationWeeks: 26,
+        },
+      ],
+    };
+
+    const state = makeBaseState({
+      // Starting at week 9.
+      currentWeek: 9,
+      currentYear: 2024,
+      projects: [project],
+      allReleases: [project],
+    });
+
+    const result = advanceWeek(state, createRng(1), [PostTheatricalRevenueSystem]);
+    const next = result.nextState;
+
+    expect(next.currentWeek).toBe(10);
+
+    const window = next.projects[0].postTheatricalReleases?.[0];
+    expect(window).toBeTruthy();
+    if (!window) throw new Error('Expected post-theatrical window to exist');
+
+    expect(window.status).toBe('planned');
+    expect(window.weeksActive).toBe(0);
+    expect(window.revenue).toBe(0);
+  });
 });
