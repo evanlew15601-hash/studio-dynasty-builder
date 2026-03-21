@@ -3,7 +3,7 @@ import type { TickSystem } from './types';
 import { isPrimaryStreamingFilm } from '@/utils/projectMedium';
 
 export type CoreLoopIssue = {
-  check: 1 | 2 | 3 | 4 | 5 | 6 | 7 | 8 | 9 | 10 | 11 | 12;
+  check: 1 | 2 | 3 | 4 | 5 | 6 | 7 | 8 | 9 | 10 | 11 | 12 | 13 | 14;
   message: string;
   code: string;
 };
@@ -502,6 +502,142 @@ export function validateGameState(state: GameState): CoreLoopIssue[] {
           code: 'project.scheduled_release.stuck_past_date',
           message: `Project "${project.id}" is still in release/scheduled-for-release after its scheduled date (scheduled=Y${y}W${w}, now=Y${state.currentYear}W${state.currentWeek}).`,
         });
+      }
+    }
+  }
+
+  // ---------------------------------------------------------------------------
+  // Check 13: Awards season integrity
+  // ---------------------------------------------------------------------------
+
+  const season = (state as any).awardsSeason as any;
+  if (season) {
+    const processed = Array.isArray(season.processedCeremonies) ? (season.processedCeremonies as any[]) : [];
+    const history = season.ceremonyHistory && typeof season.ceremonyHistory === 'object' ? (season.ceremonyHistory as Record<string, any>) : {};
+
+    const processedKeys = processed.filter((x) => typeof x === 'string') as string[];
+
+    const seen = new Set<string>();
+    for (const key of processedKeys) {
+      if (seen.has(key)) {
+        pushIssue({
+          check: 13,
+          code: 'awardsSeason.processedCeremonies.duplicate',
+          message: `Awards season processedCeremonies contains duplicate key "${key}".`,
+        });
+      }
+      seen.add(key);
+    }
+
+    for (const key of processedKeys) {
+      if (!history[key]) {
+        pushIssue({
+          check: 13,
+          code: 'awardsSeason.processedCeremonies.missing_ceremonyHistory',
+          message: `Awards season marks ceremony "${key}" processed but has no ceremonyHistory record.`,
+        });
+      }
+    }
+
+    for (const showId of Object.keys(history)) {
+      if (!processedKeys.includes(showId)) {
+        pushIssue({
+          check: 13,
+          code: 'awardsSeason.ceremonyHistory.unprocessed_show',
+          message: `Awards season has ceremonyHistory for "${showId}" but it is not in processedCeremonies.`,
+        });
+      }
+
+      const rec = history[showId];
+      const nominations = rec?.nominations;
+      const winners = rec?.winners;
+      if (nominations && winners) {
+        for (const category of Object.keys(winners)) {
+          const winner = winners[category];
+          const nomineeList = nominations[category] as any[] | undefined;
+
+          if (!winner || typeof winner.projectId !== 'string') {
+            pushIssue({
+              check: 13,
+              code: 'awardsSeason.winner.invalid',
+              message: `Awards ceremony "${showId}" has invalid winner entry for category "${category}".`,
+            });
+            continue;
+          }
+
+          if (!Array.isArray(nomineeList) || nomineeList.length === 0) {
+            pushIssue({
+              check: 13,
+              code: 'awardsSeason.winner.without_nominees',
+              message: `Awards ceremony "${showId}" has a winner for category "${category}" but no nominees recorded.`,
+            });
+            continue;
+          }
+
+          if (!nomineeList.some((n) => n && n.projectId === winner.projectId)) {
+            pushIssue({
+              check: 13,
+              code: 'awardsSeason.winner.not_in_nominees',
+              message: `Awards ceremony "${showId}" winner projectId "${winner.projectId}" is not in nominees for category "${category}".`,
+            });
+          }
+        }
+      }
+    }
+  }
+
+  // ---------------------------------------------------------------------------
+  // Check 14: Platform market invariants (no negative cash/subs, no NaNs)
+  // ---------------------------------------------------------------------------
+
+  const market = (state as any).platformMarket as any;
+  if (market) {
+    const allPlatforms = [market.player, ...(market.rivals || [])].filter(Boolean);
+    for (const p of allPlatforms) {
+      const pid = p?.id ?? 'unknown-platform';
+
+      const subs = p?.subscribers;
+      if (typeof subs === 'number') {
+        if (!Number.isFinite(subs) || subs < 0) {
+          pushIssue({
+            check: 14,
+            code: 'platform.subscribers.invalid',
+            message: `Platform "${pid}" has invalid subscribers=${String(subs)}.`,
+          });
+        }
+      }
+
+      const cash = p?.cash;
+      if (typeof cash === 'number') {
+        if (!Number.isFinite(cash)) {
+          pushIssue({
+            check: 14,
+            code: 'platform.cash.non_finite',
+            message: `Platform "${pid}" has non-finite cash=${String(cash)}.`,
+          });
+        }
+      }
+
+      const priceIndex = p?.priceIndex;
+      if (typeof priceIndex === 'number') {
+        if (!Number.isFinite(priceIndex) || priceIndex < 0) {
+          pushIssue({
+            check: 14,
+            code: 'platform.priceIndex.invalid',
+            message: `Platform "${pid}" has invalid priceIndex=${String(priceIndex)}.`,
+          });
+        }
+      }
+
+      const promo = p?.promotionBudgetPerWeek;
+      if (typeof promo === 'number') {
+        if (!Number.isFinite(promo) || promo < 0) {
+          pushIssue({
+            check: 14,
+            code: 'platform.promoBudget.invalid',
+            message: `Platform "${pid}" has invalid promotionBudgetPerWeek=${String(promo)}.`,
+          });
+        }
       }
     }
   }
