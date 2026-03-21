@@ -396,6 +396,15 @@ export const StreamingWarsPlatformApp: React.FC = () => {
     transferredCatalog: number;
   };
 
+  type OutputDealOffer = {
+    buyerId: string;
+    buyerName: string;
+    upfrontPayment: number;
+    termWeeks: number;
+    windowDelayWeeks: number;
+    windowDurationWeeks: number;
+  };
+
   
 
   const openLicenseDialog = (project: Project) => {
@@ -468,6 +477,52 @@ export const StreamingWarsPlatformApp: React.FC = () => {
   ]);
 
   const bestStrategicSaleOffer = strategicSaleOffers[0] ?? null;
+
+  const outputDealOffers = useMemo((): OutputDealOffer[] => {
+    if (!player || player.status !== 'active') return [];
+    if (player.outputDeal) return [];
+
+    const eligible = rivals.filter((r) => r.status !== 'collapsed');
+    if (eligible.length === 0) return [];
+
+    const subs = Math.max(0, Math.floor(player.subscribers ?? 0));
+    const freshness = clamp(player.freshness ?? 50, 0, 100);
+    const catalogValue = clamp(player.catalogValue ?? 40, 0, 100);
+
+    const termWeeks = 52;
+    const windowDelayWeeks = 14;
+    const windowDurationWeeks = 26;
+
+    const base = 85_000_000 + subs * 11 + freshness * 850_000 + catalogValue * 700_000;
+
+    const seedBase = `${gameState?.universeSeed ?? 0}|platform:output-deal|${gameState?.currentYear ?? 0}:W${gameState?.currentWeek ?? 0}|${player.id}`;
+
+    return eligible
+      .map((rival) => {
+        const sizeBoost = clampInt((rival.subscribers ?? 0) / 1_000_000, 0, 120) * 3_200_000;
+        const jitter = stableInt(`${seedBase}|${rival.id}|jitter`, -8, 10) / 100;
+
+        const upfrontPayment = clampInt((base + sizeBoost) * (1 + jitter), 60_000_000, 4_500_000_000);
+
+        return {
+          buyerId: rival.id,
+          buyerName: rival.name,
+          upfrontPayment,
+          termWeeks,
+          windowDelayWeeks,
+          windowDurationWeeks,
+        };
+      })
+      .sort((a, b) => b.upfrontPayment - a.upfrontPayment);
+  }, [
+    gameState?.currentWeek,
+    gameState?.currentYear,
+    gameState?.universeSeed,
+    player,
+    rivals,
+  ]);
+
+  const bestOutputDealOffer = outputDealOffers[0] ?? null;
 
   const shutdownPlan = useMemo(() => {
     if (!player || player.status !== 'active') return null;
@@ -606,6 +661,63 @@ export const StreamingWarsPlatformApp: React.FC = () => {
                 ],
               })),
               { id: 'keep', text: 'Stay independent', consequences: [] },
+            ],
+          } as any,
+        ],
+      } as any;
+    });
+  };
+
+  const queueOutputDealEvent = () => {
+    if (!player || player.status !== 'active') return;
+    if (!gameState) return;
+    if (player.outputDeal) return;
+
+    const offers = outputDealOffers;
+    if (offers.length === 0) return;
+
+    setGameState((prev) => {
+      if ((prev.eventQueue || []).length > 0) return prev;
+
+      const pm = prev.platformMarket;
+      const pl = pm?.player;
+      if (!pm || !pl || pl.status !== 'active') return prev;
+      if ((pl as any).outputDeal) return prev;
+
+      const year = prev.currentYear;
+      const week = prev.currentWeek;
+      const eventId = `platform:output-deal:${year}:W${week}:${pl.id}`;
+
+      if ((prev.eventQueue || []).some((e) => e.id === eventId)) return prev;
+
+      const title = `Output deal: ${pl.name}`;
+      const description = `Rivals want a pay-one output deal for your future theatrical releases. You get a big minimum guarantee now, but your exclusivity moat weakens over the next year.`;
+
+      return {
+        ...prev,
+        eventQueue: [
+          ...(prev.eventQueue || []),
+          {
+            id: eventId,
+            title,
+            description,
+            type: 'market',
+            triggerDate: triggerDateFromWeekYear(year, week),
+            data: {
+              kind: 'platform:output-deal',
+              playerPlatformId: pl.id,
+              offers,
+            },
+            choices: [
+              ...offers.map((o) => ({
+                id: `output:${o.buyerId}`,
+                text: `Sign with ${o.buyerName} (${formatUsdCompact(o.upfrontPayment)})`,
+                consequences: [
+                  { type: 'budget', impact: o.upfrontPayment, description: 'Output deal guarantee' },
+                  { type: 'reputation', impact: -1, description: 'Exclusivity optics' },
+                ],
+              })),
+              { id: 'pass', text: 'Pass (stay exclusive)', consequences: [] },
             ],
           } as any,
         ],
@@ -1492,10 +1604,10 @@ export const StreamingWarsPlatformApp: React.FC = () => {
                 </CardHeader>
                 <CardContent className="space-y-3">
                   <p className="text-sm text-muted-foreground">
-                    If you want out of streaming, you can sell {player.name} to a rival. You receive cash upfront, subscribers transfer to the buyer, and the brand is locked.
+                    If you want out of streaming, you can sell {player.name} to a rival. Or you can sign an output deal to monetize future releases while keeping the platform running.
                   </p>
 
-                  <div className="grid grid-cols-1 sm:grid-cols-3 gap-2 text-xs">
+                  <div className="grid grid-cols-1 sm:grid-cols-4 gap-2 text-xs">
                     <div className="rounded border p-2">
                       <div className="text-muted-foreground">Best sale offer</div>
                       <div className="font-medium">{bestStrategicSaleOffer ? formatUsdCompact(bestStrategicSaleOffer.salePrice) : '—'}</div>
@@ -1511,6 +1623,22 @@ export const StreamingWarsPlatformApp: React.FC = () => {
                     <div className="rounded border p-2">
                       <div className="text-muted-foreground">Interested buyers</div>
                       <div className="font-medium">{strategicSaleOffers.length}</div>
+                    </div>
+                    <div className="rounded border p-2">
+                      <div className="text-muted-foreground">Best output deal</div>
+                      <div className="font-medium">
+                        {player.outputDeal
+                          ? `Active: ${player.outputDeal.partnerName}`
+                          : bestOutputDealOffer
+                            ? formatUsdCompact(bestOutputDealOffer.upfrontPayment)
+                            : '—'}
+                      </div>
+                      {!player.outputDeal && bestOutputDealOffer && (
+                        <div className="text-muted-foreground">Term {Math.round(bestOutputDealOffer.termWeeks / 52)}y • {bestOutputDealOffer.windowDelayWeeks}w delay</div>
+                      )}
+                      {player.outputDeal && (
+                        <div className="text-muted-foreground">Ends Y{player.outputDeal.endYear}W{player.outputDeal.endWeek}</div>
+                      )}
                     </div>
                   </div>
 
@@ -1531,6 +1659,15 @@ export const StreamingWarsPlatformApp: React.FC = () => {
                       disabled={(gameState.eventQueue || []).length > 0 || !shutdownPlan}
                     >
                       Explore shutdown ({shutdownPlan ? formatUsdCompact(shutdownPlan.proceeds) : '—'})
+                    </Button>
+
+                    <Button
+                      type="button"
+                      variant="secondary"
+                      onClick={queueOutputDealEvent}
+                      disabled={(gameState.eventQueue || []).length > 0 || outputDealOffers.length === 0 || !!player.outputDeal}
+                    >
+                      Explore output deal ({bestOutputDealOffer ? formatUsdCompact(bestOutputDealOffer.upfrontPayment) : '—'})
                     </Button>
 
                     <Button

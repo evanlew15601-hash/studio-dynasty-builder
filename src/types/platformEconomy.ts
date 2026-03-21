@@ -46,6 +46,20 @@ export interface PlatformWeeklyKpis {
   profit: number;
 }
 
+export interface PlatformOutputDeal {
+  partnerId: string;
+  partnerName: string;
+  startWeek: number;
+  startYear: number;
+  endWeek: number;
+  endYear: number;
+  upfrontPayment: number;
+  /** Delay between a theatrical release and the partner window going live. */
+  windowDelayWeeks: number;
+  /** Duration of the partner streaming window. */
+  windowDurationWeeks: number;
+}
+
 export interface PlayerPlatformState {
   /** Stable platform id (e.g., player-platform:<studioId>) */
   id: string;
@@ -107,6 +121,9 @@ export interface PlayerPlatformState {
 
   /** Internal: ensures the outage crisis is at most once per year. */
   lastOutageYear?: number;
+
+  /** Optional: output deal (pay-one style) licensing future theatrical films to a rival streamer. */
+  outputDeal?: PlatformOutputDeal;
 
   // Optional knobs for future economy simulation
   monthlyPrice?: number;

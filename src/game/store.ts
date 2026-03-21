@@ -72,6 +72,7 @@ import { PlatformCompetitionAndMAndASystem } from './systems/platformCompetition
 import { PlatformCrisisSystem } from './systems/platformCrisisSystem';
 import { PlatformOpportunitiesSystem } from './systems/platformOpportunitiesSystem';
 import { PlatformMnaOffersSystem } from './systems/platformMnaOffersSystem';
+import { PlatformOutputDealSystem } from './systems/platformOutputDealSystem';
 import { PlatformTalentDealsSystem } from './systems/platformTalentDealsSystem';
 import { PlatformBiddingWarSystem } from './systems/platformBiddingWarSystem';
 import { MediaEngine } from '@/game/media/mediaEngine';
@@ -241,6 +242,7 @@ export const useGameStore: import('zustand').UseBoundStore<import('zustand').Sto
       r.register(PlatformOriginalsReleaseCadenceSystem);
       r.register(SeasonAiringStatusSystem);
       r.register(PlatformCatalogSystem);
+      r.register(PlatformOutputDealSystem);
       r.register(PlatformEconomySystem);
       r.register(PlatformCompetitionAndMAndASystem);
       r.register(PlatformCrisisSystem);
@@ -1367,6 +1369,88 @@ export const useGameStore: import('zustand').UseBoundStore<import('zustand').Sto
                   sentiment: 'neutral',
                   targets: { studios: [s.game.studio.id] },
                   tags: ['streaming', 'strategy'],
+                  relatedEvents: [event.id],
+                  sourceType: 'trade_publication',
+                });
+              }
+            }
+          }
+
+          if (kind === 'platform:output-deal') {
+            const market = s.game.platformMarket;
+            const player = market?.player;
+
+            const offers = Array.isArray((event as any)?.data?.offers) ? ((event as any).data.offers as any[]) : [];
+
+            const buyerId = selectedChoice.id.startsWith('output:') ? selectedChoice.id.slice('output:'.length) : undefined;
+            const offer = buyerId ? offers.find((o) => o && o.buyerId === buyerId) : undefined;
+
+            const upfrontPayment = Math.max(0, Math.floor(offer?.upfrontPayment ?? 0));
+            const termWeeks = Math.max(26, Math.floor(offer?.termWeeks ?? 52));
+            const windowDelayWeeks = Math.max(0, Math.floor(offer?.windowDelayWeeks ?? 14));
+            const windowDurationWeeks = Math.max(8, Math.floor(offer?.windowDurationWeeks ?? 26));
+
+            if (market && player && player.status === 'active') {
+              if (buyerId && offer) {
+                const startAbs = s.game.currentYear * 52 + s.game.currentWeek;
+                const endAbs = startAbs + termWeeks;
+
+                let endYear = Math.floor(endAbs / 52);
+                let endWeek = endAbs % 52;
+
+                if (endWeek === 0) {
+                  endWeek = 52;
+                  endYear -= 1;
+                }
+
+                (player as any).outputDeal = {
+                  partnerId: buyerId,
+                  partnerName: offer?.buyerName ?? offer?.buyer ?? 'Rival',
+                  startWeek: s.game.currentWeek,
+                  startYear: s.game.currentYear,
+                  endWeek,
+                  endYear,
+                  upfrontPayment,
+                  windowDelayWeeks,
+                  windowDurationWeeks,
+                };
+
+                player.cash = (player.cash ?? 0) + upfrontPayment;
+                player.freshness = clamp((player.freshness ?? 50) - 4, 0, 100);
+                player.catalogValue = clamp((player.catalogValue ?? 45) - 2, 0, 100);
+
+                const buyer = (market.rivals || []).find((r) => r.id === buyerId);
+
+                const headline = `${player.name} signs an output deal with ${offer?.buyerName ?? buyer?.name ?? 'a rival'} for ${Math.round(
+                  upfrontPayment / 1_000_000
+                )}M`;
+
+                MediaEngine.injectDeterministicMediaItem({
+                  id: `media:${event.id}:${selectedChoice.id}`,
+                  type: 'news',
+                  headline,
+                  content: headline,
+                  week: s.game.currentWeek,
+                  year: s.game.currentYear,
+                  sentiment: 'neutral',
+                  targets: { studios: [s.game.studio.id] },
+                  tags: ['streaming', 'licensing', 'output-deal'],
+                  relatedEvents: [event.id],
+                  sourceType: 'trade_publication',
+                });
+              } else {
+                const headline = `${player.name} declines output deal talks and keeps future releases exclusive`;
+
+                MediaEngine.injectDeterministicMediaItem({
+                  id: `media:${event.id}:${selectedChoice.id}`,
+                  type: 'news',
+                  headline,
+                  content: headline,
+                  week: s.game.currentWeek,
+                  year: s.game.currentYear,
+                  sentiment: 'positive',
+                  targets: { studios: [s.game.studio.id] },
+                  tags: ['streaming', 'exclusivity'],
                   relatedEvents: [event.id],
                   sourceType: 'trade_publication',
                 });

@@ -18,6 +18,7 @@ import {
 } from '@/components/ui/icons';
 import { MediaFinancialIntegration } from './MediaFinancialIntegration';
 import { isPrimaryStreamingFilm } from '@/utils/projectMedium';
+import { getWeeksSinceTheatricalEnd, isPostTheatricalEligibleProject } from '@/utils/postTheatrical';
 
 interface PostTheatricalManagementProps {}
 
@@ -100,33 +101,21 @@ export const PostTheatricalManagement: React.FC<PostTheatricalManagementProps> =
   const totalPostTheatricalRevenue = allReleases.reduce((sum, r) => sum + (r.revenue || 0), 0);
   const weeklyPostTheatricalRevenue = activeReleases.reduce((sum, r) => sum + (r.weeklyRevenue || 0), 0);
 
+  const currentAbsWeek = (gameState.currentYear * 52) + gameState.currentWeek;
+
   const getEligibleProjects = () => {
-    return gameState.projects.filter(project => 
-      project.postTheatricalEligible && 
-      project.theatricalEndDate &&
-      project.status === 'released'
-    );
+    return gameState.projects.filter((project) => isPostTheatricalEligibleProject(project, currentAbsWeek));
   };
 
   const calculateWeeksSinceTheatricalEnd = (project: Project): number => {
-    if (!project.theatricalEndDate || !project.releaseWeek || !project.releaseYear) return 0;
+    const weeksSinceTheatricalEnd = getWeeksSinceTheatricalEnd(project, currentAbsWeek);
 
-    // Use game time instead of real time
-    const currentGameWeek = (gameState.currentYear * 52) + gameState.currentWeek;
-    const releaseGameWeek = (project.releaseYear * 52) + project.releaseWeek;
-    const weeksSinceRelease = currentGameWeek - releaseGameWeek;
-
-    // Assume theatrical run lasted the weeks since release from metrics. For direct-to-streaming films,
-    // treat the theatrical run as 0 so secondary windows can unlock relative to the streaming premiere.
-    const theatricalRunWeeks = isPrimaryStreamingFilm(project) ? 0 : (project.metrics.weeksSinceRelease || 0);
-    const weeksSinceTheatricalEnd = Math.max(0, weeksSinceRelease - theatricalRunWeeks);
-
-    if (diagnosticsEnabled) {
+    if (diagnosticsEnabled && project.releaseWeek && project.releaseYear) {
+      const releaseAbs = (project.releaseYear * 52) + project.releaseWeek;
       console.log(`POST-THEATRICAL CHECK: ${project.title}`);
-      console.log(`   Release: Y${project.releaseYear}W${project.releaseWeek} (${releaseGameWeek})`);
-      console.log(`   Current: Y${gameState.currentYear}W${gameState.currentWeek} (${currentGameWeek})`);
-      console.log(`   Weeks since release: ${weeksSinceRelease}`);
-      console.log(`   Theatrical run weeks: ${theatricalRunWeeks}`);
+      console.log(`   Release: Y${project.releaseYear}W${project.releaseWeek} (${releaseAbs})`);
+      console.log(`   Current: Y${gameState.currentYear}W${gameState.currentWeek} (${currentAbsWeek})`);
+      console.log(`   Weeks since release: ${Math.max(0, currentAbsWeek - releaseAbs)}`);
       console.log(`   Weeks since theatrical end: ${weeksSinceTheatricalEnd}`);
     }
 
