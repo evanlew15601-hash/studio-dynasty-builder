@@ -137,6 +137,14 @@ export interface PlatformMarketLastWeek {
   rivals?: Array<{ id: string; status: RivalPlatformStatus; kpis: PlatformWeeklyKpis }>;
 }
 
+export interface PlatformBrandRegistryEntry {
+  name: string;
+  ownerId?: string;
+  ownerName?: string;
+  acquiredWeek?: number;
+  acquiredYear?: number;
+}
+
 export interface PlatformMarketState {
   /** Global market headroom for this save. */
   totalAddressableSubs?: number;
@@ -144,6 +152,9 @@ export interface PlatformMarketState {
   player?: PlayerPlatformState;
   /** Always prefer an array when present, but allow legacy undefined. */
   rivals?: RivalPlatformState[];
+
+  /** In-universe branding registry used to prevent relaunching under a name that already exists. */
+  brandRegistry?: PlatformBrandRegistryEntry[];
 
   /** Optional telemetry snapshot for UI and event triggers. */
   lastWeek?: PlatformMarketLastWeek;

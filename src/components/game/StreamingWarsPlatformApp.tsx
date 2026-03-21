@@ -210,6 +210,9 @@ export const StreamingWarsPlatformApp: React.FC = () => {
   const [launchPriceIndex, setLaunchPriceIndex] = useState(1);
   const [launchPromoBudget, setLaunchPromoBudget] = useState(15_000_000);
 
+  const [brandingConflictOpen, setBrandingConflictOpen] = useState(false);
+  const [brandingConflictMessage, setBrandingConflictMessage] = useState('');
+
   const [originalsOpen, setOriginalsOpen] = useState(false);
   const [originalTitle, setOriginalTitle] = useState('');
   const [originalGenre, setOriginalGenre] = useState<Genre>('drama');
@@ -568,6 +571,33 @@ export const StreamingWarsPlatformApp: React.FC = () => {
 
     const platformId = `player-platform:${gameState.studio.id}`;
 
+    const proposedKey = name.trim().toLowerCase();
+    const rivalNameMatch = rivals.find((r) => r && r.status !== 'collapsed' && r.name.trim().toLowerCase() === proposedKey);
+    const registryMatch = (platformMarket?.brandRegistry ?? []).find(
+      (b) => b && typeof b.name === 'string' && b.name.trim().toLowerCase() === proposedKey
+    );
+
+    const relaunching = !!player && player.status !== 'active';
+
+    // Prevent reusing a retired/sold brand, and prevent name collisions with rivals.
+    if (
+      (relaunching && player && player.name.trim().toLowerCase() === proposedKey) ||
+      !!rivalNameMatch ||
+      !!registryMatch
+    ) {
+      const ownerLabel = registryMatch?.ownerName || rivalNameMatch?.name || 'another service';
+      const reason =
+        relaunching && player && player.name.trim().toLowerCase() === proposedKey
+          ? 'That brand is tied up in the aftermath of your previous platform.'
+          : `That name is already in use by ${ownerLabel}.`;
+
+      setBrandingConflictMessage(
+        `${reason}\n\nIn-universe: the trademark lawyers (and app stores) won’t let you relaunch under a conflicting brand. Pick a new platform name.`
+      );
+      setBrandingConflictOpen(true);
+      return;
+    }
+
     const tierMix = {
       adSupportedPct: clampInt(launchAdSupportedPct, 0, 100),
       adFreePct: clampInt(100 - launchAdSupportedPct, 0, 100),
@@ -591,10 +621,23 @@ export const StreamingWarsPlatformApp: React.FC = () => {
     setGameState((prev) => {
       const market = prev.platformMarket ?? {};
 
+      const registry = Array.isArray((market as any).brandRegistry) ? [...((market as any).brandRegistry as any[])] : [];
+      const key = name.trim().toLowerCase();
+      if (key && !registry.some((e) => typeof e?.name === 'string' && e.name.trim().toLowerCase() === key)) {
+        registry.push({
+          name: name.trim(),
+          ownerId: platformId,
+          ownerName: prev.studio.name,
+          acquiredWeek: prev.currentWeek,
+          acquiredYear: prev.currentYear,
+        });
+      }
+
       return {
         ...prev,
         platformMarket: {
           ...market,
+          brandRegistry: registry,
           player: {
             id: platformId,
             name,
@@ -2069,6 +2112,22 @@ export const StreamingWarsPlatformApp: React.FC = () => {
                   License out
                 </Button>
               )}
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
+
+      <Dialog open={brandingConflictOpen} onOpenChange={setBrandingConflictOpen}>
+        <DialogContent>
+          <DialogHeader>
+            <DialogTitle>Branding conflict</DialogTitle>
+          </DialogHeader>
+
+          <div className="text-sm text-muted-foreground whitespace-pre-line">{brandingConflictMessage}</div>
+
+          <DialogFooter>
+            <Button type="button" onClick={() => setBrandingConflictOpen(false)}>
+              Ok
+            </Button>
           </DialogFooter>
         </DialogContent>
       </Dialog>

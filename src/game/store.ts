@@ -626,7 +626,25 @@ export const useGameStore: import('zustand').UseBoundStore<import('zustand').Sto
         if (selectedChoice) {
           for (const consequence of selectedChoice.consequences || []) {
             if (consequence.type === 'budget') {
-              s.game.studio.budget = (s.game.studio.budget ?? 0) + consequence.impact;
+              const impact = Math.floor(consequence.impact ?? 0);
+
+              if (impact >= 0) {
+                const debt0 = s.game.studio.debt || 0;
+                const paydown = debt0 > 0 ? Math.min(debt0, impact) : 0;
+                if (paydown > 0) {
+                  s.game.studio.debt = debt0 - paydown;
+                }
+                s.game.studio.budget = (s.game.studio.budget ?? 0) + (impact - paydown);
+              } else {
+                let nextBudget = (s.game.studio.budget ?? 0) + impact;
+                if (nextBudget < 0) {
+                  const debt0 = s.game.studio.debt || 0;
+                  s.game.studio.debt = debt0 + -nextBudget;
+                  nextBudget = 0;
+                }
+                s.game.studio.budget = nextBudget;
+              }
+
               continue;
             }
 
@@ -1316,8 +1334,11 @@ export const useGameStore: import('zustand').UseBoundStore<import('zustand').Sto
                   sourceType: 'trade_publication',
                 });
               } else if (selectedChoice.id === 'sell') {
+                const soldName = player.name;
+
                 player.status = 'sold';
                 player.subscribers = 0;
+                player.cash = 0;
                 player.closedWeek = s.game.currentWeek;
                 player.closedYear = s.game.currentYear;
 
@@ -1327,7 +1348,20 @@ export const useGameStore: import('zustand').UseBoundStore<import('zustand').Sto
                   buyer.catalogValue = clamp((buyer.catalogValue ?? 50) + transferredCatalog * 0.12, 0, 100);
                 }
 
-                const headline = `${player.name} sold in a distressed deal to ${buyerName ?? buyer?.name ?? 'a rival'} for ${Math.round(
+                const registry = Array.isArray((market as any).brandRegistry) ? ((market as any).brandRegistry as any[]) : [];
+                const brandKey = soldName.trim().toLowerCase();
+                if (brandKey && !registry.some((e) => typeof e?.name === 'string' && e.name.trim().toLowerCase() === brandKey)) {
+                  registry.push({
+                    name: soldName.trim(),
+                    ownerId: buyerId,
+                    ownerName: buyerName ?? buyer?.name,
+                    acquiredWeek: s.game.currentWeek,
+                    acquiredYear: s.game.currentYear,
+                  });
+                  (market as any).brandRegistry = registry;
+                }
+
+                const headline = `${soldName} sold in a distressed deal to ${buyerName ?? buyer?.name ?? 'a rival'} for ${Math.round(
                   salePrice / 1_000_000
                 )}M`;
 
@@ -1345,12 +1379,28 @@ export const useGameStore: import('zustand').UseBoundStore<import('zustand').Sto
                   sourceType: 'trade_publication',
                 });
               } else {
+                const retiredName = player.name;
+
                 player.status = 'shutdown';
                 player.subscribers = 0;
+                player.cash = 0;
                 player.closedWeek = s.game.currentWeek;
                 player.closedYear = s.game.currentYear;
 
-                const headline = `${player.name} shuts down after catastrophic losses`;
+                const registry = Array.isArray((market as any).brandRegistry) ? ((market as any).brandRegistry as any[]) : [];
+                const brandKey = retiredName.trim().toLowerCase();
+                if (brandKey && !registry.some((e) => typeof e?.name === 'string' && e.name.trim().toLowerCase() === brandKey)) {
+                  registry.push({
+                    name: retiredName.trim(),
+                    ownerId: `estate:${player.id}`,
+                    ownerName: 'the bankruptcy estate',
+                    acquiredWeek: s.game.currentWeek,
+                    acquiredYear: s.game.currentYear,
+                  });
+                  (market as any).brandRegistry = registry;
+                }
+
+                const headline = `${retiredName} shuts down after catastrophic losses`;
 
                 MediaEngine.injectDeterministicMediaItem({
                   id: `media:${event.id}:${selectedChoice.id || 'shutdown'}`,
