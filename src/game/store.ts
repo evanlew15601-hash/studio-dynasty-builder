@@ -718,7 +718,22 @@ export const useGameStore: import('zustand').UseBoundStore<import('zustand').Sto
               const studioId = s.game.studio.id;
               const loyalty = clamp(t.studioLoyalty?.[studioId] ?? 50, 0, 100);
               if (loyalty <= 20) {
+                // They walk: remove them from any active projects + contracts.
+                for (const project of s.game.projects || []) {
+                  if (!project) continue;
+                  project.cast = (project.cast || []).filter((r) => r.talentId !== talentId);
+                  project.crew = (project.crew || []).filter((r) => r.talentId !== talentId);
+                  project.contractedTalent = (project.contractedTalent || []).filter((r) => r.talentId !== talentId);
+                  if (project.script?.characters) {
+                    project.script.characters = project.script.characters.map((c) =>
+                      c.assignedTalentId === talentId ? { ...c, assignedTalentId: undefined } : c
+                    );
+                  }
+                }
+
                 t.contractStatus = 'available';
+                t.currentContractWeeks = 0;
+                if (t.contractStatusBase === 'contracted') t.contractStatusBase = 'available';
                 if (t.studioLoyalty) delete t.studioLoyalty[studioId];
               }
             }

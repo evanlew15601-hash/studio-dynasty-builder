@@ -3,7 +3,7 @@ import type { TickSystem } from './types';
 import { isPrimaryStreamingFilm } from '@/utils/projectMedium';
 
 export type CoreLoopIssue = {
-  check: 1 | 2 | 3 | 4 | 5 | 6 | 7;
+  check: 1 | 2 | 3 | 4 | 5 | 6 | 7 | 8 | 9 | 10;
   message: string;
   code: string;
 };
@@ -63,6 +63,10 @@ export function checkTickOrdering(systems: readonly TickSystem[]): CoreLoopIssue
 export function validateGameState(state: GameState): CoreLoopIssue[] {
   const issues: CoreLoopIssue[] = [];
 
+  const pushIssue = (issue: CoreLoopIssue) => {
+    issues.push(issue);
+  };
+
   // ---------------------------------------------------------------------------
   // Check 3: State duplication (cast/crew/contract lists)
   // ---------------------------------------------------------------------------
@@ -76,7 +80,7 @@ export function validateGameState(state: GameState): CoreLoopIssue[] {
     for (const r of project.cast || []) {
       if (!r?.talentId) continue;
       if (castIds.has(r.talentId)) {
-        issues.push({
+        pushIssue({
           check: 3,
           code: 'project.credits.duplicate_cast',
           message: `Project "${project.id}" has duplicate cast entries for talentId "${r.talentId}".`,
@@ -88,7 +92,7 @@ export function validateGameState(state: GameState): CoreLoopIssue[] {
     for (const r of project.crew || []) {
       if (!r?.talentId) continue;
       if (crewIds.has(r.talentId)) {
-        issues.push({
+        pushIssue({
           check: 3,
           code: 'project.credits.duplicate_crew',
           message: `Project "${project.id}" has duplicate crew entries for talentId "${r.talentId}".`,
@@ -99,7 +103,7 @@ export function validateGameState(state: GameState): CoreLoopIssue[] {
 
     for (const id of castIds) {
       if (crewIds.has(id)) {
-        issues.push({
+        pushIssue({
           check: 3,
           code: 'project.credits.talent_in_cast_and_crew',
           message: `Project "${project.id}" has talentId "${id}" listed in both cast and crew.`,
@@ -111,7 +115,7 @@ export function validateGameState(state: GameState): CoreLoopIssue[] {
     for (const c of project.contractedTalent || []) {
       if (!c?.talentId) continue;
       if (contracted.has(c.talentId)) {
-        issues.push({
+        pushIssue({
           check: 3,
           code: 'project.contracts.duplicate_contractedTalent',
           message: `Project "${project.id}" has duplicate contractedTalent entries for talentId "${c.talentId}".`,
@@ -135,7 +139,7 @@ export function validateGameState(state: GameState): CoreLoopIssue[] {
       const y = typeof project.releaseYear === 'number' ? project.releaseYear : typeof project.scheduledReleaseYear === 'number' ? project.scheduledReleaseYear : null;
 
       if (w == null || y == null) {
-        issues.push({
+        pushIssue({
           check: 4,
           code: 'project.released_like.missing_release_date',
           message: `Project "${project.id}" is "${project.status}" but has no releaseWeek/releaseYear (or scheduledReleaseWeek/Year).`,
@@ -143,7 +147,7 @@ export function validateGameState(state: GameState): CoreLoopIssue[] {
       } else {
         const releaseAbs = y * 52 + w;
         if (releaseAbs > currentAbs) {
-          issues.push({
+          pushIssue({
             check: 4,
             code: 'project.released_like.release_in_future',
             message: `Project "${project.id}" is "${project.status}" but its release date is in the future (Y${y}W${w}).`,
@@ -152,7 +156,7 @@ export function validateGameState(state: GameState): CoreLoopIssue[] {
       }
 
       if (project.phaseDuration > 0) {
-        issues.push({
+        pushIssue({
           check: 4,
           code: 'project.released_like.phaseDuration_positive',
           message: `Project "${project.id}" is "${project.status}" but has phaseDuration=${project.phaseDuration}.`,
@@ -178,7 +182,7 @@ export function validateGameState(state: GameState): CoreLoopIssue[] {
     if (isPrimaryStreamingFilm(project)) {
       const boxOfficeTotal = Math.max(0, Math.floor(project.metrics?.boxOfficeTotal ?? 0));
       if (boxOfficeTotal > 0) {
-        issues.push({
+        pushIssue({
           check: 5,
           code: 'project.streaming_first.has_box_office_total',
           message: `Primary streaming film "${project.id}" has boxOfficeTotal=${boxOfficeTotal}.`,
@@ -186,7 +190,7 @@ export function validateGameState(state: GameState): CoreLoopIssue[] {
       }
 
       if (theatricalReleaseIds.has(project.id)) {
-        issues.push({
+        pushIssue({
           check: 5,
           code: 'project.streaming_first.appears_in_box_office_history',
           message: `Primary streaming film "${project.id}" appears in boxOfficeHistory releases.`,
@@ -203,7 +207,7 @@ export function validateGameState(state: GameState): CoreLoopIssue[] {
   for (const project of state.projects || []) {
     if (!project) continue;
     if (project.studioName && playerStudioName && project.studioName !== playerStudioName) {
-      issues.push({
+      pushIssue({
         check: 6,
         code: 'ai_project.in_player_projects',
         message: `AI project "${project.id}" (studioName="${project.studioName}") is present in state.projects.`,
@@ -224,7 +228,7 @@ export function validateGameState(state: GameState): CoreLoopIssue[] {
 
     if (total != null && total > 0) {
       if (!Number.isFinite(accounted) || accounted < 0) {
-        issues.push({
+        pushIssue({
           check: 7,
           code: 'platform.subscribers.non_finite',
           message: `Platform market accounted subscribers is invalid: ${accounted}.`,
@@ -232,7 +236,7 @@ export function validateGameState(state: GameState): CoreLoopIssue[] {
       }
 
       if (accounted > total * 1.2) {
-        issues.push({
+        pushIssue({
           check: 7,
           code: 'platform.subscribers.exceeds_tam',
           message: `Platform market subscribers exceed TAM too much: accounted=${accounted} tam=${total}.`,
@@ -243,7 +247,7 @@ export function validateGameState(state: GameState): CoreLoopIssue[] {
     const churnRate = market.lastWeek?.player?.churnRate;
     if (typeof churnRate === 'number') {
       if (!Number.isFinite(churnRate) || churnRate < 0 || churnRate > 1) {
-        issues.push({
+        pushIssue({
           check: 7,
           code: 'platform.churnRate.out_of_range',
           message: `Platform churnRate out of range: ${churnRate}.`,
@@ -261,7 +265,200 @@ export function validateGameState(state: GameState): CoreLoopIssue[] {
 
   for (const { n, label } of numbersToCheck) {
     if (!Number.isFinite(n)) {
-      issues.push({ check: 7, code: 'numbers.nan', message: `Non-finite number detected at ${label}: ${String(n)}` });
+      pushIssue({ check: 7, code: 'numbers.nan', message: `Non-finite number detected at ${label}: ${String(n)}` });
+    }
+  }
+
+  // ---------------------------------------------------------------------------
+  // Check 8: Collection uniqueness + event queue sanity
+  // ---------------------------------------------------------------------------
+
+  const seenProjectIds = new Set<string>();
+  for (const p of state.projects || []) {
+    if (!p?.id) continue;
+    if (seenProjectIds.has(p.id)) {
+      pushIssue({
+        check: 8,
+        code: 'projects.duplicate_id',
+        message: `Duplicate project id in state.projects: "${p.id}".`,
+      });
+    }
+    seenProjectIds.add(p.id);
+  }
+
+  const seenEventIds = new Set<string>();
+  for (const e of state.eventQueue || []) {
+    const id = (e as any)?.id;
+    if (typeof id !== 'string' || id.length === 0) continue;
+    if (seenEventIds.has(id)) {
+      pushIssue({
+        check: 8,
+        code: 'eventQueue.duplicate_id',
+        message: `Duplicate event id in eventQueue: "${id}".`,
+      });
+    }
+    seenEventIds.add(id);
+  }
+
+  // ---------------------------------------------------------------------------
+  // Check 9: Post-theatrical release window consistency
+  // ---------------------------------------------------------------------------
+
+  const absWeek = (week: number, year: number) => year * 52 + week;
+  const nowAbs = absWeek(state.currentWeek, state.currentYear);
+
+  for (const project of state.projects || []) {
+    if (!project) continue;
+
+    const releases = (project.postTheatricalReleases || []) as any[];
+    if (releases.length === 0) continue;
+
+    const seenReleaseIds = new Set<string>();
+    for (const rel of releases) {
+      const relId = rel?.id;
+      if (typeof relId === 'string') {
+        if (seenReleaseIds.has(relId)) {
+          pushIssue({
+            check: 9,
+            code: 'postTheatrical.duplicate_release_id',
+            message: `Project "${project.id}" has duplicate postTheatrical release id "${relId}".`,
+          });
+        }
+        seenReleaseIds.add(relId);
+      }
+
+      if (rel?.projectId && rel.projectId !== project.id) {
+        pushIssue({
+          check: 9,
+          code: 'postTheatrical.projectId_mismatch',
+          message: `Post-theatrical release "${relId ?? 'unknown'}" has projectId="${rel.projectId}", expected "${project.id}".`,
+        });
+      }
+
+      const durationWeeks = Math.max(0, Math.floor(rel?.durationWeeks ?? 0));
+      const weeksActive = Math.max(0, Math.floor(rel?.weeksActive ?? 0));
+
+      // Some older saves may omit durationWeeks for planned windows; treat it as a hard issue only if it has started accruing.
+      if (durationWeeks === 0 && weeksActive > 0) {
+        pushIssue({
+          check: 9,
+          code: 'postTheatrical.durationWeeks_zero',
+          message: `Post-theatrical release "${relId ?? 'unknown'}" has durationWeeks=0.`,
+        });
+      }
+
+      if (weeksActive > durationWeeks && durationWeeks > 0) {
+        pushIssue({
+          check: 9,
+          code: 'postTheatrical.weeksActive_exceeds_duration',
+          message: `Post-theatrical release "${relId ?? 'unknown'}" has weeksActive=${weeksActive} > durationWeeks=${durationWeeks}.`,
+        });
+      }
+
+      const weeklyRevenue = rel?.weeklyRevenue;
+      if (typeof weeklyRevenue === 'number') {
+        if (!Number.isFinite(weeklyRevenue) || weeklyRevenue < 0) {
+          pushIssue({
+            check: 9,
+            code: 'postTheatrical.weeklyRevenue_invalid',
+            message: `Post-theatrical release "${relId ?? 'unknown'}" has invalid weeklyRevenue=${String(weeklyRevenue)}.`,
+          });
+        }
+      }
+
+      const totalRevenue = rel?.revenue;
+      if (typeof totalRevenue === 'number') {
+        if (!Number.isFinite(totalRevenue) || totalRevenue < 0) {
+          pushIssue({
+            check: 9,
+            code: 'postTheatrical.revenue_invalid',
+            message: `Post-theatrical release "${relId ?? 'unknown'}" has invalid revenue=${String(totalRevenue)}.`,
+          });
+        }
+      }
+
+      const rw = rel?.releaseWeek;
+      const ry = rel?.releaseYear;
+      if (typeof rw === 'number' && typeof ry === 'number') {
+        const startAbs = absWeek(rw, ry);
+        const lpw = rel?.lastProcessedWeek;
+        const lpy = rel?.lastProcessedYear;
+        if (typeof lpw === 'number' && typeof lpy === 'number') {
+          const lastAbs = absWeek(lpw, lpy);
+          if (lastAbs > nowAbs) {
+            pushIssue({
+              check: 9,
+              code: 'postTheatrical.lastProcessed_in_future',
+              message: `Post-theatrical release "${relId ?? 'unknown'}" has lastProcessed in the future (Y${lpy}W${lpw}).`,
+            });
+          }
+          if (lastAbs < startAbs - 60) {
+            pushIssue({
+              check: 9,
+              code: 'postTheatrical.lastProcessed_too_far_before_start',
+              message: `Post-theatrical release "${relId ?? 'unknown'}" has lastProcessed far before start (start=Y${ry}W${rw} last=Y${lpy}W${lpw}).`,
+            });
+          }
+        }
+      }
+    }
+  }
+
+  // ---------------------------------------------------------------------------
+  // Check 10: Talent contract consistency
+  // ---------------------------------------------------------------------------
+
+  const activeContractsByTalentId = new Map<string, { projectId: string; weeksRemaining: number; contractWeeks: number }[]>();
+
+  for (const project of state.projects || []) {
+    if (!project) continue;
+    for (const c of project.contractedTalent || []) {
+      const tid = c?.talentId;
+      if (!tid) continue;
+
+      const weeksRemaining = Math.max(0, Math.floor(c?.weeksRemaining ?? 0));
+      const contractWeeks = Math.max(0, Math.floor(c?.contractWeeks ?? 0));
+
+      if (contractWeeks > 0 && weeksRemaining > contractWeeks) {
+        pushIssue({
+          check: 10,
+          code: 'talent.contract.weeksRemaining_exceeds_contractWeeks',
+          message: `Project "${project.id}" contractedTalent "${tid}" has weeksRemaining=${weeksRemaining} > contractWeeks=${contractWeeks}.`,
+        });
+      }
+
+      const list = activeContractsByTalentId.get(tid) || [];
+      list.push({ projectId: project.id, weeksRemaining, contractWeeks });
+      activeContractsByTalentId.set(tid, list);
+    }
+  }
+
+  for (const t of state.talent || []) {
+    if (!t?.id) continue;
+
+    const listed = activeContractsByTalentId.get(t.id) || [];
+    const hasActive = listed.some((x) => x.weeksRemaining > 0);
+
+    if (t.contractStatus === 'contracted') {
+      const currentContractWeeksRaw = (t as any).currentContractWeeks;
+      if (typeof currentContractWeeksRaw === 'number') {
+        const wk = Math.max(0, Math.floor(currentContractWeeksRaw));
+        if (wk <= 0 && hasActive) {
+          pushIssue({
+            check: 10,
+            code: 'talent.contract.currentContractWeeks_non_positive',
+            message: `Talent "${t.id}" is contractStatus="contracted" but currentContractWeeks is ${wk}.`,
+          });
+        }
+      }
+
+      if (!hasActive) {
+        pushIssue({
+          check: 10,
+          code: 'talent.contract.contracted_without_project_entry',
+          message: `Talent "${t.id}" is contractStatus="contracted" but is not present in any project.contractedTalent with weeksRemaining > 0.`,
+        });
+      }
     }
   }
 
