@@ -592,6 +592,7 @@ export const AwardsSeasonSystem: TickSystem = {
       const winnerProjectIdByCategory: Record<string, string> = {};
       let extraTalentStudioReputation = 0;
       const wonStudioAwards: StudioAward[] = [];
+      const existingStudioAwardIds = new Set<string>((studio.awards || []).map((a: any) => a?.id).filter(Boolean));
 
       const seedRoot = `awards|${state.universeSeed ?? 0}|Y${year}|${show.id}|ceremony`;
 
@@ -654,28 +655,34 @@ export const AwardsSeasonSystem: TickSystem = {
                 return (a as any).id === talentAward.id;
               });
 
-              updatedTalentById.set(relevantTalent.id, {
-                ...existing,
-                reputation: Math.min(100, existing.reputation + talentAward.reputationBoost),
-                marketValue: existing.marketValue + (talentAward.marketValueBoost || 0),
-                awards: hasAlready ? currentAwards : [...currentAwards, talentAward],
-              });
+              if (!hasAlready) {
+                updatedTalentById.set(relevantTalent.id, {
+                  ...existing,
+                  reputation: Math.min(100, existing.reputation + talentAward.reputationBoost),
+                  marketValue: existing.marketValue + (talentAward.marketValueBoost || 0),
+                  awards: [...currentAwards, talentAward],
+                });
 
-              if (playerProjectIds.has(n.project.id)) {
-                extraTalentStudioReputation += Math.max(1, Math.round(show.prestige * 0.5));
+                if (playerProjectIds.has(n.project.id)) {
+                  extraTalentStudioReputation += Math.max(1, Math.round(show.prestige * 0.5));
+                }
               }
             }
           } else if (playerProjectIds.has(n.project.id)) {
-            wonStudioAwards.push({
-              id: `award:${show.id}:${year}:${catKey}:${n.project.id}`,
-              projectId: n.project.id,
-              category,
-              ceremony: show.name,
-              year,
-              prestige: show.prestige,
-              reputationBoost: show.prestige * 2,
-              revenueBoost: n.project.budget.total * (show.prestige / 100),
-            });
+            const awardId = `award:${show.id}:${year}:${catKey}:${n.project.id}`;
+            if (!existingStudioAwardIds.has(awardId)) {
+              wonStudioAwards.push({
+                id: awardId,
+                projectId: n.project.id,
+                category,
+                ceremony: show.name,
+                year,
+                prestige: show.prestige,
+                reputationBoost: show.prestige * 2,
+                revenueBoost: n.project.budget.total * (show.prestige / 100),
+              });
+              existingStudioAwardIds.add(awardId);
+            }
           }
 
           winnerProjectIdByCategory[category] = n.project.id;
