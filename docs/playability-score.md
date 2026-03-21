@@ -31,6 +31,42 @@ Why they differ:
 
 ---
 
+## Key issues (from repo inspection)
+
+These are the main issues surfaced by the two lenses (not all are "bugs"; many are *playability risks*):
+
+1. **Missing systemic difficulty scaling (High)**
+   - Difficulty appears to mostly change **starting budget** rather than ongoing simulation pressure.
+   - Evidence: `src/components/game/GameLanding.tsx`.
+
+2. **Feedback trust + causality explanations (High)**
+   - Some UI stats look placeholder / not clearly derived from the simulation, which weakens the “I understand why this happened” loop.
+   - Evidence: `src/components/game/StudioDashboard.tsx` (e.g., fixed “Quarterly Revenue +$2.0M”).
+
+3. **Onboarding is shallow relative to system depth (High)**
+   - Help exists but doesn’t deeply teach the early decision funnel.
+   - Evidence: `src/content/help.md`.
+
+4. **UI breadth / context switching (Medium)**
+   - Many panels and systems increase cognitive load unless the game funnels the player tightly.
+
+5. **Potential “rules drift” from mixed sources of truth (Medium–High)**
+   - Some gameplay logic/finance representation appears split between engine systems and UI/legacy helpers.
+   - Evidence: `src/components/game/FinancialEngine.tsx` vs `src/game/systems/studioEconomySystem.ts` / `src/game/systems/studioRevenueSystem.ts`.
+
+6. **Non-deterministic time/ID generation in UI & generators (Medium)**
+   - Fine for UI, but becomes risky if it leaks into authoritative state or affects reproducibility/debugging.
+   - Evidence: `src/components/game/CastingBoard.tsx` (role IDs via `Date.now()`), `src/data/TalentGenerator.ts` / `src/data/StudioGenerator.ts` (IDs include `Date.now()` / `Math.random()`).
+
+7. **Event/narrative variety ceiling (Medium)**
+   - Drama systems exist, but currently look like a limited set of archetypes.
+   - Evidence: `src/game/systems/playerCircleDramaSystem.ts`.
+
+8. **Long-horizon goals not strongly surfaced (Medium)**
+   - Strong long-run scaffolding exists, but fewer explicit player-visible “north star” objectives.
+
+---
+
 ## Lens 1 — Player-facing playability (Tycoon-casual weighting)
 
 ### Rubric (weights)
