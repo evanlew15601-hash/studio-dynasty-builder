@@ -83,6 +83,14 @@ export function getWeeksSinceTheatricalEnd(project: Project, currentAbs: number)
   return Math.max(0, currentAbs - endAbs);
 }
 
+export function getOwnedPlatformArrivalAbs(project: Project, currentAbs: number, delayWeeks: number): number | null {
+  const endAbs = getTheatricalEndAbs(project, currentAbs);
+  if (endAbs == null) return null;
+
+  const desired = endAbs + Math.max(0, Math.floor(delayWeeks || 0));
+  return Math.max(currentAbs, desired);
+}
+
 export function isPostTheatricalEligibleProject(project: Project, currentAbs: number): boolean {
   if (!project) return false;
   if (isTvProject(project)) return false;

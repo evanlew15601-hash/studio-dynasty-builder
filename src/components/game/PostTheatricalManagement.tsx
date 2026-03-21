@@ -18,7 +18,7 @@ import {
 } from '@/components/ui/icons';
 import { MediaFinancialIntegration } from './MediaFinancialIntegration';
 import { isPrimaryStreamingFilm } from '@/utils/projectMedium';
-import { getWeeksSinceTheatricalEnd, isPostTheatricalEligibleProject } from '@/utils/postTheatrical';
+import { getOwnedPlatformArrivalAbs, getTheatricalEndAbs, getWeeksSinceTheatricalEnd, isPostTheatricalEligibleProject } from '@/utils/postTheatrical';
 import { getFestivalPostTheatricalShiftWeeks, isFestivalPremiered } from '@/utils/festivalMomentum';
 
 interface PostTheatricalManagementProps {}
@@ -216,7 +216,13 @@ export const PostTheatricalManagement: React.FC<PostTheatricalManagementProps> =
       return { canRelease: false, reason: 'Primary streaming release' };
     }
 
-    if (!isOwnedDestination) {
+    const endAbs = getTheatricalEndAbs(project, currentAbsWeek);
+
+    if (isOwnedDestination) {
+      if (endAbs == null || currentAbsWeek < endAbs) {
+        return { canRelease: false, reason: 'Theatrical run still active' };
+      }
+    } else {
       const weeksSinceEnd = calculateWeeksSinceTheatricalEnd(project);
 
       const festivalShift = getFestivalPostTheatricalShiftWeeks({ project, platform: option.platform });
@@ -282,10 +288,9 @@ export const PostTheatricalManagement: React.FC<PostTheatricalManagementProps> =
 
     const estimatedRevenue = isOwnedDestination ? 0 : calculatePostTheatricalRevenue(project, option.platform);
 
-    const targetAbsWeek =
-      isOwnedDestination && project.releaseWeek && project.releaseYear && delayWeeks != null
-        ? project.releaseYear * 52 + project.releaseWeek + delayWeeks
-        : currentAbsWeek;
+    const targetAbsWeek = isOwnedDestination
+      ? (getOwnedPlatformArrivalAbs(project, currentAbsWeek, delayWeeks ?? 0) ?? currentAbsWeek)
+      : currentAbsWeek;
 
     const targetWeekYear = weekYearForAbsWeek(targetAbsWeek);
 
@@ -402,7 +407,7 @@ export const PostTheatricalManagement: React.FC<PostTheatricalManagementProps> =
                   ? {
                       platform: 'streaming',
                       name: `Arrive on ${ownedPlatform.name}`,
-                      description: 'Bring the film to your platform after a player-chosen window delay.',
+                      description: 'Bring the film to your platform after theatrical ends, plus a player-chosen delay.',
                       icon: StreamingIcon,
                       minimumWeeksAfterTheatrical: 0,
                       baseCost: 20000,
