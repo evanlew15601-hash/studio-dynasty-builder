@@ -543,6 +543,21 @@ export const StreamingWarsPlatformApp: React.FC = () => {
       .sort((a, b) => b.licenseFee - a.licenseFee);
   }, [gameState?.currentWeek, gameState?.currentYear, gameState?.universeSeed, libraryPackageTitles, player, rivals]);
 
+  const librarySyndicationPayouts = useMemo(() => {
+    if (libraryLicensingOffers.length === 0) {
+      return { top2: 0, all: 0 };
+    }
+
+    const top2 =
+      libraryLicensingOffers.length >= 2
+        ? Math.floor(libraryLicensingOffers[0].licenseFee * 0.78 + libraryLicensingOffers[1].licenseFee * 0.78)
+        : 0;
+
+    const all = Math.floor(libraryLicensingOffers.reduce((sum, o) => sum + o.licenseFee, 0) * 0.55);
+
+    return { top2, all };
+  }, [libraryLicensingOffers]);
+
   const queueStrategicSaleEvent = () => {
     if (!player || player.status !== 'active') return;
     if (!gameState) return;
@@ -703,6 +718,78 @@ export const StreamingWarsPlatformApp: React.FC = () => {
                   { type: 'reputation', impact: -1, description: 'Exclusivity optics' },
                 ],
               })),
+              { id: 'keep', text: 'Keep the library exclusive', consequences: [] },
+            ],
+          } as any,
+        ],
+      } as any;
+    });
+  };
+
+  const queueLibrarySyndicationEvent = () => {
+    if (!player || player.status !== 'active') return;
+    if (!gameState) return;
+
+    const offers = libraryLicensingOffers;
+    if (offers.length < 2) return;
+
+    const top2Payout = librarySyndicationPayouts.top2;
+    const allPayout = librarySyndicationPayouts.all;
+
+    if (top2Payout <= 0 && allPayout <= 0) return;
+
+    setGameState((prev) => {
+      if ((prev.eventQueue || []).length > 0) return prev;
+
+      const pm = prev.platformMarket;
+      const pl = pm?.player;
+      if (!pm || !pl || pl.status !== 'active') return prev;
+
+      const year = prev.currentYear;
+      const week = prev.currentWeek;
+      const eventId = `platform:library-syndication:${year}:W${week}:${pl.id}`;
+
+      if ((prev.eventQueue || []).some((e) => e.id === eventId)) return prev;
+
+      const titles = offers[0]?.titleProjectIds?.length ?? 0;
+
+      const title = `Library syndication: ${pl.name}`;
+      const description = `Instead of one buyer, you can syndicate a package of your exclusives (${titles} titles) across multiple rival services. You get cash now, but exclusivity erosion is severe.`;
+
+      return {
+        ...prev,
+        eventQueue: [
+          ...(prev.eventQueue || []),
+          {
+            id: eventId,
+            title,
+            description,
+            type: 'market',
+            triggerDate: triggerDateFromWeekYear(year, week),
+            data: {
+              kind: 'platform:library-syndication',
+              playerPlatformId: pl.id,
+              offers,
+              top2Payout,
+              allPayout,
+            },
+            choices: [
+              {
+                id: 'syndicate:top2',
+                text: `Syndicate to top 2 (${formatUsdCompact(top2Payout)})`,
+                consequences: [
+                  { type: 'budget', impact: top2Payout, description: 'Syndication proceeds' },
+                  { type: 'reputation', impact: -2, description: 'Exclusivity optics' },
+                ],
+              },
+              {
+                id: 'syndicate:all',
+                text: `Syndicate to all rivals (${formatUsdCompact(allPayout)})`,
+                consequences: [
+                  { type: 'budget', impact: allPayout, description: 'Syndication proceeds' },
+                  { type: 'reputation', impact: -3, description: 'Exclusivity optics' },
+                ],
+              },
               { id: 'keep', text: 'Keep the library exclusive', consequences: [] },
             ],
           } as any,
@@ -1453,6 +1540,15 @@ export const StreamingWarsPlatformApp: React.FC = () => {
                       disabled={(gameState.eventQueue || []).length > 0 || libraryLicensingOffers.length === 0}
                     >
                       Package license ({libraryLicensingOffers.length > 0 ? formatUsdCompact(libraryLicensingOffers[0].licenseFee) : '—'})
+                    </Button>
+
+                    <Button
+                      type="button"
+                      variant="secondary"
+                      onClick={queueLibrarySyndicationEvent}
+                      disabled={(gameState.eventQueue || []).length > 0 || libraryLicensingOffers.length < 2}
+                    >
+                      Syndicate package ({libraryLicensingOffers.length > 1 ? formatUsdCompact(librarySyndicationPayouts.top2) : '—'})
                     </Button>
                   </div>
 

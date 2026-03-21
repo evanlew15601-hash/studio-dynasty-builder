@@ -1550,6 +1550,124 @@ export const useGameStore: import('zustand').UseBoundStore<import('zustand').Sto
             }
           }
 
+          if (kind === 'platform:library-syndication') {
+            const market = s.game.platformMarket;
+            const player = market?.player;
+
+            const offers = Array.isArray((event as any)?.data?.offers) ? ((event as any).data.offers as any[]) : [];
+
+            const top2Payout = Math.max(0, Math.floor((event as any)?.data?.top2Payout ?? 0));
+            const allPayout = Math.max(0, Math.floor((event as any)?.data?.allPayout ?? 0));
+
+            const recipients =
+              selectedChoice.id === 'syndicate:all'
+                ? offers
+                : selectedChoice.id === 'syndicate:top2'
+                  ? offers.slice().sort((a, b) => Math.floor((b?.licenseFee ?? 0) - (a?.licenseFee ?? 0))).slice(0, 2)
+                  : [];
+
+            const payout = selectedChoice.id === 'syndicate:all' ? allPayout : selectedChoice.id === 'syndicate:top2' ? top2Payout : 0;
+
+            const titleProjectIdsRaw = recipients?.[0]?.titleProjectIds;
+            const titleProjectIds = Array.isArray(titleProjectIdsRaw) ? (titleProjectIdsRaw as any[]).filter((x) => typeof x === 'string') : [];
+            const windowWeeks = Math.max(8, Math.floor(recipients?.[0]?.windowWeeks ?? 26));
+
+            if (market && player && player.status === 'active') {
+              if (recipients.length > 0 && payout > 0) {
+                const freshnessHit = selectedChoice.id === 'syndicate:all' ? 10 : 8;
+                const catalogHit = selectedChoice.id === 'syndicate:all' ? 6 : 4;
+
+                player.freshness = clamp((player.freshness ?? 50) - freshnessHit, 0, 100);
+                player.catalogValue = clamp((player.catalogValue ?? 45) - catalogHit, 0, 100);
+                player.cash = (player.cash ?? 0) + payout;
+
+                const perTitle = titleProjectIds.length > 0 && recipients.length > 0 ? Math.floor(payout / (titleProjectIds.length * recipients.length)) : 0;
+
+                for (const pid of titleProjectIds) {
+                  const project = s.game.projects.find((p) => p.id === pid);
+                  if (!project) continue;
+
+                  if (project.releaseStrategy) {
+                    project.releaseStrategy.streamingExclusive = false;
+                  }
+
+                  if ((project as any)?.streamingContract && (project as any).streamingContract.platformId === player.id) {
+                    (project as any).streamingContract.exclusivityClause = false;
+                  }
+
+                  for (const rec of recipients) {
+                    const buyerId = rec?.buyerId;
+                    if (!buyerId) continue;
+
+                    const releaseId = `release:${project.id}:${buyerId}:${s.game.currentYear}:W${s.game.currentWeek}`;
+                    const already = (project.postTheatricalReleases ?? []).some((r) => r && r.id === releaseId);
+
+                    if (!already) {
+                      const releaseDate = new Date(Date.UTC(s.game.currentYear, 0, 1 + Math.max(0, s.game.currentWeek - 1) * 7));
+
+                      project.postTheatricalReleases = [
+                        ...(project.postTheatricalReleases ?? []),
+                        {
+                          id: releaseId,
+                          projectId: project.id,
+                          platform: 'streaming',
+                          providerId: buyerId,
+                          releaseDate,
+                          releaseWeek: s.game.currentWeek,
+                          releaseYear: s.game.currentYear,
+                          delayWeeks: 0,
+                          revenue: perTitle,
+                          weeklyRevenue: 0,
+                          weeksActive: 0,
+                          status: 'planned',
+                          cost: 0,
+                          durationWeeks: windowWeeks,
+                        },
+                      ];
+                    }
+
+                    const buyer = (market.rivals || []).find((r) => r.id === buyerId);
+                    if (buyer && buyer.status !== 'collapsed') {
+                      buyer.catalogValue = clamp((buyer.catalogValue ?? 50) + 1, 0, 100);
+                    }
+                  }
+                }
+
+                const headline = `${player.name} syndicates a library package across ${recipients.length} rivals for ${Math.round(payout / 1_000_000)}M`;
+
+                MediaEngine.injectDeterministicMediaItem({
+                  id: `media:${event.id}:${selectedChoice.id}`,
+                  type: 'news',
+                  headline,
+                  content: headline,
+                  week: s.game.currentWeek,
+                  year: s.game.currentYear,
+                  sentiment: 'neutral',
+                  targets: { studios: [s.game.studio.id] },
+                  tags: ['streaming', 'licensing', 'bundle'],
+                  relatedEvents: [event.id],
+                  sourceType: 'trade_publication',
+                });
+              } else {
+                const headline = `${player.name} keeps its library exclusive and rejects syndication`;
+
+                MediaEngine.injectDeterministicMediaItem({
+                  id: `media:${event.id}:${selectedChoice.id}`,
+                  type: 'news',
+                  headline,
+                  content: headline,
+                  week: s.game.currentWeek,
+                  year: s.game.currentYear,
+                  sentiment: 'positive',
+                  targets: { studios: [s.game.studio.id] },
+                  tags: ['streaming', 'exclusivity'],
+                  relatedEvents: [event.id],
+                  sourceType: 'trade_publication',
+                });
+              }
+            }
+          }
+
           if (kind === 'platform:forced-sale') {
             const market = s.game.platformMarket;
             const player = market?.player;
