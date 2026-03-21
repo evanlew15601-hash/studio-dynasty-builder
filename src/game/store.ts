@@ -1374,6 +1374,182 @@ export const useGameStore: import('zustand').UseBoundStore<import('zustand').Sto
             }
           }
 
+          if (kind === 'platform:voluntary-shutdown') {
+            const market = s.game.platformMarket;
+            const player = market?.player;
+
+            const proceeds = Math.max(0, Math.floor((event as any)?.data?.proceeds ?? 0));
+            const transferredSubs = Math.max(0, Math.floor((event as any)?.data?.transferredSubs ?? 0));
+            const recipientId = (event as any)?.data?.recipientId as string | undefined;
+            const recipientName = (event as any)?.data?.recipientName as string | undefined;
+
+            if (market && player && player.status === 'active') {
+              if (selectedChoice.id === 'shutdown') {
+                const retiredName = player.name;
+
+                player.status = 'shutdown';
+                player.subscribers = 0;
+                player.cash = 0;
+                player.closedWeek = s.game.currentWeek;
+                player.closedYear = s.game.currentYear;
+
+                const recipient = recipientId ? (market.rivals || []).find((r) => r.id === recipientId) : undefined;
+                if (recipient && recipient.status !== 'collapsed') {
+                  recipient.subscribers = Math.max(0, (recipient.subscribers ?? 0) + transferredSubs);
+                  recipient.freshness = clamp((recipient.freshness ?? 55) + 1, 0, 100);
+                }
+
+                const registry = Array.isArray((market as any).brandRegistry) ? ((market as any).brandRegistry as any[]) : [];
+                const brandKey = retiredName.trim().toLowerCase();
+                if (brandKey && !registry.some((e) => typeof e?.name === 'string' && e.name.trim().toLowerCase() === brandKey)) {
+                  registry.push({
+                    name: retiredName.trim(),
+                    ownerId: `estate:${player.id}`,
+                    ownerName: 'the bankruptcy estate',
+                    acquiredWeek: s.game.currentWeek,
+                    acquiredYear: s.game.currentYear,
+                  });
+                  (market as any).brandRegistry = registry;
+                }
+
+                const headline = `${retiredName} shuts down voluntarily, taking ${Math.round(proceeds / 1_000_000)}M in liquidation proceeds`;
+
+                MediaEngine.injectDeterministicMediaItem({
+                  id: `media:${event.id}:${selectedChoice.id}`,
+                  type: 'news',
+                  headline,
+                  content: headline,
+                  week: s.game.currentWeek,
+                  year: s.game.currentYear,
+                  sentiment: 'negative',
+                  targets: { studios: [s.game.studio.id] },
+                  tags: ['streaming', 'shutdown'],
+                  relatedEvents: [event.id],
+                  sourceType: 'trade_publication',
+                });
+              } else {
+                const headline = `${player.name} stays the course and rejects shutdown rumors`;
+
+                MediaEngine.injectDeterministicMediaItem({
+                  id: `media:${event.id}:${selectedChoice.id}`,
+                  type: 'news',
+                  headline,
+                  content: headline,
+                  week: s.game.currentWeek,
+                  year: s.game.currentYear,
+                  sentiment: 'neutral',
+                  targets: { studios: [s.game.studio.id] },
+                  tags: ['streaming', 'strategy'],
+                  relatedEvents: [event.id],
+                  sourceType: 'trade_publication',
+                });
+              }
+            }
+          }
+
+          if (kind === 'platform:library-licensing') {
+            const market = s.game.platformMarket;
+            const player = market?.player;
+
+            const offers = Array.isArray((event as any)?.data?.offers) ? ((event as any).data.offers as any[]) : [];
+
+            const buyerId = selectedChoice.id.startsWith('license:') ? selectedChoice.id.slice('license:'.length) : undefined;
+            const offer = buyerId ? offers.find((o) => o && o.buyerId === buyerId) : undefined;
+
+            const licenseFee = Math.max(0, Math.floor(offer?.licenseFee ?? 0));
+            const titleProjectIdsRaw = offer?.titleProjectIds;
+            const titleProjectIds = Array.isArray(titleProjectIdsRaw) ? (titleProjectIdsRaw as any[]).filter((x) => typeof x === 'string') : [];
+            const windowWeeks = Math.max(8, Math.floor(offer?.windowWeeks ?? 26));
+
+            if (market && player && player.status === 'active') {
+              if (buyerId && offer) {
+                player.freshness = clamp((player.freshness ?? 50) - 6, 0, 100);
+                player.catalogValue = clamp((player.catalogValue ?? 45) - 3, 0, 100);
+                player.cash = (player.cash ?? 0) + licenseFee;
+
+                const buyer = (market.rivals || []).find((r) => r.id === buyerId);
+                if (buyer && buyer.status !== 'collapsed') {
+                  buyer.catalogValue = clamp((buyer.catalogValue ?? 50) + 2, 0, 100);
+                  buyer.freshness = clamp((buyer.freshness ?? 55) + 1, 0, 100);
+                }
+
+                for (const pid of titleProjectIds) {
+                  const project = s.game.projects.find((p) => p.id === pid);
+                  if (!project) continue;
+
+                  if (project.releaseStrategy) {
+                    project.releaseStrategy.streamingExclusive = false;
+                  }
+
+                  if ((project as any)?.streamingContract && (project as any).streamingContract.platformId === player.id) {
+                    (project as any).streamingContract.exclusivityClause = false;
+                  }
+
+                  const releaseId = `release:${project.id}:${buyerId}:${s.game.currentYear}:W${s.game.currentWeek}`;
+                  const already = (project.postTheatricalReleases ?? []).some((r) => r && r.id === releaseId);
+
+                  if (!already) {
+                    const releaseDate = new Date(Date.UTC(s.game.currentYear, 0, 1 + Math.max(0, s.game.currentWeek - 1) * 7));
+
+                    project.postTheatricalReleases = [
+                      ...(project.postTheatricalReleases ?? []),
+                      {
+                        id: releaseId,
+                        projectId: project.id,
+                        platform: 'streaming',
+                        providerId: buyerId,
+                        releaseDate,
+                        releaseWeek: s.game.currentWeek,
+                        releaseYear: s.game.currentYear,
+                        delayWeeks: 0,
+                        revenue: Math.floor(licenseFee / Math.max(1, titleProjectIds.length)),
+                        weeklyRevenue: 0,
+                        weeksActive: 0,
+                        status: 'planned',
+                        cost: 0,
+                        durationWeeks: windowWeeks,
+                      },
+                    ];
+                  }
+                }
+
+                const headline = `${player.name} licenses a library package to ${offer?.buyerName ?? buyer?.name ?? 'a rival'} for ${Math.round(
+                  licenseFee / 1_000_000
+                )}M`;
+
+                MediaEngine.injectDeterministicMediaItem({
+                  id: `media:${event.id}:${selectedChoice.id}`,
+                  type: 'news',
+                  headline,
+                  content: headline,
+                  week: s.game.currentWeek,
+                  year: s.game.currentYear,
+                  sentiment: 'neutral',
+                  targets: { studios: [s.game.studio.id] },
+                  tags: ['streaming', 'licensing'],
+                  relatedEvents: [event.id],
+                  sourceType: 'trade_publication',
+                });
+              } else {
+                const headline = `${player.name} keeps its library exclusive and declines package licensing talks`;
+
+                MediaEngine.injectDeterministicMediaItem({
+                  id: `media:${event.id}:${selectedChoice.id}`,
+                  type: 'news',
+                  headline,
+                  content: headline,
+                  week: s.game.currentWeek,
+                  year: s.game.currentYear,
+                  sentiment: 'positive',
+                  targets: { studios: [s.game.studio.id] },
+                  tags: ['streaming', 'exclusivity'],
+                  relatedEvents: [event.id],
+                  sourceType: 'trade_publication',
+                });
+              }
+            }
+          }
+
           if (kind === 'platform:forced-sale') {
             const market = s.game.platformMarket;
             const player = market?.player;

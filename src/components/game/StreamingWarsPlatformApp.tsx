@@ -469,6 +469,80 @@ export const StreamingWarsPlatformApp: React.FC = () => {
 
   const bestStrategicSaleOffer = strategicSaleOffers[0] ?? null;
 
+  const shutdownPlan = useMemo(() => {
+    if (!player || player.status !== 'active') return null;
+
+    const subs = Math.max(0, Math.floor(player.subscribers ?? 0));
+    const catalogValue = clamp(player.catalogValue ?? 40, 0, 100);
+
+    const proceeds = clampInt(12_000_000 + subs * 8 + catalogValue * 650_000, 10_000_000, 950_000_000);
+
+    const recipient = rivals
+      .filter((r) => r.status !== 'collapsed')
+      .sort((a, b) => (b.subscribers ?? 0) - (a.subscribers ?? 0))[0];
+
+    const transferredSubs = recipient ? Math.floor(subs * 0.65) : 0;
+
+    return {
+      proceeds,
+      transferredSubs,
+      recipientId: recipient?.id,
+      recipientName: recipient?.name,
+    };
+  }, [player, rivals]);
+
+  const libraryPackageTitles = useMemo(() => {
+    if (!gameState) return [] as Project[];
+    if (!playerPlatformId) return [] as Project[];
+    if (!player || player.status !== 'active') return [] as Project[];
+
+    return titlesOnPlatform
+      .filter((p) => p && p.status === 'released')
+      .filter((p) => getDirectPlatformId(p) === playerPlatformId)
+      .filter((p) => isExclusiveTitle(p))
+      .filter((p) => !hasRivalStreamingWindow(p, playerPlatformId))
+      .slice()
+      .sort((a, b) => {
+        const aAbs = typeof a.releaseWeek === 'number' && typeof a.releaseYear === 'number' ? absWeek(a.releaseWeek, a.releaseYear) : 0;
+        const bAbs = typeof b.releaseWeek === 'number' && typeof b.releaseYear === 'number' ? absWeek(b.releaseWeek, b.releaseYear) : 0;
+        return (bAbs - aAbs) || a.title.localeCompare(b.title);
+      })
+      .slice(0, 4);
+  }, [gameState, player, playerPlatformId, titlesOnPlatform]);
+
+  const libraryLicensingOffers = useMemo(() => {
+    if (!player || player.status !== 'active') return [] as Array<{ buyerId: string; buyerName: string; licenseFee: number; windowWeeks: number; titleProjectIds: string[] }>;
+    if (libraryPackageTitles.length === 0) return [] as Array<{ buyerId: string; buyerName: string; licenseFee: number; windowWeeks: number; titleProjectIds: string[] }>;
+
+    const titleProjectIds = libraryPackageTitles.map((t) => t.id);
+
+    const totalQuality = libraryPackageTitles.reduce((sum, p) => sum + (p.script?.quality ?? 60), 0);
+    const subs = Math.max(0, Math.floor(player.subscribers ?? 0));
+
+    const base = 30_000_000 + totalQuality * 650_000 + subs * 7;
+
+    const seedBase = `${gameState?.universeSeed ?? 0}|platform:library-package|${gameState?.currentYear ?? 0}:W${gameState?.currentWeek ?? 0}|${player.id}`;
+
+    const windowWeeks = 26;
+
+    return rivals
+      .filter((r) => r.status !== 'collapsed')
+      .map((r) => {
+        const sizeBoost = clampInt((r.subscribers ?? 0) / 1_000_000, 0, 120) * 900_000;
+        const jitter = stableInt(`${seedBase}|${r.id}|jitter`, -8, 10) / 100;
+        const licenseFee = clampInt((base + sizeBoost) * (1 + jitter), 20_000_000, 650_000_000);
+
+        return {
+          buyerId: r.id,
+          buyerName: r.name,
+          licenseFee,
+          windowWeeks,
+          titleProjectIds,
+        };
+      })
+      .sort((a, b) => b.licenseFee - a.licenseFee);
+  }, [gameState?.currentWeek, gameState?.currentYear, gameState?.universeSeed, libraryPackageTitles, player, rivals]);
+
   const queueStrategicSaleEvent = () => {
     if (!player || player.status !== 'active') return;
     if (!gameState) return;
@@ -517,6 +591,119 @@ export const StreamingWarsPlatformApp: React.FC = () => {
                 ],
               })),
               { id: 'keep', text: 'Stay independent', consequences: [] },
+            ],
+          } as any,
+        ],
+      } as any;
+    });
+  };
+
+  const queueVoluntaryShutdownEvent = () => {
+    if (!player || player.status !== 'active') return;
+    if (!gameState) return;
+    if (!shutdownPlan) return;
+
+    setGameState((prev) => {
+      if ((prev.eventQueue || []).length > 0) return prev;
+
+      const pm = prev.platformMarket;
+      const pl = pm?.player;
+      if (!pm || !pl || pl.status !== 'active') return prev;
+
+      const year = prev.currentYear;
+      const week = prev.currentWeek;
+      const eventId = `platform:voluntary-shutdown:${year}:W${week}:${pl.id}`;
+
+      if ((prev.eventQueue || []).some((e) => e.id === eventId)) return prev;
+
+      const title = `Voluntary shutdown: ${pl.name}`;
+      const description = `You can shut down ${pl.name} now to stop the bleed. You'll take a one-time liquidation payout, but most subscribers will churn into rival services and the brand will be locked.`;
+
+      return {
+        ...prev,
+        eventQueue: [
+          ...(prev.eventQueue || []),
+          {
+            id: eventId,
+            title,
+            description,
+            type: 'crisis',
+            triggerDate: triggerDateFromWeekYear(year, week),
+            data: {
+              kind: 'platform:voluntary-shutdown',
+              playerPlatformId: pl.id,
+              proceeds: shutdownPlan.proceeds,
+              transferredSubs: shutdownPlan.transferredSubs,
+              recipientId: shutdownPlan.recipientId,
+              recipientName: shutdownPlan.recipientName,
+            },
+            choices: [
+              {
+                id: 'shutdown',
+                text: `Shut down (${formatUsdCompact(shutdownPlan.proceeds)} proceeds)`,
+                consequences: [
+                  { type: 'budget', impact: shutdownPlan.proceeds, description: 'Liquidation proceeds' },
+                  { type: 'reputation', impact: -3, description: 'Shutdown optics' },
+                ],
+              },
+              { id: 'keep', text: 'Keep the platform running', consequences: [] },
+            ],
+          } as any,
+        ],
+      } as any;
+    });
+  };
+
+  const queueLibraryLicensingEvent = () => {
+    if (!player || player.status !== 'active') return;
+    if (!gameState) return;
+
+    const offers = libraryLicensingOffers;
+    if (offers.length === 0) return;
+
+    setGameState((prev) => {
+      if ((prev.eventQueue || []).length > 0) return prev;
+
+      const pm = prev.platformMarket;
+      const pl = pm?.player;
+      if (!pm || !pl || pl.status !== 'active') return prev;
+
+      const year = prev.currentYear;
+      const week = prev.currentWeek;
+      const eventId = `platform:library-licensing:${year}:W${week}:${pl.id}`;
+
+      if ((prev.eventQueue || []).some((e) => e.id === eventId)) return prev;
+
+      const titles = offers[0]?.titleProjectIds?.length ?? 0;
+
+      const title = `Library package: ${pl.name}`;
+      const description = `Rivals want a time-limited package of your exclusives (${titles} titles). You get cash now, but your moat weakens and churn rises.`;
+
+      return {
+        ...prev,
+        eventQueue: [
+          ...(prev.eventQueue || []),
+          {
+            id: eventId,
+            title,
+            description,
+            type: 'market',
+            triggerDate: triggerDateFromWeekYear(year, week),
+            data: {
+              kind: 'platform:library-licensing',
+              playerPlatformId: pl.id,
+              offers,
+            },
+            choices: [
+              ...offers.map((o) => ({
+                id: `license:${o.buyerId}`,
+                text: `License to ${o.buyerName} (${formatUsdCompact(o.licenseFee)})`,
+                consequences: [
+                  { type: 'budget', impact: o.licenseFee, description: 'Licensing fee' },
+                  { type: 'reputation', impact: -1, description: 'Exclusivity optics' },
+                ],
+              })),
+              { id: 'keep', text: 'Keep the library exclusive', consequences: [] },
             ],
           } as any,
         ],
@@ -1223,7 +1410,7 @@ export const StreamingWarsPlatformApp: React.FC = () => {
 
                   <div className="grid grid-cols-1 sm:grid-cols-3 gap-2 text-xs">
                     <div className="rounded border p-2">
-                      <div className="text-muted-foreground">Best offer</div>
+                      <div className="text-muted-foreground">Best sale offer</div>
                       <div className="font-medium">{bestStrategicSaleOffer ? formatUsdCompact(bestStrategicSaleOffer.salePrice) : '—'}</div>
                     </div>
                     <div className="rounded border p-2">
@@ -1240,14 +1427,34 @@ export const StreamingWarsPlatformApp: React.FC = () => {
                     </div>
                   </div>
 
-                  <Button
-                    type="button"
-                    variant="destructive"
-                    onClick={queueStrategicSaleEvent}
-                    disabled={(gameState.eventQueue || []).length > 0 || strategicSaleOffers.length === 0}
-                  >
-                    Explore strategic sale
-                  </Button>
+                  <div className="flex flex-col sm:flex-row gap-2">
+                    <Button
+                      type="button"
+                      variant="destructive"
+                      onClick={queueStrategicSaleEvent}
+                      disabled={(gameState.eventQueue || []).length > 0 || strategicSaleOffers.length === 0}
+                    >
+                      Explore strategic sale
+                    </Button>
+
+                    <Button
+                      type="button"
+                      variant="outline"
+                      onClick={queueVoluntaryShutdownEvent}
+                      disabled={(gameState.eventQueue || []).length > 0 || !shutdownPlan}
+                    >
+                      Explore shutdown ({shutdownPlan ? formatUsdCompact(shutdownPlan.proceeds) : '—'})
+                    </Button>
+
+                    <Button
+                      type="button"
+                      variant="secondary"
+                      onClick={queueLibraryLicensingEvent}
+                      disabled={(gameState.eventQueue || []).length > 0 || libraryLicensingOffers.length === 0}
+                    >
+                      Package license ({libraryLicensingOffers.length > 0 ? formatUsdCompact(libraryLicensingOffers[0].licenseFee) : '—'})
+                    </Button>
+                  </div>
 
                   {(gameState.eventQueue || []).length > 0 && (
                     <p className="text-xs text-muted-foreground">
