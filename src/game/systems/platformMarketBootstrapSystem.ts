@@ -155,6 +155,8 @@ function normalizePlayerPlatform(player: any | undefined): PlatformMarketState['
     name: typeof (player as any).name === 'string' ? (player as any).name : 'Your Platform',
     launchedWeek: typeof (player as any).launchedWeek === 'number' ? (player as any).launchedWeek : undefined,
     launchedYear: typeof (player as any).launchedYear === 'number' ? (player as any).launchedYear : undefined,
+    closedWeek: typeof (player as any).closedWeek === 'number' ? (player as any).closedWeek : undefined,
+    closedYear: typeof (player as any).closedYear === 'number' ? (player as any).closedYear : undefined,
     branding: normalizeBranding((player as any).branding),
     subscribers: typeof (player as any).subscribers === 'number' ? Math.max(0, Math.floor((player as any).subscribers)) : 0,
     cash: typeof (player as any).cash === 'number' ? (player as any).cash : 0,

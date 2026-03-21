@@ -32,6 +32,7 @@ import {
 } from '@/utils/platformIds';
 import { stableInt } from '@/utils/stableRandom';
 import { isDebugUiEnabled } from '@/utils/debugFlags';
+import { getPlatformRelaunchWindow } from '@/utils/platformRelaunch';
 import { StreamingPlatformPreview } from './StreamingPlatformPreview';
 import { StudioIconCustomizer, DEFAULT_ICON, ICON_COLORS, ACCENT_COLORS, type StudioIconConfig } from './StudioIconCustomizer';
 import type { PlayerPlatformBranding } from '@/types/platformEconomy';
@@ -321,9 +322,23 @@ export const StreamingWarsPlatformApp: React.FC = () => {
   const hasEnoughReputation = (gameState?.studio.reputation ?? 0) >= 60;
   const hasEnoughReleases = releasedProjectsCount >= 12;
 
-  const canLaunchPlatform =
+  const relaunchWindow = getPlatformRelaunchWindow({
+    player,
+    currentWeek: gameState?.currentWeek ?? 0,
+    currentYear: gameState?.currentYear ?? 0,
+  });
+
+  const canLaunchNewPlatform =
     !player &&
     ((hasEnoughBudget && hasEnoughReputation && hasEnoughReleases) || debugUi);
+
+  const canRelaunchPlatform =
+    !!player &&
+    player.status !== 'active' &&
+    relaunchWindow.canRelaunch &&
+    ((hasEnoughBudget && hasEnoughReputation) || debugUi);
+
+  const canLaunchPlatform = canLaunchNewPlatform || canRelaunchPlatform;
 
   const ensureLaunchDefaults = () => {
     if (launchName.trim().length === 0) {
@@ -585,6 +600,8 @@ export const StreamingWarsPlatformApp: React.FC = () => {
             name,
             launchedWeek: prev.currentWeek,
             launchedYear: prev.currentYear,
+            closedWeek: undefined,
+            closedYear: undefined,
             subscribers: initialSubscribers,
             cash: -launchCost,
             status: 'active',
@@ -920,12 +937,33 @@ export const StreamingWarsPlatformApp: React.FC = () => {
               <CardContent className="space-y-3">
                 <p className="text-sm text-muted-foreground">
                   {player.status === 'sold'
-                    ? `You no longer own ${player.name}. The platform loop is locked for the rest of this save.`
-                    : `${player.name} has been shut down. The platform loop is locked for the rest of this save.`}
+                    ? `You sold ${player.name}. If you want back into streaming, you can relaunch a new service once the dust settles.`
+                    : `${player.name} has been shut down. You can relaunch a new service once the cooldown ends (and you can afford it).`}
                 </p>
-                <Badge variant={statusVariant(player.status)} className="capitalize w-fit">
-                  {player.status}
-                </Badge>
+
+                {relaunchWindow.weeksRemaining > 0 && (
+                  <p className="text-xs text-muted-foreground">Relaunch available in {relaunchWindow.weeksRemaining} weeks.</p>
+                )}
+
+                <div className="flex items-center gap-2">
+                  <Badge variant={statusVariant(player.status)} className="capitalize w-fit">
+                    {player.status}
+                  </Badge>
+                  <Badge variant="outline" className="w-fit">
+                    Relaunch cost: {formatUsdCompact(launchCost)}
+                  </Badge>
+                </div>
+
+                <Button
+                  type="button"
+                  onClick={() => {
+                    ensureLaunchDefaults();
+                    setLaunchOpen(true);
+                  }}
+                  disabled={!canRelaunchPlatform}
+                >
+                  Relaunch Platform
+                </Button>
               </CardContent>
             </Card>
           )}

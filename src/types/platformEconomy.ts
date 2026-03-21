@@ -53,6 +53,10 @@ export interface PlayerPlatformState {
   launchedWeek?: number;
   launchedYear?: number;
 
+  /** Last time the platform loop was closed (sold/shutdown). Used for relaunch cooldown. */
+  closedWeek?: number;
+  closedYear?: number;
+
   branding?: PlayerPlatformBranding;
 
   subscribers: number;

@@ -1316,6 +1316,8 @@ export const useGameStore: import('zustand').UseBoundStore<import('zustand').Sto
               } else if (selectedChoice.id === 'sell') {
                 player.status = 'sold';
                 player.subscribers = 0;
+                player.closedWeek = s.game.currentWeek;
+                player.closedYear = s.game.currentYear;
 
                 const buyer = buyerId ? (market.rivals || []).find((r) => r.id === buyerId) : undefined;
                 if (buyer && buyer.status !== 'collapsed') {
@@ -1343,6 +1345,8 @@ export const useGameStore: import('zustand').UseBoundStore<import('zustand').Sto
               } else {
                 player.status = 'shutdown';
                 player.subscribers = 0;
+                player.closedWeek = s.game.currentWeek;
+                player.closedYear = s.game.currentYear;
 
                 const headline = `${player.name} shuts down after catastrophic losses`;
 
