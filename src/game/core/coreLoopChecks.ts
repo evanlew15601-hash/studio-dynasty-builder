@@ -3,7 +3,7 @@ import type { TickSystem } from './types';
 import { isPrimaryStreamingFilm } from '@/utils/projectMedium';
 
 export type CoreLoopIssue = {
-  check: 1 | 2 | 3 | 4 | 5 | 6 | 7 | 8 | 9 | 10;
+  check: 1 | 2 | 3 | 4 | 5 | 6 | 7 | 8 | 9 | 10 | 11 | 12;
   message: string;
   code: string;
 };
@@ -11,8 +11,6 @@ export type CoreLoopIssue = {
 function isReleasedLikeStatus(status: Project['status'] | undefined): boolean {
   return status === 'released' || status === 'distribution' || status === 'archived' || status === 'completed';
 }
-
-
 
 export function checkTickOrdering(systems: readonly TickSystem[]): CoreLoopIssue[] {
   const issues: CoreLoopIssue[] = [];
@@ -28,6 +26,7 @@ export function checkTickOrdering(systems: readonly TickSystem[]): CoreLoopIssue
     }
   };
 
+  requireBefore('marketingCampaigns', 'scheduledReleases', 'tick.order.marketingCampaigns_before_scheduledReleases', 'Marketing campaigns must run before scheduled releases.');
   requireBefore('scheduledReleases', 'boxOffice', 'tick.order.scheduledReleases_before_boxOffice', 'Scheduled releases must run before box office.');
   requireBefore(
     'scheduledReleases',
@@ -458,6 +457,144 @@ export function validateGameState(state: GameState): CoreLoopIssue[] {
           code: 'talent.contract.contracted_without_project_entry',
           message: `Talent "${t.id}" is contractStatus="contracted" but is not present in any project.contractedTalent with weeksRemaining > 0.`,
         });
+      }
+    }
+  }
+
+  // ---------------------------------------------------------------------------
+  // Check 11: Scheduled release drift (stuck in release phase past scheduled week)
+  // ---------------------------------------------------------------------------
+
+  for (const project of state.projects || []) {
+    if (!project) continue;
+
+    const w = typeof project.scheduledReleaseWeek === 'number' ? project.scheduledReleaseWeek : null;
+    const y = typeof project.scheduledReleaseYear === 'number' ? project.scheduledReleaseYear : null;
+
+    const isScheduledForRelease = project.status === 'scheduled-for-release';
+    const isLegacyReleasePhase = (project.currentPhase as any) === 'release';
+
+    if (isScheduledForRelease) {
+      if (w == null || y == null) {
+        pushIssue({
+          check: 11,
+          code: 'project.scheduled_for_release.missing_scheduled_date',
+          message: `Project "${project.id}" is scheduled-for-release but missing scheduledReleaseWeek/Year.`,
+        });
+      }
+
+      if ((project.currentPhase as any) !== 'release') {
+        pushIssue({
+          check: 11,
+          code: 'project.scheduled_for_release.wrong_phase',
+          message: `Project "${project.id}" is scheduled-for-release but currentPhase="${String(project.currentPhase)}".`,
+        });
+      }
+    }
+
+    // If a project is in release-phase (or scheduled-for-release) and the scheduled date is in the past,
+    // it should have been advanced by ScheduledReleaseSystem on the next tick.
+    if ((isScheduledForRelease || isLegacyReleasePhase) && w != null && y != null) {
+      const scheduledAbs = y * 52 + w;
+      if (currentAbs > scheduledAbs) {
+        pushIssue({
+          check: 11,
+          code: 'project.scheduled_release.stuck_past_date',
+          message: `Project "${project.id}" is still in release/scheduled-for-release after its scheduled date (scheduled=Y${y}W${w}, now=Y${state.currentYear}W${state.currentWeek}).`,
+        });
+      }
+    }
+  }
+
+  return issues;
+}
+
+export function validateTickDelta(prev: GameState, next: GameState): CoreLoopIssue[] {
+  const issues: CoreLoopIssue[] = [];
+
+  const pushIssue = (issue: CoreLoopIssue) => {
+    issues.push(issue);
+  };
+
+  const nowWeek = next.currentWeek;
+  const nowYear = next.currentYear;
+
+  const keyFor = (r: any) => `${r?.projectId ?? 'unknown'}:${r?.id ?? 'unknown'}`;
+
+  const prevByKey = new Map<string, any>();
+  for (const p of prev.projects || []) {
+    for (const r of (p as any)?.postTheatricalReleases || []) {
+      if (!r) continue;
+      prevByKey.set(keyFor(r), r);
+    }
+  }
+
+  for (const p of next.projects || []) {
+    for (const rNext of (p as any)?.postTheatricalReleases || []) {
+      if (!rNext) continue;
+      const rPrev = prevByKey.get(keyFor(rNext));
+      if (!rPrev) continue;
+
+      const processedThisTick = rNext.lastProcessedWeek === nowWeek && rNext.lastProcessedYear === nowYear;
+      const prevProcessedThisTick = rPrev.lastProcessedWeek === nowWeek && rPrev.lastProcessedYear === nowYear;
+
+      if (!processedThisTick) continue;
+
+      const prevRevenue = Math.max(0, Math.round((rPrev.revenue as any) || 0));
+      const nextRevenue = Math.max(0, Math.round((rNext.revenue as any) || 0));
+      const delta = nextRevenue - prevRevenue;
+
+      if (prevProcessedThisTick) {
+        // Guard against accidental double-processing inside one tick.
+        if (delta !== 0) {
+          pushIssue({
+            check: 12,
+            code: 'postTheatrical.double_processed_revenue_delta',
+            message: `Post-theatrical release "${rNext.id}" appears processed twice in the same tick (Y${nowYear}W${nowWeek}) and revenue increased by ${delta}.`,
+          });
+        }
+
+        const prevWeeksActive = Math.max(0, Math.floor((rPrev.weeksActive as any) || 0));
+        const nextWeeksActive = Math.max(0, Math.floor((rNext.weeksActive as any) || 0));
+        if (nextWeeksActive !== prevWeeksActive) {
+          pushIssue({
+            check: 12,
+            code: 'postTheatrical.double_processed_weeksActive_delta',
+            message: `Post-theatrical release "${rNext.id}" appears processed twice in the same tick and weeksActive changed (${prevWeeksActive} -> ${nextWeeksActive}).`,
+          });
+        }
+
+        continue;
+      }
+
+      if (delta < 0) {
+        pushIssue({
+          check: 12,
+          code: 'postTheatrical.revenue_decreased',
+          message: `Post-theatrical release "${rNext.id}" revenue decreased during processing (${prevRevenue} -> ${nextRevenue}).`,
+        });
+      }
+
+      const weeklyRevenue = Math.max(0, Math.round((rNext.weeklyRevenue as any) || 0));
+      const expectedDelta = rNext.status === 'planned' ? 0 : weeklyRevenue;
+
+      if (delta !== expectedDelta) {
+        pushIssue({
+          check: 12,
+          code: 'postTheatrical.unexpected_revenue_delta',
+          message: `Post-theatrical release "${rNext.id}" revenue delta ${delta} != expected ${expectedDelta} for status="${String(rNext.status)}".`,
+        });
+      }
+
+      if (rPrev.status === 'planned' && rNext.status !== 'planned') {
+        const weeksActive = Math.max(0, Math.floor((rNext.weeksActive as any) || 0));
+        if (weeksActive !== 1 && rNext.status !== 'ended') {
+          pushIssue({
+            check: 12,
+            code: 'postTheatrical.planned_to_active_wrong_weeksActive',
+            message: `Post-theatrical release "${rNext.id}" transitioned from planned but weeksActive=${weeksActive} (expected 1).`,
+          });
+        }
       }
     }
   }

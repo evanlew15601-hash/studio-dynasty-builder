@@ -25,7 +25,7 @@ import { createRng, generateGameSeed, seedFromString } from './core/rng';
 import { advanceWeek as tickAdvanceWeek } from './core/tick';
 import { SystemRegistry } from './core/registry';
 import type { TickResult, TickSystem } from './core/types';
-import { checkTickOrdering, validateGameState } from './core/coreLoopChecks';
+import { checkTickOrdering, validateGameState, validateTickDelta } from './core/coreLoopChecks';
 import { advanceWeekInWorker } from './worker/client';
 import { saveGame } from '@/utils/saveLoad';
 import { TalentLifecycleSystem } from './systems/talentLifecycleSystem';
@@ -319,7 +319,7 @@ export const useGameStore: import('zustand').UseBoundStore<import('zustand').Sto
       });
 
       if (import.meta.env.DEV) {
-        const issues = validateGameState(result.nextState);
+        const issues = [...validateGameState(result.nextState), ...validateTickDelta(game, result.nextState)];
         for (const issue of issues) {
           console.warn(`[CoreLoop][Check ${issue.check}] ${issue.code}: ${issue.message}`);
         }

@@ -1,7 +1,7 @@
 import { beforeEach, describe, expect, it } from 'vitest';
 import type { GameEvent, GameState } from '@/types/game';
 import { useGameStore } from '@/game/store';
-import { checkTickOrdering, validateGameState } from '@/game/core/coreLoopChecks';
+import { checkTickOrdering, validateGameState, validateTickDelta } from '@/game/core/coreLoopChecks';
 
 function makeBaseState(overrides?: Partial<GameState>): GameState {
   const base: GameState = {
@@ -96,7 +96,7 @@ describe('Core gameplay loop checks (in order)', () => {
     expect(afterTwo.eventQueue.length).toBe(0);
   });
 
-  it('3-7) long-horizon invariants (no duplicates, no drift, no NaNs)', () => {
+  it('3-12) long-horizon invariants (no duplicates, no drift, no NaNs)', () => {
     // Keep this short enough for unit tests, but long enough to hit multiple subsystems.
     useGameStore.getState().initGame(
       makeBaseState({
@@ -139,10 +139,11 @@ describe('Core gameplay loop checks (in order)', () => {
     );
 
     for (let i = 0; i < 52 * 2; i++) {
+      const prev = useGameStore.getState().game!;
       useGameStore.getState().advanceWeek({ suppressRecap: true });
       const state = useGameStore.getState().game!;
 
-      const issues = validateGameState(state);
+      const issues = [...validateGameState(state), ...validateTickDelta(prev, state)];
       expect(issues).toEqual([]);
 
       // Resolve any queued events with the first choice to keep the loop moving.
