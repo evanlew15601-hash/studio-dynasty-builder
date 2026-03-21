@@ -8,6 +8,7 @@ import { Badge } from '@/components/ui/badge';
 import { Avatar, AvatarFallback } from '@/components/ui/avatar';
 import { useToast } from '@/hooks/use-toast';
 import { isDirectorRole } from '@/utils/scriptRoles';
+import { describeTalentInterest, defaultContractWeeksForRole, negotiateTalentContract } from '@/utils/talentNegotiation';
 import { CastingBoardFilters, CastingFilters } from './CastingBoardFilters';
 import { 
   CastingIcon, 
@@ -75,14 +76,43 @@ export const CastingBoard: React.FC<CastingBoardProps> = ({
       return;
     }
 
-    const contractWeeks = 16; // Standard contract length
-    const weeklySalary = talent.marketValue / 52;
-    const totalCost = weeklySalary * contractWeeks;
+    const requiredType = talent.type === 'director' ? 'director' : 'actor';
+    const contractWeeks = defaultContractWeeksForRole(requiredType, role.toLowerCase().includes('lead') ? 'lead' : undefined);
 
-    if (totalCost > gameState.studio.budget) {
+    const negotiation = negotiateTalentContract({
+      talent,
+      studio: gameState.studio,
+      project: selectedProject,
+      requiredType,
+      importance: role.toLowerCase().includes('lead') ? 'lead' : undefined,
+      week: gameState.currentWeek,
+      year: gameState.currentYear,
+    });
+
+    const interest = describeTalentInterest(negotiation.interestScore);
+
+    if (!negotiation.accepted) {
       toast({
-        title: "Insufficient Budget",
-        description: `Cannot afford ${talent.name} - need ${(totalCost / 1000000).toFixed(0)}M`,
+        title: `${talent.name}: ${interest.label}`,
+        description:
+          negotiation.reason === 'held'
+            ? 'This talent is not currently available.'
+            : negotiation.reason === 'not-interested'
+              ? `Their agent isn’t taking meetings for this project right now. (Ask: ${(negotiation.askWeeklyPay / 1000).toFixed(0)}k/week)`
+              : 'Deal could not be completed.',
+        variant: "destructive"
+      });
+      return;
+    }
+
+    const weeklySalary = negotiation.weeklyPay;
+
+    // Require enough cash runway to cover at least a few weeks of payroll.
+    const requiredCash = weeklySalary * Math.min(4, contractWeeks);
+    if (requiredCash > gameState.studio.budget) {
+      toast({
+        title: "Insufficient Cash Runway",
+        description: `Need at least ${(requiredCash / 1000000).toFixed(1)}M available to sign this contract (covers first ${Math.min(4, contractWeeks)} weeks).`,
         variant: "destructive"
       });
       return;
@@ -113,9 +143,9 @@ export const CastingBoard: React.FC<CastingBoardProps> = ({
     // Base project updates for legacy cast/crew/contracted structures
     let updatedProject: Project = {
       ...selectedProject,
-      cast: talent.type === 'actor' ? [...selectedProject.cast, newRole] : selectedProject.cast,
-      crew: talent.type === 'director' ? [...selectedProject.crew, newRole] : selectedProject.crew,
-      contractedTalent: [...selectedProject.contractedTalent, contractedTalent]
+      cast: talent.type === 'actor' ? [...selectedProject.cast.filter(r => r.role !== role), newRole] : selectedProject.cast,
+      crew: talent.type === 'director' ? [...selectedProject.crew.filter(r => r.role !== role), newRole] : selectedProject.crew,
+      contractedTalent: [...selectedProject.contractedTalent.filter(ct => ct.role !== role), contractedTalent]
     };
 
     // Keep canonical script character assignments in sync so release/phase validation works
@@ -194,8 +224,232 @@ export const CastingBoard: React.FC<CastingBoardProps> = ({
     });
 
     toast({
-      title: "Talent Hired!",
-      description: `${talent.name} has been cast as ${role}`,
+      title: "Talent Signed!",
+      description: `${talent.name} accepted (${interest.label}) — \u0024${(weeklySalary / 1000).toFixed(0)}k/week for ${contractWeeks} weeks as ${role}`,
+    });
+  };
+
+  const formatCurrency = (amount: number) => `$${(amount / 1000000).toFixed(0)}M`;
+
+  const getProjectBudget = () => {
+    return selectedProject ? selectedProject.budget.total * 0.05 : 0;
+  };
+
+  return (
+    <div className="space-y-6">
+      {/* Casting Filters */}
+      <CastingBoardFilters
+        filters={filters}
+        onFiltersChange={setFilters}
+        talent={gameState.talent.filter(t => t.contractStatus === 'available')}
+      />
+
+      {/* Project Selection */}
+      <Card className="card-premium">
+        <CardHeader>
+          <CardTitle className="flex items-center text-primary">
+            <CastingIcon className="mr-3" size={24} />
+            Casting Board
+          </CardTitle>
+        </CardHeader>
+        <CardContent>
+          {!selectedProject ? (
+            <div className="text-center py-8">
+              <CastingIcon className="mx-auto mb-4 text-muted-foreground" size={64} />
+              <p className="text-lg text-muted-foreground mb-2">No Project Selected</p>
+              <p className="text-sm text-muted-foreground">
+                Go to Script Development to greenlight a project first
+              </p>
+            </div>
+          ) : (
+            <div className="space-y-4">
+              <div className="flex items-center justify-between">
+                <div>
+                  <h3 className="text-xl font-bold">{selectedProject.title}</h3>
+                  <p className="text-muted-foreground">
+                    {selectedProject.script?.genre || 'Unknown'} • Budget: {formatCurrency(selectedProject.budget.total)}
+                  </p>
+                </div>
+                <div className="text-right">
+                  <p className="text-sm text-muted-foreground">Available for Casting</p>
+                  <p className="font-semibold text-primary">{formatCurrency(getProjectBudget())}</p>
+                </div>
+              </div>
+
+              {/* Current Cast */}
+              {selectedProject.cast.length > 0 && (
+                <div className="space-y-2">
+                  <h4 className="font-semibold flex items-center">
+                    <TalentIcon className="mr-2" size={16} />
+                    Current Cast
+                  </h4>
+                  <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
+                    {selectedProject.cast.map((role, index) => {
+                      const talent = gameState.talent.find(t => t.id === role.talentId);
+                      return talent ? (
+                        <div key={index} className="flex items-center space-x-3 p-3 rounded-lg bg-card border">
+                          <Avatar>
+                            <AvatarFallback>{talent.name.split(' ').map(n => n[0]).join('')}</AvatarFallback>
+                          </Avatar>
+                          <div className="flex-1">
+                            <button
+                              type="button"
+                              className="text-left font-medium hover:underline"
+                              onClick={() => openTalentProfile(talent.id)}
+                            >
+                              {talent.name}
+                            </button>
+                            <p className="text-sm text-muted-foreground">{role.role}</p>
+                          </div>
+                          <div className="text-right">
+                            <p className="text-sm font-medium">{formatCurrency(role.salary)}</p>
+                          </div>
+                        </div>
+                      ) : null;
+                    })}
+                  </div>
+                </div>
+              )}
+            </div>
+          )}
+        </CardContent>
+      </Card>
+
+      {/* Available Talent */}
+      <div className="grid grid-cols-1 lg:grid-cols-2 xl:grid-cols-3 gap-6">
+        {availableTalent.map((talent) => (
+          <Card key={talent.id} className="card-premium hover:shadow-golden transition-all duration-300">
+            <CardHeader className="pb-3">
+              <div className="flex items-start justify-between">
+                <div className="flex items-center space-x-3">
+                  <Avatar className="h-12 w-12">
+                    <AvatarFallback className="bg-gradient-golden text-primary-foreground">
+                      {talent.name.split(' ').map(n => n[0]).join('')}
+                    </AvatarFallback>
+                  </Avatar>
+                  <div>
+                    <div className="flex items-center gap-2">
+                      <button
+                        type="button"
+                        className="font-bold text-lg hover:underline"
+                        onClick={() => openTalentProfile(talent.id)}
+                      >
+                        {talent.name}
+                      </button>
+                      <Button
+                        type="button"
+                        variant="link"
+                        size="sm"
+                        className="h-auto p-0"
+                        onClick={() => openTalentProfile(talent.id)}
+                      >
+                        Profile
+                      </Button>
+                    </div>
+                    <Badge variant="outline" className="capitalize">
+                      {talent.type}
+                    </Badge>
+                  </div>
+                </div>
+                <div className="text-right">
+                  <div className="flex items-center space-x-1 text-sm text-muted-foreground">
+                    <ReputationIcon size={14} />
+                    <span>{Math.round(talent.reputation)}/100</span>
+                  </div>
+                </div>
+              </div>
+            </CardHeader>
+            
+            <CardContent className="space-y-4">
+              <div className="space-y-2">
+                <div className="flex justify-between text-sm">
+                  <span className="text-muted-foreground">Market Value:</span>
+                  <span className="font-semibold">{formatCurrency(talent.marketValue)}</span>
+                </div>
+                <div className="flex justify-between text-sm">
+                  <span className="text-muted-foreground">Experience:</span>
+                  <span>{talent.experience} years</span>
+                </div>
+                <div className="flex justify-between text-sm">
+                  <span className="text-muted-foreground">Age:</span>
+                  <span>{talent.age}</span>
+                </div>
+              </div>
+
+              {/* Genres */}
+              <div>
+                <p className="text-sm text-muted-foreground mb-2">Specializes in:</p>
+                <div className="flex flex-wrap gap-1">
+                  {talent.genres.map((genre) => (
+                    <Badge key={genre} variant="secondary" className="text-xs">
+                      {genre}
+                    </Badge>
+                  ))}
+                </div>
+              </div>
+
+              {/* Awards */}
+              {talent.awards && talent.awards.length > 0 && (
+                <div>
+                  <p className="text-sm text-muted-foreground mb-2 flex items-center">
+                    <AwardIcon className="mr-1" size={14} />
+                    Awards:
+                  </p>
+                  <div className="flex flex-wrap gap-1">
+                    {talent.awards.map((award, index) => (
+                      <Badge key={typeof award === 'string' ? award : award.id || index} variant="outline" className="text-xs">
+                        {typeof award === 'string' ? award : award.category || 'Award'}
+                      </Badge>
+                    ))}
+                  </div>
+                </div>
+              )}
+
+              {/* Traits */}
+              {talent.traits && talent.traits.length > 0 && (
+                <div>
+                  <p className="text-sm text-muted-foreground mb-2">Traits:</p>
+                  <div className="flex flex-wrap gap-1">
+                    {talent.traits.map((trait) => (
+                      <Badge key={trait} className="text-xs bg-gradient-to-r from-primary/20 to-accent/20">
+                        {trait}
+                      </Badge>
+                    ))}
+                  </div>
+                </div>
+              )}
+
+              {selectedProject && (
+                <div className="pt-2 border-t">
+                  <Button 
+                    onClick={() => handleHireTalent(talent, talent.type === 'director' ? 'Director' : 'Lead Actor')}
+                    className="w-full btn-studio"
+                    size="sm"
+                  >
+                    <ContractIcon className="mr-2" size={16} />
+                    Hire for {formatCurrency(selectedProject.budget.total * (talent.type === 'director' ? 0.08 : 0.05))}
+                  </Button>
+                </div>
+              )}
+            </CardContent>
+          </Card>
+        ))}
+      </div>
+
+      {availableTalent.length === 0 && (
+        <Card className="card-premium">
+          <CardContent className="text-center py-12">
+            <TalentIcon className="mx-auto mb-4 text-muted-foreground" size={64} />
+            <p className="text-lg text-muted-foreground mb-2">No Available Talent</p>
+            <p className="text-sm text-muted-foreground">
+              All talent is currently under contract
+            </p>
+          </CardContent>
+        </Card>
+      )}
+    </div>
+  );
+};}${(weeklySalary / 1000).toFixed(0)}k/week for ${contractWeeks} weeks as ${role}`,
     });
   };
 

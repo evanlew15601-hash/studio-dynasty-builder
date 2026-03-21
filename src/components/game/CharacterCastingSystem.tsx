@@ -4,6 +4,7 @@ import { useGameStore } from '@/game/store';
 import { useUiStore } from '@/game/uiStore';
 import { talentMatchesRole } from '@/utils/castingEligibility';
 import { isDirectorRole } from '@/utils/scriptRoles';
+import { defaultContractWeeksForRole, describeTalentInterest, negotiateTalentContract } from '@/utils/talentNegotiation';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
@@ -30,6 +31,7 @@ export const CharacterCastingSystem: React.FC<CharacterCastingSystemProps> = ({
   const gameState = useGameStore((s) => s.game);
   const project = useGameStore((s) => s.game?.projects.find(p => p.id === propProject.id) || propProject);
   const replaceProject = useGameStore((s) => s.replaceProject);
+  const updateTalent = useGameStore((s) => s.updateTalent);
   const { toast } = useToast();
   const [filterType, setFilterType] = useState<'all' | 'cast' | 'crew'>('all');
 
@@ -205,34 +207,94 @@ export const CharacterCastingSystem: React.FC<CharacterCastingSystemProps> = ({
 
     const isFranchiseProject = !!project.script?.franchiseId;
 
-    // Directors belong in crew; only actors belong in cast.
-    const castEntries = actorSlots.map(s => ({
-      talentId: (s.talent as TalentPerson).id,
-      role: s.character.importance === 'lead'
-        ? `Lead - ${s.character.name}`
-        : `Supporting - ${s.character.name}`,
-      salary: Math.round(s.contractCost),
-      points: 0,
-      contractTerms: {
-        duration: new Date(Date.now() + 1000 * 60 * 60 * 24 * 90),
-        exclusivity: false,
-        merchandising: false,
-        sequelOptions: isFranchiseProject && s.character.importance === 'lead' ? 2 : 1
-      }
-    }));
+    const negotiatedByTalentId = new Map<string, { weeklyPay: number; contractWeeks: number; interestLabel: string }>();
 
-    const crewEntries = directorSlots.map(s => ({
-      talentId: (s.talent as TalentPerson).id,
-      role: 'Director',
-      salary: Math.round(s.contractCost),
-      points: 0,
-      contractTerms: {
-        duration: new Date(Date.now() + 1000 * 60 * 60 * 24 * 90),
-        exclusivity: false,
-        merchandising: false,
-        sequelOptions: 1
+    let requiredCashTotal = 0;
+
+    for (const slot of slots) {
+      if (!slot.talent) continue;
+      const requiredType = isDirectorRole(slot.character) ? 'director' : 'actor';
+      const contractWeeks = defaultContractWeeksForRole(requiredType, slot.character.importance);
+
+      const negotiation = negotiateTalentContract({
+        talent: slot.talent,
+        studio: gameState.studio,
+        project,
+        requiredType,
+        importance: slot.character.importance,
+        week: gameState.currentWeek,
+        year: gameState.currentYear,
+      });
+
+      const interest = describeTalentInterest(negotiation.interestScore);
+
+      if (!negotiation.accepted) {
+        toast({
+          title: 'Casting blocked',
+          description:
+            negotiation.reason === 'not-interested'
+              ? `${slot.talent.name} isn’t interested in this project right now.`
+              : `${slot.talent.name} is not currently available.`,
+          variant: 'destructive',
+        });
+        return;
       }
-    }));
+
+      const weeklyPay = negotiation.weeklyPay;
+      requiredCashTotal += weeklyPay * Math.min(4, contractWeeks);
+
+      negotiatedByTalentId.set(slot.talent.id, { weeklyPay, contractWeeks, interestLabel: interest.label });
+    }
+
+    if (requiredCashTotal > gameState.studio.budget) {
+      toast({
+        title: 'Insufficient Cash Runway',
+        description: `Need at least ${(requiredCashTotal / 1000000).toFixed(1)}M available to sign these deals (covers first 4 weeks of payroll).`,
+        variant: 'destructive',
+      });
+      return;
+    }
+
+    // Directors belong in crew; only actors belong in cast.
+    const castEntries = actorSlots.map(s => {
+      const talent = s.talent as TalentPerson;
+      const deal = negotiatedByTalentId.get(talent.id)!;
+      const contractWeeks = deal.contractWeeks;
+
+      return {
+        talentId: talent.id,
+        role: s.character.importance === 'lead'
+          ? `Lead - ${s.character.name}`
+          : `Supporting - ${s.character.name}`,
+        salary: deal.weeklyPay,
+        points: 10,
+        contractTerms: {
+          duration: new Date(Date.now() + contractWeeks * 7 * 24 * 60 * 60 * 1000),
+          exclusivity: true,
+          merchandising: true,
+          sequelOptions: isFranchiseProject && s.character.importance === 'lead' ? 2 : 1
+        }
+      };
+    });
+
+    const crewEntries = directorSlots.map(s => {
+      const talent = s.talent as TalentPerson;
+      const deal = negotiatedByTalentId.get(talent.id)!;
+      const contractWeeks = deal.contractWeeks;
+
+      return {
+        talentId: talent.id,
+        role: 'Director',
+        salary: deal.weeklyPay,
+        points: 15,
+        contractTerms: {
+          duration: new Date(Date.now() + contractWeeks * 7 * 24 * 60 * 60 * 1000),
+          exclusivity: true,
+          merchandising: true,
+          sequelOptions: 1
+        }
+      };
+    });
 
     const assignedActorTalents = actorSlots.map(s => s.talent!) as TalentPerson[];
     const fameScores = assignedActorTalents
@@ -241,22 +303,34 @@ export const CharacterCastingSystem: React.FC<CharacterCastingSystemProps> = ({
     const topTwo = fameScores.sort((a, b) => b - a).slice(0, 2);
     const starPowerBonus = Math.min(0.5, (topTwo.reduce((a, b) => a + b, 0) / (topTwo.length || 1)) / 200); // up to +0.5
 
-const totalCost = getTotalCastingCost();
+const totalCost = slots
+  .filter(s => s.talent)
+  .reduce((sum, s) => {
+    const deal = negotiatedByTalentId.get((s.talent as TalentPerson).id);
+    if (!deal) return sum;
+    return sum + deal.weeklyPay * deal.contractWeeks;
+  }, 0);
 
 const contracted = slots
   .filter(s => s.talent)
-  .map(s => ({
-    talentId: (s.talent as TalentPerson).id,
-    role: isDirectorRole(s.character)
-      ? 'Director'
-      : s.character.importance === 'lead'
-        ? `Lead - ${s.character.name}`
-        : `Supporting - ${s.character.name}`,
-    weeklyPay: Math.round(((s.talent as TalentPerson).marketValue) / 52),
-    contractWeeks: 16,
-    weeksRemaining: 16,
-    startWeek: gameState.currentWeek
-  }));
+  .map(s => {
+    const talent = s.talent as TalentPerson;
+    const deal = negotiatedByTalentId.get(talent.id)!;
+    const requiredType = isDirectorRole(s.character) ? 'director' : 'actor';
+
+    return {
+      talentId: talent.id,
+      role: requiredType === 'director'
+        ? 'Director'
+        : s.character.importance === 'lead'
+          ? `Lead - ${s.character.name}`
+          : `Supporting - ${s.character.name}`,
+      weeklyPay: deal.weeklyPay,
+      contractWeeks: deal.contractWeeks,
+      weeksRemaining: deal.contractWeeks,
+      startWeek: gameState.currentWeek
+    };
+  });
 
 const keepContracted = (project.contractedTalent || []).filter(ct => !contracted.some(nc => nc.talentId === ct.talentId && nc.role === ct.role));
 
@@ -280,6 +354,13 @@ const updatedProject: Project = {
 };
 
     replaceProject(updatedProject);
+
+    for (const slot of slots) {
+      if (!slot.talent) continue;
+      const deal = negotiatedByTalentId.get(slot.talent.id);
+      if (!deal) continue;
+      updateTalent(slot.talent.id, { contractStatus: 'contracted' as const, currentContractWeeks: deal.contractWeeks });
+    }
 
     toast({
       title: 'Casting Confirmed',

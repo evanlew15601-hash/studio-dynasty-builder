@@ -42,6 +42,7 @@ import { WorldArchiveSystem } from './systems/worldArchiveSystem';
 import { TalentFilmographySystem } from './systems/talentFilmographySystem';
 import { TalentCareerArcSystem } from './systems/talentCareerArcSystem';
 import { TalentAvailabilitySystem } from './systems/talentAvailabilitySystem';
+import { TalentContractsSystem } from './systems/talentContractsSystem';
 import { IndustryGossipSystem } from './systems/industryGossipSystem';
 import { AiTelevisionSystem } from './systems/aiTelevisionSystem';
 import { ProjectLifecycleSystem } from './systems/projectLifecycleSystem';
@@ -216,6 +217,7 @@ export const useGameStore: import('zustand').UseBoundStore<import('zustand').Sto
       r.register(AiTelevisionSystem);
       r.register(AiStudioFilmSystem);
       r.register(ProjectLifecycleSystem);
+      r.register(TalentContractsSystem);
       r.register(TalentAvailabilitySystem);
       r.register(MarketingCampaignSystem);
       r.register(ScheduledReleaseSystem);

@@ -8,6 +8,7 @@ import { talentMatchesRole } from '@/utils/castingEligibility';
 import { Users, User, Crown, Star, CheckCircle } from 'lucide-react';
 import { importRolesForScript } from '@/utils/roleImport';
 import { useGameStore } from '@/game/store';
+import { describeTalentInterest, defaultContractWeeksForRole, negotiateTalentContract } from '@/utils/talentNegotiation';
 
 interface RoleBasedCastingProps {
   project: Project;
@@ -19,6 +20,7 @@ export const RoleBasedCasting: React.FC<RoleBasedCastingProps> = ({
   const gameState = useGameStore((s) => s.game);
   const project = useGameStore((s) => s.game?.projects.find(p => p.id === propProject.id) || propProject);
   const updateProject = useGameStore((s) => s.updateProject);
+  const updateTalent = useGameStore((s) => s.updateTalent);
   const { toast } = useToast();
 
   // Import roles when project changes or script updates (auto-add mandatory TV roles)
@@ -99,12 +101,42 @@ export const RoleBasedCasting: React.FC<RoleBasedCastingProps> = ({
   };
 
   const handleCastTalent = (character: ScriptCharacter, talent: TalentPerson) => {
-    const contractCost = talent.marketValue * 0.1; // 10% of market value
-    
-    if (contractCost > gameState.studio.budget) {
+    const requiredType = resolveRequiredType(character);
+    const contractWeeks = defaultContractWeeksForRole(requiredType, character.importance);
+
+    const negotiation = negotiateTalentContract({
+      talent,
+      studio: gameState.studio,
+      project,
+      requiredType,
+      importance: character.importance,
+      week: gameState.currentWeek,
+      year: gameState.currentYear,
+    });
+
+    const interest = describeTalentInterest(negotiation.interestScore);
+
+    if (!negotiation.accepted) {
       toast({
-        title: "Insufficient Budget",
-        description: `Cannot afford ${talent.name} - need $${(contractCost / 1000000).toFixed(1)}M`,
+        title: `${talent.name}: ${interest.label}`,
+        description:
+          negotiation.reason === 'held'
+            ? 'This talent is not currently available.'
+            : negotiation.reason === 'not-interested'
+              ? `Their agent isn’t taking meetings for this project right now. (Ask: ${(negotiation.askWeeklyPay / 1000).toFixed(0)}k/week)`
+              : 'Deal could not be completed.',
+        variant: "destructive"
+      });
+      return;
+    }
+
+    const weeklyPay = negotiation.weeklyPay;
+
+    const requiredCash = weeklyPay * Math.min(4, contractWeeks);
+    if (requiredCash > gameState.studio.budget) {
+      toast({
+        title: "Insufficient Cash Runway",
+        description: `Need at least ${(requiredCash / 1000000).toFixed(1)}M available to sign this contract (covers first ${Math.min(4, contractWeeks)} weeks).`,
         variant: "destructive"
       });
       return;
@@ -114,16 +146,62 @@ export const RoleBasedCasting: React.FC<RoleBasedCastingProps> = ({
       c.id === character.id ? { ...c, assignedTalentId: talent.id } : c
     );
 
+    const roleLabel = requiredType === 'director'
+      ? 'Director'
+      : character.importance === 'lead'
+        ? `Lead - ${character.name}`
+        : `Supporting - ${character.name}`;
+
+    const castEntry = {
+      talentId: talent.id,
+      role: roleLabel,
+      salary: weeklyPay,
+      points: requiredType === 'director' ? 15 : 10,
+      contractTerms: {
+        duration: new Date(Date.now() + contractWeeks * 7 * 24 * 60 * 60 * 1000),
+        exclusivity: true,
+        merchandising: true,
+        sequelOptions: project.script?.franchiseId && character.importance === 'lead' ? 2 : 1
+      }
+    } as any;
+
+    const contractedEntry = {
+      talentId: talent.id,
+      role: roleLabel,
+      weeklyPay,
+      contractWeeks,
+      weeksRemaining: contractWeeks,
+      startWeek: gameState.currentWeek
+    };
+
+    const nextCast = requiredType === 'actor'
+      ? [...(project.cast || []).filter(r => r.role !== roleLabel), castEntry]
+      : (project.cast || []);
+
+    const nextCrew = requiredType === 'director'
+      ? [...(project.crew || []).filter(r => r.role !== roleLabel), castEntry]
+      : (project.crew || []);
+
+    const nextContractedTalent = [
+      ...((project.contractedTalent || []).filter(ct => ct.role !== roleLabel)),
+      contractedEntry
+    ];
+
     updateProject(project.id, {
+      cast: nextCast,
+      crew: nextCrew,
+      contractedTalent: nextContractedTalent,
       script: {
         ...project.script,
         characters: updatedCharacters
       }
     } as any);
-    
+
+    updateTalent(talent.id, { contractStatus: 'contracted' as const, currentContractWeeks: contractWeeks });
+
     toast({
-      title: "Role Cast",
-      description: `${talent.name} has been cast as ${character.name}`,
+      title: "Talent Signed",
+      description: `${talent.name} accepted (${interest.label}) — ${(weeklyPay / 1000).toFixed(0)}k/week for ${contractWeeks} weeks`,
     });
   };
 
