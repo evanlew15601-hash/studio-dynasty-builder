@@ -218,10 +218,13 @@ export const PostTheatricalManagement: React.FC<PostTheatricalManagementProps> =
     if (!isOwnedDestination) {
       const weeksSinceEnd = calculateWeeksSinceTheatricalEnd(project);
 
-      if (weeksSinceEnd < option.minimumWeeksAfterTheatrical) {
+      const festivalShift = project.releaseStrategy?.type === 'festival' && option.platform !== 'tv-licensing' ? 4 : 0;
+      const minWeeks = Math.max(0, option.minimumWeeksAfterTheatrical - festivalShift);
+
+      if (weeksSinceEnd < minWeeks) {
         return {
           canRelease: false,
-          reason: `Available in ${option.minimumWeeksAfterTheatrical - weeksSinceEnd} weeks`,
+          reason: `Available in ${minWeeks - weeksSinceEnd} weeks`,
         };
       }
     }

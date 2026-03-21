@@ -32,11 +32,27 @@ function getReleaseWeekYear(project: Project): { week: number; year: number } | 
   return null;
 }
 
+function clampScore(n: number): number {
+  return Math.max(0, Math.min(100, Math.round(n)));
+}
+
+function festivalCriticsBonus(project: Project): number {
+  const releaseType = project.releaseStrategy?.type;
+  if (releaseType !== 'festival') return 0;
+
+  const criticalPotential = project.script?.characteristics?.criticalPotential ?? 5;
+  const shaped = 4 + Math.round((criticalPotential - 5) * 1.5);
+  return Math.max(2, Math.min(8, shaped));
+}
+
 function ensureReleaseScores(project: Project, releaseWeek: number, releaseYear: number): Project {
+  const baseCritics = stableInt(`${project.id}|critics|${releaseYear}|${releaseWeek}`, 50, 90);
+  const baseAudience = stableInt(`${project.id}|audience|${releaseYear}|${releaseWeek}`, 50, 90);
+
   const criticsScore =
-    project.metrics?.criticsScore ?? stableInt(`${project.id}|critics|${releaseYear}|${releaseWeek}`, 50, 90);
+    project.metrics?.criticsScore ?? clampScore(baseCritics + festivalCriticsBonus(project));
   const audienceScore =
-    project.metrics?.audienceScore ?? stableInt(`${project.id}|audience|${releaseYear}|${releaseWeek}`, 50, 90);
+    project.metrics?.audienceScore ?? clampScore(baseAudience);
 
   return {
     ...project,
@@ -134,9 +150,15 @@ function calculateWeeklyRevenue(project: Project, weekIndex: number): number {
 }
 
 function shouldExitTheatersPermanently(project: Project, weeksSinceRelease: number): boolean {
-  if (weeksSinceRelease >= 20) return true;
-
   const avgScore = ((project.metrics?.criticsScore || 50) + (project.metrics?.audienceScore || 50)) / 2;
+
+  // Festival runs are shorter unless they break out.
+  if (project.releaseStrategy?.type === 'festival') {
+    const maxWeeks = avgScore >= 80 ? 10 : avgScore >= 65 ? 8 : 6;
+    if (weeksSinceRelease >= maxWeeks) return true;
+  }
+
+  if (weeksSinceRelease >= 20) return true;
 
   if (weeksSinceRelease >= 8 && avgScore < 40) return true;
   if (weeksSinceRelease >= 14 && avgScore < 60) return true;
@@ -324,6 +346,8 @@ export const BoxOfficeSystem: TickSystem = {
         const total = hasExistingTotal ? (project.metrics.boxOfficeTotal as number) : opening;
         const weeklyRevenue = typeof project.metrics?.lastWeeklyRevenue === 'number' ? project.metrics.lastWeeklyRevenue : opening;
 
+        const isFestival = project.releaseStrategy?.type === 'festival';
+
         project = {
           ...project,
           releaseWeek: rel.week,
@@ -333,7 +357,7 @@ export const BoxOfficeSystem: TickSystem = {
             inTheaters: true,
             theatricalRunLocked: false,
             theaterCount: getInitialTheaterCount(project),
-            boxOfficeStatus: 'Opening',
+            boxOfficeStatus: isFestival ? 'Festival Premiere' : 'Opening',
             boxOfficeTotal: total,
             weeksSinceRelease: 0,
             lastWeeklyRevenue: weeklyRevenue,
@@ -389,13 +413,15 @@ export const BoxOfficeSystem: TickSystem = {
 
       // If the run should end now, lock it (no revenue for this week).
       if (shouldExitTheatersPermanently(project, expectedWeeksSinceRelease)) {
+        const isFestival = project.releaseStrategy?.type === 'festival';
+
         project = {
           ...project,
           metrics: {
             ...(project.metrics || {}),
             inTheaters: false,
             theaterCount: 0,
-            boxOfficeStatus: 'Ended',
+            boxOfficeStatus: isFestival ? 'Festival Run Ended' : 'Ended',
             theatricalRunLocked: true,
             weeksSinceRelease: expectedWeeksSinceRelease,
           },
@@ -411,13 +437,15 @@ export const BoxOfficeSystem: TickSystem = {
       const prevTotal = typeof project.metrics?.boxOfficeTotal === 'number' ? project.metrics.boxOfficeTotal : 0;
       const total = prevTotal + weeklyRevenue;
 
+      const isFestival = project.releaseStrategy?.type === 'festival';
+
       project = {
         ...project,
         metrics: {
           ...(project.metrics || {}),
           inTheaters: true,
           theaterCount,
-          boxOfficeStatus: theaterCount === 0 ? 'Ended' : 'Limited Release',
+          boxOfficeStatus: isFestival ? 'Festival Circuit' : theaterCount === 0 ? 'Ended' : 'Limited Release',
           boxOfficeTotal: total,
           weeksSinceRelease: expectedWeeksSinceRelease,
           lastWeeklyRevenue: weeklyRevenue,

@@ -13,7 +13,15 @@ export interface BoxOfficeWeeklyReport {
   cumulativeRevenue: number;
   chartPosition: number;
   screenCount: number;
-  status: 'Opening' | 'Wide Release' | 'Limited Release' | 'Final Week' | 'Ended';
+  status:
+    | 'Opening'
+    | 'Wide Release'
+    | 'Limited Release'
+    | 'Final Week'
+    | 'Festival Premiere'
+    | 'Festival Circuit'
+    | 'Festival Run Ended'
+    | 'Ended';
   audienceScore: number;
   criticsScore: number;
 }
@@ -24,8 +32,21 @@ export class BoxOfficeSystem {
     debugLog(`   Current project status: ${project.status}`);
     debugLog(`   Current project metrics:`, project.metrics);
 
-    const criticsScore = project.metrics?.criticsScore ?? stableInt(`${project.id}|critics|${releaseYear}|${releaseWeek}`, 50, 90);
-    const audienceScore = project.metrics?.audienceScore ?? stableInt(`${project.id}|audience|${releaseYear}|${releaseWeek}`, 50, 90);
+    const releaseType = project.releaseStrategy?.type;
+
+    const clampScore = (n: number) => Math.max(0, Math.min(100, Math.round(n)));
+
+    const festivalCriticsBonus = (() => {
+      if (releaseType !== 'festival') return 0;
+      const criticalPotential = project.script?.characteristics?.criticalPotential ?? 5;
+      const shaped = 4 + Math.round((criticalPotential - 5) * 1.5);
+      return Math.max(2, Math.min(8, shaped));
+    })();
+
+    const criticsScore =
+      project.metrics?.criticsScore ??
+      clampScore(stableInt(`${project.id}|critics|${releaseYear}|${releaseWeek}`, 50, 90) + festivalCriticsBonus);
+    const audienceScore = project.metrics?.audienceScore ?? clampScore(stableInt(`${project.id}|audience|${releaseYear}|${releaseWeek}`, 50, 90));
 
     const projectWithScores: Project = {
       ...project,
@@ -66,7 +87,7 @@ export class BoxOfficeSystem {
         weeksSinceRelease: 0,
         criticsScore,
         audienceScore,
-        boxOfficeStatus: 'Opening',
+        boxOfficeStatus: releaseType === 'festival' ? 'Festival Premiere' : 'Opening',
         theatricalRunLocked: false, // Track if run has permanently ended
         lastWeeklyRevenue: openingWeekRevenue
       }
@@ -163,7 +184,7 @@ export class BoxOfficeSystem {
           inTheaters: false,
           theaterCount: 0,
           weeksSinceRelease,
-          boxOfficeStatus: 'Ended',
+          boxOfficeStatus: project.releaseStrategy?.type === 'festival' ? 'Festival Run Ended' : 'Ended',
           theatricalRunLocked: true // LOCK THE RUN - NO MORE CHANGES
         },
         postTheatricalEligible: true,
@@ -175,7 +196,7 @@ export class BoxOfficeSystem {
     const weeklyRevenue = this.calculateWeeklyRevenue(project, weeksSinceRelease);
     const newTotal = (project.metrics.boxOfficeTotal || 0) + weeklyRevenue;
     const theaterCount = this.calculateTheaterCount(project, weeksSinceRelease);
-    const status = this.getWeeklyStatus(weeksSinceRelease, theaterCount);
+    const status = this.getWeeklyStatus(project, weeksSinceRelease, theaterCount);
 
     // Generate weekly report
     const report: BoxOfficeWeeklyReport = {
@@ -234,6 +255,17 @@ export class BoxOfficeSystem {
   }
 
   private static shouldExitTheatersPermanently(project: Project, weeksSinceRelease: number): boolean {
+    const avgScore = ((project.metrics?.criticsScore || 50) + (project.metrics?.audienceScore || 50)) / 2;
+
+    // Festival runs are shorter unless they break out.
+    if (project.releaseStrategy?.type === 'festival') {
+      const maxWeeks = avgScore >= 80 ? 10 : avgScore >= 65 ? 8 : 6;
+      if (weeksSinceRelease >= maxWeeks) {
+        debugLog(`    FESTIVAL RUN END (${maxWeeks} weeks, ${avgScore.toFixed(1)} avg score)`);
+        return true;
+      }
+    }
+
     // ABSOLUTE MAXIMUM: 20 weeks (5 months)
     if (weeksSinceRelease >= 20) {
       debugLog(`    MAXIMUM RUN REACHED (20 weeks)`);
@@ -242,7 +274,6 @@ export class BoxOfficeSystem {
 
     // POOR PERFORMANCE: Exit after 8 weeks for truly bad films
     if (weeksSinceRelease >= 8) {
-      const avgScore = ((project.metrics?.criticsScore || 50) + (project.metrics?.audienceScore || 50)) / 2;
       if (avgScore < 40) {
         debugLog(`    POOR PERFORMANCE EXIT (${avgScore.toFixed(1)} avg score)`);
         return true;
@@ -251,7 +282,6 @@ export class BoxOfficeSystem {
 
     // MEDIOCRE PERFORMANCE: Exit after 14 weeks
     if (weeksSinceRelease >= 14) {
-      const avgScore = ((project.metrics?.criticsScore || 50) + (project.metrics?.audienceScore || 50)) / 2;
       if (avgScore < 60) {
         debugLog(`    MEDIOCRE PERFORMANCE EXIT (${avgScore.toFixed(1)} avg score)`);
         return true;
@@ -375,8 +405,14 @@ export class BoxOfficeSystem {
     return Math.floor(initialCount * 0.15);
   }
 
-  private static getWeeklyStatus(weeksSinceRelease: number, theaterCount: number): string {
+  private static getWeeklyStatus(project: Project, weeksSinceRelease: number, theaterCount: number): string {
     if (theaterCount === 0) return 'Ended';
+
+    if (project.releaseStrategy?.type === 'festival') {
+      if (weeksSinceRelease <= 1) return 'Festival Premiere';
+      return 'Festival Circuit';
+    }
+
     if (weeksSinceRelease === 1) return 'Opening';
     if (theaterCount >= 2500) return 'Wide Release';
     if (theaterCount >= 1000) return 'Limited Release';

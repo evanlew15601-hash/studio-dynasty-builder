@@ -106,6 +106,14 @@ export const AwardsSystem: React.FC<AwardsSystemProps> = ({
 
       if (boxOffice > budget * 1.5) probability += 10;
 
+      const isFestivalRelease = project.releaseStrategy?.type === 'festival';
+      const hasFestivalMarketing = (project.marketingCampaign?.activities || []).some((a) =>
+        String((a as any)?.name ?? '').toLowerCase().includes('festival')
+      );
+
+      if (isFestivalRelease) probability += 6;
+      else if (hasFestivalMarketing) probability += 2;
+
       // Genre bonuses during the early-year film awards window
       if (currentWeek >= 1 && currentWeek <= 12) {
         if (project.script.genre === 'drama') probability += 15;
