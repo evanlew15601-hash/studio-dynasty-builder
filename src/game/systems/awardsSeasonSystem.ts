@@ -15,6 +15,7 @@ import { stableFloat01 } from '@/utils/stableRandom';
 import { triggerDateFromWeekYear } from '@/utils/gameTime';
 import type { TickSystem } from '../core/types';
 import { isDirectorRole } from '@/utils/scriptRoles';
+import { getFestivalAwardsProbabilityBonus } from '@/utils/festivalMomentum';
 
 
 
@@ -123,13 +124,7 @@ function calculateAwardsProbability(params: {
     const budget = project.budget.total;
     if (boxOffice > budget * 1.5) probability += 10;
 
-    const isFestivalRelease = project.releaseStrategy?.type === 'festival';
-    const hasFestivalMarketing = (project.marketingCampaign?.activities || []).some((a) =>
-      String((a as any)?.name ?? '').toLowerCase().includes('festival')
-    );
-
-    if (isFestivalRelease) probability += 6;
-    else if (hasFestivalMarketing) probability += 2;
+    probability += getFestivalAwardsProbabilityBonus(project);
 
     if (isFilmAwardsSeasonWindow) {
       if (project.script.genre === 'drama') probability += 15;

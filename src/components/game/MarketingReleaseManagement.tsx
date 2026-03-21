@@ -10,6 +10,7 @@ import { MarketingActivities } from './MarketingActivities';
 import { useGameStore } from '@/game/store';
 import { nextNumericId } from '@/utils/idAllocator';
 import { isPrimaryStreamingFilm } from '@/utils/projectMedium';
+import { isFestivalPremiered } from '@/utils/festivalMomentum';
 import { 
   MarketingIcon, 
   TrendingIcon,
@@ -303,8 +304,11 @@ export const MarketingReleaseManagement: React.FC<MarketingReleaseManagementProp
                         <div className="flex items-center gap-2">
                           <Badge variant={boxOfficeStatus === 'active' ? 'default' : 
                                         boxOfficeStatus === 'declining' ? 'secondary' : 'outline'}>
-                            {boxOfficeStatus === 'active' ? 'In Theaters' :
-                             boxOfficeStatus === 'declining' ? 'Limited Release' : 'Theatrical Run Ended'}
+                            {boxOfficeStatus === 'active'
+                              ? 'In Theaters'
+                              : boxOfficeStatus === 'declining'
+                                ? (isFestivalPremiered(project) ? 'Festival Circuit' : 'Limited Release')
+                                : (isFestivalPremiered(project) ? 'Festival Run Ended' : 'Theatrical Run Ended')}
                           </Badge>
                         </div>
                       </div>

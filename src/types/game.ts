@@ -507,6 +507,13 @@ export interface ProjectMetrics {
   critical?: CriticalMetrics;
   culturalImpact?: number;
   totalRevenue?: number;
+
+  /** True once a film has premiered as a festival title (persists even after expanding to platform/wide). */
+  festivalPremiered?: boolean;
+
+  /** Absolute week index when the player expanded a festival premiere into a platform rollout. */
+  expandedFromFestivalAbs?: number;
+
   // Enhanced financial tracking
   financials?: ProjectFinancials;
   // Optional: lightweight public-facing metadata for league-shared releases.

@@ -55,8 +55,11 @@ export const ReleaseDetailsDialog: React.FC<ReleaseDetailsDialogProps> = ({
   const boxOffice = Number(resolvedProject.metrics?.boxOfficeTotal ?? 0);
   const weekly = Number(resolvedProject.metrics?.lastWeeklyRevenue ?? 0);
 
+  const isOnlineLeagueMode = gameState.mode === 'online';
+
   const isPlayerProject = (gameState.projects || []).some((p) => p.id === resolvedProject.id);
   const canAdjustRelease =
+    !isOnlineLeagueMode &&
     isPlayerProject &&
     resolvedProject.status === 'released' &&
     resolvedProject.metrics?.inTheaters === true &&
@@ -76,11 +79,14 @@ export const ReleaseDetailsDialog: React.FC<ReleaseDetailsDialogProps> = ({
       theatersCount: 150,
     };
 
+    const currentAbs = (gameState.currentYear * 52) + gameState.currentWeek;
+
     updateProject(resolvedProject.id, {
       releaseStrategy: next as any,
       metrics: {
         ...(resolvedProject.metrics || {}),
-        boxOfficeStatus: 'Platform Expansion',
+        festivalPremiered: true,
+        expandedFromFestivalAbs: currentAbs,
       },
     });
 

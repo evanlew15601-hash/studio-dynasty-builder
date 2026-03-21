@@ -1,6 +1,12 @@
 import { Project } from '@/types/game';
 import { FinancialEngine } from './FinancialEngine';
 import { stableInt } from '@/utils/stableRandom';
+import {
+  clampScore,
+  getFestivalCriticsBonus,
+  getFestivalMaxRunWeeks,
+  shouldShowPlatformExpansionStatus,
+} from '@/utils/festivalMomentum';
 
 const diagnosticsEnabled = import.meta.env.DEV;
 const debugLog = (...args: any[]) => {
@@ -21,6 +27,7 @@ export interface BoxOfficeWeeklyReport {
     | 'Festival Premiere'
     | 'Festival Circuit'
     | 'Festival Run Ended'
+    | 'Platform Expansion'
     | 'Ended';
   audienceScore: number;
   criticsScore: number;
@@ -34,19 +41,14 @@ export class BoxOfficeSystem {
 
     const releaseType = project.releaseStrategy?.type;
 
-    const clampScore = (n: number) => Math.max(0, Math.min(100, Math.round(n)));
-
-    const festivalCriticsBonus = (() => {
-      if (releaseType !== 'festival') return 0;
-      const criticalPotential = project.script?.characteristics?.criticalPotential ?? 5;
-      const shaped = 4 + Math.round((criticalPotential - 5) * 1.5);
-      return Math.max(2, Math.min(8, shaped));
-    })();
-
     const criticsScore =
       project.metrics?.criticsScore ??
-      clampScore(stableInt(`${project.id}|critics|${releaseYear}|${releaseWeek}`, 50, 90) + festivalCriticsBonus);
-    const audienceScore = project.metrics?.audienceScore ?? clampScore(stableInt(`${project.id}|audience|${releaseYear}|${releaseWeek}`, 50, 90));
+      clampScore(stableInt(`${project.id}|critics|${releaseYear}|${releaseWeek}`, 50, 90) + getFestivalCriticsBonus(project));
+    const audienceScore =
+      project.metrics?.audienceScore ??
+      clampScore(stableInt(`${project.id}|audience|${releaseYear}|${releaseWeek}`, 50, 90));
+
+    const festivalPremiered = project.metrics?.festivalPremiered === true || releaseType === 'festival';
 
     const projectWithScores: Project = {
       ...project,
@@ -54,6 +56,7 @@ export class BoxOfficeSystem {
         ...project.metrics,
         criticsScore,
         audienceScore,
+        ...(festivalPremiered ? { festivalPremiered: true } : {}),
       },
     };
 
@@ -196,7 +199,8 @@ export class BoxOfficeSystem {
     const weeklyRevenue = this.calculateWeeklyRevenue(project, weeksSinceRelease);
     const newTotal = (project.metrics.boxOfficeTotal || 0) + weeklyRevenue;
     const theaterCount = this.calculateTheaterCount(project, weeksSinceRelease);
-    const status = this.getWeeklyStatus(project, weeksSinceRelease, theaterCount);
+    const currentAbsWeek = (currentYear * 52) + currentWeek;
+    const status = this.getWeeklyStatus(project, weeksSinceRelease, theaterCount, currentAbsWeek);
 
     // Generate weekly report
     const report: BoxOfficeWeeklyReport = {
@@ -259,7 +263,7 @@ export class BoxOfficeSystem {
 
     // Festival runs are shorter unless they break out.
     if (project.releaseStrategy?.type === 'festival') {
-      const maxWeeks = avgScore >= 80 ? 10 : avgScore >= 65 ? 8 : 6;
+      const maxWeeks = getFestivalMaxRunWeeks(avgScore);
       if (weeksSinceRelease >= maxWeeks) {
         debugLog(`    FESTIVAL RUN END (${maxWeeks} weeks, ${avgScore.toFixed(1)} avg score)`);
         return true;
@@ -405,7 +409,7 @@ export class BoxOfficeSystem {
     return Math.floor(initialCount * 0.15);
   }
 
-  private static getWeeklyStatus(project: Project, weeksSinceRelease: number, theaterCount: number): string {
+  private static getWeeklyStatus(project: Project, weeksSinceRelease: number, theaterCount: number, currentAbsWeek: number): string {
     if (theaterCount === 0) return 'Ended';
 
     if (project.releaseStrategy?.type === 'festival') {
@@ -413,11 +417,12 @@ export class BoxOfficeSystem {
       return 'Festival Circuit';
     }
 
-    if (weeksSinceRelease === 1) return 'Opening';
-    if (theaterCount >= 2500) return 'Wide Release';
-    if (theaterCount >= 1000) return 'Limited Release';
-    if (weeksSinceRelease >= 16) return 'Final Week';
-    return 'Limited Release';
+    if (shouldShowPlatformExpansionStatus({ project, currentAbsWeek })) return 'Platform Expansion';
+
+    if (weeksSinceRelease === 0) return 'Opening';
+    if (weeksSinceRelease <= 4) return 'Wide Release';
+    if (weeksSinceRelease <= 12) return 'Limited Release';
+    return 'Final Week';
   }
 
   private static calculateChartPosition(weeklyRevenue: number): number {

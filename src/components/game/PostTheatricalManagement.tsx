@@ -19,6 +19,7 @@ import {
 import { MediaFinancialIntegration } from './MediaFinancialIntegration';
 import { isPrimaryStreamingFilm } from '@/utils/projectMedium';
 import { getWeeksSinceTheatricalEnd, isPostTheatricalEligibleProject } from '@/utils/postTheatrical';
+import { getFestivalPostTheatricalShiftWeeks, isFestivalPremiered } from '@/utils/festivalMomentum';
 
 interface PostTheatricalManagementProps {}
 
@@ -218,13 +219,14 @@ export const PostTheatricalManagement: React.FC<PostTheatricalManagementProps> =
     if (!isOwnedDestination) {
       const weeksSinceEnd = calculateWeeksSinceTheatricalEnd(project);
 
-      const festivalShift = project.releaseStrategy?.type === 'festival' && option.platform !== 'tv-licensing' ? 4 : 0;
+      const festivalShift = getFestivalPostTheatricalShiftWeeks({ project, platform: option.platform });
       const minWeeks = Math.max(0, option.minimumWeeksAfterTheatrical - festivalShift);
 
       if (weeksSinceEnd < minWeeks) {
+        const suffix = festivalShift > 0 ? ' (festival window)' : '';
         return {
           canRelease: false,
-          reason: `Available in ${minWeeks - weeksSinceEnd} weeks`,
+          reason: `Available in ${minWeeks - weeksSinceEnd} weeks${suffix}`,
         };
       }
     }
@@ -423,6 +425,11 @@ export const PostTheatricalManagement: React.FC<PostTheatricalManagementProps> =
                           <p className="text-sm text-muted-foreground mt-1">
                             Theatrical run ended {weeksSinceEnd} weeks ago
                           </p>
+                          {isFestivalPremiered(project) && (
+                            <p className="text-xs text-muted-foreground mt-1">
+                              Festival premiere: earlier downstream windows (except TV licensing)
+                            </p>
+                          )}
                         </div>
                         <div className="text-right">
                           <div className="text-sm text-muted-foreground">Performance Scores</div>

@@ -15,6 +15,7 @@ import {
   DollarIcon
 } from '@/components/ui/icons';
 import { getAwardShowsForYear } from '@/data/AwardsSchedule';
+import { getFestivalAwardsProbabilityBonus } from '@/utils/festivalMomentum';
 
 interface AwardsSystemProps {
   onNavigatePhase?: (phase: 'media' | 'distribution') => void;
@@ -106,13 +107,7 @@ export const AwardsSystem: React.FC<AwardsSystemProps> = ({
 
       if (boxOffice > budget * 1.5) probability += 10;
 
-      const isFestivalRelease = project.releaseStrategy?.type === 'festival';
-      const hasFestivalMarketing = (project.marketingCampaign?.activities || []).some((a) =>
-        String((a as any)?.name ?? '').toLowerCase().includes('festival')
-      );
-
-      if (isFestivalRelease) probability += 6;
-      else if (hasFestivalMarketing) probability += 2;
+      probability += getFestivalAwardsProbabilityBonus(project);
 
       // Genre bonuses during the early-year film awards window
       if (currentWeek >= 1 && currentWeek <= 12) {

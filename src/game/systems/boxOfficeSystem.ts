@@ -3,6 +3,12 @@ import { stableInt } from '@/utils/stableRandom';
 import { triggerDateFromWeekYear } from '@/utils/gameTime';
 import type { TickSystem } from '../core/types';
 import { isPrimaryStreamingFilm, isTvProject } from '@/utils/projectMedium';
+import {
+  clampScore,
+  getFestivalCriticsBonus,
+  getFestivalMaxRunWeeks,
+  shouldShowPlatformExpansionStatus,
+} from '@/utils/festivalMomentum';
 
 function absWeek(week: number, year: number): number {
   return year * 52 + week;
@@ -32,27 +38,17 @@ function getReleaseWeekYear(project: Project): { week: number; year: number } | 
   return null;
 }
 
-function clampScore(n: number): number {
-  return Math.max(0, Math.min(100, Math.round(n)));
-}
 
-function festivalCriticsBonus(project: Project): number {
-  const releaseType = project.releaseStrategy?.type;
-  if (releaseType !== 'festival') return 0;
-
-  const criticalPotential = project.script?.characteristics?.criticalPotential ?? 5;
-  const shaped = 4 + Math.round((criticalPotential - 5) * 1.5);
-  return Math.max(2, Math.min(8, shaped));
-}
 
 function ensureReleaseScores(project: Project, releaseWeek: number, releaseYear: number): Project {
   const baseCritics = stableInt(`${project.id}|critics|${releaseYear}|${releaseWeek}`, 50, 90);
   const baseAudience = stableInt(`${project.id}|audience|${releaseYear}|${releaseWeek}`, 50, 90);
 
   const criticsScore =
-    project.metrics?.criticsScore ?? clampScore(baseCritics + festivalCriticsBonus(project));
-  const audienceScore =
-    project.metrics?.audienceScore ?? clampScore(baseAudience);
+    project.metrics?.criticsScore ?? clampScore(baseCritics + getFestivalCriticsBonus(project));
+  const audienceScore = project.metrics?.audienceScore ?? clampScore(baseAudience);
+
+  const festivalPremiered = project.metrics?.festivalPremiered === true || project.releaseStrategy?.type === 'festival';
 
   return {
     ...project,
@@ -60,6 +56,7 @@ function ensureReleaseScores(project: Project, releaseWeek: number, releaseYear:
       ...(project.metrics || {}),
       criticsScore,
       audienceScore,
+      ...(festivalPremiered ? { festivalPremiered: true } : {}),
     },
   };
 }
@@ -154,7 +151,7 @@ function shouldExitTheatersPermanently(project: Project, weeksSinceRelease: numb
 
   // Festival runs are shorter unless they break out.
   if (project.releaseStrategy?.type === 'festival') {
-    const maxWeeks = avgScore >= 80 ? 10 : avgScore >= 65 ? 8 : 6;
+    const maxWeeks = getFestivalMaxRunWeeks(avgScore);
     if (weeksSinceRelease >= maxWeeks) return true;
   }
 
@@ -438,6 +435,7 @@ export const BoxOfficeSystem: TickSystem = {
       const total = prevTotal + weeklyRevenue;
 
       const isFestival = project.releaseStrategy?.type === 'festival';
+      const isPlatformExpansion = shouldShowPlatformExpansionStatus({ project, currentAbsWeek: currentAbs });
 
       project = {
         ...project,
@@ -445,7 +443,13 @@ export const BoxOfficeSystem: TickSystem = {
           ...(project.metrics || {}),
           inTheaters: true,
           theaterCount,
-          boxOfficeStatus: isFestival ? 'Festival Circuit' : theaterCount === 0 ? 'Ended' : 'Limited Release',
+          boxOfficeStatus: isFestival
+            ? 'Festival Circuit'
+            : isPlatformExpansion
+              ? 'Platform Expansion'
+              : theaterCount === 0
+                ? 'Ended'
+                : 'Limited Release',
           boxOfficeTotal: total,
           weeksSinceRelease: expectedWeeksSinceRelease,
           lastWeeklyRevenue: weeklyRevenue,

@@ -109,6 +109,55 @@ function makeFestivalProject(params: {
 }
 
 describe('Festival momentum (engine)', () => {
+  it('persists festival identity after expanding to platform', () => {
+    const project = makeFestivalProject({ id: 'fest-expand', critics: 86, audience: 78 });
+
+    let state = makeBaseState({
+      projects: [project],
+      allReleases: [project],
+    });
+
+    // Tick to release week (Y2024W10).
+    state = advanceWeek(state, createRng(1), [BoxOfficeSystem]).nextState;
+    expect(state.currentWeek).toBe(10);
+    expect(state.projects[0].metrics?.festivalPremiered).toBe(true);
+
+    // Tick forward to Y2024W12, then expand.
+    state = advanceWeek(state, createRng(1), [BoxOfficeSystem]).nextState; // W11
+    state = advanceWeek(state, createRng(1), [BoxOfficeSystem]).nextState; // W12
+
+    const expandedAbs = state.currentYear * 52 + state.currentWeek;
+
+    const nextProjects = state.projects.map((p) =>
+      p.id !== project.id
+        ? p
+        : ({
+            ...p,
+            releaseStrategy: { ...(p.releaseStrategy as any), type: 'platform' } as any,
+            metrics: {
+              ...(p.metrics || {}),
+              festivalPremiered: true,
+              expandedFromFestivalAbs: expandedAbs,
+            },
+          } as any)
+    );
+
+    const nextProject = nextProjects.find((p) => p.id === project.id) as any;
+
+    state = {
+      ...state,
+      projects: nextProjects,
+      allReleases: state.allReleases.map((r) => (r && (r as any).id === project.id ? nextProject : r)) as any,
+    } as any;
+
+    // Next week should show the temporary expansion status.
+    state = advanceWeek(state, createRng(1), [BoxOfficeSystem]).nextState; // W13
+
+    expect(state.currentWeek).toBe(13);
+    expect(state.projects[0].metrics?.festivalPremiered).toBe(true);
+    expect(String(state.projects[0].metrics?.boxOfficeStatus || '')).toMatch(/platform expansion/i);
+  });
+
   it('ends weak festival runs earlier (≈6 weeks)', () => {
     const project = makeFestivalProject({ id: 'fest-weak', critics: 50, audience: 50 });
 
