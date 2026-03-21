@@ -41,6 +41,17 @@ This weighting assumes the game should be **challenging without being frustratin
 
 This lands in “solid and engaging, with noticeable friction/tuning gaps.” With the **tycoon-casual weighting** (challenge without frustration, and *few intentional fail states* as a positive), the game’s strengths are its **deterministic weekly simulation engine** and wide set of interacting subsystems, while the main limiters remain **player-facing clarity** (onboarding + explanation of outcomes) and **systemic difficulty scaling** beyond starting resources.
 
+#### Why this score might be lower than a previous pass
+
+If you previously rated the game higher and have since improved issues, a lower score here usually comes from **method differences**, not necessarily regression:
+
+- **Different weighting profile:** this doc uses the *tycoon-casual* weighting (clarity/feedback/pacing emphasized). If your improvements were mostly in depth/features, you may feel them more than this weighting reflects.
+- **Different assumptions:** this score is **single-player base game only** and intentionally ignores Online/Steam/shipping factors.
+- **Code-inspection bias:** this is derived from *what is clearly implemented and surfaced* in code/UI. Improvements that are real in play may not be visible as strong “evidence” unless they changed the authoritative systems, UI explanations, or tests.
+- **Category score conservatism:** in particular, **systemic difficulty scaling** still looks mostly like “starting budget” in `GameLanding.tsx`, which caps the Challenge/Balance category even if the game is more fun moment-to-moment.
+
+If you share (a) the earlier score you got, and (b) what issues you fixed, I can re-score category-by-category and show exactly what moved.
+
 ### 1) Core loop clarity & agency — **7.5 / 10 → 18.8 / 25**
 
 **What’s strong**
