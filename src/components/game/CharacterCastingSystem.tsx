@@ -4,7 +4,7 @@ import { useGameStore } from '@/game/store';
 import { useUiStore } from '@/game/uiStore';
 import { talentMatchesRole } from '@/utils/castingEligibility';
 import { isDirectorRole } from '@/utils/scriptRoles';
-import { defaultContractWeeksForRole, describeTalentInterest, negotiateTalentContract } from '@/utils/talentNegotiation';
+import { defaultContractWeeksForRole, describeTalentInterest, negotiateTalentContract, recordStudioNegotiationOutcome } from '@/utils/talentNegotiation';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
@@ -207,7 +207,7 @@ export const CharacterCastingSystem: React.FC<CharacterCastingSystemProps> = ({
 
     const isFranchiseProject = !!project.script?.franchiseId;
 
-    const negotiatedByTalentId = new Map<string, { weeklyPay: number; contractWeeks: number; interestLabel: string }>();
+    const negotiatedByTalentId = new Map<string, { weeklyPay: number; contractWeeks: number; interestLabel: string; interestScore: number }>();
 
     let requiredCashTotal = 0;
 
@@ -229,6 +229,19 @@ export const CharacterCastingSystem: React.FC<CharacterCastingSystemProps> = ({
       const interest = describeTalentInterest(negotiation.interestScore);
 
       if (!negotiation.accepted) {
+        if (negotiation.reason === 'not-interested') {
+          updateTalent(slot.talent.id, {
+            studioInterest: recordStudioNegotiationOutcome({
+              talent: slot.talent,
+              studioId: gameState.studio.id,
+              currentWeek: gameState.currentWeek,
+              currentYear: gameState.currentYear,
+              interestScore: negotiation.interestScore,
+              outcome: 'rejected',
+            }),
+          });
+        }
+
         toast({
           title: 'Casting blocked',
           description:
@@ -243,7 +256,7 @@ export const CharacterCastingSystem: React.FC<CharacterCastingSystemProps> = ({
       const weeklyPay = negotiation.weeklyPay;
       requiredCashTotal += weeklyPay * Math.min(4, contractWeeks);
 
-      negotiatedByTalentId.set(slot.talent.id, { weeklyPay, contractWeeks, interestLabel: interest.label });
+      negotiatedByTalentId.set(slot.talent.id, { weeklyPay, contractWeeks, interestLabel: interest.label, interestScore: negotiation.interestScore });
     }
 
     if (requiredCashTotal > gameState.studio.budget) {
@@ -359,7 +372,18 @@ const updatedProject: Project = {
       if (!slot.talent) continue;
       const deal = negotiatedByTalentId.get(slot.talent.id);
       if (!deal) continue;
-      updateTalent(slot.talent.id, { contractStatus: 'contracted' as const, currentContractWeeks: deal.contractWeeks });
+      updateTalent(slot.talent.id, {
+        contractStatus: 'contracted' as const,
+        currentContractWeeks: deal.contractWeeks,
+        studioInterest: recordStudioNegotiationOutcome({
+          talent: slot.talent,
+          studioId: gameState.studio.id,
+          currentWeek: gameState.currentWeek,
+          currentYear: gameState.currentYear,
+          interestScore: deal.interestScore,
+          outcome: 'signed',
+        }),
+      });
     }
 
     toast({

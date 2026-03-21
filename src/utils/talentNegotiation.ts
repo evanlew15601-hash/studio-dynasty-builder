@@ -1,6 +1,10 @@
 import type { Project, Studio, TalentPerson } from '@/types/game';
 import { stableFloat01 } from '@/utils/stableRandom';
 
+function absWeekIndex(week: number, year: number): number {
+  return year * 52 + week;
+}
+
 function clamp(n: number, min: number, max: number): number {
   return Math.max(min, Math.min(max, n));
 }
@@ -12,6 +16,57 @@ function clamp01(n: number): number {
 export type TalentRequiredType = 'actor' | 'director';
 
 export type TalentInterestLevel = 'eager' | 'interested' | 'neutral' | 'hesitant' | 'uninterested';
+
+export function getStudioInterestRecord(
+  talent: TalentPerson,
+  studioId: string
+): { interest: number; lastContactWeekIndex?: number; rejectedUntilWeekIndex?: number } {
+  const rec = talent.studioInterest?.[studioId];
+  if (!rec) return { interest: 50 };
+  return {
+    interest: clamp(rec.interest ?? 50, 0, 100),
+    lastContactWeekIndex: rec.lastContactWeekIndex,
+    rejectedUntilWeekIndex: rec.rejectedUntilWeekIndex,
+  };
+}
+
+export function recordStudioNegotiationOutcome(params: {
+  talent: TalentPerson;
+  studioId: string;
+  currentWeek: number;
+  currentYear: number;
+  interestScore: number;
+  outcome: 'signed' | 'rejected';
+}): NonNullable<TalentPerson['studioInterest']> {
+  const { talent, studioId, currentWeek, currentYear, interestScore, outcome } = params;
+
+  const currentAbs = absWeekIndex(currentWeek, currentYear);
+  const prev = getStudioInterestRecord(talent, studioId);
+
+  let nextInterest = prev.interest;
+  let rejectedUntilWeekIndex = prev.rejectedUntilWeekIndex;
+
+  if (outcome === 'signed') {
+    // Move toward a friendly baseline for studios they've worked with.
+    nextInterest = Math.round(prev.interest + (70 - prev.interest) * 0.35);
+    rejectedUntilWeekIndex = undefined;
+  } else {
+    // Rejection makes them colder for a while.
+    nextInterest = Math.round(prev.interest + (35 - prev.interest) * 0.25);
+
+    const cooldown = interestScore < 25 ? 12 : interestScore < 40 ? 6 : 3;
+    rejectedUntilWeekIndex = Math.max(rejectedUntilWeekIndex ?? 0, currentAbs + cooldown);
+  }
+
+  return {
+    ...(talent.studioInterest || {}),
+    [studioId]: {
+      interest: clamp(nextInterest, 0, 100),
+      lastContactWeekIndex: currentAbs,
+      rejectedUntilWeekIndex,
+    },
+  };
+}
 
 export function describeTalentInterest(score: number): { level: TalentInterestLevel; label: string } {
   const s = clamp(score, 0, 100);
@@ -44,10 +99,15 @@ export function computeTalentInterestScore(params: {
   const scriptQuality = clamp(project.script?.quality ?? 60, 0, 100);
   const burnout = clamp(talent.burnoutLevel ?? 0, 0, 100);
 
+  const studioMemory = getStudioInterestRecord(talent, studio.id);
+
   let score = 50;
 
   score += (studioRep - talentRep) * 0.35;
   score += (scriptQuality - 60) * 0.6;
+
+  // Per-studio memory nudges outcomes without dominating core factors.
+  score += (studioMemory.interest - 50) * 0.25;
 
   const genre = project.script?.genre;
   if (genre && (talent.genres || []).includes(genre as any)) score += 10;
@@ -123,6 +183,14 @@ export function negotiateTalentContract(params: {
 }): TalentNegotiationResult {
   const { talent, week, year } = params;
 
+  const currentAbs = absWeekIndex(week, year);
+  const studioMem = getStudioInterestRecord(talent, params.studio.id);
+
+  if (typeof studioMem.rejectedUntilWeekIndex === 'number' && studioMem.rejectedUntilWeekIndex > currentAbs) {
+    const { interestScore, askWeeklyPay } = computeTalentAskWeeklyPay(params);
+    return { accepted: false, interestScore, askWeeklyPay, reason: 'not-interested' };
+  }
+
   if (talent.contractStatus !== 'available') {
     const { interestScore, askWeeklyPay } = computeTalentAskWeeklyPay(params);
     return { accepted: false, interestScore, askWeeklyPay, reason: 'held' };
@@ -130,7 +198,7 @@ export function negotiateTalentContract(params: {
 
   const { interestScore, askWeeklyPay } = computeTalentAskWeeklyPay(params);
 
-  if (interestScore < 15) {
+  if (interestScore < 20) {
     return { accepted: false, interestScore, askWeeklyPay, reason: 'not-interested' };
   }
 

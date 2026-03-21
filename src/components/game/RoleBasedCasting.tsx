@@ -8,7 +8,7 @@ import { talentMatchesRole } from '@/utils/castingEligibility';
 import { Users, User, Crown, Star, CheckCircle } from 'lucide-react';
 import { importRolesForScript } from '@/utils/roleImport';
 import { useGameStore } from '@/game/store';
-import { describeTalentInterest, defaultContractWeeksForRole, negotiateTalentContract } from '@/utils/talentNegotiation';
+import { describeTalentInterest, defaultContractWeeksForRole, negotiateTalentContract, recordStudioNegotiationOutcome } from '@/utils/talentNegotiation';
 
 interface RoleBasedCastingProps {
   project: Project;
@@ -117,6 +117,19 @@ export const RoleBasedCasting: React.FC<RoleBasedCastingProps> = ({
     const interest = describeTalentInterest(negotiation.interestScore);
 
     if (!negotiation.accepted) {
+      if (negotiation.reason === 'not-interested') {
+        updateTalent(talent.id, {
+          studioInterest: recordStudioNegotiationOutcome({
+            talent,
+            studioId: gameState.studio.id,
+            currentWeek: gameState.currentWeek,
+            currentYear: gameState.currentYear,
+            interestScore: negotiation.interestScore,
+            outcome: 'rejected',
+          }),
+        });
+      }
+
       toast({
         title: `${talent.name}: ${interest.label}`,
         description:
@@ -197,7 +210,18 @@ export const RoleBasedCasting: React.FC<RoleBasedCastingProps> = ({
       }
     } as any);
 
-    updateTalent(talent.id, { contractStatus: 'contracted' as const, currentContractWeeks: contractWeeks });
+    updateTalent(talent.id, {
+      contractStatus: 'contracted' as const,
+      currentContractWeeks: contractWeeks,
+      studioInterest: recordStudioNegotiationOutcome({
+        talent,
+        studioId: gameState.studio.id,
+        currentWeek: gameState.currentWeek,
+        currentYear: gameState.currentYear,
+        interestScore: negotiation.interestScore,
+        outcome: 'signed',
+      }),
+    });
 
     toast({
       title: "Talent Signed",

@@ -8,7 +8,7 @@ import { Badge } from '@/components/ui/badge';
 import { Avatar, AvatarFallback } from '@/components/ui/avatar';
 import { useToast } from '@/hooks/use-toast';
 import { isDirectorRole } from '@/utils/scriptRoles';
-import { describeTalentInterest, defaultContractWeeksForRole, negotiateTalentContract } from '@/utils/talentNegotiation';
+import { describeTalentInterest, defaultContractWeeksForRole, negotiateTalentContract, recordStudioNegotiationOutcome } from '@/utils/talentNegotiation';
 import { CastingBoardFilters, CastingFilters } from './CastingBoardFilters';
 import { 
   CastingIcon, 
@@ -92,6 +92,19 @@ export const CastingBoard: React.FC<CastingBoardProps> = ({
     const interest = describeTalentInterest(negotiation.interestScore);
 
     if (!negotiation.accepted) {
+      if (negotiation.reason === 'not-interested') {
+        updateTalent(talent.id, {
+          studioInterest: recordStudioNegotiationOutcome({
+            talent,
+            studioId: gameState.studio.id,
+            currentWeek: gameState.currentWeek,
+            currentYear: gameState.currentYear,
+            interestScore: negotiation.interestScore,
+            outcome: 'rejected',
+          }),
+        });
+      }
+
       toast({
         title: `${talent.name}: ${interest.label}`,
         description:
@@ -220,7 +233,16 @@ export const CastingBoard: React.FC<CastingBoardProps> = ({
     replaceProject(updatedProject);
 
     updateTalent(talent.id, {
-      contractStatus: 'contracted' as const
+      contractStatus: 'contracted' as const,
+      currentContractWeeks: contractWeeks,
+      studioInterest: recordStudioNegotiationOutcome({
+        talent,
+        studioId: gameState.studio.id,
+        currentWeek: gameState.currentWeek,
+        currentYear: gameState.currentYear,
+        interestScore: negotiation.interestScore,
+        outcome: 'signed',
+      }),
     });
 
     toast({
