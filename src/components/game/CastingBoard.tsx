@@ -207,7 +207,7 @@ export const CastingBoard: React.FC<CastingBoardProps> = ({
 
     toast({
       title: "Talent Signed!",
-      description: `${talent.name} accepted (${interest.label}) — \u0024${(weeklySalary / 1000).toFixed(0)}k/week for ${contractWeeks} weeks as ${role}`,
+      description: `${talent.name} accepted (${interest.label}) — ${'\u0024'}${(weeklySalary / 1000).toFixed(0)}k/week for ${contractWeeks} weeks as ${role}`,
     });
 
     setNegotiationTarget(null);
@@ -257,7 +257,7 @@ export const CastingBoard: React.FC<CastingBoardProps> = ({
                   ? 'This talent is not currently available.'
                   : res.reason === 'cooldown'
                     ? 'Their agent isn’t taking meetings with your studio right now.'
-                    : `Offer declined. (Ask: \u0024${(res.askWeeklyPay / 1000).toFixed(0)}k/week)`,
+                    : `Offer declined. (Ask: ${'\u0024'}${(res.askWeeklyPay / 1000).toFixed(0)}k/week)`,
               variant: 'destructive',
             });
 

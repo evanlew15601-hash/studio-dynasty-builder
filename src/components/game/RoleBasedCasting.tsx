@@ -300,7 +300,7 @@ export const RoleBasedCasting: React.FC<RoleBasedCastingProps> = ({
                   ? 'This talent is not currently available.'
                   : res.reason === 'cooldown'
                     ? 'Their agent isn’t taking meetings with your studio right now.'
-                    : `Offer declined. (Ask: \u0024${(res.askWeeklyPay / 1000).toFixed(0)}k/week)`,
+                    : `Offer declined. (Ask: ${'\u0024'}${(res.askWeeklyPay / 1000).toFixed(0)}k/week)`,
               variant: 'destructive',
             });
 
