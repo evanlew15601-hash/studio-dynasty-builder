@@ -96,7 +96,7 @@ describe('Core gameplay loop checks (in order)', () => {
     expect(afterTwo.eventQueue.length).toBe(0);
   });
 
-  it('3-12) long-horizon invariants (no duplicates, no drift, no NaNs)', () => {
+  it('3-14) long-horizon invariants (no duplicates, no drift, no NaNs)', () => {
     // Keep this short enough for unit tests, but long enough to hit multiple subsystems.
     useGameStore.getState().initGame(
       makeBaseState({
