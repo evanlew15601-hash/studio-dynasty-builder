@@ -1,5 +1,7 @@
 import type { PostTheatricalRelease, Project } from '@/types/game';
 import { FinancialEngine } from './FinancialEngine';
+import { getTheatricalEndAbs, getReleaseAbs } from '@/utils/postTheatrical';
+import { getPostTheatricalPlatformId, isPlayerPlatformId } from '@/utils/platformIds';
 
 const DEFAULT_DURATIONS: Record<PostTheatricalRelease['platform'], number> = {
   streaming: 26,
@@ -40,13 +42,42 @@ export class PostTheatricalSystem {
 
       const durationWeeks = release.durationWeeks || DEFAULT_DURATIONS[release.platform] || 52;
 
-      const scheduledAbs =
+      const currentAbs = currentYear * 52 + currentWeek;
+
+      const explicitScheduledAbs =
         release.status === 'planned' && typeof release.releaseWeek === 'number' && typeof release.releaseYear === 'number'
           ? release.releaseYear * 52 + release.releaseWeek
           : null;
 
-      const currentAbs = currentYear * 52 + currentWeek;
-      const notStartedYet = scheduledAbs != null && scheduledAbs > currentAbs;
+      const platformId = getPostTheatricalPlatformId(release);
+      const isPlayer = isPlayerPlatformId(platformId);
+
+      const scheduledAbs = (() => {
+        if (release.status !== 'planned') return null;
+
+        if (isPlayer) {
+          const endAbs = getTheatricalEndAbs(project, currentAbs);
+          if (endAbs == null) return null;
+
+          const delay = Math.max(0, Math.floor(release.delayWeeks ?? 0));
+          const desired = endAbs + delay;
+
+          return explicitScheduledAbs != null ? Math.max(explicitScheduledAbs, desired) : desired;
+        }
+
+        if (explicitScheduledAbs != null) return explicitScheduledAbs;
+
+        if (typeof release.delayWeeks === 'number') {
+          const releaseAbs = getReleaseAbs(project);
+          if (releaseAbs != null) return releaseAbs + Math.max(0, Math.floor(release.delayWeeks));
+        }
+
+        return null;
+      })();
+
+      const notStartedYet =
+        (scheduledAbs != null && scheduledAbs > currentAbs) ||
+        (release.status === 'planned' && isPlayer && scheduledAbs == null);
 
       const earnedThisWeek = !notStartedYet && isActiveStatus(release.status)
         ? Math.round(release.weeklyRevenue || 0)

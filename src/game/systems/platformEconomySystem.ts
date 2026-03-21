@@ -8,11 +8,14 @@ import type { Project } from '@/types/game';
 import {
   getContractPlatformId,
   getDistributionChannelPlatformId,
+  getPostTheatricalPlatformId,
   getReleaseStrategyPlatformId,
   getReleaseWindowPlatformId,
+  isPlayerPlatformId,
 } from '@/utils/platformIds';
 import type { TickSystem } from '../core/types';
 import { absWeek, effectiveArrivalAbs } from './platformRecency';
+import { getTheatricalEndAbs } from '@/utils/postTheatrical';
 
 function clamp(n: number, min: number, max: number): number {
   return Math.max(min, Math.min(max, n));
@@ -113,16 +116,22 @@ function platformMoatFactor(params: {
       .filter((r) => r && r.platform === 'streaming')
       .filter((r) => (r.platformId || r.providerId) === platformId)
       .map((r) => {
+        const postPlatformId = getPostTheatricalPlatformId(r);
+        const endAbs = isPlayerPlatformId(postPlatformId) ? getTheatricalEndAbs(project, currentAbs) : null;
+
         if (typeof r.releaseWeek === 'number' && typeof r.releaseYear === 'number') {
-          return absWeek(r.releaseWeek, r.releaseYear);
+          const explicit = absWeek(r.releaseWeek, r.releaseYear);
+          return endAbs != null ? Math.max(explicit, endAbs) : explicit;
         }
 
-        if (
-          typeof r.delayWeeks === 'number' &&
-          typeof project.releaseWeek === 'number' &&
-          typeof project.releaseYear === 'number'
-        ) {
-          return absWeek(project.releaseWeek, project.releaseYear) + Math.max(0, Math.floor(r.delayWeeks));
+        if (typeof r.delayWeeks === 'number') {
+          const delay = Math.max(0, Math.floor(r.delayWeeks));
+
+          if (endAbs != null) return endAbs + delay;
+
+          if (typeof project.releaseWeek === 'number' && typeof project.releaseYear === 'number') {
+            return absWeek(project.releaseWeek, project.releaseYear) + delay;
+          }
         }
 
         if (r.status === 'active' || r.status === 'declining' || (r.status === 'ended' && platformId.startsWith('player-platform:'))) {
