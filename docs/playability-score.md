@@ -21,48 +21,46 @@ This doc intentionally reports **two scores**:
 
 | Lens | Score | What it measures |
 |---|---:|---|
-| **Player-facing playability (Tycoon-casual)** | **73 / 100** | Likely *felt* experience: clarity, feedback, pacing, cozy challenge. |
-| **Technical playability foundation (Evidence checklist)** | **83 / 100** | Repo-backed signals: determinism, core-loop completeness, long-horizon scaffolding, tests/guardrails. |
+| **Player-facing playability (Tycoon-casual)** | **74 / 100** | Likely *felt* experience: clarity, feedback, pacing, cozy challenge. |
+| **Technical playability foundation (Evidence checklist)** | **93 / 100** | Repo-backed signals: determinism, core-loop completeness, long-horizon scaffolding, tests/guardrails. |
 
 Why they differ:
 
 - The codebase is **technically strong** in determinism and automated regression coverage.
-- The player-facing score stays lower because the rubric emphasizes **clarity/feedback quality** and **systemic difficulty scaling** (not just starting resources).
+- The player-facing score stays lower because the rubric emphasizes **clarity/feedback quality** and the *player-facing decision funnel* (even if the underlying simulation is strong).
 
 ---
+
+See also: `docs/playability-fixes.md` (recommended fixes and implementation notes).
 
 ## Key issues (from repo inspection)
 
 These are the main issues surfaced by the two lenses (not all are "bugs"; many are *playability risks*):
 
-1. **Missing systemic difficulty scaling (High)**
-   - Difficulty appears to mostly change **starting budget** rather than ongoing simulation pressure.
-   - Evidence: `src/components/game/GameLanding.tsx`.
-
-2. **Feedback trust + causality explanations (High)**
+1. **Feedback trust + causality explanations (High)**
    - Some UI stats look placeholder / not clearly derived from the simulation, which weakens the “I understand why this happened” loop.
    - Evidence: `src/components/game/StudioDashboard.tsx` (e.g., fixed “Quarterly Revenue +$2.0M”).
 
-3. **Onboarding is shallow relative to system depth (High)**
+2. **Onboarding is shallow relative to system depth (High)**
    - Help exists but doesn’t deeply teach the early decision funnel.
    - Evidence: `src/content/help.md`.
 
-4. **UI breadth / context switching (Medium)**
+3. **UI breadth / context switching (Medium)**
    - Many panels and systems increase cognitive load unless the game funnels the player tightly.
 
-5. **Potential “rules drift” from mixed sources of truth (Medium–High)**
+4. **Potential “rules drift” from mixed sources of truth (Medium–High)**
    - Some gameplay logic/finance representation appears split between engine systems and UI/legacy helpers.
    - Evidence: `src/components/game/FinancialEngine.tsx` vs `src/game/systems/studioEconomySystem.ts` / `src/game/systems/studioRevenueSystem.ts`.
 
-6. **Non-deterministic time/ID generation in UI & generators (Medium)**
+5. **Non-deterministic time/ID generation in UI & generators (Medium)**
    - Fine for UI, but becomes risky if it leaks into authoritative state or affects reproducibility/debugging.
    - Evidence: `src/components/game/CastingBoard.tsx` (role IDs via `Date.now()`), `src/data/TalentGenerator.ts` / `src/data/StudioGenerator.ts` (IDs include `Date.now()` / `Math.random()`).
 
-7. **Event/narrative variety ceiling (Medium)**
+6. **Event/narrative variety ceiling (Medium)**
    - Drama systems exist, but currently look like a limited set of archetypes.
    - Evidence: `src/game/systems/playerCircleDramaSystem.ts`.
 
-8. **Long-horizon goals not strongly surfaced (Medium)**
+7. **Long-horizon goals not strongly surfaced (Medium)**
    - Strong long-run scaffolding exists, but fewer explicit player-visible “north star” objectives.
 
 ---
@@ -87,7 +85,7 @@ This weighting assumes the game should be **challenging without being frustratin
 
 ### Scorecard (with repo evidence)
 
-**Final:** **73 / 100**
+**Final:** **74 / 100**
 
 #### 1) Core loop clarity & agency — **7.5 / 10 → 18.8 / 25**
 
@@ -131,16 +129,16 @@ This weighting assumes the game should be **challenging without being frustratin
 **What holds it back**
 - “Rules drift” risk if gameplay logic is split between engine and UI/legacy helpers.
 
-#### 5) Challenge, balance & fail states — **6.5 / 10 → 6.5 / 10**
+#### 5) Challenge, balance & fail states — **7 / 10 → 7 / 10**
 
 **What’s strong (for a cozy tycoon)**
-- Game flow prevents accidental failure cascades (can’t skip required decisions).
+- Budget-only difficulty is a genre-norm choice and works here; the loop already prevents accidental failure cascades (can’t skip required decisions).
 - A real cost/runway model exists (overhead, debt interest, payroll):
   - `src/game/systems/studioEconomySystem.ts`
   - `src/game/systems/talentContractsSystem.ts`
 
-**What holds it back (for systemic scaling)**
-- Difficulty appears primarily tied to starting budget: `src/components/game/GameLanding.tsx`.
+**What holds it back (tuning clarity, not scaling)**
+- The economy is mostly expressed as constants + linear-ish multipliers; without great player-facing breakdowns, this can feel arbitrary and can hide dominant strategies.
 
 #### 6) Narrative emergence & character attachment — **7 / 10 → 7 / 10**
 
@@ -163,15 +161,15 @@ This weighting assumes the game should be **challenging without being frustratin
 **What holds it back**
 - Less evidence of explicit long-run “north star” goals presented to the player.
 
-### Summary: why this is a 73 (not an 85) under a tycoon-casual lens
+### Summary: why this is a 74 (not an 85) under a tycoon-casual lens
 
-- **Systemic difficulty scaling**: challenge seems to mostly be a *starting condition* choice rather than ongoing systemic pressure.
 - **Clarity vs breadth**: the game has the systems, but the decision funnel and “why did this happen?” explanations can be stronger.
+- **Feedback trust**: a few placeholder/non-authoritative UI values weaken the management-game satisfaction loop.
 
 ### “If you fixed only three playability things” (non-shipping)
 
 1. **Strengthen onboarding for the first 10 in-game weeks** (tutorialized goals + why numbers changed).
-2. **Add systemic difficulty scaling (without harsher fail states)**: tune market/AI multipliers, negotiations, costs, etc. (not just starting cash).
+2. **Make finance feedback authoritative and explainable**: remove placeholders; show real weekly/quarterly deltas with sources.
 3. **Tighten the feedback loop**: show compact “because X, Y, Z” breakdowns for major outcomes.
 
 ---
@@ -180,7 +178,7 @@ This weighting assumes the game should be **challenging without being frustratin
 
 This lens is meant to be **criteria-driven**: it scores what’s verifiably present in the repo.
 
-### Final technical score: **83 / 100**
+### Final technical score: **93 / 100**
 
 | Category | Max | Score | Key evidence |
 |---|---:|---:|---|
@@ -190,13 +188,13 @@ This lens is meant to be **criteria-driven**: it scores what’s verifiably pres
 | 4) Player guidance & observability (technical presence) | 15 | 10 | `NextActionsBar`, tick report infrastructure |
 | 5) Long-horizon scaffolding (years/eras/history) | 10 | 10 | lifecycle/retirement/yearbook/milestones/archive systems |
 | 6) Verification depth (tests as playability proxy) | 15 | 14 | broad engine system tests + `softlockSmoke.test.ts` |
-| 7) Systemic difficulty scaling & tuning knobs | 10 | 0 | difficulty primarily sets starting budget (`GameLanding.tsx`) |
-| **Total** | **100** | **83** | |
+| 7) Difficulty profile (starting budget) | 10 | 10 | difficulty is intentionally expressed via starting budget (`GameLanding.tsx`) |
+| **Total** | **100** | **93** | |
 
 ### What this technical score is saying
 
 - The repo has unusually strong **determinism** and **regression tests** for a management sim.
-- The biggest technical gap (given your stated preference) is **systemic difficulty scaling**.
+- Biggest remaining technical playability risks are **single-source-of-truth drift** (engine vs UI helpers) and **player-facing observability** (placeholder metrics / weak causality breakdowns).
 
 ### Notable technical risks (playability-adjacent)
 
