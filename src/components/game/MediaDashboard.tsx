@@ -1,4 +1,4 @@
-import React, { useCallback, useEffect, useRef, useState } from 'react';
+import React, { useCallback, useEffect, useState } from 'react';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
@@ -6,7 +6,6 @@ import { Button } from '@/components/ui/button';
 import { ScrollArea } from '@/components/ui/scroll-area';
 import { MediaItem, MediaSource } from '@/types/game';
 import { MediaEngine } from './MediaEngine';
-import { MediaResponseSystem } from './MediaResponseSystem';
 import { MediaReputationIntegration } from './MediaReputationIntegration';
 import { useGameStore } from '@/game/store';
 import { useUiStore } from '@/game/uiStore';
@@ -37,7 +36,6 @@ export const MediaDashboard: React.FC<MediaDashboardProps> = ({
   onNavigatePhase
 }) => {
   const gameState = useGameStore((s) => s.game);
-  const mergeGameState = useGameStore((s) => s.mergeGameState);
   const setPhase = useUiStore((s) => s.setPhase);
   const navigatePhase = onNavigatePhase ?? ((phase: 'reputation' | 'awards') => setPhase(phase));
   const [recentMedia, setRecentMedia] = useState<MediaItem[]>([]);
@@ -52,11 +50,6 @@ export const MediaDashboard: React.FC<MediaDashboardProps> = ({
     setMediaStats(stats);
   }, []);
 
-  const gameStateRef = useRef(gameState);
-  useEffect(() => {
-    gameStateRef.current = gameState;
-  }, [gameState]);
-
   useEffect(() => {
     // Initialize media engine
     MediaEngine.initialize();
@@ -66,21 +59,9 @@ export const MediaDashboard: React.FC<MediaDashboardProps> = ({
   }, [updateMediaData]);
 
   useEffect(() => {
-    const current = gameStateRef.current;
-    if (!current) return;
-
-    // Keep the dashboard live as weeks advance (and auto-drain queued events)
-    MediaEngine.processMediaEvents(current);
-
-    mergeGameState({
-      mediaState: {
-        engine: MediaEngine.snapshot(),
-        response: MediaResponseSystem.snapshot(),
-      },
-    });
-
+    if (!gameState) return;
     updateMediaData();
-  }, [gameState?.currentWeek, gameState?.currentYear, mergeGameState, updateMediaData]);
+  }, [gameState?.currentWeek, gameState?.currentYear, updateMediaData]);
 
   if (!gameState) {
     return <div className="p-6 text-sm text-muted-foreground">Loading media dashboard...</div>;
@@ -179,17 +160,10 @@ export const MediaDashboard: React.FC<MediaDashboardProps> = ({
     }
   };
 
-  const processQueuedEvents = () => {
-    if (!gameState) return;
-
-    const newItems = MediaEngine.processMediaEvents(gameState);
+  const processQueuedEvents = useCallback(() => {
     updateMediaData();
     onProcessEvents?.();
-    
-    if (newItems.length > 0 && import.meta.env.DEV) {
-      console.log(`Processed ${newItems.length} media events`);
-    }
-  };
+  }, [onProcessEvents, updateMediaData]);
 
   const allSources = MediaEngine.getAllMediaSources();
 
@@ -316,7 +290,7 @@ export const MediaDashboard: React.FC<MediaDashboardProps> = ({
         <CardContent>
           <div className="flex gap-4 mb-4">
             <Button onClick={processQueuedEvents}>
-              Process Media Events ({mediaStats.queuedEvents || 0})
+              Refresh Media View
             </Button>
             {import.meta.env.DEV && (
               <Button variant="outline" onClick={generateTestEvent}>
@@ -431,7 +405,7 @@ export const MediaDashboard: React.FC<MediaDashboardProps> = ({
                 <div className="text-center text-muted-foreground py-8">
                   <Newspaper className="h-12 w-12 mx-auto mb-4 opacity-50" />
                   <p>No media stories match your current filters.</p>
-                  <p className="text-sm">Try generating some test events or processing queued events.</p>
+                  <p className="text-sm">Try generating some test events or changing your filters.</p>
                 </div>
               )}
             </div>

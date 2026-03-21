@@ -36,9 +36,9 @@ export const MediaAnalyticsPanel: React.FC<MediaAnalyticsPanelProps> = ({ onNavi
   }, [updateMediaData]);
 
   useEffect(() => {
-    if (week == null || year == null) return;
+    if (!gameState) return;
     updateMediaData();
-  }, [week, year, updateMediaData]);
+  }, [gameState?.currentWeek, gameState?.currentYear, updateMediaData]);
 
   const sentimentCounts = recentMedia.reduce(
     (acc, item) => {
