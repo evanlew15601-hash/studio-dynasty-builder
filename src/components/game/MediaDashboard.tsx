@@ -63,6 +63,11 @@ export const MediaDashboard: React.FC<MediaDashboardProps> = ({
     updateMediaData();
   }, [gameState?.currentWeek, gameState?.currentYear, updateMediaData]);
 
+  const processQueuedEvents = useCallback(() => {
+    updateMediaData();
+    onProcessEvents?.();
+  }, [onProcessEvents, updateMediaData]);
+
   if (!gameState) {
     return <div className="p-6 text-sm text-muted-foreground">Loading media dashboard...</div>;
   }
@@ -159,11 +164,6 @@ export const MediaDashboard: React.FC<MediaDashboardProps> = ({
       updateMediaData();
     }
   };
-
-  const processQueuedEvents = useCallback(() => {
-    updateMediaData();
-    onProcessEvents?.();
-  }, [onProcessEvents, updateMediaData]);
 
   const allSources = MediaEngine.getAllMediaSources();
 
