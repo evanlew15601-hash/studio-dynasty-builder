@@ -7,6 +7,36 @@ import { stableFloat01, stableInt } from '@/utils/stableRandom';
 import { MediaSourceGenerator } from '@/data/MediaSourceGenerator';
 
 export class MediaContentGenerator {
+  private static contextualReleaseHeadlines = {
+    tv: [
+      "Series Premiere: {FilmTitle} Debuts with {ReceptionHook}",
+      "New Series: {FilmTitle} Premieres to {ReceptionHook}",
+      "Streaming Spotlight: {FilmTitle} Launches for Viewers",
+      "Season Premiere: {FilmTitle} Arrives with {ReceptionHook}",
+      "First Episodes: {FilmTitle} Makes Its Debut"
+    ],
+    streaming: [
+      "Now Streaming: {FilmTitle} Arrives with {ReceptionHook}",
+      "Streaming Release: {FilmTitle} Drops for Subscribers",
+      "At Home This Week: {FilmTitle} Launches on Streaming",
+      "New Streaming Film: {FilmTitle} Lands with {ReceptionHook}",
+      "Premiere Alert: {FilmTitle} Debuts on Streaming"
+    ]
+  };
+
+  private static contextualReleaseContentTemplates = {
+    tv: [
+      "{FilmTitle} has premiered as a new {Genre} series, with viewers tuning in for the first episodes. {ReceptionSummary}",
+      "The new {Genre} series {FilmTitle} debuted this week, giving audiences their first look at the season. {ReceptionSummary}",
+      "{StudioName} unveiled {FilmTitle} for streaming audiences this week. {ReceptionSummary}"
+    ],
+    streaming: [
+      "{FilmTitle} has launched as a new streaming release from {StudioName}. {ReceptionSummary}",
+      "The {Genre} title {FilmTitle} arrived on streaming this week, with early reactions pointing to {ReceptionHook}. {ReceptionSummary}",
+      "Subscribers can now watch {FilmTitle} at home as {StudioName} rolls out its latest {Genre} offering. {ReceptionSummary}"
+    ]
+  };
+
   private static headlines = {
     casting_announcement: [
       "{ActorName} Joins {FilmTitle} in {Role} Role",
@@ -335,6 +365,30 @@ export class MediaContentGenerator {
     mods?: ModBundle
   ): string {
     const headlines = this.getPatchedHeadlines(mods);
+
+    if (event.type === 'release') {
+      const project = entities.projects?.[0] ?? (event.eventData?.project as Project | undefined);
+      const kind = (project?.type as any) as string | undefined;
+      const isTv = kind === 'series' || kind === 'limited-series';
+      const isStreaming =
+        project?.releaseStrategy?.type === 'streaming' ||
+        (project as any)?.distributionStrategy?.primary?.type === 'streaming';
+
+      if (isTv) {
+        const templates = this.contextualReleaseHeadlines.tv;
+        const idx = stableInt(`${seed}|headline-template`, 0, Math.max(0, templates.length - 1));
+        const template = templates[idx] ?? templates[0];
+        return this.replaceVariables(template, event, entities, seed);
+      }
+
+      if (isStreaming) {
+        const templates = this.contextualReleaseHeadlines.streaming;
+        const idx = stableInt(`${seed}|headline-template`, 0, Math.max(0, templates.length - 1));
+        const template = templates[idx] ?? templates[0];
+        return this.replaceVariables(template, event, entities, seed);
+      }
+    }
+
     const byType = headlines[event.type];
     const fallback = headlines.casting_announcement || this.headlines.casting_announcement;
     const templates = Array.isArray(byType) && byType.length ? byType : fallback;
@@ -353,6 +407,44 @@ export class MediaContentGenerator {
     mods?: ModBundle
   ): string {
     const templatesByType = this.getPatchedContentTemplates(mods);
+
+    if (event.type === 'release') {
+      const project = entities.projects?.[0] ?? (event.eventData?.project as Project | undefined);
+      const kind = (project?.type as any) as string | undefined;
+      const isTv = kind === 'series' || kind === 'limited-series';
+      const isStreaming =
+        project?.releaseStrategy?.type === 'streaming' ||
+        (project as any)?.distributionStrategy?.primary?.type === 'streaming';
+
+      if (isTv) {
+        const templates = this.contextualReleaseContentTemplates.tv;
+        const idx = stableInt(`${seed}|content-template`, 0, Math.max(0, templates.length - 1));
+        const template = templates[idx] ?? templates[0];
+
+        let content = this.replaceVariables(template, event, entities, seed);
+        if (sentiment === 'positive') {
+          content += " Industry insiders are optimistic about the show's potential.";
+        } else if (sentiment === 'negative') {
+          content += " Some industry observers have expressed concerns about the premiere.";
+        }
+        return content;
+      }
+
+      if (isStreaming) {
+        const templates = this.contextualReleaseContentTemplates.streaming;
+        const idx = stableInt(`${seed}|content-template`, 0, Math.max(0, templates.length - 1));
+        const template = templates[idx] ?? templates[0];
+
+        let content = this.replaceVariables(template, event, entities, seed);
+        if (sentiment === 'positive') {
+          content += " Industry insiders are optimistic about the release's potential.";
+        } else if (sentiment === 'negative') {
+          content += " Some industry observers have expressed concerns about the release.";
+        }
+        return content;
+      }
+    }
+
     const byType = templatesByType[event.type];
     const fallback = templatesByType.casting_announcement || this.contentTemplates.casting_announcement;
     const templates = Array.isArray(byType) && byType.length ? byType : fallback;
