@@ -1296,6 +1296,84 @@ export const useGameStore: import('zustand').UseBoundStore<import('zustand').Sto
             }
           }
 
+          if (kind === 'platform:strategic-sale') {
+            const market = s.game.platformMarket;
+            const player = market?.player;
+
+            const offers = Array.isArray((event as any)?.data?.offers) ? ((event as any).data.offers as any[]) : [];
+
+            const buyerId = selectedChoice.id.startsWith('sell:') ? selectedChoice.id.slice('sell:'.length) : undefined;
+            const offer = buyerId ? offers.find((o) => o && o.buyerId === buyerId) : undefined;
+
+            const salePrice = Math.max(0, Math.floor(offer?.salePrice ?? 0));
+            const transferredSubs = Math.max(0, Math.floor(offer?.transferredSubs ?? 0));
+            const transferredCatalogRaw = offer?.transferredCatalog;
+            const transferredCatalog = typeof transferredCatalogRaw === 'number' ? transferredCatalogRaw : 0;
+
+            if (market && player && player.status === 'active') {
+              if (buyerId && offer) {
+                const soldName = player.name;
+
+                player.status = 'sold';
+                player.subscribers = 0;
+                player.cash = 0;
+                player.closedWeek = s.game.currentWeek;
+                player.closedYear = s.game.currentYear;
+
+                const buyer = (market.rivals || []).find((r) => r.id === buyerId);
+                if (buyer && buyer.status !== 'collapsed') {
+                  buyer.subscribers = Math.max(0, (buyer.subscribers ?? 0) + transferredSubs);
+                  buyer.catalogValue = clamp((buyer.catalogValue ?? 50) + transferredCatalog * 0.15, 0, 100);
+                }
+
+                const registry = Array.isArray((market as any).brandRegistry) ? ((market as any).brandRegistry as any[]) : [];
+                const brandKey = soldName.trim().toLowerCase();
+                if (brandKey && !registry.some((e) => typeof e?.name === 'string' && e.name.trim().toLowerCase() === brandKey)) {
+                  registry.push({
+                    name: soldName.trim(),
+                    ownerId: buyerId,
+                    ownerName: offer?.buyerName ?? buyer?.name,
+                    acquiredWeek: s.game.currentWeek,
+                    acquiredYear: s.game.currentYear,
+                  });
+                  (market as any).brandRegistry = registry;
+                }
+
+                const headline = `${soldName} sold to ${offer?.buyerName ?? buyer?.name ?? 'a rival'} for ${Math.round(salePrice / 1_000_000)}M`;
+
+                MediaEngine.injectDeterministicMediaItem({
+                  id: `media:${event.id}:${selectedChoice.id}`,
+                  type: 'news',
+                  headline,
+                  content: headline,
+                  week: s.game.currentWeek,
+                  year: s.game.currentYear,
+                  sentiment: 'neutral',
+                  targets: { studios: [s.game.studio.id] },
+                  tags: ['streaming', 'consolidation', 'sale'],
+                  relatedEvents: [event.id],
+                  sourceType: 'trade_publication',
+                });
+              } else {
+                const headline = `${player.name} remains independent as the studio shelves strategic sale talks`;
+
+                MediaEngine.injectDeterministicMediaItem({
+                  id: `media:${event.id}:${selectedChoice.id}`,
+                  type: 'news',
+                  headline,
+                  content: headline,
+                  week: s.game.currentWeek,
+                  year: s.game.currentYear,
+                  sentiment: 'neutral',
+                  targets: { studios: [s.game.studio.id] },
+                  tags: ['streaming', 'strategy'],
+                  relatedEvents: [event.id],
+                  sourceType: 'trade_publication',
+                });
+              }
+            }
+          }
+
           if (kind === 'platform:forced-sale') {
             const market = s.game.platformMarket;
             const player = market?.player;

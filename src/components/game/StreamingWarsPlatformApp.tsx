@@ -32,6 +32,7 @@ import {
 } from '@/utils/platformIds';
 import { stableInt } from '@/utils/stableRandom';
 import { isDebugUiEnabled } from '@/utils/debugFlags';
+import { triggerDateFromWeekYear } from '@/utils/gameTime';
 import { getPlatformRelaunchWindow } from '@/utils/platformRelaunch';
 import { StreamingPlatformPreview } from './StreamingPlatformPreview';
 import { StudioIconCustomizer, DEFAULT_ICON, ICON_COLORS, ACCENT_COLORS, type StudioIconConfig } from './StudioIconCustomizer';
@@ -387,6 +388,16 @@ export const StreamingWarsPlatformApp: React.FC = () => {
     return clampInt(base * durationFactor * (0.85 + sizeFactor * 0.35), 15_000_000, 280_000_000);
   };
 
+  type StrategicSaleOffer = {
+    buyerId: string;
+    buyerName: string;
+    salePrice: number;
+    transferredSubs: number;
+    transferredCatalog: number;
+  };
+
+  
+
   const openLicenseDialog = (project: Project) => {
     if (!playerPlatformId) return;
 
@@ -403,6 +414,115 @@ export const StreamingWarsPlatformApp: React.FC = () => {
     if (!licenseProject || !licenseRivalId) return 0;
     return computeLicenseOffer(licenseProject, licenseRivalId, licenseDurationWeeks);
   }, [licenseDurationWeeks, licenseProject, licenseRivalId]);
+
+  const strategicSaleOffers = useMemo((): StrategicSaleOffer[] => {
+    if (!player || player.status !== 'active') return [];
+
+    const eligible = rivals.filter((r) => r.status !== 'collapsed');
+    if (eligible.length === 0) return [];
+
+    const subs = Math.max(0, Math.floor(player.subscribers ?? 0));
+    const freshness = clamp(player.freshness ?? 50, 0, 100);
+    const catalogValue = clamp(player.catalogValue ?? 40, 0, 100);
+    const serviceQuality = clamp(player.serviceQuality ?? 55, 0, 100);
+
+    const profit = platformMarket?.lastWeek?.player?.profit ?? 0;
+    const annualProfit = Math.max(0, profit) * 52;
+    const profitComponent = profit > 0 ? annualProfit * 3.5 : 0;
+
+    const qualityComponent = freshness * 1_200_000 + catalogValue * 1_000_000 + serviceQuality * 600_000;
+
+    const seedBase = `${gameState?.universeSeed ?? 0}|platform:strategic-sale|${gameState?.currentYear ?? 0}:W${gameState?.currentWeek ?? 0}|${player.id}`;
+
+    return eligible
+      .map((rival) => {
+        const sizeRatio = totalAddressableSubs > 0 ? clamp((rival.subscribers ?? 0) / totalAddressableSubs, 0, 1) : 0.4;
+        const perSub = clamp(28 + sizeRatio * 18, 24, 48);
+
+        const base = subs * perSub + qualityComponent + profitComponent;
+
+        const jitter = stableInt(`${seedBase}|${rival.id}|jitter`, -7, 7) / 100;
+        const salePrice = clampInt(base * (1 + jitter), 75_000_000, 12_000_000_000);
+
+        const transferPct = stableInt(`${seedBase}|${rival.id}|transfer`, 86, 95) / 100;
+        const transferredSubs = Math.floor(subs * transferPct);
+        const transferredCatalog = clamp((player.catalogValue ?? 40) * transferPct, 0, 100);
+
+        return {
+          buyerId: rival.id,
+          buyerName: rival.name,
+          salePrice,
+          transferredSubs,
+          transferredCatalog,
+        };
+      })
+      .sort((a, b) => b.salePrice - a.salePrice);
+  }, [
+    gameState?.currentWeek,
+    gameState?.currentYear,
+    gameState?.universeSeed,
+    platformMarket?.lastWeek?.player?.profit,
+    player,
+    rivals,
+    totalAddressableSubs,
+  ]);
+
+  const bestStrategicSaleOffer = strategicSaleOffers[0] ?? null;
+
+  const queueStrategicSaleEvent = () => {
+    if (!player || player.status !== 'active') return;
+    if (!gameState) return;
+
+    const offers = strategicSaleOffers;
+    if (offers.length === 0) return;
+
+    setGameState((prev) => {
+      if ((prev.eventQueue || []).length > 0) return prev;
+
+      const pm = prev.platformMarket;
+      const pl = pm?.player;
+      if (!pm || !pl || pl.status !== 'active') return prev;
+
+      const year = prev.currentYear;
+      const week = prev.currentWeek;
+      const eventId = `platform:strategic-sale:${year}:W${week}:${pl.id}`;
+
+      if ((prev.eventQueue || []).some((e) => e.id === eventId)) return prev;
+
+      const title = `Strategic sale: ${pl.name}`;
+      const description = `Rivals are willing to buy ${pl.name}. You'll receive cash upfront, your subscribers transfer to the buyer, and the brand is locked (no relaunch under the same name).`;
+
+      return {
+        ...prev,
+        eventQueue: [
+          ...(prev.eventQueue || []),
+          {
+            id: eventId,
+            title,
+            description,
+            type: 'market',
+            triggerDate: triggerDateFromWeekYear(year, week),
+            data: {
+              kind: 'platform:strategic-sale',
+              playerPlatformId: pl.id,
+              offers,
+            },
+            choices: [
+              ...offers.map((o) => ({
+                id: `sell:${o.buyerId}`,
+                text: `Sell to ${o.buyerName} (${formatUsdCompact(o.salePrice)})`,
+                consequences: [
+                  { type: 'budget', impact: o.salePrice, description: `${pl.name} sale proceeds` },
+                  { type: 'reputation', impact: -1, description: 'Strategic exit optics' },
+                ],
+              })),
+              { id: 'keep', text: 'Stay independent', consequences: [] },
+            ],
+          } as any,
+        ],
+      } as any;
+    });
+  };
 
   const openTitle = (project: Project) => {
     setTitleProject(project);
@@ -1092,6 +1212,51 @@ export const StreamingWarsPlatformApp: React.FC = () => {
 
           {player && player.status === 'active' && (
             <div className="space-y-4">
+              <Card>
+                <CardHeader>
+                  <CardTitle className="text-base">Strategic options</CardTitle>
+                </CardHeader>
+                <CardContent className="space-y-3">
+                  <p className="text-sm text-muted-foreground">
+                    If you want out of streaming, you can sell {player.name} to a rival. You receive cash upfront, subscribers transfer to the buyer, and the brand is locked.
+                  </p>
+
+                  <div className="grid grid-cols-1 sm:grid-cols-3 gap-2 text-xs">
+                    <div className="rounded border p-2">
+                      <div className="text-muted-foreground">Best offer</div>
+                      <div className="font-medium">{bestStrategicSaleOffer ? formatUsdCompact(bestStrategicSaleOffer.salePrice) : '—'}</div>
+                    </div>
+                    <div className="rounded border p-2">
+                      <div className="text-muted-foreground">Subscribers transferred</div>
+                      <div className="font-medium">
+                        {bestStrategicSaleOffer && player.subscribers > 0
+                          ? `${Math.round((bestStrategicSaleOffer.transferredSubs / player.subscribers) * 100)}%`
+                          : '—'}
+                      </div>
+                    </div>
+                    <div className="rounded border p-2">
+                      <div className="text-muted-foreground">Interested buyers</div>
+                      <div className="font-medium">{strategicSaleOffers.length}</div>
+                    </div>
+                  </div>
+
+                  <Button
+                    type="button"
+                    variant="destructive"
+                    onClick={queueStrategicSaleEvent}
+                    disabled={(gameState.eventQueue || []).length > 0 || strategicSaleOffers.length === 0}
+                  >
+                    Explore strategic sale
+                  </Button>
+
+                  {(gameState.eventQueue || []).length > 0 && (
+                    <p className="text-xs text-muted-foreground">
+                      Resolve your current pending event before starting a sale process.
+                    </p>
+                  )}
+                </CardContent>
+              </Card>
+
               <Card>
                 <CardHeader>
                   <CardTitle className="text-base">{player.name} Home</CardTitle>
