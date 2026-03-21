@@ -84,7 +84,6 @@ export function DatabaseManagerDialog(props: {
     setNameInput('');
 
     void refreshSaveIndex();
-    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [props.open]);
 
   const setActive = (slotId: string) => {

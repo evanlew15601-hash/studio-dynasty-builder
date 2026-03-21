@@ -2,7 +2,7 @@ import type { GameEvent, GameState, Scandal, TalentPerson, WorldHistoryEntry } f
 import type { TickSystem } from '../core/types';
 import { stableInt } from '@/utils/stableRandom';
 import { pushWorldHistory } from '@/utils/worldHistory';
-import { MediaEngine } from '@/components/game/MediaEngine';
+import { MediaEngine } from '@/game/media/mediaEngine';
 
 function clamp(n: number, min: number, max: number): number {
   return Math.max(min, Math.min(max, n));
@@ -253,7 +253,7 @@ function buildScandalEvent(params: {
 export const IndustryGossipSystem: TickSystem = {
   id: 'industryGossip',
   label: 'Industry gossip',
-  dependsOn: ['talentCareerArcs'],
+  dependsOn: ['mediaHydration'],
   onTick: (state, ctx) => {
     if (state.mode === 'online') return state;
 

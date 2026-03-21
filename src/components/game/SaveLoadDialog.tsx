@@ -1,4 +1,4 @@
-import React, { useEffect, useMemo, useRef, useState } from 'react';
+import React, { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import type { GameState } from '@/types/game';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent } from '@/components/ui/card';
@@ -49,7 +49,7 @@ function formatSlotLabel(row: SaveSlotRow): string {
   if (row.studioName) parts.push(row.studioName);
   if (row.year != null && row.week != null) parts.push(`W${row.week}, ${row.year}`);
   if (row.modSlotId) parts.push(`DB: ${row.modSlotId}`);
-  if (row.savedAt) parts.push(new Date(row.savedAt).toLocaleString());
+  if (row.savedAt) parts.push(new Date(row.savedAt).toUTCString());
   return parts.join(' • ');
 }
 
@@ -98,7 +98,7 @@ export function SaveLoadDialog(props: {
     [activeSlot, activeModSlot]
   );
 
-  const refreshSlots = async (modSlotOverride?: string) => {
+  const refreshSlots = useCallback(async (modSlotOverride?: string) => {
     const modSlot = modSlotOverride ?? activeModSlot;
 
     setLoading(true);
@@ -128,7 +128,7 @@ export function SaveLoadDialog(props: {
     } finally {
       setLoading(false);
     }
-  };
+  }, [activeModSlot]);
 
   useEffect(() => {
     if (!props.open) {
@@ -145,9 +145,17 @@ export function SaveLoadDialog(props: {
     setActiveSlot(getActiveSaveSlotId(slot));
 
     void refreshSlots(slot);
-    void getSavesDirAsync().then(setSavesDir);
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [props.open]);
+
+    let cancelled = false;
+    void getSavesDirAsync().then((dir) => {
+      if (cancelled) return;
+      setSavesDir(dir);
+    });
+
+    return () => {
+      cancelled = true;
+    };
+  }, [props.open, refreshSlots]);
 
   const handleSetActiveSlot = (slotId: string) => {
     const normalized = normalizeSlotId(slotId);

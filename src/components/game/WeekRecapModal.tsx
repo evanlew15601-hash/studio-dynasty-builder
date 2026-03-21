@@ -9,7 +9,7 @@ import { ScrollArea } from '@/components/ui/scroll-area';
 import { Collapsible, CollapsibleContent, CollapsibleTrigger } from '@/components/ui/collapsible';
 import { Separator } from '@/components/ui/separator';
 import { Table, TableBody, TableCell, TableFooter, TableHead, TableHeader, TableRow } from '@/components/ui/table';
-import { Calendar, ChevronDown, Clock, DollarSign, Film, Minus, TrendingDown, TrendingUp, Trophy } from 'lucide-react';
+import { Calendar, ChevronDown, Clock, DollarSign, Film, Minus, TrendingDown, TrendingUp, Trophy, Users, Newspaper } from 'lucide-react';
 
 type Tone = 'positive' | 'negative' | 'neutral';
 
@@ -74,6 +74,26 @@ function typeLabel(card: TickRecapCard): string {
     case 'system':
     default:
       return 'System';
+  }
+}
+
+function typeIcon(card: TickRecapCard) {
+  switch (card.type) {
+    case 'financial':
+      return DollarSign;
+    case 'release':
+      return Film;
+    case 'award':
+      return Trophy;
+    case 'talent':
+      return Users;
+    case 'media':
+      return Newspaper;
+    case 'market':
+      return TrendingUp;
+    case 'system':
+    default:
+      return Clock;
   }
 }
 
@@ -189,6 +209,8 @@ export const WeekRecapModal: React.FC<WeekRecapModalProps> = ({ open, onOpenChan
               ) : (
                 report.recap.map((card, idx) => {
                   const tone = toneForRecap(card);
+                  const TypeIcon = typeIcon(card);
+
                   return (
                     <Card key={`${card.type}:${idx}`} className={cn(toneCardClass(tone))}>
                       <CardHeader className="pb-3">
@@ -197,6 +219,7 @@ export const WeekRecapModal: React.FC<WeekRecapModalProps> = ({ open, onOpenChan
                             <Badge variant="outline" className="mt-0.5 text-xs">
                               {typeLabel(card)}
                             </Badge>
+                            <TypeIcon className="mt-0.5 h-4 w-4 text-muted-foreground" />
                             <div className="min-w-0">
                               <div className="leading-tight truncate">{card.title}</div>
                               <div className="mt-1 text-sm font-normal text-muted-foreground whitespace-pre-wrap">{card.body}</div>

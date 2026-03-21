@@ -269,7 +269,7 @@ export const ReleaseStrategyModal: React.FC<ReleaseStrategyModalProps> = ({
   };
 
   const buildReleaseStrategy = (week: number, year: number): ReleaseStrategy => {
-    const approxDate = new Date(year, 0, 1 + Math.max(0, week - 1) * 7);
+    const approxDate = new Date(Date.UTC(year, 0, 1 + Math.max(0, week - 1) * 7));
 
     const theatersCount = (() => {
       switch (selectedReleaseType) {

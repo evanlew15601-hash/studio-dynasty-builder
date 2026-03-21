@@ -1,5 +1,6 @@
 import { useState, useEffect } from 'react';
 import { TalentPerson, Genre } from '@/types/game';
+import { stableFloat01, stableInt } from '@/utils/stableRandom';
 
 interface TalentMarketState {
   demandMultipliers: Record<string, number>;
@@ -7,7 +8,12 @@ interface TalentMarketState {
   availabilityMap: Record<string, boolean>;
 }
 
-export const useTalentMarket = (talent: TalentPerson[], currentWeek: number) => {
+export const useTalentMarket = (
+  talent: TalentPerson[],
+  currentWeek: number,
+  currentYear: number,
+  universeSeed: number | string = 0
+) => {
   const [marketState, setMarketState] = useState<TalentMarketState>({
     demandMultipliers: {},
     genreTrends: {
@@ -18,6 +24,9 @@ export const useTalentMarket = (talent: TalentPerson[], currentWeek: number) => 
     },
     availabilityMap: {}
   });
+
+  const currentAbsWeek = (currentYear * 52) + currentWeek;
+  const seedRoot = `talent-market|${universeSeed}|${currentAbsWeek}`;
 
   // Calculate dynamic market value based on recent success and demand
   const calculateMarketValue = (person: TalentPerson): number => {
@@ -50,24 +59,25 @@ export const useTalentMarket = (talent: TalentPerson[], currentWeek: number) => 
 
   // Check if talent is available for casting
   const isAvailable = (personId: string): boolean => {
-    // High-demand talent may be unavailable
+    // High-demand talent may be unavailable.
     const demandMultiplier = marketState.demandMultipliers[personId] || 1;
     if (demandMultiplier > 2) {
-      return Math.random() > 0.6; // 40% chance available if high demand
+      return stableFloat01(`${seedRoot}|avail|${personId}|high-demand`) > 0.6; // 40% chance available if high demand
     }
     return marketState.availabilityMap[personId] !== false;
   };
 
-  // Update market trends weekly
+  // Update market trends weekly (deterministic per save+week)
   useEffect(() => {
     setMarketState(prev => {
       const newDemandMultipliers = { ...prev.demandMultipliers };
       const newGenreTrends: Record<Genre, number> = { ...prev.genreTrends };
       const newAvailabilityMap = { ...prev.availabilityMap };
 
-      // Simulate market fluctuations
+      // Simulate market fluctuations deterministically.
       const trendingGenres: Genre[] = ['action', 'horror', 'comedy', 'drama', 'sci-fi'];
-      const randomTrendingGenre = trendingGenres[Math.floor(Math.random() * trendingGenres.length)];
+      const trendingIdx = stableInt(`${seedRoot}|trending-genre`, 0, trendingGenres.length - 1);
+      const randomTrendingGenre = trendingGenres[trendingIdx];
       
       // Update genre trends efficiently
       const genreKeys = Object.keys(newGenreTrends) as Genre[];
@@ -79,10 +89,11 @@ export const useTalentMarket = (talent: TalentPerson[], currentWeek: number) => 
         }
       }
 
-      // Random availability changes (contracts, scheduling conflicts)
+      // Availability changes (contracts, scheduling conflicts), deterministic per talent+week.
       talent.forEach(person => {
-        if (Math.random() < 0.1) { // 10% chance of availability change
-          newAvailabilityMap[person.id] = Math.random() > 0.3; // 70% chance available
+        const roll = stableFloat01(`${seedRoot}|availability-change|${person.id}`);
+        if (roll < 0.1) {
+          newAvailabilityMap[person.id] = stableFloat01(`${seedRoot}|availability-next|${person.id}`) > 0.3;
         }
       });
 
@@ -92,7 +103,7 @@ export const useTalentMarket = (talent: TalentPerson[], currentWeek: number) => 
         availabilityMap: newAvailabilityMap
       };
     });
-  }, [currentWeek, talent]);
+  }, [currentWeek, currentYear, seedRoot, talent]);
 
   // Public API for updating market based on casting decisions
   const updateDemand = (personId: string, successLevel: 'hit' | 'average' | 'flop') => {

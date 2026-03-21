@@ -15,10 +15,11 @@ import {
 } from '@/components/ui/alert-dialog';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { Switch } from '@/components/ui/switch';
-import { AIStudioManager, TalentCommitment } from './AIStudioManager';
-import { TalentPerson } from '@/types/game';
+import { AIStudioManager } from './AIStudioManager';
+import type { TalentCommitment, TalentPerson } from '@/types/game';
 import { Calendar, Clock, Star, Film, DollarSign, User } from 'lucide-react';
 import { useUiStore } from '@/game/uiStore';
+import { useGameStore } from '@/game/store';
 
 interface TalentMarketplaceProps {
   talent: TalentPerson[];
@@ -34,6 +35,7 @@ export const TalentMarketplace: React.FC<TalentMarketplaceProps> = ({
   onCastTalent
 }) => {
   const openTalentProfile = useUiStore((s) => s.openTalentProfile);
+  const mergeGameState = useGameStore((s) => s.mergeGameState);
   const [showAvailableOnly, setShowAvailableOnly] = useState(false);
   const [selectedRole, setSelectedRole] = useState<string>('all');
   const [commitments, setCommitments] = useState<TalentCommitment[]>([]);
@@ -114,6 +116,7 @@ export const TalentMarketplace: React.FC<TalentMarketplaceProps> = ({
               onClick={() => {
                 setResetAiConfirmOpen(false);
                 AIStudioManager.resetAISystem();
+                mergeGameState({ aiStudioState: AIStudioManager.snapshot() });
                 setCommitments([]);
               }}
             >

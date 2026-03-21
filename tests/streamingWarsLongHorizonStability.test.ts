@@ -89,7 +89,7 @@ function makeExclusiveStreamingHit(params: { projectId: string; platformId: stri
     },
     releaseStrategy: {
       type: 'streaming',
-      premiereDate: new Date(2027, 0, 1),
+      premiereDate: new Date(Date.UTC(2027, 0, 1)),
       rolloutPlan: [],
       specialEvents: [],
       pressStrategy: { expectedCriticalReception: 60 },

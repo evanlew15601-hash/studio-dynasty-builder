@@ -12,6 +12,7 @@ function makeCtx(seed: number, week: number, year: number): TickContext {
     quarter: Math.max(1, Math.min(4, Math.ceil(week / 13))),
     recap: [],
     debug: false,
+    prevState: {} as any,
   };
 }
 

@@ -7,6 +7,7 @@ import { Progress } from '@/components/ui/progress';
 import { Slider } from '@/components/ui/slider';
 import { useToast } from '@/hooks/use-toast';
 import { DollarSign, TrendingUp, AlertTriangle, Banknote } from 'lucide-react';
+import { nextNumericId } from '@/utils/idAllocator';
 
 interface Loan {
   id: string;
@@ -89,7 +90,7 @@ if (!canAffordLoan(terms.weeklyPayment)) {
     }
 
 const newLoan: Loan = {
-  id: `loan-${Date.now()}`,
+  id: nextNumericId('loan', (gameState.studio.loans || []).map((l) => l.id)),
   amount,
   interestRate: terms.interestRate,
   termWeeks: weeks,

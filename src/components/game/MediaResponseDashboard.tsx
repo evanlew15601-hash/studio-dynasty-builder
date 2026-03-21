@@ -29,6 +29,7 @@ export const MediaResponseDashboard: React.FC<MediaResponseDashboardProps> = () 
   const gameState = useGameStore((s) => s.game);
   const updateStudio = useGameStore((s) => s.updateStudio);
   const updateBudget = useGameStore((s) => s.updateBudget);
+  const mergeGameState = useGameStore((s) => s.mergeGameState);
   const [selectedMedia, setSelectedMedia] = useState<MediaItem | null>(null);
   const [customMessage, setCustomMessage] = useState('');
   const [campaignForm, setCampaignForm] = useState({
@@ -84,6 +85,14 @@ export const MediaResponseDashboard: React.FC<MediaResponseDashboardProps> = () 
       // Process the new media events
       MediaEngine.processMediaEvents(gameState);
 
+      // Persist media system state to the save snapshot.
+      mergeGameState({
+        mediaState: {
+          engine: MediaEngine.snapshot(),
+          response: MediaResponseSystem.snapshot(),
+        },
+      });
+
       alert('Response "' + action + '" executed! Cost: ' + '\u0024' + (reaction.cost?.toLocaleString() || 0));
       setSelectedMedia(null);
       setCustomMessage('');
@@ -134,6 +143,14 @@ export const MediaResponseDashboard: React.FC<MediaResponseDashboardProps> = () 
     );
 
     updateBudget(-cost);
+
+    // Persist media system state to the save snapshot.
+    mergeGameState({
+      mediaState: {
+        engine: MediaEngine.snapshot(),
+        response: MediaResponseSystem.snapshot(),
+      },
+    });
 
     setCampaignForm({
       name: '',

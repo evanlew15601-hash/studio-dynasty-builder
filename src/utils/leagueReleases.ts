@@ -14,7 +14,11 @@ export function toLeagueReleaseProject(params: {
   const stableId = stableLeagueReleaseId(leagueUserId, snapshot.id);
   const budgetTotal = typeof snapshot.budgetTotal === 'number' ? snapshot.budgetTotal : 0;
   const genre = (snapshot.genre as any) || 'drama';
-  const now = new Date();
+
+  const now =
+    typeof snapshot.releaseWeek === 'number' && typeof snapshot.releaseYear === 'number'
+      ? new Date(Date.UTC(snapshot.releaseYear, 0, 1 + Math.max(0, snapshot.releaseWeek - 1) * 7))
+      : new Date(0);
 
   const script = {
     id: `league-script-${stableId}`,

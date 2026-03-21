@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest';
-import { TimeSystem, type TimeState } from '@/components/game/TimeSystem';
+import { TimeSystem, type TimeState } from '@/game/core/time';
 import { createTickReport } from '@/utils/tickReport';
 import type { GameState } from '@/types/game';
 import type { TickSystemReport } from '@/types/tickReport';

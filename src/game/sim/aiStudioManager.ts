@@ -1,65 +1,28 @@
 // AI Studio Manager - Handles competitor studio film production
-import { Project, Studio, TalentPerson } from '@/types/game';
-import { FinancialEngine } from './FinancialEngine';
+import type { AIStudioState, AIFilmProject, Studio, TalentCommitment, TalentPerson } from '@/types/game';
+import type { SeededRng } from '@/game/core/rng';
 
-export interface AIFilmProject {
-  id: string;
-  title: string;
-  studioId: string;
-  studioName: string;
-  script: {
-    genre: string;
-    quality: number;
-    budget: number;
-  };
-  status: 'development' | 'casting' | 'production' | 'post-production' | 'marketing' | 'released';
-  timeline: {
-    startWeek: number;
-    startYear: number;
-    productionWeeks: number;
-    expectedReleaseWeek: number;
-    expectedReleaseYear: number;
-  };
-  cast: {
-    role: string;
-    talentId: string;
-    talentName: string;
-    weeklyPay: number;
-    commitmentWeeks: number[];
-  }[];
-  budget: {
-    production: number;
-    marketing: number;
-    total: number;
-  };
-  performance?: {
-    boxOffice: number;
-    criticsScore: number;
-    audienceScore: number;
-    awards: string[];
-  };
-}
-
-export interface TalentCommitment {
-  talentId: string;
-  talentName: string;
-  filmId: string;
-  role: string;
-  studio: string;
-  commitmentWeeks: number[]; // Absolute week indices (year*52 + weekOfYear)
-  weeklyPay: number;
-  startWeek: number; // week-of-year (1-52)
-  endWeek: number; // week-of-year (1-52)
-  startYear: number;
-  endYear: number;
-  startAbsWeek: number;
-  endAbsWeek: number;
-}
+const emptyState = (): AIStudioState => ({ aiFilms: [], talentCommitments: [], nextFilmId: 1 });
 
 export class AIStudioManager {
   private static aiFilms: AIFilmProject[] = [];
   private static talentCommitments: TalentCommitment[] = [];
   private static nextFilmId = 1;
+
+  static hydrate(state?: AIStudioState): void {
+    const src = state ?? emptyState();
+    this.aiFilms = (src.aiFilms || []).map((f) => ({ ...f, cast: [...(f.cast || [])] }));
+    this.talentCommitments = (src.talentCommitments || []).map((c) => ({ ...c, commitmentWeeks: [...(c.commitmentWeeks || [])] }));
+    this.nextFilmId = typeof src.nextFilmId === 'number' ? src.nextFilmId : 1;
+  }
+
+  static snapshot(): AIStudioState {
+    return {
+      aiFilms: this.aiFilms.map((f) => ({ ...f, cast: [...(f.cast || [])] })),
+      talentCommitments: this.talentCommitments.map((c) => ({ ...c, commitmentWeeks: [...(c.commitmentWeeks || [])] })),
+      nextFilmId: this.nextFilmId,
+    };
+  }
 
   private static toAbsWeek(year: number, week: number): number {
     return (year * 52) + week;
@@ -89,31 +52,32 @@ export class AIStudioManager {
     studio: Studio,
     currentWeek: number,
     currentYear: number,
-    availableTalent: TalentPerson[]
+    availableTalent: TalentPerson[],
+    rng: SeededRng
   ): AIFilmProject {
     const genres = ['action', 'drama', 'comedy', 'thriller', 'romance', 'horror', 'sci-fi'];
-    const genre = genres[Math.floor(Math.random() * genres.length)];
-    
+    const genre = rng.pick(genres) || 'drama';
+
     // Generate realistic budget based on studio reputation
     const studioRep = studio.reputation || 50;
     const baseBudget = 5000000 + (studioRep / 100) * 45000000; // 5M to 50M
-    const budget = baseBudget + (Math.random() - 0.5) * baseBudget * 0.4; // ±20% variation
-    
+    const budget = baseBudget + baseBudget * rng.nextFloat(-0.2, 0.2); // ±20% variation
+
     const film: AIFilmProject = {
       id: `ai-film-${this.nextFilmId++}`,
-      title: this.generateFilmTitle(genre),
+      title: this.generateFilmTitle(genre, rng),
       studioId: studio.id,
       studioName: studio.name,
       script: {
         genre,
-        quality: Math.floor(Math.random() * 40) + 40, // 40-80 quality
+        quality: rng.nextInt(40, 80),
         budget: Math.floor(budget)
       },
       status: 'development',
       timeline: {
         startWeek: currentWeek,
         startYear: currentYear,
-        productionWeeks: Math.floor(Math.random() * 8) + 8, // 8-16 weeks
+        productionWeeks: rng.nextInt(8, 16),
         expectedReleaseWeek: 0, // Will be calculated
         expectedReleaseYear: 0
       },
@@ -149,30 +113,30 @@ export class AIStudioManager {
 
     // Cast director (mandatory)
     if (directorCandidates.length > 0) {
-      const director = directorCandidates[Math.floor(Math.random() * directorCandidates.length)];
+      const director = rng.pick(directorCandidates);
       tryCast(director, 'Director');
     }
 
     // Cast lead actor (mandatory)
     const availableActors = actorCandidates.filter(a => !usedTalent.has(a.id));
     if (availableActors.length > 0) {
-      const leadActor = availableActors[Math.floor(Math.random() * availableActors.length)];
+      const leadActor = rng.pick(availableActors);
       tryCast(leadActor, 'Lead Actor');
     }
 
     // Cast 2-4 additional supporting actors for variety
-    const supportingCount = Math.min(4, Math.floor(Math.random() * 3) + 2); // 2-4 supporting actors
+    const supportingCount = Math.min(4, rng.nextInt(2, 4)); // 2-4 supporting actors
     const remainingActors = actorCandidates.filter(a => !usedTalent.has(a.id));
 
     for (let i = 0; i < supportingCount && i < remainingActors.length; i++) {
-      const supportingActor = remainingActors[Math.floor(Math.random() * remainingActors.length)];
+      const supportingActor = rng.pick(remainingActors);
       const supportingRoles = ['Supporting Actor', 'Supporting Actress', 'Character Actor', 'Ensemble Cast'];
-      const role = supportingRoles[Math.floor(Math.random() * supportingRoles.length)];
+      const role = rng.pick(supportingRoles) || supportingRoles[0];
 
       tryCast(supportingActor, role);
 
       // Remove from available pool to ensure variety
-      const actorIndex = remainingActors.indexOf(supportingActor);
+      const actorIndex = supportingActor ? remainingActors.indexOf(supportingActor) : -1;
       if (actorIndex > -1) remainingActors.splice(actorIndex, 1);
     }
 
@@ -182,7 +146,7 @@ export class AIStudioManager {
   }
 
   // **CHECKPOINT 1 TEST**: Verify film title generation
-  private static generateFilmTitle(genre: string): string {
+  private static generateFilmTitle(genre: string, rng: SeededRng): string {
     const titleParts = {
       action: ['Steel', 'Thunder', 'Fire', 'Shadow', 'Storm'],
       drama: ['The Last', 'Silent', 'Broken', 'Hidden', 'Lost'],
@@ -197,11 +161,11 @@ export class AIStudioManager {
     const nouns = ['City', 'Dreams', 'Journey', 'Mission', 'Legacy', 'Chronicles', 'Awakening', 'War'];
     
     const genreParts = titleParts[genre as keyof typeof titleParts] || titleParts.drama;
-    const part1 = genreParts[Math.floor(Math.random() * genreParts.length)];
-    const part2 = Math.random() > 0.5 ? 
-      adjectives[Math.floor(Math.random() * adjectives.length)] :
-      nouns[Math.floor(Math.random() * nouns.length)];
-    
+    const part1 = rng.pick(genreParts) || genreParts[0];
+    const part2 = rng.chance(0.5)
+      ? (rng.pick(adjectives) || adjectives[0])
+      : (rng.pick(nouns) || nouns[0]);
+
     return `${part1} ${part2}`;
   }
 
@@ -295,7 +259,7 @@ export class AIStudioManager {
   }
 
   // **CHECKPOINT 3**: Process AI films weekly - Increased frequency
-  static processWeeklyAIFilms(currentWeek: number, currentYear: number): void {
+  static processWeeklyAIFilms(currentWeek: number, currentYear: number, rng: SeededRng): void {
     const currentAbsWeek = this.toAbsWeek(currentYear, currentWeek);
 
     this.aiFilms.forEach(film => {
@@ -317,38 +281,11 @@ export class AIStudioManager {
       } else if (film.status === 'marketing') {
         const expectedAbsWeek = this.toAbsWeek(film.timeline.expectedReleaseYear, film.timeline.expectedReleaseWeek);
         if (currentAbsWeek >= expectedAbsWeek) {
-          this.releaseAIFilm(film, currentWeek, currentYear);
+          this.releaseAIFilm(film, currentWeek, currentYear, rng);
         }
       }
 
-      // Record weekly expenses during production
-      if (film.status === 'production' || film.status === 'post-production') {
-        const weeklyProductionCost = film.budget.production * 0.05; // 5% per week
-        FinancialEngine.recordTransaction(
-          'expense',
-          'production',
-          weeklyProductionCost,
-          currentWeek,
-          currentYear,
-          `AI Studio production - ${film.title}`,
-          film.id
-        );
-
-        // Pay talent weekly
-        film.cast.forEach(castMember => {
-          if (castMember.commitmentWeeks.includes(currentAbsWeek)) {
-            FinancialEngine.recordTransaction(
-              'expense',
-              'talent',
-              castMember.weeklyPay,
-              currentWeek,
-              currentYear,
-              `AI Studio talent payment - ${castMember.talentName}`,
-              film.id
-            );
-          }
-        });
-      }
+      
     });
 
     // Clean up expired commitments
@@ -365,7 +302,7 @@ export class AIStudioManager {
   }
 
   // **CHECKPOINT 3**: Release AI film and calculate performance
-  private static releaseAIFilm(film: AIFilmProject, currentWeek: number, currentYear: number): void {
+  private static releaseAIFilm(film: AIFilmProject, currentWeek: number, currentYear: number, rng: SeededRng): void {
     film.status = 'released';
     
     // Calculate performance based on various factors
@@ -377,27 +314,18 @@ export class AIStudioManager {
     // Box office calculation
     const baseBoxOffice = film.budget.production * 1.5; // Break-even target
     const qualityMultiplier = (scriptQuality + castQuality + studioRep) / 150; // 0.66 to 1.33
-    const randomFactor = 0.5 + Math.random(); // 0.5 to 1.5
-    
+    const randomFactor = rng.nextFloat(0.5, 1.5);
+
     const boxOffice = baseBoxOffice * qualityMultiplier * genreBonus * randomFactor;
-    
+
     film.performance = {
       boxOffice: Math.floor(boxOffice),
-      criticsScore: Math.floor(scriptQuality + Math.random() * 20 - 10), // ±10 variation
-      audienceScore: Math.floor(scriptQuality + Math.random() * 20 - 10),
+      criticsScore: Math.floor(scriptQuality + rng.nextFloat(-10, 10)),
+      audienceScore: Math.floor(scriptQuality + rng.nextFloat(-10, 10)),
       awards: [] // Will be populated by awards system
     };
 
-    // Record AI film revenue
-    FinancialEngine.recordTransaction(
-      'revenue',
-      'boxoffice',
-      boxOffice,
-      currentWeek,
-      currentYear,
-      `AI Film box office - ${film.title}`,
-      film.id
-    );
+    
 
     console.log(`AI RELEASE: "${film.title}" released - \u0024${(boxOffice/1000000).toFixed(1)}M box office`);
     
@@ -463,9 +391,7 @@ export class AIStudioManager {
 
   // **TESTING**: Reset system for debugging
   static resetAISystem(): void {
-    this.aiFilms = [];
-    this.talentCommitments = [];
-    this.nextFilmId = 1;
+    this.hydrate(emptyState());
     console.log('AI STUDIO SYSTEM RESET');
   }
 }

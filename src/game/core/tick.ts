@@ -12,7 +12,7 @@ import type { GameState } from '@/types/game';
 import type { TickRecapCard, TickSystemReport } from '@/types/tickReport';
 import type { TickContext, TickResult, TickSystem } from './types';
 import type { SeededRng } from './rng';
-import { TimeSystem } from '@/components/game/TimeSystem';
+import { TimeSystem } from './time';
 
 /**
  * Run a single weekly tick on the game state.
@@ -53,6 +53,7 @@ export function advanceWeek(
     quarter: newTime.currentQuarter,
     recap: [],
     debug,
+    prevState: state,
   };
 
   const systemReports: TickSystemReport[] = [

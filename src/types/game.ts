@@ -132,6 +132,11 @@ export interface TalentPerson {
   specialties?: Genre[];
   genres: Genre[];
   contractStatus: 'available' | 'contracted' | 'exclusive' | 'retired' | 'busy';
+  /**
+   * When contractStatus is temporarily set to 'busy', this stores the prior status
+   * so we can restore it when the busy window ends.
+   */
+  contractStatusBase?: 'available' | 'contracted' | 'exclusive';
   busyUntilWeek?: number;
   salary?: number;
   awards?: TalentAward[];
@@ -877,6 +882,94 @@ export interface StudioGovernance {
   lastUpdatedWeekIndex?: number;
 }
 
+export interface MediaState {
+  engine: {
+    /** Recent media items (bounded; primarily for UI + response center). */
+    history: MediaItem[];
+    /** Media memory entries (bounded to recent sentiment windows). */
+    memories: MediaMemory[];
+    /** Pending media events (processed by MediaEngine). */
+    eventQueue: MediaEvent[];
+  };
+  response: {
+    /** Active + historical PR campaigns. */
+    campaigns: MediaCampaign[];
+    /** Player responses to media items. */
+    reactions: MediaReaction[];
+    /** Monotonic campaign ID counter (prevents collisions after reload). */
+    nextCampaignId?: number;
+  };
+}
+
+export interface AIFilmProject {
+  id: string;
+  title: string;
+  studioId: string;
+  studioName: string;
+  script: {
+    genre: string;
+    quality: number;
+    budget: number;
+  };
+  status: 'development' | 'casting' | 'production' | 'post-production' | 'marketing' | 'released';
+  timeline: {
+    startWeek: number;
+    startYear: number;
+    productionWeeks: number;
+    expectedReleaseWeek: number;
+    expectedReleaseYear: number;
+  };
+  cast: {
+    role: string;
+    talentId: string;
+    talentName: string;
+    weeklyPay: number;
+    commitmentWeeks: number[];
+  }[];
+  budget: {
+    production: number;
+    marketing: number;
+    total: number;
+  };
+  performance?: {
+    boxOffice: number;
+    criticsScore: number;
+    audienceScore: number;
+    awards: string[];
+  };
+}
+
+export interface TalentCommitment {
+  talentId: string;
+  talentName: string;
+  filmId: string;
+  role: string;
+  studio: string;
+  commitmentWeeks: number[]; // Absolute week indices (year*52 + weekOfYear)
+  weeklyPay: number;
+  startWeek: number; // week-of-year (1-52)
+  endWeek: number; // week-of-year (1-52)
+  startYear: number;
+  endYear: number;
+  startAbsWeek: number;
+  endAbsWeek: number;
+}
+
+export interface AIStudioState {
+  aiFilms: AIFilmProject[];
+  talentCommitments: TalentCommitment[];
+  nextFilmId: number;
+}
+
+export interface AwardsCeremonyRecord {
+  showId: string;
+  year: number;
+  ceremonyName: string;
+  prestige: number;
+  nominations: Record<string, Array<{ projectId: string; score: number; talentId?: string }>>;
+  winners: Record<string, { projectId: string; score: number; talentId?: string }>;
+}
+
 export interface AwardsSeasonState {
   year: number;
   processedCeremonies: string[];
@@ -888,6 +981,9 @@ export interface AwardsSeasonState {
       categories: Record<string, Array<{ projectId: string; score: number }>>;
     }
   >;
+
+  /** Optional ceremony cache for "watch now"/"watch later" UI. */
+  ceremonyHistory?: Record<string, AwardsCeremonyRecord>;
 }
 
 export interface GameState {
@@ -897,6 +993,10 @@ export interface GameState {
   rngState?: number;
   /** Optional: identifies how this state was created (useful for Online League rules). */
   mode?: 'single' | 'online';
+  /** Persisted runtime state for AI studio films + talent commitments. */
+  aiStudioState?: AIStudioState;
+  /** Persisted runtime state for media systems (media memory, PR campaigns, etc.). */
+  mediaState?: MediaState;
   studio: Studio;
   /** Studio governance + constraint model (optional for backwards-compatible saves). */
   governance?: StudioGovernance;

@@ -36,7 +36,8 @@ import type { ModBundle, ModInfo, ModOp, ModPatch } from '@/types/modding';
 import { useToast } from '@/hooks/use-toast';
 import { applyPatchesByKey, applyPatchesToRecord, getPatchesForEntity, normalizeModBundle } from '@/utils/modding';
 import { parseCsv, toCsv } from '@/utils/csv';
-import { clearModBundle, getActiveModSlot, getModBundle, saveModBundle } from '@/utils/moddingStore';
+import { clearModBundle, getActiveModSlot, getModBundle, listModSlots, saveModBundle, setActiveModSlot } from '@/utils/moddingStore';
+import { DatabaseManagerDialog } from './DatabaseManagerDialog';
 
 const ENTITY_TYPES = [
   'talent',
@@ -223,7 +224,11 @@ function patchKeyFor(bundle: ModBundle, modId: string, entityType: string): stri
     .join('|');
 }
 
-export const ModsPanel: React.FC = () => {
+export interface ModsPanelProps {
+  showDatabaseControls?: boolean;
+}
+
+export const ModsPanel: React.FC<ModsPanelProps> = ({ showDatabaseControls = true }) => {
   const { toast } = useToast();
   const importRef = useRef<HTMLInputElement | null>(null);
   const importPublicDomainCsvRef = useRef<HTMLInputElement | null>(null);
@@ -234,6 +239,7 @@ export const ModsPanel: React.FC = () => {
   const [savedRaw, setSavedRaw] = useState<string>(() => JSON.stringify(getModBundle(), null, 2));
 
   const [activeSlot, setActiveSlot] = useState<string>(() => getActiveModSlot());
+  const [dbManagerOpen, setDbManagerOpen] = useState(false);
 
   const isDirty = useMemo(() => raw !== savedRaw, [raw, savedRaw]);
 
@@ -342,8 +348,15 @@ export const ModsPanel: React.FC = () => {
       const b = getModBundle();
       syncFromBundle(b, true);
     }
-    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [activeSlot]);
+
+  const handleDatabaseChange = (slotId: string) => {
+    setActiveModSlot(slotId);
+    const current = getActiveModSlot();
+    setActiveSlot(current);
+    const b = getModBundle();
+    syncFromBundle(b, true);
+  };
 
   const handleSave = () => {
     const normalized = parseFromRawOrToast();
@@ -352,7 +365,7 @@ export const ModsPanel: React.FC = () => {
     if (activeSlot === 'default') {
       toast({
         title: 'Read-only database',
-        description: 'The default database is read-only. Duplicate it from the main menu (Database -> Manage…) to save changes.',
+        description: 'The default database is read-only. Use Manage… to duplicate it into a writable database.',
       });
       return;
     }
@@ -427,7 +440,7 @@ export const ModsPanel: React.FC = () => {
 
   const handleClear = () => {
     if (activeSlot === 'default') {
-      toast({ title: 'Read-only', description: 'The default database is read-only. Duplicate it from the main menu (Database -> Manage…) to edit mods.' });
+      toast({ title: 'Read-only', description: 'The default database is read-only. Use Manage… to duplicate it into a writable database.' });
       return;
     }
 
@@ -2347,6 +2360,14 @@ export const ModsPanel: React.FC = () => {
 
   return (
     <>
+      {showDatabaseControls ? (
+        <DatabaseManagerDialog
+          open={dbManagerOpen}
+          onOpenChange={setDbManagerOpen}
+          onDatabaseChanged={(db) => handleDatabaseChange(db)}
+        />
+      ) : null}
+
       <AlertDialog open={clearConfirmOpen} onOpenChange={setClearConfirmOpen}>
         <AlertDialogContent>
           <AlertDialogHeader>
@@ -2412,15 +2433,38 @@ export const ModsPanel: React.FC = () => {
         </div>
 
         <div className="grid grid-cols-1 lg:grid-cols-3 gap-3">
-          <div className="space-y-1">
-            <Label className="text-xs text-muted-foreground">Database</Label>
-            <Input value={activeSlot} readOnly />
-            <div className="text-xs text-muted-foreground">
-              To switch/rename/delete databases, use the main menu: <span className="font-medium">Database {'->'} Manage…</span>
+          {showDatabaseControls ? (
+            <div className="space-y-1">
+              <Label className="text-xs text-muted-foreground">Database</Label>
+              <Select value={activeSlot} onValueChange={handleDatabaseChange}>
+                <SelectTrigger>
+                  <SelectValue placeholder="Select database" />
+                </SelectTrigger>
+                <SelectContent>
+                  {listModSlots().map((slot) => (
+                    <SelectItem key={slot} value={slot}>
+                      {slot}
+                    </SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
+              <div className="text-xs text-muted-foreground">
+                Databases isolate mod bundles and saves. Use Manage… to duplicate/rename/delete.
+              </div>
             </div>
-          </div>
+          ) : (
+            <div className="space-y-1">
+              <Label className="text-xs text-muted-foreground">Database</Label>
+              <Input value={activeSlot} readOnly />
+            </div>
+          )}
 
           <div className="flex flex-wrap items-end justify-end gap-2 lg:col-span-2">
+            {showDatabaseControls ? (
+              <Button size="sm" variant="secondary" onClick={() => setDbManagerOpen(true)}>
+                Manage…
+              </Button>
+            ) : null}
             <Button size="sm" variant="secondary" onClick={handleReload}>
               Reload
             </Button>

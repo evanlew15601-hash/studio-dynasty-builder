@@ -1,4 +1,4 @@
-import React, { useEffect, useMemo, useState } from 'react';
+import React, { useCallback, useEffect, useMemo, useState } from 'react';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
 import { Progress } from '@/components/ui/progress';
@@ -16,22 +16,29 @@ interface MediaAnalyticsPanelProps {
 
 export const MediaAnalyticsPanel: React.FC<MediaAnalyticsPanelProps> = ({ onNavigatePhase }) => {
   const gameState = useGameStore((s) => s.game);
+  const week = gameState?.currentWeek;
+  const year = gameState?.currentYear;
   const setPhase = useUiStore((s) => s.setPhase);
   const navigatePhase = onNavigatePhase ?? ((phase: 'reputation' | 'awards') => setPhase(phase));
   const [recentMedia, setRecentMedia] = useState<MediaItem[]>([]);
   const [mediaStats, setMediaStats] = useState<any>({});
 
-  useEffect(() => {
-    MediaEngine.initialize();
-    updateMediaData();
-  }, []);
-
-  const updateMediaData = () => {
+  const updateMediaData = useCallback(() => {
     const media = MediaEngine.getRecentMedia(100);
     const stats = MediaEngine.getMediaStats();
     setRecentMedia(media);
     setMediaStats(stats);
-  };
+  }, []);
+
+  useEffect(() => {
+    MediaEngine.initialize();
+    updateMediaData();
+  }, [updateMediaData]);
+
+  useEffect(() => {
+    if (!gameState) return;
+    updateMediaData();
+  }, [gameState?.currentWeek, gameState?.currentYear, updateMediaData]);
 
   const sentimentCounts = recentMedia.reduce(
     (acc, item) => {

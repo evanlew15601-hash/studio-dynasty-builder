@@ -10,6 +10,9 @@ import { Textarea } from '@/components/ui/textarea';
 import { useToast } from '@/hooks/use-toast';
 import { Crown, Film, Users, TrendingUp, Plus, ArrowRight, Star } from 'lucide-react';
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger } from '@/components/ui/dialog';
+import { stableFloat01, stableInt } from '@/utils/stableRandom';
+import { triggerDateFromWeekYear } from '@/utils/gameTime';
+import { nextNumericId } from '@/utils/idAllocator';
 
 interface SequelManagementProps {
   onProjectCreate: (script: Script) => void;
@@ -139,7 +142,9 @@ export const SequelManagement: React.FC<SequelManagementProps> = ({
       `Everything you loved, taken further`
     ];
     
-    return hooks[Math.floor(Math.random() * hooks.length)];
+    const seed = `${gameState.universeSeed ?? 0}|sequelHook|${originalProject.id}|${sequelNumber}`;
+    const idx = stableInt(seed, 0, Math.max(0, hooks.length - 1));
+    return hooks[idx] || hooks[0];
   };
 
   // Negotiate with returning cast member
@@ -151,12 +156,14 @@ export const SequelManagement: React.FC<SequelManagementProps> = ({
     
     // Simple negotiation simulation
     const originalCharacter = selectedProject?.script?.characters?.find(c => c.id === characterId);
-    const sequelSuccess = Math.random();
-    
+
+    const seedBase = `${gameState.universeSeed ?? 0}|sequelNegotiation|${sequelPlan.originalProjectId}|${sequelPlan.sequelNumber}|${characterId}|${talentId}`;
+    const sequelSuccess = stableFloat01(`${seedBase}|roll`);
+
     let status: 'accepted' | 'declined' | 'renegotiating' = 'accepted';
-    
+
     // Factors affecting negotiation
-    if (talent.reputation > 80 && Math.random() < 0.3) {
+    if (talent.reputation > 80 && stableFloat01(`${seedBase}|renegotiate`) < 0.3) {
       status = 'renegotiating'; // High-profile talent wants better terms
     } else if (sequelSuccess < 0.15) {
       status = 'declined'; // 15% chance of declining
@@ -211,12 +218,12 @@ export const SequelManagement: React.FC<SequelManagementProps> = ({
         appendFranchiseEntry(existing.id, selectedProject.id);
       } else {
         // Create franchise from successful original
-        franchiseId = `franchise-${selectedProject.id}-${Date.now()}`;
+        franchiseId = nextNumericId('franchise', gameState.franchises.map((f) => f.id));
         const newFranchise: Franchise = {
           id: franchiseId,
           title: expectedTitle,
           description: `Franchise based on the successful film "${selectedProject.title}"`,
-          originDate: new Date().toISOString().split('T')[0],
+          originDate: triggerDateFromWeekYear(gameState.currentYear, gameState.currentWeek).toISOString().split('T')[0],
           creatorStudioId: gameState.studio.id,
           genre: selectedProject.script?.genre ? [selectedProject.script.genre] : ['action'],
           tone: 'light', // Convert to valid franchise tone
@@ -243,8 +250,10 @@ export const SequelManagement: React.FC<SequelManagementProps> = ({
       replaceProject(updatedOriginalProject);
     }
     
+    const sequelScriptId = nextNumericId('script', gameState.scripts.map((s) => s.id));
+
     const sequelScript: Script = {
-      id: `script-sequel-${Date.now()}`,
+      id: sequelScriptId,
       title: sequelPlan.title,
       genre: selectedProject.script?.genre || 'action',
       logline: sequelPlan.description,
@@ -267,7 +276,7 @@ export const SequelManagement: React.FC<SequelManagementProps> = ({
       },
       characters: (selectedProject.script?.characters || []).map(char => ({
         ...char,
-        id: `sequel-char-${Date.now()}-${Math.random().toString(36).substr(2, 9)}`,
+        id: `sequel-char-${sequelScriptId}-${char.id}`,
         // Keep assigned talent if they're confirmed for sequel
         assignedTalentId: sequelPlan.returningCast.find(cast => 
           cast.characterId === char.id && cast.confirmed

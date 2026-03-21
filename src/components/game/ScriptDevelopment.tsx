@@ -19,6 +19,7 @@ import { computeFilmContentRating, contentRatingToSliderValue } from '@/utils/co
 import { FinancialEngine } from './FinancialEngine';
 import { ScriptIcon, ClapperboardIcon } from '@/components/ui/icons';
 import { useGameStore } from '@/game/store';
+import { nextNumericId } from '@/utils/idAllocator';
 
 type SpendFundsResult = { success: boolean; loanTaken?: number };
 
@@ -169,7 +170,7 @@ export const ScriptDevelopment: React.FC<ScriptDevelopmentProps> = ({
     setNewScript(next);
     // If a source is selected, auto-import curated characters into the creation form
     const tempScript: Script = {
-      id: `temp-${Date.now()}`,
+      id: 'temp-script',
       title: next.title || 'Temp',
       genre: next.genre as any || 'drama',
       logline: next.logline || '',
@@ -401,7 +402,7 @@ export const ScriptDevelopment: React.FC<ScriptDevelopmentProps> = ({
     const contentRating = computeFilmContentRating(baseCharacteristics.content);
 
     const script: Script = {
-      id: editingScript?.id || `script-${Date.now()}`,
+      id: editingScript?.id || nextNumericId('script', gameState.scripts.map((s) => s.id)),
       title: newScript.title!,
       genre: newScript.genre!,
       logline: newScript.logline!,

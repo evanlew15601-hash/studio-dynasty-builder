@@ -64,6 +64,61 @@ describe('media system', () => {
     CrisisManagement.cleanup();
   });
 
+  it('can round-trip persisted media engine state (save/load) without changing outcomes', () => {
+    const playerStudio = { id: 'player-studio', name: 'Player Studio', reputation: 50, budget: 1000000, founded: 2025, specialties: ['drama'] };
+    const playerProject = makeMinimalProject({
+      id: 'player-project-1',
+      title: 'Player Premiere',
+      studioName: playerStudio.name,
+      releaseWeek: 1,
+      releaseYear: 2025,
+      cast: [{ talentId: 'talent-1' }]
+    });
+
+    const gameState: any = {
+      studio: playerStudio,
+      currentWeek: 1,
+      currentYear: 2025,
+      projects: [playerProject],
+      talent: [makeMinimalTalent()],
+      competitorStudios: [],
+      allReleases: [],
+      aiStudioProjects: [],
+    };
+
+    MediaEngine.queueMediaEvent({
+      type: 'release',
+      triggerType: 'automatic',
+      priority: 'low',
+      entities: {
+        studios: [playerStudio.id],
+        projects: [playerProject.id],
+        talent: ['talent-1']
+      },
+      eventData: { project: playerProject },
+      week: 1,
+      year: 2025
+    } as any);
+
+    const firstPass = MediaEngine.processMediaEvents(gameState);
+    expect(firstPass.length).toBe(1);
+
+    const beforeMemory = MediaEngine.getMediaMemory(playerStudio.id);
+    expect(beforeMemory).toBeTruthy();
+
+    const persisted = { engine: MediaEngine.snapshot(), response: { campaigns: [], reactions: [] } } as any;
+
+    MediaEngine.cleanup();
+    MediaEngine.hydrate(persisted);
+
+    const afterMemory = MediaEngine.getMediaMemory(playerStudio.id);
+    expect(afterMemory?.currentBuzz).toBe(beforeMemory?.currentBuzz);
+
+    // Reprocessing the same week should not regenerate items (events are already marked processed).
+    const secondPass = MediaEngine.processMediaEvents(gameState);
+    expect(secondPass.length).toBe(0);
+  });
+
   it('does not leak raw {Placeholders} when event lacks a project/studio', () => {
     vi.spyOn(Math, 'random').mockReturnValue(0);
 

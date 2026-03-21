@@ -21,8 +21,11 @@ export interface TickContext {
   quarter: number;
   /** Recap cards emitted by systems during this tick */
   recap: TickRecapCard[];
-  /** Debug/perf: whether to emit verbose logging */
+  /** Debug\/perf: whether to emit verbose logging */
   debug: boolean;
+
+  /** Game state BEFORE this tick (pre-time-advance). Useful for change detection. */
+  prevState: GameState;
 }
 
 // ---------------------------------------------------------------------------

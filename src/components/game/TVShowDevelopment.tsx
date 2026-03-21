@@ -19,6 +19,7 @@ import { computeFilmContentRating, contentRatingToSliderValue } from '@/utils/co
 import { FinancialEngine } from './FinancialEngine';
 import { ScriptIcon, ClapperboardIcon } from '@/components/ui/icons';
 import { useGameStore } from '@/game/store';
+import { nextNumericId } from '@/utils/idAllocator';
 
 type SpendFundsResult = { success: boolean; loanTaken?: number };
 
@@ -365,7 +366,7 @@ export const TVShowDevelopment: React.FC<TVShowDevelopmentProps> = ({
     const contentRating = computeFilmContentRating(baseCharacteristics.content);
 
     const script: Script = {
-      id: editingScript ? editingScript.id : `tv-script-${Date.now()}`,
+      id: editingScript ? editingScript.id : nextNumericId('tv-script', gameState.scripts.map((s) => s.id)),
       title: newScript.title!,
       genre: newScript.genre as Genre,
       logline: newScript.logline!,

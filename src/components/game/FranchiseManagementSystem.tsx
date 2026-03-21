@@ -9,6 +9,8 @@ import { Textarea } from '@/components/ui/textarea';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { useToast } from '@/hooks/use-toast';
 import { Crown, Star, Users, Plus, Zap } from 'lucide-react';
+import { nextNumericId } from '@/utils/idAllocator';
+import { triggerDateFromWeekYear } from '@/utils/gameTime';
 
 interface FranchiseManagementSystemProps {
   gameState: GameState;
@@ -56,10 +58,10 @@ export const FranchiseManagementSystem: React.FC<FranchiseManagementSystemProps>
     }
 
     const franchise: Franchise = {
-      id: `franchise-${Date.now()}`,
+      id: nextNumericId('franchise', gameState.franchises.map((f) => f.id)),
       title: newFranchise.title,
       description: newFranchise.description,
-      originDate: new Date().toISOString().split('T')[0],
+      originDate: triggerDateFromWeekYear(gameState.currentYear, gameState.currentWeek).toISOString().split('T')[0],
       creatorStudioId: gameState.studio.id,
       genre: newFranchise.genre as any,
       tone: newFranchise.tone,

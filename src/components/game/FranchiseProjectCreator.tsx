@@ -12,6 +12,8 @@ import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger } from 
 import { useToast } from '@/hooks/use-toast';
 import { Plus, Film, Crown, TrendingUp } from 'lucide-react';
 import { finalizeScriptForSave } from '@/utils/scriptFinalization';
+import { stableInt } from '@/utils/stableRandom';
+import { nextNumericId } from '@/utils/idAllocator';
 
 interface FranchiseProjectCreatorProps {
   onProjectCreate: (script: Script) => void;
@@ -96,18 +98,19 @@ export const FranchiseProjectCreator: React.FC<FranchiseProjectCreatorProps> = (
     
     // Derive script fields based on chosen project type (film vs TV)
     const isTV = projectForm.projectType === 'tv';
-    const pages = isTV ? 60 : 100 + Math.floor(Math.random() * 40);
+    const scriptId = nextNumericId('script', gameState.scripts.map((s) => s.id));
+    const pages = isTV ? 60 : stableInt(`${gameState.universeSeed ?? 0}|${scriptId}|pages`, 100, 139);
     const estimatedRuntime = isTV ? 45 : projectForm.estimatedRuntime;
     const pacing = isTV ? 'episodic' : 'fast-paced';
 
     const script: Script = {
-      id: `script-franchise-${Date.now()}`,
+      id: scriptId,
       title: projectForm.title,
       genre: projectForm.genre as any,
       logline: projectForm.description,
       writer: 'Studio Writer',
       pages,
-      quality: 60 + Math.floor(Math.random() * 20), // 60-80 starting quality
+      quality: stableInt(`${gameState.universeSeed ?? 0}|${scriptId}|quality`, 60, 79), // 60-80 starting quality
       budget: projectForm.budget,
       developmentStage: 'concept',
       themes: selectedFranchise.franchiseTags?.slice(0, 3) || ['adventure'],

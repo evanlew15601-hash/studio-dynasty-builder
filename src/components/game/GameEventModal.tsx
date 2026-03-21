@@ -1,4 +1,4 @@
-import React, { useMemo } from 'react';
+import React from 'react';
 import type { EventChoice, EventConsequence, GameEvent } from '@/types/game';
 import { useGameStore } from '@/game/store';
 import { Dialog, DialogContent, DialogFooter, DialogHeader, DialogTitle } from '@/components/ui/dialog';
@@ -26,7 +26,9 @@ function consequenceTone(c: EventConsequence): 'default' | 'destructive' | 'seco
   return 'default';
 }
 
-export const GameEventModal: React.FC = () => {
+export const GameEventModal: React.FC<{
+  onChoice?: (event: GameEvent, choiceId: string | number | undefined) => void;
+}> = ({ onChoice }) => {
   const game = useGameStore((s) => s.game);
   const resolve = useGameStore((s) => s.resolveGameEvent);
 
@@ -35,7 +37,7 @@ export const GameEventModal: React.FC = () => {
   const budget = game?.studio.budget ?? 0;
   const reputation = game?.studio.reputation ?? 0;
 
-  const choices = useMemo(() => event?.choices || [], [event?.id]);
+  const choices = event?.choices || [];
 
   if (!game || !event) return null;
 
@@ -60,7 +62,11 @@ export const GameEventModal: React.FC = () => {
                       <Button
                         size="sm"
                         disabled={!availability.ok}
-                        onClick={() => resolve(event.id, choice.id ?? idx)}
+                        onClick={() => {
+                          const choiceId = choice.id ?? idx;
+                          onChoice?.(event, choiceId);
+                          resolve(event.id, choiceId);
+                        }}
                       >
                         Choose
                       </Button>

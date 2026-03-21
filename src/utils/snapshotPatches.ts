@@ -7,12 +7,15 @@ import { normalizeFranchisesState } from '@/utils/franchiseNormalization';
 import { normalizePublicDomainState } from '@/utils/publicDomainNormalization';
 import { getModBundle } from '@/utils/moddingStore';
 import { applyPatchesByKey, getPatchesForEntity } from '@/utils/modding';
+import { reviveIsoDates } from '@/utils/reviveIsoDates';
 import type { SaveGameSnapshot } from '@/utils/saveLoad';
 
 export function patchLoadedSnapshot(
   snapshot: SaveGameSnapshot,
   opts: { mode: 'single' | 'online' }
 ): SaveGameSnapshot {
+  reviveIsoDates(snapshot.gameState);
+
   const mods = getModBundle();
 
   const patchedTalent = applyPatchesByKey(
@@ -42,7 +45,18 @@ export function patchLoadedSnapshot(
     )
   );
 
-  const patchedGameState = normalizePublicDomainState(normalizeFranchisesState(patchedGameStateRaw as any) as any);
+  const patchedGameStateBase = normalizePublicDomainState(normalizeFranchisesState(patchedGameStateRaw as any) as any);
+
+  const patchedGameState = {
+    ...patchedGameStateBase,
+    aiStudioState: (patchedGameStateBase as any).aiStudioState ?? { aiFilms: [], talentCommitments: [], nextFilmId: 1 },
+    mediaState:
+      (patchedGameStateBase as any).mediaState ??
+      {
+        engine: { history: [], memories: [], eventQueue: [] },
+        response: { campaigns: [], reactions: [], nextCampaignId: 1 },
+      },
+  };
 
   if (opts.mode === 'single') {
     return {
@@ -62,6 +76,11 @@ export function patchLoadedSnapshot(
       mode: 'online',
       competitorStudios: [],
       aiStudioProjects: [],
+      aiStudioState: { aiFilms: [], talentCommitments: [], nextFilmId: 1 },
+      mediaState: {
+        engine: { history: [], memories: [], eventQueue: [] },
+        response: { campaigns: [], reactions: [], nextCampaignId: 1 },
+      },
     },
   };
 }

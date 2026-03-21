@@ -10,6 +10,7 @@ import { Badge } from '@/components/ui/badge';
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from '@/components/ui/dialog';
 import { Trash2, Plus, Users, Lock, Pencil } from 'lucide-react';
 import { NATIONALITY_OPTIONS, RACE_OPTIONS } from '@/utils/demographics';
+import { nextNumericId } from '@/utils/idAllocator';
 
 // UI-layer type: keep the core game character fields, but allow extra UI helpers.
 export interface ScriptCharacter extends GameScriptCharacter {
@@ -63,7 +64,7 @@ export const ScriptCharacterManager: React.FC<ScriptCharacterManagerProps> = ({
     const requiredType = newCharacter.requiredType || (importance === 'crew' ? 'director' : 'actor');
 
     const character: ScriptCharacter = {
-      id: `char-${Date.now()}`,
+      id: nextNumericId('char', characters.map((c) => c.id)),
       name: newCharacter.name,
       importance,
       screenTimeMinutes: newCharacter.screenTimeMinutes ?? (importanceTypes.find(r => r.value === importance)?.screenTime ?? 15),

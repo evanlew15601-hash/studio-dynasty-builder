@@ -1,7 +1,8 @@
 import type { GameState, Project } from '@/types/game';
-import { TVEpisodeSystem } from '@/components/game/TVEpisodeSystem';
-import { TVRatingsSystem } from '@/components/game/TVRatingsSystem';
+import { TVEpisodeSystem } from '@/game/sim/tvEpisodeSystem';
+import { TVRatingsSystem } from '@/game/sim/tvRatingsSystem';
 import { StudioGenerator } from '@/data/StudioGenerator';
+import { attachBasicCastForAI } from '@/utils/attachBasicCastForAI';
 import { stableInt } from '@/utils/stableRandom';
 
 function absWeek(week: number, year: number): number {
@@ -42,7 +43,6 @@ function isAiringNow(project: Project, currentWeek: number, currentYear: number)
  */
 export function primeCompetitorTelevision(gameState: GameState, opts?: { minAiring?: number }): GameState {
   const allReleases = gameState.allReleases || [];
-  if (allReleases.length === 0) return gameState;
 
   const minAiring = opts?.minAiring ?? 2;
 
@@ -95,7 +95,7 @@ export function primeCompetitorTelevision(gameState: GameState, opts?: { minAiri
       if (!profile) continue;
 
       // Generate first to know episode count, then clamp premiere so the show is mid-season (airing).
-      let rel = sg.generateStudioTvRelease(profile, gameState.currentWeek, gameState.currentYear);
+      let rel = sg.generateDeterministicStudioTvRelease(profile, gameState.currentWeek, gameState.currentYear, gameState.universeSeed ?? 0);
 
       const totalEpisodes = rel.episodeCount || 13;
       const maxBackWeeks = Math.min(8, Math.max(0, totalEpisodes - 2));
@@ -121,6 +121,7 @@ export function primeCompetitorTelevision(gameState: GameState, opts?: { minAiri
         },
       } as Project;
 
+      rel = attachBasicCastForAI(rel, gameState.talent || []);
       rel = processTvToCurrent(rel, gameState.currentWeek, gameState.currentYear);
 
       seeded.push(rel);

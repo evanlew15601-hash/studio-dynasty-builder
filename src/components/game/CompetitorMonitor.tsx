@@ -14,7 +14,8 @@ import {
   AlertDialogTitle,
 } from '@/components/ui/alert-dialog';
 import { ScrollArea } from '@/components/ui/scroll-area';
-import { AIStudioManager, AIFilmProject, TalentCommitment } from './AIStudioManager';
+import { AIStudioManager } from './AIStudioManager';
+import type { AIFilmProject, TalentCommitment } from '@/types/game';
 import { AIStudioIntegrationTests } from './AIStudioIntegrationTests';
 import { Building, Film, Users, TrendingUp, Play, TestTube } from 'lucide-react';
 import { useGameStore } from '@/game/store';
@@ -27,6 +28,7 @@ export const CompetitorMonitor: React.FC = () => {
   const [resetAiConfirmOpen, setResetAiConfirmOpen] = useState(false);
 
   const game = useGameStore((s) => s.game);
+  const mergeGameState = useGameStore((s) => s.mergeGameState);
 
   const competitorStudios = game?.competitorStudios ?? [];
   const currentWeek = game?.currentWeek ?? 0;
@@ -85,6 +87,7 @@ export const CompetitorMonitor: React.FC = () => {
               onClick={() => {
                 setResetAiConfirmOpen(false);
                 AIStudioManager.resetAISystem();
+                mergeGameState({ aiStudioState: AIStudioManager.snapshot() });
                 setAIFilms([]);
                 setCommitments([]);
               }}

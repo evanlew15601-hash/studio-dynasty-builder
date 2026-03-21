@@ -1,6 +1,7 @@
 import { beforeEach, describe, expect, it } from 'vitest';
 import { AIStudioManager } from '@/components/game/AIStudioManager';
 import { FinancialEngine } from '@/components/game/FinancialEngine';
+import { createRng } from '@/game/core/rng';
 
 beforeEach(() => {
   AIStudioManager.resetAISystem();
@@ -25,7 +26,7 @@ describe('AIStudioManager', () => {
       { id: 'act-3', name: 'Actor Three', type: 'actor', reputation: 50 } as any,
     ];
 
-    const film = AIStudioManager.createAIFilm(studio, 10, 2024, talent as any);
+    const film = AIStudioManager.createAIFilm(studio, 10, 2024, talent as any, createRng(1));
 
     expect(film.cast.length).toBeGreaterThanOrEqual(2);
 
@@ -47,7 +48,7 @@ describe('AIStudioManager', () => {
     const director = { id: 'dir-2', name: 'Director Two', type: 'director', reputation: 80 } as any;
     const actor = { id: 'act-4', name: 'Actor Four', type: 'actor', reputation: 60 } as any;
 
-    AIStudioManager.createAIFilm(studio, 52, 2024, [director, actor] as any);
+    AIStudioManager.createAIFilm(studio, 52, 2024, [director, actor] as any, createRng(2));
 
     const directorCommitment = AIStudioManager.getTalentCommitment('dir-2', 2, 2025);
     expect(directorCommitment).not.toBeNull();
@@ -65,12 +66,12 @@ describe('AIStudioManager', () => {
       specialties: ['sci-fi'],
     } as any;
 
-    const film = AIStudioManager.createAIFilm(studio, 1, 2024, [] as any);
+    const film = AIStudioManager.createAIFilm(studio, 1, 2024, [] as any, createRng(3));
     film.status = 'marketing';
     film.timeline.expectedReleaseWeek = 10;
     film.timeline.expectedReleaseYear = 2025;
 
-    AIStudioManager.processWeeklyAIFilms(1, 2026);
+    AIStudioManager.processWeeklyAIFilms(1, 2026, createRng(4));
 
     const updated = AIStudioManager.getAllAIFilms().find(f => f.id === film.id);
     expect(updated?.status).toBe('released');

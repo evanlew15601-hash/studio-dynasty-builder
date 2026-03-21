@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'vitest';
 import type { StorageLike } from '@/utils/moddingStore';
-import { clearModBundle, saveModBundleToSlot, setActiveModSlot } from '@/utils/moddingStore';
+import { clearModBundle, loadModBundleSlot, saveModBundleToSlot, setActiveModSlot } from '@/utils/moddingStore';
 import type { ModBundle } from '@/types/modding';
 
 class MemoryStorage implements StorageLike {
@@ -59,5 +59,22 @@ describe('moddingStore slots (default read-only)', () => {
 
     expect(store.removeCalls.length).toBe(0);
     expect(store.getItem('studio-magnate-mod-bundle-v1')).toBeTypeOf('string');
+  });
+
+  it('sanitizes invalid mod bundle payloads on load', () => {
+    const store = new MemoryStorage();
+
+    store.setItem(
+      'studio-magnate-mod-bundle-v1:my-slot',
+      JSON.stringify({
+        version: 1,
+        mods: [{ id: 123 }],
+        patches: [{ id: 'p1', modId: 'm1', entityType: 'providerDeal' }],
+      })
+    );
+
+    const loaded = loadModBundleSlot('my-slot', store);
+
+    expect(loaded).toEqual({ version: 1, mods: [], patches: [] });
   });
 });

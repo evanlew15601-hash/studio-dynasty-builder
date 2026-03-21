@@ -79,7 +79,7 @@ const Mods = () => {
           </CardContent>
         </Card>
 
-        <ModsPanel key={databaseSlot} />
+        <ModsPanel key={databaseSlot} showDatabaseControls={false} />
       </div>
     </div>
   );

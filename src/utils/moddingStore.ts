@@ -1,5 +1,6 @@
 import type { ModBundle } from '@/types/modding';
-import { createEmptyModBundle, normalizeModBundle } from '@/utils/modding';
+import { validateModBundle } from '@/game/modding/validation';
+import { createEmptyModBundle } from '@/utils/modding';
 
 export interface StorageLike {
   getItem(key: string): string | null;
@@ -87,7 +88,12 @@ export function loadModBundleSlot(slotId: string, storage?: StorageLike): ModBun
   try {
     const raw = store.getItem(keyForSlot(slotId));
     if (!raw) return createEmptyModBundle();
-    return normalizeModBundle(JSON.parse(raw));
+
+    const parsed = JSON.parse(raw) as unknown;
+
+    // Normalize and validate so malformed localStorage payloads can't corrupt gameplay.
+    const validated = validateModBundle(parsed);
+    return validated.bundle;
   } catch {
     return createEmptyModBundle();
   }
