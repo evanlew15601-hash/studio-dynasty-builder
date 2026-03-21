@@ -290,6 +290,22 @@ export const MarketingReleaseManagement: React.FC<MarketingReleaseManagementProp
                 const inTheaters = project.metrics?.inTheaters;
                 const boxOfficeStatus = !inTheaters ? 'ended' :
                   weeksSinceRelease > 8 ? 'declining' : 'active';
+
+                const explicitStatus = String(project.metrics?.boxOfficeStatus ?? '');
+
+                const statusLabel = (() => {
+                  if (!inTheaters) {
+                    return /festival/i.test(explicitStatus) || isFestivalPremiered(project)
+                      ? 'Festival Run Ended'
+                      : 'Theatrical Run Ended';
+                  }
+
+                  if (/platform expansion/i.test(explicitStatus)) return 'Platform Expansion';
+                  if (/festival premiere/i.test(explicitStatus)) return 'Festival Premiere';
+                  if (/festival/i.test(explicitStatus)) return 'Festival Circuit';
+
+                  return boxOfficeStatus === 'active' ? 'In Theaters' : 'Limited Release';
+                })();
                 
                 return (
                   <Card key={project.id} className="relative">
@@ -304,11 +320,7 @@ export const MarketingReleaseManagement: React.FC<MarketingReleaseManagementProp
                         <div className="flex items-center gap-2">
                           <Badge variant={boxOfficeStatus === 'active' ? 'default' : 
                                         boxOfficeStatus === 'declining' ? 'secondary' : 'outline'}>
-                            {boxOfficeStatus === 'active'
-                              ? 'In Theaters'
-                              : boxOfficeStatus === 'declining'
-                                ? (isFestivalPremiered(project) ? 'Festival Circuit' : 'Limited Release')
-                                : (isFestivalPremiered(project) ? 'Festival Run Ended' : 'Theatrical Run Ended')}
+                            {statusLabel}
                           </Badge>
                         </div>
                       </div>
