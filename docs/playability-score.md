@@ -43,14 +43,25 @@ This lands in “solid and engaging, with noticeable friction/tuning gaps.” Wi
 
 #### Why this score might be lower than a previous pass
 
-If you previously rated the game higher and have since improved issues, a lower score here usually comes from **method differences**, not necessarily regression:
+If your earlier scoring pass was more **technical / criteria-driven** and this one feels more subjective, the gap is usually due to **how evidence is counted**, not because improvements didn’t matter.
 
-- **Different weighting profile:** this doc uses the *tycoon-casual* weighting (clarity/feedback/pacing emphasized). If your improvements were mostly in depth/features, you may feel them more than this weighting reflects.
-- **Different assumptions:** this score is **single-player base game only** and intentionally ignores Online/Steam/shipping factors.
-- **Code-inspection bias:** this is derived from *what is clearly implemented and surfaced* in code/UI. Improvements that are real in play may not be visible as strong “evidence” unless they changed the authoritative systems, UI explanations, or tests.
-- **Category score conservatism:** in particular, **systemic difficulty scaling** still looks mostly like “starting budget” in `GameLanding.tsx`, which caps the Challenge/Balance category even if the game is more fun moment-to-moment.
+What changed in this document:
 
-If you share (a) the earlier score you got, and (b) what issues you fixed, I can re-score category-by-category and show exactly what moved.
+- **Different weighting profile:** this doc uses *tycoon-casual* weighting (clarity/feedback/pacing emphasized). A more technical rubric often weights “system completeness / determinism / test coverage” higher.
+- **Evidence threshold:** I’m scoring based on what’s clearly visible in *authoritative engine code*, *UI affordances*, and *tests* (not on implied intent). If you improved something but it isn’t reflected in those surfaces, it won’t move the score much here.
+- **Systemic difficulty scaling remains the main technical limiter:** difficulty still appears to primarily change starting budget (`GameLanding.tsx`), which caps the Challenge/Balance category when the rubric cares about ongoing systemic scaling.
+
+##### If you want a strictly technical score
+
+We can switch to an **objective evidence checklist** where each category score is computed from measurable repo signals. Examples:
+
+- **Determinism integrity:** number of tests like `engineNoMathRandom.test.ts`, `releaseDeterminism.test.ts`, `determinismLongHorizon.test.ts` passing; presence of `ctx.rng` usage patterns.
+- **Core-loop safety:** presence of “advance blocked by pending events” guard + smoke tests (`softlockSmoke.test.ts`).
+- **Feature completeness signals:** number of engine-owned systems registered in `src/game/store.ts` for core loop phases (project lifecycle, marketing, scheduled releases, box office, revenue, awards).
+- **Long-horizon stability:** existence of explicit stability tests (`longHorizonStability.test.ts`) + archival policies (`worldArchiveSystem.ts`).
+- **UI guidance coverage:** presence of “next action” guidance + recap generation (file-level checks: `NextActionsBar.tsx`, tick report creation).
+
+If you paste the rubric you used “the first time” (or even just the category list + weights), I can rewrite this document to match it and recompute the score under that objective method.
 
 ### 1) Core loop clarity & agency — **7.5 / 10 → 18.8 / 25**
 
