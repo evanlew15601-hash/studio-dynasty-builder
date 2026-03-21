@@ -28,6 +28,7 @@ import { attachBasicCastForAI } from '@/utils/attachBasicCastForAI';
 import { stableInt } from '@/utils/stableRandom';
 import { nextNumericId } from '@/utils/idAllocator';
 import { triggerDateFromWeekYear } from '@/utils/gameTime';
+import { isTvScript } from '@/utils/scriptMedium';
 import { createRng, generateGameSeed, seedFromString } from '@/game/core/rng';
 import { advanceWeek as engineAdvanceWeek } from '@/game/core/tick';
 import { useUiStore } from '@/game/uiStore';
@@ -2993,16 +2994,20 @@ export const StudioMagnateGame: React.FC<StudioMagnateGameProps> = ({
             />
             <SequelManagementComponent
               onProjectCreate={(script) => {
-                // Route sequel scripts to Script Development for refinement instead of instant project creation
+                // Route sequel scripts to the appropriate development screen for refinement.
+                const toTv = isTvScript(script);
+
                 setSelectedFranchise(script.franchiseId || null);
                 setSelectedPublicDomain(null);
-                handlePhaseChange('scripts');
+                handlePhaseChange(toTv ? 'television' : 'scripts');
 
                 upsertScript(script);
 
                 toast({
                   title: 'Sequel Script Created',
-                  description: `"${script.title}" has been added to Script Development. Refine it to "final" stage before greenlighting.`,
+                  description: toTv
+                    ? `"${script.title}" has been added to TV Show Development. Refine it to "final" stage before greenlighting.`
+                    : `"${script.title}" has been added to Script Development. Refine it to "final" stage before greenlighting.`,
                 });
               }}
               onCreateFranchise={handleCreateFranchise}

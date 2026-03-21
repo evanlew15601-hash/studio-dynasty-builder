@@ -90,4 +90,43 @@ describe('talentMatchesRole', () => {
 
     expect(talentMatchesRole(director, role)).toBe(true);
   });
+
+  it('treats crew roles as director roles even if requiredType is wrong (legacy data)', () => {
+    const role: ScriptCharacter = {
+      id: 'role-1',
+      name: 'Director',
+      importance: 'crew',
+      requiredType: 'actor',
+    };
+
+    const director: TalentPerson = {
+      id: 't-1',
+      name: 'Test Director',
+      type: 'director',
+      age: 45,
+      experience: 10,
+      reputation: 50,
+      marketValue: 1_000_000,
+      genres: ['drama'],
+      contractStatus: 'available',
+      availability: { start: new Date(), end: new Date() },
+    };
+
+    const actor: TalentPerson = {
+      id: 't-2',
+      name: 'Test Actor',
+      type: 'actor',
+      age: 30,
+      gender: 'Male',
+      experience: 5,
+      reputation: 50,
+      marketValue: 1_000_000,
+      genres: ['drama'],
+      contractStatus: 'available',
+      availability: { start: new Date(), end: new Date() },
+    };
+
+    expect(talentMatchesRole(director, role)).toBe(true);
+    expect(talentMatchesRole(actor, role)).toBe(false);
+  });
 });

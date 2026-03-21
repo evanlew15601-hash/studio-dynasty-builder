@@ -56,10 +56,12 @@ export const CharacterCastingSystem: React.FC<CharacterCastingSystemProps> = ({
       const talent = character.assignedTalentId 
         ? gameState.talent.find(t => t.id === character.assignedTalentId)
         : null;
+
+      const requiredType = character.importance === 'crew' ? 'director' : (character.requiredType || 'actor');
       
       const isRequired = (character.traits?.includes('mandatory')) || 
                         character.importance === 'lead' || 
-                        character.requiredType === 'director';
+                        requiredType === 'director';
       
       const baseMarketValue = talent?.marketValue || 5000000; // Default market value
       const contractCost = (baseMarketValue * 0.1) + (baseMarketValue * 0.05 * (character.importance === 'lead' ? 2 : character.importance === 'supporting' ? 1.5 : 1));
@@ -132,9 +134,11 @@ export const CharacterCastingSystem: React.FC<CharacterCastingSystemProps> = ({
 
     replaceProject(updatedProject);
 
+    const requiredType = character.importance === 'crew' ? 'director' : (character.requiredType || 'actor');
+
     toast({
-      title: character.requiredType === 'director' ? 'Key Crew Assigned' : 'Role Cast',
-      description: character.requiredType === 'director'
+      title: requiredType === 'director' ? 'Key Crew Assigned' : 'Role Cast',
+      description: requiredType === 'director'
         ? `${talent.name} attached as Director`
         : `${talent.name} has been cast as ${character.name}`,
     });
@@ -155,9 +159,11 @@ export const CharacterCastingSystem: React.FC<CharacterCastingSystemProps> = ({
 
     replaceProject(updatedProject);
 
+    const requiredType = character.importance === 'crew' ? 'director' : (character.requiredType || 'actor');
+
     toast({
       title: "Talent Removed",
-      description: character.requiredType === 'director'
+      description: requiredType === 'director'
         ? 'Director slot is now unassigned'
         : `${character.name} is now uncast`,
     });
@@ -193,8 +199,10 @@ export const CharacterCastingSystem: React.FC<CharacterCastingSystemProps> = ({
       return;
     }
 
-    const directorSlots = slots.filter(s => s.talent && s.character.requiredType === 'director');
-    const actorSlots = slots.filter(s => s.talent && s.character.requiredType !== 'director');
+    const isDirectorRole = (c: ScriptCharacter) => (c.importance === 'crew' ? 'director' : (c.requiredType || 'actor')) === 'director';
+
+    const directorSlots = slots.filter(s => s.talent && isDirectorRole(s.character));
+    const actorSlots = slots.filter(s => s.talent && !isDirectorRole(s.character));
 
     const isFranchiseProject = !!project.script?.franchiseId;
 
@@ -281,7 +289,7 @@ const updatedProject: Project = {
   };
 
   const allSlots = createCastingSlots();
-  const isCrewSlot = (slot: CastingSlot) => slot.character.requiredType === 'director';
+  const isCrewSlot = (slot: CastingSlot) => (slot.character.importance === 'crew' ? 'director' : (slot.character.requiredType || 'actor')) === 'director';
 
   const crewSlots = allSlots.filter(isCrewSlot);
   const castSlots = allSlots.filter(slot => !isCrewSlot(slot));
@@ -445,7 +453,7 @@ const CastingSlotCard: React.FC<CastingSlotCardProps> = ({
   onRemove,
 }) => {
   const openTalentProfile = useUiStore((s) => s.openTalentProfile);
-  const isDirector = slot.character.requiredType === 'director';
+  const isDirector = (slot.character.importance === 'crew' ? 'director' : (slot.character.requiredType || 'actor')) === 'director';
   const candidates = getEligibleTalent(slot.character);
 
   const assignmentLabel = isDirector ? 'Director' : slot.character.name;

@@ -1,7 +1,8 @@
 import type { ScriptCharacter, TalentPerson } from '@/types/game';
 
 export function talentMatchesRole(talent: TalentPerson, role: ScriptCharacter): boolean {
-  const requiredType = role.requiredType || (role.importance === 'crew' ? 'director' : 'actor');
+  // Crew roles should always pull from the director pool, even if older/invalid data stored requiredType incorrectly.
+  const requiredType = role.importance === 'crew' ? 'director' : (role.requiredType || 'actor');
 
   if (talent.type !== requiredType) return false;
 

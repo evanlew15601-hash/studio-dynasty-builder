@@ -7,12 +7,14 @@ import { Badge } from '@/components/ui/badge';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Textarea } from '@/components/ui/textarea';
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { useToast } from '@/hooks/use-toast';
 import { Crown, Film, Users, TrendingUp, Plus, ArrowRight, Star } from 'lucide-react';
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger } from '@/components/ui/dialog';
 import { stableFloat01, stableInt } from '@/utils/stableRandom';
 import { triggerDateFromWeekYear } from '@/utils/gameTime';
 import { nextNumericId } from '@/utils/idAllocator';
+import { createSequelScript, type SequelMedium } from '@/utils/sequelScripts';
 
 interface SequelManagementProps {
   onProjectCreate: (script: Script) => void;
@@ -24,6 +26,7 @@ interface SequelPlan {
   title: string;
   description: string;
   budget: number;
+  medium: SequelMedium;
   timeline: number; // weeks
   returningCast: {
     characterId: string;
@@ -72,9 +75,9 @@ export const SequelManagement: React.FC<SequelManagementProps> = ({
 
   // Calculate sequel potential and metrics
   const getSequelMetrics = (project: Project) => {
-    const boxOffice = project.metrics?.boxOfficeTotal || 0;
+    const revenue = project.metrics?.totalRevenue ?? project.metrics?.financials?.totalRevenue ?? project.metrics?.boxOfficeTotal ?? 0;
     const budget = project.budget.total;
-    const profitability = ((boxOffice - budget) / budget) * 100;
+    const profitability = budget > 0 ? ((revenue - budget) / budget) * 100 : 0;
     const criticsScore = project.metrics?.criticsScore || 0;
     const audienceScore = project.metrics?.audienceScore || 0;
     
@@ -83,7 +86,7 @@ export const SequelManagement: React.FC<SequelManagementProps> = ({
       profitability: Math.min(100, profitability * 2), // Cap at 100
       criticalReception: criticsScore,
       audienceReception: audienceScore,
-      culturalImpact: Math.min(100, (boxOffice / 100000000) * 20), // $100M = 20 points
+      culturalImpact: Math.min(100, (revenue / 100000000) * 20), // $100M = 20 points
       franchisePotential: project.script?.franchiseId ? 20 : 0
     };
     
@@ -101,7 +104,7 @@ export const SequelManagement: React.FC<SequelManagementProps> = ({
       weeksSinceRelease,
       optimalTiming,
       estimatedBudget: Math.round(budget * (1.2 + (profitability / 500))), // 20% increase + profit factor
-      estimatedBoxOffice: Math.round(boxOffice * (0.8 + (sequelDemand / 200))) // Typically lower but demand helps
+      estimatedBoxOffice: Math.round(revenue * (0.8 + (sequelDemand / 200))) // Typically lower but demand helps
     };
   };
 
@@ -110,6 +113,27 @@ export const SequelManagement: React.FC<SequelManagementProps> = ({
     const existingSequels = getExistingSequels(originalProject);
     const sequelNumber = existingSequels.length + 2; // +2 because original is "1"
     const metrics = getSequelMetrics(originalProject);
+
+    const defaultMedium: SequelMedium = (originalProject.type === 'series' || originalProject.type === 'limited-series')
+      ? (originalProject.type === 'limited-series' ? 'tv-limited' : 'tv-series')
+      : 'film';
+
+    const title = defaultMedium === 'film'
+      ? `${originalProject.title} ${sequelNumber > 2 ? sequelNumber : 'II'}`
+      : (originalProject.type === 'series' || originalProject.type === 'limited-series')
+        ? `${originalProject.title} Season ${sequelNumber}`
+        : `${originalProject.title}: The Series`;
+
+    const budget = defaultMedium === 'film'
+      ? metrics.estimatedBudget
+      : Math.max(
+        500_000,
+        Math.round(
+          (originalProject.type === 'series' || originalProject.type === 'limited-series')
+            ? (originalProject.budget.total / Math.max(1, originalProject.episodeCount || 13))
+            : (metrics.estimatedBudget / 10)
+        )
+      );
     
     // Get returning cast from original
     const returningCast = (originalProject.script?.characters || [])
@@ -123,9 +147,10 @@ export const SequelManagement: React.FC<SequelManagementProps> = ({
     
     const plan: SequelPlan = {
       originalProjectId: originalProject.id,
-      title: `${originalProject.title} ${sequelNumber > 2 ? sequelNumber : 'II'}`,
+      title,
       description: `The highly anticipated sequel to the successful "${originalProject.title}"`,
-      budget: metrics.estimatedBudget,
+      budget,
+      medium: defaultMedium,
       timeline: 32, // 32 weeks standard development
       returningCast,
       sequelNumber,
@@ -226,7 +251,7 @@ export const SequelManagement: React.FC<SequelManagementProps> = ({
         const newFranchise: Franchise = {
           id: franchiseId,
           title: expectedTitle,
-          description: `Franchise based on the successful film "${selectedProject.title}"`,
+          description: `Franchise based on the successful release "${selectedProject.title}"`,
           originDate: triggerDateFromWeekYear(gameState.currentYear, gameState.currentWeek).toISOString().split('T')[0],
           creatorStudioId: gameState.studio.id,
           genre: selectedProject.script?.genre ? [selectedProject.script.genre] : ['action'],
@@ -256,38 +281,17 @@ export const SequelManagement: React.FC<SequelManagementProps> = ({
     
     const sequelScriptId = nextNumericId('script', gameState.scripts.map((s) => s.id));
 
-    const sequelScript: Script = {
+    const sequelScript = createSequelScript({
       id: sequelScriptId,
       title: sequelPlan.title,
-      genre: selectedProject.script?.genre || 'action',
-      logline: sequelPlan.description,
-      writer: selectedProject.script?.writer || 'Studio Writer',
-      pages: 120,
-      quality: Math.max(60, (selectedProject.script?.quality || 70) - 5), // Slight quality penalty
+      description: sequelPlan.description,
       budget: sequelPlan.budget,
-      developmentStage: 'concept',
-      themes: selectedProject.script?.themes || ['adventure', 'friendship'],
-      targetAudience: selectedProject.script?.targetAudience || 'general',
-      estimatedRuntime: (selectedProject.script?.estimatedRuntime || 120) + 10, // Slightly longer
-      characteristics: {
-        tone: selectedProject.script?.characteristics?.tone || 'balanced',
-        pacing: 'fast-paced',
-        dialogue: selectedProject.script?.characteristics?.dialogue || 'naturalistic',
-        visualStyle: selectedProject.script?.characteristics?.visualStyle || 'realistic',
-        commercialAppeal: Math.min(10, (selectedProject.script?.characteristics?.commercialAppeal || 6) + 1),
-        criticalPotential: Math.max(1, (selectedProject.script?.characteristics?.criticalPotential || 5) - 1),
-        cgiIntensity: 'moderate'
-      },
-      characters: (selectedProject.script?.characters || []).map(char => ({
-        ...char,
-        // Keep assigned talent if they're confirmed for sequel
-        assignedTalentId: sequelPlan.returningCast.find(cast => 
-          cast.characterId === getCharacterKey(char) && cast.confirmed
-        )?.talentId || undefined,
-      })),
       franchiseId,
-      sourceType: 'franchise'
-    };
+      medium: sequelPlan.medium,
+      originalProject: selectedProject,
+      returningCast: sequelPlan.returningCast,
+      getCharacterKey,
+    });
     
     onProjectCreate(sequelScript);
     
@@ -312,13 +316,13 @@ export const SequelManagement: React.FC<SequelManagementProps> = ({
             <Film className="h-5 w-5" />
             Sequel Management
             <Badge variant="outline">
-              {eligibleProjects.length} Eligible Films
+              {eligibleProjects.length} Eligible Releases
             </Badge>
           </CardTitle>
         </CardHeader>
         <CardContent>
           <p className="text-sm text-muted-foreground">
-            Develop sequels to successful films. Profitable franchises with returning cast create audience anticipation and box office success.
+            Develop sequels and spin-offs for released projects. Returning cast can boost audience anticipation.
           </p>
         </CardContent>
       </Card>
@@ -331,7 +335,7 @@ export const SequelManagement: React.FC<SequelManagementProps> = ({
           </CardHeader>
           <CardContent className="space-y-6">
             {/* Project Details */}
-            <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+            <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
               <div>
                 <Label>Sequel Title</Label>
                 <Input
@@ -340,7 +344,37 @@ export const SequelManagement: React.FC<SequelManagementProps> = ({
                 />
               </div>
               <div>
-                <Label>Budget Estimate</Label>
+                <Label>Format</Label>
+                <Select
+                  value={sequelPlan.medium}
+                  onValueChange={(value) => {
+                    setSequelPlan(prev => {
+                      if (!prev) return null;
+
+                      const nextMedium = value as SequelMedium;
+                      const wasTv = prev.medium !== 'film';
+                      const isTv = nextMedium !== 'film';
+
+                      let nextBudget = prev.budget;
+                      if (isTv && !wasTv) nextBudget = Math.max(500_000, Math.round(prev.budget / 10));
+                      if (!isTv && wasTv) nextBudget = Math.round(prev.budget * 10);
+
+                      return { ...prev, medium: nextMedium, budget: nextBudget };
+                    });
+                  }}
+                >
+                  <SelectTrigger className="mt-1">
+                    <SelectValue />
+                  </SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value="film">Film</SelectItem>
+                    <SelectItem value="tv-series">TV Series</SelectItem>
+                    <SelectItem value="tv-limited">Limited Series</SelectItem>
+                  </SelectContent>
+                </Select>
+              </div>
+              <div>
+                <Label>Budget Estimate{sequelPlan.medium === 'film' ? '' : ' (Per Episode)'}</Label>
                 <Input
                   type="number"
                   value={sequelPlan.budget}
