@@ -1,4 +1,5 @@
 import { describe, expect, it, afterEach, vi } from 'vitest';
+import { produce } from 'immer';
 import { MediaContentGenerator } from '@/data/MediaContentGenerator';
 import { MediaEngine } from '@/components/game/MediaEngine';
 import { CrisisManagement } from '@/components/game/CrisisManagement';
@@ -117,6 +118,61 @@ describe('media system', () => {
     // Reprocessing the same week should not regenerate items (events are already marked processed).
     const secondPass = MediaEngine.processMediaEvents(gameState);
     expect(secondPass.length).toBe(0);
+  });
+
+  it('can hydrate from an Immer draft without retaining revoked proxies', () => {
+    const playerStudio = { id: 'player-studio', name: 'Player Studio', reputation: 50, budget: 1000000, founded: 2025, specialties: ['drama'] };
+    const playerProject = makeMinimalProject({
+      id: 'player-project-1',
+      title: 'Player Premiere',
+      studioName: playerStudio.name,
+      releaseWeek: 1,
+      releaseYear: 2025,
+      cast: [{ talentId: 'talent-1' }]
+    });
+
+    const gameState: any = {
+      studio: playerStudio,
+      currentWeek: 1,
+      currentYear: 2025,
+      projects: [playerProject],
+      talent: [makeMinimalTalent()],
+      competitorStudios: [],
+      allReleases: [],
+      aiStudioProjects: [],
+    };
+
+    MediaEngine.queueMediaEvent({
+      type: 'release',
+      triggerType: 'automatic',
+      priority: 'low',
+      entities: {
+        studios: [playerStudio.id],
+        projects: [playerProject.id],
+        talent: ['talent-1']
+      },
+      eventData: { project: playerProject },
+      week: 1,
+      year: 2025
+    } as any);
+
+    const firstPass = MediaEngine.processMediaEvents(gameState);
+    expect(firstPass.length).toBe(1);
+
+    const persisted = { engine: MediaEngine.snapshot(), response: { campaigns: [], reactions: [] } } as any;
+
+    MediaEngine.cleanup();
+
+    produce(persisted, (draft) => {
+      MediaEngine.hydrate(draft as any);
+    });
+
+    const memory = MediaEngine.getMediaMemory(playerStudio.id);
+    expect(memory).toBeTruthy();
+
+    // Access nested props to ensure we didn't retain Immer draft proxies.
+    const firstSentiment = memory?.sentimentHistory?.[0]?.sentiment;
+    expect(firstSentiment).toBeTruthy();
   });
 
   it('does not leak raw {Placeholders} when event lacks a project/studio', () => {
