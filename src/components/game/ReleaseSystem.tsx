@@ -52,11 +52,14 @@ export class ReleaseSystem {
     const hasDirector = assignedTalent.some(c => isDirectorRole(c));
     const hasLead = assignedTalent.some(c => c.importance === 'lead' && !isDirectorRole(c));
     
-    // Also check legacy cast array as fallback
+    // Also check legacy cast/crew arrays as fallback
     const legacyCast = project.cast || [];
-    const legacyHasDirector = legacyCast.some(c => c.role?.toLowerCase().includes('director'));
+    const legacyCrew = project.crew || [];
+    const legacyRoles = [...legacyCast, ...legacyCrew];
+
+    const legacyHasDirector = legacyRoles.some(c => c.role?.toLowerCase().includes('director'));
     const legacyHasLead = legacyCast.some(c => c.role?.toLowerCase().includes('lead'));
-    
+
     const actualHasDirector = hasDirector || legacyHasDirector;
     const actualHasLead = hasLead || legacyHasLead;
     

@@ -29,6 +29,7 @@ import { stableInt } from '@/utils/stableRandom';
 import { nextNumericId } from '@/utils/idAllocator';
 import { triggerDateFromWeekYear } from '@/utils/gameTime';
 import { isTvScript } from '@/utils/scriptMedium';
+import { isPrimaryStreamingFilm } from '@/utils/projectMedium';
 import { createRng, generateGameSeed, seedFromString } from '@/game/core/rng';
 import { advanceWeek as engineAdvanceWeek } from '@/game/core/tick';
 import { useUiStore } from '@/game/uiStore';
@@ -1207,7 +1208,7 @@ export const StudioMagnateGame: React.FC<StudioMagnateGameProps> = ({
        if (updatedProject.status === 'released') {
          if (project.type === 'series' || project.type === 'limited-series') {
            // TV episode scheduling + ratings are handled by the deterministic engine tick.
-         } else if (updatedProject.releaseStrategy?.type === 'streaming') {
+         } else if (isPrimaryStreamingFilm(updatedProject)) {
            // Streaming view metrics are handled by the deterministic engine tick.
          } else {
              // Box office simulation is now handled by the deterministic engine tick.
