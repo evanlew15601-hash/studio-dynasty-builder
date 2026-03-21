@@ -109,6 +109,15 @@ export interface ScriptCharacter {
   requiredGender?: Gender;
   requiredRace?: Race;
   requiredNationality?: string;
+  /** Optional: negotiation result for this role (used by casting UIs before confirmation). */
+  negotiatedContract?: {
+    weeklyPay: number;
+    contractWeeks: number;
+    interestScore: number;
+    askWeeklyPay: number;
+    negotiatedWeek: number;
+    negotiatedYear: number;
+  };
   // Franchise/IP linkage for imported roles
   franchiseId?: string; // Global franchise this role belongs to (immutable linkage)
   franchiseCharacterId?: string; // Stable character_id from franchise DB

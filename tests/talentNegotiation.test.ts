@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'vitest';
 import type { Project, Studio, TalentPerson } from '@/types/game';
-import { negotiateTalentContract, recordStudioNegotiationOutcome } from '@/utils/talentNegotiation';
+import { evaluateTalentOffer, negotiateTalentContract, recordStudioNegotiationOutcome } from '@/utils/talentNegotiation';
 
 function makeStudio(): Studio {
   return {
@@ -106,5 +106,76 @@ describe('talentNegotiation studio interest memory', () => {
 
     expect(signed[studio.id].rejectedUntilWeekIndex).toBeUndefined();
     expect(signed[studio.id].interest).toBeGreaterThan(50);
+  });
+});
+
+describe('talentNegotiation offer evaluation', () => {
+  it('counters when the offer is close to the ask and interest is decent', () => {
+    const studio = { ...makeStudio(), reputation: 90 };
+    const project = { ...makeProject(), script: { ...(makeProject().script as any), quality: 90 } };
+    const talent = makeTalent({ reputation: 70, marketValue: 12_000_000, genres: ['drama'] });
+
+    const probe = evaluateTalentOffer({
+      talent,
+      studio,
+      project,
+      requiredType: 'actor',
+      importance: 'lead',
+      offerWeeklyPay: 0,
+      contractWeeks: 16,
+      week: 10,
+      year: 2024,
+    });
+
+    expect(probe.askWeeklyPay).toBeGreaterThan(0);
+
+    const closeOffer = evaluateTalentOffer({
+      talent,
+      studio,
+      project,
+      requiredType: 'actor',
+      importance: 'lead',
+      offerWeeklyPay: Math.round(probe.askWeeklyPay * 0.9),
+      contractWeeks: 16,
+      week: 10,
+      year: 2024,
+    });
+
+    expect(closeOffer.status).toBe('counter');
+    if (closeOffer.status === 'counter') {
+      expect(closeOffer.counterWeeklyPay).toBe(closeOffer.askWeeklyPay);
+    }
+  });
+
+  it('accepts when the offer meets the ask', () => {
+    const studio = { ...makeStudio(), reputation: 90 };
+    const project = { ...makeProject(), script: { ...(makeProject().script as any), quality: 90 } };
+    const talent = makeTalent({ reputation: 70, marketValue: 12_000_000, genres: ['drama'] });
+
+    const probe = evaluateTalentOffer({
+      talent,
+      studio,
+      project,
+      requiredType: 'actor',
+      importance: 'lead',
+      offerWeeklyPay: 0,
+      contractWeeks: 16,
+      week: 10,
+      year: 2024,
+    });
+
+    const accepted = evaluateTalentOffer({
+      talent,
+      studio,
+      project,
+      requiredType: 'actor',
+      importance: 'lead',
+      offerWeeklyPay: probe.askWeeklyPay,
+      contractWeeks: 16,
+      week: 10,
+      year: 2024,
+    });
+
+    expect(accepted.status).toBe('accepted');
   });
 });

@@ -4,7 +4,8 @@ import { useGameStore } from '@/game/store';
 import { useUiStore } from '@/game/uiStore';
 import { talentMatchesRole } from '@/utils/castingEligibility';
 import { isDirectorRole } from '@/utils/scriptRoles';
-import { defaultContractWeeksForRole, describeTalentInterest, negotiateTalentContract, recordStudioNegotiationOutcome } from '@/utils/talentNegotiation';
+import { describeTalentInterest, recordStudioNegotiationOutcome } from '@/utils/talentNegotiation';
+import { TalentNegotiationDialog } from './TalentNegotiationDialog';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
@@ -34,6 +35,7 @@ export const CharacterCastingSystem: React.FC<CharacterCastingSystemProps> = ({
   const updateTalent = useGameStore((s) => s.updateTalent);
   const { toast } = useToast();
   const [filterType, setFilterType] = useState<'all' | 'cast' | 'crew'>('all');
+  const [negotiationTarget, setNegotiationTarget] = useState<{ character: ScriptCharacter; talent: TalentPerson } | null>(null);
 
   if (!gameState) {
     return (
@@ -66,8 +68,11 @@ export const CharacterCastingSystem: React.FC<CharacterCastingSystemProps> = ({
                         character.importance === 'lead' || 
                         requiredType === 'director';
       
+      const negotiated = character.negotiatedContract;
       const baseMarketValue = talent?.marketValue || 5000000; // Default market value
-      const contractCost = (baseMarketValue * 0.1) + (baseMarketValue * 0.05 * (character.importance === 'lead' ? 2 : character.importance === 'supporting' ? 1.5 : 1));
+      const contractCost = negotiated
+        ? negotiated.weeklyPay * negotiated.contractWeeks
+        : (baseMarketValue * 0.1) + (baseMarketValue * 0.05 * (character.importance === 'lead' ? 2 : character.importance === 'supporting' ? 1.5 : 1));
 
       return {
         character,
@@ -109,24 +114,32 @@ export const CharacterCastingSystem: React.FC<CharacterCastingSystemProps> = ({
   };
 
   const handleCastTalent = (character: ScriptCharacter, talent: TalentPerson) => {
-    const slot = createCastingSlots().find(s => s.character.id === character.id);
-    if (!slot) return;
+    setNegotiationTarget({ character, talent });
+  };
 
-    if (slot.contractCost > gameState.studio.budget) {
-      toast({
-        title: "Insufficient Budget",
-        description: `Cannot afford ${talent.name} - need $${(slot.contractCost / 1000000).toFixed(1)}M`,
-        variant: "destructive"
-      });
-      return;
-    }
+  const finalizeAssignment = (result: { interestScore: number; askWeeklyPay: number; weeklyPay: number; contractWeeks: number }) => {
+    if (!negotiationTarget) return;
 
-    // Update character with assigned talent
+    const { character, talent } = negotiationTarget;
+    const requiredType = character.importance === 'crew' ? 'director' : (character.requiredType || 'actor');
+
     const updatedCharacters = (project.script?.characters || []).map(c =>
-      c.id === character.id ? { ...c, assignedTalentId: talent.id } : c
+      c.id === character.id
+        ? {
+          ...c,
+          assignedTalentId: talent.id,
+          negotiatedContract: {
+            weeklyPay: result.weeklyPay,
+            contractWeeks: result.contractWeeks,
+            interestScore: result.interestScore,
+            askWeeklyPay: result.askWeeklyPay,
+            negotiatedWeek: gameState.currentWeek,
+            negotiatedYear: gameState.currentYear,
+          }
+        }
+        : c
     );
 
-    // Update project
     const updatedProject = {
       ...project,
       script: {
@@ -137,19 +150,19 @@ export const CharacterCastingSystem: React.FC<CharacterCastingSystemProps> = ({
 
     replaceProject(updatedProject);
 
-    const requiredType = character.importance === 'crew' ? 'director' : (character.requiredType || 'actor');
+    const interest = describeTalentInterest(result.interestScore);
 
     toast({
-      title: requiredType === 'director' ? 'Key Crew Assigned' : 'Role Cast',
-      description: requiredType === 'director'
-        ? `${talent.name} attached as Director`
-        : `${talent.name} has been cast as ${character.name}`,
+      title: requiredType === 'director' ? 'Key Crew Attached' : 'Role Offered',
+      description: `${talent.name} agreed (${interest.label}) — ${(result.weeklyPay / 1000).toFixed(0)}k/week for ${result.contractWeeks} weeks`,
     });
+
+    setNegotiationTarget(null);
   };
 
   const handleRemoveTalent = (character: ScriptCharacter) => {
     const updatedCharacters = (project.script?.characters || []).map(c =>
-      c.id === character.id ? { ...c, assignedTalentId: undefined } : c
+      c.id === character.id ? { ...c, assignedTalentId: undefined, negotiatedContract: undefined } : c
     );
 
     const updatedProject = {
@@ -213,50 +226,26 @@ export const CharacterCastingSystem: React.FC<CharacterCastingSystemProps> = ({
 
     for (const slot of slots) {
       if (!slot.talent) continue;
-      const requiredType = isDirectorRole(slot.character) ? 'director' : 'actor';
-      const contractWeeks = defaultContractWeeksForRole(requiredType, slot.character.importance);
 
-      const negotiation = negotiateTalentContract({
-        talent: slot.talent,
-        studio: gameState.studio,
-        project,
-        requiredType,
-        importance: slot.character.importance,
-        week: gameState.currentWeek,
-        year: gameState.currentYear,
-      });
-
-      const interest = describeTalentInterest(negotiation.interestScore);
-
-      if (!negotiation.accepted) {
-        if (negotiation.reason === 'not-interested') {
-          updateTalent(slot.talent.id, {
-            studioInterest: recordStudioNegotiationOutcome({
-              talent: slot.talent,
-              studioId: gameState.studio.id,
-              currentWeek: gameState.currentWeek,
-              currentYear: gameState.currentYear,
-              interestScore: negotiation.interestScore,
-              outcome: 'rejected',
-            }),
-          });
-        }
-
+      const deal = slot.character.negotiatedContract;
+      if (!deal) {
         toast({
-          title: 'Casting blocked',
-          description:
-            negotiation.reason === 'not-interested'
-              ? `${slot.talent.name} isn’t interested in this project right now.`
-              : `${slot.talent.name} is not currently available.`,
+          title: 'Missing Contract Terms',
+          description: `Please negotiate a deal for ${slot.talent.name} (${slot.character.name}) before confirming.`,
           variant: 'destructive',
         });
         return;
       }
 
-      const weeklyPay = negotiation.weeklyPay;
-      requiredCashTotal += weeklyPay * Math.min(4, contractWeeks);
+      const interest = describeTalentInterest(deal.interestScore);
+      requiredCashTotal += deal.weeklyPay * Math.min(4, deal.contractWeeks);
 
-      negotiatedByTalentId.set(slot.talent.id, { weeklyPay, contractWeeks, interestLabel: interest.label, interestScore: negotiation.interestScore });
+      negotiatedByTalentId.set(slot.talent.id, {
+        weeklyPay: deal.weeklyPay,
+        contractWeeks: deal.contractWeeks,
+        interestLabel: interest.label,
+        interestScore: deal.interestScore,
+      });
     }
 
     if (requiredCashTotal > gameState.studio.budget) {
@@ -405,6 +394,55 @@ const updatedProject: Project = {
 
   return (
     <div className="space-y-6">
+      {negotiationTarget && (
+        <TalentNegotiationDialog
+          open={true}
+          onOpenChange={(open) => setNegotiationTarget(open ? negotiationTarget : null)}
+          studio={gameState.studio}
+          project={project}
+          talent={negotiationTarget.talent}
+          roleLabel={isDirectorRole(negotiationTarget.character)
+            ? 'Director'
+            : negotiationTarget.character.importance === 'lead'
+              ? `Lead - ${negotiationTarget.character.name}`
+              : `Supporting - ${negotiationTarget.character.name}`}
+          requiredType={isDirectorRole(negotiationTarget.character) ? 'director' : 'actor'}
+          importance={negotiationTarget.character.importance}
+          currentWeek={gameState.currentWeek}
+          currentYear={gameState.currentYear}
+          onAccepted={finalizeAssignment}
+          onRejected={(res) => {
+            const interestLabel = describeTalentInterest(res.interestScore).label;
+
+            if (res.reason === 'too-low' || res.reason === 'not-interested') {
+              updateTalent(negotiationTarget.talent.id, {
+                studioInterest: recordStudioNegotiationOutcome({
+                  talent: negotiationTarget.talent,
+                  studioId: gameState.studio.id,
+                  currentWeek: gameState.currentWeek,
+                  currentYear: gameState.currentYear,
+                  interestScore: res.interestScore,
+                  outcome: 'rejected',
+                }),
+              });
+            }
+
+            toast({
+              title: `${negotiationTarget.talent.name}: ${interestLabel}`,
+              description:
+                res.reason === 'held'
+                  ? 'This talent is not currently available.'
+                  : res.reason === 'cooldown'
+                    ? 'Their agent isn’t taking meetings with your studio right now.'
+                    : `Offer declined. (Ask: \u0024${(res.askWeeklyPay / 1000).toFixed(0)}k/week)`,
+              variant: 'destructive',
+            });
+
+            setNegotiationTarget(null);
+          }}
+        />
+      )}
+
       {/* Header with Progress and Controls */}
       <Card>
         <CardHeader>

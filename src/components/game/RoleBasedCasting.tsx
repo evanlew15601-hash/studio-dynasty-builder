@@ -8,7 +8,8 @@ import { talentMatchesRole } from '@/utils/castingEligibility';
 import { Users, User, Crown, Star, CheckCircle } from 'lucide-react';
 import { importRolesForScript } from '@/utils/roleImport';
 import { useGameStore } from '@/game/store';
-import { describeTalentInterest, defaultContractWeeksForRole, negotiateTalentContract, recordStudioNegotiationOutcome } from '@/utils/talentNegotiation';
+import { describeTalentInterest, recordStudioNegotiationOutcome } from '@/utils/talentNegotiation';
+import { TalentNegotiationDialog } from './TalentNegotiationDialog';
 
 interface RoleBasedCastingProps {
   project: Project;
@@ -22,6 +23,7 @@ export const RoleBasedCasting: React.FC<RoleBasedCastingProps> = ({
   const updateProject = useGameStore((s) => s.updateProject);
   const updateTalent = useGameStore((s) => s.updateTalent);
   const { toast } = useToast();
+  const [negotiationTarget, setNegotiationTarget] = React.useState<{ role: ScriptCharacter; talent: TalentPerson } | null>(null);
 
   // Import roles when project changes or script updates (auto-add mandatory TV roles)
   React.useEffect(() => {
@@ -101,59 +103,16 @@ export const RoleBasedCasting: React.FC<RoleBasedCastingProps> = ({
   };
 
   const handleCastTalent = (character: ScriptCharacter, talent: TalentPerson) => {
+    setNegotiationTarget({ role: character, talent });
+  };
+
+  const finalizeCastTalent = (result: { interestScore: number; askWeeklyPay: number; weeklyPay: number; contractWeeks: number }) => {
+    if (!negotiationTarget) return;
+
+    const { role: character, talent } = negotiationTarget;
     const requiredType = resolveRequiredType(character);
-    const contractWeeks = defaultContractWeeksForRole(requiredType, character.importance);
-
-    const negotiation = negotiateTalentContract({
-      talent,
-      studio: gameState.studio,
-      project,
-      requiredType,
-      importance: character.importance,
-      week: gameState.currentWeek,
-      year: gameState.currentYear,
-    });
-
-    const interest = describeTalentInterest(negotiation.interestScore);
-
-    if (!negotiation.accepted) {
-      if (negotiation.reason === 'not-interested') {
-        updateTalent(talent.id, {
-          studioInterest: recordStudioNegotiationOutcome({
-            talent,
-            studioId: gameState.studio.id,
-            currentWeek: gameState.currentWeek,
-            currentYear: gameState.currentYear,
-            interestScore: negotiation.interestScore,
-            outcome: 'rejected',
-          }),
-        });
-      }
-
-      toast({
-        title: `${talent.name}: ${interest.label}`,
-        description:
-          negotiation.reason === 'held'
-            ? 'This talent is not currently available.'
-            : negotiation.reason === 'not-interested'
-              ? `Their agent isn’t taking meetings for this project right now. (Ask: ${(negotiation.askWeeklyPay / 1000).toFixed(0)}k/week)`
-              : 'Deal could not be completed.',
-        variant: "destructive"
-      });
-      return;
-    }
-
-    const weeklyPay = negotiation.weeklyPay;
-
-    const requiredCash = weeklyPay * Math.min(4, contractWeeks);
-    if (requiredCash > gameState.studio.budget) {
-      toast({
-        title: "Insufficient Cash Runway",
-        description: `Need at least ${(requiredCash / 1000000).toFixed(1)}M available to sign this contract (covers first ${Math.min(4, contractWeeks)} weeks).`,
-        variant: "destructive"
-      });
-      return;
-    }
+    const contractWeeks = result.contractWeeks;
+    const weeklyPay = result.weeklyPay;
 
     const updatedCharacters = (project.script?.characters || []).map(c =>
       c.id === character.id ? { ...c, assignedTalentId: talent.id } : c
@@ -218,15 +177,19 @@ export const RoleBasedCasting: React.FC<RoleBasedCastingProps> = ({
         studioId: gameState.studio.id,
         currentWeek: gameState.currentWeek,
         currentYear: gameState.currentYear,
-        interestScore: negotiation.interestScore,
+        interestScore: result.interestScore,
         outcome: 'signed',
       }),
     });
+
+    const interest = describeTalentInterest(result.interestScore);
 
     toast({
       title: "Talent Signed",
       description: `${talent.name} accepted (${interest.label}) — ${(weeklyPay / 1000).toFixed(0)}k/week for ${contractWeeks} weeks`,
     });
+
+    setNegotiationTarget(null);
   };
 
   const importRolesFromSource = () => {
@@ -297,6 +260,55 @@ export const RoleBasedCasting: React.FC<RoleBasedCastingProps> = ({
 
   return (
     <div className="space-y-6">
+      {negotiationTarget && (
+        <TalentNegotiationDialog
+          open={true}
+          onOpenChange={(open) => setNegotiationTarget(open ? negotiationTarget : null)}
+          studio={gameState.studio}
+          project={project}
+          talent={negotiationTarget.talent}
+          roleLabel={resolveRequiredType(negotiationTarget.role) === 'director'
+            ? 'Director'
+            : negotiationTarget.role.importance === 'lead'
+              ? `Lead - ${negotiationTarget.role.name}`
+              : `Supporting - ${negotiationTarget.role.name}`}
+          requiredType={resolveRequiredType(negotiationTarget.role)}
+          importance={negotiationTarget.role.importance}
+          currentWeek={gameState.currentWeek}
+          currentYear={gameState.currentYear}
+          onAccepted={finalizeCastTalent}
+          onRejected={(res) => {
+            const interestLabel = describeTalentInterest(res.interestScore).label;
+
+            if (res.reason === 'too-low' || res.reason === 'not-interested') {
+              updateTalent(negotiationTarget.talent.id, {
+                studioInterest: recordStudioNegotiationOutcome({
+                  talent: negotiationTarget.talent,
+                  studioId: gameState.studio.id,
+                  currentWeek: gameState.currentWeek,
+                  currentYear: gameState.currentYear,
+                  interestScore: res.interestScore,
+                  outcome: 'rejected',
+                }),
+              });
+            }
+
+            toast({
+              title: `${negotiationTarget.talent.name}: ${interestLabel}`,
+              description:
+                res.reason === 'held'
+                  ? 'This talent is not currently available.'
+                  : res.reason === 'cooldown'
+                    ? 'Their agent isn’t taking meetings with your studio right now.'
+                    : `Offer declined. (Ask: \u0024${(res.askWeeklyPay / 1000).toFixed(0)}k/week)`,
+              variant: 'destructive',
+            });
+
+            setNegotiationTarget(null);
+          }}
+        />
+      )}
+
       {/* Header with Progress */}
       <Card>
         <CardHeader>

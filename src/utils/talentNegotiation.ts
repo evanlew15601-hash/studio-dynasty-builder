@@ -166,6 +166,128 @@ export type TalentNegotiationResult =
       reason: 'not-interested' | 'held' | 'budget';
     };
 
+export type TalentOfferResponse =
+  | {
+      status: 'accepted';
+      interestScore: number;
+      askWeeklyPay: number;
+      weeklyPay: number;
+      contractWeeks: number;
+    }
+  | {
+      status: 'counter';
+      interestScore: number;
+      askWeeklyPay: number;
+      counterWeeklyPay: number;
+      contractWeeks: number;
+    }
+  | {
+      status: 'rejected';
+      interestScore: number;
+      askWeeklyPay: number;
+      reason: 'held' | 'cooldown' | 'not-interested' | 'too-low';
+      rejectedUntilWeekIndex?: number;
+    };
+
+export function computeTalentAgentAsk(params: {
+  talent: TalentPerson;
+  studio: Studio;
+  project: Project;
+  requiredType: TalentRequiredType;
+  importance?: string;
+  contractWeeks: number;
+  week: number;
+  year: number;
+}): { interestScore: number; askWeeklyPay: number; rejectedUntilWeekIndex?: number; blockedReason?: 'cooldown' | 'held' } {
+  const { talent, studio, project, requiredType, importance, contractWeeks, week, year } = params;
+
+  const currentAbs = absWeekIndex(week, year);
+  const studioMem = getStudioInterestRecord(talent, studio.id);
+
+  if (typeof studioMem.rejectedUntilWeekIndex === 'number' && studioMem.rejectedUntilWeekIndex > currentAbs) {
+    const { interestScore, askWeeklyPay } = computeTalentAskWeeklyPay({ talent, studio, project, requiredType, importance });
+    return {
+      interestScore,
+      askWeeklyPay,
+      rejectedUntilWeekIndex: studioMem.rejectedUntilWeekIndex,
+      blockedReason: 'cooldown',
+    };
+  }
+
+  if (talent.contractStatus !== 'available') {
+    const { interestScore, askWeeklyPay } = computeTalentAskWeeklyPay({ talent, studio, project, requiredType, importance });
+    return { interestScore, askWeeklyPay, blockedReason: 'held' };
+  }
+
+  const base = computeTalentAskWeeklyPay({ talent, studio, project, requiredType, importance });
+  let askWeeklyPay = base.askWeeklyPay;
+
+  const defaultWeeks = defaultContractWeeksForRole(requiredType, importance);
+  if (contractWeeks < Math.round(defaultWeeks * 0.75)) {
+    askWeeklyPay = Math.round(askWeeklyPay * 1.15);
+  } else if (contractWeeks > Math.round(defaultWeeks * 1.25)) {
+    askWeeklyPay = Math.round(askWeeklyPay * 0.95);
+  }
+
+  const hardballRoll = stableFloat01(`${studio.id}|${talent.id}|${project.id}|ask|hardball|${year}|${week}`);
+  if (base.interestScore < 55 && hardballRoll < 0.2) {
+    askWeeklyPay = Math.round(askWeeklyPay * 1.1);
+  }
+
+  return { interestScore: base.interestScore, askWeeklyPay };
+}
+
+export function evaluateTalentOffer(params: {
+  talent: TalentPerson;
+  studio: Studio;
+  project: Project;
+  requiredType: TalentRequiredType;
+  importance?: string;
+  offerWeeklyPay: number;
+  contractWeeks: number;
+  week: number;
+  year: number;
+}): TalentOfferResponse {
+  const { talent, studio, project, requiredType, importance, offerWeeklyPay, contractWeeks, week, year } = params;
+
+  const ask = computeTalentAgentAsk({ talent, studio, project, requiredType, importance, contractWeeks, week, year });
+
+  if (ask.blockedReason === 'cooldown') {
+    return {
+      status: 'rejected',
+      interestScore: ask.interestScore,
+      askWeeklyPay: ask.askWeeklyPay,
+      reason: 'cooldown',
+      rejectedUntilWeekIndex: ask.rejectedUntilWeekIndex,
+    };
+  }
+
+  if (ask.blockedReason === 'held') {
+    return {
+      status: 'rejected',
+      interestScore: ask.interestScore,
+      askWeeklyPay: ask.askWeeklyPay,
+      reason: 'held',
+    };
+  }
+
+  const interestScore = ask.interestScore;
+  const askWeeklyPay = Math.max(0, ask.askWeeklyPay);
+
+  if (offerWeeklyPay >= askWeeklyPay) {
+    return { status: 'accepted', interestScore, askWeeklyPay, weeklyPay: offerWeeklyPay, contractWeeks };
+  }
+
+  const counterThreshold = interestScore >= 65 ? 0.9 : interestScore >= 45 ? 0.85 : 1.0;
+  if (offerWeeklyPay >= Math.round(askWeeklyPay * counterThreshold)) {
+    const counterWeeklyPay = askWeeklyPay;
+    return { status: 'counter', interestScore, askWeeklyPay, counterWeeklyPay, contractWeeks };
+  }
+
+  // Too far apart.
+  return { status: 'rejected', interestScore, askWeeklyPay, reason: interestScore < 20 ? 'not-interested' : 'too-low' };
+}
+
 /**
  * Minimal deterministic negotiation:
  * - Compute interest from studio rep + script quality + genre fit.
