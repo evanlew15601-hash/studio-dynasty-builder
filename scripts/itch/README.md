@@ -9,11 +9,11 @@ This repo supports itch.io uploads either:
 
 ### 1) Configure repo secrets
 
-Add the following GitHub Secrets:
+Add the following GitHub Secrets (or Variables where noted):
 
-- `BUTLER_API_KEY` (itch.io API key)
-- `ITCH_USERNAME` (your itch.io username)
-- `ITCH_GAME` (your itch.io project slug, e.g. `studio-magnate`)
+- `BUTLER_API_KEY` (**Secret**; itch.io API key)
+- `ITCH_USERNAME` (Secret or Variable; your itch.io username)
+- `ITCH_GAME` (Secret or Variable; your itch.io project slug, e.g. `studio-magnate`)
 
 ### 2) Trigger the workflow
 

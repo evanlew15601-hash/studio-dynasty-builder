@@ -48,7 +48,7 @@ npm run tauri:build
 
 See: `scripts/itch/README.md`
 
-- [ ] Configure GitHub Secrets (`BUTLER_API_KEY`, `ITCH_USERNAME`, `ITCH_GAME`) if using CI
+- [ ] Configure GitHub Secrets/Variables (`BUTLER_API_KEY` secret; `ITCH_USERNAME`/`ITCH_GAME` secret or variable) if using CI
 - [ ] Upload builds either:
   - [ ] via GitHub Actions: run `itch-release` (manual) or push a `v*` tag, or
   - [ ] locally using `butler push` (or `scripts/itch/upload.ps1`)
