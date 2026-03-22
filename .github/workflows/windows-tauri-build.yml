@@ -30,7 +30,7 @@ jobs:
       - name: Build Tauri bundles (NSIS + MSI)
         run: npm run tauri:build
 
-      - name: Create portable zip (for Steam)
+      - name: Create portable zip (for itch.io)
         shell: bash
         run: |
           set -euo pipefail

@@ -30,8 +30,6 @@ npm run check
 ## 5) Desktop builds (Tauri)
 
 - [ ] Verify saving works on a clean machine (creates a save file on disk via the in-game Saves… dialog)
-- [ ] If shipping on Steam with Steam Cloud, confirm Steam Auto Cloud is configured to sync the save folder shown in the in-game Saves… dialog
-- [ ] If shipping on Steam with Achievements/Overlay integration (once you have a Steam App ID), confirm Steamworks is enabled for the build (Cargo feature `steam`) and the correct Steam App ID + `steam_api64.dll` are present in the final depot
 
 ### Local
 
@@ -42,11 +40,20 @@ npm run tauri:build
 ### CI (Windows)
 
 - [ ] Run the `windows-tauri-build` GitHub Actions workflow and download artifacts
-- [ ] Smoke test portable build (Steam-style): launch `studio-magnate.exe` from the extracted zip
-- [ ] Upload to Steam (SteamPipe, once you have a Steam App ID): see `scripts/steam/README.md`
+- [ ] Smoke test portable build: launch `studio-magnate.exe` from the extracted zip
+- [ ] Upload to itch.io (Butler): see `scripts/itch/README.md`
 - [ ] Smoke test installer(s): install, launch, uninstall, upgrade from previous beta
 
-## 6) Open source compliance
+## 6) itch.io upload
+
+See: `scripts/itch/README.md`
+
+- [ ] Configure GitHub Secrets (`BUTLER_API_KEY`, `ITCH_USERNAME`, `ITCH_GAME`) if using CI
+- [ ] Upload builds either:
+  - [ ] via GitHub Actions: run `itch-release` (manual) or push a `v*` tag, or
+  - [ ] locally using `butler push` (or `scripts/itch/upload.ps1`)
+
+## 7) Open source compliance
 
 - [ ] Ensure third-party notices are up to date:
 
@@ -61,7 +68,7 @@ npm run licenses:generate
 npm run sbom:generate
 ```
 
-## 7) Release artifacts
+## 8) Release artifacts
 
 - [ ] Record commit SHA used for builds
 - [ ] Attach installers (NSIS/MSI) and/or other platform bundles

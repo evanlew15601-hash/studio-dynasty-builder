@@ -22,7 +22,7 @@ export const WINDOW_SIZE_PRESETS: WindowSizePreset[] = [
   { id: 'auto', label: 'Auto (don\'t force)' },
   { id: '1024x768', label: '1024 × 768 (XGA)', width: 1024, height: 768 },
   { id: '1280x720', label: '1280 × 720 (HD)', width: 1280, height: 720 },
-  { id: '1280x800', label: '1280 × 800 (WXGA / Steam Deck)', width: 1280, height: 800 },
+  { id: '1280x800', label: '1280 × 800 (WXGA / Handheld)', width: 1280, height: 800 },
   { id: '1366x768', label: '1366 × 768 (Laptop)', width: 1366, height: 768 },
   { id: '1440x900', label: '1440 × 900 (MacBook)', width: 1440, height: 900 },
   { id: '1600x900', label: '1600 × 900 (HD+)', width: 1600, height: 900 },

@@ -1,0 +1,145 @@
+name: itch-release
+
+on:
+  workflow_dispatch:
+    inputs:
+      version:
+        description: Optional version label passed to butler (--userversion). Defaults to tag (if any) or package.json version.
+        required: false
+        type: string
+
+  push:
+    tags:
+      - 'v*'
+
+jobs:
+  build-and-upload:
+    name: ${{ matrix.platform }} -> itch.io (${{ matrix.channel }})
+    runs-on: ${{ matrix.platform }}
+
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - platform: windows-latest
+            channel: windows
+          - platform: ubuntu-22.04
+            channel: linux
+          - platform: macos-latest
+            channel: mac
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Setup Node
+        uses: actions/setup-node@v4
+        with:
+          node-version: lts/*
+          cache: npm
+
+      - name: Install Rust stable
+        uses: dtolnay/rust-toolchain@stable
+
+      - name: Rust cache
+        uses: swatinem/rust-cache@v2
+        with:
+          workspaces: './src-tauri -> target'
+
+      - name: Install Linux dependencies
+        if: matrix.platform == 'ubuntu-22.04'
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y libwebkit2gtk-4.1-dev libappindicator3-dev librsvg2-dev patchelf
+
+      - name: Install frontend dependencies
+        run: npm ci
+
+      - name: Build Tauri bundles
+        run: npm run tauri:build
+
+      - name: Prepare itch artifact
+        id: artifact
+        shell: bash
+        run: |
+          set -euo pipefail
+          shopt -s nullglob
+
+          if [ "${{ matrix.channel }}" = "windows" ]; then
+            rm -rf portable
+            mkdir -p portable
+
+            cp src-tauri/target/release/*.exe portable/
+            cp src-tauri/target/release/*.dll portable/ || true
+
+            if [ -d src-tauri/target/release/resources ]; then
+              cp -R src-tauri/target/release/resources portable/
+            fi
+
+            tar -a -c -f studio-magnate-windows-portable.zip -C portable .
+            echo "path=studio-magnate-windows-portable.zip" >> "$GITHUB_OUTPUT"
+            exit 0
+          fi
+
+          if [ "${{ matrix.channel }}" = "linux" ]; then
+            appimages=(src-tauri/target/release/bundle/appimage/*.AppImage)
+            if [ ${#appimages[@]} -lt 1 ]; then
+              echo "No AppImage bundle found at src-tauri/target/release/bundle/appimage/*.AppImage" >&2
+              exit 1
+            fi
+
+            echo "path=${appimages[0]}" >> "$GITHUB_OUTPUT"
+            exit 0
+          fi
+
+          if [ "${{ matrix.channel }}" = "mac" ]; then
+            dmgs=(src-tauri/target/release/bundle/dmg/*.dmg)
+            if [ ${#dmgs[@]} -ge 1 ]; then
+              echo "path=${dmgs[0]}" >> "$GITHUB_OUTPUT"
+              exit 0
+            fi
+
+            apps=(src-tauri/target/release/bundle/macos/*.app)
+            if [ ${#apps[@]} -lt 1 ]; then
+              echo "No dmg or .app bundle found." >&2
+              exit 1
+            fi
+
+            ditto -c -k --sequesterRsrc --keepParent "${apps[0]}" studio-magnate-macos.zip
+            echo "path=studio-magnate-macos.zip" >> "$GITHUB_OUTPUT"
+            exit 0
+          fi
+
+          echo "Unknown channel: ${{ matrix.channel }}" >&2
+          exit 1
+
+      - name: Setup butler
+        uses: remarkablegames/setup-butler@v2
+        env:
+          BUTLER_API_KEY: ${{ secrets.BUTLER_API_KEY }}
+
+      - name: Upload to itch.io
+        shell: bash
+        env:
+          ITCH_USERNAME: ${{ secrets.ITCH_USERNAME }}
+          ITCH_GAME: ${{ secrets.ITCH_GAME }}
+          INPUT_VERSION: ${{ github.event.inputs.version }}
+        run: |
+          set -euo pipefail
+
+          if [ -z "${ITCH_USERNAME:-}" ] || [ -z "${ITCH_GAME:-}" ]; then
+            echo "ITCH_USERNAME and ITCH_GAME must be configured as GitHub Secrets." >&2
+            exit 1
+          fi
+
+          VERSION="${INPUT_VERSION:-}"
+
+          if [ -z "$VERSION" ] && [[ "${GITHUB_REF:-}" == refs/tags/* ]]; then
+            VERSION="${GITHUB_REF#refs/tags/}"
+            VERSION="${VERSION#v}"
+          fi
+
+          if [ -z "$VERSION" ]; then
+            VERSION="$(node -p "require('./package.json').version")"
+          fi
+
+          butler push "${{ steps.artifact.outputs.path }}" "${ITCH_USERNAME}/${ITCH_GAME}:${{ matrix.channel }}" --userversion "$VERSION"

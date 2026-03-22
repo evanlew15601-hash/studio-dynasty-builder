@@ -287,7 +287,7 @@ export const StudioMagnateGame: React.FC<StudioMagnateGameProps> = ({
     const universeSeed = generateGameSeed();
 
     const currentYear = isOnlineMode ? ONLINE_LEAGUE_START_YEAR : new Date().getUTCFullYear();
-    const streamingWarsEnabled = !!gameConfig?.enableStreamingWars;
+    const streamingWarsEnabled = gameConfig?.enableStreamingWars ?? true;
 
     return {
       universeSeed,
@@ -503,9 +503,9 @@ export const StudioMagnateGame: React.FC<StudioMagnateGameProps> = ({
         rngState: universeSeed,
         mode: isOnlineMode ? 'online' : 'single',
         dlc: {
-          streamingWars: !!gameConfig?.enableStreamingWars,
+          streamingWars: gameConfig?.enableStreamingWars ?? true,
         },
-        platformMarket: gameConfig?.enableStreamingWars
+        platformMarket: (gameConfig?.enableStreamingWars ?? true)
           ? createInitialPlatformMarketState({ currentWeek: 1, currentYear: worldStartYear })
           : undefined,
         studio,
