@@ -462,7 +462,7 @@ export const StreamingPlatformPreview: React.FC<{
               }}
               data-active={prestigeView === 'browse' && activeNav === 'home'}
             >
-              <div className="sp-hub-label">HBO</div>
+              <div className="sp-hub-label">{platformName}</div>
               <div className="sp-hub-sub">Originals + favorites</div>
             </button>
             <button
