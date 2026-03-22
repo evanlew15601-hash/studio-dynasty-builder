@@ -22,35 +22,62 @@ function runTauriIcon({ inputPng, tmpOutDir }) {
   });
 }
 
-function main() {
-  const inputPng = path.join(rootDir, "src-tauri", "icons", "icon.png");
-  const outputIco = path.join(rootDir, "src-tauri", "icons", "icon.ico");
-  const outputIcns = path.join(rootDir, "src-tauri", "icons", "icon.icns");
+function isValidIcns(filePath) {
+  if (!fs.existsSync(filePath)) {
+    return false;
+  }
+  const header = fs.readFileSync(filePath).subarray(0, 4).toString("utf8");
+  return header === "icns";
+}
 
-  if (fs.existsSync(outputIco) && fs.existsSync(outputIcns)) {
+function isValidIco(filePath) {
+  if (!fs.existsSync(filePath)) {
+    return false;
+  }
+  const header = fs.readFileSync(filePath).subarray(0, 4);
+  return header.length === 4 && header[0] === 0 && header[1] === 0 && header[2] === 1 && header[3] === 0;
+}
+
+function main() {
+  const iconsDir = path.join(rootDir, "src-tauri", "icons");
+
+  const sourcePng = path.join(iconsDir, "icon.png");
+  if (!fs.existsSync(sourcePng)) {
+    throw new Error(`Missing icon source PNG at ${sourcePng}`);
+  }
+
+  const expectedPngOutputs = ["32x32.png", "128x128.png", "128x128@2x.png"];
+  const expectedIco = "icon.ico";
+  const expectedIcns = "icon.icns";
+
+  const haveValidIco = isValidIco(path.join(iconsDir, expectedIco));
+  const haveValidIcns = isValidIcns(path.join(iconsDir, expectedIcns));
+  const haveAllPngs = expectedPngOutputs.every((name) => fs.existsSync(path.join(iconsDir, name)));
+
+  if (haveValidIco && haveValidIcns && haveAllPngs) {
     return;
   }
 
-  if (!fs.existsSync(inputPng)) {
-    throw new Error(`Missing icon source PNG at ${inputPng}`);
-  }
-
   const tmpOutDir = path.join(rootDir, "src-tauri", "target", ".generated-icons");
-  runTauriIcon({ inputPng, tmpOutDir });
+  const tmpInput = path.join(tmpOutDir, "source.png");
 
-  const tmpIco = path.join(tmpOutDir, "icon.ico");
-  const tmpIcns = path.join(tmpOutDir, "icon.icns");
+  fs.mkdirSync(tmpOutDir, { recursive: true });
+  fs.copyFileSync(sourcePng, tmpInput);
 
-  if (!fs.existsSync(tmpIco) || !fs.existsSync(tmpIcns)) {
-    throw new Error(
-      `tauri icon did not generate expected files. Missing: ${
-        !fs.existsSync(tmpIco) ? tmpIco : tmpIcns
-      }`,
-    );
+  runTauriIcon({ inputPng: tmpInput, tmpOutDir });
+
+  const expectedOutputs = [...expectedPngOutputs, expectedIco, expectedIcns];
+
+  for (const name of expectedOutputs) {
+    const generated = path.join(tmpOutDir, name);
+    if (!fs.existsSync(generated)) {
+      throw new Error(`tauri icon did not generate expected file: ${generated}`);
+    }
+
+    fs.copyFileSync(generated, path.join(iconsDir, name));
   }
 
-  fs.copyFileSync(tmpIco, outputIco);
-  fs.copyFileSync(tmpIcns, outputIcns);
+  console.log(`Prepared Tauri icons: ${expectedOutputs.join(", ")}`);
 }
 
 main();

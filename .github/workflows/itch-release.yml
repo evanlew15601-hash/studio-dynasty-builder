@@ -83,9 +83,9 @@ jobs:
                 npm run tauri:build -- --bundles appimage
                 ;;
               mac)
-                # Let Tauri pick the default macOS bundling targets from config,
-                # but ensure code signing is skipped for CI.
-                npm run tauri:build -- --no-sign
+                # Ensure we have a valid .icns icon in config (macOS bundler requires it),
+                # and skip code signing for CI.
+                npm run tauri -- build --no-sign --config src-tauri/tauri.release.macos.conf.json
                 ;;
               windows)
                 # Windows MSI (WiX) does not support semver prerelease identifiers like "-beta.1".
