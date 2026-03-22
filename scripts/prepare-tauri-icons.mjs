@@ -67,6 +67,18 @@ function isValidIco(filePath) {
   return header.length === 4 && header[0] === 0 && header[1] === 0 && header[2] === 1 && header[3] === 0;
 }
 
+function isRcCompatibleIco(filePath) {
+  if (!isValidIco(filePath)) {
+    return false;
+  }
+
+  // RC.EXE rejects ICO files that contain PNG-compressed frames.
+  // Detect that by scanning for the PNG signature bytes.
+  const buf = fs.readFileSync(filePath);
+  const pngSig = Buffer.from([0x89, 0x50, 0x4e, 0x47, 0x0d, 0x0a, 0x1a, 0x0a]);
+  return buf.indexOf(pngSig) === -1;
+}
+
 function main() {
   const iconsDir = path.join(rootDir, "src-tauri", "icons");
 
@@ -80,7 +92,10 @@ function main() {
   const expectedIcns = "icon.icns";
   const needIcns = process.platform === "darwin";
 
-  const haveValidIco = isValidIco(path.join(iconsDir, expectedIco));
+  const haveValidIco =
+    process.platform === "win32"
+      ? isRcCompatibleIco(path.join(iconsDir, expectedIco))
+      : isValidIco(path.join(iconsDir, expectedIco));
   const haveValidIcns = !needIcns || isValidIcns(path.join(iconsDir, expectedIcns));
   const haveAllPngs = expectedPngOutputs.every((name) => fs.existsSync(path.join(iconsDir, name)));
 
@@ -103,6 +118,32 @@ function main() {
     runMacIconutil({ sourcePng, outDir: tmpOutDir });
   }
 
+  if (process.platform === "win32") {
+    // Ensure RC.EXE-compatible ICO (no PNG-compressed frames).
+    const ps1 = path.join(scriptsDir, "generate-windows-ico.ps1");
+    const outIco = path.join(tmpOutDir, expectedIco);
+
+    execFileSync(
+      "powershell.exe",
+      [
+        "-NoProfile",
+        "-ExecutionPolicy",
+        "Bypass",
+        "-File",
+        ps1,
+        "-InputPng",
+        sourcePng,
+        "-OutIco",
+        outIco,
+      ],
+      { stdio: "inherit" },
+    );
+
+    if (!isRcCompatibleIco(outIco)) {
+      throw new Error(`Generated Windows ICO is not RC-compatible: ${outIco}`);
+    }
+  }
+
   const expectedOutputs = [...expectedPngOutputs, expectedIco];
   if (process.platform === "darwin") {
     expectedOutputs.push(expectedIcns);
@@ -117,7 +158,11 @@ function main() {
     fs.copyFileSync(generated, path.join(iconsDir, name));
   }
 
-  if (!isValidIco(path.join(iconsDir, expectedIco))) {
+  if (process.platform === "win32") {
+    if (!isRcCompatibleIco(path.join(iconsDir, expectedIco))) {
+      throw new Error(`Generated Windows ICO is not RC-compatible: ${path.join(iconsDir, expectedIco)}`);
+    }
+  } else if (!isValidIco(path.join(iconsDir, expectedIco))) {
     throw new Error(`Generated ICO is not valid: ${path.join(iconsDir, expectedIco)}`);
   }
 
@@ -126,13 +171,13 @@ function main() {
   }
 
   // Windows builds (tauri-winres) sometimes fall back to public/favicon.ico.
-  // Ensure that file is always a valid ICO to avoid RC2175.
+  // Ensure that file is always an RC.EXE-compatible ICO to avoid RC2175.
   if (process.platform === "win32") {
     const publicFavicon = path.join(rootDir, "public", "favicon.ico");
     fs.copyFileSync(path.join(iconsDir, expectedIco), publicFavicon);
 
-    if (!isValidIco(publicFavicon)) {
-      throw new Error(`public/favicon.ico is not a valid ICO after copy: ${publicFavicon}`);
+    if (!isRcCompatibleIco(publicFavicon)) {
+      throw new Error(`public/favicon.ico is not RC-compatible after copy: ${publicFavicon}`);
     }
   }
 

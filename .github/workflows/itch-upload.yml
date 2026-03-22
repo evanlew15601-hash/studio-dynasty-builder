@@ -68,18 +68,33 @@ jobs:
           node scripts/prepare-tauri-icons.mjs
           ls -la src-tauri/icons
 
-      - name: Ensure Windows favicon.ico is valid
+      - name: Ensure Windows favicon.ico is RC-compatible
         if: matrix.platform == 'windows-latest'
-        shell: bash
+        shell: pwsh
         run: |
-          set -euo pipefail
+          $ErrorActionPreference = 'Stop'
 
-          if [ ! -f src-tauri/icons/icon.ico ]; then
-            echo "Missing src-tauri/icons/icon.ico after icon preparation" >&2
-            exit 1
-          fi
+          if (-not (Test-Path -Path 'src-tauri/icons/icon.ico')) {
+            throw 'Missing src-tauri/icons/icon.ico after icon preparation'
+          }
 
-          cp src-tauri/icons/icon.ico public/favicon.ico
+          Copy-Item 'src-tauri/icons/icon.ico' 'public/favicon.ico' -Force
+
+          $bytes = [System.IO.File]::ReadAllBytes('public/favicon.ico')
+          if ($bytes.Length -lt 8) {
+            throw 'public/favicon.ico too small'
+          }
+
+          # Reject PNG-compressed frames (RC.EXE will error RC2175)
+          $pngSig = [byte[]](0x89,0x50,0x4E,0x47,0x0D,0x0A,0x1A,0x0A)
+          for ($i = 0; $i -le $bytes.Length - $pngSig.Length; $i++) {
+            $match = $true
+            for ($j = 0; $j -lt $pngSig.Length; $j++) {
+              if ($bytes[$i + $j] -ne $pngSig[$j]) { $match = $false; break }
+            }
+            if ($match) { throw 'public/favicon.ico contains PNG-compressed frame data (not RC-compatible)'
+            }
+          }
 
       - name: Build Tauri
         shell: bash
