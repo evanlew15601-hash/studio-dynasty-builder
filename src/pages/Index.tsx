@@ -1,4 +1,5 @@
 import { GameLanding } from '@/components/game/GameLanding';
+import { MagnateStudiosIntro } from '@/components/game/MagnateStudiosIntro';
 import { SaveLoadDialog } from '@/components/game/SaveLoadDialog';
 import { GlobalLoadingOverlay } from '@/components/ui/global-loading-overlay';
 import { LoadingProvider } from '@/contexts/LoadingContext';
@@ -23,9 +24,17 @@ type GameConfig = {
   enableStreamingWars: boolean;
 };
 
+const INTRO_SEEN_KEY = 'studio-magnate-intro-seen';
+
 const Index = () => {
   const { toast } = useToast();
   const [gameStarted, setGameStarted] = useState(false);
+  const [introDone, setIntroDone] = useState(() => {
+    if (typeof window === 'undefined') return true;
+    if (window.sessionStorage.getItem(INTRO_SEEN_KEY) === '1') return true;
+    if (window.localStorage.getItem(AUTO_LOAD_SLOT_KEY)) return true;
+    return false;
+  });
   const [gameConfig, setGameConfig] = useState<GameConfig | null>(null);
   const [loadedSnapshot, setLoadedSnapshot] = useState<SaveGameSnapshot | null>(null);
   const [saveDialogOpen, setSaveDialogOpen] = useState(false);
@@ -39,6 +48,13 @@ const Index = () => {
 
   const handleLoadGame = () => {
     setSaveDialogOpen(true);
+  };
+
+  const handleIntroDone = () => {
+    if (typeof window !== 'undefined') {
+      window.sessionStorage.setItem(INTRO_SEEN_KEY, '1');
+    }
+    setIntroDone(true);
   };
 
   const handleLoadedSnapshot = (snapshot: SaveGameSnapshot) => {
@@ -90,15 +106,19 @@ const Index = () => {
     <LoadingProvider>
       <GlobalLoadingOverlay />
       {!gameStarted ? (
-        <>
-          <GameLanding onStartGame={handleStartGame} onLoadGame={handleLoadGame} />
-          <SaveLoadDialog
-            open={saveDialogOpen}
-            onOpenChange={setSaveDialogOpen}
-            mode="single"
-            onLoaded={handleLoadedSnapshot}
-          />
-        </>
+        !introDone ? (
+          <MagnateStudiosIntro onDone={handleIntroDone} />
+        ) : (
+          <>
+            <GameLanding onStartGame={handleStartGame} onLoadGame={handleLoadGame} />
+            <SaveLoadDialog
+              open={saveDialogOpen}
+              onOpenChange={setSaveDialogOpen}
+              mode="single"
+              onLoaded={handleLoadedSnapshot}
+            />
+          </>
+        )
       ) : (
         <Suspense fallback={<div className="p-6 text-sm text-muted-foreground">Loading game...</div>}>
           <StudioMagnateGame

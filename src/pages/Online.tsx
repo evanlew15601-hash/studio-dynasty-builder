@@ -1,4 +1,5 @@
 import { GameLanding } from '@/components/game/GameLanding';
+import { MagnateStudiosIntro } from '@/components/game/MagnateStudiosIntro';
 import { SaveLoadDialog } from '@/components/game/SaveLoadDialog';
 import { GlobalLoadingOverlay } from '@/components/ui/global-loading-overlay';
 import { LoadingProvider } from '@/contexts/LoadingContext';
@@ -33,9 +34,17 @@ function generateLeagueCode(): string {
   return out;
 }
 
+const INTRO_SEEN_KEY = 'studio-magnate-intro-seen';
+
 const Online = () => {
   const { toast } = useToast();
   const [gameStarted, setGameStarted] = useState(false);
+  const [introDone, setIntroDone] = useState(() => {
+    if (typeof window === 'undefined') return true;
+    if (window.sessionStorage.getItem(INTRO_SEEN_KEY) === '1') return true;
+    if (window.localStorage.getItem(AUTO_LOAD_SLOT_KEY)) return true;
+    return false;
+  });
   const [gameConfig, setGameConfig] = useState<GameConfig | null>(null);
   const [loadedSnapshot, setLoadedSnapshot] = useState<SaveGameSnapshot | null>(null);
   const [saveDialogOpen, setSaveDialogOpen] = useState(false);
@@ -73,6 +82,13 @@ const Online = () => {
 
   const handleLoadGame = () => {
     setSaveDialogOpen(true);
+  };
+
+  const handleIntroDone = () => {
+    if (typeof window !== 'undefined') {
+      window.sessionStorage.setItem(INTRO_SEEN_KEY, '1');
+    }
+    setIntroDone(true);
   };
 
   const handleLoadedSnapshot = (snapshot: SaveGameSnapshot) => {
@@ -147,26 +163,30 @@ const Online = () => {
     <LoadingProvider>
       <GlobalLoadingOverlay />
       {!gameStarted ? (
-        <>
-          <GameLanding
-            mode="online"
-            onlineLeagueCode={onlineLeagueCode}
-            onOnlineLeagueCodeChange={handleLeagueCodeChange}
-            onGenerateOnlineLeagueCode={handleGenerateLeagueCode}
-            onlineHostSync={onlineHostSync}
-            onOnlineHostSyncChange={handleOnlineHostSyncChange}
-            onlineSeasonYears={onlineSeasonYears}
-            onOnlineSeasonYearsChange={handleOnlineSeasonYearsChange}
-            onStartGame={handleStartGame}
-            onLoadGame={handleLoadGame}
-          />
-          <SaveLoadDialog
-            open={saveDialogOpen}
-            onOpenChange={setSaveDialogOpen}
-            mode="online"
-            onLoaded={handleLoadedSnapshot}
-          />
-        </>
+        !introDone ? (
+          <MagnateStudiosIntro onDone={handleIntroDone} />
+        ) : (
+          <>
+            <GameLanding
+              mode="online"
+              onlineLeagueCode={onlineLeagueCode}
+              onOnlineLeagueCodeChange={handleLeagueCodeChange}
+              onGenerateOnlineLeagueCode={handleGenerateLeagueCode}
+              onlineHostSync={onlineHostSync}
+              onOnlineHostSyncChange={handleOnlineHostSyncChange}
+              onlineSeasonYears={onlineSeasonYears}
+              onOnlineSeasonYearsChange={handleOnlineSeasonYearsChange}
+              onStartGame={handleStartGame}
+              onLoadGame={handleLoadGame}
+            />
+            <SaveLoadDialog
+              open={saveDialogOpen}
+              onOpenChange={setSaveDialogOpen}
+              mode="online"
+              onLoaded={handleLoadedSnapshot}
+            />
+          </>
+        )
       ) : (
         <Suspense fallback={null}>
           <StudioMagnateGame
