@@ -35,9 +35,9 @@
     "icon": ["../public/favicon.ico"],
     "publisher": "Magnate Studios",
     "windows": {
-      "webviewInstallMode": { "type": "offlineInstaller", "silent": true },
+      "webviewInstallMode": { "type": "embedBootstrapper", "silent": true },
       "nsis": {
-        "installMode": "perMachine",
+        "installMode": "currentUser",
         "displayLanguageSelector": true,
         "installerIcon": "../public/favicon.ico",
         "startMenuFolder": "Magnate Studios"
