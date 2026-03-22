@@ -5,6 +5,34 @@
 - Keep the game’s **difficulty model as budget-only** (start poorer for a harder run). No systemic scaling required.
 - Focus fixes on improving **player understanding, trust, and flow**, while reducing “rules drift” between parallel implementations.
 
+## Key architecture decision (recommended)
+
+You asked which approach to choose for finances/"what is authoritative". Here’s a repo-specific recommendation.
+
+### Recommendation: **Engine/GameState is authoritative; ledger is derived for UI**
+
+**Choose this if:** you want determinism, simpler debugging, and one clear source of truth.
+
+- **Authoritative simulation + money:** `useGameStore` + engine tick pipeline (`src/game/core/tick.ts` + `src/game/store.ts`).
+- **UI finance display:** computed from **GameState** + **TickReport** (and optionally a UI-only ledger for nicer presentation).
+
+Why this fits this repo:
+
+- The engine explicitly declares: “This is the ONLY place GameState changes due to time passing.” (`src/game/core/tick.ts`).
+- The repo already has extensive determinism guardrails/tests around the engine pipeline.
+- `FinancialEngine` is a static class with localStorage side effects; wiring it into the engine would add non-deterministic I/O and complicate worker/offline determinism.
+
+### Alternative (not recommended): make `FinancialEngine` the canonical ledger
+
+This can work, but it tends to make the sim harder to reason about in this repo because:
+
+- The engine systems are written as pure-ish functions; calling a global ledger with storage writes is an implicit side effect.
+- You risk double-accounting (engine updates budget *and* ledger writes) unless you strictly refactor all callers.
+
+**Decision action:** proceed with the recommendation above unless you have a hard requirement for a persisted transaction ledger that must survive across saves independently of the game state.
+
+---
+
 ## Highest-impact fix themes
 
 ### 1) Make financial feedback authoritative (remove placeholders)
