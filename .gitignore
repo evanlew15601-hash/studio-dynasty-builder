@@ -14,6 +14,7 @@ sbom
 
 # Rust / Tauri build artifacts
 /target/
+/src-tauri/target/
 
 # Test artifacts
 /playwright-report/
