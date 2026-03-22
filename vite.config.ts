@@ -40,6 +40,8 @@ export default defineConfig(({ mode }) => {
 
   const base = normalizeBase(configuredBase);
 
+  const isProd = mode === "production";
+
   return {
     base,
     server: {
@@ -58,5 +60,9 @@ export default defineConfig(({ mode }) => {
         "react-dom": path.resolve(rootDir, "./node_modules/react-dom"),
       },
     },
+    build: {
+      sourcemap: false,
+    },
+    esbuild: isProd ? { drop: ["console", "debugger"] } : undefined,
   };
 });

@@ -5,8 +5,10 @@ import { applyProductionConsolePolicy } from '@/utils/consolePolicy';
 import { initUiSkin } from '@/utils/uiSkins';
 import { installVitePreloadErrorHandler } from '@/utils/chunkLoadRecovery';
 import { applyStoredWindowSizePreset } from '@/utils/windowSize';
+import { applyProductionDevtoolsBlockers } from '@/utils/devtoolsBlockers';
 
 applyProductionConsolePolicy();
+applyProductionDevtoolsBlockers();
 installVitePreloadErrorHandler();
 initUiSkin();
 void applyStoredWindowSizePreset().catch((err) => {
