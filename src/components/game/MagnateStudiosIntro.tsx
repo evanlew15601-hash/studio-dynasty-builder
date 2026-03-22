@@ -1,4 +1,4 @@
-import React, { useEffect, useState } from 'react';
+import React, { useEffect, useRef, useState } from 'react';
 import { PremiumBackground } from '@/components/ui/premium-background';
 import { cn } from '@/lib/utils';
 
@@ -12,6 +12,18 @@ const FADE_OUT_MS = 650;
 
 export const MagnateStudiosIntro: React.FC<MagnateStudiosIntroProps> = ({ onDone }) => {
   const [phase, setPhase] = useState<'enter' | 'hold' | 'exit'>('enter');
+  const onDoneRef = useRef(onDone);
+  const finishedRef = useRef(false);
+
+  useEffect(() => {
+    onDoneRef.current = onDone;
+  }, [onDone]);
+
+  const finish = () => {
+    if (finishedRef.current) return;
+    finishedRef.current = true;
+    onDoneRef.current();
+  };
 
   useEffect(() => {
     const reduceMotion =
@@ -20,20 +32,22 @@ export const MagnateStudiosIntro: React.FC<MagnateStudiosIntroProps> = ({ onDone
       window.matchMedia('(prefers-reduced-motion: reduce)').matches;
 
     if (reduceMotion) {
-      onDone();
+      finish();
       return;
     }
 
     const enterTimer = window.setTimeout(() => setPhase('hold'), FADE_IN_MS);
     const exitTimer = window.setTimeout(() => setPhase('exit'), FADE_IN_MS + HOLD_MS);
-    const doneTimer = window.setTimeout(() => onDone(), FADE_IN_MS + HOLD_MS + FADE_OUT_MS);
+    const doneTimer = window.setTimeout(() => finish(), FADE_IN_MS + HOLD_MS + FADE_OUT_MS);
 
     return () => {
       window.clearTimeout(enterTimer);
       window.clearTimeout(exitTimer);
       window.clearTimeout(doneTimer);
     };
-  }, [onDone]);
+    // Run once: parent renders shouldn't reset the timers.
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
 
   return (
     <div
@@ -43,6 +57,7 @@ export const MagnateStudiosIntro: React.FC<MagnateStudiosIntroProps> = ({ onDone
         phase === 'exit' && 'animate-out fade-out-0 duration-[650ms]'
       )}
       role="presentation"
+      onClick={finish}
     >
       <PremiumBackground variant="landing" />
 
