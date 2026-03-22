@@ -11,7 +11,22 @@
 - From the main menu, use Load Saved Game to continue.
 - Desktop builds store saves as files on your computer (see the in-game Saves… dialog to view the exact folder).
 
+## Online League (beta)
 
+Online League is an optional online mode powered by your own Supabase project.
+
+Setup (host does this once):
+
+1. Create a Supabase project.
+2. Enable **Anonymous sign-ins** (Supabase Dashboard → Authentication → Providers).
+3. Run the Online League schema in Supabase (Dashboard → SQL Editor → New query).
+   - In-game: main menu → Online League → Configure… → **Copy Online League SQL**
+4. Copy the Supabase **Project URL** + **anon key** (Dashboard → Settings → API).
+5. In-game: main menu → Online League → Configure… → paste URL + anon key.
+
+Notes:
+- Everyone in the same league must use the same Supabase project.
+- Only the anon key is needed. Do not share your service role key.
 
 ## Difficulty
 

@@ -260,7 +260,7 @@ export const GameLanding: React.FC<GameLandingProps> = ({
 
                   {!hasOnlineConfig && (
                     <div className="rounded-md border border-destructive/40 bg-destructive/5 p-3 text-xs text-destructive">
-                      Online League isn’t configured on this device. Click <span className="font-medium">Configure…</span> to set your Supabase URL + anon key (or build with <span className="font-mono">VITE_SUPABASE_URL</span> and <span className="font-mono">VITE_SUPABASE_ANON_KEY</span>).
+                      Online League isn’t configured on this device. Click <span className="font-medium">Configure…</span> to set your Supabase URL + anon key (and copy the one-time schema SQL).
                     </div>
                   )}
 
@@ -630,7 +630,7 @@ export const GameLanding: React.FC<GameLandingProps> = ({
                     {!hasOnlineConfig && (
                       <div className="mt-2 space-y-2">
                         <p className="text-xs text-destructive">
-                          Online League isn’t configured on this device. Click Configure… to set your Supabase URL + anon key.
+                          Online League isn’t configured on this device. Click Configure… to set your Supabase URL + anon key (and copy the one-time schema SQL).
                         </p>
                         <Button size="sm" variant="secondary" onClick={() => setSupabaseConfigOpen(true)}>
                           Configure…

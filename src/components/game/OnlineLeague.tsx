@@ -534,11 +534,13 @@ export const OnlineLeague: React.FC<OnlineLeagueProps> = ({ initialLeagueCode })
           </CardHeader>
           <CardContent className="space-y-2 text-sm text-muted-foreground">
             <p>
-              Online League requires Supabase settings.
+              Online League requires a Supabase project.
             </p>
-            <p>
-              If you’re running the desktop app, configure it from the main menu (Online -{'>'} Configure…). If you’re developing locally, you can also set <code>VITE_SUPABASE_URL</code> and <code>VITE_SUPABASE_ANON_KEY</code> in <code>.env</code>.
-            </p>
+            <ul className="list-disc pl-5 space-y-1">
+              <li>Enable Anonymous sign-ins (Supabase Authentication → Providers).</li>
+              <li>Run the Online League schema once (SQL Editor).</li>
+              <li>In-game: main menu → Online League → Configure… → paste Project URL + anon key.</li>
+            </ul>
           </CardContent>
         </Card>
       )}

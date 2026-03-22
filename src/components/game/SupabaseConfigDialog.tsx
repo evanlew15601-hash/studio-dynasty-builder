@@ -19,6 +19,8 @@ import {
   setSupabaseLocalConfig,
 } from '@/integrations/supabase/client';
 
+import onlineLeagueSetupSql from '@/content/online_league_setup.sql?raw';
+
 export function SupabaseConfigDialog(props: { open: boolean; onOpenChange: (open: boolean) => void }) {
   const { toast } = useToast();
 
@@ -35,6 +37,23 @@ export function SupabaseConfigDialog(props: { open: boolean; onOpenChange: (open
   }, [effective?.anonKey, effective?.url, props.open]);
 
   const canClearLocal = status.source === 'local';
+
+  const handleCopySetupSql = async () => {
+    if (typeof navigator === 'undefined' || !navigator.clipboard) {
+      toast({
+        title: 'Clipboard unavailable',
+        description: 'Unable to copy on this device. You can still find the schema in the project source.',
+        variant: 'destructive',
+      });
+      return;
+    }
+
+    await navigator.clipboard.writeText(onlineLeagueSetupSql);
+    toast({
+      title: 'Copied',
+      description: 'Paste into Supabase SQL Editor and run it once to create the Online League tables/functions.',
+    });
+  };
 
   const handleSave = () => {
     const normalizedUrl = url.trim();
@@ -79,6 +98,29 @@ export function SupabaseConfigDialog(props: { open: boolean; onOpenChange: (open
             {status.url ? <div className="mt-1 font-mono break-all">{status.url}</div> : null}
             <div className="mt-2">
               Tip: for local Supabase, the URL is usually <code>http://127.0.0.1:54321</code>.
+            </div>
+          </div>
+
+          <div className="rounded-md border border-border/60 bg-background/40 p-3 text-xs text-muted-foreground space-y-2">
+            <div className="font-medium text-foreground">First-time Supabase setup (Online League)</div>
+            <ol className="list-decimal pl-5 space-y-1">
+              <li>Create a Supabase project (hosted).</li>
+              <li>In Supabase, enable <span className="font-medium text-foreground">Anonymous sign-ins</span> (Authentication → Providers).</li>
+              <li>Run the Online League schema once (SQL Editor → New query).</li>
+              <li>Copy your <span className="font-medium text-foreground">Project URL</span> + <span className="font-medium text-foreground">anon key</span> (Settings → API) and paste them below.</li>
+            </ol>
+            <div className="flex flex-wrap gap-2">
+              <Button type="button" size="sm" variant="secondary" onClick={() => void handleCopySetupSql()}>
+                Copy Online League SQL
+              </Button>
+              <Button type="button" size="sm" variant="outline" asChild>
+                <a href="https://supabase.com/dashboard/projects" target="_blank" rel="noreferrer">
+                  Open Supabase
+                </a>
+              </Button>
+            </div>
+            <div>
+              Don’t use your service role key here. Only the anon key is needed.
             </div>
           </div>
 

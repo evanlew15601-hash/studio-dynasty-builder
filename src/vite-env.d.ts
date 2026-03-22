@@ -1,7 +1,8 @@
 /// <reference types="vite/client" />
 
 declare interface ImportMetaEnv {
-  readonly VITE_STEAM_STREAMING_WARS_DLC_APP_ID?: string;
+  readonly VITE_SUPABASE_URL?: string;
+  readonly VITE_SUPABASE_ANON_KEY?: string;
 }
 
 declare interface ImportMeta {
