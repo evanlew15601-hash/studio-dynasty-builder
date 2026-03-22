@@ -1,7 +1,7 @@
 {
   "productName": "Studio Magnate",
   "version": "../package.json",
-  "identifier": "com.studiomagnate.app",
+  "identifier": "com.studiomagnate.studiomagnate",
   "build": {
     "beforeDevCommand": "npm run dev -- --host 127.0.0.1 --port 1420 --strictPort",
     "devUrl": "http://127.0.0.1:1420",
