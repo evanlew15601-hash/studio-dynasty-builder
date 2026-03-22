@@ -46,7 +46,14 @@ Download Butler and ensure `butler` is on your PATH:
 butler login
 ```
 
-### 3) Upload
+### 3) Build
+
+```sh
+npm ci --include=dev
+npm run tauri:build
+```
+
+### 4) Upload
 
 You can push either a directory or a single file (zip/exe/dmg).
 
