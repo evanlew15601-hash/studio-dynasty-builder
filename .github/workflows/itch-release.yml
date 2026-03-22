@@ -23,10 +23,16 @@ jobs:
         include:
           - platform: windows-latest
             channel: windows
+            args: ''
           - platform: ubuntu-22.04
             channel: linux
+            args: ''
           - platform: macos-latest
-            channel: mac
+            channel: mac-arm64
+            args: '--target aarch64-apple-darwin'
+          - platform: macos-latest
+            channel: mac-x64
+            args: '--target x86_64-apple-darwin'
 
     steps:
       - uses: actions/checkout@v4
@@ -39,6 +45,8 @@ jobs:
 
       - name: Install Rust stable
         uses: dtolnay/rust-toolchain@stable
+        with:
+          targets: ${{ matrix.platform == 'macos-latest' && 'aarch64-apple-darwin,x86_64-apple-darwin' || '' }}
 
       - name: Rust cache
         uses: swatinem/rust-cache@v2
@@ -55,7 +63,7 @@ jobs:
         run: npm ci
 
       - name: Build Tauri bundles
-        run: npm run tauri:build
+        run: npm run tauri:build -- ${{ matrix.args }}
 
       - name: Prepare itch artifact
         id: artifact
@@ -91,12 +99,19 @@ jobs:
             exit 0
           fi
 
-          if [ "${{ matrix.channel }}" = "mac" ]; then
-            dmgs=(src-tauri/target/release/bundle/dmg/*.dmg)
-            if [ ${#dmgs[@]} -ge 1 ]; then
-              echo "path=${dmgs[0]}" >> "$GITHUB_OUTPUT"
-              exit 0
+          if [[ "${{ matrix.channel }}" == mac* ]]; then
+            if [ "${{ matrix.channel }}" = "mac-arm64" ]; then
+              dmgs=(src-tauri/target/release/bundle/dmg/*aarch64*.dmg src-tauri/target/release/bundle/dmg/*arm64*.dmg src-tauri/target/release/bundle/dmg/*.dmg)
+            else
+              dmgs=(src-tauri/target/release/bundle/dmg/*x86_64*.dmg src-tauri/target/release/bundle/dmg/*x64*.dmg src-tauri/target/release/bundle/dmg/*.dmg)
             fi
+
+            for dmg in "${dmgs[@]}"; do
+              if [ -f "$dmg" ]; then
+                echo "path=$dmg" >> "$GITHUB_OUTPUT"
+                exit 0
+              fi
+            done
 
             apps=(src-tauri/target/release/bundle/macos/*.app)
             if [ ${#apps[@]} -lt 1 ]; then
@@ -104,8 +119,8 @@ jobs:
               exit 1
             fi
 
-            ditto -c -k --sequesterRsrc --keepParent "${apps[0]}" studio-magnate-macos.zip
-            echo "path=studio-magnate-macos.zip" >> "$GITHUB_OUTPUT"
+            ditto -c -k --sequesterRsrc --keepParent "${apps[0]}" "studio-magnate-${{ matrix.channel }}.zip"
+            echo "path=studio-magnate-${{ matrix.channel }}.zip" >> "$GITHUB_OUTPUT"
             exit 0
           fi
 
