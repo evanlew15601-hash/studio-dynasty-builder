@@ -6,8 +6,8 @@ import { initUiSkin } from '@/utils/uiSkins';
 import { installVitePreloadErrorHandler } from '@/utils/chunkLoadRecovery';
 import { applyStoredWindowSizePreset } from '@/utils/windowSize';
 
-installVitePreloadErrorHandler();
 applyProductionConsolePolicy();
+installVitePreloadErrorHandler();
 initUiSkin();
 void applyStoredWindowSizePreset().catch((err) => {
   console.warn('[windowSize] Failed to apply stored preset', err);
