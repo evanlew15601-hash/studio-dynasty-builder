@@ -1,0 +1,9 @@
+[Desktop Entry]
+Categories=
+Comment=Studio Magnate
+Exec=studio-magnate
+StartupWMClass=studio-magnate
+Icon=studio-magnate
+Name=Studio Magnate
+Terminal=false
+Type=Application
