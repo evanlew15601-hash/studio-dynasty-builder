@@ -24,6 +24,12 @@ jobs:
 
       - name: Setup Pages
         uses: actions/configure-pages@v5
+        continue-on-error: true
+        with:
+          # If you set a repo secret named PAGES_TOKEN (PAT / GitHub App token),
+          # configure-pages can attempt to enable Pages for this repo.
+          token: ${{ secrets.PAGES_TOKEN || github.token }}
+          enablement: ${{ secrets.PAGES_TOKEN != '' }}
 
       - name: Setup Node
         uses: actions/setup-node@v4
