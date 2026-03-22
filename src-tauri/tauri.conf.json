@@ -32,7 +32,7 @@
   "bundle": {
     "active": true,
     "targets": ["nsis", "msi", "appimage", "deb", "dmg"],
-    "icon": ["icons/icon.png", "../public/favicon.ico"],
+    "icon": ["icons/icon.png", "icons/icon-alt.png", "../public/favicon.ico"],
     "publisher": "Magnate Studios",
     "windows": {
       "webviewInstallMode": { "type": "embedBootstrapper", "silent": true },
