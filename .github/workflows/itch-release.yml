@@ -133,11 +133,17 @@ jobs:
       - name: Upload to itch.io
         shell: bash
         env:
+          BUTLER_API_KEY: ${{ secrets.BUTLER_API_KEY }}
           ITCH_USERNAME: ${{ secrets.ITCH_USERNAME }}
           ITCH_GAME: ${{ secrets.ITCH_GAME }}
           INPUT_VERSION: ${{ github.event.inputs.version }}
         run: |
           set -euo pipefail
+
+          if [ -z "${BUTLER_API_KEY:-}" ]; then
+            echo "BUTLER_API_KEY must be configured as a GitHub Secret." >&2
+            exit 1
+          fi
 
           if [ -z "${ITCH_USERNAME:-}" ] || [ -z "${ITCH_GAME:-}" ]; then
             echo "ITCH_USERNAME and ITCH_GAME must be configured as GitHub Secrets." >&2
