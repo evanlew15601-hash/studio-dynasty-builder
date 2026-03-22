@@ -23,7 +23,7 @@ This is a lightweight checklist to help ensure builds are reproducible and artif
 ## 4) Preflight
 
 ```sh
-npm ci --include=dev
+npm ci --include=dev --include=optional
 npm run check
 ```
 

@@ -49,7 +49,7 @@ butler login
 ### 3) Build
 
 ```sh
-npm ci --include=dev
+npm ci --include=dev --include=optional
 npm run tauri:build
 ```
 
