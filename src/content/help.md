@@ -9,7 +9,7 @@
 
 - Use the in-game Save option to save your current run.
 - From the main menu, use Load Saved Game to continue.
-- Desktop/Steam builds store saves as files on your computer (see the in-game Saves… dialog to view the exact folder).
+- Desktop builds store saves as files on your computer (see the in-game Saves… dialog to view the exact folder).
 
 ## Steam Cloud
 

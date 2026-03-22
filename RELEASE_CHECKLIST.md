@@ -42,8 +42,8 @@ npm run tauri:build
 ### CI (Windows)
 
 - [ ] Run the `windows-tauri-build` GitHub Actions workflow and download artifacts
-- [ ] Smoke test portable build (Steam-style): launch `studio-magnate.exe` from the extracted zip
-- [ ] Upload to Steam (SteamPipe, once you have a Steam App ID): see `scripts/steam/README.md`
+- [ ] Smoke test portable build: launch `studio-magnate.exe` from the extracted zip
+- [ ] Upload to itch.io (Butler): see `scripts/itch/README.md`
 - [ ] Smoke test installer(s): install, launch, uninstall, upgrade from previous beta
 
 ## 6) Open source compliance

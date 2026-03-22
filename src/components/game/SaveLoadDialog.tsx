@@ -457,7 +457,7 @@ export function SaveLoadDialog(props: {
           <DialogDescription>
             {props.currentGameState
               ? 'Loading a save will restart the game to ensure all systems reset cleanly.'
-              : 'On Steam builds, saves are stored on disk and can be synced via Steam Cloud.'}
+              : 'On desktop builds, saves are stored on disk.'}
           </DialogDescription>
         </DialogHeader>
 
@@ -577,7 +577,7 @@ export function SaveLoadDialog(props: {
                       </Button>
                     </div>
                     <div className="text-xs text-muted-foreground">
-                      Steam Cloud: enable Steam Auto Cloud for this folder to sync saves across machines.
+                      Steam builds: enable Steam Auto Cloud for this folder to sync saves across machines.
                     </div>
                   </div>
                 ) : (
