@@ -28,10 +28,10 @@ jobs:
             channel: linux
             args: ''
           - platform: macos-latest
-            channel: mac-arm64
+            channel: osx-arm64
             args: '--target aarch64-apple-darwin'
           - platform: macos-latest
-            channel: mac-x64
+            channel: osx-x64
             args: '--target x86_64-apple-darwin'
 
     steps:
@@ -45,8 +45,10 @@ jobs:
 
       - name: Install Rust stable
         uses: dtolnay/rust-toolchain@stable
-        with:
-          targets: ${{ matrix.platform == 'macos-latest' && 'aarch64-apple-darwin,x86_64-apple-darwin' || '' }}
+
+      - name: Install macOS Rust targets
+        if: matrix.platform == 'macos-latest'
+        run: rustup target add aarch64-apple-darwin x86_64-apple-darwin
 
       - name: Rust cache
         uses: swatinem/rust-cache@v2
@@ -95,8 +97,8 @@ jobs:
             exit 0
           fi
 
-          if [[ "${{ matrix.channel }}" == mac* ]]; then
-            if [ "${{ matrix.channel }}" = "mac-arm64" ]; then
+          if [[ "${{ matrix.channel }}" == osx* ]]; then
+            if [ "${{ matrix.channel }}" = "osx-arm64" ]; then
               dmgs=(src-tauri/target/release/bundle/dmg/*aarch64*.dmg src-tauri/target/release/bundle/dmg/*arm64*.dmg src-tauri/target/release/bundle/dmg/*.dmg)
             else
               dmgs=(src-tauri/target/release/bundle/dmg/*x86_64*.dmg src-tauri/target/release/bundle/dmg/*x64*.dmg src-tauri/target/release/bundle/dmg/*.dmg)

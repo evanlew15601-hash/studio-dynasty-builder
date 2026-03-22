@@ -37,12 +37,13 @@ npm run check
 npm run tauri:build
 ```
 
-### CI (Windows)
+### CI (GitHub Actions)
 
-- [ ] Run the `windows-tauri-build` GitHub Actions workflow and download artifacts
-- [ ] Smoke test portable build: launch `studio-magnate.exe` from the extracted zip
-- [ ] Upload to itch.io (Butler): see `scripts/itch/README.md`
-- [ ] Smoke test installer(s): install, launch, uninstall, upgrade from previous beta
+- [ ] Run the `itch-release` GitHub Actions workflow (or push a `v*` tag)
+- [ ] Smoke test Windows installer (`windows`): install, launch, uninstall, upgrade from previous beta
+- [ ] Smoke test macOS builds:
+  - [ ] `osx-arm64` (Apple Silicon)
+  - [ ] `osx-x64` (Intel)
 
 ## 6) itch.io upload
 

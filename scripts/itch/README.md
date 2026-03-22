@@ -25,9 +25,10 @@ You can either:
 
 The workflow builds platform bundles and uploads to:
 
-- `ITCH_USERNAME/ITCH_GAME:windows`
+- `ITCH_USERNAME/ITCH_GAME:windows` (NSIS installer)
 - `ITCH_USERNAME/ITCH_GAME:linux`
-- `ITCH_USERNAME/ITCH_GAME:mac`
+- `ITCH_USERNAME/ITCH_GAME:osx-arm64` (Apple Silicon)
+- `ITCH_USERNAME/ITCH_GAME:osx-x64` (Intel)
 
 ## Local upload
 
@@ -47,7 +48,7 @@ butler login
 
 ### 3) Upload
 
-You can push either a directory or a zip.
+You can push either a directory or a single file (zip/exe/dmg).
 
 PowerShell helper:
 
@@ -57,7 +58,7 @@ $env:ITCH_TARGET = "youritchusername/studio-magnate:windows"
 # optional
 $env:ITCH_VERSION = "0.3.0"
 
-pwsh ./scripts/itch/upload.ps1 -BuildInput "path/to/studio-magnate-windows.zip"
+pwsh ./scripts/itch/upload.ps1 -BuildInput "path/to/studio-magnate-windows-setup.exe"
 ```
 
 Notes:
