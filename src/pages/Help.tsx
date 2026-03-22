@@ -1,4 +1,5 @@
-import { Link } from 'react-router-dom';
+import { useEffect, useState } from 'react';
+import { Link, useLocation } from 'react-router-dom';
 import { ArrowLeft } from 'lucide-react';
 
 import { MarkdownLite } from '@/components/MarkdownLite';
@@ -11,6 +12,21 @@ import helpContent from '@/content/help.md?raw';
 import thirdPartyNotices from '@/content/THIRD_PARTY_NOTICES.md?raw';
 
 const Help = () => {
+  const location = useLocation();
+  const [tab, setTab] = useState<'how-to' | 'open-source'>('how-to');
+
+  useEffect(() => {
+    if (!location.hash) return;
+    setTab('how-to');
+
+    const id = location.hash.replace(/^#/, '');
+    if (!id) return;
+
+    window.setTimeout(() => {
+      const el = document.getElementById(id);
+      el?.scrollIntoView({ block: 'start' });
+    }, 0);
+  }, [location.hash]);
   return (
     <div className="min-h-screen bg-background p-6 sm:p-10">
       <div className="mx-auto w-full max-w-4xl space-y-6">
@@ -33,7 +49,13 @@ const Help = () => {
             <CardTitle>Documentation</CardTitle>
           </CardHeader>
           <CardContent>
-            <Tabs defaultValue="how-to" className="w-full">
+            <Tabs
+              value={tab}
+              onValueChange={(v) => {
+                if (v === 'how-to' || v === 'open-source') setTab(v);
+              }}
+              className="w-full"
+            >
               <TabsList>
                 <TabsTrigger value="how-to">How to play</TabsTrigger>
                 <TabsTrigger value="open-source">Open source</TabsTrigger>

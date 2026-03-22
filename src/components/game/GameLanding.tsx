@@ -268,6 +268,12 @@ export const GameLanding: React.FC<GameLandingProps> = ({
                     <Button size="sm" variant="secondary" onClick={() => setSupabaseConfigOpen(true)}>
                       Configure…
                     </Button>
+                    <Button size="sm" variant="outline" asChild>
+                      <Link to="/help#online-league-beta">
+                        <HelpCircle aria-hidden="true" />
+                        Setup guide
+                      </Link>
+                    </Button>
                   </div>
 
                   <div className="flex gap-2">
