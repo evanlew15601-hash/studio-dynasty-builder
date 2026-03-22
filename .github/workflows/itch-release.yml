@@ -56,24 +56,40 @@ jobs:
 
       - name: Build Tauri bundles
         shell: bash
+        env:
+          RUST_BACKTRACE: 1
         run: |
           set -euo pipefail
 
-          case "${{ matrix.channel }}" in
-            linux)
-              npm run tauri:build -- --bundles appimage
-              ;;
-            mac)
-              npm run tauri:build -- --bundles app --no-sign
-              ;;
-            windows)
-              npm run tauri:build -- --no-bundle
-              ;;
-            *)
-              echo "Unknown channel: ${{ matrix.channel }}" >&2
-              exit 1
-              ;;
-          esac
+          mkdir -p ci-logs
+          LOG_FILE="ci-logs/tauri-build-${{ matrix.channel }}.log"
+
+          # Capture full output into an artifact-friendly log file (GitHub UI truncates large logs).
+          {
+            case "${{ matrix.channel }}" in
+              linux)
+                npm run tauri:build -- --bundles appimage
+                ;;
+              mac)
+                npm run tauri:build -- --bundles app --no-sign
+                ;;
+              windows)
+                npm run tauri:build -- --no-bundle
+                ;;
+              *)
+                echo "Unknown channel: ${{ matrix.channel }}" >&2
+                exit 1
+                ;;
+            esac
+          } 2>&1 | tee "$LOG_FILE"
+
+      - name: Upload build logs
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: tauri-build-logs-${{ matrix.channel }}
+          path: ci-logs/tauri-build-${{ matrix.channel }}.log
+          if-no-files-found: warn
 
       - name: Prepare itch artifact
         id: artifact
