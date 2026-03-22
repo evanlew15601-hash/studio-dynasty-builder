@@ -33,9 +33,15 @@
     "active": true,
     "targets": ["nsis", "msi", "appimage", "deb", "dmg"],
     "icon": ["../public/favicon.ico"],
+    "publisher": "Magnate Studios",
     "windows": {
       "webviewInstallMode": { "type": "offlineInstaller", "silent": true },
-      "nsis": { "installMode": "perMachine", "displayLanguageSelector": true },
+      "nsis": {
+        "installMode": "perMachine",
+        "displayLanguageSelector": true,
+        "installerIcon": "../public/favicon.ico",
+        "startMenuFolder": "Magnate Studios"
+      },
       "wix": {
         "language": "en-US",
         "upgradeCode": "9a3c0de9-3c76-4c67-97da-1ad1cbf58c95"

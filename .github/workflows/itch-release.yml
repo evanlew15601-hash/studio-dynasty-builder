@@ -73,18 +73,14 @@ jobs:
           shopt -s nullglob
 
           if [ "${{ matrix.channel }}" = "windows" ]; then
-            rm -rf portable
-            mkdir -p portable
-
-            cp src-tauri/target/release/*.exe portable/
-            cp src-tauri/target/release/*.dll portable/ || true
-
-            if [ -d src-tauri/target/release/resources ]; then
-              cp -R src-tauri/target/release/resources portable/
+            nsis=(src-tauri/target/release/bundle/nsis/*-setup.exe src-tauri/target/release/bundle/nsis/*.exe)
+            if [ ${#nsis[@]} -lt 1 ]; then
+              echo "No NSIS installer found at src-tauri/target/release/bundle/nsis/*.exe" >&2
+              exit 1
             fi
 
-            tar -a -c -f studio-magnate-windows-portable.zip -C portable .
-            echo "path=studio-magnate-windows-portable.zip" >> "$GITHUB_OUTPUT"
+            cp "${nsis[0]}" studio-magnate-windows-setup.exe
+            echo "path=studio-magnate-windows-setup.exe" >> "$GITHUB_OUTPUT"
             exit 0
           fi
 
