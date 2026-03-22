@@ -55,7 +55,41 @@ jobs:
         run: npm ci
 
       - name: Build Tauri bundles
-        run: npm run tauri:build
+        shell: bash
+        env:
+          RUST_BACKTRACE: 1
+        run: |
+          set -euo pipefail
+
+          mkdir -p ci-logs
+          LOG_FILE="ci-logs/tauri-build-${{ matrix.channel }}.log"
+
+          # Capture full output into an artifact-friendly log file (GitHub UI truncates large logs).
+          {
+            case "${{ matrix.channel }}" in
+              linux)
+                npm run tauri:build -- --bundles appimage
+                ;;
+              mac)
+                npm run tauri:build -- --bundles app --no-sign
+                ;;
+              windows)
+                npm run tauri:build -- --no-bundle
+                ;;
+              *)
+                echo "Unknown channel: ${{ matrix.channel }}" >&2
+                exit 1
+                ;;
+            esac
+          } 2>&1 | tee "$LOG_FILE"
+
+      - name: Upload build logs
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: tauri-build-logs-${{ matrix.channel }}
+          path: ci-logs/tauri-build-${{ matrix.channel }}.log
+          if-no-files-found: warn
 
       - name: Prepare itch artifact
         id: artifact
@@ -112,6 +146,13 @@ jobs:
           echo "Unknown channel: ${{ matrix.channel }}" >&2
           exit 1
 
+      - name: Upload build artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: studio-magnate-${{ matrix.channel }}
+          path: ${{ steps.artifact.outputs.path }}
+          if-no-files-found: error
+
       - name: Setup butler
         uses: remarkablegames/setup-butler@v2
 
@@ -125,14 +166,9 @@ jobs:
         run: |
           set -euo pipefail
 
-          if [ -z "${BUTLER_API_KEY:-}" ]; then
-            echo "BUTLER_API_KEY must be configured as a GitHub Secret." >&2
-            exit 1
-          fi
-
-          if [ -z "${ITCH_USERNAME:-}" ] || [ -z "${ITCH_GAME:-}" ]; then
-            echo "ITCH_USERNAME and ITCH_GAME must be configured as GitHub Secrets or Actions Variables." >&2
-            exit 1
+          if [ -z "${BUTLER_API_KEY:-}" ] || [ -z "${ITCH_USERNAME:-}" ] || [ -z "${ITCH_GAME:-}" ]; then
+            echo "Skipping itch.io upload (missing BUTLER_API_KEY and/or ITCH_USERNAME and/or ITCH_GAME)." >&2
+            exit 0
           fi
 
           VERSION="${INPUT_VERSION:-}"
@@ -146,4 +182,9 @@ jobs:
             VERSION="$(node -p "require('./package.json').version")"
           fi
 
-          butler push "${{ steps.artifact.outputs.path }}" "${ITCH_USERNAME}/${ITCH_GAME}:${{ matrix.channel }}" --userversion "$VERSION"
+          TARGET_USER="$(echo "$ITCH_USERNAME" | tr '[:upper:]' '[:lower:]')"
+          TARGET_GAME="$(echo "$ITCH_GAME" | tr '[:upper:]' '[:lower:]')"
+
+          echo "Uploading ${{ steps.artifact.outputs.path }} -> ${TARGET_USER}/${TARGET_GAME}:${{ matrix.channel }} (userversion: $VERSION)"
+
+          butler push "${{ steps.artifact.outputs.path }}" "${TARGET_USER}/${TARGET_GAME}:${{ matrix.channel }}" --userversion "$VERSION"
