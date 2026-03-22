@@ -57,6 +57,14 @@ jobs:
       - name: Install frontend dependencies
         run: npm ci
 
+      - name: Prepare Tauri icons (CI)
+        shell: bash
+        run: |
+          set -euo pipefail
+
+          node scripts/prepare-tauri-icons.mjs
+          ls -la src-tauri/icons
+
       - name: Build Tauri bundles
         shell: bash
         env:
@@ -81,8 +89,8 @@ jobs:
                 ;;
               windows)
                 # Windows MSI (WiX) does not support semver prerelease identifiers like "-beta.1".
-                # Keep this CI target portable + unbundled, and ensure we override bundle targets.
-                npm run tauri:build -- --no-bundle --config src-tauri/tauri.windows.conf.json
+                # Keep this CI target portable + unbundled.
+                npm run tauri -- build --no-bundle --config src-tauri/tauri.release.windows.conf.json
                 ;;
               *)
                 echo "Unknown channel: ${{ matrix.channel }}" >&2
