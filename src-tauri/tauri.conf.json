@@ -5,7 +5,7 @@
   "build": {
     "beforeDevCommand": "npm run dev -- --host 127.0.0.1 --port 1420 --strictPort",
     "devUrl": "http://127.0.0.1:1420",
-    "beforeBuildCommand": "npm run build",
+    "beforeBuildCommand": "node scripts/prepare-tauri-icons.mjs && npm run build",
     "frontendDist": "../dist"
   },
   "app": {
@@ -39,8 +39,7 @@
     ],
     "icon": [
       "icons/icon.png",
-      "icons/icon-alt.png",
-      "../public/favicon.ico"
+      "icons/icon-alt.png"
     ],
     "windows": {
       "webviewInstallMode": {
