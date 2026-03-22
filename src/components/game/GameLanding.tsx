@@ -770,6 +770,10 @@ export const GameLanding: React.FC<GameLandingProps> = ({
           </div>
         )}
       </div>
+
+      <div className="pointer-events-none absolute bottom-4 right-4 text-xs text-muted-foreground/80">
+        v{__APP_VERSION__}
+      </div>
     </div>
   );
 };

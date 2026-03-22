@@ -2,9 +2,13 @@ import { defineConfig, loadEnv } from "vite";
 import react from "@vitejs/plugin-react-swc";
 import path from "path";
 import { fileURLToPath } from "node:url";
+import { createRequire } from "node:module";
 import { componentTagger } from "lovable-tagger";
 
 const rootDir = fileURLToPath(new URL(".", import.meta.url));
+const require = createRequire(import.meta.url);
+const pkg = require("./package.json") as { version?: string };
+const appVersion = pkg.version ?? "0.0.0";
 
 function normalizeBase(base: string): string {
   const trimmed = base.trim();
@@ -44,6 +48,9 @@ export default defineConfig(({ mode }) => {
 
   return {
     base,
+    define: {
+      __APP_VERSION__: JSON.stringify(appVersion),
+    },
     server: {
       host: "127.0.0.1",
       port: 8080,
