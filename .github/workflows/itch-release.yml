@@ -16,6 +16,8 @@ jobs:
   build-and-upload:
     name: ${{ matrix.platform }} -> itch.io (${{ matrix.channel }})
     runs-on: ${{ matrix.platform }}
+    env:
+      BUTLER_API_KEY: ${{ secrets.BUTLER_API_KEY }}
 
     strategy:
       fail-fast: false
