@@ -11,9 +11,7 @@
 - From the main menu, use Load Saved Game to continue.
 - Desktop builds store saves as files on your computer (see the in-game Saves… dialog to view the exact folder).
 
-## Steam Cloud
 
-If Steam Cloud is enabled for the game, Steam can sync the saves folder across machines. This is configured in Steamworks (typically via Steam Auto Cloud) using the save folder shown in the in-game Saves… dialog.
 
 ## Difficulty
 

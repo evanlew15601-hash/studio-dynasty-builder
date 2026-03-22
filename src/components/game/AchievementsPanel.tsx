@@ -1,12 +1,10 @@
-import React, { useEffect, useState } from 'react';
+import React from 'react';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
-import { Button } from '@/components/ui/button';
 import { Progress } from '@/components/ui/progress';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { Trophy, Star, DollarSign, Film, Award, Lock } from 'lucide-react';
 import { Achievement } from '@/hooks/useAchievements';
-import { isSteamAvailable, openSteamOverlay } from '@/integrations/steam/client';
 
 const getAchievementIcon = (icon: Achievement['icon'], size = 20) => {
   switch (icon) {
@@ -35,15 +33,6 @@ export const AchievementsPanel: React.FC<AchievementsPanelProps> = ({
   unlockedCount,
   totalCount
 }) => {
-  const [steamAvailable, setSteamAvailable] = useState(false);
-
-  useEffect(() => {
-    void (async () => {
-      const available = await isSteamAvailable();
-      setSteamAvailable(available);
-    })();
-  }, [isSteamAvailable]);
-
   const getAchievementsByCategory = (category: Achievement['category']) =>
     achievements.filter(a => a.category === category);
 
@@ -58,17 +47,6 @@ export const AchievementsPanel: React.FC<AchievementsPanelProps> = ({
             Achievements
           </div>
           <div className="flex items-center space-x-2">
-            {steamAvailable && (
-              <Button
-                size="sm"
-                variant="outline"
-                onClick={() => {
-                  void openSteamOverlay('achievements');
-                }}
-              >
-                Steam
-              </Button>
-            )}
             <Badge variant="secondary">
               {unlockedCount}/{totalCount}
             </Badge>

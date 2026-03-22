@@ -576,9 +576,7 @@ export function SaveLoadDialog(props: {
                         Copy path
                       </Button>
                     </div>
-                    <div className="text-xs text-muted-foreground">
-                      Steam builds: enable Steam Auto Cloud for this folder to sync saves across machines.
-                    </div>
+                    
                   </div>
                 ) : (
                   <div className="text-sm text-muted-foreground">In a browser build, saves live in localStorage.</div>
