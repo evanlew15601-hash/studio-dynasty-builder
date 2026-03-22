@@ -36,3 +36,5 @@ sbom
 *.njsproj
 *.sln
 *.sw?
+
+/src-tauri/target/
