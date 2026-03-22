@@ -22,6 +22,35 @@ function runTauriIcon({ inputPng, tmpOutDir }) {
   });
 }
 
+function runMacIconutil({ sourcePng, outDir }) {
+  const iconsetDir = path.join(outDir, "icon.iconset");
+  fs.rmSync(iconsetDir, { recursive: true, force: true });
+  fs.mkdirSync(iconsetDir, { recursive: true });
+
+  const sizes = [
+    { file: "icon_16x16.png", size: 16 },
+    { file: "icon_16x16@2x.png", size: 32 },
+    { file: "icon_32x32.png", size: 32 },
+    { file: "icon_32x32@2x.png", size: 64 },
+    { file: "icon_128x128.png", size: 128 },
+    { file: "icon_128x128@2x.png", size: 256 },
+    { file: "icon_256x256.png", size: 256 },
+    { file: "icon_256x256@2x.png", size: 512 },
+    { file: "icon_512x512.png", size: 512 },
+    { file: "icon_512x512@2x.png", size: 1024 },
+  ];
+
+  for (const { file, size } of sizes) {
+    execFileSync("sips", ["-z", String(size), String(size), sourcePng, "--out", path.join(iconsetDir, file)], {
+      stdio: "inherit",
+    });
+  }
+
+  execFileSync("iconutil", ["-c", "icns", iconsetDir, "-o", path.join(outDir, "icon.icns")], {
+    stdio: "inherit",
+  });
+}
+
 function isValidIcns(filePath) {
   if (!fs.existsSync(filePath)) {
     return false;
@@ -49,9 +78,10 @@ function main() {
   const expectedPngOutputs = ["32x32.png", "128x128.png", "128x128@2x.png"];
   const expectedIco = "icon.ico";
   const expectedIcns = "icon.icns";
+  const needIcns = process.platform === "darwin";
 
   const haveValidIco = isValidIco(path.join(iconsDir, expectedIco));
-  const haveValidIcns = isValidIcns(path.join(iconsDir, expectedIcns));
+  const haveValidIcns = !needIcns || isValidIcns(path.join(iconsDir, expectedIcns));
   const haveAllPngs = expectedPngOutputs.every((name) => fs.existsSync(path.join(iconsDir, name)));
 
   if (haveValidIco && haveValidIcns && haveAllPngs) {
@@ -59,14 +89,19 @@ function main() {
   }
 
   const tmpOutDir = path.join(rootDir, "src-tauri", "target", ".generated-icons");
-  const tmpInput = path.join(tmpOutDir, "source.png");
 
-  fs.mkdirSync(tmpOutDir, { recursive: true });
-  fs.copyFileSync(sourcePng, tmpInput);
+  runTauriIcon({ inputPng: sourcePng, tmpOutDir });
 
-  runTauriIcon({ inputPng: tmpInput, tmpOutDir });
+  if (process.platform === "darwin") {
+    // `tauri icon` can generate an .icns, but macOS tooling tends to be more reliable,
+    // and fixes the `No matching IconType` bundler error.
+    runMacIconutil({ sourcePng, outDir: tmpOutDir });
+  }
 
-  const expectedOutputs = [...expectedPngOutputs, expectedIco, expectedIcns];
+  const expectedOutputs = [...expectedPngOutputs, expectedIco];
+  if (process.platform === "darwin") {
+    expectedOutputs.push(expectedIcns);
+  }
 
   for (const name of expectedOutputs) {
     const generated = path.join(tmpOutDir, name);
@@ -76,6 +111,18 @@ function main() {
 
     fs.copyFileSync(generated, path.join(iconsDir, name));
   }
+
+  if (!isValidIco(path.join(iconsDir, expectedIco))) {
+    throw new Error(`Generated ICO is not valid: ${path.join(iconsDir, expectedIco)}`);
+  }
+
+  if (process.platform === "darwin" && !isValidIcns(path.join(iconsDir, expectedIcns))) {
+    throw new Error(`Generated ICNS is not valid: ${path.join(iconsDir, expectedIcns)}`);
+  }
+
+  // Extra safety: if Windows build ever falls back to public/favicon.ico, make it a valid ICO.
+  const publicFavicon = path.join(rootDir, "public", "favicon.ico");
+  fs.copyFileSync(path.join(iconsDir, expectedIco), publicFavicon);
 
   console.log(`Prepared Tauri icons: ${expectedOutputs.join(", ")}`);
 }

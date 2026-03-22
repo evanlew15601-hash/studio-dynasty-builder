@@ -3,9 +3,16 @@
   "version": "../package.json",
   "identifier": "com.studiomagnate.studiomagnate",
   "build": {
-    "beforeDevCommand": "node scripts/prepare-tauri-icons.mjs && npm run dev -- --host 127.0.0.1 --port 1420 --strictPort",
+    "beforeDevCommand": {
+      "cwd": "..",
+      "script": "node scripts/prepare-tauri-icons.mjs && npm run dev -- --host 127.0.0.1 --port 1420 --strictPort",
+      "wait": false
+    },
     "devUrl": "http://127.0.0.1:1420",
-    "beforeBuildCommand": "node scripts/prepare-tauri-icons.mjs && npm run build",
+    "beforeBuildCommand": {
+      "cwd": "..",
+      "script": "node scripts/prepare-tauri-icons.mjs && npm run build"
+    },
     "frontendDist": "../dist"
   },
   "app": {
