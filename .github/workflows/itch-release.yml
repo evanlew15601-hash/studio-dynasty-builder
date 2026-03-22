@@ -138,11 +138,9 @@ jobs:
           if-no-files-found: error
 
       - name: Setup butler
-        if: ${{ secrets.BUTLER_API_KEY != '' && (secrets.ITCH_USERNAME != '' || vars.ITCH_USERNAME != '') && (secrets.ITCH_GAME != '' || vars.ITCH_GAME != '') }}
         uses: remarkablegames/setup-butler@v2
 
       - name: Upload to itch.io
-        if: ${{ secrets.BUTLER_API_KEY != '' && (secrets.ITCH_USERNAME != '' || vars.ITCH_USERNAME != '') && (secrets.ITCH_GAME != '' || vars.ITCH_GAME != '') }}
         shell: bash
         env:
           BUTLER_API_KEY: ${{ secrets.BUTLER_API_KEY }}
@@ -152,14 +150,9 @@ jobs:
         run: |
           set -euo pipefail
 
-          if [ -z "${BUTLER_API_KEY:-}" ]; then
-            echo "BUTLER_API_KEY must be configured as a GitHub Secret." >&2
-            exit 1
-          fi
-
-          if [ -z "${ITCH_USERNAME:-}" ] || [ -z "${ITCH_GAME:-}" ]; then
-            echo "ITCH_USERNAME and ITCH_GAME must be configured as GitHub Secrets or Actions Variables." >&2
-            exit 1
+          if [ -z "${BUTLER_API_KEY:-}" ] || [ -z "${ITCH_USERNAME:-}" ] || [ -z "${ITCH_GAME:-}" ]; then
+            echo "Skipping itch.io upload (missing BUTLER_API_KEY and/or ITCH_USERNAME and/or ITCH_GAME)." >&2
+            exit 0
           fi
 
           VERSION="${INPUT_VERSION:-}"
