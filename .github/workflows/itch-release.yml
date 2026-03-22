@@ -47,7 +47,10 @@ jobs:
 
       - name: Install Linux dependencies
         if: matrix.platform == 'ubuntu-22.04'
+        shell: bash
         run: |
+          set -euo pipefail
+
           sudo apt-get update
           sudo apt-get install -y libwebkit2gtk-4.1-dev libappindicator3-dev librsvg2-dev patchelf
 
@@ -165,6 +168,7 @@ jobs:
         shell: bash
         env:
           BUTLER_API_KEY: ${{ secrets.BUTLER_API_KEY }}
+          ITCH_TARGET: ${{ secrets.ITCH_TARGET || vars.ITCH_TARGET }}
           ITCH_USERNAME: ${{ secrets.ITCH_USERNAME || vars.ITCH_USERNAME }}
           ITCH_GAME: ${{ secrets.ITCH_GAME || vars.ITCH_GAME }}
           INPUT_VERSION: ${{ github.event.inputs.version }}
@@ -174,8 +178,13 @@ jobs:
           mkdir -p ci-logs
           BUTLER_LOG_FILE="ci-logs/butler-upload-${{ matrix.channel }}.log"
 
-          if [ -z "${BUTLER_API_KEY:-}" ] || [ -z "${ITCH_USERNAME:-}" ] || [ -z "${ITCH_GAME:-}" ]; then
-            echo "Skipping itch.io upload (missing BUTLER_API_KEY and/or ITCH_USERNAME and/or ITCH_GAME)." >&2
+          if [ -z "${BUTLER_API_KEY:-}" ]; then
+            echo "Skipping itch.io upload (missing BUTLER_API_KEY)." >&2
+            exit 0
+          fi
+
+          if [ -z "${ITCH_TARGET:-}" ] && { [ -z "${ITCH_USERNAME:-}" ] || [ -z "${ITCH_GAME:-}" ]; }; then
+            echo "Skipping itch.io upload (missing ITCH_TARGET or ITCH_USERNAME+ITCH_GAME)." >&2
             exit 0
           fi
 
@@ -190,17 +199,27 @@ jobs:
             VERSION="$(node -p "require('./package.json').version")"
           fi
 
-          TARGET_USER="$(echo "$ITCH_USERNAME" | tr '[:upper:]' '[:lower:]')"
-          TARGET_GAME="$(echo "$ITCH_GAME" | tr '[:upper:]' '[:lower:]')"
+          TARGET_BASE=""
 
-          echo "Uploading ${{ steps.artifact.outputs.path }} -> ${TARGET_USER}/${TARGET_GAME}:${{ matrix.channel }} (userversion: $VERSION)"
+          if [ -n "${ITCH_TARGET:-}" ]; then
+            TARGET_BASE="$(echo "$ITCH_TARGET" | tr '[:upper:]' '[:lower:]')"
+          else
+            TARGET_USER="$(echo "$ITCH_USERNAME" | tr '[:upper:]' '[:lower:]')"
+            TARGET_GAME="$(echo "$ITCH_GAME" | tr '[:upper:]' '[:lower:]')"
+            TARGET_BASE="${TARGET_USER}/${TARGET_GAME}"
+          fi
+
+          echo "Uploading ${{ steps.artifact.outputs.path }} -> ${TARGET_BASE}:${{ matrix.channel }} (userversion: $VERSION)"
 
           {
             echo "butler version:";
             butler -V;
             echo;
+            echo "butler whoami:";
+            butler whoami;
+            echo;
             echo "butler push output:";
-            butler push "${{ steps.artifact.outputs.path }}" "${TARGET_USER}/${TARGET_GAME}:${{ matrix.channel }}" --userversion "$VERSION";
+            butler push "${{ steps.artifact.outputs.path }}" "${TARGET_BASE}:${{ matrix.channel }}" --userversion "$VERSION";
           } 2>&1 | tee "$BUTLER_LOG_FILE"
 
       - name: Upload butler logs
