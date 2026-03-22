@@ -58,6 +58,7 @@ jobs:
         shell: bash
         env:
           RUST_BACKTRACE: 1
+          CARGO_PROFILE_RELEASE_BUILD_OVERRIDE_DEBUG: true
         run: |
           set -euo pipefail
 
@@ -76,7 +77,9 @@ jobs:
                 npm run tauri:build -- --no-sign
                 ;;
               windows)
-                npm run tauri:build -- --no-bundle
+                # Windows MSI (WiX) does not support semver prerelease identifiers like "-beta.1".
+                # Keep this CI target portable + unbundled, and ensure we override bundle targets.
+                npm run tauri:build -- --no-bundle --config src-tauri/tauri.windows.conf.json
                 ;;
               *)
                 echo "Unknown channel: ${{ matrix.channel }}" >&2
