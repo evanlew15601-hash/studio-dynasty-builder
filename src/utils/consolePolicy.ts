@@ -9,9 +9,11 @@ export function applyProductionConsolePolicy(): void {
     log: (...args: any[]) => void;
     info: (...args: any[]) => void;
     debug: (...args: any[]) => void;
+    warn: (...args: any[]) => void;
   };
 
   c.log = noop;
   c.info = noop;
   c.debug = noop;
+  c.warn = noop;
 }
