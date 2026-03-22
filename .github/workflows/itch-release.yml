@@ -71,7 +71,9 @@ jobs:
                 npm run tauri:build -- --bundles appimage
                 ;;
               mac)
-                npm run tauri:build -- --bundles app --no-sign
+                # Let Tauri pick the default macOS bundling targets from config,
+                # but ensure code signing is skipped for CI.
+                npm run tauri:build -- --no-sign
                 ;;
               windows)
                 npm run tauri:build -- --no-bundle
@@ -166,6 +168,9 @@ jobs:
         run: |
           set -euo pipefail
 
+          mkdir -p ci-logs
+          BUTLER_LOG_FILE="ci-logs/butler-upload-${{ matrix.channel }}.log"
+
           if [ -z "${BUTLER_API_KEY:-}" ] || [ -z "${ITCH_USERNAME:-}" ] || [ -z "${ITCH_GAME:-}" ]; then
             echo "Skipping itch.io upload (missing BUTLER_API_KEY and/or ITCH_USERNAME and/or ITCH_GAME)." >&2
             exit 0
@@ -187,4 +192,18 @@ jobs:
 
           echo "Uploading ${{ steps.artifact.outputs.path }} -> ${TARGET_USER}/${TARGET_GAME}:${{ matrix.channel }} (userversion: $VERSION)"
 
-          butler push "${{ steps.artifact.outputs.path }}" "${TARGET_USER}/${TARGET_GAME}:${{ matrix.channel }}" --userversion "$VERSION"
+          {
+            echo "butler version:";
+            butler -V;
+            echo;
+            echo "butler push output:";
+            butler push "${{ steps.artifact.outputs.path }}" "${TARGET_USER}/${TARGET_GAME}:${{ matrix.channel }}" --userversion "$VERSION";
+          } 2>&1 | tee "$BUTLER_LOG_FILE"
+
+      - name: Upload butler logs
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: butler-upload-logs-${{ matrix.channel }}
+          path: ci-logs/butler-upload-${{ matrix.channel }}.log
+          if-no-files-found: warn
