@@ -1,22 +1,51 @@
 # itch.io upload (Butler)
 
-This repo produces a portable build artifact (zip) via the `windows-tauri-build` GitHub Action.
+This repo supports itch.io uploads either:
 
-To upload that artifact to itch.io, use [Butler](https://itch.io/docs/butler/).
+- **Locally** (run `butler push` yourself), or
+- **Via GitHub Actions** (recommended): `.github/workflows/itch-release.yml`
 
-## 1) Install Butler
+## GitHub Actions (recommended)
+
+### 1) Configure repo secrets
+
+Add the following GitHub Secrets:
+
+- `BUTLER_API_KEY` (itch.io API key)
+- `ITCH_USERNAME` (your itch.io username)
+- `ITCH_GAME` (your itch.io project slug, e.g. `studio-magnate`)
+
+### 2) Trigger the workflow
+
+You can either:
+
+- Push a tag like `v0.1.0-beta.1` (the workflow triggers on tags matching `v*`), or
+- Run the workflow manually via **Actions → itch-release → Run workflow**
+  - optional: provide a `version` input for Butler `--userversion`
+
+The workflow builds platform bundles and uploads to:
+
+- `ITCH_USERNAME/ITCH_GAME:windows`
+- `ITCH_USERNAME/ITCH_GAME:linux`
+- `ITCH_USERNAME/ITCH_GAME:mac`
+
+## Local upload
+
+To upload locally, use [Butler](https://itch.io/docs/butler/).
+
+### 1) Install Butler
 
 Download Butler and ensure `butler` is on your PATH:
 
 - https://itch.io/docs/butler/installing.html
 
-## 2) Authenticate
+### 2) Authenticate
 
 ```sh
 butler login
 ```
 
-## 3) Upload
+### 3) Upload
 
 You can push either a directory or a zip.
 

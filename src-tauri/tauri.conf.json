@@ -31,7 +31,7 @@
   },
   "bundle": {
     "active": true,
-    "targets": ["nsis", "msi"],
+    "targets": ["nsis", "msi", "appimage", "deb", "dmg"],
     "icon": ["../public/favicon.ico"],
     "windows": {
       "webviewInstallMode": { "type": "offlineInstaller", "silent": true },

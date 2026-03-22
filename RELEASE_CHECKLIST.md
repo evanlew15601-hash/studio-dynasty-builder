@@ -44,7 +44,16 @@ npm run tauri:build
 - [ ] Upload to itch.io (Butler): see `scripts/itch/README.md`
 - [ ] Smoke test installer(s): install, launch, uninstall, upgrade from previous beta
 
-## 6) Open source compliance
+## 6) itch.io upload
+
+See: `scripts/itch/README.md`
+
+- [ ] Configure GitHub Secrets (`BUTLER_API_KEY`, `ITCH_USERNAME`, `ITCH_GAME`) if using CI
+- [ ] Upload builds either:
+  - [ ] via GitHub Actions: run `itch-release` (manual) or push a `v*` tag, or
+  - [ ] locally using `butler push` (or `scripts/itch/upload.ps1`)
+
+## 7) Open source compliance
 
 - [ ] Ensure third-party notices are up to date:
 
@@ -59,7 +68,7 @@ npm run licenses:generate
 npm run sbom:generate
 ```
 
-## 7) Release artifacts
+## 8) Release artifacts
 
 - [ ] Record commit SHA used for builds
 - [ ] Attach installers (NSIS/MSI) and/or other platform bundles
