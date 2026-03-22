@@ -55,7 +55,25 @@ jobs:
         run: npm ci
 
       - name: Build Tauri bundles
-        run: npm run tauri:build
+        shell: bash
+        run: |
+          set -euo pipefail
+
+          case "${{ matrix.channel }}" in
+            linux)
+              npm run tauri:build -- --bundles appimage
+              ;;
+            mac)
+              npm run tauri:build -- --bundles app --no-sign
+              ;;
+            windows)
+              npm run tauri:build -- --no-bundle
+              ;;
+            *)
+              echo "Unknown channel: ${{ matrix.channel }}" >&2
+              exit 1
+              ;;
+          esac
 
       - name: Prepare itch artifact
         id: artifact
@@ -112,10 +130,19 @@ jobs:
           echo "Unknown channel: ${{ matrix.channel }}" >&2
           exit 1
 
+      - name: Upload build artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: studio-magnate-${{ matrix.channel }}
+          path: ${{ steps.artifact.outputs.path }}
+          if-no-files-found: error
+
       - name: Setup butler
+        if: ${{ secrets.BUTLER_API_KEY != '' && (secrets.ITCH_USERNAME != '' || vars.ITCH_USERNAME != '') && (secrets.ITCH_GAME != '' || vars.ITCH_GAME != '') }}
         uses: remarkablegames/setup-butler@v2
 
       - name: Upload to itch.io
+        if: ${{ secrets.BUTLER_API_KEY != '' && (secrets.ITCH_USERNAME != '' || vars.ITCH_USERNAME != '') && (secrets.ITCH_GAME != '' || vars.ITCH_GAME != '') }}
         shell: bash
         env:
           BUTLER_API_KEY: ${{ secrets.BUTLER_API_KEY }}
@@ -146,4 +173,9 @@ jobs:
             VERSION="$(node -p "require('./package.json').version")"
           fi
 
-          butler push "${{ steps.artifact.outputs.path }}" "${ITCH_USERNAME}/${ITCH_GAME}:${{ matrix.channel }}" --userversion "$VERSION"
+          TARGET_USER="$(echo "$ITCH_USERNAME" | tr '[:upper:]' '[:lower:]')"
+          TARGET_GAME="$(echo "$ITCH_GAME" | tr '[:upper:]' '[:lower:]')"
+
+          echo "Uploading ${{ steps.artifact.outputs.path }} -> ${TARGET_USER}/${TARGET_GAME}:${{ matrix.channel }} (userversion: $VERSION)"
+
+          butler push "${{ steps.artifact.outputs.path }}" "${TARGET_USER}/${TARGET_GAME}:${{ matrix.channel }}" --userversion "$VERSION"
