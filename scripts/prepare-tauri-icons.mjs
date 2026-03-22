@@ -89,8 +89,13 @@ function main() {
   }
 
   const tmpOutDir = path.join(rootDir, "src-tauri", "target", ".generated-icons");
+  const tmpInputDir = path.join(rootDir, "src-tauri", "target", ".generated-icons-input");
+  const tmpInput = path.join(tmpInputDir, "source.png");
 
-  runTauriIcon({ inputPng: sourcePng, tmpOutDir });
+  fs.mkdirSync(tmpInputDir, { recursive: true });
+  fs.copyFileSync(sourcePng, tmpInput);
+
+  runTauriIcon({ inputPng: tmpInput, tmpOutDir });
 
   if (process.platform === "darwin") {
     // `tauri icon` can generate an .icns, but macOS tooling tends to be more reliable,
@@ -120,9 +125,16 @@ function main() {
     throw new Error(`Generated ICNS is not valid: ${path.join(iconsDir, expectedIcns)}`);
   }
 
-  // Extra safety: if Windows build ever falls back to public/favicon.ico, make it a valid ICO.
-  const publicFavicon = path.join(rootDir, "public", "favicon.ico");
-  fs.copyFileSync(path.join(iconsDir, expectedIco), publicFavicon);
+  // Windows builds (tauri-winres) sometimes fall back to public/favicon.ico.
+  // Ensure that file is always a valid ICO to avoid RC2175.
+  if (process.platform === "win32") {
+    const publicFavicon = path.join(rootDir, "public", "favicon.ico");
+    fs.copyFileSync(path.join(iconsDir, expectedIco), publicFavicon);
+
+    if (!isValidIco(publicFavicon)) {
+      throw new Error(`public/favicon.ico is not a valid ICO after copy: ${publicFavicon}`);
+    }
+  }
 
   console.log(`Prepared Tauri icons: ${expectedOutputs.join(", ")}`);
 }

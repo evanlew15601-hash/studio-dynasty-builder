@@ -1,16 +1,12 @@
-name: itch-release
+name: itch-upload
 
 on:
   workflow_dispatch:
     inputs:
       version:
-        description: Optional version label passed to butler (--userversion). Defaults to tag (if any) or package.json version.
+        description: Optional version label passed to butler (--userversion). Defaults to package.json version.
         required: false
         type: string
-
-  push:
-    tags:
-      - 'v*'
 
 jobs:
   build-and-upload:
@@ -30,6 +26,13 @@ jobs:
 
     steps:
       - uses: actions/checkout@v4
+
+      - name: Show ref
+        shell: bash
+        run: |
+          set -euo pipefail
+          echo "GITHUB_REF=$GITHUB_REF"
+          echo "GITHUB_SHA=$GITHUB_SHA"
 
       - name: Setup Node
         uses: actions/setup-node@v4
@@ -57,7 +60,7 @@ jobs:
       - name: Install frontend dependencies
         run: npm ci
 
-      - name: Prepare Tauri icons (CI)
+      - name: Prepare Tauri icons
         shell: bash
         run: |
           set -euo pipefail
@@ -78,7 +81,7 @@ jobs:
 
           cp src-tauri/icons/icon.ico public/favicon.ico
 
-      - name: Build Tauri bundles
+      - name: Build Tauri
         shell: bash
         env:
           RUST_BACKTRACE: 1
@@ -89,20 +92,15 @@ jobs:
           mkdir -p ci-logs
           LOG_FILE="ci-logs/tauri-build-${{ matrix.channel }}.log"
 
-          # Capture full output into an artifact-friendly log file (GitHub UI truncates large logs).
           {
             case "${{ matrix.channel }}" in
               linux)
-                npm run tauri:build -- --bundles appimage
+                npm run tauri -- build --bundles appimage --config src-tauri/tauri.release.conf.json
                 ;;
               mac)
-                # Ensure we have a valid .icns icon in config (macOS bundler requires it),
-                # and skip code signing for CI.
                 npm run tauri -- build --no-sign --config src-tauri/tauri.release.macos.conf.json
                 ;;
               windows)
-                # Windows MSI (WiX) does not support semver prerelease identifiers like "-beta.1".
-                # Keep this CI target portable + unbundled.
                 npm run tauri -- build --no-bundle --config src-tauri/tauri.release.windows.conf.json
                 ;;
               *)
@@ -210,18 +208,11 @@ jobs:
           fi
 
           VERSION="${INPUT_VERSION:-}"
-
-          if [ -z "$VERSION" ] && [[ "${GITHUB_REF:-}" == refs/tags/* ]]; then
-            VERSION="${GITHUB_REF#refs/tags/}"
-            VERSION="${VERSION#v}"
-          fi
-
           if [ -z "$VERSION" ]; then
             VERSION="$(node -p "require('./package.json').version")"
           fi
 
           TARGET_BASE=""
-
           if [ -n "${ITCH_TARGET:-}" ]; then
             TARGET_BASE="$(echo "$ITCH_TARGET" | tr '[:upper:]' '[:lower:]')"
           else
