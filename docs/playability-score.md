@@ -33,6 +33,26 @@ Why they differ:
 
 See also: `docs/playability-fixes.md` (recommended fixes and implementation notes).
 
+## Are these “real problems” or nitpicks?
+
+This document flags **playability risks** that are observable from code, not judgments about whether the game is fun.
+
+How to interpret severity:
+
+- **Real problem (must-fix):** something that can *mislead the player*, *break the simulation*, *corrupt saves*, or *create hard-to-debug divergence*.
+- **Tuning opportunity (nice-to-have):** something that may improve feel/UX but doesn’t create incorrect state or misinformation.
+
+How to validate (quick, practical checks):
+
+- **Player misinformation check:** if a value is hardcoded or not derived from game state, it’s not a nitpick—it’s incorrect feedback.
+  - Example: `StudioDashboard.tsx` shows a fixed “Quarterly Revenue +$2.0M”.
+- **Divergence check:** if two codepaths can update the same concept (budget, revenue, project status), expect bugs unless one is clearly authoritative.
+  - Example: engine tick (`src/game/core/tick.ts` + `src/game/store.ts`) exists alongside UI-side loop/ledger logic (`src/components/game/StudioMagnateGame.tsx`, `FinancialEngine.tsx`, `GameplayLoops.tsx`).
+- **Save integrity check:** if IDs/time sources end up persisted in saved state, it can break determinism, mod patch targeting, and reproducible bug reports.
+  - Example: `CastingBoard.tsx` assigns character IDs using `Date.now()`.
+
+If you’re shipping an early prototype, you can *choose* to defer some of these; but the document is marking places where the repo shows a concrete mechanism for player confusion or state drift.
+
 ## Key issues (from repo inspection)
 
 These are the main issues surfaced by the two lenses (not all are "bugs"; many are *playability risks*):

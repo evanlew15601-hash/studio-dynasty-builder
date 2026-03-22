@@ -33,6 +33,16 @@ This can work, but it tends to make the sim harder to reason about in this repo 
 
 ---
 
+## Triage: what is actually a problem vs polish
+
+| Item | Why it matters | Category |
+|---|---|---|
+| Remove hardcoded/placeholder UI metrics (e.g., “Quarterly Revenue +$2.0M”) | Incorrect feedback breaks player trust and can teach the wrong strategy. | **Must-fix (player misinformation)** |
+| Reduce dual simulation paths (engine tick vs UI-side loops/ledger writes) | Risk of double-counting or divergent outcomes; hardest class of bugs to debug. | **Must-fix (state drift / correctness)** |
+| Onboarding / first 10-week guidance | Not “wrong”, but helps most players reach the fun loop without bouncing. | **High value (UX)** |
+| Determinism hygiene (replace `Date.now()` IDs in saved state) | Mostly a dev-quality issue: reproducible bugs, mod patching, and long-run stability. | **Should-fix (tech debt)** |
+| Expand drama/event variety | Content breadth; matters after the core loop is stable and readable. | **Nice-to-have (content)** |
+
 ## Highest-impact fix themes
 
 ### 1) Make financial feedback authoritative (remove placeholders)
