@@ -25,8 +25,7 @@
         "title": "Studio Magnate",
         "width": 1280,
         "height": 800,
-        "resizable": true,
-        "devtools": false
+        "resizable": true
       }
     ]
   },
