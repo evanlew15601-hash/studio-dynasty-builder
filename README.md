@@ -27,6 +27,17 @@ npm run tauri:dev
 npm run tauri:build
 ```
 
+### Linux system dependencies
+
+On Linux, Tauri requires WebKitGTK + GTK development headers (via `pkg-config`). If you see errors like `The system library gdk-3.0 was not found`, install the prerequisites:
+
+```sh
+sudo apt update
+sudo apt install -y pkg-config libgtk-3-dev libwebkit2gtk-4.1-dev libappindicator3-dev librsvg2-dev patchelf
+```
+
+(For other distros, see https://v2.tauri.app/start/prerequisites/#linux)
+
 ## Configuration
 
 No environment variables are required to run the base game.
