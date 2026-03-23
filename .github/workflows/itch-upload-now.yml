@@ -1,0 +1,261 @@
+name: itch-upload-now
+
+on:
+  workflow_dispatch:
+    inputs:
+      version:
+        description: Optional version label passed to butler (--userversion). Defaults to package.json version.
+        required: false
+        type: string
+
+jobs:
+  build-and-upload:
+    name: ${{ matrix.platform }} -> itch.io (${{ matrix.channel }})
+    runs-on: ${{ matrix.platform }}
+
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - platform: windows-latest
+            channel: windows
+          - platform: ubuntu-22.04
+            channel: linux
+          - platform: macos-latest
+            channel: mac
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Show ref
+        shell: bash
+        run: |
+          set -euo pipefail
+          echo "GITHUB_REF=$GITHUB_REF"
+          echo "GITHUB_SHA=$GITHUB_SHA"
+
+      - name: Validate itch.io secrets
+        shell: bash
+        env:
+          BUTLER_API_KEY: ${{ secrets.BUTLER_API_KEY }}
+          ITCH_TARGET: ${{ secrets.ITCH_TARGET || vars.ITCH_TARGET }}
+          ITCH_USERNAME: ${{ secrets.ITCH_USERNAME || vars.ITCH_USERNAME }}
+          ITCH_GAME: ${{ secrets.ITCH_GAME || vars.ITCH_GAME }}
+        run: |
+          set -euo pipefail
+
+          if [ -z "${BUTLER_API_KEY:-}" ]; then
+            echo "Missing BUTLER_API_KEY secret." >&2
+            exit 1
+          fi
+
+          if [ -z "${ITCH_TARGET:-}" ] && { [ -z "${ITCH_USERNAME:-}" ] || [ -z "${ITCH_GAME:-}" ]; }; then
+            echo "Missing ITCH_TARGET or ITCH_USERNAME+ITCH_GAME." >&2
+            exit 1
+          fi
+
+      - name: Setup Node
+        uses: actions/setup-node@v4
+        with:
+          node-version: lts/*
+          cache: npm
+
+      - name: Install Rust stable
+        uses: dtolnay/rust-toolchain@stable
+
+      - name: Rust cache
+        uses: swatinem/rust-cache@v2
+        with:
+          workspaces: './src-tauri -> target'
+
+      - name: Install Linux dependencies
+        if: matrix.platform == 'ubuntu-22.04'
+        shell: bash
+        run: |
+          set -euo pipefail
+
+          sudo apt-get update
+          sudo apt-get install -y libwebkit2gtk-4.1-dev libappindicator3-dev librsvg2-dev patchelf
+
+      - name: Install frontend dependencies
+        run: npm ci
+
+      - name: Prepare Tauri icons
+        shell: bash
+        run: |
+          set -euo pipefail
+
+          node scripts/prepare-tauri-icons.mjs
+          ls -la src-tauri/icons
+
+      - name: Ensure Windows favicon.ico is RC-compatible
+        if: matrix.platform == 'windows-latest'
+        shell: pwsh
+        run: |
+          $ErrorActionPreference = 'Stop'
+
+          if (-not (Test-Path -Path 'src-tauri/icons/icon.ico')) {
+            throw 'Missing src-tauri/icons/icon.ico after icon preparation'
+          }
+
+          Copy-Item 'src-tauri/icons/icon.ico' 'public/favicon.ico' -Force
+
+          $bytes = [System.IO.File]::ReadAllBytes('public/favicon.ico')
+          if ($bytes.Length -lt 8) {
+            throw 'public/favicon.ico too small'
+          }
+
+          $pngSig = [byte[]](0x89,0x50,0x4E,0x47,0x0D,0x0A,0x1A,0x0A)
+          for ($i = 0; $i -le $bytes.Length - $pngSig.Length; $i++) {
+            $match = $true
+            for ($j = 0; $j -lt $pngSig.Length; $j++) {
+              if ($bytes[$i + $j] -ne $pngSig[$j]) { $match = $false; break }
+            }
+            if ($match) { throw 'public/favicon.ico contains PNG-compressed frame data (not RC-compatible)'
+            }
+          }
+
+      - name: Build Tauri
+        shell: bash
+        env:
+          RUST_BACKTRACE: 1
+          CARGO_PROFILE_RELEASE_BUILD_OVERRIDE_DEBUG: true
+        run: |
+          set -euo pipefail
+
+          mkdir -p ci-logs
+          LOG_FILE="ci-logs/tauri-build-${{ matrix.channel }}.log"
+
+          {
+            case "${{ matrix.channel }}" in
+              linux)
+                npm run tauri -- build --bundles appimage --config src-tauri/tauri.release.conf.json
+                ;;
+              mac)
+                npm run tauri -- build --no-sign --config src-tauri/tauri.release.macos.conf.json
+                ;;
+              windows)
+                npm run tauri -- build --no-bundle --config src-tauri/tauri.release.windows.conf.json
+                ;;
+              *)
+                echo "Unknown channel: ${{ matrix.channel }}" >&2
+                exit 1
+                ;;
+            esac
+          } 2>&1 | tee "$LOG_FILE"
+
+      - name: Upload build logs
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: tauri-build-logs-${{ matrix.channel }}
+          path: ci-logs/tauri-build-${{ matrix.channel }}.log
+          if-no-files-found: warn
+
+      - name: Prepare itch artifact
+        id: artifact
+        shell: bash
+        run: |
+          set -euo pipefail
+          shopt -s nullglob
+
+          if [ "${{ matrix.channel }}" = "windows" ]; then
+            rm -rf portable
+            mkdir -p portable
+
+            cp src-tauri/target/release/*.exe portable/
+            cp src-tauri/target/release/*.dll portable/ || true
+
+            if [ -d src-tauri/target/release/resources ]; then
+              cp -R src-tauri/target/release/resources portable/
+            fi
+
+            tar -a -c -f studio-magnate-windows-portable.zip -C portable .
+            echo "path=studio-magnate-windows-portable.zip" >> "$GITHUB_OUTPUT"
+            exit 0
+          fi
+
+          if [ "${{ matrix.channel }}" = "linux" ]; then
+            appimages=(src-tauri/target/release/bundle/appimage/*.AppImage)
+            if [ ${#appimages[@]} -lt 1 ]; then
+              echo "No AppImage bundle found at src-tauri/target/release/bundle/appimage/*.AppImage" >&2
+              exit 1
+            fi
+
+            echo "path=${appimages[0]}" >> "$GITHUB_OUTPUT"
+            exit 0
+          fi
+
+          if [ "${{ matrix.channel }}" = "mac" ]; then
+            dmgs=(src-tauri/target/release/bundle/dmg/*.dmg)
+            if [ ${#dmgs[@]} -ge 1 ]; then
+              echo "path=${dmgs[0]}" >> "$GITHUB_OUTPUT"
+              exit 0
+            fi
+
+            apps=(src-tauri/target/release/bundle/macos/*.app)
+            if [ ${#apps[@]} -lt 1 ]; then
+              echo "No dmg or .app bundle found." >&2
+              exit 1
+            fi
+
+            ditto -c -k --sequesterRsrc --keepParent "${apps[0]}" studio-magnate-macos.zip
+            echo "path=studio-magnate-macos.zip" >> "$GITHUB_OUTPUT"
+            exit 0
+          fi
+
+          echo "Unknown channel: ${{ matrix.channel }}" >&2
+          exit 1
+
+      - name: Upload build artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: studio-magnate-${{ matrix.channel }}
+          path: ${{ steps.artifact.outputs.path }}
+          if-no-files-found: error
+
+      - name: Setup butler
+        uses: remarkablegames/setup-butler@v2
+
+      - name: Upload to itch.io
+        shell: bash
+        env:
+          BUTLER_API_KEY: ${{ secrets.BUTLER_API_KEY }}
+          ITCH_TARGET: ${{ secrets.ITCH_TARGET || vars.ITCH_TARGET }}
+          ITCH_USERNAME: ${{ secrets.ITCH_USERNAME || vars.ITCH_USERNAME }}
+          ITCH_GAME: ${{ secrets.ITCH_GAME || vars.ITCH_GAME }}
+          INPUT_VERSION: ${{ github.event.inputs.version }}
+        run: |
+          set -euo pipefail
+
+          mkdir -p ci-logs
+          BUTLER_LOG_FILE="ci-logs/butler-upload-${{ matrix.channel }}.log"
+
+          VERSION="${INPUT_VERSION:-}"
+          if [ -z "$VERSION" ]; then
+            VERSION="$(node -p "require('./package.json').version")"
+          fi
+
+          TARGET_BASE=""
+          if [ -n "${ITCH_TARGET:-}" ]; then
+            TARGET_BASE="$(echo "$ITCH_TARGET" | tr '[:upper:]' '[:lower:]')"
+          else
+            TARGET_USER="$(echo "$ITCH_USERNAME" | tr '[:upper:]' '[:lower:]')"
+            TARGET_GAME="$(echo "$ITCH_GAME" | tr '[:upper:]' '[:lower:]')"
+            TARGET_BASE="${TARGET_USER}/${TARGET_GAME}"
+          fi
+
+          echo "butler whoami:"
+          butler whoami
+
+          echo "Uploading ${{ steps.artifact.outputs.path }} -> ${TARGET_BASE}:${{ matrix.channel }} (userversion: $VERSION)"
+
+          butler push "${{ steps.artifact.outputs.path }}" "${TARGET_BASE}:${{ matrix.channel }}" --userversion "$VERSION" 2>&1 | tee "$BUTLER_LOG_FILE"
+
+      - name: Upload butler logs
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: butler-upload-logs-${{ matrix.channel }}
+          path: ci-logs/butler-upload-${{ matrix.channel }}.log
+          if-no-files-found: warn
