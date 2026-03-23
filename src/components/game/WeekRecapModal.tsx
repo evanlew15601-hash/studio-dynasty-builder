@@ -145,7 +145,7 @@ export const WeekRecapModal: React.FC<WeekRecapModalProps> = ({ open, onOpenChan
 
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
-      <DialogContent className="max-w-4xl max-h-[85vh] flex flex-col">
+      <DialogContent className="max-w-4xl h-[85vh] flex flex-col overflow-hidden">
         <DialogHeader>
           <DialogTitle className="flex items-center gap-2">
             <Calendar className="h-5 w-5" />
@@ -153,7 +153,7 @@ export const WeekRecapModal: React.FC<WeekRecapModalProps> = ({ open, onOpenChan
           </DialogTitle>
         </DialogHeader>
 
-        <div className="flex flex-col gap-4 flex-1 overflow-hidden">
+        <div className="flex flex-col gap-4 flex-1 overflow-hidden min-h-0">
           <div className="flex flex-wrap gap-2">
             {typeof summary?.budgetDelta === 'number' && (
               <Badge variant="outline" className={cn('gap-1.5', toneChipClass(budgetTone))}>
@@ -192,7 +192,7 @@ export const WeekRecapModal: React.FC<WeekRecapModalProps> = ({ open, onOpenChan
             )}
           </div>
 
-          <ScrollArea className="flex-1 pr-4">
+          <ScrollArea className="flex-1 pr-4 min-h-0">
             <div className="space-y-4 pb-2">
               {!report ? (
                 <Card>
