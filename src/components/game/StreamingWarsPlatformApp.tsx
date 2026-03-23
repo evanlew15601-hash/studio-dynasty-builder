@@ -265,10 +265,24 @@ export const StreamingWarsPlatformApp: React.FC = () => {
 
     const playerPlatformId = player?.id;
 
+    const week = gameState?.currentWeek ?? 0;
+    const year = gameState?.currentYear ?? 0;
+
+    const candidates = [
+      ...(gameState?.projects ?? []),
+      ...(gameState?.aiStudioProjects ?? []),
+      ...(gameState?.allReleases ?? []),
+    ].filter((p): p is Project => !!p && typeof (p as any).id === 'string' && !!(p as any).script);
+
+    const seenProjectIds = new Set<string>();
+    const uniqueCandidates = candidates.filter((p) => {
+      if (seenProjectIds.has(p.id)) return false;
+      seenProjectIds.add(p.id);
+      return true;
+    });
+
     const titlesOnPlatform = playerPlatformId
-      ? (gameState?.projects ?? []).filter((p) =>
-          isProjectOnPlatformAtTime(p, playerPlatformId, gameState?.currentWeek ?? 0, gameState?.currentYear ?? 0)
-        )
+      ? uniqueCandidates.filter((p) => isProjectOnPlatformAtTime(p, playerPlatformId, week, year))
       : [];
 
     const originals = playerPlatformId
@@ -286,7 +300,7 @@ export const StreamingWarsPlatformApp: React.FC = () => {
       titlesOnPlatform,
       originals,
     };
-  }, [gameState?.projects, platformMarket]);
+  }, [gameState?.projects, gameState?.aiStudioProjects, gameState?.allReleases, platformMarket]);
 
   const effectiveBranding = useMemo(() => {
     const preset = getVibeBrandingPreset(player?.vibe);

@@ -29,6 +29,30 @@ function isProjectLike(value: any): value is Project {
   return !!value && typeof value === 'object' && typeof value.id === 'string' && 'script' in value;
 }
 
+function isPlayerOwnedProject(params: {
+  project: Project;
+  state: GameState;
+  playerProjectIds: Set<string>;
+}): boolean {
+  const { project, state, playerProjectIds } = params;
+
+  if (playerProjectIds.has(project.id)) return true;
+
+  const studioId = (project as any)?.studioId;
+  if (studioId && (studioId === state.studio.id || studioId === 'player' || studioId === 'player-studio')) {
+    return true;
+  }
+
+  const studioName = (project as any)?.studioName;
+  if (typeof studioName === 'string' && studioName.trim().length > 0) {
+    return studioName === state.studio.name;
+  }
+
+  // If we can't attribute ownership, do not route to the player platform.
+  // (Unknown ownership should default to rivals.)
+  return false;
+}
+
 function isReleasedLike(project: Project): boolean {
   const status = project.status;
   return status === 'released' || status === 'distribution' || status === 'archived' || status === 'completed';
@@ -171,7 +195,7 @@ export const PlatformAutoStreamingWindowsSystem: TickSystem = {
       if (!hasStreamingWindow && isTheatricalFilm(project0) && !isPrimaryStreamingFilm(project0)) {
         const endAbs = getTheatricalEndAbs(project0, currentAbs);
         if (endAbs != null) {
-          const isPlayerOwned = playerProjectIds.has(project0.id);
+          const isPlayerOwned = isPlayerOwnedProject({ project: project0, state, playerProjectIds });
 
           const destinationId =
             isPlayerOwned && playerPlatformId

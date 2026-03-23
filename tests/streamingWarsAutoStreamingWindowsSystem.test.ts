@@ -127,6 +127,40 @@ describe('Streaming Wars: auto streaming windows system', () => {
     expect(ownedWindow).toBeTruthy();
   });
 
+  it('treats player studio releases in allReleases as player-owned when studioName matches, scheduling to the player platform', () => {
+    const playerPlatformId = 'player-platform:studio-1';
+
+    const project = makeTheatricalFilm('legacy-player-film', 1, 2027);
+    (project as any).studioName = 'Test Studio';
+
+    const state = makeBaseState({
+      dlc: { streamingWars: true },
+      platformMarket: {
+        totalAddressableSubs: 100_000_000,
+        player: {
+          id: playerPlatformId,
+          name: 'TestFlix',
+          launchedWeek: 1,
+          launchedYear: 2026,
+          subscribers: 2_000_000,
+          cash: 0,
+          status: 'active',
+        },
+        rivals: [
+          { id: 'streamflix', name: 'StreamFlix', subscribers: 30_000_000, cash: 0, status: 'healthy' },
+        ],
+      } as any,
+      allReleases: [project],
+    });
+
+    const next = PlatformAutoStreamingWindowsSystem.onTick(state as any, makeCtx(456, 20, 2027)) as any;
+
+    const updated = next.allReleases[0] as Project;
+    const ownedWindow = (updated.postTheatricalReleases ?? []).find((r: any) => r.platform === 'streaming' && r.platformId === playerPlatformId);
+
+    expect(ownedWindow).toBeTruthy();
+  });
+
   it('schedules competitor theatrical films to a rival provider when the player platform is not the owner', () => {
     const playerPlatformId = 'player-platform:studio-1';
 
