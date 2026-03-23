@@ -16,6 +16,7 @@ import { triggerDateFromWeekYear } from '@/utils/gameTime';
 import type { TickSystem } from '../core/types';
 import { isDirectorRole } from '@/utils/scriptRoles';
 import { getFestivalAwardsProbabilityBonus } from '@/utils/festivalMomentum';
+import { getPlayerProjectIds, isPlayerOwnedProject } from '@/utils/playerProjects';
 
 
 
@@ -85,22 +86,26 @@ function getEligibleProjects(state: GameState, year: number, medium: 'film' | 't
       matchesMedium(project)
   );
 
-  const aiProjects = (state.allReleases || []).filter((release): release is Project => {
-    if (!release) return false;
-    if (!('script' in (release as any))) return false;
-    const p = release as any as Project;
-    return (
-      p.status === 'released' &&
-      p.releaseYear === year - 1 &&
-      !!p.metrics?.criticsScore &&
-      (p.metrics.criticsScore || 0) >= 45 &&
-      matchesMedium(p)
-    );
-  });
+  const aiProjects = [...(((state as any).aiStudioProjects as any[]) || []), ...(state.allReleases || [])].filter(
+    (release): release is Project => {
+      if (!release) return false;
+      if (!('script' in (release as any))) return false;
+      const p = release as any as Project;
+      return (
+        p.status === 'released' &&
+        p.releaseYear === year - 1 &&
+        !!p.metrics?.criticsScore &&
+        (p.metrics.criticsScore || 0) >= 45 &&
+        matchesMedium(p)
+      );
+    }
+  );
 
   const byId = new Map<string, Project>();
   for (const p of playerProjects) byId.set(p.id, p);
-  for (const p of aiProjects) byId.set(p.id, p);
+  for (const p of aiProjects) {
+    if (!byId.has(p.id)) byId.set(p.id, p);
+  }
 
   return [...byId.values()];
 }
@@ -540,8 +545,13 @@ export const AwardsSeasonSystem: TickSystem = {
 
       changed = true;
 
-      const playerProjectIds = new Set((state.projects || []).map((p) => p.id));
-      const nominatedPlayer = Object.values(computed.nominationsForState).some((rows) => rows.some((r) => playerProjectIds.has(r.projectId)));
+      const playerProjectIds = getPlayerProjectIds(state);
+      const eligible = getEligibleProjects(state, year, show.medium);
+      const playerOwnedIds = new Set(
+        eligible.filter((p) => isPlayerOwnedProject({ project: p, state, playerProjectIds })).map((p) => p.id)
+      );
+
+      const nominatedPlayer = Object.values(computed.nominationsForState).some((rows) => rows.some((r) => playerOwnedIds.has(r.projectId)));
 
       if (nominatedPlayer) {
         ctx.recap.push({
@@ -586,9 +596,12 @@ export const AwardsSeasonSystem: TickSystem = {
 
       const eligible = getEligibleProjects(state, year, show.medium);
       const byId = new Map(eligible.map((p) => [p.id, p] as const));
-      const playerProjectIds = new Set((state.projects || []).map((p) => p.id));
+      const playerProjectIds = getPlayerProjectIds(state);
+      const playerOwnedIds = new Set(
+        eligible.filter((p) => isPlayerOwnedProject({ project: p, state, playerProjectIds })).map((p) => p.id)
+      );
       const playerNominated = Object.values(nominationsRecord.categories || {}).some((rows) =>
-        (rows || []).some((n) => playerProjectIds.has(n.projectId))
+        (rows || []).some((n) => playerOwnedIds.has(n.projectId))
       );
 
       const winnersThisShow: string[] = [];
@@ -666,12 +679,12 @@ export const AwardsSeasonSystem: TickSystem = {
                   awards: [...currentAwards, talentAward],
                 });
 
-                if (playerProjectIds.has(n.project.id)) {
+                if (playerOwnedIds.has(n.project.id)) {
                   extraTalentStudioReputation += Math.max(1, Math.round(show.prestige * 0.5));
                 }
               }
             }
-          } else if (playerProjectIds.has(n.project.id)) {
+          } else if (playerOwnedIds.has(n.project.id)) {
             const awardId = `award:${show.id}:${year}:${catKey}:${n.project.id}`;
             if (!existingStudioAwardIds.has(awardId)) {
               wonStudioAwards.push({

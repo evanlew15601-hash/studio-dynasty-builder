@@ -486,10 +486,19 @@ export const useGameStore: import('zustand').UseBoundStore<import('zustand').Sto
     updateProject: (projectId, updates, marketingCost) => {
       set((s) => {
         if (!s.game) return;
-        const idx = s.game.projects.findIndex((p) => p.id === projectId);
-        if (idx >= 0) {
-          Object.assign(s.game.projects[idx], updates);
-        }
+
+        const updateList = (list: any[] | undefined) => {
+          if (!Array.isArray(list)) return;
+          const idx = list.findIndex((p) => p && (p as any).id === projectId);
+          if (idx >= 0) {
+            Object.assign(list[idx], updates);
+          }
+        };
+
+        updateList(s.game.projects as any);
+        updateList(s.game.aiStudioProjects as any);
+        updateList(s.game.allReleases as any);
+
         if (marketingCost) {
           s.game.studio.budget -= marketingCost;
         }
@@ -499,10 +508,18 @@ export const useGameStore: import('zustand').UseBoundStore<import('zustand').Sto
     replaceProject: (project) => {
       set((s) => {
         if (!s.game) return;
-        const idx = s.game.projects.findIndex((p) => p.id === project.id);
-        if (idx >= 0) {
-          s.game.projects[idx] = project as any;
-        }
+
+        const replaceInList = (list: any[] | undefined) => {
+          if (!Array.isArray(list)) return;
+          const idx = list.findIndex((p) => p && (p as any).id === project.id);
+          if (idx >= 0) {
+            list[idx] = project as any;
+          }
+        };
+
+        replaceInList(s.game.projects as any);
+        replaceInList(s.game.aiStudioProjects as any);
+        replaceInList(s.game.allReleases as any);
       });
     },
 
@@ -515,6 +532,18 @@ export const useGameStore: import('zustand').UseBoundStore<import('zustand').Sto
         } else {
           s.game.projects.push(project as any);
         }
+
+        // Keep legacy arrays coherent if the project exists there too.
+        const replaceIfPresent = (list: any[] | undefined) => {
+          if (!Array.isArray(list)) return;
+          const listIdx = list.findIndex((p) => p && (p as any).id === project.id);
+          if (listIdx >= 0) {
+            list[listIdx] = project as any;
+          }
+        };
+
+        replaceIfPresent(s.game.aiStudioProjects as any);
+        replaceIfPresent(s.game.allReleases as any);
       });
     },
 

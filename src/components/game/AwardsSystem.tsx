@@ -1,5 +1,6 @@
 import React, { useCallback, useMemo, useState } from 'react';
 import { Project, AwardsCampaign } from '@/types/game';
+import { getPlayerProjectIds, isPlayerOwnedProject } from '@/utils/playerProjects';
 import { useGameStore } from '@/game/store';
 import { useUiStore } from '@/game/uiStore';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
@@ -28,6 +29,7 @@ export const AwardsSystem: React.FC<AwardsSystemProps> = ({
   const setPhase = useUiStore((s) => s.setPhase);
   const navigatePhase = onNavigatePhase ?? ((phase: 'media' | 'distribution') => setPhase(phase));
   const replaceProject = useGameStore((s) => s.replaceProject);
+  const addProject = useGameStore((s) => s.addProject);
   const updateBudget = useGameStore((s) => s.updateBudget);
   const { toast } = useToast();
 
@@ -61,8 +63,11 @@ export const AwardsSystem: React.FC<AwardsSystemProps> = ({
   const playerProjects = useMemo(() => gameState?.projects ?? [], [gameState?.projects]);
   const allReleases = useMemo(() => gameState?.allReleases ?? [], [gameState?.allReleases]);
 
-  const playerProjectIds = useMemo(() => new Set(playerProjects.map(p => p.id)), [playerProjects]);
-  const isPlayerProject = (project: Project) => playerProjectIds.has(project.id);
+  const playerProjectIds = useMemo(() => getPlayerProjectIds(gameState), [playerProjects, gameState]);
+  const isPlayerProject = useCallback(
+    (project: Project) => !!gameState && isPlayerOwnedProject({ project, state: gameState, playerProjectIds }),
+    [gameState, playerProjectIds]
+  );
 
   const eligibleProjectsAll = useMemo((): Project[] => {
     if (!gameState) return [];
@@ -84,12 +89,18 @@ export const AwardsSystem: React.FC<AwardsSystemProps> = ({
       release.metrics.criticsScore >= 45
     );
 
-    return [...eligiblePlayer, ...eligibleAi];
+    const byId = new Map<string, Project>();
+    for (const p of eligiblePlayer) byId.set(p.id, p);
+    for (const p of eligibleAi) {
+      if (!byId.has(p.id)) byId.set(p.id, p);
+    }
+
+    return [...byId.values()];
   }, [allReleases, currentYear, gameState, playerProjects]);
 
   const eligiblePlayerProjects = useMemo(
-    () => eligibleProjectsAll.filter((p) => playerProjectIds.has(p.id)),
-    [eligibleProjectsAll, playerProjectIds]
+    () => (gameState ? eligibleProjectsAll.filter((p) => isPlayerOwnedProject({ project: p, state: gameState, playerProjectIds })) : []),
+    [eligibleProjectsAll, gameState, playerProjectIds]
   );
 
   // Calculate award probability based on project metrics
@@ -143,9 +154,8 @@ export const AwardsSystem: React.FC<AwardsSystemProps> = ({
 
   // Start awards campaign
   const startAwardsCampaign = (project: Project, budget: number) => {
-    // Prevent campaigning for AI films
-    const isPlayerProject = gameState.projects.some(p => p.id === project.id);
-    if (!isPlayerProject) {
+    const owned = !!gameState && isPlayerOwnedProject({ project, state: gameState, playerProjectIds });
+    if (!owned) {
       toast({
         title: "Not Allowed",
         description: "You can only run awards campaigns for your own projects.",
@@ -203,10 +213,17 @@ export const AwardsSystem: React.FC<AwardsSystemProps> = ({
     };
 
     // Persist campaign on the project so the headless awards engine can see it
-    replaceProject({
+    const updatedProject = {
       ...project,
       awardsCampaign: campaign
-    });
+    };
+
+    const existsInPlayerProjects = gameState.projects.some(p => p.id === project.id);
+    if (existsInPlayerProjects) {
+      replaceProject(updatedProject);
+    } else {
+      addProject(updatedProject);
+    }
 
     // Deduct budget
     updateBudget(-budget);
@@ -230,13 +247,13 @@ export const AwardsSystem: React.FC<AwardsSystemProps> = ({
     return pool
       .map(project => {
         const probability = calculateAwardsProbability(project);
-        const player = playerProjectIds.has(project.id);
+        const player = isPlayerProject(project);
         const campaign = player ? (project.awardsCampaign as AwardsCampaign | undefined) : undefined;
 
         return { project, probability, player, campaign };
       })
       .sort((a, b) => b.probability - a.probability);
-  }, [calculateAwardsProbability, contenderScope, eligiblePlayerProjects, eligibleProjectsAll, playerProjectIds]);
+  }, [calculateAwardsProbability, contenderScope, eligiblePlayerProjects, eligibleProjectsAll, isPlayerProject]);
 
   const PAGE_SIZE = contenderScope === 'player' ? 50 : 25;
   const totalPages = Math.max(1, Math.ceil(contenders.length / PAGE_SIZE));

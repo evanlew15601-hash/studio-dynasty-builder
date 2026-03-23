@@ -1185,7 +1185,7 @@ export const StreamingWarsPlatformApp: React.FC = () => {
           }
         : licenseProject.releaseStrategy,
       streamingContract:
-        licenseProject.streamingContract && licenseProject.streamingContract.platformId === playerPlatformId
+        getContractPlatformId(licenseProject.streamingContract) === playerPlatformId
           ? {
               ...(licenseProject.streamingContract as any),
               exclusivityClause: false,

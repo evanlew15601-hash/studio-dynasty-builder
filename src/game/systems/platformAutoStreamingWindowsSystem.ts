@@ -1,5 +1,6 @@
 import type { PlatformMarketState } from '@/types/platformEconomy';
 import type { GameState, PostTheatricalRelease, Project } from '@/types/game';
+import { getAllKnownProjects, getPlayerProjectIds, isPlayerOwnedProject } from '@/utils/playerProjects';
 import { getPostTheatricalPlatformId } from '@/utils/platformIds';
 import { getTheatricalEndAbs, getReleaseAbs } from '@/utils/postTheatrical';
 import { isPrimaryStreamingFilm, isTheatricalFilm, isTvProject } from '@/utils/projectMedium';
@@ -25,33 +26,7 @@ function dateForWeekYear(year: number, week: number): Date {
   return new Date(Date.UTC(year, 0, 1 + Math.max(0, week - 1) * 7));
 }
 
-function isProjectLike(value: any): value is Project {
-  return !!value && typeof value === 'object' && typeof value.id === 'string' && 'script' in value;
-}
 
-function isPlayerOwnedProject(params: {
-  project: Project;
-  state: GameState;
-  playerProjectIds: Set<string>;
-}): boolean {
-  const { project, state, playerProjectIds } = params;
-
-  if (playerProjectIds.has(project.id)) return true;
-
-  const studioId = (project as any)?.studioId;
-  if (studioId && (studioId === state.studio.id || studioId === 'player' || studioId === 'player-studio')) {
-    return true;
-  }
-
-  const studioName = (project as any)?.studioName;
-  if (typeof studioName === 'string' && studioName.trim().length > 0) {
-    return studioName === state.studio.name;
-  }
-
-  // If we can't attribute ownership, do not route to the player platform.
-  // (Unknown ownership should default to rivals.)
-  return false;
-}
 
 function isReleasedLike(project: Project): boolean {
   const status = project.status;
@@ -138,31 +113,8 @@ export const PlatformAutoStreamingWindowsSystem: TickSystem = {
 
     const playerPlatformId = market.player && market.player.status === 'active' ? market.player.id : null;
 
-    const playerProjectIds = new Set<string>();
-    for (const p of state.projects || []) {
-      if (isProjectLike(p)) playerProjectIds.add(p.id);
-    }
-
-    const candidates: Project[] = [];
-
-    for (const p of state.projects || []) {
-      if (isProjectLike(p)) candidates.push(p);
-    }
-
-    for (const p of (state.aiStudioProjects as any) || []) {
-      if (isProjectLike(p)) candidates.push(p);
-    }
-
-    for (const p of state.allReleases || []) {
-      if (isProjectLike(p)) candidates.push(p);
-    }
-
-    const seen = new Set<string>();
-    const unique = candidates.filter((p) => {
-      if (seen.has(p.id)) return false;
-      seen.add(p.id);
-      return true;
-    });
+    const playerProjectIds = getPlayerProjectIds(state);
+    const unique = getAllKnownProjects(state);
 
     const updatedById = new Map<string, Project>();
 
