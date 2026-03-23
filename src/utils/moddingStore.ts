@@ -47,14 +47,24 @@ function saveSlotRegistry(slots: string[], storage?: StorageLike): void {
   const store = getStore(storage);
   if (!store) return;
 
-  store.setItem(SLOTS_KEY, JSON.stringify(Array.from(new Set([DEFAULT_SLOT, ...slots]))));
+  try {
+    store.setItem(SLOTS_KEY, JSON.stringify(Array.from(new Set([DEFAULT_SLOT, ...slots]))));
+  } catch {
+    // ignore storage failures (e.g., third-party iframe restrictions)
+  }
 }
 
 export function getActiveModSlot(storage?: StorageLike): string {
   const store = getStore(storage);
   if (!store) return DEFAULT_SLOT;
 
-  const slot = store.getItem(ACTIVE_SLOT_KEY) || DEFAULT_SLOT;
+  let slot = DEFAULT_SLOT;
+  try {
+    slot = store.getItem(ACTIVE_SLOT_KEY) || DEFAULT_SLOT;
+  } catch {
+    slot = DEFAULT_SLOT;
+  }
+
   const normalized = slot.trim() || DEFAULT_SLOT;
 
   // Ensure the slot appears in the registry.
@@ -71,7 +81,12 @@ export function setActiveModSlot(slotId: string, storage?: StorageLike): void {
   if (!store) return;
 
   const normalized = slotId.trim() || DEFAULT_SLOT;
-  store.setItem(ACTIVE_SLOT_KEY, normalized);
+
+  try {
+    store.setItem(ACTIVE_SLOT_KEY, normalized);
+  } catch {
+    return;
+  }
 
   const slots = listModSlots(store);
   if (!slots.includes(normalized)) {

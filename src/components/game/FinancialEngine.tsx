@@ -40,6 +40,45 @@ export class FinancialEngine {
   private static readonly LEGACY_STORAGE_KEY = 'studio-magnate-ledger';
   private static loadedStorageKey: string | null = null;
 
+  private static persistScheduled = false;
+  private static storageDisabled = false;
+
+  private static readonly INDEX_SEP = '\u001f';
+  private static readonly coarseIndex = new Set<string>();
+  private static readonly fullIndex = new Set<string>();
+
+  private static isStorageAccessDenied(e: unknown): boolean {
+    const DomEx = (globalThis as any).DOMException as (new (...args: any[]) => any) | undefined;
+    if (!DomEx) return false;
+    if (!(e instanceof DomEx)) return false;
+    return e.name === 'SecurityError' || e.name === 'InvalidAccessError';
+  }
+
+  private static coarseKey(input: { filmId?: string; type: Transaction['type']; category: Transaction['category']; week: number; year: number }): string {
+    const sep = this.INDEX_SEP;
+    return `${input.filmId || ''}${sep}${input.type}${sep}${input.category}${sep}${input.year}${sep}${input.week}`;
+  }
+
+  private static fullKey(input: { filmId?: string; type: Transaction['type']; category: Transaction['category']; week: number; year: number; description: string }): string {
+    const sep = this.INDEX_SEP;
+    return `${input.filmId || ''}${sep}${input.type}${sep}${input.category}${sep}${input.year}${sep}${input.week}${sep}${input.description}`;
+  }
+
+  private static rebuildIndexes(): void {
+    this.coarseIndex.clear();
+    this.fullIndex.clear();
+
+    for (const t of this.transactions) {
+      this.coarseIndex.add(this.coarseKey(t));
+      this.fullIndex.add(this.fullKey(t));
+    }
+  }
+
+  private static indexTransaction(t: Transaction): void {
+    this.coarseIndex.add(this.coarseKey(t));
+    this.fullIndex.add(this.fullKey(t));
+  }
+
   private static getStorageKey(): string {
     const modSlotId = getActiveModSlot();
     const saveSlotId = getActiveSaveSlotId(modSlotId);
@@ -55,6 +94,8 @@ export class FinancialEngine {
       this.transactions = [];
       this.nextTransactionId = 1;
       this.loadedStorageKey = storageKey;
+      this.coarseIndex.clear();
+      this.fullIndex.clear();
     }
 
     if (this.transactions.length === 0) {
@@ -76,6 +117,7 @@ export class FinancialEngine {
             return Math.max(max, n);
           }, 0);
           this.nextTransactionId = (parsed as any).nextId || lastId + 1 || 1;
+          this.rebuildIndexes();
 
           // If we loaded legacy storage, immediately migrate it into the scoped key.
           if (!raw && legacyRaw && typeof window !== 'undefined') {
@@ -84,18 +126,51 @@ export class FinancialEngine {
           }
         }
       } catch (e) {
+        if (this.isStorageAccessDenied(e)) this.storageDisabled = true;
+
         // If parsing fails, start fresh but don't crash the game
         this.transactions = [];
         this.nextTransactionId = 1;
+        this.coarseIndex.clear();
+        this.fullIndex.clear();
       }
     }
   }
 
   private static persist() {
+    if (this.storageDisabled) return;
+
+    // In Vitest, keep persistence synchronous so tests can assert immediately.
+    if (import.meta.env.MODE === 'test' || (import.meta.env as any).VITEST) {
+      this.flushPersist();
+      return;
+    }
+
+    if (this.persistScheduled) return;
+
+    this.persistScheduled = true;
+
+    const flush = () => {
+      this.persistScheduled = false;
+      this.flushPersist();
+    };
+
+    const ric = (globalThis as any).requestIdleCallback as ((cb: () => void, opts?: { timeout: number }) => number) | undefined;
+    if (typeof ric === 'function') {
+      ric(flush, { timeout: 2000 });
+    } else {
+      setTimeout(flush, 0);
+    }
+  }
+
+  private static flushPersist() {
+    if (this.storageDisabled) return;
+
     try {
       if (typeof window !== 'undefined') {
         const storageKey = this.getStorageKey();
         const payload = JSON.stringify({ transactions: this.transactions, nextId: this.nextTransactionId });
+
         // Check if payload is too large (>4MB to leave headroom for 5MB limit)
         if (payload.length > 4 * 1024 * 1024) {
           console.warn('FinancialEngine: Ledger too large, pruning old transactions');
@@ -107,15 +182,26 @@ export class FinancialEngine {
         }
       }
     } catch (e) {
+      if (this.isStorageAccessDenied(e)) {
+        this.storageDisabled = true;
+        return;
+      }
+
       // Handle localStorage quota exceeded
-      if (e instanceof DOMException && (e.name === 'QuotaExceededError' || e.code === 22)) {
+      const DomEx = (globalThis as any).DOMException as (new (...args: any[]) => any) | undefined;
+      if (DomEx && e instanceof DomEx && ((e as any).name === 'QuotaExceededError' || (e as any).code === 22)) {
         console.warn('FinancialEngine: localStorage quota exceeded, pruning old transactions');
         this.pruneOldTransactions(52); // Keep only last year
         try {
           const storageKey = this.getStorageKey();
           const prunedPayload = JSON.stringify({ transactions: this.transactions, nextId: this.nextTransactionId });
           window.localStorage.setItem(storageKey, prunedPayload);
-        } catch {
+        } catch (e2) {
+          if (this.isStorageAccessDenied(e2)) {
+            this.storageDisabled = true;
+            return;
+          }
+
           // If still failing, clear and restart
           window.localStorage.removeItem(this.getStorageKey());
           console.warn('FinancialEngine: Had to clear ledger due to storage limits');
@@ -146,6 +232,7 @@ export class FinancialEngine {
       const absWeek = (t.year * 52) + t.week;
       return absWeek >= cutoffWeek;
     });
+    this.rebuildIndexes();
     
     console.log(`FinancialEngine: Pruned ${beforeCount - this.transactions.length} old transactions (kept ${this.transactions.length})`);
   }
@@ -167,6 +254,7 @@ export class FinancialEngine {
     });
     
     if (beforeCount !== this.transactions.length) {
+      this.rebuildIndexes();
       console.log(`FinancialEngine: Memory cleanup removed ${beforeCount - this.transactions.length} transactions`);
       this.persist();
     }
@@ -175,6 +263,8 @@ export class FinancialEngine {
   static clearLedger(): void {
     this.transactions = [];
     this.nextTransactionId = 1;
+    this.coarseIndex.clear();
+    this.fullIndex.clear();
 
     if (typeof window !== 'undefined') {
       try {
@@ -210,11 +300,29 @@ export class FinancialEngine {
     };
     
     this.transactions.push(transaction);
+    this.indexTransaction(transaction);
     this.persist();
 
     console.log(`FINANCE: ${type} ${formatMoneyCompact(roundedAmount)} for ${description} (Y${year}W${week})`);
     
     return transaction.id;
+  }
+
+  static hasFilmTransaction(
+    filmId: string,
+    type: Transaction['type'],
+    category: Transaction['category'],
+    week: number,
+    year: number,
+    description?: string
+  ): boolean {
+    this.ensureLoaded();
+
+    if (description) {
+      return this.fullIndex.has(this.fullKey({ filmId, type, category, week, year, description }));
+    }
+
+    return this.coarseIndex.has(this.coarseKey({ filmId, type, category, week, year }));
   }
   
   static recordFilmRevenue(filmId: string, amount: number, week: number, year: number, source: string): string {
@@ -510,6 +618,7 @@ export class FinancialEngine {
     this.ensureLoaded();
 
     this.transactions = this.transactions.filter(t => t.filmId !== filmId);
+    this.rebuildIndexes();
     this.persist();
   }
 
@@ -517,6 +626,8 @@ export class FinancialEngine {
   static clearAll(): void {
     this.transactions = [];
     this.nextTransactionId = 1;
+    this.coarseIndex.clear();
+    this.fullIndex.clear();
     this.persist();
   }
   

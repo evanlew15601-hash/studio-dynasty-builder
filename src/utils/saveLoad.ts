@@ -115,18 +115,22 @@ export function getActiveSaveSlotId(modSlotId?: string): string {
     return DEFAULT_SAVE_SLOT_ID;
   }
 
-  const raw = window.localStorage.getItem(activeSlotKey(modSlotId));
-  const normalized = raw ? normalizeSlotId(raw) : '';
-  if (normalized) return normalized;
+  try {
+    const raw = window.localStorage.getItem(activeSlotKey(modSlotId));
+    const normalized = raw ? normalizeSlotId(raw) : '';
+    if (normalized) return normalized;
 
-  const db = normalizeDbId(modSlotId ?? getActiveModSlot());
-  if (db === 'default') {
-    const legacyRaw = window.localStorage.getItem(ACTIVE_SLOT_KEY_LEGACY);
-    const legacyNormalized = legacyRaw ? normalizeSlotId(legacyRaw) : '';
-    if (legacyNormalized) return legacyNormalized;
+    const db = normalizeDbId(modSlotId ?? getActiveModSlot());
+    if (db === 'default') {
+      const legacyRaw = window.localStorage.getItem(ACTIVE_SLOT_KEY_LEGACY);
+      const legacyNormalized = legacyRaw ? normalizeSlotId(legacyRaw) : '';
+      if (legacyNormalized) return legacyNormalized;
+    }
+
+    return DEFAULT_SAVE_SLOT_ID;
+  } catch {
+    return DEFAULT_SAVE_SLOT_ID;
   }
-
-  return DEFAULT_SAVE_SLOT_ID;
 }
 
 export function setActiveSaveSlotId(slotId: string, modSlotId?: string): void {
@@ -137,11 +141,15 @@ export function setActiveSaveSlotId(slotId: string, modSlotId?: string): void {
     return;
   }
 
-  const db = normalizeDbId(modSlotId ?? getActiveModSlot());
+  try {
+    const db = normalizeDbId(modSlotId ?? getActiveModSlot());
 
-  window.localStorage.setItem(activeSlotKey(db), normalized);
-  if (db === 'default') {
-    window.localStorage.setItem(ACTIVE_SLOT_KEY_LEGACY, normalized);
+    window.localStorage.setItem(activeSlotKey(db), normalized);
+    if (db === 'default') {
+      window.localStorage.setItem(ACTIVE_SLOT_KEY_LEGACY, normalized);
+    }
+  } catch {
+    // Ignore storage write failures (e.g., third-party iframe restrictions).
   }
 }
 

@@ -742,10 +742,22 @@ export const StudioMagnateGame: React.FC<StudioMagnateGameProps> = ({
       // Persist a long-lived, cross-session industry catalog (films/TV/talent/awards/studios).
       // This is separate from the save-game snapshot and continues to accrue even if the in-memory
       // simulation prunes older releases for performance.
-      try {
-        syncAndPersistIndustryDatabase(getActiveSaveSlotId(), gameState);
-      } catch (e) {
-        console.warn('Failed to persist industry database', e);
+      //
+      // Important: this can be CPU-heavy (large catalogs + JSON), so we push it off the critical path
+      // of the week-advance UI by scheduling it in an idle callback.
+      const persistIndustryDb = () => {
+        try {
+          syncAndPersistIndustryDatabase(getActiveSaveSlotId(), gameState);
+        } catch (e) {
+          console.warn('Failed to persist industry database', e);
+        }
+      };
+
+      const ric = (globalThis as any).requestIdleCallback as ((cb: () => void, opts?: { timeout: number }) => number) | undefined;
+      if (typeof ric === 'function') {
+        ric(persistIndustryDb, { timeout: 2000 });
+      } else {
+        setTimeout(persistIndustryDb, 0);
       }
 
       // Online League (Option B): the host publishes an authoritative state for this turn.
@@ -1241,8 +1253,12 @@ export const StudioMagnateGame: React.FC<StudioMagnateGameProps> = ({
              }
 
              if (weeklyBoxOfficeRevenue > 0) {
-               const alreadyRecorded = FinancialEngine.getFilmFinancials(updatedProject.id).transactions.some(
-                 t => t.type === 'revenue' && t.category === 'boxoffice' && t.week === timeState.currentWeek && t.year === timeState.currentYear
+               const alreadyRecorded = FinancialEngine.hasFilmTransaction(
+                 updatedProject.id,
+                 'revenue',
+                 'boxoffice',
+                 timeState.currentWeek,
+                 timeState.currentYear
                );
 
                if (!alreadyRecorded) {
@@ -1293,21 +1309,19 @@ export const StudioMagnateGame: React.FC<StudioMagnateGameProps> = ({
 
           studioRevenueDelta += revenueDelta;
 
-          const existing = FinancialEngine.getFilmFinancials(updatedProject.id).transactions;
-
           (Object.entries(earnedByPlatform) as Array<[PostTheatricalRelease['platform'], number]>).forEach(([platform, amount]) => {
               if (!amount || amount <= 0) return;
 
               const category = platform === 'streaming' ? 'streaming' : 'licensing';
               const description = `Post-theatrical - ${platform}`;
 
-              const alreadyRecorded = existing.some(
-                (t) =>
-                  t.type === 'revenue' &&
-                  t.category === category &&
-                  t.week === timeState.currentWeek &&
-                  t.year === timeState.currentYear &&
-                  t.description === description
+              const alreadyRecorded = FinancialEngine.hasFilmTransaction(
+                updatedProject.id,
+                'revenue',
+                category,
+                timeState.currentWeek,
+                timeState.currentYear,
+                description
               );
 
               if (!alreadyRecorded) {
@@ -1497,10 +1511,48 @@ export const StudioMagnateGame: React.FC<StudioMagnateGameProps> = ({
       updateOperation(LOADING_OPERATIONS.WEEKLY_PROCESSING.id, 5, 'Advancing time...');
     }
 
+    const completeLoadingOverlay = () => {
+      if (!loadingEnabled) {
+        weeklyProcessingRef.current = false;
+        return;
+      }
+
+      let completed = false;
+      const complete = () => {
+        if (completed) return;
+        completed = true;
+        completeOperation(LOADING_OPERATIONS.WEEKLY_PROCESSING.id);
+        weeklyProcessingRef.current = false;
+      };
+
+      // Some environments throttle/disable requestAnimationFrame; provide a timeout fallback.
+      const raf = (globalThis as any).requestAnimationFrame as ((cb: () => void) => number) | undefined;
+      if (typeof raf === 'function') raf(complete);
+      setTimeout(complete, 0);
+    };
+
+    const failAdvanceWeek = (err: unknown) => {
+      console.warn('Advance week failed', err);
+
+      toast({
+        title: 'Advance Week failed',
+        description: err instanceof Error ? err.message : 'An unexpected error occurred during weekly processing.',
+        variant: 'destructive',
+      });
+
+      if (loadingEnabled) {
+        updateOperation(LOADING_OPERATIONS.WEEKLY_PROCESSING.id, 100, 'Failed. See console for details.');
+        completeLoadingOverlay();
+      } else {
+        weeklyProcessingRef.current = false;
+      }
+    };
+
     const runTick = () => {
-      setGameState((prev) => {
-      const tickStart = performance.now();
-      const startedAtIso = new Date().toISOString();
+      try {
+        setGameState((prev) => {
+          const tickStart = performance.now();
+          const startedAtIso = new Date().toISOString();
 
       const systems: TickSystemReport[] = [];
       const recap: TickRecapCard[] = [];
@@ -1735,20 +1787,32 @@ export const StudioMagnateGame: React.FC<StudioMagnateGameProps> = ({
       // Complete the loading operation
       if (loadingEnabled) {
         updateOperation(LOADING_OPERATIONS.WEEKLY_PROCESSING.id, 100, 'Finalizing...');
-        requestAnimationFrame(() => {
-          completeOperation(LOADING_OPERATIONS.WEEKLY_PROCESSING.id);
-          weeklyProcessingRef.current = false;
-        });
+        completeLoadingOverlay();
       }
 
       return newState;
-    });
+        });
+      } catch (err) {
+        failAdvanceWeek(err);
+        if (!loadingEnabled) throw err;
+      }
     };
 
     // Defer the heavy tick work by one frame when showing the loading UI.
     // This allows the popup to render before the main-thread work begins.
+    //
+    // Note: requestAnimationFrame can be throttled/paused in some embed contexts; add a timeout fallback.
     if (loadingEnabled) {
-      requestAnimationFrame(runTick);
+      let started = false;
+      const start = () => {
+        if (started) return;
+        started = true;
+        runTick();
+      };
+
+      const raf = (globalThis as any).requestAnimationFrame as ((cb: () => void) => number) | undefined;
+      if (typeof raf === 'function') raf(start);
+      setTimeout(start, 0);
     } else {
       runTick();
     }
@@ -2385,8 +2449,30 @@ export const StudioMagnateGame: React.FC<StudioMagnateGameProps> = ({
 
       isProcessing = true;
 
-      advanceWeekCore({ suppressToast: true, suppressLoading: true, suppressDiagnostics: true, suppressRecap: true });
-      remaining -= 1;
+      try {
+        advanceWeekCore({ suppressToast: true, suppressLoading: true, suppressDiagnostics: true, suppressRecap: true });
+        remaining -= 1;
+      } catch (err) {
+        console.warn('Time skip: weekly processing failed', err);
+        remaining = 0;
+        isProcessing = false;
+
+        updateOperation(LOADING_OPERATIONS.WEEKLY_PROCESSING.id, 100, 'Failed. See console for details.');
+        const complete = () => {
+          completeOperation(LOADING_OPERATIONS.WEEKLY_PROCESSING.id);
+          weeklyProcessingRef.current = false;
+        };
+        const raf = (globalThis as any).requestAnimationFrame as ((cb: () => void) => number) | undefined;
+        if (typeof raf === 'function') raf(complete);
+        setTimeout(complete, 0);
+
+        toast({
+          title: 'Time skip failed',
+          description: err instanceof Error ? err.message : 'An unexpected error occurred during weekly processing.',
+          variant: 'destructive',
+        });
+        return;
+      }
 
       const completed = totalWeeks - remaining;
       updateOperation(
@@ -2398,17 +2484,24 @@ export const StudioMagnateGame: React.FC<StudioMagnateGameProps> = ({
       // Use requestAnimationFrame to yield to the browser between weeks
       // This prevents UI freezing and allows garbage collection
       if (remaining > 0) {
-        requestAnimationFrame(() => {
+        const raf = (globalThis as any).requestAnimationFrame as ((cb: () => void) => number) | undefined;
+        const schedule = () => {
           isProcessing = false;
           // Add small delay to let React state settle
           setTimeout(step, 25);
-        });
+        };
+
+        if (typeof raf === 'function') raf(schedule);
+        else setTimeout(schedule, 0);
       } else {
         isProcessing = false;
-        requestAnimationFrame(() => {
+        const complete = () => {
           completeOperation(LOADING_OPERATIONS.WEEKLY_PROCESSING.id);
           weeklyProcessingRef.current = false;
-        });
+        };
+        const raf = (globalThis as any).requestAnimationFrame as ((cb: () => void) => number) | undefined;
+        if (typeof raf === 'function') raf(complete);
+        setTimeout(complete, 0);
         toast({
           title: 'Time Advanced',
           description: `Advanced ${totalWeeks} weeks → Week ${targetWeek}, ${targetYear}`,
@@ -2416,7 +2509,9 @@ export const StudioMagnateGame: React.FC<StudioMagnateGameProps> = ({
       }
     };
 
-    requestAnimationFrame(step);
+    const raf = (globalThis as any).requestAnimationFrame as ((cb: () => void) => number) | undefined;
+    if (typeof raf === 'function') raf(step);
+    else setTimeout(step, 0);
   };
 
   const handleAdvanceToDate = (targetWeek: number, targetYear: number) => {
