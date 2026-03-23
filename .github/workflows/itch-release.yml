@@ -8,6 +8,9 @@ on:
         required: false
         type: string
 
+  release:
+    types: [published]
+
   push:
     tags:
       - 'v*'
@@ -34,6 +37,8 @@ jobs:
 
     steps:
       - uses: actions/checkout@v5
+        with:
+          ref: ${{ github.event_name == 'release' && format('refs/tags/{0}', github.event.release.tag_name) || github.ref }}
 
       - name: Setup Node
         uses: actions/setup-node@v6
@@ -281,6 +286,8 @@ jobs:
 
     steps:
       - uses: actions/checkout@v5
+        with:
+          ref: ${{ github.event_name == 'release' && format('refs/tags/{0}', github.event.release.tag_name) || github.ref }}
 
       - name: Validate itch.io secrets
         shell: bash
@@ -346,17 +353,23 @@ jobs:
           ITCH_USERNAME: ${{ secrets.ITCH_USERNAME || vars.ITCH_USERNAME }}
           ITCH_GAME: ${{ secrets.ITCH_GAME || vars.ITCH_GAME }}
           INPUT_VERSION: ${{ github.event.inputs.version }}
+          RELEASE_TAG: ${{ github.event.release.tag_name }}
         run: |
           set -euo pipefail
 
           mkdir -p ci-logs
           BUTLER_LOG_FILE="ci-logs/butler-upload.log"
+          : > "$BUTLER_LOG_FILE"
 
           VERSION="${INPUT_VERSION:-}"
 
           if [ -z "$VERSION" ] && [[ "${GITHUB_REF:-}" == refs/tags/* ]]; then
             VERSION="${GITHUB_REF#refs/tags/}"
             VERSION="${VERSION#v}"
+          fi
+
+          if [ -z "$VERSION" ] && [ -n "${RELEASE_TAG:-}" ]; then
+            VERSION="${RELEASE_TAG#v}"
           fi
 
           if [ -z "$VERSION" ]; then
