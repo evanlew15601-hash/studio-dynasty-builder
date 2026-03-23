@@ -13,6 +13,7 @@ import type { TickRecapCard, TickSystemReport } from '@/types/tickReport';
 import type { TickContext, TickResult, TickSystem } from './types';
 import type { SeededRng } from './rng';
 import { TimeSystem } from './time';
+import { syncProjectCollections } from '@/utils/projectStateSync';
 
 /**
  * Run a single weekly tick on the game state.
@@ -39,12 +40,12 @@ export function advanceWeek(
     currentQuarter: state.currentQuarter,
   });
 
-  let current: GameState = {
+  let current: GameState = syncProjectCollections({
     ...state,
     currentWeek: newTime.currentWeek,
     currentYear: newTime.currentYear,
     currentQuarter: newTime.currentQuarter,
-  };
+  });
 
   const ctx: TickContext = {
     rng,
@@ -68,7 +69,7 @@ export function advanceWeek(
   for (const sys of systems) {
     const t0 = typeof performance !== 'undefined' ? performance.now() : Date.now();
     try {
-      current = sys.onTick(current, ctx);
+      current = syncProjectCollections(sys.onTick(current, ctx));
     } catch (err) {
       console.error(`[Engine] System "${sys.id}" threw:`, err);
       systemReports.push({

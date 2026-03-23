@@ -9,6 +9,7 @@ import { getModBundle } from '@/utils/moddingStore';
 import { applyPatchesByKey, getPatchesForEntity } from '@/utils/modding';
 import { reviveIsoDates } from '@/utils/reviveIsoDates';
 import { normalizeProjectCreditsState } from '@/utils/projectCreditsNormalization';
+import { syncProjectCollections } from '@/utils/projectStateSync';
 import type { SaveGameSnapshot } from '@/utils/saveLoad';
 
 export function patchLoadedSnapshot(
@@ -50,7 +51,7 @@ export function patchLoadedSnapshot(
     normalizePublicDomainState(normalizeFranchisesState(patchedGameStateRaw as any) as any)
   );
 
-  const patchedGameState = {
+  const patchedGameState = syncProjectCollections({
     ...patchedGameStateBase,
     aiStudioState: (patchedGameStateBase as any).aiStudioState ?? { aiFilms: [], talentCommitments: [], nextFilmId: 1 },
     mediaState:
@@ -59,7 +60,7 @@ export function patchLoadedSnapshot(
         engine: { history: [], memories: [], eventQueue: [] },
         response: { campaigns: [], reactions: [], nextCampaignId: 1 },
       },
-  };
+  } as any);
 
   if (opts.mode === 'single') {
     return {

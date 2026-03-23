@@ -20,6 +20,7 @@ import { normalizeStudioGovernanceState } from '@/utils/studioGovernanceNormaliz
 import { getContractPlatformId } from '@/utils/platformIds';
 import type { TickReport } from '@/types/tickReport';
 import { createTickReport } from '@/utils/tickReport';
+import { syncProjectCollections } from '@/utils/projectStateSync';
 import type { ModBundle } from '@/types/modding';
 import type { SeededRng } from './core/rng';
 import { createRng, generateGameSeed, seedFromString } from './core/rng';
@@ -272,7 +273,9 @@ export const useGameStore: import('zustand').UseBoundStore<import('zustand').Sto
       const gameSeed = seed ?? generateGameSeed();
       set((s) => {
         const next = { ...state, universeSeed: state.universeSeed ?? gameSeed, rngState: state.rngState ?? gameSeed };
-        s.game = normalizeStudioGovernanceState(normalizePublicDomainState(normalizeFranchisesState(next) as any) as any);
+        s.game = syncProjectCollections(
+          normalizeStudioGovernanceState(normalizePublicDomainState(normalizeFranchisesState(next) as any) as any) as any
+        ) as any;
         s.seed = gameSeed;
         s.rng = createRng(gameSeed);
         s.initialized = true;
@@ -297,7 +300,9 @@ export const useGameStore: import('zustand').UseBoundStore<import('zustand').Sto
           universeSeed: typeof state.universeSeed === 'number' ? state.universeSeed : derivedUniverseSeed,
           rngState: typeof state.rngState === 'number' ? state.rngState : derivedRngState,
         };
-        s.game = normalizeStudioGovernanceState(normalizePublicDomainState(normalizeFranchisesState(next) as any) as any);
+        s.game = syncProjectCollections(
+          normalizeStudioGovernanceState(normalizePublicDomainState(normalizeFranchisesState(next) as any) as any) as any
+        ) as any;
         s.seed = gameSeed;
         s.rng = createRng(gameSeed);
         s.initialized = true;
@@ -350,7 +355,9 @@ export const useGameStore: import('zustand').UseBoundStore<import('zustand').Sto
           universeSeed: (s.game as any)?.universeSeed,
           rngState: rng.state,
         };
-        s.game = normalizeStudioGovernanceState(normalizePublicDomainState(normalizeFranchisesState(next) as any) as any);
+        s.game = syncProjectCollections(
+          normalizeStudioGovernanceState(normalizePublicDomainState(normalizeFranchisesState(next) as any) as any) as any
+        ) as any;
         // Persist the PRNG state ("seed" here is treated as current RNG state).
         s.seed = rng.state;
         s.rng = createRng(rng.state);
@@ -400,7 +407,9 @@ export const useGameStore: import('zustand').UseBoundStore<import('zustand').Sto
           universeSeed: (s.game as any)?.universeSeed,
           rngState,
         };
-        s.game = normalizeStudioGovernanceState(normalizePublicDomainState(normalizeFranchisesState(next) as any) as any);
+        s.game = syncProjectCollections(
+          normalizeStudioGovernanceState(normalizePublicDomainState(normalizeFranchisesState(next) as any) as any) as any
+        ) as any;
         s.seed = rngState;
         s.rng = createRng(rngState);
         s.lastTickReport = report as any;
@@ -415,7 +424,9 @@ export const useGameStore: import('zustand').UseBoundStore<import('zustand').Sto
         if (!s.game) return;
         Object.assign(s.game as any, updates);
         if ('franchises' in updates || 'publicDomainIPs' in updates || 'governance' in updates) {
-          s.game = normalizeStudioGovernanceState(normalizePublicDomainState(normalizeFranchisesState(s.game as any) as any) as any) as any;
+          s.game = syncProjectCollections(
+            normalizeStudioGovernanceState(normalizePublicDomainState(normalizeFranchisesState(s.game as any) as any) as any) as any
+          ) as any;
         }
       });
     },
@@ -628,7 +639,9 @@ export const useGameStore: import('zustand').UseBoundStore<import('zustand').Sto
       set((s) => {
         if (!s.game) return;
         const next = updater(s.game as GameState);
-        s.game = normalizeStudioGovernanceState(normalizePublicDomainState(normalizeFranchisesState(next) as any) as any) as any;
+        s.game = syncProjectCollections(
+          normalizeStudioGovernanceState(normalizePublicDomainState(normalizeFranchisesState(next) as any) as any) as any
+        ) as any;
       });
     },
 
