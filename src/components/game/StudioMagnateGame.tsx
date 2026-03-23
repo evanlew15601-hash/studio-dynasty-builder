@@ -1,4 +1,4 @@
-import React, { useEffect, useMemo, useRef, useState, Suspense } from 'react';
+import React, { useCallback, useEffect, useMemo, useRef, useState, Suspense } from 'react';
 import type { GameState, Studio, Project, Script, TalentPerson, Genre, MarketingStrategy, ReleaseStrategy, ProductionPhase, PostTheatricalRelease } from '@/types/game';
 import { useLoadingActions } from '@/contexts/LoadingContext';
 import { LOADING_OPERATIONS, delay } from '@/utils/loadingUtils';
@@ -70,6 +70,16 @@ import { useGenreSaturation } from '../../hooks/useGenreSaturation';
 import { useAchievements } from '../../hooks/useAchievements';
 
 import { Button } from '@/components/ui/button';
+import {
+  AlertDialog,
+  AlertDialogAction,
+  AlertDialogCancel,
+  AlertDialogContent,
+  AlertDialogDescription,
+  AlertDialogFooter,
+  AlertDialogHeader,
+  AlertDialogTitle,
+} from '@/components/ui/alert-dialog';
 import { Card, CardContent } from '@/components/ui/card';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
@@ -94,11 +104,11 @@ import { PlayerCirclePanel } from './PlayerCirclePanel';
 import { ReleaseStrategyModal } from './ReleaseStrategyModal';
 import { ComprehensiveTelevisionSystem } from './ComprehensiveTelevisionSystem';
 import { TelevisionSystemTests } from './TelevisionSystemTests';
-import { 
-  StudioIcon, 
-  ScriptIcon, 
-  CastingIcon, 
-  ProductionIcon, 
+import {
+  StudioIcon,
+  ScriptIcon,
+  CastingIcon,
+  ProductionIcon,
   DistributionIcon,
   MarketingIcon,
   BudgetIcon,
@@ -106,7 +116,7 @@ import {
   ClapperboardIcon,
   BarChartIcon
 } from '@/components/ui/icons';
-import { ChevronDown, Settings2 } from 'lucide-react';
+import { ChevronDown, Home, Settings2 } from 'lucide-react';
 import { RoleDatabase } from '../../data/RoleDatabase';
 import { importRolesForScript } from '@/utils/roleImport';
 import { finalizeScriptForSave } from '@/utils/scriptFinalization';
@@ -217,6 +227,11 @@ interface StudioMagnateGameProps {
    * This is experimental and primarily intended for testing shared-session flows.
    */
   onlineHostSync?: boolean;
+
+  /**
+   * Return to the main menu (parent page decides how to unwind the running game).
+   */
+  onReturnToMainMenu?: () => void;
 }
 
 export const StudioMagnateGame: React.FC<StudioMagnateGameProps> = ({
@@ -228,6 +243,7 @@ export const StudioMagnateGame: React.FC<StudioMagnateGameProps> = ({
   onlineLeagueCode,
   onlineSeasonYears,
   onlineHostSync = false,
+  onReturnToMainMenu,
 }) => {
   const { toast } = useToast();
   const isOnlineMode = !!onlineLeagueCode?.trim();
@@ -681,6 +697,7 @@ export const StudioMagnateGame: React.FC<StudioMagnateGameProps> = ({
   const [saveDialogOpen, setSaveDialogOpen] = useState(false);
   const [settingsDialogOpen, setSettingsDialogOpen] = useState(false);
   const [inboxOpen, setInboxOpen] = useState(false);
+  const [exitToMenuOpen, setExitToMenuOpen] = useState(false);
 
   // Post-tick persistence (strict single-button progression contract):
   // Any persistence that should happen "because a week advanced" is scheduled by the tick
@@ -731,6 +748,41 @@ export const StudioMagnateGame: React.FC<StudioMagnateGameProps> = ({
   const pendingTickReportOpenRef = useRef(false);
   const [lastTickReport, setLastTickReport] = useState<TickReport | null>(null);
   const [showWeekRecap, setShowWeekRecap] = useState(false);
+
+  const lastManualSaveAbsWeekRef = useRef<number | null>(null);
+  const lastSaveReminderAbsWeekRef = useRef<number | null>(null);
+  const [lastSavedAtIso, setLastSavedAtIso] = useState<string | null>(null);
+
+  const handleSaveGame = useCallback(async (): Promise<boolean> => {
+    try {
+      const unlockedIds = achievements.getUnlockedAchievements().map(a => a.id);
+      const slotId = getActiveSaveSlotId();
+
+      await saveGameAsync(slotId, gameState, {
+        currentPhase,
+        unlockedAchievementIds: unlockedIds
+      });
+
+      lastManualSaveAbsWeekRef.current = (gameState.currentYear * 52) + gameState.currentWeek;
+      lastSaveReminderAbsWeekRef.current = null;
+      setLastSavedAtIso(new Date().toISOString());
+
+      toast({
+        title: 'Game Saved',
+        description: `Saved to ${slotId}.`,
+      });
+
+      return true;
+    } catch (error) {
+      console.error('Failed to save game', error);
+      toast({
+        title: 'Save Failed',
+        description: 'Unable to save your game. Check browser storage settings.',
+        variant: 'destructive',
+      });
+      return false;
+    }
+  }, [achievements, currentPhase, gameState, toast]);
 
   // Post-tick: consume any tick report computed during the Advance Week reducer.
   // The week/year change is our "tick committed" signal.
@@ -789,15 +841,36 @@ export const StudioMagnateGame: React.FC<StudioMagnateGameProps> = ({
     }
 
     const report = pendingTickReportRef.current;
-    if (!report) return;
+    if (report) {
+      pendingTickReportRef.current = null;
+      setLastTickReport(report);
 
-    pendingTickReportRef.current = null;
-    setLastTickReport(report);
-
-    if (pendingTickReportOpenRef.current) {
-      setShowWeekRecap(true);
+      if (pendingTickReportOpenRef.current) {
+        setShowWeekRecap(true);
+      }
+      pendingTickReportOpenRef.current = false;
     }
-    pendingTickReportOpenRef.current = false;
+
+    const currentAbsWeek = (gameState.currentYear * 52) + gameState.currentWeek;
+    if (lastManualSaveAbsWeekRef.current === null) {
+      lastManualSaveAbsWeekRef.current = currentAbsWeek;
+    }
+
+    const lastSaveAbsWeek = lastManualSaveAbsWeekRef.current ?? currentAbsWeek;
+    const weeksSinceSave = currentAbsWeek - lastSaveAbsWeek;
+
+    if (weeksSinceSave >= 4 && lastSaveReminderAbsWeekRef.current !== currentAbsWeek) {
+      lastSaveReminderAbsWeekRef.current = currentAbsWeek;
+      toast({
+        title: 'Remember to save',
+        description: `It’s been ${weeksSinceSave} weeks since your last save.`,
+        action: (
+          <ToastAction altText="Save Game" onClick={() => { void handleSaveGame(); }}>
+            Save Game
+          </ToastAction>
+        ),
+      });
+    }
   }, [gameState.currentWeek, gameState.currentYear]);
 
   // Handle achievement rewards
@@ -812,30 +885,6 @@ export const StudioMagnateGame: React.FC<StudioMagnateGameProps> = ({
         updateBudget(achievement.reward.budget);
       }
     });
-  };
-
-  const handleSaveGame = async () => {
-    try {
-      const unlockedIds = achievements.getUnlockedAchievements().map(a => a.id);
-      const slotId = getActiveSaveSlotId();
-
-      await saveGameAsync(slotId, gameState, {
-        currentPhase,
-        unlockedAchievementIds: unlockedIds
-      });
-
-      toast({
-        title: 'Game Saved',
-        description: `Saved to ${slotId}.`,
-      });
-    } catch (error) {
-      console.error('Failed to save game', error);
-      toast({
-        title: 'Save Failed',
-        description: 'Unable to save your game. Check browser storage settings.',
-        variant: 'destructive',
-      });
-    }
   };
 
   const handlePhaseChange = (phase: string) => {
@@ -2552,6 +2601,46 @@ export const StudioMagnateGame: React.FC<StudioMagnateGameProps> = ({
     handleAdvanceWeeks(diff);
   };
 
+  const currentAbsWeekUi = (gameState.currentYear * 52) + gameState.currentWeek;
+  const lastSaveAbsWeekUi = lastManualSaveAbsWeekRef.current ?? currentAbsWeekUi;
+  const weeksSinceLastSaveUi = Math.max(0, currentAbsWeekUi - lastSaveAbsWeekUi);
+
+  const returnToMainMenu = useCallback(() => {
+    useGameStore.setState({
+      game: null,
+      rng: null,
+      seed: 0,
+      initialized: false,
+      lastTickReport: null,
+      tickHistory: [],
+    });
+
+    if (onReturnToMainMenu) {
+      onReturnToMainMenu();
+      return;
+    }
+
+    if (typeof window !== 'undefined') {
+      window.location.href = isOnlineMode ? '/online' : '/';
+    }
+  }, [isOnlineMode, onReturnToMainMenu]);
+
+  const handleExitWithoutSaving = () => {
+    setExitToMenuOpen(false);
+    returnToMainMenu();
+  };
+
+  const handleSaveAndExit = async () => {
+    const ok = await handleSaveGame();
+    if (!ok) {
+      setExitToMenuOpen(true);
+      return;
+    }
+
+    setExitToMenuOpen(false);
+    returnToMainMenu();
+  };
+
   const isBootstrappingNewGame = !storeGameState && !initialGameState;
 
   return isBootstrappingNewGame ? (
@@ -2587,6 +2676,30 @@ export const StudioMagnateGame: React.FC<StudioMagnateGameProps> = ({
         }}
       />
       <GameSettingsDialog open={settingsDialogOpen} onOpenChange={setSettingsDialogOpen} />
+      <AlertDialog open={exitToMenuOpen} onOpenChange={setExitToMenuOpen}>
+        <AlertDialogContent>
+          <AlertDialogHeader>
+            <AlertDialogTitle>Return to main menu?</AlertDialogTitle>
+            <AlertDialogDescription>
+              Unsaved progress will be lost.
+              {weeksSinceLastSaveUi > 0 ? ` It’s been ${weeksSinceLastSaveUi} week${weeksSinceLastSaveUi === 1 ? '' : 's'} since your last save.` : ''}
+              {lastSavedAtIso ? ` Last save: ${new Date(lastSavedAtIso).toLocaleString()}` : ''}
+            </AlertDialogDescription>
+          </AlertDialogHeader>
+          <AlertDialogFooter>
+            <AlertDialogCancel>Cancel</AlertDialogCancel>
+            <AlertDialogAction
+              className="bg-destructive text-destructive-foreground hover:bg-destructive/90"
+              onClick={handleExitWithoutSaving}
+            >
+              Exit without saving
+            </AlertDialogAction>
+            <AlertDialogAction onClick={() => { void handleSaveAndExit(); }}>
+              Save & Exit
+            </AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
       <div className="min-h-screen bg-background font-studio relative">
       <PremiumBackground variant="game" />
       <div className="relative z-10">
@@ -2674,7 +2787,7 @@ export const StudioMagnateGame: React.FC<StudioMagnateGameProps> = ({
                 size="sm"
                 variant="outline"
                 className="mr-2"
-                onClick={handleSaveGame}
+                onClick={() => { void handleSaveGame(); }}
               >
                 Save Game
               </Button>
@@ -2686,6 +2799,16 @@ export const StudioMagnateGame: React.FC<StudioMagnateGameProps> = ({
                 onClick={() => setSaveDialogOpen(true)}
               >
                 Saves…
+              </Button>
+
+              <Button
+                size="sm"
+                variant="outline"
+                className="mr-2"
+                onClick={() => setExitToMenuOpen(true)}
+              >
+                <Home className="mr-2" size={16} />
+                Main Menu
               </Button>
 
               <Button

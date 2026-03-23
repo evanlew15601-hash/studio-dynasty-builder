@@ -177,6 +177,11 @@ const Online = () => {
             onlineLeagueCode={onlineLeagueCode}
             onlineSeasonYears={onlineSeasonYears}
             onlineHostSync={onlineHostSync}
+            onReturnToMainMenu={() => {
+              setGameStarted(false);
+              setGameConfig(null);
+              setLoadedSnapshot(null);
+            }}
             onPhaseChange={(phase) => {
               if (loadedSnapshot) setLoadedSnapshot({ ...loadedSnapshot, meta: { ...loadedSnapshot.meta, currentPhase: phase } });
             }}

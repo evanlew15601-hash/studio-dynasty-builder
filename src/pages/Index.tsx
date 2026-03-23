@@ -106,6 +106,11 @@ const Index = () => {
             initialGameState={loadedSnapshot?.gameState}
             initialPhase={loadedSnapshot?.meta.currentPhase}
             initialUnlockedAchievements={loadedSnapshot?.unlockedAchievements}
+            onReturnToMainMenu={() => {
+              setGameStarted(false);
+              setGameConfig(null);
+              setLoadedSnapshot(null);
+            }}
           />
         </Suspense>
       )}
