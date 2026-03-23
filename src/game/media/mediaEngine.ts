@@ -115,22 +115,22 @@ class MediaEngine {
 
   static snapshot(): MediaState['engine'] {
     // Keep state bounded to avoid bloating save files.
-    const history = this.mediaHistory.slice(-250);
+    const history = this.mediaHistory.slice(-250).map((m) => clone(m));
 
     const memories = Array.from(this.mediaMemory.values()).map((m) => {
       const sentimentHistory = (m.sentimentHistory || []).slice(-52);
       const majorStories = (m.majorStories || []).slice(-50);
       const lastMajorStory = m.lastMajorStory;
 
-      return {
+      return clone({
         ...m,
         sentimentHistory,
         majorStories,
         lastMajorStory,
-      };
+      });
     });
 
-    const eventQueue = this.eventQueue.slice(-250);
+    const eventQueue = this.eventQueue.slice(-250).map((e) => clone(e));
 
     return { history, memories, eventQueue };
   }

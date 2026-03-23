@@ -105,8 +105,8 @@ export class MediaResponseSystem {
 
   static snapshot(): MediaState['response'] {
     return {
-      campaigns: this.activeCampaigns.slice(),
-      reactions: this.playerReactions.slice(),
+      campaigns: this.activeCampaigns.map((c) => clone(c)),
+      reactions: this.playerReactions.map((r) => clone(r)),
       nextCampaignId: this.nextCampaignId,
     };
   }

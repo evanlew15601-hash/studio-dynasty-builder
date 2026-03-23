@@ -506,6 +506,12 @@ describe('media system', () => {
       cast: [{ talentId: 'talent-1' }]
     });
 
+    const originalWindowCtor = (globalThis as any).Window;
+    class FakeWindow {}
+    (globalThis as any).Window = FakeWindow;
+
+    const nonCloneableDom = new (globalThis as any).Window();
+
     MediaEngine.queueMediaEvent({
       type: 'release',
       triggerType: 'automatic',
@@ -515,7 +521,7 @@ describe('media system', () => {
         projects: [playerProject.id],
         talent: ['talent-1']
       },
-      eventData: { project: playerProject, nonCloneable: () => 'nope' },
+      eventData: { project: playerProject, nonCloneable: () => 'nope', nonCloneableDom },
       week: 1,
       year: 2025
     } as any);
@@ -538,12 +544,15 @@ describe('media system', () => {
       }).not.toThrow();
     } finally {
       (globalThis as any).structuredClone = originalStructuredClone;
+      (globalThis as any).Window = originalWindowCtor;
     }
+
 
     expect(structuredCloneCalls).toBe(0);
 
     const hydrated = MediaEngine.snapshot();
     expect(hydrated.eventQueue.length).toBe(1);
     expect(hydrated.eventQueue[0].eventData.nonCloneable).toBeUndefined();
+    expect(hydrated.eventQueue[0].eventData.nonCloneableDom).toBeUndefined();
   });
 });

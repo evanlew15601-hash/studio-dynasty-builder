@@ -14,6 +14,8 @@ const NotFound = lazy(() => import("./pages/NotFound"));
 
 const queryClient = new QueryClient();
 
+const future = { v7_startTransition: true, v7_relativeSplatPath: true } as const;
+
 const router = createBrowserRouter(
   [
     { path: "/", element: <Index /> },
@@ -24,7 +26,7 @@ const router = createBrowserRouter(
   ],
   {
     basename: import.meta.env.BASE_URL,
-    future: { v7_startTransition: true, v7_relativeSplatPath: true },
+    future,
   }
 );
 
