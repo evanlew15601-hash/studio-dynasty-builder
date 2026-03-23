@@ -1,6 +1,6 @@
 import type { PlatformMarketState } from '@/types/platformEconomy';
 import type { GameState, PostTheatricalRelease, Project } from '@/types/game';
-import { getAllKnownProjects, getPlayerProjectIds, isPlayerOwnedProject } from '@/utils/playerProjects';
+import { getAllKnownProjects, getPlayerProjectIds, isPlayerOwnedProject, isProjectLike } from '@/utils/playerProjects';
 import { getPostTheatricalPlatformId } from '@/utils/platformIds';
 import { getTheatricalEndAbs, getReleaseAbs } from '@/utils/postTheatrical';
 import { isPrimaryStreamingFilm, isTheatricalFilm, isTvProject } from '@/utils/projectMedium';
