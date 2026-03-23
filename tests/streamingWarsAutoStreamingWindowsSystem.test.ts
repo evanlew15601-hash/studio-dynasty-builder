@@ -197,6 +197,65 @@ describe('Streaming Wars: auto streaming windows system', () => {
     expect((window as any).providerId).not.toBe(playerPlatformId);
   });
 
+  it('adds a player-platform window for player-owned theatrical films even when a rival streaming window already exists', () => {
+    const playerPlatformId = 'player-platform:studio-1';
+
+    const project = makeTheatricalFilm('film-with-rival-window', 1, 2027);
+    project.postTheatricalReleases = [
+      {
+        id: 'release:film-with-rival-window:streamflix:2027:W10',
+        projectId: 'film-with-rival-window',
+        platform: 'streaming',
+        providerId: 'streamflix',
+        releaseDate: new Date('2027-03-01'),
+        releaseWeek: 10,
+        releaseYear: 2027,
+        delayWeeks: 0,
+        revenue: 0,
+        weeklyRevenue: 0,
+        weeksActive: 0,
+        status: 'active',
+        cost: 0,
+        durationWeeks: 26,
+      } as any,
+    ];
+
+    const state = makeBaseState({
+      dlc: { streamingWars: true },
+      platformMarket: {
+        totalAddressableSubs: 100_000_000,
+        player: {
+          id: playerPlatformId,
+          name: 'TestFlix',
+          launchedWeek: 1,
+          launchedYear: 2026,
+          subscribers: 2_000_000,
+          cash: 0,
+          status: 'active',
+        },
+        rivals: [
+          { id: 'streamflix', name: 'StreamFlix', subscribers: 30_000_000, cash: 0, status: 'healthy' },
+        ],
+      } as any,
+      projects: [project],
+    });
+
+    const next = PlatformAutoStreamingWindowsSystem.onTick(state as any, makeCtx(777, 20, 2027)) as any;
+
+    const updated = next.projects[0] as Project;
+    const ownedWindow = (updated.postTheatricalReleases ?? []).find(
+      (r: any) => r.platform === 'streaming' && r.platformId === playerPlatformId
+    );
+
+    expect(ownedWindow).toBeTruthy();
+
+    const rivalWindow = (updated.postTheatricalReleases ?? []).find(
+      (r: any) => r.platform === 'streaming' && r.providerId === 'streamflix'
+    );
+
+    expect(rivalWindow).toBeTruthy();
+  });
+
   it('assigns a concrete providerId to legacy streaming windows missing a platform id', () => {
     const project = makeTheatricalFilm('film-legacy', 1, 2027);
     project.postTheatricalReleases = [

@@ -190,55 +190,106 @@ export const PlatformAutoStreamingWindowsSystem: TickSystem = {
         return next;
       });
 
-      const hasStreamingWindow = normalizedReleases.some((r) => r && r.platform === 'streaming' && !!getPostTheatricalPlatformId(r));
+      const hasAnyStreamingWindow = normalizedReleases.some(
+        (r) => r && r.platform === 'streaming' && !!getPostTheatricalPlatformId(r)
+      );
 
-      if (!hasStreamingWindow && isTheatricalFilm(project0) && !isPrimaryStreamingFilm(project0)) {
+      const hasOwnedPlayerPlatformWindow =
+        !!playerPlatformId &&
+        normalizedReleases.some((r) => r && r.platform === 'streaming' && r.platformId === playerPlatformId);
+
+      const isPlayerOwned = isPlayerOwnedProject({ project: project0, state, playerProjectIds });
+
+      // If the player has a platform, ensure player-owned theatrical films always land there (even if
+      // they also have rival windows).
+      if (
+        isPlayerOwned &&
+        playerPlatformId &&
+        !hasOwnedPlayerPlatformWindow &&
+        isTheatricalFilm(project0) &&
+        !isPrimaryStreamingFilm(project0)
+      ) {
         const endAbs = getTheatricalEndAbs(project0, currentAbs);
         if (endAbs != null) {
-          const isPlayerOwned = isPlayerOwnedProject({ project: project0, state, playerProjectIds });
+          const delayWeeks = DEFAULT_PLAYER_PLATFORM_DELAY_WEEKS;
+          const startAbs = endAbs + delayWeeks;
+          const start = weekYearForAbsWeek(startAbs);
 
-          const destinationId =
-            isPlayerOwned && playerPlatformId
-              ? playerPlatformId
-              : pickRivalPlatformId({
-                  market,
-                  excludeIds: playerPlatformId ? new Set([playerPlatformId]) : undefined,
-                  rngFloat: () => ctx.rng.nextFloat(0, 1),
-                });
+          const releaseAbs = getReleaseAbs(project0);
+          const implicitDelay = releaseAbs != null ? Math.max(0, startAbs - releaseAbs) : delayWeeks;
 
-          if (destinationId) {
-            const isOwnedDestination = isPlayerOwned && playerPlatformId === destinationId;
+          const durationWeeks = DEFAULT_OWNED_LIBRARY_DURATION_WEEKS;
 
-            const delayWeeks = isOwnedDestination ? DEFAULT_PLAYER_PLATFORM_DELAY_WEEKS : DEFAULT_RIVAL_WINDOW_DELAY_WEEKS;
-            const startAbs = endAbs + delayWeeks;
-            const start = weekYearForAbsWeek(startAbs);
+          const newRelease: PostTheatricalRelease = {
+            id: `release:${project0.id}:${playerPlatformId}:${start.year}:W${start.week}`,
+            projectId: project0.id,
+            platform: 'streaming',
+            platformId: playerPlatformId,
+            providerId: undefined,
+            releaseDate: dateForWeekYear(start.year, start.week),
+            releaseWeek: start.week,
+            releaseYear: start.year,
+            delayWeeks: clampInt(implicitDelay, 0, 260),
+            revenue: 0,
+            weeklyRevenue: 0,
+            weeksActive: 0,
+            status: 'planned',
+            cost: 0,
+            durationWeeks,
+          };
 
-            const releaseAbs = getReleaseAbs(project0);
-            const implicitDelay = releaseAbs != null ? Math.max(0, startAbs - releaseAbs) : delayWeeks;
+          normalizedReleases.push(newRelease);
+          changed = true;
+        }
+      }
 
-            const durationWeeks = isOwnedDestination ? DEFAULT_OWNED_LIBRARY_DURATION_WEEKS : DEFAULT_RIVAL_WINDOW_DURATION_WEEKS;
-            const weeklyRevenue = isOwnedDestination ? 0 : computeWindowWeeklyRevenue(project0, durationWeeks);
+      // For titles without any streaming presence, create a rival window (or route player-owned titles
+      // to rivals if the player platform is not active yet).
+      if (!hasAnyStreamingWindow && isTheatricalFilm(project0) && !isPrimaryStreamingFilm(project0)) {
+        const endAbs = getTheatricalEndAbs(project0, currentAbs);
+        if (endAbs != null) {
+          // Player-owned titles should not be auto-licensed away once the player platform exists.
+          if (isPlayerOwned && playerPlatformId) {
+            // noop
+          } else {
+            const destinationId = pickRivalPlatformId({
+              market,
+              excludeIds: playerPlatformId ? new Set([playerPlatformId]) : undefined,
+              rngFloat: () => ctx.rng.nextFloat(0, 1),
+            });
 
-            const newRelease: PostTheatricalRelease = {
-              id: `release:${project0.id}:${destinationId}:${start.year}:W${start.week}`,
-              projectId: project0.id,
-              platform: 'streaming',
-              providerId: isOwnedDestination ? undefined : destinationId,
-              platformId: isOwnedDestination ? destinationId : undefined,
-              releaseDate: dateForWeekYear(start.year, start.week),
-              releaseWeek: start.week,
-              releaseYear: start.year,
-              delayWeeks: clampInt(implicitDelay, 0, 260),
-              revenue: 0,
-              weeklyRevenue,
-              weeksActive: 0,
-              status: 'planned',
-              cost: 0,
-              durationWeeks,
-            };
+            if (destinationId) {
+              const delayWeeks = DEFAULT_RIVAL_WINDOW_DELAY_WEEKS;
+              const startAbs = endAbs + delayWeeks;
+              const start = weekYearForAbsWeek(startAbs);
 
-            normalizedReleases.push(newRelease);
-            changed = true;
+              const releaseAbs = getReleaseAbs(project0);
+              const implicitDelay = releaseAbs != null ? Math.max(0, startAbs - releaseAbs) : delayWeeks;
+
+              const durationWeeks = DEFAULT_RIVAL_WINDOW_DURATION_WEEKS;
+              const weeklyRevenue = computeWindowWeeklyRevenue(project0, durationWeeks);
+
+              const newRelease: PostTheatricalRelease = {
+                id: `release:${project0.id}:${destinationId}:${start.year}:W${start.week}`,
+                projectId: project0.id,
+                platform: 'streaming',
+                providerId: destinationId,
+                platformId: undefined,
+                releaseDate: dateForWeekYear(start.year, start.week),
+                releaseWeek: start.week,
+                releaseYear: start.year,
+                delayWeeks: clampInt(implicitDelay, 0, 260),
+                revenue: 0,
+                weeklyRevenue,
+                weeksActive: 0,
+                status: 'planned',
+                cost: 0,
+                durationWeeks,
+              };
+
+              normalizedReleases.push(newRelease);
+              changed = true;
+            }
           }
         }
       }

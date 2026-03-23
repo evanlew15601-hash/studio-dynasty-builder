@@ -286,7 +286,7 @@ export const StreamingWarsPlatformApp: React.FC = () => {
       : [];
 
     const originals = playerPlatformId
-      ? (gameState?.projects ?? []).filter((p) => p.streamingContract?.platformId === playerPlatformId)
+      ? (gameState?.projects ?? []).filter((p) => getContractPlatformId(p.streamingContract) === playerPlatformId)
       : [];
 
     return {
@@ -1060,7 +1060,7 @@ export const StreamingWarsPlatformApp: React.FC = () => {
       .slice(0, 12);
 
     const originalsReleased = releasedOnPlatform
-      .filter((p) => p.streamingContract?.platformId === playerPlatformId)
+      .filter((p) => getContractPlatformId(p.streamingContract) === playerPlatformId)
       .slice()
       .sort((a, b) => (b.script?.quality ?? 0) - (a.script?.quality ?? 0))
       .slice(0, 12);
@@ -1070,7 +1070,7 @@ export const StreamingWarsPlatformApp: React.FC = () => {
     for (const p of gameState.projects ?? []) {
       if (!p) continue;
 
-      if (p.streamingContract?.platformId === playerPlatformId && p.status !== 'released') {
+      if (getContractPlatformId(p.streamingContract) === playerPlatformId && p.status !== 'released') {
         comingSoon.push({ project: p, label: `Original • ${p.status}` });
       }
 
@@ -1831,7 +1831,7 @@ export const StreamingWarsPlatformApp: React.FC = () => {
                         {heroTitle.type.replace('-', ' ')} • {heroTitle.script?.genre}
                       </div>
                       <div className="mt-3 flex flex-wrap gap-2">
-                        {heroTitle.streamingContract?.platformId === playerPlatformId && <Badge variant="secondary">Original</Badge>}
+                        {getContractPlatformId(heroTitle.streamingContract) === playerPlatformId && <Badge variant="secondary">Original</Badge>}
                         {playerPlatformId && getDirectPlatformId(heroTitle) === playerPlatformId && isExclusiveTitle(heroTitle) && (
                           <Badge variant="outline">Exclusive</Badge>
                         )}
@@ -1866,7 +1866,7 @@ export const StreamingWarsPlatformApp: React.FC = () => {
                               .join('')
                               .slice(0, 2);
 
-                            const isOriginal = p.streamingContract?.platformId === playerPlatformId;
+                            const isOriginal = getContractPlatformId(p.streamingContract) === playerPlatformId;
                             const isExclusive = playerPlatformId && getDirectPlatformId(p) === playerPlatformId && isExclusiveTitle(p);
                             const isLicensedOut = playerPlatformId && hasRivalStreamingWindow(p, playerPlatformId);
                             const canLicense =
@@ -2765,7 +2765,7 @@ export const StreamingWarsPlatformApp: React.FC = () => {
               </div>
 
               <div className="flex flex-wrap gap-2">
-                {titleProject.streamingContract?.platformId === playerPlatformId && <Badge variant="secondary">Original</Badge>}
+                {getContractPlatformId(titleProject.streamingContract) === playerPlatformId && <Badge variant="secondary">Original</Badge>}
                 {playerPlatformId && getDirectPlatformId(titleProject) === playerPlatformId && isExclusiveTitle(titleProject) && (
                   <Badge variant="outline">Exclusive</Badge>
                 )}
