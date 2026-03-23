@@ -87,15 +87,6 @@ function fallbackClone<T>(value: T): T {
 }
 
 function clone<T>(value: T): T {
-  const sc = (globalThis as any).structuredClone as ((input: any) => any) | undefined;
-  if (typeof sc === 'function') {
-    try {
-      return sc(value);
-    } catch {
-      return fallbackClone(value);
-    }
-  }
-
   return fallbackClone(value);
 }
 

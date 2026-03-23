@@ -20,7 +20,10 @@ const App = () => (
       <Toaster />
       <Sonner />
       <ErrorBoundary>
-        <BrowserRouter basename={import.meta.env.BASE_URL}>
+        <BrowserRouter
+          basename={import.meta.env.BASE_URL}
+          future={{ v7_startTransition: true, v7_relativeSplatPath: true }}
+        >
           <Suspense fallback={<div className="p-6 text-sm text-muted-foreground">Loading…</div>}>
             <Routes>
               <Route path="/" element={<Index />} />

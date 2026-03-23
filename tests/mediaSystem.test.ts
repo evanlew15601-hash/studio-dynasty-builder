@@ -524,9 +524,23 @@ describe('media system', () => {
 
     MediaEngine.cleanup();
 
-    expect(() => {
-      MediaEngine.hydrate(persisted);
-    }).not.toThrow();
+    const originalStructuredClone = (globalThis as any).structuredClone;
+    let structuredCloneCalls = 0;
+
+    (globalThis as any).structuredClone = () => {
+      structuredCloneCalls += 1;
+      throw new Error('structuredClone should not be used during MediaEngine hydration');
+    };
+
+    try {
+      expect(() => {
+        MediaEngine.hydrate(persisted);
+      }).not.toThrow();
+    } finally {
+      (globalThis as any).structuredClone = originalStructuredClone;
+    }
+
+    expect(structuredCloneCalls).toBe(0);
 
     const hydrated = MediaEngine.snapshot();
     expect(hydrated.eventQueue.length).toBe(1);
