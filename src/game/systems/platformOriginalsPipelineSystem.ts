@@ -1,5 +1,6 @@
 import type { PlatformMarketState } from '@/types/platformEconomy';
-import type { Project } from '@/types/game';
+import type { GameState, Project } from '@/types/game';
+import { isProjectLike } from '@/utils/playerProjects';
 import type { SeasonData } from '@/types/streamingTypes';
 import type { TickSystem } from '../core/types';
 
@@ -81,6 +82,8 @@ export const PlatformOriginalsPipelineSystem: TickSystem = {
 
     let changed = false;
 
+    const updatedById = new Map<string, Project>();
+
     const projectsOut: Project[] = projectsIn.map((p): Project => {
       if (!isStreamingWarsOriginal(p, playerPlatformId)) return p;
       if (p.status === 'released' || p.status === 'archived') return p;
@@ -109,13 +112,17 @@ export const PlatformOriginalsPipelineSystem: TickSystem = {
             ]
           : seasonsIn;
 
-        return {
+        const out: Project = {
           ...p,
           currentPhase: phase,
           status: phase,
           phaseDuration: nextRemaining,
           ...(seasonsOut ? { seasons: seasonsOut } : {}),
         };
+
+        if (out !== p) updatedById.set(p.id, out);
+
+        return out;
       }
 
       const phaseAfter = nextPhase(phase);
@@ -133,13 +140,17 @@ export const PlatformOriginalsPipelineSystem: TickSystem = {
             ]
           : seasonsIn;
 
-        return {
+        const out: Project = {
           ...p,
           currentPhase: phaseAfter,
           status: phaseAfter,
           phaseDuration: defaultPhaseWeeks(phaseAfter),
           ...(seasonsOut ? { seasons: seasonsOut } : {}),
         };
+
+        if (out !== p) updatedById.set(p.id, out);
+
+        return out;
       }
 
       // Release.
@@ -171,7 +182,7 @@ export const PlatformOriginalsPipelineSystem: TickSystem = {
           })()
         : seasonsIn;
 
-      return {
+      const out: Project = {
         ...p,
         status: 'released',
         currentPhase: 'distribution',
@@ -185,13 +196,24 @@ export const PlatformOriginalsPipelineSystem: TickSystem = {
           audienceScore,
         },
       };
+
+      if (out !== p) updatedById.set(p.id, out);
+
+      return out;
     });
 
     if (!changed) return state;
 
+    const patch = (value: any): any => {
+      if (!isProjectLike(value)) return value;
+      return updatedById.get(value.id) || value;
+    };
+
     return {
-      ...state,
+      ...(state as GameState),
       projects: projectsOut,
+      aiStudioProjects: ((state.aiStudioProjects as any) || []).map(patch) as Project[],
+      allReleases: (state.allReleases || []).map(patch) as Array<Project | any>,
     };
   },
 };

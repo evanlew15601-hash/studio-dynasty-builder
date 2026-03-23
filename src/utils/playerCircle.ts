@@ -47,9 +47,25 @@ export function computePlayerCircle(state: GameState, options?: { limit?: number
 
   const studioId = state.studio.id;
 
-  const contracted = (state.talent || []).filter(
-    (t) => t.contractStatus === 'contracted' || t.contractStatus === 'exclusive'
-  );
+  const contractedIds = new Set<string>();
+  for (const p of state.projects || []) {
+    for (const c of p?.contractedTalent || []) {
+      if (c?.talentId) contractedIds.add(c.talentId);
+    }
+  }
+
+  const contracted = (state.talent || []).filter((t) => {
+    if (t.contractStatus === 'contracted' || t.contractStatus === 'exclusive') return true;
+
+    // TalentAvailabilitySystem marks working talent as busy, preserving the underlying
+    // relationship via contractStatusBase or project.contractedTalent.
+    if (t.contractStatus === 'busy') {
+      if (t.contractStatusBase === 'contracted' || t.contractStatusBase === 'exclusive') return true;
+      if (contractedIds.has(t.id)) return true;
+    }
+
+    return false;
+  });
 
   const collaborators: PlayerCircleCollaborator[] = [...contracted]
     .sort((a, b) => {

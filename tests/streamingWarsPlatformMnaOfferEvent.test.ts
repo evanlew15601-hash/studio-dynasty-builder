@@ -1,5 +1,5 @@
 import { beforeEach, describe, expect, it } from 'vitest';
-import type { GameState } from '@/types/game';
+import type { GameState, Project } from '@/types/game';
 import { useGameStore } from '@/game/store';
 import { stableInt } from '@/utils/stableRandom';
 
@@ -116,7 +116,46 @@ describe('Streaming Wars: M&A offer event', () => {
   });
 
   it('buying the distressed platform transfers subscribers to the player platform (and spends budget via consequences)', () => {
-    const offerWeek = stableInt(`778|platform:mna-offer-week|2027|player-platform:studio-1`, 34, 46);
+    const playerPlatformId = 'player-platform:studio-1';
+    const offerWeek = stableInt(`778|platform:mna-offer-week|2027|${playerPlatformId}`, 34, 46);
+
+    const licensedTitle: Project = {
+      id: 'title-1',
+      title: 'Title 1',
+      type: 'feature',
+      status: 'released',
+      currentPhase: 'distribution',
+      releaseWeek: 1,
+      releaseYear: 2027,
+      script: { id: 's1', title: 'Title 1', genre: 'drama', quality: 80 } as any,
+      budget: { total: 1 } as any,
+      postTheatricalReleases: [
+        {
+          id: `release:title-1:orchardstream:2027:W${offerWeek}`,
+          projectId: 'title-1',
+          platform: 'streaming',
+          providerId: 'orchardstream',
+          releaseDate: new Date('2027-01-01'),
+          releaseWeek: offerWeek,
+          releaseYear: 2027,
+          delayWeeks: 0,
+          revenue: 0,
+          weeklyRevenue: 0,
+          weeksActive: 0,
+          status: 'active',
+          cost: 0,
+          durationWeeks: 26,
+        } as any,
+      ],
+      metrics: { inTheaters: false, theatricalRunLocked: true } as any,
+      cast: [],
+      crew: [],
+      contractedTalent: [],
+      timeline: {} as any,
+      locations: [],
+      phaseDuration: 0,
+      developmentProgress: {} as any,
+    } as any;
 
     useGameStore.getState().initGame(
       makeBaseState({
@@ -124,10 +163,11 @@ describe('Streaming Wars: M&A offer event', () => {
         universeSeed: 778,
         rngState: 778,
         currentWeek: offerWeek - 1,
+        allReleases: [licensedTitle],
         platformMarket: {
           totalAddressableSubs: 100_000_000,
           player: {
-            id: 'player-platform:studio-1',
+            id: playerPlatformId,
             name: 'TestFlix',
             launchedWeek: 1,
             launchedYear: 2026,
@@ -192,5 +232,15 @@ describe('Streaming Wars: M&A offer event', () => {
     const target = after.platformMarket!.rivals!.find((r) => r.id === 'orchardstream')!;
     expect(target.status).toBe('collapsed');
     expect(target.subscribers).toBe(0);
+
+    const updated = (after.allReleases || []).find((p: any) => p && p.id === 'title-1') as Project;
+
+    const movedWindow = (updated.postTheatricalReleases ?? []).find(
+      (r: any) => r.platform === 'streaming' && r.platformId === playerPlatformId
+    );
+
+    expect(movedWindow).toBeTruthy();
+    expect((movedWindow as any).providerId).toBeUndefined();
+    expect((movedWindow as any).id).toBe(`release:title-1:${playerPlatformId}:2027:W${offerWeek}`);
   });
 });

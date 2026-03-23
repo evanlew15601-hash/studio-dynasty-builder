@@ -1,11 +1,10 @@
 import type { PlatformMarketState } from '@/types/platformEconomy';
 import type { GameEvent, Project } from '@/types/game';
+import { getAllKnownProjects, getPlayerProjectIds, isPlayerOwnedProject } from '@/utils/playerProjects';
 import { getContractPlatformId, getPlatformIdForProjectAtTime } from '@/utils/platformIds';
 import { stableInt } from '@/utils/stableRandom';
 import { triggerDateFromWeekYear } from '@/utils/gameTime';
 import type { TickSystem } from '../core/types';
-
-
 
 function clampInt(n: number, min: number, max: number): number {
   return Math.floor(Math.max(min, Math.min(max, n)));
@@ -63,8 +62,13 @@ export const PlatformBiddingWarSystem: TickSystem = {
     const rivals = (market.rivals || []).filter((r) => r && r.status !== 'collapsed');
     if (rivals.length === 0) return state;
 
+    const playerProjectIds = getPlayerProjectIds(state);
+
+    const candidates = getAllKnownProjects(state);
+    const ownedCandidates = candidates.filter((p) => isPlayerOwnedProject({ project: p, state, playerProjectIds }));
+
     const target = pickHighestQualityExclusive({
-      projects: (state.projects || []) as Project[],
+      projects: ownedCandidates,
       platformId: player.id,
       week: ctx.week,
       year: ctx.year,

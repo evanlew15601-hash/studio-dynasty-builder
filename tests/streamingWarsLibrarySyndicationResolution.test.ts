@@ -185,4 +185,94 @@ describe('Streaming Wars: library syndication resolution', () => {
     expect(windows.some((r: any) => (r.providerId || r.platformId) === 'streamflix')).toBe(true);
     expect(windows.some((r: any) => (r.providerId || r.platformId) === 'paramounty')).toBe(true);
   });
+
+  it('syndicates when the title lives in allReleases (legacy/library)', () => {
+    const playerPlatformId = 'player-platform:studio-1';
+
+    const project = makeReleasedExclusiveOnPlayerPlatform({ projectId: 'p-legacy', platformId: playerPlatformId });
+
+    const allPayout = 180_000_000;
+
+    const event: GameEvent = {
+      id: 'evt:library-syndication-legacy',
+      title: 'Library syndication',
+      description: 'Syndicate a package.',
+      type: 'market',
+      triggerDate: new Date('2027-01-01T00:00:00.000Z'),
+      data: {
+        kind: 'platform:library-syndication',
+        playerPlatformId,
+        top2Payout: 0,
+        allPayout,
+        offers: [
+          {
+            buyerId: 'streamflix',
+            buyerName: 'StreamFlix',
+            licenseFee: 150_000_000,
+            windowWeeks: 26,
+            titleProjectIds: ['p-legacy'],
+          },
+          {
+            buyerId: 'paramounty',
+            buyerName: 'Paramounty+',
+            licenseFee: 120_000_000,
+            windowWeeks: 26,
+            titleProjectIds: ['p-legacy'],
+          },
+        ],
+      },
+      choices: [
+        {
+          id: 'syndicate:all',
+          text: 'Syndicate all',
+          consequences: [{ type: 'budget', impact: allPayout, description: 'Syndication proceeds' } as any],
+        },
+      ],
+    } as any;
+
+    useGameStore.getState().initGame(
+      makeBaseState({
+        platformMarket: {
+          totalAddressableSubs: 100_000_000,
+          player: {
+            id: playerPlatformId,
+            name: 'TestFlix',
+            launchedWeek: 1,
+            launchedYear: 2026,
+            subscribers: 3_000_000,
+            cash: 0,
+            status: 'active',
+            tierMix: { adSupportedPct: 50, adFreePct: 50 },
+            promotionBudgetPerWeek: 0,
+            priceIndex: 1.0,
+            freshness: 70,
+            catalogValue: 65,
+            distressWeeks: 0,
+          },
+          rivals: [
+            { id: 'streamflix', name: 'StreamFlix', subscribers: 45_000_000, cash: 2_000_000_000, status: 'healthy', distressWeeks: 0 } as any,
+            { id: 'paramounty', name: 'Paramounty+', subscribers: 20_000_000, cash: 1_000_000_000, status: 'healthy', distressWeeks: 0 } as any,
+          ],
+        } as any,
+        projects: [],
+        allReleases: [project],
+        eventQueue: [event],
+      }),
+      123
+    );
+
+    useGameStore.getState().resolveGameEvent(event.id, 'syndicate:all');
+
+    const after = useGameStore.getState().game!;
+
+    expect(after.studio.budget).toBe(allPayout);
+
+    const updated = (after.allReleases as any[]).find((p) => p && (p as any).id === 'p-legacy') as any;
+    expect(updated).toBeTruthy();
+    expect(updated.releaseStrategy?.streamingExclusive).toBe(false);
+
+    const windows = (updated.postTheatricalReleases ?? []).filter((r: any) => r.platform === 'streaming');
+    expect(windows.some((r: any) => (r.providerId || r.platformId) === 'streamflix')).toBe(true);
+    expect(windows.some((r: any) => (r.providerId || r.platformId) === 'paramounty')).toBe(true);
+  });
 });

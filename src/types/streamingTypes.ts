@@ -38,7 +38,14 @@ export interface StreamingContract {
   startYear: number;
   endWeek: number;
   endYear: number;
-  
+
+  /**
+   * True when the platform owns the title long-term (e.g. a platform Original).
+   *
+   * When false, expired contracts should stop implying "this title is on that platform".
+   */
+  persistentRights?: boolean;
+
   // Financial terms
   upfrontPayment: number;
   episodeRate?: number; // for series
@@ -46,12 +53,12 @@ export interface StreamingContract {
     viewershipThreshold: number;
     bonusAmount: number;
   }[];
-  
+
   // Performance expectations
   expectedViewers: number;
   expectedCompletionRate: number; // percentage
   expectedSubscriberGrowth: number;
-  
+
   // Contract status
   status: 'active' | 'fulfilled' | 'breached' | 'cancelled';
   performanceScore: number; // 0-100 based on meeting expectations
@@ -60,7 +67,7 @@ export interface StreamingContract {
     priceIncrease: number; // percentage
     newTerms?: Partial<StreamingContract>;
   };
-  
+
   // Penalties and bonuses
   penaltyClause?: {
     minViewers: number;
@@ -68,6 +75,20 @@ export interface StreamingContract {
   };
   exclusivityClause: boolean;
   marketingSupport: number; // additional marketing budget from platform
+
+  /** Contract window tracking used by the headless simulation tick. */
+  baselineStreamingViews?: number;
+  observedTotalViews?: number;
+  observedCompletionRate?: number;
+  observedSubscriberGrowth?: number;
+  lastEvaluatedWeek?: number;
+  lastEvaluatedYear?: number;
+
+  /** One-time settlement (bonus/penalty) applied at contract end. */
+  settledWeek?: number;
+  settledYear?: number;
+  settledBonus?: number;
+  settledPenalty?: number;
 }
 
 export interface EpisodeData {

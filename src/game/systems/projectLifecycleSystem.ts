@@ -1,11 +1,8 @@
 import type { GameState, Project } from '@/types/game';
+import { isProjectLike } from '@/utils/playerProjects';
 import type { TickSystem } from '../core/types';
 import { importRolesForScript } from '@/utils/roleImport';
 import { isDirectorRole } from '@/utils/scriptRoles';
-
-function isProjectLike(value: any): value is Project {
-  return !!value && typeof value === 'object' && typeof value.id === 'string' && 'script' in value;
-}
 
 function getPhaseWeeks(phase: string): number {
   switch (phase) {
@@ -55,10 +52,19 @@ export const ProjectLifecycleSystem: TickSystem = {
 
     let changed = false;
 
+    const updatedById = new Map<string, Project>();
+
     const nextProjects = projects.map((p0) => {
       if (!isProjectLike(p0)) return p0;
 
       let p: Project = p0;
+
+      const commit = (next: Project) => {
+        if (next !== p0) {
+          updatedById.set(p0.id, next);
+        }
+        return next;
+      };
 
       // Development progress (deterministic; no RNG)
       if (p.currentPhase === 'development' && p.developmentProgress) {
@@ -93,20 +99,20 @@ export const ProjectLifecycleSystem: TickSystem = {
 
       // Countdown-based phases are engine-owned now.
       // Skip marketing: MarketingCampaignSystem owns that countdown + transitions.
-      if (p.currentPhase === 'marketing') return p;
+      if (p.currentPhase === 'marketing') return commit(p);
 
       // Only these phases count down automatically.
-      if (!['development', 'pre-production', 'production', 'post-production'].includes(p.currentPhase as string)) return p;
+      if (!['development', 'pre-production', 'production', 'post-production'].includes(p.currentPhase as string)) return commit(p);
 
       const phaseDuration0 = typeof p.phaseDuration === 'number' ? p.phaseDuration : undefined;
-      if (typeof phaseDuration0 !== 'number' || phaseDuration0 <= 0) return p;
+      if (typeof phaseDuration0 !== 'number' || phaseDuration0 <= 0) return commit(p);
 
       const newPhaseDuration = phaseDuration0 - 1;
 
       if (newPhaseDuration > 0) {
         p = { ...p, phaseDuration: newPhaseDuration };
         changed = true;
-        return p;
+        return commit(p);
       }
 
       // Phase timer hit zero.
@@ -130,7 +136,7 @@ export const ProjectLifecycleSystem: TickSystem = {
           relatedIds: { projectId: p.id },
         });
 
-        return p;
+        return commit(p);
       }
 
       // Gate: roles must exist before leaving development.
@@ -141,7 +147,7 @@ export const ProjectLifecycleSystem: TickSystem = {
         if (!chars || chars.length === 0) {
           p = { ...p, phaseDuration: 2 };
           changed = true;
-          return p;
+          return commit(p);
         }
 
         p = {
@@ -152,7 +158,7 @@ export const ProjectLifecycleSystem: TickSystem = {
           status: nextPhase as any,
         };
         changed = true;
-        return p;
+        return commit(p);
       }
 
       // Gate: require Director + Lead actor before entering production.
@@ -164,7 +170,7 @@ export const ProjectLifecycleSystem: TickSystem = {
         if (!hasDirector || !hasLead) {
           p = { ...p, phaseDuration: 2 };
           changed = true;
-          return p;
+          return commit(p);
         }
       }
 
@@ -176,15 +182,21 @@ export const ProjectLifecycleSystem: TickSystem = {
         status: nextPhase as any,
       };
       changed = true;
-
-      return p;
+      return commit(p);
     });
 
     if (!changed) return state;
 
+    const patch = (value: any): any => {
+      if (!isProjectLike(value)) return value;
+      return updatedById.get(value.id) || value;
+    };
+
     return {
       ...(state as GameState),
       projects: nextProjects as Project[],
+      aiStudioProjects: ((state.aiStudioProjects as any) || []).map(patch) as Project[],
+      allReleases: (state.allReleases || []).map(patch) as Array<Project | any>,
     };
   },
 };

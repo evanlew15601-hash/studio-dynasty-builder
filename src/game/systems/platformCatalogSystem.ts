@@ -12,6 +12,10 @@ import type { TickSystem } from '../core/types';
 import { absWeek, effectiveArrivalAbs } from './platformRecency';
 import { getTheatricalEndAbs } from '@/utils/postTheatrical';
 
+function isProjectLike(value: any): value is Project {
+  return !!value && typeof value === 'object' && typeof value.id === 'string' && 'script' in value;
+}
+
 function clamp(n: number, min: number, max: number): number {
   return Math.max(min, Math.min(max, n));
 }
@@ -273,15 +277,36 @@ function stepPlayerFreshnessCatalog(params: {
 export const PlatformCatalogSystem: TickSystem = {
   id: 'platformCatalog',
   label: 'Platform catalog (Streaming Wars)',
-  dependsOn: ['platformMarketBootstrap', 'platformOriginalsReleaseCadence', 'seasonAiringStatus'],
+  dependsOn: ['platformMarketBootstrap', 'platformAutoStreamingWindows', 'platformOriginalsReleaseCadence', 'seasonAiringStatus'],
   onTick: (state, ctx) => {
     if (state.dlc?.streamingWars !== true) return state;
 
     const market = state.platformMarket as PlatformMarketState | undefined;
     if (!market || !Array.isArray(market.rivals)) return state;
 
+    const candidates: Project[] = [];
+
+    for (const p of state.projects || []) {
+      if (isProjectLike(p)) candidates.push(p);
+    }
+
+    for (const p of (state.aiStudioProjects as any) || []) {
+      if (isProjectLike(p)) candidates.push(p);
+    }
+
+    for (const p of state.allReleases || []) {
+      if (isProjectLike(p)) candidates.push(p);
+    }
+
+    const seen = new Set<string>();
+    const projects = candidates.filter((p) => {
+      if (seen.has(p.id)) return false;
+      seen.add(p.id);
+      return true;
+    });
+
     const titlesByPlatform = gatherStreamingTitlesByPlatform({
-      projects: (state.projects ?? []) as Project[],
+      projects,
       week: ctx.week,
       year: ctx.year,
     });
@@ -307,28 +332,30 @@ export const PlatformCatalogSystem: TickSystem = {
     });
 
     const player = market.player
-      ? (() => {
-          const platformId = market.player!.id;
+      ? market.player.status === 'active'
+        ? (() => {
+            const platformId = market.player!.id;
 
-          const titles = titlesByPlatform.get(platformId) ?? [];
+            const titles = titlesByPlatform.get(platformId) ?? [];
 
-          const prevFreshness = typeof market.player!.freshness === 'number' ? market.player!.freshness : 50;
-          const prevCatalog = typeof market.player!.catalogValue === 'number' ? market.player!.catalogValue : 35;
+            const prevFreshness = typeof market.player!.freshness === 'number' ? market.player!.freshness : 50;
+            const prevCatalog = typeof market.player!.catalogValue === 'number' ? market.player!.catalogValue : 35;
 
-          const next = stepPlayerFreshnessCatalog({
-            prevFreshness,
-            prevCatalog,
-            titles,
-            currentAbs,
-            jitter: ctx.rng.nextFloat(0, 1),
-          });
+            const next = stepPlayerFreshnessCatalog({
+              prevFreshness,
+              prevCatalog,
+              titles,
+              currentAbs,
+              jitter: ctx.rng.nextFloat(0, 1),
+            });
 
-          return {
-            ...market.player,
-            freshness: next.freshness,
-            catalogValue: next.catalogValue,
-          };
-        })()
+            return {
+              ...market.player,
+              freshness: next.freshness,
+              catalogValue: next.catalogValue,
+            };
+          })()
+        : market.player
       : undefined;
 
     return {

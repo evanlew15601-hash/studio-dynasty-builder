@@ -1,4 +1,5 @@
-import type { GameState, TalentPerson } from '@/types/game';
+import type { GameState, Project, TalentPerson } from '@/types/game';
+import { isProjectLike } from '@/utils/playerProjects';
 import type { TickSystem } from '../core/types';
 
 function sumActiveContracts(state: GameState): Set<string> {
@@ -25,6 +26,8 @@ export const TalentContractsSystem: TickSystem = {
 
     let payroll = 0;
     let projectsChanged = false;
+
+    const updatedById = new Map<string, Project>();
 
     const nextProjects = projects0.map((p0) => {
       if (!p0) return p0;
@@ -64,7 +67,9 @@ export const TalentContractsSystem: TickSystem = {
 
       if (!changed) return p0;
       projectsChanged = true;
-      return { ...p0, contractedTalent: nextContracted };
+      const next = { ...p0, contractedTalent: nextContracted };
+      updatedById.set(p0.id, next);
+      return next;
     });
 
     const studio0 = state.studio;
@@ -127,9 +132,16 @@ export const TalentContractsSystem: TickSystem = {
 
     if (!projectsChanged && !talentChanged && !studioChanged) return state;
 
+    const patch = (value: any): any => {
+      if (!isProjectLike(value)) return value;
+      return updatedById.get(value.id) || value;
+    };
+
     return {
       ...state,
       projects: projectsChanged ? nextProjects : state.projects,
+      aiStudioProjects: projectsChanged ? ((state.aiStudioProjects as any) || []).map(patch) : state.aiStudioProjects,
+      allReleases: projectsChanged ? (state.allReleases || []).map(patch) : state.allReleases,
       talent: talentChanged ? nextTalent : state.talent,
       studio: studioChanged
         ? {

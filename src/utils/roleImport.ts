@@ -3,6 +3,7 @@ import { FranchiseCharacterDef, getEffectiveFranchiseCharacterDB } from '@/data/
 import { RoleDatabase } from '@/data/RoleDatabase';
 import { getEffectiveParodyCharacterNameMap } from '@/data/ParodyCharacterNames';
 import { stablePick } from '@/utils/stablePick';
+import { getRoleRequiredType } from '@/utils/scriptRoles';
 
 function toScriptCharacter(def: FranchiseCharacterDef, franchiseId?: string, parodySource?: string): ScriptCharacter {
   // Prefer recognizable names from parody source mapping when available
@@ -150,9 +151,20 @@ export function importRolesForScript(script: Script, gameState: GameState): Scri
 
   // Actor roles must always have a gender requirement.
   // (Imported roles often lack it, and casting filters now require it.)
-  return finalList.map(role => {
-    const requiredType = role.requiredType || (role.importance === 'crew' ? 'director' : 'actor');
-    if (requiredType !== 'director' && !role.requiredGender) {
+  return finalList.map((role) => {
+    const requiredType = getRoleRequiredType(role);
+
+    if (requiredType === 'director') {
+      return {
+        ...role,
+        requiredType: 'director',
+        requiredGender: undefined,
+        requiredRace: undefined,
+        requiredNationality: undefined,
+      };
+    }
+
+    if (!role.requiredGender) {
       const seed = `${role.franchiseCharacterId || role.roleTemplateId || role.id || role.name}|gender`;
       return {
         ...role,
@@ -160,9 +172,10 @@ export function importRolesForScript(script: Script, gameState: GameState): Scri
         requiredGender: stablePick<Gender>(['Male', 'Female'], seed),
       };
     }
+
     return {
       ...role,
-      requiredType,
+      requiredType: 'actor',
     };
   });
 }

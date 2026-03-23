@@ -2723,7 +2723,7 @@ export const StudioMagnateGame: React.FC<StudioMagnateGameProps> = ({
       {/* Studio Header */}
       <div className="border-b border-border/50 card-premium backdrop-blur-lg">
         <div className="container mx-auto px-6 py-4">
-          <div className="flex items-center justify-between">
+          <div className="flex flex-col gap-4 lg:flex-row lg:items-center lg:justify-between">
             <div className="flex items-center space-x-6">
               <div className="flex items-center space-x-3">
                 <div className="p-1.5 rounded-lg shadow-golden animate-glow">
@@ -2746,7 +2746,7 @@ export const StudioMagnateGame: React.FC<StudioMagnateGameProps> = ({
               </div>
             </div>
             
-            <div className="flex items-center space-x-6">
+            <div className="flex flex-wrap items-center justify-end gap-2">
               <div className="flex items-center space-x-2 px-3 py-1.5 rounded-lg bg-gradient-to-r from-primary/10 to-accent/10 border border-primary/20">
                 <BudgetIcon className="text-primary" size={16} />
                 <div className="text-sm">
@@ -2777,7 +2777,6 @@ export const StudioMagnateGame: React.FC<StudioMagnateGameProps> = ({
                   size="sm" 
                   onClick={skipToPostTheatrical}
                   variant="outline"
-                  className="mr-2"
                 >
                   Skip to Post-Theatrical Test
                 </Button>
@@ -2786,7 +2785,6 @@ export const StudioMagnateGame: React.FC<StudioMagnateGameProps> = ({
               <Button
                 size="sm"
                 variant="outline"
-                className="mr-2"
                 onClick={() => { void handleSaveGame(); }}
               >
                 Save Game
@@ -2795,7 +2793,6 @@ export const StudioMagnateGame: React.FC<StudioMagnateGameProps> = ({
               <Button
                 size="sm"
                 variant="outline"
-                className="mr-2"
                 onClick={() => setSaveDialogOpen(true)}
               >
                 Saves…
@@ -2804,7 +2801,6 @@ export const StudioMagnateGame: React.FC<StudioMagnateGameProps> = ({
               <Button
                 size="sm"
                 variant="outline"
-                className="mr-2"
                 onClick={() => setExitToMenuOpen(true)}
               >
                 <Home className="mr-2" size={16} />
@@ -2814,7 +2810,6 @@ export const StudioMagnateGame: React.FC<StudioMagnateGameProps> = ({
               <Button
                 size="sm"
                 variant="outline"
-                className="mr-2"
                 onClick={() => setSettingsDialogOpen(true)}
               >
                 <Settings2 className="mr-2" size={16} />
@@ -2824,7 +2819,6 @@ export const StudioMagnateGame: React.FC<StudioMagnateGameProps> = ({
               <Button
                 size="sm"
                 variant="outline"
-                className="mr-2"
                 disabled={!lastTickReport}
                 onClick={() => setShowWeekRecap(true)}
               >
@@ -2852,7 +2846,6 @@ export const StudioMagnateGame: React.FC<StudioMagnateGameProps> = ({
                   size="sm"
                   variant="outline"
                   onClick={handleForceAdvanceWeek}
-                  className="mr-2"
                 >
                   Force Advance
                 </Button>

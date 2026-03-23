@@ -2,6 +2,7 @@ import type { AwardShowCeremony, AwardShowNomination } from '@/types/awardsShow'
 import { getAwardShowsForYear } from '@/data/AwardsSchedule';
 import type { AwardCategoryDefinition } from '@/data/AwardsSchedule';
 import type { GameState, Project, StudioAward } from '@/types/game';
+import { getPlayerProjectIds, isPlayerOwnedProject } from '@/utils/playerProjects';
 import { hashStringToUint32 } from '@/utils/stablePick';
 
 function isTalentCategory(category: AwardCategoryDefinition | undefined): boolean {
@@ -31,13 +32,13 @@ export function buildAwardShowCeremonyForModal(
   const allProjects = new Map<string, Project>();
   for (const p of gameState.projects || []) allProjects.set(p.id, p);
   for (const r of gameState.allReleases || []) {
-    if ((r as any)?.script) allProjects.set((r as any).id, r as any);
+    if ((r as any)?.script && !allProjects.has((r as any).id)) allProjects.set((r as any).id, r as any);
   }
 
-  const playerProjectIds = new Set((gameState.projects || []).map((p) => p.id));
+  const playerProjectIds = getPlayerProjectIds(gameState);
 
   const labelProject = (project: Project) => {
-    const isPlayer = playerProjectIds.has(project.id);
+    const isPlayer = isPlayerOwnedProject({ project, state: gameState, playerProjectIds });
     const studioName = isPlayer ? gameState.studio.name : (project.studioName || 'AI Studio');
     return { ...project, studioId: isPlayer ? 'player' : 'ai', studioName } as any;
   };
@@ -73,7 +74,7 @@ export function buildAwardShowCeremonyForModal(
     const winnerProject = allProjects.get(w.projectId);
     if (!winnerProject) continue;
 
-    const isPlayer = playerProjectIds.has(winnerProject.id);
+    const isPlayer = isPlayerOwnedProject({ project: winnerProject, state: gameState, playerProjectIds });
     let award: StudioAward | undefined;
 
     if (isPlayer && !isTalentCategory(categoryDef)) {

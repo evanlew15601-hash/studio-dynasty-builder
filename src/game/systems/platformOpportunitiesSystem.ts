@@ -1,17 +1,21 @@
 import type { PlatformMarketState } from '@/types/platformEconomy';
 import type { GameEvent, Project } from '@/types/game';
+import { getAllKnownProjects, getPlayerProjectIds, isPlayerOwnedProject } from '@/utils/playerProjects';
 import { getContractPlatformId, getPlatformIdForProjectAtTime } from '@/utils/platformIds';
 import { stableInt } from '@/utils/stableRandom';
 import { triggerDateFromWeekYear } from '@/utils/gameTime';
 import type { TickSystem } from '../core/types';
 
-
-
 function pickHighestQuality(projects: Project[]): Project | null {
   if (projects.length === 0) return null;
   return projects
     .slice()
-    .sort((a, b) => (b.script?.quality ?? 60) - (a.script?.quality ?? 60))[0];
+    .sort((a, b) => {
+      const qa = a.script?.quality ?? 60;
+      const qb = b.script?.quality ?? 60;
+      if (qb !== qa) return qb - qa;
+      return String(a.id).localeCompare(String(b.id));
+    })[0];
 }
 
 function isDirectExclusiveStreamingPremiere(project: Project, platformId: string): boolean {
@@ -52,7 +56,12 @@ export const PlatformOpportunitiesSystem: TickSystem = {
     if (lastLicenseOfferYear === ctx.year) return state;
 
     const playerPlatformId = player.id;
-    const releasedOnPlatform = (state.projects || []).filter((p) => {
+
+    const playerProjectIds = getPlayerProjectIds(state);
+    const candidates = getAllKnownProjects(state);
+
+    const releasedOnPlatform = candidates.filter((p) => {
+      if (!isPlayerOwnedProject({ project: p, state, playerProjectIds })) return false;
       if (getPlatformIdForProjectAtTime(p, ctx.week, ctx.year) !== playerPlatformId) return false;
 
       // Licensing offers are meant to pressure exclusivity on DIRECT platform premieres,

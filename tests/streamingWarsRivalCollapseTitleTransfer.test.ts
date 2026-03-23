@@ -1,5 +1,5 @@
 import { beforeEach, describe, expect, it } from 'vitest';
-import type { GameEvent, GameState, Project } from '@/types/game';
+import type { GameState, Project } from '@/types/game';
 import { useGameStore } from '@/game/store';
 
 function makeBaseState(overrides?: Partial<GameState>): GameState {
@@ -8,13 +8,12 @@ function makeBaseState(overrides?: Partial<GameState>): GameState {
       id: 'studio-1',
       name: 'Test Studio',
       reputation: 80,
-      budget: 0,
+      budget: 1_000_000_000,
       debt: 0,
       founded: 2000,
       specialties: ['drama'],
       awards: [],
     },
-    dlc: { streamingWars: true },
     currentYear: 2027,
     currentWeek: 10,
     currentQuarter: 1,
@@ -39,22 +38,20 @@ function makeBaseState(overrides?: Partial<GameState>): GameState {
     topFilmsHistory: [],
     franchises: [],
     publicDomainIPs: [],
-    universeSeed: 222,
-    rngState: 222 as any,
   };
 
   return { ...base, ...(overrides || {}) } as GameState;
 }
 
-describe('Streaming Wars: forced sale resolution', () => {
+describe('Streaming Wars: rival collapse transfers streaming windows to buyer', () => {
   beforeEach(() => {
-    useGameStore.getState().initGame(makeBaseState(), 123);
+    useGameStore.getState().initGame(makeBaseState({ universeSeed: 777, rngState: 777 }), 123);
   });
 
-  it('uses sale proceeds to pay down studio debt and registers the brand', () => {
-    const salePrice = 100_000_000;
+  it('moves collapsed rival catalog windows onto the player platform when the player buys', () => {
+    const playerPlatformId = 'player-platform:studio-1';
 
-    const title: Project = {
+    const licensedTitle: Project = {
       id: 'title-1',
       title: 'Title 1',
       type: 'feature',
@@ -66,10 +63,10 @@ describe('Streaming Wars: forced sale resolution', () => {
       budget: { total: 1 } as any,
       postTheatricalReleases: [
         {
-          id: 'release:title-1:player-platform:studio-1:2027:W10',
+          id: 'release:title-1:orchardstream:2027:W10',
           projectId: 'title-1',
           platform: 'streaming',
-          platformId: 'player-platform:studio-1',
+          providerId: 'orchardstream',
           releaseDate: new Date('2027-01-01'),
           releaseWeek: 10,
           releaseYear: 2027,
@@ -92,56 +89,34 @@ describe('Streaming Wars: forced sale resolution', () => {
       developmentProgress: {} as any,
     } as any;
 
-    const event: GameEvent = {
-      id: 'evt:forced-sale',
-      title: 'Forced sale',
-      description: 'Forced sale.',
-      type: 'crisis',
-      triggerDate: new Date('2027-01-01T00:00:00.000Z'),
-      data: {
-        kind: 'platform:forced-sale',
-        buyerId: 'streamflix',
-        buyerName: 'StreamFlix',
-        salePrice,
-        transferredSubs: 0,
-        transferredCatalog: 0,
-        emergencyFundingCost: 0,
-      },
-      choices: [
-        {
-          id: 'sell',
-          text: 'Sell',
-          consequences: [{ type: 'budget', impact: salePrice, description: 'Sale proceeds' } as any],
-        },
-      ],
-    } as any;
-
     useGameStore.getState().initGame(
       makeBaseState({
-        studio: { ...makeBaseState().studio, budget: 0, debt: 120_000_000 },
-        projects: [title],
+        dlc: { streamingWars: true },
+        universeSeed: 777,
+        rngState: 777,
+        projects: [licensedTitle],
         platformMarket: {
           totalAddressableSubs: 100_000_000,
           player: {
-            id: 'player-platform:studio-1',
+            id: playerPlatformId,
             name: 'TestFlix',
             launchedWeek: 1,
             launchedYear: 2026,
-            subscribers: 100_000,
-            cash: -600_000_000,
+            subscribers: 3_000_000,
+            cash: -50_000_000,
             status: 'active',
             tierMix: { adSupportedPct: 60, adFreePct: 40 },
             promotionBudgetPerWeek: 0,
-            priceIndex: 1.4,
-            freshness: 0,
-            catalogValue: 0,
-            distressWeeks: 20,
+            priceIndex: 1.0,
+            freshness: 45,
+            catalogValue: 30,
+            distressWeeks: 0,
           },
           rivals: [
             {
               id: 'streamflix',
               name: 'StreamFlix',
-              subscribers: 45_000_000,
+              subscribers: 40_000_000,
               cash: 2_000_000_000,
               status: 'healthy',
               distressWeeks: 0,
@@ -150,26 +125,36 @@ describe('Streaming Wars: forced sale resolution', () => {
               catalogValue: 70,
               freshness: 60,
             },
+            {
+              id: 'orchardstream',
+              name: 'Orchard Stream',
+              subscribers: 8_000_000,
+              cash: -300_000_000,
+              status: 'distress',
+              distressWeeks: 11,
+              tierMix: { adSupportedPct: 20, adFreePct: 80 },
+              priceIndex: 1.2,
+              catalogValue: 55,
+              freshness: 40,
+            },
           ],
-        } as any,
-        eventQueue: [event],
+        },
       }),
       123
     );
 
-    useGameStore.getState().resolveGameEvent(event.id, 'sell');
+    useGameStore.getState().advanceWeek();
+
+    const withEvent = useGameStore.getState().game!;
+    const event = withEvent.eventQueue[0];
+
+    useGameStore.getState().resolveGameEvent(event.id, 'buy');
 
     const after = useGameStore.getState().game!;
-    expect(after.studio.debt).toBe(20_000_000);
-    expect(after.studio.budget).toBe(0);
+    const updated = after.projects.find((p) => p.id === 'title-1')!;
 
-    const reg = after.platformMarket?.brandRegistry ?? [];
-    expect(reg.some((r) => r.name === 'TestFlix')).toBe(true);
-
-    const updated = after.projects.find((p: any) => p && p.id === 'title-1') as Project;
-    const movedWindow = (updated.postTheatricalReleases ?? []).find((r: any) => r.platform === 'streaming' && r.providerId === 'streamflix');
-    expect(movedWindow).toBeTruthy();
-    expect((movedWindow as any).platformId).toBeUndefined();
-    expect((movedWindow as any).id).toBe('release:title-1:streamflix:2027:W10');
+    const window = (updated.postTheatricalReleases ?? []).find((r: any) => r.platform === 'streaming' && r.platformId === playerPlatformId);
+    expect(window).toBeTruthy();
+    expect((window as any).providerId).toBeUndefined();
   });
 });

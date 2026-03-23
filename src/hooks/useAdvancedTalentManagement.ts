@@ -188,7 +188,7 @@ export const useAdvancedTalentManagement = (
         message: `${agent.name} couldn't secure the deal. Agent suggests improving studio reputation or offering better terms.`
       };
     }
-  }, [state.agents, talent, getLoyaltyScore, studioId, updateLoyalty]);
+  }, [state.agents, talent, currentWeek, currentYear, getLoyaltyScore, studioId, universeSeed, updateLoyalty]);
 
   // Weekly system updates
   useEffect(() => {

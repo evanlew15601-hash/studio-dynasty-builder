@@ -14,20 +14,21 @@ export const useGenreSaturation = (allReleases: Project[], currentWeek: number, 
     trendingGenres: []
   });
 
-  // Memoize the releases array to prevent infinite re-renders
-  const memoizedReleases = useMemo(
-    () => allReleases,
-    [allReleases.length, allReleases.map(r => r.id).join(',')]
-  );
-  const memoizedCurrentWeek = useMemo(() => currentWeek, [currentWeek]);
-  const memoizedCurrentYear = useMemo(() => currentYear, [currentYear]);
+  const releasesSignature = useMemo(() => {
+    return allReleases
+      .map((r) => `${r.id}:${r.releaseYear ?? ''}:${r.releaseWeek ?? ''}:${r.script?.genre ?? ''}`)
+      .join('|');
+  }, [allReleases]);
+
+  // Memoize the releases array to prevent infinite re-renders.
+  const memoizedReleases = useMemo(() => allReleases, [releasesSignature]);
 
   // Calculate genre saturation based on recent releases
   useEffect(() => {
     const recentReleases = memoizedReleases.filter(release => {
       if (!release.releaseWeek || !release.releaseYear) return false;
       const releaseGameWeek = (release.releaseYear * 52) + release.releaseWeek;
-      const currentGameWeek = (memoizedCurrentYear * 52) + memoizedCurrentWeek;
+      const currentGameWeek = (currentYear * 52) + currentWeek;
       return (currentGameWeek - releaseGameWeek) <= 12; // Last 12 weeks
     });
 
@@ -79,7 +80,7 @@ export const useGenreSaturation = (allReleases: Project[], currentWeek: number, 
       trendingGenres
     });
 
-  }, [memoizedReleases, memoizedCurrentWeek, memoizedCurrentYear]);
+  }, [memoizedReleases, currentWeek, currentYear]);
 
   // Get performance multiplier for a genre
   const getGenreMultiplier = (genre: Genre): number => {

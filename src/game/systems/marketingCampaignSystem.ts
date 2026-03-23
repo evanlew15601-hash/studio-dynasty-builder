@@ -1,9 +1,6 @@
 import type { GameState, MarketingActivity, Project } from '@/types/game';
+import { isProjectLike } from '@/utils/playerProjects';
 import type { TickSystem } from '../core/types';
-
-function isProjectLike(value: any): value is Project {
-  return !!value && typeof value === 'object' && typeof value.id === 'string' && 'script' in value;
-}
 
 function isTvProject(project: Project): boolean {
   return project.type === 'series' || project.type === 'limited-series';
@@ -16,6 +13,8 @@ export const MarketingCampaignSystem: TickSystem = {
     const projects = state.projects || [];
 
     let changed = false;
+
+    const updatedById = new Map<string, Project>();
 
     const nextProjects = projects.map((p0) => {
       if (!isProjectLike(p0)) return p0;
@@ -79,15 +78,25 @@ export const MarketingCampaignSystem: TickSystem = {
         };
       }
 
-      if (p !== p0) changed = true;
+      if (p !== p0) {
+        updatedById.set(p0.id, p);
+        changed = true;
+      }
       return p;
     });
 
     if (!changed) return state;
 
+    const patch = (value: any): any => {
+      if (!isProjectLike(value)) return value;
+      return updatedById.get(value.id) || value;
+    };
+
     return {
       ...(state as GameState),
       projects: nextProjects as Project[],
+      aiStudioProjects: ((state.aiStudioProjects as any) || []).map(patch) as Project[],
+      allReleases: (state.allReleases || []).map(patch) as Array<Project | any>,
     };
   },
 };

@@ -94,6 +94,80 @@ describe('computePlayerCircle', () => {
     expect(circle.collaborators[0].loyalty).toBe(75);
   });
 
+  it('includes working (busy) collaborators when they are still under contract', () => {
+    const state = makeBaseState({
+      projects: [
+        {
+          id: 'p1',
+          title: 'Film',
+          type: 'feature',
+          status: 'production',
+          currentPhase: 'production',
+          script: { id: 's', title: 'S', genre: 'drama', quality: 60, characters: [] } as any,
+          budget: { total: 1 } as any,
+          cast: [],
+          crew: [],
+          locations: [],
+          timeline: {} as any,
+          distributionStrategy: {} as any,
+          metrics: {} as any,
+          phaseDuration: -1,
+          contractedTalent: [{ talentId: 'b', role: 'Lead', weeklyPay: 0, contractWeeks: 10, weeksRemaining: 9, startWeek: 1 }],
+          developmentProgress: {} as any,
+        } as any,
+      ],
+      talent: [
+        {
+          id: 'a',
+          name: 'Alpha Actor',
+          type: 'actor',
+          age: 30,
+          experience: 5,
+          reputation: 70,
+          marketValue: 1,
+          contractStatus: 'busy',
+          contractStatusBase: 'contracted',
+          genres: ['drama'] as any,
+          availability: { start: new Date(), end: new Date() },
+          studioLoyalty: { 'studio-1': 65 },
+        },
+        {
+          id: 'b',
+          name: 'Bravo Director',
+          type: 'director',
+          age: 45,
+          experience: 10,
+          reputation: 80,
+          marketValue: 1,
+          contractStatus: 'busy',
+          genres: ['thriller'] as any,
+          availability: { start: new Date(), end: new Date() },
+          studioLoyalty: { 'studio-1': 75 },
+        },
+        {
+          id: 'c',
+          name: 'Charlie Actor',
+          type: 'actor',
+          age: 28,
+          experience: 2,
+          reputation: 60,
+          marketValue: 1,
+          contractStatus: 'contracted',
+          genres: ['drama'] as any,
+          availability: { start: new Date(), end: new Date() },
+          studioLoyalty: { 'studio-1': 55 },
+        },
+      ] as any,
+    });
+
+    const circle = computePlayerCircle(state, { limit: 10 });
+    const ids = circle.collaborators.map((c) => c.talent.id);
+
+    expect(ids).toContain('a');
+    expect(ids).toContain('b');
+    expect(ids).toContain('c');
+  });
+
   it('derives rivals from collaborator relationships', () => {
     const state = makeBaseState({
       talent: [

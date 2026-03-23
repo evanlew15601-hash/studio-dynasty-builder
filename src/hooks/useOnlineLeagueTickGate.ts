@@ -85,7 +85,10 @@ export function useOnlineLeagueTickGate({
     return onSupabaseConfigChanged(() => setConfigVersion((v) => v + 1));
   }, []);
 
-  const supabase = useMemo(() => getSupabaseClient(), [configVersion]);
+  const supabase = useMemo(() => {
+    void configVersion;
+    return getSupabaseClient();
+  }, [configVersion]);
 
   const [status, setStatus] = useState<OnlineLeagueTickGateStatus>(enabled ? 'auth' : 'disabled');
   const [error, setError] = useState<string | null>(null);

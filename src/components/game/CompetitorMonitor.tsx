@@ -16,10 +16,10 @@ import {
 import { ScrollArea } from '@/components/ui/scroll-area';
 import { AIStudioManager } from './AIStudioManager';
 import type { AIFilmProject, TalentCommitment } from '@/types/game';
-import { AIStudioIntegrationTests } from './AIStudioIntegrationTests';
-import { Building, Film, Users, TrendingUp, Play, TestTube } from 'lucide-react';
+
+import { Building, Film, Users, Play, TestTube } from 'lucide-react';
 import { useGameStore } from '@/game/store';
-import { isDebugUiEnabled } from '@/utils/debugFlags';
+
 
 export const CompetitorMonitor: React.FC = () => {
   const [aiFilms, setAIFilms] = useState<AIFilmProject[]>([]);
@@ -41,14 +41,19 @@ export const CompetitorMonitor: React.FC = () => {
     setCommitments(AIStudioManager.getAllCommitments());
   }, [currentWeek, currentYear]);
 
-  const debugUiEnabled = isDebugUiEnabled();
+  const showSystemTests = import.meta.env.DEV;
 
-  // Auto-run tests once on mount to surface issues early (debug only)
-  useEffect(() => {
-    if (!debugUiEnabled) return;
+  const runIntegrationTests = async () => {
+    const { AIStudioIntegrationTests } = await import('./AIStudioIntegrationTests');
     const results = AIStudioIntegrationTests.runAllTests();
     setTestResults(results);
-  }, [debugUiEnabled]);
+  };
+
+  // Auto-run tests once on mount to surface issues early (dev only)
+  useEffect(() => {
+    if (!showSystemTests) return;
+    void runIntegrationTests();
+  }, [showSystemTests]);
 
   const getStudioAIFilms = (studioId: string) => {
     return aiFilms.filter(f => f.studioId === studioId);
@@ -61,10 +66,7 @@ export const CompetitorMonitor: React.FC = () => {
     );
   };
 
-  const runIntegrationTests = () => {
-    const results = AIStudioIntegrationTests.runAllTests();
-    setTestResults(results);
-  };
+  
 
   if (!game) {
     return <div className="p-6 text-sm text-muted-foreground">Loading competitor data...</div>;
@@ -142,11 +144,11 @@ export const CompetitorMonitor: React.FC = () => {
       </Card>
 
       <Tabs defaultValue="studios">
-        <TabsList className={`grid w-full ${debugUiEnabled ? 'grid-cols-4' : 'grid-cols-3'}`}>
+        <TabsList className={`grid w-full ${showSystemTests ? 'grid-cols-4' : 'grid-cols-3'}`}>
           <TabsTrigger value="studios">Studios</TabsTrigger>
           <TabsTrigger value="films">AI Films</TabsTrigger>
           <TabsTrigger value="talent">Talent Activity</TabsTrigger>
-          {debugUiEnabled && <TabsTrigger value="testing">System Tests</TabsTrigger>}
+          {showSystemTests && <TabsTrigger value="testing">System Tests</TabsTrigger>}
         </TabsList>
 
         <TabsContent value="studios" className="space-y-4">
@@ -379,7 +381,7 @@ export const CompetitorMonitor: React.FC = () => {
           </Card>
         </TabsContent>
 
-        {debugUiEnabled && (
+        {showSystemTests && (
           <TabsContent value="testing" className="space-y-4">
             <Card className="card-premium">
               <CardHeader>

@@ -17,6 +17,7 @@ import type { Franchise, GameState, Project, Script, Studio, StudioAward, Talent
 import { normalizeFranchisesState } from '@/utils/franchiseNormalization';
 import { normalizePublicDomainState } from '@/utils/publicDomainNormalization';
 import { normalizeStudioGovernanceState } from '@/utils/studioGovernanceNormalization';
+import { getContractPlatformId } from '@/utils/platformIds';
 import type { TickReport } from '@/types/tickReport';
 import { createTickReport } from '@/utils/tickReport';
 import type { ModBundle } from '@/types/modding';
@@ -51,6 +52,7 @@ import { MarketingCampaignSystem } from './systems/marketingCampaignSystem';
 import { ScheduledReleaseSystem } from './systems/scheduledReleaseSystem';
 import { TelevisionPerformanceSystem } from './systems/televisionPerformanceSystem';
 import { StreamingPerformanceSystem } from './systems/streamingPerformanceSystem';
+import { StreamingContractLifecycleSystem } from './systems/streamingContractLifecycleSystem';
 import { BoxOfficeSystem } from './systems/boxOfficeSystem';
 import { PostTheatricalRevenueSystem } from './systems/postTheatricalRevenueSystem';
 import { StudioEconomySystem } from './systems/studioEconomySystem';
@@ -67,6 +69,7 @@ import { PlatformMarketBootstrapSystem } from './systems/platformMarketBootstrap
 import { PlatformOriginalsPipelineSystem } from './systems/platformOriginalsPipelineSystem';
 import { PlatformOriginalsReleaseCadenceSystem } from './systems/platformOriginalsReleaseCadenceSystem';
 import { SeasonAiringStatusSystem } from './systems/seasonAiringStatusSystem';
+import { PlatformAutoStreamingWindowsSystem } from './systems/platformAutoStreamingWindowsSystem';
 import { PlatformCatalogSystem } from './systems/platformCatalogSystem';
 import { PlatformEconomySystem } from './systems/platformEconomySystem';
 import { PlatformCompetitionAndMAndASystem } from './systems/platformCompetitionAndMAndASystem';
@@ -226,6 +229,7 @@ export const useGameStore: import('zustand').UseBoundStore<import('zustand').Sto
       r.register(CompetitorFilmReleaseSystem);
       r.register(TelevisionPerformanceSystem);
       r.register(StreamingPerformanceSystem);
+      r.register(StreamingContractLifecycleSystem);
       r.register(BoxOfficeSystem);
       r.register(PostTheatricalRevenueSystem);
       r.register(StudioRevenueSystem);
@@ -242,6 +246,7 @@ export const useGameStore: import('zustand').UseBoundStore<import('zustand').Sto
       r.register(PlatformOriginalsPipelineSystem);
       r.register(PlatformOriginalsReleaseCadenceSystem);
       r.register(SeasonAiringStatusSystem);
+      r.register(PlatformAutoStreamingWindowsSystem);
       r.register(PlatformCatalogSystem);
       r.register(PlatformOutputDealSystem);
       r.register(PlatformEconomySystem);
@@ -481,10 +486,19 @@ export const useGameStore: import('zustand').UseBoundStore<import('zustand').Sto
     updateProject: (projectId, updates, marketingCost) => {
       set((s) => {
         if (!s.game) return;
-        const idx = s.game.projects.findIndex((p) => p.id === projectId);
-        if (idx >= 0) {
-          Object.assign(s.game.projects[idx], updates);
-        }
+
+        const updateList = (list: any[] | undefined) => {
+          if (!Array.isArray(list)) return;
+          const idx = list.findIndex((p) => p && (p as any).id === projectId);
+          if (idx >= 0) {
+            Object.assign(list[idx], updates);
+          }
+        };
+
+        updateList(s.game.projects as any);
+        updateList(s.game.aiStudioProjects as any);
+        updateList(s.game.allReleases as any);
+
         if (marketingCost) {
           s.game.studio.budget -= marketingCost;
         }
@@ -494,10 +508,18 @@ export const useGameStore: import('zustand').UseBoundStore<import('zustand').Sto
     replaceProject: (project) => {
       set((s) => {
         if (!s.game) return;
-        const idx = s.game.projects.findIndex((p) => p.id === project.id);
-        if (idx >= 0) {
-          s.game.projects[idx] = project as any;
-        }
+
+        const replaceInList = (list: any[] | undefined) => {
+          if (!Array.isArray(list)) return;
+          const idx = list.findIndex((p) => p && (p as any).id === project.id);
+          if (idx >= 0) {
+            list[idx] = project as any;
+          }
+        };
+
+        replaceInList(s.game.projects as any);
+        replaceInList(s.game.aiStudioProjects as any);
+        replaceInList(s.game.allReleases as any);
       });
     },
 
@@ -510,6 +532,18 @@ export const useGameStore: import('zustand').UseBoundStore<import('zustand').Sto
         } else {
           s.game.projects.push(project as any);
         }
+
+        // Keep legacy arrays coherent if the project exists there too.
+        const replaceIfPresent = (list: any[] | undefined) => {
+          if (!Array.isArray(list)) return;
+          const listIdx = list.findIndex((p) => p && (p as any).id === project.id);
+          if (listIdx >= 0) {
+            list[listIdx] = project as any;
+          }
+        };
+
+        replaceIfPresent(s.game.aiStudioProjects as any);
+        replaceIfPresent(s.game.allReleases as any);
       });
     },
 
@@ -941,6 +975,95 @@ export const useGameStore: import('zustand').UseBoundStore<import('zustand').Sto
                 }
               }
 
+              const newOwnerId =
+                selectedChoice.id === 'buy'
+                  ? market.player && market.player.status === 'active'
+                    ? market.player.id
+                    : undefined
+                  : rivalBuyerId;
+
+              const newOwnerName =
+                selectedChoice.id === 'buy'
+                  ? market.player && market.player.status === 'active'
+                    ? market.player.name
+                    : undefined
+                  : rivalBuyerName || (market.rivals || []).find((r) => r.id === rivalBuyerId)?.name;
+
+              if (collapsedId && newOwnerId) {
+                const isPlayerDestination = newOwnerId.startsWith('player-platform:');
+
+                const processed = new Set<string>();
+
+                const migrateProject = (project: any) => {
+                  if (!project || typeof project !== 'object') return;
+                  if (typeof project.id !== 'string') return;
+                  if (processed.has(project.id)) return;
+                  processed.add(project.id);
+
+                  const deal = project.streamingPremiereDeal;
+                  if (deal && deal.providerId === collapsedId) {
+                    deal.providerId = newOwnerId;
+                  }
+
+                  const rs = project.releaseStrategy;
+                  if (rs) {
+                    if (rs.streamingPlatformId === collapsedId) rs.streamingPlatformId = newOwnerId;
+                    if (rs.streamingProviderId === collapsedId) rs.streamingProviderId = newOwnerId;
+                  }
+
+                  const contract = project.streamingContract;
+                  if (contract) {
+                    if (contract.platformId === collapsedId) contract.platformId = newOwnerId;
+                    if ((contract as any).platform === collapsedId) (contract as any).platform = newOwnerId;
+                  }
+
+                  const dist = project.distributionStrategy;
+                  if (dist?.primary && (dist.primary as any).platformId === collapsedId) {
+                    (dist.primary as any).platformId = newOwnerId;
+                    if (newOwnerName && typeof (dist.primary as any).platform === 'string') {
+                      (dist.primary as any).platform = newOwnerName;
+                    }
+                  }
+
+                  if (Array.isArray(dist?.windows)) {
+                    for (const w of dist.windows) {
+                      if (w && (w as any).platformId === collapsedId) {
+                        (w as any).platformId = newOwnerId;
+                      }
+                    }
+                  }
+
+                  const releases = Array.isArray(project.postTheatricalReleases) ? project.postTheatricalReleases : [];
+
+                  for (const r of releases) {
+                    if (!r || r.platform !== 'streaming') continue;
+
+                    const pid = (r as any).platformId || (r as any).providerId;
+                    if (pid !== collapsedId) continue;
+
+                    if (isPlayerDestination) {
+                      (r as any).platformId = newOwnerId;
+                      (r as any).providerId = undefined;
+                    } else {
+                      (r as any).providerId = newOwnerId;
+                      (r as any).platformId = undefined;
+                    }
+
+                    const week = typeof (r as any).releaseWeek === 'number' ? (r as any).releaseWeek : s.game.currentWeek;
+                    const year = typeof (r as any).releaseYear === 'number' ? (r as any).releaseYear : s.game.currentYear;
+                    const desiredId = `release:${project.id}:${newOwnerId}:${year}:W${week}`;
+                    const collision = releases.some((x: any) => x && x !== r && x.id === desiredId);
+                    if (!collision) {
+                      (r as any).id = desiredId;
+                    }
+                  }
+                };
+
+                for (const p of s.game.projects || []) migrateProject(p as any);
+                for (const p of (s.game.aiStudioProjects as any) || []) migrateProject(p as any);
+                for (const p of s.game.allReleases || []) migrateProject(p as any);
+              }
+
               // Make sure the collapsed rival stays collapsed.
               if (collapsedId) {
                 const c = (market.rivals || []).find((r) => r.id === collapsedId);
@@ -963,7 +1086,6 @@ export const useGameStore: import('zustand').UseBoundStore<import('zustand').Sto
             const player = market?.player;
             if (market && player && player.status === 'active') {
               if (selectedChoice.id === 'accept') {
-                const titleProjectId = (event as any)?.data?.titleProjectId as string | undefined;
                 const rivalId = (event as any)?.data?.rivalId as string | undefined;
 
                 // Moat erosion: cash now, slightly weaker retention/differentiation.
@@ -971,20 +1093,37 @@ export const useGameStore: import('zustand').UseBoundStore<import('zustand').Sto
                 player.catalogValue = clamp((player.catalogValue ?? 45) - 1, 0, 100);
                 player.cash = (player.cash ?? 0) + offer;
 
+                const mutateProjectById = (projectId: string, fn: (project: any) => void) => {
+                  const lists = [
+                    s.game.projects as any,
+                    ((s.game.aiStudioProjects as any) || []) as any,
+                    (s.game.allReleases || []) as any,
+                  ];
+
+                  for (const list of lists) {
+                    for (const p of list || []) {
+                      if (!p || typeof p !== 'object') continue;
+                      if (typeof (p as any).id !== 'string') continue;
+                      if ((p as any).id !== projectId) continue;
+                      if (!(p as any).script) continue;
+                      fn(p);
+                    }
+                  }
+                };
+
                 // Make the title non-exclusive and actually place it on the rival platform for a time-limited window.
                 if (titleProjectId && rivalId) {
-                  const project = s.game.projects.find((p) => p.id === titleProjectId);
-                  if (project) {
+                  mutateProjectById(titleProjectId, (project) => {
                     if (project.releaseStrategy) {
                       project.releaseStrategy.streamingExclusive = false;
                     }
 
-                    if ((project as any)?.streamingContract && (project as any).streamingContract.platformId === player.id) {
+                    if (getContractPlatformId((project as any)?.streamingContract) === player.id) {
                       (project as any).streamingContract.exclusivityClause = false;
                     }
 
                     const releaseId = `release:${project.id}:${rivalId}:${s.game.currentYear}:W${s.game.currentWeek}`;
-                    const already = (project.postTheatricalReleases ?? []).some((r) => r && r.id === releaseId);
+                    const already = (project.postTheatricalReleases ?? []).some((r: any) => r && r.id === releaseId);
 
                     if (!already) {
                       const releaseDate = new Date(
@@ -1013,7 +1152,7 @@ export const useGameStore: import('zustand').UseBoundStore<import('zustand').Sto
                         },
                       ];
                     }
-                  }
+                  });
                 }
 
                 const headline = `${player.name} licenses ${titleName ?? 'a breakout title'} to ${rivalName ?? 'a rival'} for ${Math.round(
@@ -1133,19 +1272,36 @@ export const useGameStore: import('zustand').UseBoundStore<import('zustand').Sto
                 player.catalogValue = clamp((player.catalogValue ?? 45) - 2, 0, 100);
                 player.cash = (player.cash ?? 0) + offer;
 
+                const mutateProjectById = (projectId: string, fn: (project: any) => void) => {
+                  const lists = [
+                    s.game.projects as any,
+                    ((s.game.aiStudioProjects as any) || []) as any,
+                    (s.game.allReleases || []) as any,
+                  ];
+
+                  for (const list of lists) {
+                    for (const p of list || []) {
+                      if (!p || typeof p !== 'object') continue;
+                      if (typeof (p as any).id !== 'string') continue;
+                      if ((p as any).id !== projectId) continue;
+                      if (!(p as any).script) continue;
+                      fn(p);
+                    }
+                  }
+                };
+
                 if (titleProjectId && rivalId) {
-                  const project = s.game.projects.find((p) => p.id === titleProjectId);
-                  if (project) {
+                  mutateProjectById(titleProjectId, (project) => {
                     if (project.releaseStrategy) {
                       project.releaseStrategy.streamingExclusive = false;
                     }
 
-                    if ((project as any)?.streamingContract && (project as any).streamingContract.platformId === player.id) {
+                    if (getContractPlatformId((project as any)?.streamingContract) === player.id) {
                       (project as any).streamingContract.exclusivityClause = false;
                     }
 
                     const releaseId = `release:${project.id}:${rivalId}:${s.game.currentYear}:W${s.game.currentWeek}`;
-                    const already = (project.postTheatricalReleases ?? []).some((r) => r && r.id === releaseId);
+                    const already = (project.postTheatricalReleases ?? []).some((r: any) => r && r.id === releaseId);
 
                     if (!already) {
                       const releaseDate = new Date(
@@ -1172,7 +1328,7 @@ export const useGameStore: import('zustand').UseBoundStore<import('zustand').Sto
                         },
                       ];
                     }
-                  }
+                  });
                 }
 
                 const headline = `${player.name} sells an exclusive window for ${titleName ?? 'a hit title'} to ${rivalName ?? rival?.name ?? 'a rival'} (${Math.round(
@@ -1256,6 +1412,82 @@ export const useGameStore: import('zustand').UseBoundStore<import('zustand').Sto
                   target.subscribers = 0;
                   target.distressWeeks = 0;
                 }
+
+                // Asset transfer: move the acquired platform's catalog windows onto the player platform.
+                const newOwnerId = player.id;
+                const newOwnerName = player.name;
+
+                const isPlayerDestination = newOwnerId.startsWith('player-platform:');
+                const processed = new Set<string>();
+
+                const migrateProject = (project: any) => {
+                  if (!project || typeof project !== 'object') return;
+                  if (typeof project.id !== 'string') return;
+                  if (processed.has(project.id)) return;
+                  processed.add(project.id);
+
+                  const deal = project.streamingPremiereDeal;
+                  if (deal && deal.providerId === targetId) {
+                    deal.providerId = newOwnerId;
+                  }
+
+                  const rs = project.releaseStrategy;
+                  if (rs) {
+                    if (rs.streamingPlatformId === targetId) rs.streamingPlatformId = newOwnerId;
+                    if (rs.streamingProviderId === targetId) rs.streamingProviderId = newOwnerId;
+                  }
+
+                  const contract = project.streamingContract;
+                  if (contract) {
+                    if (contract.platformId === targetId) contract.platformId = newOwnerId;
+                    if ((contract as any).platform === targetId) (contract as any).platform = newOwnerId;
+                  }
+
+                  const dist = project.distributionStrategy;
+                  if (dist?.primary && (dist.primary as any).platformId === targetId) {
+                    (dist.primary as any).platformId = newOwnerId;
+                    if (newOwnerName && typeof (dist.primary as any).platform === 'string') {
+                      (dist.primary as any).platform = newOwnerName;
+                    }
+                  }
+
+                  if (Array.isArray(dist?.windows)) {
+                    for (const w of dist.windows) {
+                      if (w && (w as any).platformId === targetId) {
+                        (w as any).platformId = newOwnerId;
+                      }
+                    }
+                  }
+
+                  const releases = Array.isArray(project.postTheatricalReleases) ? project.postTheatricalReleases : [];
+
+                  for (const r of releases) {
+                    if (!r || r.platform !== 'streaming') continue;
+
+                    const pid = (r as any).platformId || (r as any).providerId;
+                    if (pid !== targetId) continue;
+
+                    if (isPlayerDestination) {
+                      (r as any).platformId = newOwnerId;
+                      (r as any).providerId = undefined;
+                    } else {
+                      (r as any).providerId = newOwnerId;
+                      (r as any).platformId = undefined;
+                    }
+
+                    const week = typeof (r as any).releaseWeek === 'number' ? (r as any).releaseWeek : s.game.currentWeek;
+                    const year = typeof (r as any).releaseYear === 'number' ? (r as any).releaseYear : s.game.currentYear;
+                    const desiredId = `release:${project.id}:${newOwnerId}:${year}:W${week}`;
+                    const collision = releases.some((x: any) => x && x !== r && x.id === desiredId);
+                    if (!collision) {
+                      (r as any).id = desiredId;
+                    }
+                  }
+                };
+
+                for (const p of s.game.projects || []) migrateProject(p as any);
+                for (const p of (s.game.aiStudioProjects as any) || []) migrateProject(p as any);
+                for (const p of s.game.allReleases || []) migrateProject(p as any);
 
                 const headline = `${player.name} acquires ${targetName ?? targetId} in a distressed buyout (${Math.round(
                   salePrice / 1_000_000
@@ -1361,6 +1593,85 @@ export const useGameStore: import('zustand').UseBoundStore<import('zustand').Sto
                 if (buyer && buyer.status !== 'collapsed') {
                   buyer.subscribers = Math.max(0, (buyer.subscribers ?? 0) + transferredSubs);
                   buyer.catalogValue = clamp((buyer.catalogValue ?? 50) + transferredCatalog * 0.15, 0, 100);
+                }
+
+                // Move the sold platform's catalog windows onto the buyer platform so catalog simulations stay consistent.
+                if (buyerId) {
+                  const oldOwnerId = player.id;
+                  const newOwnerId = buyerId;
+                  const newOwnerName = offer?.buyerName ?? buyer?.name;
+
+                  const isPlayerDestination = newOwnerId.startsWith('player-platform:');
+                  const processed = new Set<string>();
+
+                  const migrateProject = (project: any) => {
+                    if (!project || typeof project !== 'object') return;
+                    if (typeof project.id !== 'string') return;
+                    if (processed.has(project.id)) return;
+                    processed.add(project.id);
+
+                    const deal = project.streamingPremiereDeal;
+                    if (deal && deal.providerId === oldOwnerId) {
+                      deal.providerId = newOwnerId;
+                    }
+
+                    const rs = project.releaseStrategy;
+                    if (rs) {
+                      if (rs.streamingPlatformId === oldOwnerId) rs.streamingPlatformId = newOwnerId;
+                      if (rs.streamingProviderId === oldOwnerId) rs.streamingProviderId = newOwnerId;
+                    }
+
+                    const contract = project.streamingContract;
+                    if (contract) {
+                      if (contract.platformId === oldOwnerId) contract.platformId = newOwnerId;
+                      if ((contract as any).platform === oldOwnerId) (contract as any).platform = newOwnerId;
+                    }
+
+                    const dist = project.distributionStrategy;
+                    if (dist?.primary && (dist.primary as any).platformId === oldOwnerId) {
+                      (dist.primary as any).platformId = newOwnerId;
+                      if (newOwnerName && typeof (dist.primary as any).platform === 'string') {
+                        (dist.primary as any).platform = newOwnerName;
+                      }
+                    }
+
+                    if (Array.isArray(dist?.windows)) {
+                      for (const w of dist.windows) {
+                        if (w && (w as any).platformId === oldOwnerId) {
+                          (w as any).platformId = newOwnerId;
+                        }
+                      }
+                    }
+
+                    const releases = Array.isArray(project.postTheatricalReleases) ? project.postTheatricalReleases : [];
+
+                    for (const r of releases) {
+                      if (!r || r.platform !== 'streaming') continue;
+
+                      const pid = (r as any).platformId || (r as any).providerId;
+                      if (pid !== oldOwnerId) continue;
+
+                      if (isPlayerDestination) {
+                        (r as any).platformId = newOwnerId;
+                        (r as any).providerId = undefined;
+                      } else {
+                        (r as any).providerId = newOwnerId;
+                        (r as any).platformId = undefined;
+                      }
+
+                      const week = typeof (r as any).releaseWeek === 'number' ? (r as any).releaseWeek : s.game.currentWeek;
+                      const year = typeof (r as any).releaseYear === 'number' ? (r as any).releaseYear : s.game.currentYear;
+                      const desiredId = `release:${project.id}:${newOwnerId}:${year}:W${week}`;
+                      const collision = releases.some((x: any) => x && x !== r && x.id === desiredId);
+                      if (!collision) {
+                        (r as any).id = desiredId;
+                      }
+                    }
+                  };
+
+                  for (const p of s.game.projects || []) migrateProject(p as any);
+                  for (const p of (s.game.aiStudioProjects as any) || []) migrateProject(p as any);
+                  for (const p of s.game.allReleases || []) migrateProject(p as any);
                 }
 
                 const registry = Array.isArray((market as any).brandRegistry) ? ((market as any).brandRegistry as any[]) : [];
@@ -1641,44 +1952,63 @@ export const useGameStore: import('zustand').UseBoundStore<import('zustand').Sto
                   buyer.freshness = clamp((buyer.freshness ?? 55) + 1, 0, 100);
                 }
 
+                const mutateProjectById = (projectId: string, fn: (project: any) => void) => {
+                  const lists = [
+                    s.game.projects as any,
+                    ((s.game.aiStudioProjects as any) || []) as any,
+                    (s.game.allReleases || []) as any,
+                  ];
+
+                  for (const list of lists) {
+                    for (const p of list || []) {
+                      if (!p || typeof p !== 'object') continue;
+                      if (typeof (p as any).id !== 'string') continue;
+                      if ((p as any).id !== projectId) continue;
+                      if (!(p as any).script) continue;
+                      fn(p);
+                    }
+                  }
+                };
+
                 for (const pid of titleProjectIds) {
-                  const project = s.game.projects.find((p) => p.id === pid);
-                  if (!project) continue;
+                  mutateProjectById(pid, (project) => {
+                    if (project.releaseStrategy) {
+                      project.releaseStrategy.streamingExclusive = false;
+                    }
 
-                  if (project.releaseStrategy) {
-                    project.releaseStrategy.streamingExclusive = false;
-                  }
+                    if ((project as any)?.streamingContract && (project as any).streamingContract.platformId === player.id) {
+                      (project as any).streamingContract.exclusivityClause = false;
+                    }
 
-                  if ((project as any)?.streamingContract && (project as any).streamingContract.platformId === player.id) {
-                    (project as any).streamingContract.exclusivityClause = false;
-                  }
+                    const releaseId = `release:${project.id}:${buyerId}:${s.game.currentYear}:W${s.game.currentWeek}`;
+                    const already = (project.postTheatricalReleases ?? []).some((r: any) => r && r.id === releaseId);
 
-                  const releaseId = `release:${project.id}:${buyerId}:${s.game.currentYear}:W${s.game.currentWeek}`;
-                  const already = (project.postTheatricalReleases ?? []).some((r) => r && r.id === releaseId);
+                    if (!already) {
+                      const releaseDate = new Date(
+                        Date.UTC(s.game.currentYear, 0, 1 + Math.max(0, s.game.currentWeek - 1) * 7)
+                      );
 
-                  if (!already) {
-                    const releaseDate = new Date(Date.UTC(s.game.currentYear, 0, 1 + Math.max(0, s.game.currentWeek - 1) * 7));
-
-                    project.postTheatricalReleases = [
-                      ...(project.postTheatricalReleases ?? []),
-                      {
-                        id: releaseId,
-                        projectId: project.id,
-                        platform: 'streaming',
-                        providerId: buyerId,
-                        releaseDate,
-                        releaseWeek: s.game.currentWeek,
-                        releaseYear: s.game.currentYear,
-                        delayWeeks: 0,
-                        revenue: Math.floor(licenseFee / Math.max(1, titleProjectIds.length)),
-                        weeklyRevenue: 0,
-                        weeksActive: 0,
-                        status: 'planned',
-                        cost: 0,
-                        durationWeeks: windowWeeks,
-                      },
-                    ];
-                  }
+                      project.postTheatricalReleases = [
+                        ...(project.postTheatricalReleases ?? []),
+                        {
+                          id: releaseId,
+                          projectId: project.id,
+                          platform: 'streaming',
+                          providerId: buyerId,
+                          releaseDate,
+                          releaseWeek: s.game.currentWeek,
+                          releaseYear: s.game.currentYear,
+                          delayWeeks: 0,
+                          revenue: Math.floor(licenseFee / Math.max(1, titleProjectIds.length)),
+                          weeklyRevenue: 0,
+                          weeksActive: 0,
+                          status: 'planned',
+                          cost: 0,
+                          durationWeeks: windowWeeks,
+                        },
+                      ];
+                    }
+                  });
                 }
 
                 const headline = `${player.name} licenses a library package to ${offer?.buyerName ?? buyer?.name ?? 'a rival'} for ${Math.round(
@@ -1751,54 +2081,73 @@ export const useGameStore: import('zustand').UseBoundStore<import('zustand').Sto
 
                 const perTitle = titleProjectIds.length > 0 && recipients.length > 0 ? Math.floor(payout / (titleProjectIds.length * recipients.length)) : 0;
 
+                const mutateProjectById = (projectId: string, fn: (project: any) => void) => {
+                  const lists = [
+                    s.game.projects as any,
+                    ((s.game.aiStudioProjects as any) || []) as any,
+                    (s.game.allReleases || []) as any,
+                  ];
+
+                  for (const list of lists) {
+                    for (const p of list || []) {
+                      if (!p || typeof p !== 'object') continue;
+                      if (typeof (p as any).id !== 'string') continue;
+                      if ((p as any).id !== projectId) continue;
+                      if (!(p as any).script) continue;
+                      fn(p);
+                    }
+                  }
+                };
+
                 for (const pid of titleProjectIds) {
-                  const project = s.game.projects.find((p) => p.id === pid);
-                  if (!project) continue;
-
-                  if (project.releaseStrategy) {
-                    project.releaseStrategy.streamingExclusive = false;
-                  }
-
-                  if ((project as any)?.streamingContract && (project as any).streamingContract.platformId === player.id) {
-                    (project as any).streamingContract.exclusivityClause = false;
-                  }
-
-                  for (const rec of recipients) {
-                    const buyerId = rec?.buyerId;
-                    if (!buyerId) continue;
-
-                    const releaseId = `release:${project.id}:${buyerId}:${s.game.currentYear}:W${s.game.currentWeek}`;
-                    const already = (project.postTheatricalReleases ?? []).some((r) => r && r.id === releaseId);
-
-                    if (!already) {
-                      const releaseDate = new Date(Date.UTC(s.game.currentYear, 0, 1 + Math.max(0, s.game.currentWeek - 1) * 7));
-
-                      project.postTheatricalReleases = [
-                        ...(project.postTheatricalReleases ?? []),
-                        {
-                          id: releaseId,
-                          projectId: project.id,
-                          platform: 'streaming',
-                          providerId: buyerId,
-                          releaseDate,
-                          releaseWeek: s.game.currentWeek,
-                          releaseYear: s.game.currentYear,
-                          delayWeeks: 0,
-                          revenue: perTitle,
-                          weeklyRevenue: 0,
-                          weeksActive: 0,
-                          status: 'planned',
-                          cost: 0,
-                          durationWeeks: windowWeeks,
-                        },
-                      ];
+                  mutateProjectById(pid, (project) => {
+                    if (project.releaseStrategy) {
+                      project.releaseStrategy.streamingExclusive = false;
                     }
 
-                    const buyer = (market.rivals || []).find((r) => r.id === buyerId);
-                    if (buyer && buyer.status !== 'collapsed') {
-                      buyer.catalogValue = clamp((buyer.catalogValue ?? 50) + 1, 0, 100);
+                    if ((project as any)?.streamingContract && (project as any).streamingContract.platformId === player.id) {
+                      (project as any).streamingContract.exclusivityClause = false;
                     }
-                  }
+
+                    for (const rec of recipients) {
+                      const buyerId = rec?.buyerId;
+                      if (!buyerId) continue;
+
+                      const releaseId = `release:${project.id}:${buyerId}:${s.game.currentYear}:W${s.game.currentWeek}`;
+                      const already = (project.postTheatricalReleases ?? []).some((r: any) => r && r.id === releaseId);
+
+                      if (!already) {
+                        const releaseDate = new Date(
+                          Date.UTC(s.game.currentYear, 0, 1 + Math.max(0, s.game.currentWeek - 1) * 7)
+                        );
+
+                        project.postTheatricalReleases = [
+                          ...(project.postTheatricalReleases ?? []),
+                          {
+                            id: releaseId,
+                            projectId: project.id,
+                            platform: 'streaming',
+                            providerId: buyerId,
+                            releaseDate,
+                            releaseWeek: s.game.currentWeek,
+                            releaseYear: s.game.currentYear,
+                            delayWeeks: 0,
+                            revenue: perTitle,
+                            weeklyRevenue: 0,
+                            weeksActive: 0,
+                            status: 'planned',
+                            cost: 0,
+                            durationWeeks: windowWeeks,
+                          },
+                        ];
+                      }
+
+                      const buyer = (market.rivals || []).find((r) => r.id === buyerId);
+                      if (buyer && buyer.status !== 'collapsed') {
+                        buyer.catalogValue = clamp((buyer.catalogValue ?? 50) + 1, 0, 100);
+                      }
+                    }
+                  });
                 }
 
                 const headline = `${player.name} syndicates a library package across ${recipients.length} rivals for ${Math.round(payout / 1_000_000)}M`;
@@ -1886,6 +2235,85 @@ export const useGameStore: import('zustand').UseBoundStore<import('zustand').Sto
                 if (buyer && buyer.status !== 'collapsed') {
                   buyer.subscribers = Math.max(0, (buyer.subscribers ?? 0) + transferredSubs);
                   buyer.catalogValue = clamp((buyer.catalogValue ?? 50) + transferredCatalog * 0.12, 0, 100);
+                }
+
+                // Move the distressed platform's catalog windows to the buyer platform.
+                if (buyerId) {
+                  const oldOwnerId = player.id;
+                  const newOwnerId = buyerId;
+                  const newOwnerName = buyerName ?? buyer?.name;
+
+                  const isPlayerDestination = newOwnerId.startsWith('player-platform:');
+                  const processed = new Set<string>();
+
+                  const migrateProject = (project: any) => {
+                    if (!project || typeof project !== 'object') return;
+                    if (typeof project.id !== 'string') return;
+                    if (processed.has(project.id)) return;
+                    processed.add(project.id);
+
+                    const deal = project.streamingPremiereDeal;
+                    if (deal && deal.providerId === oldOwnerId) {
+                      deal.providerId = newOwnerId;
+                    }
+
+                    const rs = project.releaseStrategy;
+                    if (rs) {
+                      if (rs.streamingPlatformId === oldOwnerId) rs.streamingPlatformId = newOwnerId;
+                      if (rs.streamingProviderId === oldOwnerId) rs.streamingProviderId = newOwnerId;
+                    }
+
+                    const contract = project.streamingContract;
+                    if (contract) {
+                      if (contract.platformId === oldOwnerId) contract.platformId = newOwnerId;
+                      if ((contract as any).platform === oldOwnerId) (contract as any).platform = newOwnerId;
+                    }
+
+                    const dist = project.distributionStrategy;
+                    if (dist?.primary && (dist.primary as any).platformId === oldOwnerId) {
+                      (dist.primary as any).platformId = newOwnerId;
+                      if (newOwnerName && typeof (dist.primary as any).platform === 'string') {
+                        (dist.primary as any).platform = newOwnerName;
+                      }
+                    }
+
+                    if (Array.isArray(dist?.windows)) {
+                      for (const w of dist.windows) {
+                        if (w && (w as any).platformId === oldOwnerId) {
+                          (w as any).platformId = newOwnerId;
+                        }
+                      }
+                    }
+
+                    const releases = Array.isArray(project.postTheatricalReleases) ? project.postTheatricalReleases : [];
+
+                    for (const r of releases) {
+                      if (!r || r.platform !== 'streaming') continue;
+
+                      const pid = (r as any).platformId || (r as any).providerId;
+                      if (pid !== oldOwnerId) continue;
+
+                      if (isPlayerDestination) {
+                        (r as any).platformId = newOwnerId;
+                        (r as any).providerId = undefined;
+                      } else {
+                        (r as any).providerId = newOwnerId;
+                        (r as any).platformId = undefined;
+                      }
+
+                      const week = typeof (r as any).releaseWeek === 'number' ? (r as any).releaseWeek : s.game.currentWeek;
+                      const year = typeof (r as any).releaseYear === 'number' ? (r as any).releaseYear : s.game.currentYear;
+                      const desiredId = `release:${project.id}:${newOwnerId}:${year}:W${week}`;
+                      const collision = releases.some((x: any) => x && x !== r && x.id === desiredId);
+                      if (!collision) {
+                        (r as any).id = desiredId;
+                      }
+                    }
+                  };
+
+                  for (const p of s.game.projects || []) migrateProject(p as any);
+                  for (const p of (s.game.aiStudioProjects as any) || []) migrateProject(p as any);
+                  for (const p of s.game.allReleases || []) migrateProject(p as any);
                 }
 
                 const registry = Array.isArray((market as any).brandRegistry) ? ((market as any).brandRegistry as any[]) : [];

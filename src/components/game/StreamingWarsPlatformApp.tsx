@@ -23,13 +23,7 @@ import {
 import { useGameStore } from '@/game/store';
 import type { Genre, PostTheatricalRelease, Project, Script } from '@/types/game';
 import type { EpisodeData, SeasonData, StreamingContract } from '@/types/streamingTypes';
-import {
-  getContractPlatformId,
-  getDistributionChannelPlatformId,
-  getReleaseStrategyPlatformId,
-  getReleaseWindowPlatformId,
-  isProjectOnPlatformAtTime,
-} from '@/utils/platformIds';
+import { getContractPlatformId, isProjectOnPlatformAtTime } from '@/utils/platformIds';
 import { stableInt } from '@/utils/stableRandom';
 import { isDebugUiEnabled } from '@/utils/debugFlags';
 import { triggerDateFromWeekYear } from '@/utils/gameTime';
@@ -248,6 +242,7 @@ export const StreamingWarsPlatformApp: React.FC = () => {
     playerPlatformId,
     titlesOnPlatform,
     originals,
+    playerProjectIds,
   } = useMemo(() => {
     const player = platformMarket?.player;
     const rivals = platformMarket?.rivals ?? [];
@@ -265,14 +260,30 @@ export const StreamingWarsPlatformApp: React.FC = () => {
 
     const playerPlatformId = player?.id;
 
+    const week = gameState?.currentWeek ?? 0;
+    const year = gameState?.currentYear ?? 0;
+
+    const playerProjectIds = new Set<string>((gameState?.projects ?? []).map((p) => p.id));
+
+    const candidates = [
+      ...(gameState?.projects ?? []),
+      ...(gameState?.aiStudioProjects ?? []),
+      ...(gameState?.allReleases ?? []),
+    ].filter((p): p is Project => !!p && typeof (p as any).id === 'string' && !!(p as any).script);
+
+    const seenProjectIds = new Set<string>();
+    const uniqueCandidates = candidates.filter((p) => {
+      if (seenProjectIds.has(p.id)) return false;
+      seenProjectIds.add(p.id);
+      return true;
+    });
+
     const titlesOnPlatform = playerPlatformId
-      ? (gameState?.projects ?? []).filter((p) =>
-          isProjectOnPlatformAtTime(p, playerPlatformId, gameState?.currentWeek ?? 0, gameState?.currentYear ?? 0)
-        )
+      ? uniqueCandidates.filter((p) => isProjectOnPlatformAtTime(p, playerPlatformId, week, year))
       : [];
 
     const originals = playerPlatformId
-      ? (gameState?.projects ?? []).filter((p) => p.streamingContract?.platformId === playerPlatformId)
+      ? (gameState?.projects ?? []).filter((p) => getContractPlatformId(p.streamingContract) === playerPlatformId)
       : [];
 
     return {
@@ -285,8 +296,9 @@ export const StreamingWarsPlatformApp: React.FC = () => {
       playerPlatformId,
       titlesOnPlatform,
       originals,
+      playerProjectIds,
     };
-  }, [gameState?.projects, platformMarket]);
+  }, [gameState?.projects, gameState?.aiStudioProjects, gameState?.allReleases, platformMarket]);
 
   const effectiveBranding = useMemo(() => {
     const preset = getVibeBrandingPreset(player?.vibe);
@@ -359,29 +371,45 @@ export const StreamingWarsPlatformApp: React.FC = () => {
     }
   };
 
-  const getDirectPlatformId = (project: Project): string | null => {
-    return (
-      getContractPlatformId(project.streamingContract) ||
-      project.streamingPremiereDeal?.providerId ||
-      getReleaseStrategyPlatformId(project.releaseStrategy) ||
-      getDistributionChannelPlatformId(project.distributionStrategy?.primary) ||
-      getReleaseWindowPlatformId(project.distributionStrategy?.windows?.[0]) ||
-      null
-    );
+  const currentWeek = gameState?.currentWeek ?? 0;
+  const currentYear = gameState?.currentYear ?? 0;
+
+  const isPlayerOwnedTitle = (project: Project): boolean => {
+    if (!gameState) return false;
+
+    if (playerProjectIds?.has(project.id)) return true;
+
+    const studioId = (project as any)?.studioId;
+    if (studioId && (studioId === gameState.studio.id || studioId === 'player' || studioId === 'player-studio')) {
+      return true;
+    }
+
+    const studioName = (project as any)?.studioName;
+    if (typeof studioName === 'string' && studioName.trim().length > 0) {
+      return studioName === gameState.studio.name;
+    }
+
+    return false;
   };
 
-  const isExclusiveTitle = (project: Project): boolean => {
-    const exclusiveFlag = project.releaseStrategy?.streamingExclusive;
-    const contractExclusive = (project.streamingContract as any)?.exclusivityClause;
-    return exclusiveFlag !== false && contractExclusive !== false;
+  const hasRivalPlatformPresenceNow = (project: Project, platformId: string): boolean => {
+    if (!playerPlatformId) return false;
+    if (!gameState) return false;
+
+    return rivals
+      .filter((r) => r.status !== 'collapsed')
+      .some((r) => r.id !== platformId && isProjectOnPlatformAtTime(project, r.id, currentWeek, currentYear));
   };
 
-  const hasRivalStreamingWindow = (project: Project, platformId: string): boolean => {
-    return (project.postTheatricalReleases ?? []).some((r: any) => {
-      if (!r || r.platform !== 'streaming') return false;
-      const pid = r.providerId || r.platformId;
-      return pid && pid !== platformId;
-    });
+  const isExclusiveToPlayerPlatformNow = (project: Project): boolean => {
+    if (!playerPlatformId) return false;
+    if (!gameState) return false;
+    if (!player || player.status !== 'active') return false;
+
+    const onPlayer = isProjectOnPlatformAtTime(project, playerPlatformId, currentWeek, currentYear);
+    if (!onPlayer) return false;
+
+    return !hasRivalPlatformPresenceNow(project, playerPlatformId);
   };
 
   const computeLicenseOffer = (project: Project, rivalId: string, durationWeeks: number): number => {
@@ -577,11 +605,33 @@ export const StreamingWarsPlatformApp: React.FC = () => {
     if (!playerPlatformId) return [] as Project[];
     if (!player || player.status !== 'active') return [] as Project[];
 
+    const activeRivals = rivals.filter((r) => r.status !== 'collapsed');
+
+    const isPlayerOwned = (project: Project): boolean => {
+      if (playerProjectIds?.has(project.id)) return true;
+
+      const studioId = (project as any)?.studioId;
+      if (studioId && (studioId === gameState.studio.id || studioId === 'player' || studioId === 'player-studio')) {
+        return true;
+      }
+
+      const studioName = (project as any)?.studioName;
+      if (typeof studioName === 'string' && studioName.trim().length > 0) {
+        return studioName === gameState.studio.name;
+      }
+
+      return false;
+    };
+
+    const isExclusiveNow = (project: Project): boolean => {
+      if (!isProjectOnPlatformAtTime(project, playerPlatformId, currentWeek, currentYear)) return false;
+      return !activeRivals.some((r) => isProjectOnPlatformAtTime(project, r.id, currentWeek, currentYear));
+    };
+
     return titlesOnPlatform
       .filter((p) => p && p.status === 'released')
-      .filter((p) => getDirectPlatformId(p) === playerPlatformId)
-      .filter((p) => isExclusiveTitle(p))
-      .filter((p) => !hasRivalStreamingWindow(p, playerPlatformId))
+      .filter((p) => isPlayerOwned(p))
+      .filter((p) => isExclusiveNow(p))
       .slice()
       .sort((a, b) => {
         const aAbs = typeof a.releaseWeek === 'number' && typeof a.releaseYear === 'number' ? absWeek(a.releaseWeek, a.releaseYear) : 0;
@@ -589,7 +639,7 @@ export const StreamingWarsPlatformApp: React.FC = () => {
         return (bAbs - aAbs) || a.title.localeCompare(b.title);
       })
       .slice(0, 4);
-  }, [gameState, player, playerPlatformId, titlesOnPlatform]);
+  }, [currentWeek, currentYear, gameState, player, playerPlatformId, playerProjectIds, rivals, titlesOnPlatform]);
 
   const libraryLicensingOffers = useMemo(() => {
     if (!player || player.status !== 'active') return [] as Array<{ buyerId: string; buyerName: string; licenseFee: number; windowWeeks: number; titleProjectIds: string[] }>;
@@ -1046,17 +1096,30 @@ export const StreamingWarsPlatformApp: React.FC = () => {
       .slice(0, 12);
 
     const originalsReleased = releasedOnPlatform
-      .filter((p) => p.streamingContract?.platformId === playerPlatformId)
+      .filter((p) => getContractPlatformId(p.streamingContract) === playerPlatformId)
       .slice()
       .sort((a, b) => (b.script?.quality ?? 0) - (a.script?.quality ?? 0))
       .slice(0, 12);
 
     const comingSoon: Array<{ project: Project; arrivalAbs?: number; label: string }> = [];
 
-    for (const p of gameState.projects ?? []) {
+    const candidates = [
+      ...(gameState.projects ?? []),
+      ...(gameState.aiStudioProjects ?? []),
+      ...(gameState.allReleases ?? []),
+    ].filter((p): p is Project => !!p && typeof (p as any).id === 'string' && !!(p as any).script);
+
+    const seenIds = new Set<string>();
+    const uniqueCandidates = candidates.filter((p) => {
+      if (seenIds.has(p.id)) return false;
+      seenIds.add(p.id);
+      return true;
+    });
+
+    for (const p of uniqueCandidates) {
       if (!p) continue;
 
-      if (p.streamingContract?.platformId === playerPlatformId && p.status !== 'released') {
+      if (getContractPlatformId(p.streamingContract) === playerPlatformId && p.status !== 'released') {
         comingSoon.push({ project: p, label: `Original • ${p.status}` });
       }
 
@@ -1122,7 +1185,7 @@ export const StreamingWarsPlatformApp: React.FC = () => {
           }
         : licenseProject.releaseStrategy,
       streamingContract:
-        licenseProject.streamingContract && licenseProject.streamingContract.platformId === playerPlatformId
+        getContractPlatformId(licenseProject.streamingContract) === playerPlatformId
           ? {
               ...(licenseProject.streamingContract as any),
               exclusivityClause: false,
@@ -1329,10 +1392,14 @@ export const StreamingWarsPlatformApp: React.FC = () => {
     const duration = 52;
     const { endWeek, endYear } = addWeeks(gameState.currentWeek, gameState.currentYear, duration);
 
+    const baselineSubs = clampInt((player?.subscribers ?? 1_000_000) as number, 250_000, 120_000_000);
+    const expectedViewers = clampInt(Math.floor(baselineSubs * 0.75), 350_000, 90_000_000);
+
     const contract: StreamingContract = {
       id: `contract:original:${gameState.currentYear}:W${gameState.currentWeek}:${idSuffix}`,
       dealKind: 'streaming',
       platformId: playerPlatformId,
+      persistentRights: true,
       name: `${gameState.platformMarket?.player?.name ?? 'Your Platform'} Original - ${title}`,
       type: 'series',
       duration,
@@ -1343,9 +1410,9 @@ export const StreamingWarsPlatformApp: React.FC = () => {
       upfrontPayment: 0,
       episodeRate: perEpisodeBudget,
       performanceBonus: [],
-      expectedViewers: 0,
-      expectedCompletionRate: 0.72,
-      expectedSubscriberGrowth: 0,
+      expectedViewers,
+      expectedCompletionRate: 72,
+      expectedSubscriberGrowth: Math.floor(expectedViewers * 0.03),
       status: 'active',
       performanceScore: 0,
       exclusivityClause: true,
@@ -1813,11 +1880,11 @@ export const StreamingWarsPlatformApp: React.FC = () => {
                         {heroTitle.type.replace('-', ' ')} • {heroTitle.script?.genre}
                       </div>
                       <div className="mt-3 flex flex-wrap gap-2">
-                        {heroTitle.streamingContract?.platformId === playerPlatformId && <Badge variant="secondary">Original</Badge>}
-                        {playerPlatformId && getDirectPlatformId(heroTitle) === playerPlatformId && isExclusiveTitle(heroTitle) && (
+                        {getContractPlatformId(heroTitle.streamingContract) === playerPlatformId && <Badge variant="secondary">Original</Badge>}
+                        {playerPlatformId && isExclusiveToPlayerPlatformNow(heroTitle) && (
                           <Badge variant="outline">Exclusive</Badge>
                         )}
-                        {playerPlatformId && hasRivalStreamingWindow(heroTitle, playerPlatformId) && <Badge variant="secondary">Licensed out</Badge>}
+                        {playerPlatformId && hasRivalPlatformPresenceNow(heroTitle, playerPlatformId) && <Badge variant="secondary">Licensed out</Badge>}
                         <Badge variant="outline">Details</Badge>
                       </div>
                       <div className="mt-3 text-xs text-muted-foreground">
@@ -1848,14 +1915,14 @@ export const StreamingWarsPlatformApp: React.FC = () => {
                               .join('')
                               .slice(0, 2);
 
-                            const isOriginal = p.streamingContract?.platformId === playerPlatformId;
-                            const isExclusive = playerPlatformId && getDirectPlatformId(p) === playerPlatformId && isExclusiveTitle(p);
-                            const isLicensedOut = playerPlatformId && hasRivalStreamingWindow(p, playerPlatformId);
+                            const isOriginal = getContractPlatformId(p.streamingContract) === playerPlatformId;
+                            const isExclusive = playerPlatformId && isExclusiveToPlayerPlatformNow(p);
+                            const isLicensedOut = playerPlatformId && hasRivalPlatformPresenceNow(p, playerPlatformId);
                             const canLicense =
                               playerPlatformId &&
                               player?.status === 'active' &&
-                              getDirectPlatformId(p) === playerPlatformId &&
-                              isExclusiveTitle(p) &&
+                              isPlayerOwnedTitle(p) &&
+                              isExclusiveToPlayerPlatformNow(p) &&
                               rivals.some((r) => r.status !== 'collapsed');
 
                             return (
@@ -2747,8 +2814,8 @@ export const StreamingWarsPlatformApp: React.FC = () => {
               </div>
 
               <div className="flex flex-wrap gap-2">
-                {titleProject.streamingContract?.platformId === playerPlatformId && <Badge variant="secondary">Original</Badge>}
-                {playerPlatformId && getDirectPlatformId(titleProject) === playerPlatformId && isExclusiveTitle(titleProject) && (
+                {getContractPlatformId(titleProject.streamingContract) === playerPlatformId && <Badge variant="secondary">Original</Badge>}
+                {playerPlatformId && isExclusiveToPlayerPlatformNow(titleProject) && (
                   <Badge variant="outline">Exclusive</Badge>
                 )}
                 <Badge variant="outline" className="capitalize">{titleProject.type.replace('-', ' ')}</Badge>
@@ -2803,8 +2870,8 @@ export const StreamingWarsPlatformApp: React.FC = () => {
             {titleProject &&
               playerPlatformId &&
               player?.status === 'active' &&
-              getDirectPlatformId(titleProject) === playerPlatformId &&
-              isExclusiveTitle(titleProject) &&
+              isPlayerOwnedTitle(titleProject) &&
+              isExclusiveToPlayerPlatformNow(titleProject) &&
               rivals.some((r) => r.status !== 'collapsed') && (
                 <Button
                   type="button"

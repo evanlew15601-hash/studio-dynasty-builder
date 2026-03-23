@@ -1,4 +1,5 @@
-import type { Project } from '@/types/game';
+import type { GameState, Project } from '@/types/game';
+import { isProjectLike } from '@/utils/playerProjects';
 import type { SeasonData } from '@/types/streamingTypes';
 import type { TickSystem } from '../core/types';
 
@@ -45,6 +46,8 @@ export const SeasonAiringStatusSystem: TickSystem = {
 
     let changed = false;
 
+    const updatedById = new Map<string, Project>();
+
     const projectsOut = projectsIn.map((p) => {
       if (!p) return p;
       if (p.status !== 'released') return p;
@@ -87,17 +90,28 @@ export const SeasonAiringStatusSystem: TickSystem = {
 
       changed = true;
 
-      return {
+      const next = {
         ...p,
         seasons: seasonsOut,
       };
+
+      updatedById.set(p.id, next);
+
+      return next;
     });
 
     if (!changed) return state;
 
+    const patch = (value: any): any => {
+      if (!isProjectLike(value)) return value;
+      return updatedById.get(value.id) || value;
+    };
+
     return {
-      ...state,
+      ...(state as GameState),
       projects: projectsOut,
+      aiStudioProjects: ((state.aiStudioProjects as any) || []).map(patch) as Project[],
+      allReleases: (state.allReleases || []).map(patch) as Array<Project | any>,
     };
   },
 };

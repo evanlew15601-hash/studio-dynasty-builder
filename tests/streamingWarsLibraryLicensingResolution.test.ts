@@ -214,4 +214,94 @@ describe('Streaming Wars: library licensing package resolution', () => {
     const hasWindow = (updated.postTheatricalReleases ?? []).some((r: any) => r.platform === 'streaming' && (r.providerId || r.platformId) === 'streamflix');
     expect(hasWindow).toBe(true);
   });
+
+  it('licenses a package when the title lives in allReleases (legacy/library)', () => {
+    const playerPlatformId = 'player-platform:studio-1';
+
+    const project = makeReleasedExclusiveOnPlayerPlatform({ projectId: 'p-legacy', platformId: playerPlatformId });
+
+    const licenseFee = 80_000_000;
+
+    const event: GameEvent = {
+      id: 'evt:library-licensing-legacy',
+      title: 'Library licensing',
+      description: 'License a package.',
+      type: 'market',
+      triggerDate: new Date('2027-01-01T00:00:00.000Z'),
+      data: {
+        kind: 'platform:library-licensing',
+        playerPlatformId,
+        offers: [
+          {
+            buyerId: 'streamflix',
+            buyerName: 'StreamFlix',
+            licenseFee,
+            windowWeeks: 26,
+            titleProjectIds: ['p-legacy'],
+          },
+        ],
+      },
+      choices: [
+        {
+          id: 'license:streamflix',
+          text: 'License',
+          consequences: [{ type: 'budget', impact: licenseFee, description: 'Licensing fee' } as any],
+        },
+      ],
+    } as any;
+
+    useGameStore.getState().initGame(
+      makeBaseState({
+        platformMarket: {
+          totalAddressableSubs: 100_000_000,
+          player: {
+            id: playerPlatformId,
+            name: 'TestFlix',
+            launchedWeek: 1,
+            launchedYear: 2026,
+            subscribers: 3_000_000,
+            cash: 0,
+            status: 'active',
+            tierMix: { adSupportedPct: 50, adFreePct: 50 },
+            promotionBudgetPerWeek: 0,
+            priceIndex: 1.0,
+            freshness: 70,
+            catalogValue: 65,
+            distressWeeks: 0,
+          },
+          rivals: [
+            {
+              id: 'streamflix',
+              name: 'StreamFlix',
+              subscribers: 45_000_000,
+              cash: 2_000_000_000,
+              status: 'healthy',
+              distressWeeks: 0,
+              tierMix: { adSupportedPct: 40, adFreePct: 60 },
+              priceIndex: 1.0,
+              catalogValue: 70,
+              freshness: 60,
+            },
+          ],
+        } as any,
+        projects: [],
+        allReleases: [project],
+        eventQueue: [event],
+      }),
+      123
+    );
+
+    useGameStore.getState().resolveGameEvent(event.id, 'license:streamflix');
+
+    const after = useGameStore.getState().game!;
+
+    expect(after.studio.budget).toBe(licenseFee);
+
+    const updated = (after.allReleases as any[]).find((p) => p && (p as any).id === 'p-legacy') as any;
+    expect(updated).toBeTruthy();
+    expect(updated.releaseStrategy?.streamingExclusive).toBe(false);
+
+    const hasWindow = (updated.postTheatricalReleases ?? []).some((r: any) => r.platform === 'streaming' && (r.providerId || r.platformId) === 'streamflix');
+    expect(hasWindow).toBe(true);
+  });
 });
