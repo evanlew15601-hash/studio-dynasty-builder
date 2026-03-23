@@ -70,13 +70,13 @@ export class FinancialEngine {
 
     for (const t of this.transactions) {
       this.coarseIndex.add(this.coarseKey(t));
-      this.fullIndex.add(this.fullKey({ ...t, description: t.description }));
+      this.fullIndex.add(this.fullKey(t));
     }
   }
 
   private static indexTransaction(t: Transaction): void {
     this.coarseIndex.add(this.coarseKey(t));
-    this.fullIndex.add(this.fullKey({ ...t, description: t.description }));
+    this.fullIndex.add(this.fullKey(t));
   }
 
   private static getStorageKey(): string {
