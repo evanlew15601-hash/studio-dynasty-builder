@@ -341,9 +341,23 @@ jobs:
 
           curl -fsSL -o "$OUT_DIR/butler.zip" "https://broth.itch.zone/butler/linux-amd64/${VERSION}/archive/default"
           python -c 'import sys, zipfile; zipfile.ZipFile(sys.argv[1]).extractall(sys.argv[2])' "$OUT_DIR/butler.zip" "$OUT_DIR"
-          chmod +x "$OUT_DIR/butler"*
+
+          BUTLER_BIN=""
+          if [ -f "$OUT_DIR/butler" ]; then
+            BUTLER_BIN="$OUT_DIR/butler"
+          elif [ -f "$OUT_DIR/butler.exe" ]; then
+            BUTLER_BIN="$OUT_DIR/butler.exe"
+          else
+            echo "butler binary not found in $OUT_DIR" >&2
+            ls -la "$OUT_DIR" >&2
+            exit 1
+          fi
+
+          chmod +x "$OUT_DIR/butler"* || true
+
+          # $GITHUB_PATH only affects subsequent steps, so run butler via absolute path here.
           echo "$OUT_DIR" >> "$GITHUB_PATH"
-          butler -V
+          "$BUTLER_BIN" -V
 
       - name: Upload to itch.io
         shell: bash
