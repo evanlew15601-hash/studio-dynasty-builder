@@ -148,7 +148,7 @@ describe('StreamingContractLifecycleSystem', () => {
     const project = makeReleasedFilmWithContract();
 
     const rng = createRng(123);
-    let state = makeBaseState({
+    const state = makeBaseState({
       studio: { ...makeBaseState().studio, budget: 0 },
       projects: [project],
     });
