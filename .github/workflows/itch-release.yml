@@ -297,10 +297,35 @@ jobs:
           path: ${{ steps.artifact.outputs.path }}
           if-no-files-found: error
 
-      - name: Setup butler
+      - name: Setup butler (Linux/Windows)
+        if: matrix.platform != 'macos-latest'
         # remarkablegames/setup-butler@v2 runs `butler whoami`, which was removed in butler v15.
-        # jdno/setup-butler only installs butler and doesn't rely on deprecated commands.
+        # jdno/setup-butler only supports x64 + i386 (not macOS arm64).
         uses: jdno/setup-butler@v1
+
+      - name: Setup butler (macOS arm64)
+        if: matrix.platform == 'macos-latest'
+        shell: bash
+        run: |
+          set -euo pipefail
+
+          BUTLER_PLATFORM="darwin"
+          BUTLER_ARCH="arm64"
+
+          VERSION="$(curl -fsSL "https://broth.itch.zone/butler/${BUTLER_PLATFORM}-${BUTLER_ARCH}/LATEST")"
+          echo "Installing butler ${VERSION} (${BUTLER_PLATFORM}-${BUTLER_ARCH})"
+
+          OUT_DIR="${RUNNER_TEMP}/butler"
+          rm -rf "$OUT_DIR"
+          mkdir -p "$OUT_DIR"
+
+          curl -fsSL -o "$OUT_DIR/butler.zip" "https://broth.itch.zone/butler/${BUTLER_PLATFORM}-${BUTLER_ARCH}/${VERSION}/archive/default"
+          unzip -q "$OUT_DIR/butler.zip" -d "$OUT_DIR"
+          chmod +x "$OUT_DIR/butler"
+
+          echo "$OUT_DIR" >> "$GITHUB_PATH"
+
+          butler -V
 
       - name: Upload to itch.io
         shell: bash
