@@ -1,7 +1,7 @@
 import type { MediaCampaign, MediaReaction, MediaItem, MediaState, GameState, TalentPerson, Project } from '@/types/game';
 import { MediaEngine } from './mediaEngine';
 import { stableFloat01, stableInt } from '@/utils/stableRandom';
-import { current, isDraft } from 'immer';
+
 
 function isDomLike(value: unknown): boolean {
   const g = globalThis as any;
@@ -94,7 +94,7 @@ export class MediaResponseSystem {
 
   static hydrate(state?: MediaState): void {
     const response = state?.response;
-    const src = response && isDraft(response) ? current(response as any) : response;
+    const src = response ? clone(response) : undefined;
 
     this.activeCampaigns = (src?.campaigns || []).map((c) => clone(c));
     this.playerReactions = (src?.reactions || []).map((r) => clone(r));

@@ -4,7 +4,7 @@ import { MediaContentGenerator } from '@/data/MediaContentGenerator';
 import { hashStringToUint32 } from '@/utils/stablePick';
 import { stableFloat01, stableInt } from '@/utils/stableRandom';
 import { isPrimaryStreamingFilm, isTvProject } from '@/utils/projectMedium';
-import { current, isDraft } from 'immer';
+
 
 function isDomLike(value: unknown): boolean {
   const g = globalThis as any;
@@ -104,9 +104,9 @@ class MediaEngine {
       return;
     }
 
-    // Copy values out of Immer drafts (Zustand+Immer store can call hydrate from inside set()).
+    // Copy values out of Zustand+Immer drafts (hydrate can be called from inside set()).
     // Retaining draft references here would later crash with: "Cannot perform 'get' on a proxy that has been revoked".
-    const src = (isDraft(engine) ? current(engine as any) : engine) as NonNullable<MediaState['engine']>;
+    const src = clone(engine) as NonNullable<MediaState['engine']>;
 
     this.mediaHistory = (src.history || []).map((m) => clone(m));
     this.mediaMemory = new Map((src.memories || []).map((m) => [m.entityId, clone(m)] as const));
