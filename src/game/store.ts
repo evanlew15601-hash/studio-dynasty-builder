@@ -17,6 +17,7 @@ import type { Franchise, GameState, Project, Script, Studio, StudioAward, Talent
 import { normalizeFranchisesState } from '@/utils/franchiseNormalization';
 import { normalizePublicDomainState } from '@/utils/publicDomainNormalization';
 import { normalizeStudioGovernanceState } from '@/utils/studioGovernanceNormalization';
+import { getContractPlatformId } from '@/utils/platformIds';
 import type { TickReport } from '@/types/tickReport';
 import { createTickReport } from '@/utils/tickReport';
 import type { ModBundle } from '@/types/modding';
@@ -1088,7 +1089,7 @@ export const useGameStore: import('zustand').UseBoundStore<import('zustand').Sto
                       project.releaseStrategy.streamingExclusive = false;
                     }
 
-                    if ((project as any)?.streamingContract && (project as any).streamingContract.platformId === player.id) {
+                    if (getContractPlatformId((project as any)?.streamingContract) === player.id) {
                       (project as any).streamingContract.exclusivityClause = false;
                     }
 
@@ -1242,19 +1243,36 @@ export const useGameStore: import('zustand').UseBoundStore<import('zustand').Sto
                 player.catalogValue = clamp((player.catalogValue ?? 45) - 2, 0, 100);
                 player.cash = (player.cash ?? 0) + offer;
 
+                const mutateProjectById = (projectId: string, fn: (project: any) => void) => {
+                  const lists = [
+                    s.game.projects as any,
+                    ((s.game.aiStudioProjects as any) || []) as any,
+                    (s.game.allReleases || []) as any,
+                  ];
+
+                  for (const list of lists) {
+                    for (const p of list || []) {
+                      if (!p || typeof p !== 'object') continue;
+                      if (typeof (p as any).id !== 'string') continue;
+                      if ((p as any).id !== projectId) continue;
+                      if (!(p as any).script) continue;
+                      fn(p);
+                    }
+                  }
+                };
+
                 if (titleProjectId && rivalId) {
-                  const project = s.game.projects.find((p) => p.id === titleProjectId);
-                  if (project) {
+                  mutateProjectById(titleProjectId, (project) => {
                     if (project.releaseStrategy) {
                       project.releaseStrategy.streamingExclusive = false;
                     }
 
-                    if ((project as any)?.streamingContract && (project as any).streamingContract.platformId === player.id) {
+                    if (getContractPlatformId((project as any)?.streamingContract) === player.id) {
                       (project as any).streamingContract.exclusivityClause = false;
                     }
 
                     const releaseId = `release:${project.id}:${rivalId}:${s.game.currentYear}:W${s.game.currentWeek}`;
-                    const already = (project.postTheatricalReleases ?? []).some((r) => r && r.id === releaseId);
+                    const already = (project.postTheatricalReleases ?? []).some((r: any) => r && r.id === releaseId);
 
                     if (!already) {
                       const releaseDate = new Date(
@@ -1281,7 +1299,7 @@ export const useGameStore: import('zustand').UseBoundStore<import('zustand').Sto
                         },
                       ];
                     }
-                  }
+                  });
                 }
 
                 const headline = `${player.name} sells an exclusive window for ${titleName ?? 'a hit title'} to ${rivalName ?? rival?.name ?? 'a rival'} (${Math.round(

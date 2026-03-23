@@ -334,4 +334,145 @@ describe('Streaming Wars: bidding war event', () => {
     expect(after.platformMarket!.player!.freshness).toBeLessThan(beforeFreshness);
     expect(after.platformMarket!.player!.cash).toBe(beforeCash + offer);
   });
+
+  it('triggers when the best eligible title is in allReleases (legacy/library)', () => {
+    const playerPlatformId = 'player-platform:studio-1';
+    const offerWeek = stableInt(`891|platform:bidding-war-week|2027|${playerPlatformId}`, 26, 34);
+
+    useGameStore.getState().initGame(
+      makeBaseState({
+        dlc: { streamingWars: true },
+        universeSeed: 891,
+        rngState: 891,
+        currentWeek: offerWeek - 1,
+        platformMarket: {
+          totalAddressableSubs: 100_000_000,
+          player: {
+            id: playerPlatformId,
+            name: 'TestFlix',
+            launchedWeek: 1,
+            launchedYear: 2026,
+            subscribers: 5_000_000,
+            cash: 100_000_000,
+            status: 'active',
+            tierMix: { adSupportedPct: 60, adFreePct: 40 },
+            promotionBudgetPerWeek: 0,
+            priceIndex: 1.0,
+            freshness: 55,
+            catalogValue: 45,
+            distressWeeks: 0,
+          },
+          rivals: [
+            {
+              id: 'streamflix',
+              name: 'StreamFlix',
+              subscribers: 40_000_000,
+              cash: 2_000_000_000,
+              status: 'healthy',
+              distressWeeks: 0,
+              tierMix: { adSupportedPct: 40, adFreePct: 60 },
+              priceIndex: 1.0,
+              catalogValue: 70,
+              freshness: 60,
+            },
+          ],
+        },
+        projects: [],
+        allReleases: [
+          {
+            ...makeReleasedOnPlayerPlatform({ projectId: 'p-legacy', platformId: playerPlatformId }),
+            studioId: 'studio-1',
+            studioName: 'Test Studio',
+          } as any,
+        ],
+      }),
+      123
+    );
+
+    useGameStore.getState().advanceWeek();
+
+    const state = useGameStore.getState().game!;
+    expect(state.currentWeek).toBe(offerWeek);
+    expect(state.eventQueue.length).toBe(1);
+    expect((state.eventQueue[0] as any)?.data?.kind).toBe('platform:bidding-war');
+  });
+
+  it('selling the window mutates allReleases titles (legacy/library)', () => {
+    const playerPlatformId = 'player-platform:studio-1';
+    const offerWeek = stableInt(`892|platform:bidding-war-week|2027|${playerPlatformId}`, 26, 34);
+
+    useGameStore.getState().initGame(
+      makeBaseState({
+        dlc: { streamingWars: true },
+        universeSeed: 892,
+        rngState: 892,
+        currentWeek: offerWeek - 1,
+        platformMarket: {
+          totalAddressableSubs: 100_000_000,
+          player: {
+            id: playerPlatformId,
+            name: 'TestFlix',
+            launchedWeek: 1,
+            launchedYear: 2026,
+            subscribers: 5_000_000,
+            cash: 100_000_000,
+            status: 'active',
+            tierMix: { adSupportedPct: 60, adFreePct: 40 },
+            promotionBudgetPerWeek: 0,
+            priceIndex: 1.0,
+            freshness: 55,
+            catalogValue: 45,
+            distressWeeks: 0,
+          },
+          rivals: [
+            {
+              id: 'streamflix',
+              name: 'StreamFlix',
+              subscribers: 40_000_000,
+              cash: 2_000_000_000,
+              status: 'healthy',
+              distressWeeks: 0,
+              tierMix: { adSupportedPct: 40, adFreePct: 60 },
+              priceIndex: 1.0,
+              catalogValue: 70,
+              freshness: 60,
+            },
+          ],
+        },
+        projects: [],
+        allReleases: [
+          {
+            ...makeReleasedOnPlayerPlatform({ projectId: 'p-legacy', platformId: playerPlatformId }),
+            studioId: 'studio-1',
+            studioName: 'Test Studio',
+          } as any,
+        ],
+      }),
+      123
+    );
+
+    useGameStore.getState().advanceWeek();
+
+    const withEvent = useGameStore.getState().game!;
+    const event = withEvent.eventQueue[0];
+    expect((event as any)?.data?.kind).toBe('platform:bidding-war');
+
+    const beforeCash = withEvent.platformMarket!.player!.cash ?? 0;
+    const offer = (event as any)?.data?.offer ?? 0;
+
+    useGameStore.getState().resolveGameEvent(event.id, 'sell');
+
+    const after = useGameStore.getState().game!;
+
+    const project = (after.allReleases as any[]).find((p) => p && (p as any).id === 'p-legacy') as any;
+    expect(project).toBeTruthy();
+    expect(project.releaseStrategy?.streamingExclusive).toBe(false);
+
+    const window = (project.postTheatricalReleases ?? []).find((r: any) => r.providerId === 'streamflix' && r.platform === 'streaming');
+    expect(window).toBeTruthy();
+    expect(window?.status).toBe('planned');
+    expect(window?.durationWeeks).toBe(52);
+
+    expect(after.platformMarket!.player!.cash).toBe(beforeCash + offer);
+  });
 });
