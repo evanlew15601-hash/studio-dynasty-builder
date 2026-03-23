@@ -376,6 +376,7 @@ jobs:
 
           # $GITHUB_PATH only affects subsequent steps, so run butler via absolute path here.
           echo "$OUT_DIR" >> "$GITHUB_PATH"
+          echo "BUTLER_BIN=$BUTLER_BIN" >> "$GITHUB_ENV"
           "$BUTLER_BIN" -V
 
       - name: Upload to itch.io
@@ -457,6 +458,4 @@ jobs:
         with:
           name: butler-upload-logs
           path: ci-logs/butler-upload.log
-          if-no-files-found: warn
-d.log
           if-no-files-found: warn
