@@ -140,7 +140,7 @@ export class FinancialEngine {
   private static persist() {
     if (this.storageDisabled) return;
 
-    // Tests expect the ledger to be persisted synchronously.
+    // In Vitest, keep persistence synchronous so tests can assert immediately.
     if (import.meta.env.MODE === 'test' || (import.meta.env as any).VITEST) {
       this.flushPersist();
       return;
