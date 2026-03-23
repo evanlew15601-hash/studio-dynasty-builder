@@ -40,7 +40,6 @@
     ],
     "icon": [
       "icons/icon.png",
-      "icons/icon-alt.png",
       "../public/favicon.ico"
     ],
     "windows": {
