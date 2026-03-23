@@ -4,10 +4,15 @@ A film-studio management / “Hollywood tycoon” simulation game built with Vit
 
 ## Local development
 
+Requirements:
+- Node.js (LTS recommended; Vite requires Node >= 18)
+
 ```sh
 npm i
 npm run dev
 ```
+
+If you see `TypeError: crypto.getRandomValues is not a function`, you are likely running an old Node version (or a `node` binary shadowing your system install). Check `node -v` and switch to an LTS Node (e.g. via `nvm use`).
 
 ## Scripts
 
