@@ -112,7 +112,7 @@ export const PlatformOriginalsPipelineSystem: TickSystem = {
             ]
           : seasonsIn;
 
-        const out = {
+        const out: Project = {
           ...p,
           currentPhase: phase,
           status: phase,
@@ -140,7 +140,7 @@ export const PlatformOriginalsPipelineSystem: TickSystem = {
             ]
           : seasonsIn;
 
-        const out = {
+        const out: Project = {
           ...p,
           currentPhase: phaseAfter,
           status: phaseAfter,
@@ -182,7 +182,7 @@ export const PlatformOriginalsPipelineSystem: TickSystem = {
           })()
         : seasonsIn;
 
-      const out = {
+      const out: Project = {
         ...p,
         status: 'released',
         currentPhase: 'distribution',
