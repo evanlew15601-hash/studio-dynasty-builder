@@ -1,5 +1,7 @@
 
 
+name: itch-upload
+
 on:
   workflow_dispatch:
     inputs:
@@ -10,7 +12,7 @@ on:
 
 jobs:
   build-and-upload:
-    name: ${{ matrix.platform }} -> itch.io (${{ matrix.channel }})
+    name: ${{ matrix.platform }} build and upload (${{ matrix.channel }})
     runs-on: ${{ matrix.platform }}
 
     strategy:
@@ -53,48 +55,140 @@ jobs:
         shell: bash
         run: |
           set -euo pipefail
-
           sudo apt-get update
           sudo apt-get install -y libwebkit2gtk-4.1-dev libappindicator3-dev librsvg2-dev patchelf
 
       - name: Install frontend dependencies
         run: npm ci
 
-      - name: Prepare Tauri icons
-        shell: bash
-        run: |
-          set -euo pipefail
-
-          node scripts/prepare-tauri-icons.mjs
-          ls -la src-tauri/icons
-
-      - name: Ensure Windows favicon.ico is RC-compatible
+      - name: Windows generate RC compatible favicon
         if: matrix.platform == 'windows-latest'
         shell: pwsh
         run: |
           $ErrorActionPreference = 'Stop'
 
-          if (-not (Test-Path -Path 'src-tauri/icons/icon.ico')) {
-            throw 'Missing src-tauri/icons/icon.ico after icon preparation'
+          $InputPng = 'src-tauri/icons/icon.png'
+          if (-not (Test-Path -Path $InputPng -PathType Leaf)) {
+            throw "Missing input PNG: $InputPng"
           }
 
-          Copy-Item 'src-tauri/icons/icon.ico' 'public/favicon.ico' -Force
+          New-Item -ItemType Directory -Force -Path 'public' | Out-Null
+
+          Add-Type -AssemblyName System.Drawing
+
+          $img = [System.Drawing.Image]::FromFile($InputPng)
+          try {
+            $size = 256
+            $bmp = New-Object System.Drawing.Bitmap $size, $size
+            $gfx = [System.Drawing.Graphics]::FromImage($bmp)
+            try {
+              $gfx.InterpolationMode = [System.Drawing.Drawing2D.InterpolationMode]::HighQualityBicubic
+              $gfx.SmoothingMode = [System.Drawing.Drawing2D.SmoothingMode]::HighQuality
+              $gfx.PixelOffsetMode = [System.Drawing.Drawing2D.PixelOffsetMode]::HighQuality
+              $gfx.CompositingQuality = [System.Drawing.Drawing2D.CompositingQuality]::HighQuality
+              $gfx.DrawImage($img, 0, 0, $size, $size)
+            }
+            finally {
+              $gfx.Dispose()
+            }
+
+            $hIcon = $bmp.GetHicon()
+
+            Add-Type @"
+using System;
+using System.Runtime.InteropServices;
+public static class Win32 {
+  [DllImport("user32.dll", SetLastError=true)]
+  public static extern bool DestroyIcon(IntPtr hIcon);
+}
+"@
+
+            try {
+              $icon = [System.Drawing.Icon]::FromHandle($hIcon)
+              try {
+                $fs = New-Object System.IO.FileStream('public/favicon.ico', [System.IO.FileMode]::Create)
+                try { $icon.Save($fs) } finally { $fs.Dispose() }
+              }
+              finally {
+                $icon.Dispose()
+              }
+            }
+            finally {
+              [Win32]::DestroyIcon($hIcon) | Out-Null
+              $bmp.Dispose()
+            }
+          }
+          finally {
+            $img.Dispose()
+          }
 
           $bytes = [System.IO.File]::ReadAllBytes('public/favicon.ico')
-          if ($bytes.Length -lt 8) {
-            throw 'public/favicon.ico too small'
-          }
-
-          # Reject PNG-compressed frames (RC.EXE will error RC2175)
           $pngSig = [byte[]](0x89,0x50,0x4E,0x47,0x0D,0x0A,0x1A,0x0A)
           for ($i = 0; $i -le $bytes.Length - $pngSig.Length; $i++) {
             $match = $true
             for ($j = 0; $j -lt $pngSig.Length; $j++) {
               if ($bytes[$i + $j] -ne $pngSig[$j]) { $match = $false; break }
             }
-            if ($match) { throw 'public/favicon.ico contains PNG-compressed frame data (not RC-compatible)'
+            if ($match) { throw 'public/favicon.ico contains PNG frame data (not RC compatible)' }
+          }
+
+      - name: macOS generate icon icns
+        if: matrix.platform == 'macos-latest'
+        shell: bash
+        run: |
+          set -euo pipefail
+
+          SRC="src-tauri/icons/icon.png"
+          OUT_DIR="src-tauri/icons"
+          ICONSET_DIR="${RUNNER_TEMP}/app.iconset"
+
+          rm -rf "$ICONSET_DIR"
+          mkdir -p "$ICONSET_DIR"
+
+          sizes=(16 32 64 128 256 512)
+          for s in "${sizes[@]}"; do
+            sips -z "$s" "$s" "$SRC" --out "$ICONSET_DIR/icon_${s}x${s}.png" >/dev/null
+            s2=$((s*2))
+            sips -z "$s2" "$s2" "$SRC" --out "$ICONSET_DIR/icon_${s}x${s}@2x.png" >/dev/null
+          done
+
+          iconutil -c icns "$ICONSET_DIR" -o "$OUT_DIR/icon.icns"
+
+      - name: Create platform config overrides
+        shell: bash
+        run: |
+          set -euo pipefail
+
+          if [ "${{ matrix.channel }}" = "windows" ]; then
+            cat > src-tauri/tauri.ci.windows.conf.json <<'JSON'
+          {
+            "bundle": {
+              "targets": ["nsis"],
+              "icon": ["../public/favicon.ico"]
             }
           }
+          JSON
+          fi
+
+          if [ "${{ matrix.channel }}" = "linux" ]; then
+            cat > src-tauri/tauri.ci.linux.conf.json <<'JSON'
+          {
+            "bundle": {
+              "icon": ["icons/icon.png"]
+            }
+          }
+          JSON
+          fi
+
+          if [ "${{ matrix.channel }}" = "mac" ]; then
+            cat > src-tauri/tauri.ci.macos.conf.json <<'JSON'
+          {
+            "bundle": {
+              "icon": ["icons/icon.icns"]
+            }
+          }
+          JSON
+          fi
 
       - name: Build Tauri
         shell: bash
@@ -110,16 +204,16 @@ jobs:
           {
             case "${{ matrix.channel }}" in
               linux)
-                npm run tauri -- build --bundles appimage --config src-tauri/tauri.release.conf.json
+                npm run tauri -- build --bundles appimage --config src-tauri/tauri.ci.linux.conf.json
                 ;;
               mac)
-                npm run tauri -- build --no-sign --config src-tauri/tauri.release.macos.conf.json
+                npm run tauri -- build --no-sign --bundles dmg --config src-tauri/tauri.ci.macos.conf.json
                 ;;
               windows)
-                npm run tauri -- build --no-bundle --config src-tauri/tauri.release.windows.conf.json
+                npm run tauri -- build --no-bundle --config src-tauri/tauri.ci.windows.conf.json
                 ;;
               *)
-                echo "Unknown channel: ${{ matrix.channel }}" >&2
+                echo "Unknown channel" >&2
                 exit 1
                 ;;
             esac
@@ -144,7 +238,7 @@ jobs:
             rm -rf portable
             mkdir -p portable
 
-            cp src-tauri/target/release/*.exe portable/
+            cp src-tauri/target/release/*.exe portable/ || true
             cp src-tauri/target/release/*.dll portable/ || true
 
             if [ -d src-tauri/target/release/resources ]; then
@@ -159,7 +253,7 @@ jobs:
           if [ "${{ matrix.channel }}" = "linux" ]; then
             appimages=(src-tauri/target/release/bundle/appimage/*.AppImage)
             if [ ${#appimages[@]} -lt 1 ]; then
-              echo "No AppImage bundle found at src-tauri/target/release/bundle/appimage/*.AppImage" >&2
+              echo "No AppImage bundle found" >&2
               exit 1
             fi
 
@@ -176,7 +270,7 @@ jobs:
 
             apps=(src-tauri/target/release/bundle/macos/*.app)
             if [ ${#apps[@]} -lt 1 ]; then
-              echo "No dmg or .app bundle found." >&2
+              echo "No dmg or app bundle found" >&2
               exit 1
             fi
 
@@ -185,7 +279,7 @@ jobs:
             exit 0
           fi
 
-          echo "Unknown channel: ${{ matrix.channel }}" >&2
+          echo "Unknown channel" >&2
           exit 1
 
       - name: Upload build artifact
@@ -198,7 +292,7 @@ jobs:
       - name: Setup butler
         uses: remarkablegames/setup-butler@v2
 
-      - name: Upload to itch.io
+      - name: Upload to itch
         shell: bash
         env:
           BUTLER_API_KEY: ${{ secrets.BUTLER_API_KEY }}
@@ -213,12 +307,12 @@ jobs:
           BUTLER_LOG_FILE="ci-logs/butler-upload-${{ matrix.channel }}.log"
 
           if [ -z "${BUTLER_API_KEY:-}" ]; then
-            echo "Skipping itch.io upload (missing BUTLER_API_KEY)." >&2
+            echo "Skipping upload (missing BUTLER_API_KEY)" >&2
             exit 0
           fi
 
           if [ -z "${ITCH_TARGET:-}" ] && { [ -z "${ITCH_USERNAME:-}" ] || [ -z "${ITCH_GAME:-}" ]; }; then
-            echo "Skipping itch.io upload (missing ITCH_TARGET or ITCH_USERNAME+ITCH_GAME)." >&2
+            echo "Skipping upload (missing ITCH_TARGET or ITCH_USERNAME and ITCH_GAME)" >&2
             exit 0
           fi
 
@@ -227,7 +321,6 @@ jobs:
             VERSION="$(node -p "require('./package.json').version")"
           fi
 
-          TARGET_BASE=""
           if [ -n "${ITCH_TARGET:-}" ]; then
             TARGET_BASE="$(echo "$ITCH_TARGET" | tr '[:upper:]' '[:lower:]')"
           else
@@ -236,16 +329,11 @@ jobs:
             TARGET_BASE="${TARGET_USER}/${TARGET_GAME}"
           fi
 
-          echo "Uploading ${{ steps.artifact.outputs.path }} -> ${TARGET_BASE}:${{ matrix.channel }} (userversion: $VERSION)"
-
           {
-            echo "butler version:";
-            butler -V;
-            echo;
             echo "butler whoami:";
             butler whoami;
             echo;
-            echo "butler push output:";
+            echo "Uploading ${{ steps.artifact.outputs.path }} -> ${TARGET_BASE}:${{ matrix.channel }} (version $VERSION)";
             butler push "${{ steps.artifact.outputs.path }}" "${TARGET_BASE}:${{ matrix.channel }}" --userversion "$VERSION";
           } 2>&1 | tee "$BUTLER_LOG_FILE"
 
