@@ -103,4 +103,115 @@ describe('Project patch propagation across legacy arrays', () => {
     expect((week1.nextState.projects[0] as any).phaseDuration).toBe(1);
     expect(((week1.nextState.allReleases as any[])[0] as any).phaseDuration).toBe(1);
   });
+
+  it('SeasonAiringStatusSystem patches allReleases entries when ids overlap', async () => {
+    const { SeasonAiringStatusSystem } = await import('@/game/systems/seasonAiringStatusSystem');
+
+    const project: Project = {
+      id: 'project:original:p3',
+      title: 'Original Series',
+      script: { id: 's3', title: 'Original Series', genre: 'drama', pages: 60, quality: 50 } as any,
+      type: 'series',
+      status: 'released',
+      currentPhase: 'distribution' as any,
+      budget: { total: 10_000_000 } as any,
+      metrics: {},
+      releaseWeek: 1,
+      releaseYear: 2024,
+      seasons: [
+        {
+          seasonNumber: 1,
+          totalEpisodes: 10,
+          episodesAired: 0,
+          productionStatus: 'complete',
+          premiereDate: { week: 1, year: 2024 },
+          episodes: [],
+        } as any,
+      ],
+    } as any;
+
+    const state = makeBaseState({
+      dlc: { streamingWars: true },
+      currentWeek: 9,
+      currentYear: 2024,
+      projects: [project],
+      allReleases: [project as any],
+    });
+
+    const week1 = advanceWeek(state, createRng(1), [SeasonAiringStatusSystem]);
+
+    const pProjects = week1.nextState.projects[0] as any;
+    const pAll = (week1.nextState.allReleases as any[])[0] as any;
+
+    expect(pProjects.seasons[0].airingStatus).toBe('airing');
+    expect(pAll.seasons[0].airingStatus).toBe('airing');
+  });
+
+  it('PlatformOutputDealSystem patches allReleases entries when ids overlap', async () => {
+    const { PlatformOutputDealSystem } = await import('@/game/systems/platformOutputDealSystem');
+
+    const project: Project = {
+      id: 'p4',
+      title: 'Theatrical Film',
+      studioId: 'studio-1',
+      studioName: 'Player Studio',
+      script: { id: 's4', title: 'Theatrical Film', genre: 'drama', pages: 100, quality: 50 } as any,
+      type: 'feature',
+      status: 'released',
+      currentPhase: 'distribution' as any,
+      budget: { total: 10_000_000 } as any,
+      metrics: { boxOfficeTotal: 10_000_000, criticsScore: 70, audienceScore: 70 },
+      releaseWeek: 10,
+      releaseYear: 2024,
+      releaseStrategy: { type: 'wide' } as any,
+      postTheatricalReleases: [],
+    } as any;
+
+    const state = makeBaseState({
+      dlc: { streamingWars: true },
+      currentWeek: 9,
+      currentYear: 2024,
+      platformMarket: {
+        totalAddressableSubs: 100_000_000,
+        player: {
+          id: 'player-platform:studio-1',
+          name: 'PlayerFlix',
+          launchedWeek: 1,
+          launchedYear: 2023,
+          subscribers: 1_000_000,
+          cash: 0,
+          status: 'active',
+          tierMix: { adSupportedPct: 50, adFreePct: 50 },
+          promotionBudgetPerWeek: 0,
+          priceIndex: 1,
+          freshness: 50,
+          catalogValue: 50,
+          outputDeal: {
+            partnerId: 'streamflix',
+            partnerName: 'StreamFlix',
+            startWeek: 1,
+            startYear: 2024,
+            endWeek: 52,
+            endYear: 2024,
+            upfrontPayment: 0,
+            windowDelayWeeks: 0,
+            windowDurationWeeks: 26,
+          } as any,
+        },
+        rivals: [{ id: 'streamflix', name: 'StreamFlix', subscribers: 10_000_000, cash: 0, status: 'healthy', tierMix: { adSupportedPct: 50, adFreePct: 50 }, priceIndex: 1, catalogValue: 50, freshness: 50, distressWeeks: 0 }],
+      } as any,
+      projects: [project],
+      allReleases: [project as any],
+    });
+
+    const week1 = advanceWeek(state, createRng(1), [PlatformOutputDealSystem]);
+
+    const pProjects = week1.nextState.projects[0] as any;
+    const pAll = (week1.nextState.allReleases as any[])[0] as any;
+
+    expect((pProjects.postTheatricalReleases || []).length).toBe(1);
+    expect((pAll.postTheatricalReleases || []).length).toBe(1);
+    expect(pProjects.postTheatricalReleases[0].providerId).toBe('streamflix');
+    expect(pAll.postTheatricalReleases[0].providerId).toBe('streamflix');
+  });
 });

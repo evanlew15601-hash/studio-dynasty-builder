@@ -2,6 +2,7 @@ import type { GameState, PostTheatricalRelease, Project } from '@/types/game';
 import type { PlatformMarketState } from '@/types/platformEconomy';
 import type { TickSystem } from '../core/types';
 import { isTheatricalFilm } from '@/utils/projectMedium';
+import { getAllKnownProjects, getPlayerProjectIds, isPlayerOwnedProject, isProjectLike } from '@/utils/playerProjects';
 
 function absWeek(week: number, year: number): number {
   return year * 52 + week;
@@ -23,9 +24,7 @@ function clampInt(n: number, min: number, max: number): number {
   return Math.floor(Math.max(min, Math.min(max, n)));
 }
 
-function isProjectLike(value: any): value is Project {
-  return !!value && typeof value === 'object' && typeof value.id === 'string' && 'script' in value;
-}
+
 
 function computeWindowWeeklyRevenue(project: Project, durationWeeks: number): number {
   const boxOffice = Math.max(0, Math.floor(project.metrics?.boxOfficeTotal ?? 0));
@@ -81,10 +80,11 @@ export const PlatformOutputDealSystem: TickSystem = {
 
     const partnerId = deal.partnerId;
 
-    const candidates: Project[] = [];
-    for (const p of state.projects || []) {
-      if (isProjectLike(p)) candidates.push(p);
-    }
+    const playerProjectIds = getPlayerProjectIds(state);
+
+    const candidates = getAllKnownProjects(state).filter((p) =>
+      isPlayerOwnedProject({ project: p, state, playerProjectIds })
+    );
 
     if (candidates.length === 0) return state;
 
@@ -148,9 +148,16 @@ export const PlatformOutputDealSystem: TickSystem = {
 
     if (updatedById.size === 0) return state;
 
+    const patch = (value: any): any => {
+      if (!isProjectLike(value)) return value;
+      return updatedById.get(value.id) || value;
+    };
+
     return {
       ...(state as GameState),
-      projects: (state.projects || []).map((p) => (isProjectLike(p) ? updatedById.get(p.id) || p : p)) as Project[],
+      projects: (state.projects || []).map(patch) as Project[],
+      aiStudioProjects: ((state.aiStudioProjects as any) || []).map(patch) as Project[],
+      allReleases: (state.allReleases || []).map(patch) as Array<Project | any>,
     };
   },
 };
