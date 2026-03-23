@@ -17,7 +17,7 @@ import { ScrollArea } from '@/components/ui/scroll-area';
 import { AIStudioManager } from './AIStudioManager';
 import type { AIFilmProject, TalentCommitment } from '@/types/game';
 
-import { Building, Film, Users, TrendingUp, Play, TestTube } from 'lucide-react';
+import { Building, Film, Users, Play, TestTube } from 'lucide-react';
 import { useGameStore } from '@/game/store';
 
 

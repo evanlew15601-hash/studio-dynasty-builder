@@ -226,14 +226,14 @@ export const IndividualAwardShowModal: React.FC<IndividualAwardShowModalProps> =
               <Card>
                 <CardHeader>
                   <CardTitle className="flex items-center gap-2">
-                    <TrophyIcon className="w-5 h-5 text-yellow-600" />
+                    <TrophyIcon className="w-5 h-5 text-primary" />
                     Your Studio's Wins
                   </CardTitle>
                 </CardHeader>
                 <CardContent>
                   <div className="space-y-3">
                     {playerWins.map((winner, index) => (
-                      <div key={index} className="flex justify-between items-center p-3 rounded-lg bg-yellow-50 dark:bg-yellow-900/20">
+                      <div key={index} className="flex justify-between items-center p-3 rounded-lg bg-primary/5 border border-primary/10">
                         <div>
                           <div className="font-medium">{(winner as any).talentName ? `${(winner as any).talentName} (${winner.project.title})` : winner.project.title}</div>
                           <div className="text-sm text-muted-foreground">

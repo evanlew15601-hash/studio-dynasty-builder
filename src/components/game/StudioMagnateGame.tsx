@@ -2777,7 +2777,6 @@ export const StudioMagnateGame: React.FC<StudioMagnateGameProps> = ({
                   size="sm" 
                   onClick={skipToPostTheatrical}
                   variant="outline"
-                  className="mr-2"
                 >
                   Skip to Post-Theatrical Test
                 </Button>
@@ -2786,7 +2785,6 @@ export const StudioMagnateGame: React.FC<StudioMagnateGameProps> = ({
               <Button
                 size="sm"
                 variant="outline"
-                className="mr-2"
                 onClick={() => { void handleSaveGame(); }}
               >
                 Save Game
@@ -2795,7 +2793,6 @@ export const StudioMagnateGame: React.FC<StudioMagnateGameProps> = ({
               <Button
                 size="sm"
                 variant="outline"
-                className="mr-2"
                 onClick={() => setSaveDialogOpen(true)}
               >
                 Saves…
@@ -2804,7 +2801,6 @@ export const StudioMagnateGame: React.FC<StudioMagnateGameProps> = ({
               <Button
                 size="sm"
                 variant="outline"
-                className="mr-2"
                 onClick={() => setExitToMenuOpen(true)}
               >
                 <Home className="mr-2" size={16} />
@@ -2814,7 +2810,6 @@ export const StudioMagnateGame: React.FC<StudioMagnateGameProps> = ({
               <Button
                 size="sm"
                 variant="outline"
-                className="mr-2"
                 onClick={() => setSettingsDialogOpen(true)}
               >
                 <Settings2 className="mr-2" size={16} />
@@ -2824,7 +2819,6 @@ export const StudioMagnateGame: React.FC<StudioMagnateGameProps> = ({
               <Button
                 size="sm"
                 variant="outline"
-                className="mr-2"
                 disabled={!lastTickReport}
                 onClick={() => setShowWeekRecap(true)}
               >
@@ -2852,7 +2846,6 @@ export const StudioMagnateGame: React.FC<StudioMagnateGameProps> = ({
                   size="sm"
                   variant="outline"
                   onClick={handleForceAdvanceWeek}
-                  className="mr-2"
                 >
                   Force Advance
                 </Button>
