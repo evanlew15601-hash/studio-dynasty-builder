@@ -157,8 +157,6 @@ export class PostTheatricalSystem {
     const revenueDelta = Object.values(earnedByPlatform).reduce((sum, v) => sum + (v || 0), 0);
 
     if (revenueDelta > 0) {
-      const existing = FinancialEngine.getFilmFinancials(project.id).transactions;
-
       (Object.entries(earnedByPlatform) as Array<[PostTheatricalRelease['platform'], number]>).forEach(
         ([platform, amount]) => {
           if (!amount || amount <= 0) return;
@@ -166,13 +164,13 @@ export class PostTheatricalSystem {
           const category = categoryForPlatform(platform);
           const description = `Post-theatrical - ${platform}`;
 
-          const alreadyRecorded = existing.some(
-            (t) =>
-              t.type === 'revenue' &&
-              t.category === category &&
-              t.week === currentWeek &&
-              t.year === currentYear &&
-              t.description === description
+          const alreadyRecorded = FinancialEngine.hasFilmTransaction(
+            project.id,
+            'revenue',
+            category,
+            currentWeek,
+            currentYear,
+            description
           );
 
           if (!alreadyRecorded) {

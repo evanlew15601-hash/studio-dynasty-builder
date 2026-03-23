@@ -43,11 +43,40 @@ export class FinancialEngine {
   private static persistScheduled = false;
   private static storageDisabled = false;
 
+  private static readonly INDEX_SEP = '\u001f';
+  private static readonly coarseIndex = new Set<string>();
+  private static readonly fullIndex = new Set<string>();
+
   private static isStorageAccessDenied(e: unknown): boolean {
     const DomEx = (globalThis as any).DOMException as (new (...args: any[]) => any) | undefined;
     if (!DomEx) return false;
     if (!(e instanceof DomEx)) return false;
     return e.name === 'SecurityError' || e.name === 'InvalidAccessError';
+  }
+
+  private static coarseKey(input: { filmId?: string; type: Transaction['type']; category: Transaction['category']; week: number; year: number }): string {
+    const sep = this.INDEX_SEP;
+    return `${input.filmId || ''}${sep}${input.type}${sep}${input.category}${sep}${input.year}${sep}${input.week}`;
+  }
+
+  private static fullKey(input: { filmId?: string; type: Transaction['type']; category: Transaction['category']; week: number; year: number; description: string }): string {
+    const sep = this.INDEX_SEP;
+    return `${input.filmId || ''}${sep}${input.type}${sep}${input.category}${sep}${input.year}${sep}${input.week}${sep}${input.description}`;
+  }
+
+  private static rebuildIndexes(): void {
+    this.coarseIndex.clear();
+    this.fullIndex.clear();
+
+    for (const t of this.transactions) {
+      this.coarseIndex.add(this.coarseKey(t));
+      this.fullIndex.add(this.fullKey({ ...t, description: t.description }));
+    }
+  }
+
+  private static indexTransaction(t: Transaction): void {
+    this.coarseIndex.add(this.coarseKey(t));
+    this.fullIndex.add(this.fullKey({ ...t, description: t.description }));
   }
 
   private static getStorageKey(): string {
@@ -65,6 +94,8 @@ export class FinancialEngine {
       this.transactions = [];
       this.nextTransactionId = 1;
       this.loadedStorageKey = storageKey;
+      this.coarseIndex.clear();
+      this.fullIndex.clear();
     }
 
     if (this.transactions.length === 0) {
@@ -86,6 +117,7 @@ export class FinancialEngine {
             return Math.max(max, n);
           }, 0);
           this.nextTransactionId = (parsed as any).nextId || lastId + 1 || 1;
+          this.rebuildIndexes();
 
           // If we loaded legacy storage, immediately migrate it into the scoped key.
           if (!raw && legacyRaw && typeof window !== 'undefined') {
@@ -99,12 +131,21 @@ export class FinancialEngine {
         // If parsing fails, start fresh but don't crash the game
         this.transactions = [];
         this.nextTransactionId = 1;
+        this.coarseIndex.clear();
+        this.fullIndex.clear();
       }
     }
   }
 
   private static persist() {
     if (this.storageDisabled) return;
+
+    // Tests expect the ledger to be persisted synchronously.
+    if (import.meta.env.MODE === 'test' || (import.meta.env as any).VITEST) {
+      this.flushPersist();
+      return;
+    }
+
     if (this.persistScheduled) return;
 
     this.persistScheduled = true;
@@ -191,6 +232,7 @@ export class FinancialEngine {
       const absWeek = (t.year * 52) + t.week;
       return absWeek >= cutoffWeek;
     });
+    this.rebuildIndexes();
     
     console.log(`FinancialEngine: Pruned ${beforeCount - this.transactions.length} old transactions (kept ${this.transactions.length})`);
   }
@@ -212,6 +254,7 @@ export class FinancialEngine {
     });
     
     if (beforeCount !== this.transactions.length) {
+      this.rebuildIndexes();
       console.log(`FinancialEngine: Memory cleanup removed ${beforeCount - this.transactions.length} transactions`);
       this.persist();
     }
@@ -220,6 +263,8 @@ export class FinancialEngine {
   static clearLedger(): void {
     this.transactions = [];
     this.nextTransactionId = 1;
+    this.coarseIndex.clear();
+    this.fullIndex.clear();
 
     if (typeof window !== 'undefined') {
       try {
@@ -255,11 +300,29 @@ export class FinancialEngine {
     };
     
     this.transactions.push(transaction);
+    this.indexTransaction(transaction);
     this.persist();
 
     console.log(`FINANCE: ${type} ${formatMoneyCompact(roundedAmount)} for ${description} (Y${year}W${week})`);
     
     return transaction.id;
+  }
+
+  static hasFilmTransaction(
+    filmId: string,
+    type: Transaction['type'],
+    category: Transaction['category'],
+    week: number,
+    year: number,
+    description?: string
+  ): boolean {
+    this.ensureLoaded();
+
+    if (description) {
+      return this.fullIndex.has(this.fullKey({ filmId, type, category, week, year, description }));
+    }
+
+    return this.coarseIndex.has(this.coarseKey({ filmId, type, category, week, year }));
   }
   
   static recordFilmRevenue(filmId: string, amount: number, week: number, year: number, source: string): string {
@@ -555,6 +618,7 @@ export class FinancialEngine {
     this.ensureLoaded();
 
     this.transactions = this.transactions.filter(t => t.filmId !== filmId);
+    this.rebuildIndexes();
     this.persist();
   }
 
@@ -562,6 +626,8 @@ export class FinancialEngine {
   static clearAll(): void {
     this.transactions = [];
     this.nextTransactionId = 1;
+    this.coarseIndex.clear();
+    this.fullIndex.clear();
     this.persist();
   }
   

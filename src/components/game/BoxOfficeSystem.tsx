@@ -65,12 +65,7 @@ export class BoxOfficeSystem {
     debugLog(`   OPENING WEEK REVENUE: ${openingWeekRevenue.toLocaleString()}`);
 
     // Record opening week revenue in the unified ledger (idempotent by week/year)
-    const existingOpening = FinancialEngine.getFilmFinancials(project.id).transactions.some(t =>
-      t.type === 'revenue' &&
-      t.category === 'boxoffice' &&
-      t.week === releaseWeek &&
-      t.year === releaseYear
-    );
+    const existingOpening = FinancialEngine.hasFilmTransaction(project.id, 'revenue', 'boxoffice', releaseWeek, releaseYear);
     if (!existingOpening && openingWeekRevenue > 0) {
       FinancialEngine.recordFilmRevenue(project.id, openingWeekRevenue, releaseWeek, releaseYear, 'Opening week');
     }
@@ -222,12 +217,7 @@ export class BoxOfficeSystem {
     debugLog(`     Status: ${status}`);
     debugLog(`     Chart: #${report.chartPosition}`);
 
-    const alreadyRecorded = FinancialEngine.getFilmFinancials(project.id).transactions.some(t =>
-      t.type === 'revenue' &&
-      t.category === 'boxoffice' &&
-      t.week === currentWeek &&
-      t.year === currentYear
-    );
+    const alreadyRecorded = FinancialEngine.hasFilmTransaction(project.id, 'revenue', 'boxoffice', currentWeek, currentYear);
 
     if (!alreadyRecorded && weeklyRevenue > 0) {
       FinancialEngine.recordFilmRevenue(project.id, weeklyRevenue, currentWeek, currentYear, `Week ${weeksSinceRelease + 1}`);

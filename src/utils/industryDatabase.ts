@@ -101,9 +101,20 @@ function getProjectStudioName(gameState: GameState, project: Project): string {
 function shallowEqualRecord(a: Record<string, unknown>, b: Record<string, unknown>): boolean {
   if (a === b) return true;
 
+  const equalValue = (av: unknown, bv: unknown): boolean => {
+    if (Array.isArray(av) && Array.isArray(bv)) {
+      if (av.length !== bv.length) return false;
+      for (let i = 0; i < av.length; i += 1) {
+        if (av[i] !== bv[i]) return false;
+      }
+      return true;
+    }
+    return av === bv;
+  };
+
   // Records in this module are plain objects with primitive-ish values.
   for (const k in a) {
-    if (a[k] !== b[k]) return false;
+    if (!equalValue(a[k], b[k])) return false;
   }
   for (const k in b) {
     if (!(k in a)) return false;
