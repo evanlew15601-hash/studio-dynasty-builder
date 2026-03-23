@@ -1,8 +1,12 @@
-name: itch-release
+name: itch-upload
 
 on:
   workflow_dispatch:
     inputs:
+      ref:
+        description: Git ref to build (branch, tag, or SHA). Leave empty to use the workflow ref.
+        required: false
+        type: string
       version:
         description: Optional version label passed to butler (--userversion). Defaults to tag (if any) or package.json version.
         required: false
@@ -33,7 +37,19 @@ jobs:
             channel: mac
 
     steps:
+      - name: Debug context
+        shell: bash
+        run: |
+          echo "workflow=itch-upload"
+          echo "event=${GITHUB_EVENT_NAME}"
+          echo "ref=${GITHUB_REF}"
+          echo "sha=${GITHUB_SHA}"
+          echo "input_ref=${{ github.event.inputs.ref }}"
+          echo "input_version=${{ github.event.inputs.version }}"
+
       - uses: actions/checkout@v5
+        with:
+          ref: ${{ github.event.inputs.ref || github.ref }}
 
       - name: Setup Node
         uses: actions/setup-node@v6
@@ -280,7 +296,19 @@ jobs:
     needs: [build]
 
     steps:
+      - name: Debug context
+        shell: bash
+        run: |
+          echo "workflow=itch-upload"
+          echo "event=${GITHUB_EVENT_NAME}"
+          echo "ref=${GITHUB_REF}"
+          echo "sha=${GITHUB_SHA}"
+          echo "input_ref=${{ github.event.inputs.ref }}"
+          echo "input_version=${{ github.event.inputs.version }}"
+
       - uses: actions/checkout@v5
+        with:
+          ref: ${{ github.event.inputs.ref || github.ref }}
 
       - name: Validate itch.io secrets
         shell: bash
@@ -385,8 +413,6 @@ jobs:
             for channel in windows linux mac; do
               SRC_DIR="itch-upload/${channel}"
 
-              # download-artifact preserves paths; if we uploaded "itch-upload/<channel>", we may end up with
-              # "itch-upload/<channel>/itch-upload/<channel>" after download.
               if [ -d "${SRC_DIR}/itch-upload/${channel}" ]; then
                 SRC_DIR="${SRC_DIR}/itch-upload/${channel}"
               fi
