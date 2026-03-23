@@ -37,7 +37,18 @@ export function createEmptyIndustryDatabase(): IndustryDatabase {
   };
 }
 
+let industryDbStorageDisabled = false;
+
+function isStorageAccessDenied(e: unknown): boolean {
+  const DomEx = (globalThis as any).DOMException as (new (...args: any[]) => any) | undefined;
+  if (!DomEx) return false;
+  if (!(e instanceof DomEx)) return false;
+  return e.name === 'SecurityError' || e.name === 'InvalidAccessError';
+}
+
 export function loadIndustryDatabase(slotId: string, storage?: StorageLike): IndustryDatabase {
+  if (industryDbStorageDisabled) return createEmptyIndustryDatabase();
+
   const store: StorageLike | undefined = storage ?? (typeof window !== 'undefined' ? window.localStorage : undefined);
   if (!store) return createEmptyIndustryDatabase();
 
@@ -49,18 +60,22 @@ export function loadIndustryDatabase(slotId: string, storage?: StorageLike): Ind
     if (!parsed || parsed.version !== DB_VERSION) return createEmptyIndustryDatabase();
 
     return parsed;
-  } catch {
+  } catch (e) {
+    if (isStorageAccessDenied(e)) industryDbStorageDisabled = true;
     return createEmptyIndustryDatabase();
   }
 }
 
 export function saveIndustryDatabase(slotId: string, db: IndustryDatabase, storage?: StorageLike): void {
+  if (industryDbStorageDisabled) return;
+
   const store: StorageLike | undefined = storage ?? (typeof window !== 'undefined' ? window.localStorage : undefined);
   if (!store) return;
 
   try {
     store.setItem(keyForSlot(slotId), JSON.stringify(db));
   } catch (e) {
+    if (isStorageAccessDenied(e)) industryDbStorageDisabled = true;
     console.warn('Failed to persist industry database', e);
   }
 }
@@ -83,6 +98,19 @@ function getProjectStudioName(gameState: GameState, project: Project): string {
   return 'Unknown Studio';
 }
 
+function shallowEqualRecord(a: Record<string, unknown>, b: Record<string, unknown>): boolean {
+  if (a === b) return true;
+
+  // Records in this module are plain objects with primitive-ish values.
+  for (const k in a) {
+    if (a[k] !== b[k]) return false;
+  }
+  for (const k in b) {
+    if (!(k in a)) return false;
+  }
+  return true;
+}
+
 function upsertById<T extends { id: string }>(list: T[], record: T): { list: T[]; changed: boolean } {
   const idx = list.findIndex((x) => x.id === record.id);
   if (idx === -1) {
@@ -90,7 +118,7 @@ function upsertById<T extends { id: string }>(list: T[], record: T): { list: T[]
   }
 
   const prev = list[idx];
-  const same = JSON.stringify(prev) === JSON.stringify(record);
+  const same = shallowEqualRecord(prev as unknown as Record<string, unknown>, record as unknown as Record<string, unknown>);
   if (same) return { list, changed: false };
 
   const next = [...list];
@@ -312,6 +340,8 @@ export function syncIndustryDatabase(db: IndustryDatabase, gameState: GameState)
 }
 
 export function syncAndPersistIndustryDatabase(slotId: string, gameState: GameState): IndustryDatabase {
+  if (industryDbStorageDisabled) return createEmptyIndustryDatabase();
+
   const existing = loadIndustryDatabase(slotId);
   const synced = syncIndustryDatabase(existing, gameState);
   if (synced !== existing) {

@@ -40,6 +40,16 @@ export class FinancialEngine {
   private static readonly LEGACY_STORAGE_KEY = 'studio-magnate-ledger';
   private static loadedStorageKey: string | null = null;
 
+  private static persistScheduled = false;
+  private static storageDisabled = false;
+
+  private static isStorageAccessDenied(e: unknown): boolean {
+    const DomEx = (globalThis as any).DOMException as (new (...args: any[]) => any) | undefined;
+    if (!DomEx) return false;
+    if (!(e instanceof DomEx)) return false;
+    return e.name === 'SecurityError' || e.name === 'InvalidAccessError';
+  }
+
   private static getStorageKey(): string {
     const modSlotId = getActiveModSlot();
     const saveSlotId = getActiveSaveSlotId(modSlotId);
@@ -84,6 +94,8 @@ export class FinancialEngine {
           }
         }
       } catch (e) {
+        if (this.isStorageAccessDenied(e)) this.storageDisabled = true;
+
         // If parsing fails, start fresh but don't crash the game
         this.transactions = [];
         this.nextTransactionId = 1;
@@ -92,10 +104,32 @@ export class FinancialEngine {
   }
 
   private static persist() {
+    if (this.storageDisabled) return;
+    if (this.persistScheduled) return;
+
+    this.persistScheduled = true;
+
+    const flush = () => {
+      this.persistScheduled = false;
+      this.flushPersist();
+    };
+
+    const ric = (globalThis as any).requestIdleCallback as ((cb: () => void, opts?: { timeout: number }) => number) | undefined;
+    if (typeof ric === 'function') {
+      ric(flush, { timeout: 2000 });
+    } else {
+      setTimeout(flush, 0);
+    }
+  }
+
+  private static flushPersist() {
+    if (this.storageDisabled) return;
+
     try {
       if (typeof window !== 'undefined') {
         const storageKey = this.getStorageKey();
         const payload = JSON.stringify({ transactions: this.transactions, nextId: this.nextTransactionId });
+
         // Check if payload is too large (>4MB to leave headroom for 5MB limit)
         if (payload.length > 4 * 1024 * 1024) {
           console.warn('FinancialEngine: Ledger too large, pruning old transactions');
@@ -107,15 +141,26 @@ export class FinancialEngine {
         }
       }
     } catch (e) {
+      if (this.isStorageAccessDenied(e)) {
+        this.storageDisabled = true;
+        return;
+      }
+
       // Handle localStorage quota exceeded
-      if (e instanceof DOMException && (e.name === 'QuotaExceededError' || e.code === 22)) {
+      const DomEx = (globalThis as any).DOMException as (new (...args: any[]) => any) | undefined;
+      if (DomEx && e instanceof DomEx && ((e as any).name === 'QuotaExceededError' || (e as any).code === 22)) {
         console.warn('FinancialEngine: localStorage quota exceeded, pruning old transactions');
         this.pruneOldTransactions(52); // Keep only last year
         try {
           const storageKey = this.getStorageKey();
           const prunedPayload = JSON.stringify({ transactions: this.transactions, nextId: this.nextTransactionId });
           window.localStorage.setItem(storageKey, prunedPayload);
-        } catch {
+        } catch (e2) {
+          if (this.isStorageAccessDenied(e2)) {
+            this.storageDisabled = true;
+            return;
+          }
+
           // If still failing, clear and restart
           window.localStorage.removeItem(this.getStorageKey());
           console.warn('FinancialEngine: Had to clear ledger due to storage limits');

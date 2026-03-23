@@ -742,10 +742,22 @@ export const StudioMagnateGame: React.FC<StudioMagnateGameProps> = ({
       // Persist a long-lived, cross-session industry catalog (films/TV/talent/awards/studios).
       // This is separate from the save-game snapshot and continues to accrue even if the in-memory
       // simulation prunes older releases for performance.
-      try {
-        syncAndPersistIndustryDatabase(getActiveSaveSlotId(), gameState);
-      } catch (e) {
-        console.warn('Failed to persist industry database', e);
+      //
+      // Important: this can be CPU-heavy (large catalogs + JSON), so we push it off the critical path
+      // of the week-advance UI by scheduling it in an idle callback.
+      const persistIndustryDb = () => {
+        try {
+          syncAndPersistIndustryDatabase(getActiveSaveSlotId(), gameState);
+        } catch (e) {
+          console.warn('Failed to persist industry database', e);
+        }
+      };
+
+      const ric = (globalThis as any).requestIdleCallback as ((cb: () => void, opts?: { timeout: number }) => number) | undefined;
+      if (typeof ric === 'function') {
+        ric(persistIndustryDb, { timeout: 2000 });
+      } else {
+        setTimeout(persistIndustryDb, 0);
       }
 
       // Online League (Option B): the host publishes an authoritative state for this turn.
