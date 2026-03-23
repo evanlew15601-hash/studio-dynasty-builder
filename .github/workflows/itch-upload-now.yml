@@ -79,7 +79,7 @@ jobs:
       - name: Install frontend dependencies
         run: npm ci
 
-      - name: Windows: generate RC-compatible favicon.ico
+      - name: "Windows: generate RC-compatible favicon.ico"
         if: matrix.platform == 'windows-latest'
         shell: pwsh
         run: |
@@ -157,9 +157,9 @@ public static class Win32 {
             if ($match) { throw 'public/favicon.ico contains PNG-compressed frame data (not RC-compatible)' }
           }
 
-      - name: macOS: generate icon.icns
+      - name: "macOS: generate icon.icns"
         if: matrix.platform == 'macos-latest'
-        shell: bash
+        shell:ash
         run: |
           set -euo pipefail
 
@@ -180,7 +180,7 @@ public static class Win32 {
           iconutil -c icns "$ICONSET_DIR" -o "$OUT_DIR/icon.icns"
           ls -la "$OUT_DIR"
 
-      - name: macOS: create CI config with icns icon
+      - name: "macOS: create CI config with icns icon"
         if: matrix.platform == 'macos-latest'
         shell: bash
         run: |
