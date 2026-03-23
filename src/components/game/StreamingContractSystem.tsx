@@ -49,6 +49,22 @@ export const StreamingContractSystem: React.FC<StreamingContractSystemProps> = (
   const isTVProject = (project: Project) => project.type === 'series' || project.type === 'limited-series';
   const isFilmProject = (project: Project) => project.type === 'feature' || project.type === 'documentary';
 
+  const streamingProviders = (() => {
+    const base = getStreamingProviders(mods);
+
+    if (gameState.dlc?.streamingWars === true) {
+      const rivalIds = new Set(
+        (gameState.platformMarket?.rivals ?? [])
+          .filter((r) => r && r.status !== 'collapsed')
+          .map((r) => r.id)
+      );
+
+      return base.filter((p) => rivalIds.has(p.id));
+    }
+
+    return base;
+  })();
+
   // Get projects ready for contracts
   const getEligibleProjects = () => {
     return gameState.projects.filter(p => 
@@ -446,76 +462,82 @@ export const StreamingContractSystem: React.FC<StreamingContractSystemProps> = (
                           </TabsList>
 
                           <TabsContent value="streaming" className="mt-4">
-                            <div className="grid grid-cols-1 md:grid-cols-2 gap-4 max-h-96 overflow-y-auto">
-                              {getStreamingProviders(mods).map(provider => {
-                                const issues = getDealIssues(project, provider);
-                                const contract = generateContract(project, provider.id, 'streaming');
-                                const isEpisodic = typeof contract.episodeRate === 'number';
+                            {streamingProviders.length === 0 ? (
+                              <p className="text-muted-foreground text-center py-8">
+                                No streaming platforms available.
+                              </p>
+                            ) : (
+                              <div className="grid grid-cols-1 md:grid-cols-2 gap-4 max-h-96 overflow-y-auto">
+                                {streamingProviders.map(provider => {
+                                  const issues = getDealIssues(project, provider);
+                                  const contract = generateContract(project, provider.id, 'streaming');
+                                  const isEpisodic = typeof contract.episodeRate === 'number';
 
-                                return (
-                                  <Card key={provider.id} className="border perf-cv-row">
-                                    <CardContent className="p-4">
-                                      <div className="flex items-center gap-2 mb-3">
-                                        <div className={`w-3 h-3 rounded ${provider.color}`} />
-                                        <h4 className="font-medium">{provider.name}</h4>
-                                        <Badge variant="secondary" className="ml-auto">
-                                          {provider.marketShare}% share
-                                        </Badge>
-                                      </div>
-
-                                      <div className="space-y-2 text-sm">
-                                        <div className="flex justify-between">
-                                          <span>{isEpisodic ? 'Upfront Payment:' : 'License Fee:'}</span>
-                                          <span className="font-medium">
-                                            ${(contract.upfrontPayment / 1000000).toFixed(1)}M
-                                          </span>
+                                  return (
+                                    <Card key={provider.id} className="border perf-cv-row">
+                                      <CardContent className="p-4">
+                                        <div className="flex items-center gap-2 mb-3">
+                                          <div className={`w-3 h-3 rounded ${provider.color}`} />
+                                          <h4 className="font-medium">{provider.name}</h4>
+                                          <Badge variant="secondary" className="ml-auto">
+                                            {provider.marketShare}% share
+                                          </Badge>
                                         </div>
-                                        {isEpisodic && (
+
+                                        <div className="space-y-2 text-sm">
                                           <div className="flex justify-between">
-                                            <span>Episode Rate:</span>
+                                            <span>{isEpisodic ? 'Upfront Payment:' : 'License Fee:'}</span>
                                             <span className="font-medium">
-                                              ${(contract.episodeRate! / 1000000).toFixed(1)}M
+                                              ${(contract.upfrontPayment / 1000000).toFixed(1)}M
                                             </span>
                                           </div>
-                                        )}
-                                        <div className="flex justify-between">
-                                          <span>Expected Viewers:</span>
-                                          <span className="font-medium">
-                                            {(contract.expectedViewers / 1000000).toFixed(1)}M
-                                          </span>
+                                          {isEpisodic && (
+                                            <div className="flex justify-between">
+                                              <span>Episode Rate:</span>
+                                              <span className="font-medium">
+                                                ${(contract.episodeRate! / 1000000).toFixed(1)}M
+                                              </span>
+                                            </div>
+                                          )}
+                                          <div className="flex justify-between">
+                                            <span>Expected Viewers:</span>
+                                            <span className="font-medium">
+                                              {(contract.expectedViewers / 1000000).toFixed(1)}M
+                                            </span>
+                                          </div>
+                                          <div className="flex justify-between">
+                                            <span>Marketing Support:</span>
+                                            <span className="font-medium">
+                                              ${(contract.marketingSupport / 1000000).toFixed(1)}M
+                                            </span>
+                                          </div>
+                                          {contract.exclusivityClause && (
+                                            <Badge variant="outline" className="w-full justify-center">
+                                              Exclusive Contract
+                                            </Badge>
+                                          )}
                                         </div>
-                                        <div className="flex justify-between">
-                                          <span>Marketing Support:</span>
-                                          <span className="font-medium">
-                                            ${(contract.marketingSupport / 1000000).toFixed(1)}M
-                                          </span>
-                                        </div>
-                                        {contract.exclusivityClause && (
-                                          <Badge variant="outline" className="w-full justify-center">
-                                            Exclusive Contract
-                                          </Badge>
-                                        )}
-                                      </div>
 
-                                      {issues.length > 0 && (
-                                        <div className="mt-2 text-xs text-muted-foreground">
-                                          {issues.join(' • ')}
-                                        </div>
-                                      )}
+                                        {issues.length > 0 && (
+                                          <div className="mt-2 text-xs text-muted-foreground">
+                                            {issues.join(' • ')}
+                                          </div>
+                                        )}
 
-                                      <Button
-                                        onClick={() => signContract(project, provider.id, 'streaming')}
-                                        className="w-full mt-3"
-                                        size="sm"
-                                        disabled={issues.length > 0}
-                                      >
-                                        Sign Contract
-                                      </Button>
-                                    </CardContent>
-                                  </Card>
-                                );
-                              })}
-                            </div>
+                                        <Button
+                                          onClick={() => signContract(project, provider.id, 'streaming')}
+                                          className="w-full mt-3"
+                                          size="sm"
+                                          disabled={issues.length > 0}
+                                        >
+                                          Sign Contract
+                                        </Button>
+                                      </CardContent>
+                                    </Card>
+                                  );
+                                })}
+                              </div>
+                            )}
                           </TabsContent>
 
                           <TabsContent value="cable" className="mt-4">

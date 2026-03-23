@@ -261,6 +261,14 @@ export const PostTheatricalManagement: React.FC<PostTheatricalManagementProps> =
       return { canRelease: false, reason: 'Launch your platform first' };
     }
 
+    // Streaming Wars: streaming releases must target a real rival platform (no anonymous "streaming" windows).
+    if (!isOwnedDestination && option.platform === 'streaming' && gameState.dlc?.streamingWars === true) {
+      const rivals = (gameState.platformMarket?.rivals ?? []).filter((r) => r && r.status !== 'collapsed');
+      if (rivals.length === 0) {
+        return { canRelease: false, reason: 'No active streaming platforms available' };
+      }
+    }
+
     // Check budget
     if (gameState.studio.budget < option.baseCost) {
       return { canRelease: false, reason: 'Insufficient budget' };
