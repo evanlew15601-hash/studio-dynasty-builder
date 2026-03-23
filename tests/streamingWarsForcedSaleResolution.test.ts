@@ -1,5 +1,5 @@
 import { beforeEach, describe, expect, it } from 'vitest';
-import type { GameEvent, GameState } from '@/types/game';
+import type { GameEvent, GameState, Project } from '@/types/game';
 import { useGameStore } from '@/game/store';
 
 function makeBaseState(overrides?: Partial<GameState>): GameState {
@@ -54,6 +54,44 @@ describe('Streaming Wars: forced sale resolution', () => {
   it('uses sale proceeds to pay down studio debt and registers the brand', () => {
     const salePrice = 100_000_000;
 
+    const title: Project = {
+      id: 'title-1',
+      title: 'Title 1',
+      type: 'feature',
+      status: 'released',
+      currentPhase: 'distribution',
+      releaseWeek: 1,
+      releaseYear: 2027,
+      script: { id: 's1', title: 'Title 1', genre: 'drama', quality: 80 } as any,
+      budget: { total: 1 } as any,
+      postTheatricalReleases: [
+        {
+          id: 'release:title-1:player-platform:studio-1:2027:W10',
+          projectId: 'title-1',
+          platform: 'streaming',
+          platformId: 'player-platform:studio-1',
+          releaseDate: new Date('2027-01-01'),
+          releaseWeek: 10,
+          releaseYear: 2027,
+          delayWeeks: 0,
+          revenue: 0,
+          weeklyRevenue: 0,
+          weeksActive: 0,
+          status: 'active',
+          cost: 0,
+          durationWeeks: 26,
+        } as any,
+      ],
+      metrics: { inTheaters: false, theatricalRunLocked: true } as any,
+      cast: [],
+      crew: [],
+      contractedTalent: [],
+      timeline: {} as any,
+      locations: [],
+      phaseDuration: 0,
+      developmentProgress: {} as any,
+    } as any;
+
     const event: GameEvent = {
       id: 'evt:forced-sale',
       title: 'Forced sale',
@@ -81,6 +119,7 @@ describe('Streaming Wars: forced sale resolution', () => {
     useGameStore.getState().initGame(
       makeBaseState({
         studio: { ...makeBaseState().studio, budget: 0, debt: 120_000_000 },
+        projects: [title],
         platformMarket: {
           totalAddressableSubs: 100_000_000,
           player: {
@@ -126,5 +165,11 @@ describe('Streaming Wars: forced sale resolution', () => {
 
     const reg = after.platformMarket?.brandRegistry ?? [];
     expect(reg.some((r) => r.name === 'TestFlix')).toBe(true);
+
+    const updated = after.projects.find((p: any) => p && p.id === 'title-1') as Project;
+    const movedWindow = (updated.postTheatricalReleases ?? []).find((r: any) => r.platform === 'streaming' && r.providerId === 'streamflix');
+    expect(movedWindow).toBeTruthy();
+    expect((movedWindow as any).platformId).toBeUndefined();
+    expect((movedWindow as any).id).toBe('release:title-1:streamflix:2027:W10');
   });
 });

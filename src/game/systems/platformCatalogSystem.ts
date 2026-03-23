@@ -332,28 +332,30 @@ export const PlatformCatalogSystem: TickSystem = {
     });
 
     const player = market.player
-      ? (() => {
-          const platformId = market.player!.id;
+      ? market.player.status === 'active'
+        ? (() => {
+            const platformId = market.player!.id;
 
-          const titles = titlesByPlatform.get(platformId) ?? [];
+            const titles = titlesByPlatform.get(platformId) ?? [];
 
-          const prevFreshness = typeof market.player!.freshness === 'number' ? market.player!.freshness : 50;
-          const prevCatalog = typeof market.player!.catalogValue === 'number' ? market.player!.catalogValue : 35;
+            const prevFreshness = typeof market.player!.freshness === 'number' ? market.player!.freshness : 50;
+            const prevCatalog = typeof market.player!.catalogValue === 'number' ? market.player!.catalogValue : 35;
 
-          const next = stepPlayerFreshnessCatalog({
-            prevFreshness,
-            prevCatalog,
-            titles,
-            currentAbs,
-            jitter: ctx.rng.nextFloat(0, 1),
-          });
+            const next = stepPlayerFreshnessCatalog({
+              prevFreshness,
+              prevCatalog,
+              titles,
+              currentAbs,
+              jitter: ctx.rng.nextFloat(0, 1),
+            });
 
-          return {
-            ...market.player,
-            freshness: next.freshness,
-            catalogValue: next.catalogValue,
-          };
-        })()
+            return {
+              ...market.player,
+              freshness: next.freshness,
+              catalogValue: next.catalogValue,
+            };
+          })()
+        : market.player
       : undefined;
 
     return {
