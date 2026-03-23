@@ -14,10 +14,11 @@ on:
 
 permissions:
   contents: read
+  actions: read
 
 jobs:
-  build-and-upload:
-    name: ${{ matrix.platform }} -> itch.io (${{ matrix.channel }})
+  build:
+    name: Build (${{ matrix.channel }})
     runs-on: ${{ matrix.platform }}
 
     strategy:
@@ -33,26 +34,6 @@ jobs:
 
     steps:
       - uses: actions/checkout@v5
-
-      - name: Validate itch.io secrets
-        shell: bash
-        env:
-          BUTLER_API_KEY: ${{ secrets.BUTLER_API_KEY }}
-          ITCH_TARGET: ${{ secrets.ITCH_TARGET || vars.ITCH_TARGET }}
-          ITCH_USERNAME: ${{ secrets.ITCH_USERNAME || vars.ITCH_USERNAME }}
-          ITCH_GAME: ${{ secrets.ITCH_GAME || vars.ITCH_GAME }}
-        run: |
-          set -euo pipefail
-
-          if [ -z "${BUTLER_API_KEY:-}" ]; then
-            echo "Missing BUTLER_API_KEY secret." >&2
-            exit 1
-          fi
-
-          if [ -z "${ITCH_TARGET:-}" ] && { [ -z "${ITCH_USERNAME:-}" ] || [ -z "${ITCH_GAME:-}" ]; }; then
-            echo "Missing ITCH_TARGET or ITCH_USERNAME+ITCH_GAME." >&2
-            exit 1
-          fi
 
       - name: Setup Node
         uses: actions/setup-node@v6
@@ -230,32 +211,28 @@ jobs:
           path: ci-logs/tauri-build-${{ matrix.channel }}.log
           if-no-files-found: warn
 
-      - name: Prepare itch artifact
-        id: artifact
+      - name: Prepare itch upload directory
         shell: bash
         run: |
           set -euo pipefail
           shopt -s nullglob
 
-          if [ "${{ matrix.channel }}" = "windows" ]; then
-            rm -rf portable
-            mkdir -p portable
+          rm -rf "itch-upload/${{ matrix.channel }}"
+          mkdir -p "itch-upload/${{ matrix.channel }}"
 
+          if [ "${{ matrix.channel }}" = "windows" ]; then
             if [ -f src-tauri/target/release/studio-magnate.exe ]; then
-              cp src-tauri/target/release/studio-magnate.exe portable/
+              cp src-tauri/target/release/studio-magnate.exe "itch-upload/windows/"
             else
-              cp src-tauri/target/release/*.exe portable/
+              cp src-tauri/target/release/*.exe "itch-upload/windows/"
             fi
 
-            cp src-tauri/target/release/*.dll portable/ || true
+            cp src-tauri/target/release/*.dll "itch-upload/windows/" || true
 
             if [ -d src-tauri/target/release/resources ]; then
-              cp -R src-tauri/target/release/resources portable/
+              cp -R src-tauri/target/release/resources "itch-upload/windows/resources"
             fi
 
-            # Push a directory instead of a .zip. This avoids intermittent "zip: not a valid zip file"
-            # failures and enables better delta-patching on itch.io.
-            echo "path=portable" >> "$GITHUB_OUTPUT"
             exit 0
           fi
 
@@ -266,14 +243,14 @@ jobs:
               exit 1
             fi
 
-            echo "path=${appimages[0]}" >> "$GITHUB_OUTPUT"
+            cp "${appimages[0]}" "itch-upload/linux/"
             exit 0
           fi
 
           if [ "${{ matrix.channel }}" = "mac" ]; then
             dmgs=(src-tauri/target/release/bundle/dmg/*.dmg)
             if [ ${#dmgs[@]} -ge 1 ]; then
-              echo "path=${dmgs[0]}" >> "$GITHUB_OUTPUT"
+              cp "${dmgs[0]}" "itch-upload/mac/"
               exit 0
             fi
 
@@ -283,104 +260,82 @@ jobs:
               exit 1
             fi
 
-            ditto -c -k --sequesterRsrc --keepParent "${apps[0]}" studio-magnate-macos.zip
-            echo "path=studio-magnate-macos.zip" >> "$GITHUB_OUTPUT"
+            ditto -c -k --sequesterRsrc --keepParent "${apps[0]}" "itch-upload/mac/studio-magnate-macos.zip"
             exit 0
           fi
 
           echo "Unknown channel: ${{ matrix.channel }}" >&2
           exit 1
 
-      - name: Upload build artifact
+      - name: Upload itch artifact
         uses: actions/upload-artifact@v6
         with:
-          name: studio-magnate-${{ matrix.channel }}
-          path: ${{ steps.artifact.outputs.path }}
+          name: itch-upload-${{ matrix.channel }}
+          path: itch-upload/${{ matrix.channel }}
           if-no-files-found: error
+
+  upload:
+    name: Upload to itch.io
+    runs-on: ubuntu-22.04
+    needs: [build]
+
+    steps:
+      - uses: actions/checkout@v5
+
+      - name: Validate itch.io secrets
+        shell: bash
+        env:
+          BUTLER_API_KEY: ${{ secrets.BUTLER_API_KEY }}
+          ITCH_TARGET: ${{ secrets.ITCH_TARGET || vars.ITCH_TARGET }}
+          ITCH_USERNAME: ${{ secrets.ITCH_USERNAME || vars.ITCH_USERNAME }}
+          ITCH_GAME: ${{ secrets.ITCH_GAME || vars.ITCH_GAME }}
+        run: |
+          set -euo pipefail
+
+          if [ -z "${BUTLER_API_KEY:-}" ]; then
+            echo "Missing BUTLER_API_KEY secret." >&2
+            exit 1
+          fi
+
+          if [ -z "${ITCH_TARGET:-}" ] && { [ -z "${ITCH_USERNAME:-}" ] || [ -z "${ITCH_GAME:-}" ]; }; then
+            echo "Missing ITCH_TARGET or ITCH_USERNAME+ITCH_GAME." >&2
+            exit 1
+          fi
+
+      - name: Download Windows artifact
+        uses: actions/download-artifact@v7
+        with:
+          name: itch-upload-windows
+          path: itch-upload/windows
+
+      - name: Download Linux artifact
+        uses: actions/download-artifact@v7
+        with:
+          name: itch-upload-linux
+          path: itch-upload/linux
+
+      - name: Download macOS artifact
+        uses: actions/download-artifact@v7
+        with:
+          name: itch-upload-mac
+          path: itch-upload/mac
 
       - name: Setup butler
         shell: bash
         run: |
           set -euo pipefail
 
-          BUTLER_PLATFORM=""
-          BUTLER_ARCH="amd64"
-          NEED_ROSETTA="0"
-
-          case "${RUNNER_OS}" in
-            Linux)
-              BUTLER_PLATFORM="linux"
-              ;;
-            Windows)
-              BUTLER_PLATFORM="windows"
-              ;;
-            macOS)
-              BUTLER_PLATFORM="darwin"
-              ;;
-            *)
-              echo "Unknown RUNNER_OS: ${RUNNER_OS}" >&2
-              exit 1
-              ;;
-          esac
-
-          # On Apple Silicon, prefer a native arm64 butler if available; otherwise fall back to
-          # amd64 and run it via Rosetta.
-          if [ "$BUTLER_PLATFORM" = "darwin" ] && [ "$(uname -m)" = "arm64" ]; then
-            if curl -fsSL "https://broth.itch.zone/butler/darwin-arm64/LATEST" >/dev/null 2>&1; then
-              BUTLER_ARCH="arm64"
-            else
-              BUTLER_ARCH="amd64"
-              NEED_ROSETTA="1"
-            fi
-          fi
-
-          if [ "$NEED_ROSETTA" = "1" ]; then
-            if ! /usr/sbin/pkgutil --pkg-info com.apple.pkg.RosettaUpdateAuto >/dev/null 2>&1; then
-              sudo /usr/sbin/softwareupdate --install-rosetta --agree-to-license
-            fi
-
-            if ! arch -x86_64 /usr/bin/true >/dev/null 2>&1; then
-              echo "Rosetta does not appear to be available after installation." >&2
-              exit 1
-            fi
-          fi
-
-          VERSION="$(curl -fsSL "https://broth.itch.zone/butler/${BUTLER_PLATFORM}-${BUTLER_ARCH}/LATEST")"
-          echo "Installing butler ${VERSION} (${BUTLER_PLATFORM}-${BUTLER_ARCH})"
+          VERSION="$(curl -fsSL "https://broth.itch.zone/butler/linux-amd64/LATEST")"
+          echo "Installing butler ${VERSION} (linux-amd64)"
 
           OUT_DIR="${RUNNER_TEMP}/butler"
           rm -rf "$OUT_DIR"
           mkdir -p "$OUT_DIR"
 
-          curl -fsSL -o "$OUT_DIR/butler.zip" "https://broth.itch.zone/butler/${BUTLER_PLATFORM}-${BUTLER_ARCH}/${VERSION}/archive/default"
-
+          curl -fsSL -o "$OUT_DIR/butler.zip" "https://broth.itch.zone/butler/linux-amd64/${VERSION}/archive/default"
           python -c 'import sys, zipfile; zipfile.ZipFile(sys.argv[1]).extractall(sys.argv[2])' "$OUT_DIR/butler.zip" "$OUT_DIR"
-
-          if [ "$BUTLER_PLATFORM" = "darwin" ] && [ "$NEED_ROSETTA" = "1" ]; then
-            mv "$OUT_DIR/butler" "$OUT_DIR/butler.bin"
-            printf '%s\n' \
-              '#!/usr/bin/env bash' \
-              'set -euo pipefail' \
-              'DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"' \
-              'exec arch -x86_64 "$DIR/butler.bin" "$@"' \
-              > "$OUT_DIR/butler"
-            chmod +x "$OUT_DIR/butler" "$OUT_DIR/butler.bin"
-          elif [ "$BUTLER_PLATFORM" = "windows" ]; then
-            if [ -f "$OUT_DIR/butler.exe" ] && [ ! -f "$OUT_DIR/butler" ]; then
-              printf '%s\n' \
-                '#!/usr/bin/env bash' \
-                'set -euo pipefail' \
-                'DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"' \
-                'exec "$DIR/butler.exe" "$@"' \
-                > "$OUT_DIR/butler"
-            fi
-            chmod +x "$OUT_DIR/butler"*
-          else
-            chmod +x "$OUT_DIR/butler"*
-          fi
-
+          chmod +x "$OUT_DIR/butler"*
           echo "$OUT_DIR" >> "$GITHUB_PATH"
-
           butler -V
 
       - name: Upload to itch.io
@@ -395,7 +350,7 @@ jobs:
           set -euo pipefail
 
           mkdir -p ci-logs
-          BUTLER_LOG_FILE="ci-logs/butler-upload-${{ matrix.channel }}.log"
+          BUTLER_LOG_FILE="ci-logs/butler-upload.log"
 
           VERSION="${INPUT_VERSION:-}"
 
@@ -421,14 +376,23 @@ jobs:
             echo "butler version:";
             butler -V;
             echo;
-            echo "Uploading ${{ steps.artifact.outputs.path }} -> ${TARGET_BASE}:${{ matrix.channel }} (userversion: $VERSION)";
-            butler push "${{ steps.artifact.outputs.path }}" "${TARGET_BASE}:${{ matrix.channel }}" --userversion "$VERSION";
+
+            for channel in windows linux mac; do
+              if [ ! -d "itch-upload/${channel}" ]; then
+                echo "Missing itch-upload/${channel}" >&2
+                exit 1
+              fi
+
+              echo "Uploading itch-upload/${channel} -> ${TARGET_BASE}:${channel} (userversion: $VERSION)";
+              butler push "itch-upload/${channel}" "${TARGET_BASE}:${channel}" --userversion "$VERSION";
+              echo;
+            done
           } 2>&1 | tee "$BUTLER_LOG_FILE"
 
       - name: Upload butler logs
         if: always()
         uses: actions/upload-artifact@v6
         with:
-          name: butler-upload-logs-${{ matrix.channel }}
-          path: ci-logs/butler-upload-${{ matrix.channel }}.log
+          name: butler-upload-logs
+          path: ci-logs/butler-upload.log
           if-no-files-found: warn
