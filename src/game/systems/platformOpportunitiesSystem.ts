@@ -10,7 +10,12 @@ function pickHighestQuality(projects: Project[]): Project | null {
   if (projects.length === 0) return null;
   return projects
     .slice()
-    .sort((a, b) => (b.script?.quality ?? 60) - (a.script?.quality ?? 60))[0];
+    .sort((a, b) => {
+      const qa = a.script?.quality ?? 60;
+      const qb = b.script?.quality ?? 60;
+      if (qb !== qa) return qb - qa;
+      return String(a.id).localeCompare(String(b.id));
+    })[0];
 }
 
 function isDirectExclusiveStreamingPremiere(project: Project, platformId: string): boolean {
