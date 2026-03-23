@@ -323,7 +323,7 @@ export const MediaDashboard: React.FC<MediaDashboardProps> = ({
             <div>
               <label className="text-sm font-medium">Source:</label>
               <select 
-                className="mt-1 block w-full px-3 py-2 border rounded-md text-sm"
+                className="mt-1 block w-full px-3 py-2 border border-border bg-background text-foreground rounded-md text-sm focus:outline-none focus:ring-2 focus:ring-primary/40"
                 value={selectedSource}
                 onChange={(e) => setSelectedSource(e.target.value)}
               >

@@ -148,10 +148,10 @@ export const IndividualAwardShowModal: React.FC<IndividualAwardShowModalProps> =
                 {/* Winner Reveal */}
                 {isRevealingWinner && currentWinner && (
                   <div className="space-y-6">
-                    <Card className="border-4 border-yellow-400 bg-gradient-to-r from-yellow-50 to-yellow-100 dark:from-yellow-900/20 dark:to-yellow-800/20">
+                    <Card className="border-2 border-primary/30 bg-card">
                       <CardContent className="p-8 text-center">
-                        <TrophyIcon className="w-16 h-16 mx-auto text-yellow-600 animate-bounce mb-4" />
-                        <div className="text-3xl font-bold text-yellow-600 mb-2">
+                        <TrophyIcon className="w-16 h-16 mx-auto text-primary animate-bounce mb-4" />
+                        <div className="text-3xl font-bold text-primary mb-2">
                           WINNER!
                         </div>
                         <div className="text-2xl font-semibold mb-2">
@@ -166,8 +166,8 @@ export const IndividualAwardShowModal: React.FC<IndividualAwardShowModalProps> =
                           </div>
                         )}
                         {isPlayerProject(currentWinner.project) && currentWinner.award && (
-                          <div className="space-y-2 p-4 rounded-lg bg-green-50 dark:bg-green-900/20">
-                            <div className="font-semibold text-green-700 dark:text-green-300">
+                          <div className="space-y-2 p-4 rounded-lg bg-primary/5 border border-primary/10">
+                            <div className="font-semibold text-primary">
                               {isTalentCategory(currentWinner.category) && (currentWinner as any).talentName
                                 ? `Congratulations to ${(currentWinner as any).talentName} and your studio!`
                                 : 'Congratulations!'}

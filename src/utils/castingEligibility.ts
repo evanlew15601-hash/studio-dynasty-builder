@@ -7,7 +7,9 @@ export function talentMatchesRole(talent: TalentPerson, role: ScriptCharacter): 
 
   if (talent.type !== requiredType) return false;
 
-  if (role.ageRange) {
+  // Age ranges make sense for on-screen roles, but they create unnecessary friction
+  // for director/crew slots (and some imported role templates mistakenly include them).
+  if (requiredType !== 'director' && role.ageRange) {
     const [minAge, maxAge] = role.ageRange;
     if (talent.age < minAge || talent.age > maxAge) return false;
   }
