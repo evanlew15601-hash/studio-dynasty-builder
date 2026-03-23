@@ -22,7 +22,7 @@
     "smoke:save-migrations": "node scripts/smoke-save-migrations.mjs",
     "tauri": "node ./node_modules/@tauri-apps/cli/tauri.js",
     "tauri:dev": "node ./node_modules/@tauri-apps/cli/tauri.js dev",
-    "tauri:build": "node scripts/prepare-tauri-icons.mjs && node ./node_modules/@tauri-apps/cli/tauri.js build --config src-tauri/tauri.release.conf.json"
+    "tauri:build": "node scripts/tauri-build.mjs"
   },
   "dependencies": {
     "@hookform/resolvers": "^3.9.0",
