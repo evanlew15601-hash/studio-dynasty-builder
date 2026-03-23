@@ -2880,12 +2880,6 @@ export const StudioMagnateGame: React.FC<StudioMagnateGameProps> = ({
                    <BarChartIcon className="mr-2" size={16} />
                    Television & Streaming
                  </DropdownMenuItem>
-                 {import.meta.env.DEV && (
-                   <DropdownMenuItem onClick={() => handlePhaseChange('tv-tests')}>
-                     <BarChartIcon className="mr-2" size={16} />
-                     TV System Tests
-                   </DropdownMenuItem>
-                 )}
                 <DropdownMenuItem onClick={() => handlePhaseChange('awards')}>
                   <ReputationIcon className="mr-2" size={16} />
                   Awards & Recognition
