@@ -67,6 +67,7 @@ import { PlatformMarketBootstrapSystem } from './systems/platformMarketBootstrap
 import { PlatformOriginalsPipelineSystem } from './systems/platformOriginalsPipelineSystem';
 import { PlatformOriginalsReleaseCadenceSystem } from './systems/platformOriginalsReleaseCadenceSystem';
 import { SeasonAiringStatusSystem } from './systems/seasonAiringStatusSystem';
+import { PlatformAutoStreamingWindowsSystem } from './systems/platformAutoStreamingWindowsSystem';
 import { PlatformCatalogSystem } from './systems/platformCatalogSystem';
 import { PlatformEconomySystem } from './systems/platformEconomySystem';
 import { PlatformCompetitionAndMAndASystem } from './systems/platformCompetitionAndMAndASystem';
@@ -242,6 +243,7 @@ export const useGameStore: import('zustand').UseBoundStore<import('zustand').Sto
       r.register(PlatformOriginalsPipelineSystem);
       r.register(PlatformOriginalsReleaseCadenceSystem);
       r.register(SeasonAiringStatusSystem);
+      r.register(PlatformAutoStreamingWindowsSystem);
       r.register(PlatformCatalogSystem);
       r.register(PlatformOutputDealSystem);
       r.register(PlatformEconomySystem);
@@ -939,6 +941,95 @@ export const useGameStore: import('zustand').UseBoundStore<import('zustand').Sto
                     sourceType: 'trade_publication',
                   });
                 }
+              }
+
+              const newOwnerId =
+                selectedChoice.id === 'buy'
+                  ? market.player && market.player.status === 'active'
+                    ? market.player.id
+                    : undefined
+                  : rivalBuyerId;
+
+              const newOwnerName =
+                selectedChoice.id === 'buy'
+                  ? market.player && market.player.status === 'active'
+                    ? market.player.name
+                    : undefined
+                  : rivalBuyerName || (market.rivals || []).find((r) => r.id === rivalBuyerId)?.name;
+
+              if (collapsedId && newOwnerId) {
+                const isPlayerDestination = newOwnerId.startsWith('player-platform:');
+
+                const processed = new Set<string>();
+
+                const migrateProject = (project: any) => {
+                  if (!project || typeof project !== 'object') return;
+                  if (typeof project.id !== 'string') return;
+                  if (processed.has(project.id)) return;
+                  processed.add(project.id);
+
+                  const deal = project.streamingPremiereDeal;
+                  if (deal && deal.providerId === collapsedId) {
+                    deal.providerId = newOwnerId;
+                  }
+
+                  const rs = project.releaseStrategy;
+                  if (rs) {
+                    if (rs.streamingPlatformId === collapsedId) rs.streamingPlatformId = newOwnerId;
+                    if (rs.streamingProviderId === collapsedId) rs.streamingProviderId = newOwnerId;
+                  }
+
+                  const contract = project.streamingContract;
+                  if (contract) {
+                    if (contract.platformId === collapsedId) contract.platformId = newOwnerId;
+                    if ((contract as any).platform === collapsedId) (contract as any).platform = newOwnerId;
+                  }
+
+                  const dist = project.distributionStrategy;
+                  if (dist?.primary && (dist.primary as any).platformId === collapsedId) {
+                    (dist.primary as any).platformId = newOwnerId;
+                    if (newOwnerName && typeof (dist.primary as any).platform === 'string') {
+                      (dist.primary as any).platform = newOwnerName;
+                    }
+                  }
+
+                  if (Array.isArray(dist?.windows)) {
+                    for (const w of dist.windows) {
+                      if (w && (w as any).platformId === collapsedId) {
+                        (w as any).platformId = newOwnerId;
+                      }
+                    }
+                  }
+
+                  const releases = Array.isArray(project.postTheatricalReleases) ? project.postTheatricalReleases : [];
+
+                  for (const r of releases) {
+                    if (!r || r.platform !== 'streaming') continue;
+
+                    const pid = (r as any).platformId || (r as any).providerId;
+                    if (pid !== collapsedId) continue;
+
+                    if (isPlayerDestination) {
+                      (r as any).platformId = newOwnerId;
+                      (r as any).providerId = undefined;
+                    } else {
+                      (r as any).providerId = newOwnerId;
+                      (r as any).platformId = undefined;
+                    }
+
+                    const week = typeof (r as any).releaseWeek === 'number' ? (r as any).releaseWeek : s.game.currentWeek;
+                    const year = typeof (r as any).releaseYear === 'number' ? (r as any).releaseYear : s.game.currentYear;
+                    const desiredId = `release:${project.id}:${newOwnerId}:${year}:W${week}`;
+                    const collision = releases.some((x: any) => x && x !== r && x.id === desiredId);
+                    if (!collision) {
+                      (r as any).id = desiredId;
+                    }
+                  }
+                };
+
+                for (const p of s.game.projects || []) migrateProject(p as any);
+                for (const p of (s.game.aiStudioProjects as any) || []) migrateProject(p as any);
+                for (const p of s.game.allReleases || []) migrateProject(p as any);
               }
 
               // Make sure the collapsed rival stays collapsed.

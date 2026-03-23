@@ -5,6 +5,13 @@ import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from '@/components/ui/select';
 
 import { Separator } from '@/components/ui/separator';
 import { useToast } from '@/hooks/use-toast';
@@ -90,6 +97,7 @@ export const PostTheatricalManagement: React.FC<PostTheatricalManagementProps> =
   const { toast } = useToast();
 
   const [ownedPlatformDelayByProject, setOwnedPlatformDelayByProject] = useState<Record<string, number>>({});
+  const [streamingProviderByProject, setStreamingProviderByProject] = useState<Record<string, string>>({});
 
   const diagnosticsEnabled = import.meta.env.DEV && window.localStorage.getItem('debug:postTheatrical') === '1';
 
@@ -280,6 +288,16 @@ export const PostTheatricalManagement: React.FC<PostTheatricalManagementProps> =
 
     const isOwnedDestination = option.isOwnedPlatform === true;
 
+    const rivals =
+      gameState.dlc?.streamingWars === true
+        ? (gameState.platformMarket?.rivals ?? []).filter((r) => r && r.status !== 'collapsed')
+        : [];
+
+    const selectedStreamingProviderId =
+      !isOwnedDestination && option.platform === 'streaming' && rivals.length > 0
+        ? (streamingProviderByProject[project.id] || rivals[0].id)
+        : '';
+
     const currentAbsWeek = gameState.currentYear * 52 + gameState.currentWeek;
 
     const delayWeeks = isOwnedDestination
@@ -295,7 +313,12 @@ export const PostTheatricalManagement: React.FC<PostTheatricalManagementProps> =
     const targetWeekYear = weekYearForAbsWeek(targetAbsWeek);
 
     const releaseId = (() => {
-      const platformId = isOwnedDestination && playerPlatform ? playerPlatform.id : option.platform;
+      const platformId =
+        isOwnedDestination && playerPlatform
+          ? playerPlatform.id
+          : option.platform === 'streaming' && selectedStreamingProviderId
+            ? selectedStreamingProviderId
+            : option.platform;
       return `release:${project.id}:${platformId}:${targetWeekYear.year}:W${targetWeekYear.week}`;
     })();
 
@@ -303,6 +326,10 @@ export const PostTheatricalManagement: React.FC<PostTheatricalManagementProps> =
       id: releaseId,
       projectId: project.id,
       platform: option.platform,
+      providerId:
+        !isOwnedDestination && option.platform === 'streaming' && selectedStreamingProviderId
+          ? selectedStreamingProviderId
+          : undefined,
       platformId: isOwnedDestination && playerPlatform ? playerPlatform.id : undefined,
       releaseDate: dateForWeekYear(targetWeekYear.year, targetWeekYear.week),
       releaseWeek: targetWeekYear.week,
@@ -517,6 +544,38 @@ export const PostTheatricalManagement: React.FC<PostTheatricalManagementProps> =
                                     </>
                                   ) : (
                                     <>
+                                      {option.platform === 'streaming' && gameState.dlc?.streamingWars === true && (
+                                        <div className="space-y-1">
+                                          <div className="text-muted-foreground">Platform</div>
+                                          <Select
+                                            value={
+                                              streamingProviderByProject[project.id] ||
+                                              (gameState.platformMarket?.rivals ?? []).find((r) => r && r.status !== 'collapsed')?.id ||
+                                              ''
+                                            }
+                                            onValueChange={(v) =>
+                                              setStreamingProviderByProject((prev) => ({
+                                                ...prev,
+                                                [project.id]: v,
+                                              }))
+                                            }
+                                          >
+                                            <SelectTrigger className="h-7 text-xs">
+                                              <SelectValue placeholder="Select" />
+                                            </SelectTrigger>
+                                            <SelectContent>
+                                              {(gameState.platformMarket?.rivals ?? [])
+                                                .filter((r) => r && r.status !== 'collapsed')
+                                                .map((r) => (
+                                                  <SelectItem key={r.id} value={r.id}>
+                                                    {r.name}
+                                                  </SelectItem>
+                                                ))}
+                                            </SelectContent>
+                                          </Select>
+                                        </div>
+                                      )}
+
                                       <div className="flex justify-between">
                                         <span>Est. Revenue:</span>
                                         <span>${(estimatedRevenue / 1000000).toFixed(1)}M</span>
