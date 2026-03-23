@@ -1,4 +1,4 @@
-name: itch-upload
+
 
 on:
   workflow_dispatch:
