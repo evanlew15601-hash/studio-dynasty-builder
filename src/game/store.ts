@@ -1056,7 +1056,6 @@ export const useGameStore: import('zustand').UseBoundStore<import('zustand').Sto
             const player = market?.player;
             if (market && player && player.status === 'active') {
               if (selectedChoice.id === 'accept') {
-                const titleProjectId = (event as any)?.data?.titleProjectId as string | undefined;
                 const rivalId = (event as any)?.data?.rivalId as string | undefined;
 
                 // Moat erosion: cash now, slightly weaker retention/differentiation.
@@ -1064,10 +1063,27 @@ export const useGameStore: import('zustand').UseBoundStore<import('zustand').Sto
                 player.catalogValue = clamp((player.catalogValue ?? 45) - 1, 0, 100);
                 player.cash = (player.cash ?? 0) + offer;
 
+                const mutateProjectById = (projectId: string, fn: (project: any) => void) => {
+                  const lists = [
+                    s.game.projects as any,
+                    ((s.game.aiStudioProjects as any) || []) as any,
+                    (s.game.allReleases || []) as any,
+                  ];
+
+                  for (const list of lists) {
+                    for (const p of list || []) {
+                      if (!p || typeof p !== 'object') continue;
+                      if (typeof (p as any).id !== 'string') continue;
+                      if ((p as any).id !== projectId) continue;
+                      if (!(p as any).script) continue;
+                      fn(p);
+                    }
+                  }
+                };
+
                 // Make the title non-exclusive and actually place it on the rival platform for a time-limited window.
                 if (titleProjectId && rivalId) {
-                  const project = s.game.projects.find((p) => p.id === titleProjectId);
-                  if (project) {
+                  mutateProjectById(titleProjectId, (project) => {
                     if (project.releaseStrategy) {
                       project.releaseStrategy.streamingExclusive = false;
                     }
@@ -1077,7 +1093,7 @@ export const useGameStore: import('zustand').UseBoundStore<import('zustand').Sto
                     }
 
                     const releaseId = `release:${project.id}:${rivalId}:${s.game.currentYear}:W${s.game.currentWeek}`;
-                    const already = (project.postTheatricalReleases ?? []).some((r) => r && r.id === releaseId);
+                    const already = (project.postTheatricalReleases ?? []).some((r: any) => r && r.id === releaseId);
 
                     if (!already) {
                       const releaseDate = new Date(
@@ -1106,7 +1122,7 @@ export const useGameStore: import('zustand').UseBoundStore<import('zustand').Sto
                         },
                       ];
                     }
-                  }
+                  });
                 }
 
                 const headline = `${player.name} licenses ${titleName ?? 'a breakout title'} to ${rivalName ?? 'a rival'} for ${Math.round(

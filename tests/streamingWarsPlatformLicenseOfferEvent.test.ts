@@ -252,4 +252,104 @@ describe('Streaming Wars: licensing offer event', () => {
     expect(state.eventQueue.length).toBe(1);
     expect((state.eventQueue[0] as any)?.data?.kind).toBe('platform:license-offer');
   });
+
+  it('triggers when the best eligible title is in allReleases (legacy/library)', () => {
+    const offerWeek = stableInt(`9003|platform:license-offer-week|2027|player-platform:studio-1`, 10, 18);
+
+    useGameStore.getState().initGame(
+      makeBaseState({
+        dlc: { streamingWars: true },
+        universeSeed: 9003,
+        rngState: 9003,
+        currentWeek: offerWeek - 1,
+        platformMarket: {
+          totalAddressableSubs: 100_000_000,
+          player: {
+            id: 'player-platform:studio-1',
+            name: 'TestFlix',
+            launchedWeek: 1,
+            launchedYear: 2026,
+            subscribers: 3_000_000,
+            cash: -50_000_000,
+            status: 'active',
+            tierMix: { adSupportedPct: 60, adFreePct: 40 },
+            promotionBudgetPerWeek: 0,
+            priceIndex: 1.0,
+            freshness: 55,
+            catalogValue: 45,
+          },
+          rivals: [
+            {
+              id: 'streamflix',
+              name: 'StreamFlix',
+              subscribers: 40_000_000,
+              cash: 2_000_000_000,
+              status: 'healthy',
+              distressWeeks: 0,
+              tierMix: { adSupportedPct: 40, adFreePct: 60 },
+              priceIndex: 1.0,
+              catalogValue: 70,
+              freshness: 60,
+            },
+          ],
+        },
+        projects: [],
+        allReleases: [
+          {
+            id: 'p-legacy',
+            title: 'Legacy Original',
+            studioId: 'studio-1',
+            studioName: 'Test Studio',
+            type: 'series',
+            status: 'released',
+            currentPhase: 'release',
+            script: { id: 's1', title: 'Legacy Original', genre: 'drama', logline: '', writer: '', pages: 60, quality: 80, budget: 0, developmentStage: 'concept', themes: [], targetAudience: '', estimatedRuntime: 50, characteristics: { tone: 'balanced', pacing: 'steady', dialogue: 'naturalistic', visualStyle: 'realistic', commercialAppeal: 6, criticalPotential: 6, cgiIntensity: 'minimal' } },
+            budget: { total: 1, allocated: { aboveTheLine: 0, belowTheLine: 0, postProduction: 0, marketing: 0, distribution: 0, contingency: 0 }, spent: { aboveTheLine: 0, belowTheLine: 0, postProduction: 0, marketing: 0, distribution: 0, contingency: 0 }, overages: { aboveTheLine: 0, belowTheLine: 0, postProduction: 0, marketing: 0, distribution: 0, contingency: 0 } },
+            cast: [],
+            crew: [],
+            timeline: { preProduction: { start: new Date(), end: new Date() }, principalPhotography: { start: new Date(), end: new Date() }, postProduction: { start: new Date(), end: new Date() }, release: new Date(), milestones: [] },
+            locations: [],
+            distributionStrategy: {
+              primary: {
+                type: 'streaming',
+                platform: 'TestFlix',
+                platformId: 'player-platform:studio-1',
+                revenue: { type: 'subscription-share', studioShare: 1 },
+              },
+              international: [],
+              windows: [],
+              marketingBudget: 0,
+            },
+            releaseStrategy: {
+              type: 'streaming',
+              streamingPlatformId: 'player-platform:studio-1',
+              streamingExclusive: true,
+              premiereDate: new Date(),
+              rolloutPlan: [],
+              specialEvents: [],
+              pressStrategy: {
+                reviewScreenings: 0,
+                pressJunkets: 0,
+                interviews: 0,
+                expectedCriticalReception: 0,
+              },
+            },
+            metrics: {},
+            phaseDuration: 0,
+            contractedTalent: [],
+            developmentProgress: { scriptCompletion: 0, budgetApproval: 0, talentAttached: 0, locationSecured: 0, completionThreshold: 60, issues: [] },
+          } as any,
+        ],
+      }),
+      123
+    );
+
+    useGameStore.getState().advanceWeek();
+
+    const state = useGameStore.getState().game!;
+    expect(state.currentWeek).toBe(offerWeek);
+
+    expect(state.eventQueue.length).toBe(1);
+    expect((state.eventQueue[0] as any)?.data?.kind).toBe('platform:license-offer');
+  });
 });

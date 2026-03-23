@@ -212,4 +212,99 @@ describe('Streaming Wars: license offer resolution creates a real rival window +
     expect(window?.status).toBe('planned');
     expect(window?.durationWeeks).toBe(26);
   });
+
+  it('accepting a license offer mutates allReleases titles (legacy/library)', () => {
+    const playerPlatformId = 'player-platform:studio-1';
+
+    useGameStore.getState().initGame(
+      makeBaseState({
+        dlc: { streamingWars: true },
+        universeSeed: 901,
+        rngState: 901,
+        platformMarket: {
+          totalAddressableSubs: 100_000_000,
+          player: {
+            id: playerPlatformId,
+            name: 'TestFlix',
+            launchedWeek: 1,
+            launchedYear: 2026,
+            subscribers: 5_000_000,
+            cash: 0,
+            status: 'active',
+            tierMix: { adSupportedPct: 60, adFreePct: 40 },
+            promotionBudgetPerWeek: 0,
+            priceIndex: 1.0,
+            freshness: 55,
+            catalogValue: 45,
+            distressWeeks: 0,
+          },
+          rivals: [
+            {
+              id: 'streamflix',
+              name: 'StreamFlix',
+              subscribers: 40_000_000,
+              cash: 2_000_000_000,
+              status: 'healthy',
+              distressWeeks: 0,
+              tierMix: { adSupportedPct: 40, adFreePct: 60 },
+              priceIndex: 1.0,
+              catalogValue: 70,
+              freshness: 60,
+            },
+          ],
+        },
+        projects: [],
+        allReleases: [makeReleasedOnPlayerPlatform({ projectId: 'p-legacy', platformId: playerPlatformId })],
+      }),
+      123
+    );
+
+    // Manually enqueue a license offer event that targets the legacy title.
+    useGameStore.getState().setGameState((s) => {
+      return {
+        ...s,
+        eventQueue: [
+          {
+            id: 'evt-legacy',
+            title: 'License offer',
+            description: 'Test',
+            type: 'opportunity',
+            triggerDate: new Date(Date.UTC(2027, 0, 1)),
+            data: {
+              kind: 'platform:license-offer',
+              titleProjectId: 'p-legacy',
+              titleName: 'Breakout Hit',
+              offer: 100_000_000,
+              rivalId: 'streamflix',
+              rivalName: 'StreamFlix',
+              playerPlatformId,
+            },
+            choices: [
+              {
+                id: 'accept',
+                text: 'Accept',
+                consequences: [{ type: 'budget', impact: 100_000_000, description: 'fee' }],
+              },
+              { id: 'decline', text: 'Decline', consequences: [] },
+            ],
+          } as any,
+        ],
+      } as any;
+    });
+
+    useGameStore.getState().resolveGameEvent('evt-legacy', 'accept');
+
+    const after = useGameStore.getState().game!;
+
+    expect(after.platformMarket?.player?.cash).toBe(100_000_000);
+
+    const project = (after.allReleases as any[]).find((p) => p && (p as any).id === 'p-legacy') as any;
+    expect(project).toBeTruthy();
+    expect(project.releaseStrategy?.streamingExclusive).toBe(false);
+
+    const window = (project.postTheatricalReleases ?? []).find((r: any) => r.providerId === 'streamflix' && r.platform === 'streaming');
+    expect(window).toBeTruthy();
+    expect(window?.status).toBe('planned');
+    expect(window?.durationWeeks).toBe(26);
+  });
 });
