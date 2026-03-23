@@ -302,27 +302,26 @@ export const StreamingContractSystem: React.FC<StreamingContractSystemProps> = (
     const existingReleases = Array.isArray(project.postTheatricalReleases) ? project.postTheatricalReleases : [];
     const hasWindow = existingReleases.some((r) => r && r.platform === windowPlatform && (r.providerId || r.platformId) === platformId && r.status !== 'ended');
 
-    const postTheatricalReleases = hasWindow
+    const newRelease: PostTheatricalRelease = {
+      id: releaseId,
+      projectId: project.id,
+      platform: windowPlatform,
+      providerId: platformId,
+      releaseDate,
+      releaseWeek: gameState.currentWeek,
+      releaseYear: gameState.currentYear,
+      delayWeeks: 0,
+      revenue: 0,
+      weeklyRevenue: 0,
+      weeksActive: 0,
+      status: 'planned',
+      cost: 0,
+      durationWeeks: contract.duration,
+    };
+
+    const postTheatricalReleases: PostTheatricalRelease[] = hasWindow
       ? existingReleases
-      : [
-          ...existingReleases,
-          {
-            id: releaseId,
-            projectId: project.id,
-            platform: windowPlatform,
-            providerId: platformId,
-            releaseDate,
-            releaseWeek: gameState.currentWeek,
-            releaseYear: gameState.currentYear,
-            delayWeeks: 0,
-            revenue: 0,
-            weeklyRevenue: 0,
-            weeksActive: 0,
-            status: 'planned',
-            cost: 0,
-            durationWeeks: contract.duration,
-          },
-        ];
+      : [...existingReleases, newRelease];
 
     updateProject(project.id, {
       streamingContract: contract,
