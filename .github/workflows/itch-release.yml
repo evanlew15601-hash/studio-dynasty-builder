@@ -357,6 +357,7 @@ jobs:
 
           # $GITHUB_PATH only affects subsequent steps, so run butler via absolute path here.
           echo "$OUT_DIR" >> "$GITHUB_PATH"
+          echo "BUTLER_BIN=$BUTLER_BIN" >> "$GITHUB_ENV"
           "$BUTLER_BIN" -V
 
       - name: Upload to itch.io
@@ -406,7 +407,7 @@ jobs:
 
           {
             echo "butler version:";
-            butler -V;
+            "${BUTLER_BIN:-butler}" -V;
             echo;
 
             for channel in windows linux mac; do
@@ -429,7 +430,7 @@ jobs:
               fi
 
               echo "Uploading ${SRC_DIR} -> ${TARGET_BASE}:${channel} (userversion: $VERSION)";
-              butler push "$SRC_DIR" "${TARGET_BASE}:${channel}" --userversion "$VERSION";
+              "${BUTLER_BIN:-butler}" push "$SRC_DIR" "${TARGET_BASE}:${channel}" --userversion "$VERSION";
               echo;
             done
           } 2>&1 | tee "$BUTLER_LOG_FILE"

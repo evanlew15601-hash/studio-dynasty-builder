@@ -425,7 +425,7 @@ jobs:
 
           {
             echo "butler version:";
-            butler -V;
+            "${BUTLER_BIN:-butler}" -V;
             echo;
 
             for channel in windows linux mac; do
@@ -446,7 +446,7 @@ jobs:
               fi
 
               echo "Uploading ${SRC_DIR} -> ${TARGET_BASE}:${channel} (userversion: $VERSION)";
-              butler push "$SRC_DIR" "${TARGET_BASE}:${channel}" --userversion "$VERSION";
+              "${BUTLER_BIN:-butler}" push "$SRC_DIR" "${TARGET_BASE}:${channel}" --userversion "$VERSION";
               echo;
             done
           } 2>&1 | tee "$BUTLER_LOG_FILE"
@@ -457,4 +457,6 @@ jobs:
         with:
           name: butler-upload-logs
           path: ci-logs/butler-upload.log
+          if-no-files-found: warn
+d.log
           if-no-files-found: warn
