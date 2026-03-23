@@ -1343,10 +1343,14 @@ export const StreamingWarsPlatformApp: React.FC = () => {
     const duration = 52;
     const { endWeek, endYear } = addWeeks(gameState.currentWeek, gameState.currentYear, duration);
 
+    const baselineSubs = clampInt((player?.subscribers ?? 1_000_000) as number, 250_000, 120_000_000);
+    const expectedViewers = clampInt(Math.floor(baselineSubs * 0.75), 350_000, 90_000_000);
+
     const contract: StreamingContract = {
       id: `contract:original:${gameState.currentYear}:W${gameState.currentWeek}:${idSuffix}`,
       dealKind: 'streaming',
       platformId: playerPlatformId,
+      persistentRights: true,
       name: `${gameState.platformMarket?.player?.name ?? 'Your Platform'} Original - ${title}`,
       type: 'series',
       duration,
@@ -1357,9 +1361,9 @@ export const StreamingWarsPlatformApp: React.FC = () => {
       upfrontPayment: 0,
       episodeRate: perEpisodeBudget,
       performanceBonus: [],
-      expectedViewers: 0,
-      expectedCompletionRate: 0.72,
-      expectedSubscriberGrowth: 0,
+      expectedViewers,
+      expectedCompletionRate: 72,
+      expectedSubscriberGrowth: Math.floor(expectedViewers * 0.03),
       status: 'active',
       performanceScore: 0,
       exclusivityClause: true,

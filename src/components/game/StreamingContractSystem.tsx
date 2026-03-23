@@ -6,7 +6,7 @@ import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger } from 
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { useToast } from '@/hooks/use-toast';
 import { StreamingContract } from '@/types/streamingTypes';
-import { Project } from '@/types/game';
+import { PostTheatricalRelease, Project } from '@/types/game';
 import { Monitor, Tv, Award } from 'lucide-react';
 import { useGameStore } from '@/game/store';
 import {
@@ -19,6 +19,8 @@ import {
 } from '@/data/ProviderDealsDatabase';
 import { getModBundle } from '@/utils/moddingStore';
 import { FinancialEngine } from './FinancialEngine';
+import { stableInt } from '@/utils/stableRandom';
+import { triggerDateFromWeekYear } from '@/utils/gameTime';
 
 interface StreamingContractSystemProps {}
 
@@ -67,11 +69,19 @@ export const StreamingContractSystem: React.FC<StreamingContractSystemProps> = (
 
   // Get projects ready for contracts
   const getEligibleProjects = () => {
-    return gameState.projects.filter(p => 
-      (isTVProject(p) || isFilmProject(p)) &&
-      p.status === 'released' &&
-      !p.streamingContract
-    );
+    return gameState.projects.filter(p => {
+      if (!(isTVProject(p) || isFilmProject(p))) return false;
+      if (p.status !== 'released') return false;
+
+      // Allow re-selling after a contract window ends.
+      const hasActiveContract = p.streamingContract?.status === 'active';
+      if (hasActiveContract) return false;
+
+      // Avoid allowing streaming/cable deals while a film is still in theaters.
+      if (isFilmProject(p) && p.metrics?.inTheaters === true) return false;
+
+      return true;
+    });
   };
 
   // Get active contracts
@@ -128,6 +138,12 @@ export const StreamingContractSystem: React.FC<StreamingContractSystemProps> = (
       throw new Error(`Unknown platform: ${platformId}`);
     }
 
+    const idSuffix = stableInt(
+      `${gameState.universeSeed ?? gameState.studio.id ?? 'seed'}|contract|${dealKind}|${project.id}|${platformId}|${gameState.currentYear}:W${gameState.currentWeek}`,
+      1,
+      999999999
+    );
+
     const quality = project.script?.quality ?? 60;
     const qualityMultiplier = quality / 60;
     const genre = project.script?.genre || '';
@@ -173,9 +189,10 @@ export const StreamingContractSystem: React.FC<StreamingContractSystemProps> = (
       const expectedSubscriberGrowth = Math.floor(expectedViewers * platform.expectations.subscriberGrowthRate);
 
       return {
-        id: `contract-${Date.now()}`,
+        id: `contract:${dealKind}:${gameState.currentYear}:W${gameState.currentWeek}:${idSuffix}`,
         dealKind,
         platformId,
+        persistentRights: false,
         platform: platformId as any,
         name: `${platform.name} - ${project.title}`,
         type: project.type as any,
@@ -212,7 +229,9 @@ export const StreamingContractSystem: React.FC<StreamingContractSystemProps> = (
           penaltyAmount: upfrontPayment * 0.25
         },
         exclusivityClause: dealKind === 'streaming' ? platform.id !== 'streamhub' : true,
-        marketingSupport: Math.floor(upfrontPayment * (dealKind === 'cable' ? 0.12 : 0.2))
+        marketingSupport: Math.floor(upfrontPayment * (dealKind === 'cable' ? 0.12 : 0.2)),
+
+        baselineStreamingViews: typeof project.metrics?.streaming?.totalViews === 'number' ? project.metrics.streaming.totalViews : 0,
       };
     }
 
@@ -234,9 +253,10 @@ export const StreamingContractSystem: React.FC<StreamingContractSystemProps> = (
     const expectedSubscriberGrowth = Math.floor(expectedViewers * platform.expectations.subscriberGrowthRate);
 
     return {
-      id: `contract-${Date.now()}`,
+      id: `contract:${dealKind}:${gameState.currentYear}:W${gameState.currentWeek}:${idSuffix}`,
       dealKind,
       platformId,
+      persistentRights: false,
       platform: platformId as any,
       name: `${platform.name} - ${project.title}`,
       type: contractType,
@@ -265,7 +285,9 @@ export const StreamingContractSystem: React.FC<StreamingContractSystemProps> = (
         penaltyAmount: upfrontPayment * 0.2
       },
       exclusivityClause: true,
-      marketingSupport: Math.floor(upfrontPayment * 0.15)
+      marketingSupport: Math.floor(upfrontPayment * 0.15),
+
+      baselineStreamingViews: typeof project.metrics?.streaming?.totalViews === 'number' ? project.metrics.streaming.totalViews : 0,
     };
   };
 
@@ -273,8 +295,39 @@ export const StreamingContractSystem: React.FC<StreamingContractSystemProps> = (
     const contract = generateContract(project, platformId, dealKind);
     const platform = getAllProviders(mods).find(p => p.id === platformId);
 
+    const windowPlatform: PostTheatricalRelease['platform'] = dealKind === 'cable' ? 'tv-licensing' : 'streaming';
+    const releaseDate = triggerDateFromWeekYear(gameState.currentYear, gameState.currentWeek);
+    const releaseId = `release:contract:${project.id}:${platformId}:${gameState.currentYear}:W${gameState.currentWeek}:${dealKind}`;
+
+    const existingReleases = Array.isArray(project.postTheatricalReleases) ? project.postTheatricalReleases : [];
+    const hasWindow = existingReleases.some((r) => r && r.platform === windowPlatform && (r.providerId || r.platformId) === platformId && r.status !== 'ended');
+
+    const postTheatricalReleases = hasWindow
+      ? existingReleases
+      : [
+          ...existingReleases,
+          {
+            id: releaseId,
+            projectId: project.id,
+            platform: windowPlatform,
+            providerId: platformId,
+            releaseDate,
+            releaseWeek: gameState.currentWeek,
+            releaseYear: gameState.currentYear,
+            delayWeeks: 0,
+            revenue: 0,
+            weeklyRevenue: 0,
+            weeksActive: 0,
+            status: 'planned',
+            cost: 0,
+            durationWeeks: contract.duration,
+          },
+        ];
+
     updateProject(project.id, {
       streamingContract: contract,
+      postTheatricalEligible: true,
+      postTheatricalReleases,
       marketingCampaign: {
         ...project.marketingCampaign,
         budgetSpent: (project.marketingCampaign?.budgetSpent || 0) + contract.marketingSupport,
@@ -310,8 +363,24 @@ export const StreamingContractSystem: React.FC<StreamingContractSystemProps> = (
     const contract = project.streamingContract;
     const platform = getAllProviders(mods).find(p => p.id === (contract.platformId || contract.platform));
 
-    const totalViews = project.metrics?.streaming?.totalViews ?? project.metrics?.streamingViews ?? 0;
+    const rawTotalViews = project.metrics?.streaming?.totalViews ?? project.metrics?.streamingViews;
+    const totalViews = typeof rawTotalViews === 'number'
+      ? Math.max(0, Math.floor(rawTotalViews - (contract.baselineStreamingViews ?? 0)))
+      : (contract.observedTotalViews ?? 0);
+
     if (totalViews <= 0) return;
+
+    const completionRate = project.metrics?.streaming
+      ? project.metrics.streaming.completionRate
+      : (contract.observedCompletionRate ?? 0);
+
+    const subscriberGrowth = project.metrics?.streaming
+      ? project.metrics.streaming.subscriberGrowth
+      : (contract.observedSubscriberGrowth ?? 0);
+
+    const expectedCompletionRate = contract.expectedCompletionRate <= 1
+      ? contract.expectedCompletionRate * 100
+      : contract.expectedCompletionRate;
 
     const scores: number[] = [];
 
@@ -320,79 +389,36 @@ export const StreamingContractSystem: React.FC<StreamingContractSystemProps> = (
       : 0;
     scores.push(viewershipScore);
 
-    if (project.metrics?.streaming) {
-      const completionScore = contract.expectedCompletionRate > 0
-        ? Math.min(100, (project.metrics.streaming.completionRate / contract.expectedCompletionRate) * 100)
-        : 100;
+    const completionScore = expectedCompletionRate > 0
+      ? Math.min(100, (completionRate / expectedCompletionRate) * 100)
+      : 0;
 
-      const subscriberScore = contract.expectedSubscriberGrowth > 0
-        ? Math.min(100, (project.metrics.streaming.subscriberGrowth / contract.expectedSubscriberGrowth) * 100)
-        : 100;
+    const subscriberScore = contract.expectedSubscriberGrowth > 0
+      ? Math.min(100, (subscriberGrowth / contract.expectedSubscriberGrowth) * 100)
+      : 100;
 
-      scores.push(completionScore, subscriberScore);
-    }
+    scores.push(completionScore, subscriberScore);
 
     const performanceScore = scores.reduce((sum, score) => sum + score, 0) / scores.length;
 
-    // Check for bonuses
-    let bonusEarned = 0;
-    contract.performanceBonus.forEach(bonus => {
-      if (totalViews >= bonus.viewershipThreshold) {
-        bonusEarned = bonus.bonusAmount;
-      }
-    });
-
-    // Check for penalties
-    let penalty = 0;
-    if (contract.penaltyClause && totalViews < contract.penaltyClause.minViewers) {
-      penalty = contract.penaltyClause.penaltyAmount;
-    }
-
     const updatedContract: StreamingContract = {
       ...contract,
-      performanceScore: Math.floor(performanceScore)
+      performanceScore: Math.floor(performanceScore),
+      observedTotalViews: totalViews,
+      observedCompletionRate: completionRate,
+      observedSubscriberGrowth: subscriberGrowth,
+      lastEvaluatedWeek: gameState.currentWeek,
+      lastEvaluatedYear: gameState.currentYear,
     };
 
     updateProject(project.id, {
       streamingContract: updatedContract
     });
 
-    const category = contract.dealKind === 'cable' ? 'licensing' : 'streaming';
-
-    if (bonusEarned > 0) {
-      updateBudget(bonusEarned);
-      FinancialEngine.recordTransaction(
-        'revenue',
-        category,
-        bonusEarned,
-        gameState.currentWeek,
-        gameState.currentYear,
-        `${contract.dealKind === 'cable' ? 'Cable' : 'Streaming'} performance bonus - ${platform?.name ?? (contract.platformId || contract.platform)} - ${project.title}`,
-        project.id
-      );
-      toast({
-        title: 'Performance Bonus!',
-        description: `Earned ${(bonusEarned / 1000000).toFixed(1)}M for exceeding viewership targets`,
-      });
-    }
-
-    if (penalty > 0) {
-      updateBudget(-penalty);
-      FinancialEngine.recordTransaction(
-        'expense',
-        category,
-        penalty,
-        gameState.currentWeek,
-        gameState.currentYear,
-        `${contract.dealKind === 'cable' ? 'Cable' : 'Streaming'} contract penalty - ${platform?.name ?? (contract.platformId || contract.platform)} - ${project.title}`,
-        project.id
-      );
-      toast({
-        title: 'Contract Penalty',
-        description: `Penalty of ${(penalty / 1000000).toFixed(1)}M for underperforming`,
-        variant: 'destructive'
-      });
-    }
+    toast({
+      title: 'Performance updated',
+      description: `${platform?.name ?? (contract.platformId || contract.platform)} now rates ${updatedContract.performanceScore}/100`,
+    });
   };
 
   const eligibleProjects = getEligibleProjects();

@@ -51,6 +51,7 @@ import { MarketingCampaignSystem } from './systems/marketingCampaignSystem';
 import { ScheduledReleaseSystem } from './systems/scheduledReleaseSystem';
 import { TelevisionPerformanceSystem } from './systems/televisionPerformanceSystem';
 import { StreamingPerformanceSystem } from './systems/streamingPerformanceSystem';
+import { StreamingContractLifecycleSystem } from './systems/streamingContractLifecycleSystem';
 import { BoxOfficeSystem } from './systems/boxOfficeSystem';
 import { PostTheatricalRevenueSystem } from './systems/postTheatricalRevenueSystem';
 import { StudioEconomySystem } from './systems/studioEconomySystem';
@@ -227,6 +228,7 @@ export const useGameStore: import('zustand').UseBoundStore<import('zustand').Sto
       r.register(CompetitorFilmReleaseSystem);
       r.register(TelevisionPerformanceSystem);
       r.register(StreamingPerformanceSystem);
+      r.register(StreamingContractLifecycleSystem);
       r.register(BoxOfficeSystem);
       r.register(PostTheatricalRevenueSystem);
       r.register(StudioRevenueSystem);

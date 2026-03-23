@@ -395,10 +395,26 @@ export const PlayerCircleDramaSystem: TickSystem = {
 
     const studioId = state.studio.id;
 
+    const contractedIds = new Set<string>();
+    for (const p of state.projects || []) {
+      for (const c of p?.contractedTalent || []) {
+        if (c?.talentId) contractedIds.add(c.talentId);
+      }
+    }
+
+    const isUnderContract = (t: TalentPerson): boolean => {
+      if (t.contractStatus === 'contracted' || t.contractStatus === 'exclusive') return true;
+      if (t.contractStatus === 'busy') {
+        if (t.contractStatusBase === 'contracted' || t.contractStatusBase === 'exclusive') return true;
+        if (contractedIds.has(t.id)) return true;
+      }
+      return false;
+    };
+
     const poachable = state.mode === 'online'
       ? []
       : (state.talent || [])
-          .filter((t) => t.contractStatus === 'contracted' || t.contractStatus === 'exclusive')
+          .filter(isUnderContract)
           .map((t) => ({
             talent: t,
             loyalty: clamp(t.studioLoyalty?.[studioId] ?? 50, 0, 100),

@@ -17,6 +17,13 @@ export function isPlayerPlatformId(platformId: string | null | undefined): boole
 
 export function getContractPlatformId(contract: StreamingContract | null | undefined): string | null {
   if (!contract) return null;
+
+  const persistentRights = (contract as any).persistentRights === true;
+  const status = (contract as any).status as string | undefined;
+
+  // Non-persistent contracts (licensing windows) should stop implying a platform once they end.
+  if (!persistentRights && status && status !== 'active') return null;
+
   return contract.platformId || contract.platform || null;
 }
 
