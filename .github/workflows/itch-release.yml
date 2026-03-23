@@ -1,4 +1,4 @@
-name: itch-release
+name: itch-release-v2
 
 on:
   workflow_dispatch:
