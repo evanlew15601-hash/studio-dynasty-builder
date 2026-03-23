@@ -32,7 +32,7 @@ jobs:
             channel: mac
 
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v5
 
       - name: Validate itch.io secrets
         shell: bash
@@ -55,7 +55,7 @@ jobs:
           fi
 
       - name: Setup Node
-        uses: actions/setup-node@v4
+        uses: actions/setup-node@v6
         with:
           node-version: lts/*
           cache: npm
@@ -224,7 +224,7 @@ jobs:
 
       - name: Upload build logs
         if: always()
-        uses: actions/upload-artifact@v4
+        uses: actions/upload-artifact@v6
         with:
           name: tauri-build-logs-${{ matrix.channel }}
           path: ci-logs/tauri-build-${{ matrix.channel }}.log
@@ -291,26 +291,43 @@ jobs:
           exit 1
 
       - name: Upload build artifact
-        uses: actions/upload-artifact@v4
+        uses: actions/upload-artifact@v6
         with:
           name: studio-magnate-${{ matrix.channel }}
           path: ${{ steps.artifact.outputs.path }}
           if-no-files-found: error
 
-      - name: Setup butler (Linux/Windows)
-        if: matrix.platform != 'macos-latest'
-        # remarkablegames/setup-butler@v2 runs `butler whoami`, which was removed in butler v15.
-        # jdno/setup-butler only supports x64 + i386 (not macOS arm64).
-        uses: jdno/setup-butler@v1
-
-      - name: Setup butler (macOS arm64)
-        if: matrix.platform == 'macos-latest'
+      - name: Setup butler
         shell: bash
         run: |
           set -euo pipefail
 
-          BUTLER_PLATFORM="darwin"
-          BUTLER_ARCH="arm64"
+          BUTLER_PLATFORM=""
+          BUTLER_ARCH="amd64"
+
+          case "${RUNNER_OS}" in
+            Linux)
+              BUTLER_PLATFORM="linux"
+              ;;
+            Windows)
+              BUTLER_PLATFORM="windows"
+              ;;
+            macOS)
+              BUTLER_PLATFORM="darwin"
+              ;;
+            *)
+              echo "Unknown RUNNER_OS: ${RUNNER_OS}" >&2
+              exit 1
+              ;;
+          esac
+
+          # GitHub's `macos-latest` runners are Apple Silicon (arm64). Some butler distribution
+          # channels still report as unsupported on arm64, so we run the amd64 build via Rosetta.
+          if [ "$BUTLER_PLATFORM" = "darwin" ] && [ "$(uname -m)" = "arm64" ]; then
+            if ! /usr/sbin/pkgutil --pkg-info com.apple.pkg.RosettaUpdateAuto >/dev/null 2>&1; then
+              sudo /usr/sbin/softwareupdate --install-rosetta --agree-to-license
+            fi
+          fi
 
           VERSION="$(curl -fsSL "https://broth.itch.zone/butler/${BUTLER_PLATFORM}-${BUTLER_ARCH}/LATEST")"
           echo "Installing butler ${VERSION} (${BUTLER_PLATFORM}-${BUTLER_ARCH})"
@@ -320,8 +337,31 @@ jobs:
           mkdir -p "$OUT_DIR"
 
           curl -fsSL -o "$OUT_DIR/butler.zip" "https://broth.itch.zone/butler/${BUTLER_PLATFORM}-${BUTLER_ARCH}/${VERSION}/archive/default"
-          unzip -q "$OUT_DIR/butler.zip" -d "$OUT_DIR"
-          chmod +x "$OUT_DIR/butler"
+
+          python -c 'import sys, zipfile; zipfile.ZipFile(sys.argv[1]).extractall(sys.argv[2])' "$OUT_DIR/butler.zip" "$OUT_DIR"
+
+          if [ "$BUTLER_PLATFORM" = "darwin" ] && [ "$(uname -m)" = "arm64" ]; then
+            mv "$OUT_DIR/butler" "$OUT_DIR/butler.bin"
+            printf '%s\n' \
+              '#!/usr/bin/env bash' \
+              'set -euo pipefail' \
+              'DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"' \
+              'exec arch -x86_64 "$DIR/butler.bin" "$@"' \
+              > "$OUT_DIR/butler"
+            chmod +x "$OUT_DIR/butler" "$OUT_DIR/butler.bin"
+          elif [ "$BUTLER_PLATFORM" = "windows" ]; then
+            if [ -f "$OUT_DIR/butler.exe" ] && [ ! -f "$OUT_DIR/butler" ]; then
+              printf '%s\n' \
+                '#!/usr/bin/env bash' \
+                'set -euo pipefail' \
+                'DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"' \
+                'exec "$DIR/butler.exe" "$@"' \
+                > "$OUT_DIR/butler"
+            fi
+            chmod +x "$OUT_DIR/butler"*
+          else
+            chmod +x "$OUT_DIR/butler"*
+          fi
 
           echo "$OUT_DIR" >> "$GITHUB_PATH"
 
@@ -371,7 +411,7 @@ jobs:
 
       - name: Upload butler logs
         if: always()
-        uses: actions/upload-artifact@v4
+        uses: actions/upload-artifact@v6
         with:
           name: butler-upload-logs-${{ matrix.channel }}
           path: ci-logs/butler-upload-${{ matrix.channel }}.log
