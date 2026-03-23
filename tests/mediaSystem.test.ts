@@ -494,4 +494,42 @@ describe('media system', () => {
     expect(items[0].headline).not.toMatch(/\{[A-Za-z]+\}/);
     expect(items[0].content).not.toMatch(/\{[A-Za-z]+\}/);
   });
+
+  it('can hydrate when persisted media state includes non-cloneable values (e.g. functions)', () => {
+    const playerStudio = { id: 'player-studio', name: 'Player Studio', reputation: 50, budget: 1000000, founded: 2025, specialties: ['drama'] };
+    const playerProject = makeMinimalProject({
+      id: 'player-project-1',
+      title: 'Player Premiere',
+      studioName: playerStudio.name,
+      releaseWeek: 1,
+      releaseYear: 2025,
+      cast: [{ talentId: 'talent-1' }]
+    });
+
+    MediaEngine.queueMediaEvent({
+      type: 'release',
+      triggerType: 'automatic',
+      priority: 'low',
+      entities: {
+        studios: [playerStudio.id],
+        projects: [playerProject.id],
+        talent: ['talent-1']
+      },
+      eventData: { project: playerProject, nonCloneable: () => 'nope' },
+      week: 1,
+      year: 2025
+    } as any);
+
+    const persisted = { engine: MediaEngine.snapshot(), response: { campaigns: [], reactions: [] } } as any;
+
+    MediaEngine.cleanup();
+
+    expect(() => {
+      MediaEngine.hydrate(persisted);
+    }).not.toThrow();
+
+    const hydrated = MediaEngine.snapshot();
+    expect(hydrated.eventQueue.length).toBe(1);
+    expect(hydrated.eventQueue[0].eventData.nonCloneable).toBeUndefined();
+  });
 });

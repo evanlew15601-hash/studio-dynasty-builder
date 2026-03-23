@@ -3,11 +3,97 @@ import { MediaEngine } from './mediaEngine';
 import { stableFloat01, stableInt } from '@/utils/stableRandom';
 import { current, isDraft } from 'immer';
 
+function isDomLike(value: unknown): boolean {
+  const g = globalThis as any;
+  if (!value || typeof value !== 'object') return false;
+
+  const NodeCtor = g.Node as (new (...args: any[]) => any) | undefined;
+  if (typeof NodeCtor === 'function' && value instanceof NodeCtor) return true;
+
+  const EventCtor = g.Event as (new (...args: any[]) => any) | undefined;
+  if (typeof EventCtor === 'function' && value instanceof EventCtor) return true;
+
+  const WindowCtor = g.Window as (new (...args: any[]) => any) | undefined;
+  if (typeof WindowCtor === 'function' && value instanceof WindowCtor) return true;
+
+  return false;
+}
+
+function fallbackClone<T>(value: T): T {
+  const seen = new WeakMap<object, any>();
+
+  const walk = (v: any): any => {
+    if (v === null || v === undefined) return v;
+
+    const t = typeof v;
+    if (t === 'string' || t === 'number' || t === 'boolean') return v;
+    if (t === 'bigint') return Number(v);
+    if (t === 'symbol' || t === 'function') return undefined;
+
+    if (isDomLike(v)) return undefined;
+
+    if (v instanceof Date) return new Date(v.getTime());
+
+    if (t !== 'object') return undefined;
+
+    if (seen.has(v)) return seen.get(v);
+
+    if (Array.isArray(v)) {
+      const out: any[] = [];
+      seen.set(v, out);
+      for (const item of v) {
+        const next = walk(item);
+        if (next !== undefined) out.push(next);
+      }
+      return out;
+    }
+
+    if (v instanceof Map) {
+      const out = new Map();
+      seen.set(v, out);
+      for (const [k, val] of v.entries()) {
+        const nk = walk(k);
+        const nv = walk(val);
+        if (nk !== undefined && nv !== undefined) out.set(nk, nv);
+      }
+      return out;
+    }
+
+    if (v instanceof Set) {
+      const out = new Set();
+      seen.set(v, out);
+      for (const item of v.values()) {
+        const next = walk(item);
+        if (next !== undefined) out.add(next);
+      }
+      return out;
+    }
+
+    const out: Record<string, any> = {};
+    seen.set(v, out);
+
+    for (const [k, val] of Object.entries(v)) {
+      const next = walk(val);
+      if (next !== undefined) out[k] = next;
+    }
+
+    return out;
+  };
+
+  return walk(value) as T;
+}
+
 function clone<T>(value: T): T {
-  if (typeof (globalThis as any).structuredClone === 'function') {
-    return (globalThis as any).structuredClone(value);
+  const sc = (globalThis as any).structuredClone as ((input: any) => any) | undefined;
+  if (typeof sc === 'function') {
+    try {
+      return sc(value);
+    } catch {
+      return fallbackClone(value);
+    }
   }
-  return JSON.parse(JSON.stringify(value)) as T;
+
+  return fallbackClone(value);
 }
 
 export class MediaResponseSystem {
