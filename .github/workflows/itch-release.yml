@@ -360,7 +360,12 @@ jobs:
           fi
 
           if [ -z "$VERSION" ]; then
-            VERSION="$(node -p "require('./package.json').version")"
+            VERSION="$(python - <<'PY'
+          import json
+          with open('package.json', 'r', encoding='utf-8') as f:
+            print(json.load(f)['version'])
+          PY
+          )"
           fi
 
           TARGET_BASE=""
@@ -378,13 +383,26 @@ jobs:
             echo;
 
             for channel in windows linux mac; do
-              if [ ! -d "itch-upload/${channel}" ]; then
-                echo "Missing itch-upload/${channel}" >&2
+              SRC_DIR="itch-upload/${channel}"
+
+              # download-artifact preserves paths; if we uploaded "itch-upload/<channel>", we may end up with
+              # "itch-upload/<channel>/itch-upload/<channel>" after download.
+              if [ -d "${SRC_DIR}/itch-upload/${channel}" ]; then
+                SRC_DIR="${SRC_DIR}/itch-upload/${channel}"
+              fi
+
+              if [ ! -d "$SRC_DIR" ]; then
+                echo "Missing upload directory for ${channel}: ${SRC_DIR}" >&2
                 exit 1
               fi
 
-              echo "Uploading itch-upload/${channel} -> ${TARGET_BASE}:${channel} (userversion: $VERSION)";
-              butler push "itch-upload/${channel}" "${TARGET_BASE}:${channel}" --userversion "$VERSION";
+              if ! find "$SRC_DIR" -type f -maxdepth 2 | head -n 1 >/dev/null; then
+                echo "Upload directory is empty for ${channel}: ${SRC_DIR}" >&2
+                exit 1
+              fi
+
+              echo "Uploading ${SRC_DIR} -> ${TARGET_BASE}:${channel} (userversion: $VERSION)";
+              butler push "$SRC_DIR" "${TARGET_BASE}:${channel}" --userversion "$VERSION";
               echo;
             done
           } 2>&1 | tee "$BUTLER_LOG_FILE"
