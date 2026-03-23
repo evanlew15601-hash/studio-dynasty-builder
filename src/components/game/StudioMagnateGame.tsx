@@ -1497,10 +1497,31 @@ export const StudioMagnateGame: React.FC<StudioMagnateGameProps> = ({
       updateOperation(LOADING_OPERATIONS.WEEKLY_PROCESSING.id, 5, 'Advancing time...');
     }
 
+    const failAdvanceWeek = (err: unknown) => {
+      console.warn('Advance week failed', err);
+
+      toast({
+        title: 'Advance Week failed',
+        description: err instanceof Error ? err.message : 'An unexpected error occurred during weekly processing.',
+        variant: 'destructive',
+      });
+
+      if (loadingEnabled) {
+        updateOperation(LOADING_OPERATIONS.WEEKLY_PROCESSING.id, 100, 'Failed. See console for details.');
+        requestAnimationFrame(() => {
+          completeOperation(LOADING_OPERATIONS.WEEKLY_PROCESSING.id);
+          weeklyProcessingRef.current = false;
+        });
+      } else {
+        weeklyProcessingRef.current = false;
+      }
+    };
+
     const runTick = () => {
-      setGameState((prev) => {
-      const tickStart = performance.now();
-      const startedAtIso = new Date().toISOString();
+      try {
+        setGameState((prev) => {
+          const tickStart = performance.now();
+          const startedAtIso = new Date().toISOString();
 
       const systems: TickSystemReport[] = [];
       const recap: TickRecapCard[] = [];
@@ -1742,7 +1763,11 @@ export const StudioMagnateGame: React.FC<StudioMagnateGameProps> = ({
       }
 
       return newState;
-    });
+        });
+      } catch (err) {
+        failAdvanceWeek(err);
+        if (!loadingEnabled) throw err;
+      }
     };
 
     // Defer the heavy tick work by one frame when showing the loading UI.
@@ -2385,8 +2410,27 @@ export const StudioMagnateGame: React.FC<StudioMagnateGameProps> = ({
 
       isProcessing = true;
 
-      advanceWeekCore({ suppressToast: true, suppressLoading: true, suppressDiagnostics: true, suppressRecap: true });
-      remaining -= 1;
+      try {
+        advanceWeekCore({ suppressToast: true, suppressLoading: true, suppressDiagnostics: true, suppressRecap: true });
+        remaining -= 1;
+      } catch (err) {
+        console.warn('Time skip: weekly processing failed', err);
+        remaining = 0;
+        isProcessing = false;
+
+        updateOperation(LOADING_OPERATIONS.WEEKLY_PROCESSING.id, 100, 'Failed. See console for details.');
+        requestAnimationFrame(() => {
+          completeOperation(LOADING_OPERATIONS.WEEKLY_PROCESSING.id);
+          weeklyProcessingRef.current = false;
+        });
+
+        toast({
+          title: 'Time skip failed',
+          description: err instanceof Error ? err.message : 'An unexpected error occurred during weekly processing.',
+          variant: 'destructive',
+        });
+        return;
+      }
 
       const completed = totalWeeks - remaining;
       updateOperation(
