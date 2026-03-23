@@ -100,6 +100,19 @@ function main() {
   const haveAllPngs = expectedPngOutputs.every((name) => fs.existsSync(path.join(iconsDir, name)));
 
   if (haveValidIco && haveValidIcns && haveAllPngs) {
+    // Still ensure Windows fallback favicon is RC-compatible.
+    if (process.platform === "win32") {
+      const publicFavicon = path.join(rootDir, "public", "favicon.ico");
+
+      if (!isRcCompatibleIco(publicFavicon)) {
+        fs.copyFileSync(path.join(iconsDir, expectedIco), publicFavicon);
+
+        if (!isRcCompatibleIco(publicFavicon)) {
+          throw new Error(`public/favicon.ico is not RC-compatible after copy: ${publicFavicon}`);
+        }
+      }
+    }
+
     return;
   }
 

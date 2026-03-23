@@ -27,6 +27,39 @@ jobs:
       - name: Install frontend dependencies
         run: npm ci
 
+      - name: Prepare Tauri icons
+        shell: bash
+        run: |
+          set -euo pipefail
+          node scripts/prepare-tauri-icons.mjs
+          ls -la src-tauri/icons
+
+      - name: Ensure Windows favicon.ico is RC-compatible
+        shell: pwsh
+        run: |
+          $ErrorActionPreference = 'Stop'
+
+          if (-not (Test-Path -Path 'src-tauri/icons/icon.ico')) {
+            throw 'Missing src-tauri/icons/icon.ico after icon preparation'
+          }
+
+          Copy-Item 'src-tauri/icons/icon.ico' 'public/favicon.ico' -Force
+
+          $bytes = [System.IO.File]::ReadAllBytes('public/favicon.ico')
+          if ($bytes.Length -lt 8) {
+            throw 'public/favicon.ico too small'
+          }
+
+          $pngSig = [byte[]](0x89,0x50,0x4E,0x47,0x0D,0x0A,0x1A,0x0A)
+          for ($i = 0; $i -le $bytes.Length - $pngSig.Length; $i++) {
+            $match = $true
+            for ($j = 0; $j -lt $pngSig.Length; $j++) {
+              if ($bytes[$i + $j] -ne $pngSig[$j]) { $match = $false; break }
+            }
+            if ($match) { throw 'public/favicon.ico contains PNG-compressed frame data (not RC-compatible)'
+            }
+          }
+
       - name: Build Tauri bundles (NSIS + MSI)
         run: npm run tauri:build
 
