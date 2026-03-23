@@ -338,9 +338,6 @@ jobs:
             echo "butler version:";
             butler -V;
             echo;
-            echo "butler whoami:";
-            butler whoami;
-            echo;
             echo "Uploading ${{ steps.artifact.outputs.path }} -> ${TARGET_BASE}:${{ matrix.channel }} (userversion: $VERSION)";
             butler push "${{ steps.artifact.outputs.path }}" "${TARGET_BASE}:${{ matrix.channel }}" --userversion "$VERSION";
           } 2>&1 | tee "$BUTLER_LOG_FILE"
