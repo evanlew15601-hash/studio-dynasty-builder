@@ -46,7 +46,24 @@ jobs:
             cp -R src-tauri/target/release/resources portable/
           fi
 
-          tar -a -c -f studio-magnate-windows-portable.zip -C portable .
+          rm -f studio-magnate-windows-portable.zip
+
+          python - <<'PY'
+          import os
+          import zipfile
+
+          out_path = "studio-magnate-windows-portable.zip"
+          root_dir = "portable"
+
+          with zipfile.ZipFile(out_path, "w", compression=zipfile.ZIP_DEFLATED) as zf:
+            for folder, _, files in os.walk(root_dir):
+              for name in files:
+                path = os.path.join(folder, name)
+                arcname = os.path.relpath(path, root_dir)
+                zf.write(path, arcname)
+          PY
+
+          python -c 'import sys, zipfile; z=zipfile.ZipFile("studio-magnate-windows-portable.zip"); bad=z.testzip(); sys.exit(0 if bad is None else 1)'
 
       - name: Upload portable zip
         uses: actions/upload-artifact@v4

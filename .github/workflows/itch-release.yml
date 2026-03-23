@@ -253,26 +253,9 @@ jobs:
               cp -R src-tauri/target/release/resources portable/
             fi
 
-            rm -f studio-magnate-windows-portable.zip
-
-            python - <<'PY'
-            import os
-            import zipfile
-
-            out_path = "studio-magnate-windows-portable.zip"
-            root_dir = "portable"
-
-            with zipfile.ZipFile(out_path, "w", compression=zipfile.ZIP_DEFLATED) as zf:
-              for folder, _, files in os.walk(root_dir):
-                for name in files:
-                  path = os.path.join(folder, name)
-                  arcname = os.path.relpath(path, root_dir)
-                  zf.write(path, arcname)
-            PY
-
-            python -c 'import sys, zipfile; z=zipfile.ZipFile("studio-magnate-windows-portable.zip"); bad=z.testzip(); sys.exit(0 if bad is None else 1)'
-
-            echo "path=studio-magnate-windows-portable.zip" >> "$GITHUB_OUTPUT"
+            # Push a directory instead of a .zip. This avoids intermittent "zip: not a valid zip file"
+            # failures and enables better delta-patching on itch.io.
+            echo "path=portable" >> "$GITHUB_OUTPUT"
             exit 0
           fi
 
@@ -322,6 +305,7 @@ jobs:
 
           BUTLER_PLATFORM=""
           BUTLER_ARCH="amd64"
+          NEED_ROSETTA="0"
 
           case "${RUNNER_OS}" in
             Linux)
@@ -339,11 +323,25 @@ jobs:
               ;;
           esac
 
-          # GitHub's `macos-latest` runners are Apple Silicon (arm64). Some butler distribution
-          # channels still report as unsupported on arm64, so we run the amd64 build via Rosetta.
+          # On Apple Silicon, prefer a native arm64 butler if available; otherwise fall back to
+          # amd64 and run it via Rosetta.
           if [ "$BUTLER_PLATFORM" = "darwin" ] && [ "$(uname -m)" = "arm64" ]; then
+            if curl -fsSL "https://broth.itch.zone/butler/darwin-arm64/LATEST" >/dev/null 2>&1; then
+              BUTLER_ARCH="arm64"
+            else
+              BUTLER_ARCH="amd64"
+              NEED_ROSETTA="1"
+            fi
+          fi
+
+          if [ "$NEED_ROSETTA" = "1" ]; then
             if ! /usr/sbin/pkgutil --pkg-info com.apple.pkg.RosettaUpdateAuto >/dev/null 2>&1; then
               sudo /usr/sbin/softwareupdate --install-rosetta --agree-to-license
+            fi
+
+            if ! arch -x86_64 /usr/bin/true >/dev/null 2>&1; then
+              echo "Rosetta does not appear to be available after installation." >&2
+              exit 1
             fi
           fi
 
@@ -358,7 +356,7 @@ jobs:
 
           python -c 'import sys, zipfile; zipfile.ZipFile(sys.argv[1]).extractall(sys.argv[2])' "$OUT_DIR/butler.zip" "$OUT_DIR"
 
-          if [ "$BUTLER_PLATFORM" = "darwin" ] && [ "$(uname -m)" = "arm64" ]; then
+          if [ "$BUTLER_PLATFORM" = "darwin" ] && [ "$NEED_ROSETTA" = "1" ]; then
             mv "$OUT_DIR/butler" "$OUT_DIR/butler.bin"
             printf '%s\n' \
               '#!/usr/bin/env bash' \
