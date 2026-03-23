@@ -47,9 +47,9 @@ export function patchLoadedSnapshot(
     )
   );
 
-  const patchedGameStateBase = normalizeProjectCreditsState(
-    normalizePublicDomainState(normalizeFranchisesState(patchedGameStateRaw as any) as any)
-  );
+  const patchedGameStateBase0 = normalizePublicDomainState(normalizeFranchisesState(patchedGameStateRaw as any) as any);
+  const patchedGameStateBase1 = syncProjectCollections(patchedGameStateBase0 as any);
+  const patchedGameStateBase = normalizeProjectCreditsState(patchedGameStateBase1 as any);
 
   const patchedGameState = syncProjectCollections({
     ...patchedGameStateBase,

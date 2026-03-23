@@ -1,4 +1,5 @@
 import type { GameState, Project, ProductionRole, ContractedTalent } from '@/types/game';
+import { isProjectLike } from '@/utils/playerProjects';
 
 function uniqBy<T>(items: T[], key: (v: T) => string): T[] {
   const seen = new Set<string>();
@@ -76,6 +77,7 @@ export function normalizeProjectCreditsState(state: GameState): GameState {
   }) as any;
 
   const allReleases = (state.allReleases || []).map((p) => {
+    if (!isProjectLike(p)) return p;
     const next = normalizeCreditsForProject(p as any, talentTypeById);
     if (next !== p) changed = true;
     return next;

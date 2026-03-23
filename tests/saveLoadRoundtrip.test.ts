@@ -150,4 +150,36 @@ describe('save/load roundtrip', () => {
 
     expect(stableSerialize(after)).toBe(stableSerialize(before));
   });
+
+  it('compacts duplicate allReleases projects on save and restores them on load', () => {
+    const base = makeBaseState();
+    const project = base.projects[0] as any;
+
+    useGameStore.getState().initGame({
+      ...base,
+      allReleases: [project],
+    } as any, 123);
+
+    const before = useGameStore.getState().game!;
+    saveGame('roundtrip-compact-slot', before);
+
+    const key = (globalThis as any).window.localStorage.key(0);
+    expect(key).toBeTruthy();
+
+    const raw = (globalThis as any).window.localStorage.getItem(key);
+    expect(raw).toBeTruthy();
+
+    const saved = JSON.parse(raw!) as any;
+    expect(saved.gameState.allReleases[0].id).toBe('project-1');
+    expect(saved.gameState.allReleases[0].__projectRef).toBe(true);
+    expect('script' in saved.gameState.allReleases[0]).toBe(false);
+
+    const snap = loadGame('roundtrip-compact-slot');
+    expect(snap).not.toBeNull();
+
+    const after = snap!.gameState;
+    expect((after.allReleases[0] as any).script).toBeTruthy();
+
+    expect(stableSerialize(after)).toBe(stableSerialize(before));
+  });
 });

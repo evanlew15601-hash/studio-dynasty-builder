@@ -5,6 +5,7 @@ import { migrateSnapshot, validateSnapshot } from '@/game/persistence/migrations
 import { getCurrentModFingerprint } from '@/utils/modFingerprint';
 import { getActiveModSlot } from '@/utils/moddingStore';
 import { reviveIsoDates } from '@/utils/reviveIsoDates';
+import { compactProjectCollectionsForSave, syncProjectCollections } from '@/utils/projectStateSync';
 
 export interface SaveGameMeta {
   savedAt: string;
@@ -164,7 +165,7 @@ function buildSnapshot(
   const modFingerprint = getCurrentModFingerprint();
 
   return {
-    gameState,
+    gameState: compactProjectCollectionsForSave(gameState),
     meta: {
       savedAt: new Date().toISOString(),
       version: CURRENT_SAVE_VERSION,
@@ -290,6 +291,8 @@ export function loadGame(slotId: string, modSlotId?: string): SaveGameSnapshot |
     // JSON serialization turns Date objects into ISO strings. Revive them for gameplay systems/UI.
     reviveIsoDates(migrated.gameState);
 
+    migrated.gameState = syncProjectCollections(migrated.gameState);
+
     return migrated;
   } catch (error) {
     console.error('Failed to load game snapshot', error);
@@ -323,6 +326,8 @@ export async function loadGameAsync(slotId: string, modSlotId?: string): Promise
 
       // JSON serialization turns Date objects into ISO strings. Revive them for gameplay systems/UI.
       reviveIsoDates(migrated.gameState);
+
+      migrated.gameState = syncProjectCollections(migrated.gameState);
 
       return migrated;
     } catch (error) {
