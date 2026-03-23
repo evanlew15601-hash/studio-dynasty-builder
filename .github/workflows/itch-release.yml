@@ -298,7 +298,9 @@ jobs:
           if-no-files-found: error
 
       - name: Setup butler
-        uses: remarkablegames/setup-butler@v2
+        # remarkablegames/setup-butler@v2 runs `butler whoami`, which was removed in butler v15.
+        # jdno/setup-butler only installs butler and doesn't rely on deprecated commands.
+        uses: jdno/setup-butler@v1
 
       - name: Upload to itch.io
         shell: bash
