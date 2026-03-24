@@ -27,6 +27,88 @@ jobs:
       - name: Install frontend dependencies
         run: npm ci
 
+      - name: Read app version
+        shell: bash
+        run: |
+          set -euo pipefail
+          echo "APP_VERSION=$(node -p \"require('./package.json').version\")" >> "$GITHUB_ENV"
+
+      - name: Generate RC-compatible favicon.ico
+        shell: pwsh
+        run: |
+          $ErrorActionPreference = 'Stop'
+
+          $InputPng = 'src-tauri/icons/icon.png'
+          $OutIco = 'public/favicon.ico'
+
+          if (-not (Test-Path -Path $InputPng -PathType Leaf)) {
+            throw "Input PNG not found: $InputPng"
+          }
+
+          New-Item -ItemType Directory -Force -Path (Split-Path $OutIco) | Out-Null
+
+          Add-Type -AssemblyName System.Drawing
+
+          $img = [System.Drawing.Image]::FromFile($InputPng)
+          try {
+            $size = 256
+            $bmp = New-Object System.Drawing.Bitmap $size, $size
+            $gfx = [System.Drawing.Graphics]::FromImage($bmp)
+
+            try {
+              $gfx.InterpolationMode = [System.Drawing.Drawing2D.InterpolationMode]::HighQualityBicubic
+              $gfx.SmoothingMode = [System.Drawing.Drawing2D.SmoothingMode]::HighQuality
+              $gfx.PixelOffsetMode = [System.Drawing.Drawing2D.PixelOffsetMode]::HighQuality
+              $gfx.CompositingQuality = [System.Drawing.Drawing2D.CompositingQuality]::HighQuality
+              $gfx.DrawImage($img, 0, 0, $size, $size)
+            }
+            finally {
+              $gfx.Dispose()
+            }
+
+            $hIcon = $bmp.GetHicon()
+
+            Add-Type @"
+          using System;
+          using System.Runtime.InteropServices;
+          public static class Win32 {
+            [DllImport("user32.dll", SetLastError=true)]
+            public static extern bool DestroyIcon(IntPtr hIcon);
+          }
+          "@
+
+            try {
+              $icon = [System.Drawing.Icon]::FromHandle($hIcon)
+              try {
+                $fs = New-Object System.IO.FileStream($OutIco, [System.IO.FileMode]::Create)
+                try { $icon.Save($fs) } finally { $fs.Dispose() }
+              }
+              finally {
+                $icon.Dispose()
+              }
+            }
+            finally {
+              [Win32]::DestroyIcon($hIcon) | Out-Null
+              $bmp.Dispose()
+            }
+          }
+          finally {
+            $img.Dispose()
+          }
+
+          Copy-Item $OutIco 'src-tauri/icons/icon.ico' -Force
+
+          # Reject PNG-compressed frames (RC.EXE will error RC2175)
+          $bytes = [System.IO.File]::ReadAllBytes($OutIco)
+          $pngSig = [byte[]](0x89,0x50,0x4E,0x47,0x0D,0x0A,0x1A,0x0A)
+          for ($i = 0; $i -le $bytes.Length - $pngSig.Length; $i++) {
+            $match = $true
+            for ($j = 0; $j -lt $pngSig.Length; $j++) {
+              if ($bytes[$i + $j] -ne $pngSig[$j]) { $match = $false; break }
+            }
+            if ($match) { throw 'public/favicon.ico contains PNG-compressed frame data (not RC-compatible)' }
+          }
+
       - name: Build Tauri bundles (NSIS + MSI)
         run: npm run tauri:build
 
@@ -46,13 +128,14 @@ jobs:
             cp -R src-tauri/target/release/resources portable/
           fi
 
-          rm -f studio-magnate-windows-portable.zip
+          ZIP_NAME="studio-magnate-windows-portable-${APP_VERSION}.zip"
+          rm -f "$ZIP_NAME"
 
           python - <<'PY'
           import os
           import zipfile
 
-          out_path = "studio-magnate-windows-portable.zip"
+          out_path = os.environ["ZIP_NAME"]
           root_dir = "portable"
 
           with zipfile.ZipFile(out_path, "w", compression=zipfile.ZIP_DEFLATED) as zf:
@@ -63,22 +146,22 @@ jobs:
                 zf.write(path, arcname)
           PY
 
-          python -c 'import sys, zipfile; z=zipfile.ZipFile("studio-magnate-windows-portable.zip"); bad=z.testzip(); sys.exit(0 if bad is None else 1)'
+          python -c 'import os, sys, zipfile; z=zipfile.ZipFile(os.environ["ZIP_NAME"]); bad=z.testzip(); sys.exit(0 if bad is None else 1)'
 
       - name: Upload portable zip
         uses: actions/upload-artifact@v4
         with:
-          name: studio-magnate-windows-portable
-          path: studio-magnate-windows-portable.zip
+          name: studio-magnate-windows-portable-${{ env.APP_VERSION }}
+          path: studio-magnate-windows-portable-${{ env.APP_VERSION }}.zip
 
       - name: Upload NSIS installer
         uses: actions/upload-artifact@v4
         with:
-          name: studio-magnate-windows-nsis
+          name: studio-magnate-windows-nsis-${{ env.APP_VERSION }}
           path: src-tauri/target/release/bundle/nsis/*.exe
 
       - name: Upload MSI installer
         uses: actions/upload-artifact@v4
         with:
-          name: studio-magnate-windows-msi
+          name: studio-magnate-windows-msi-${{ env.APP_VERSION }}
           path: src-tauri/target/release/bundle/msi/*.msi

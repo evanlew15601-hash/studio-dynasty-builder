@@ -15,6 +15,9 @@ sbom
 # Rust / Tauri build artifacts
 /target/
 
+# Local packaged release artifacts
+/release-artifacts/
+
 # Test artifacts
 /playwright-report/
 /test-results/

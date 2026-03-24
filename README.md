@@ -30,6 +30,7 @@ If you have a Rust toolchain installed, you can run the desktop shell:
 ```sh
 npm run tauri:dev
 npm run tauri:build
+npm run artifacts:package
 ```
 
 ### Linux system dependencies
