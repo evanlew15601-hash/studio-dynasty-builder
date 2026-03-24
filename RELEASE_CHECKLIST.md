@@ -48,9 +48,11 @@ npm run tauri:build
 
 See: `scripts/itch/README.md`
 
-- [ ] Configure GitHub Secrets/Variables (`BUTLER_API_KEY` secret; either `ITCH_TARGET` or `ITCH_USERNAME`/`ITCH_GAME`) if using CI
+- [ ] Configure GitHub Secrets/Variables (`BUTLER_API_KEY` secret; either `ITCH_TARGET` or `ITCH_USERNAME`/`ITCH_GAME`) if using CI for upload
 - [ ] Upload builds either:
-  - [ ] via GitHub Actions: run `itch-release` (manual) or push a `v*` tag, or
+  - [ ] via GitHub Actions:
+    - [ ] run `itch-release` with `upload_to_itch=true`, or push a `v*` tag, or
+    - [ ] run `itch-release` with `upload_to_itch=false` to build-only and download the `studio-magnate-*` artifacts for manual upload
   - [ ] locally using `butler push` (or `scripts/itch/upload.ps1`)
 
 ## 7) Open source compliance

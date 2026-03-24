@@ -3,6 +3,11 @@ name: itch-release
 on:
   workflow_dispatch:
     inputs:
+      upload_to_itch:
+        description: If true, also push the built artifacts to itch.io via butler. If false, only build and upload GitHub Actions artifacts.
+        required: false
+        type: boolean
+        default: false
       version:
         description: Optional version label passed to butler (--userversion). Defaults to tag (if any) or package.json version.
         required: false
@@ -19,6 +24,8 @@ jobs:
   build-and-upload:
     name: ${{ matrix.platform }} -> itch.io (${{ matrix.channel }})
     runs-on: ${{ matrix.platform }}
+    env:
+      UPLOAD_TO_ITCH: ${{ github.event_name == 'push' || github.event.inputs.upload_to_itch == 'true' }}
 
     strategy:
       fail-fast: false
@@ -32,9 +39,10 @@ jobs:
             channel: mac
 
     steps:
-      - uses: actions/checkout@v5
+      - uses: actions/checkout@v4
 
       - name: Validate itch.io secrets
+        if: env.UPLOAD_TO_ITCH == 'true'
         shell: bash
         env:
           BUTLER_API_KEY: ${{ secrets.BUTLER_API_KEY }}
@@ -55,7 +63,7 @@ jobs:
           fi
 
       - name: Setup Node
-        uses: actions/setup-node@v6
+        uses: actions/setup-node@v4
         with:
           node-version: lts/*
           cache: npm
@@ -224,7 +232,7 @@ jobs:
 
       - name: Upload build logs
         if: always()
-        uses: actions/upload-artifact@v6
+        uses: actions/upload-artifact@v4
         with:
           name: tauri-build-logs-${{ matrix.channel }}
           path: ci-logs/tauri-build-${{ matrix.channel }}.log
@@ -292,13 +300,14 @@ jobs:
           exit 1
 
       - name: Upload build artifact
-        uses: actions/upload-artifact@v6
+        uses: actions/upload-artifact@v4
         with:
           name: studio-magnate-${{ matrix.channel }}
           path: ${{ steps.artifact.outputs.path }}
           if-no-files-found: error
 
       - name: Setup butler
+        if: env.UPLOAD_TO_ITCH == 'true'
         shell: bash
         run: |
           set -euo pipefail
@@ -384,6 +393,7 @@ jobs:
           butler -V
 
       - name: Upload to itch.io
+        if: env.UPLOAD_TO_ITCH == 'true'
         shell: bash
         env:
           BUTLER_API_KEY: ${{ secrets.BUTLER_API_KEY }}
@@ -426,8 +436,8 @@ jobs:
           } 2>&1 | tee "$BUTLER_LOG_FILE"
 
       - name: Upload butler logs
-        if: always()
-        uses: actions/upload-artifact@v6
+        if: always() && env.UPLOAD_TO_ITCH == 'true'
+        uses: actions/upload-artifact@v4
         with:
           name: butler-upload-logs-${{ matrix.channel }}
           path: ci-logs/butler-upload-${{ matrix.channel }}.log
