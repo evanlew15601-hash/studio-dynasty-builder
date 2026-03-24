@@ -114,6 +114,7 @@ function makeBaseState(overrides?: Partial<GameState>): GameState {
     awardsCalendar: [],
     industryTrends: [],
     allReleases: [],
+    aiStudioProjects: [],
     topFilmsHistory: [],
     franchises: [],
     publicDomainIPs: [],
