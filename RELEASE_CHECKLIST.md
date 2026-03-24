@@ -41,17 +41,15 @@ npm run tauri:build
 
 - [ ] Run the `windows-tauri-build` GitHub Actions workflow and download artifacts
 - [ ] Smoke test portable build: launch `studio-magnate.exe` from the extracted zip
-- [ ] Upload to itch.io (Butler): see `scripts/itch/README.md`
 - [ ] Smoke test installer(s): install, launch, uninstall, upgrade from previous beta
 
-## 6) itch.io upload
+## 6) itch.io (manual upload)
 
 See: `scripts/itch/README.md`
 
-- [ ] Configure GitHub Secrets/Variables (`BUTLER_API_KEY` secret; either `ITCH_TARGET` or `ITCH_USERNAME`/`ITCH_GAME`) if using CI
-- [ ] Upload builds either:
-  - [ ] via GitHub Actions: run `itch-release` (manual) or push a `v*` tag, or
-  - [ ] locally using `butler push` (or `scripts/itch/upload.ps1`)
+- [ ] Build and download artifacts (recommended): run `itch-build` or push a `v*` tag
+- [ ] Upload the downloaded artifact zip(s) to itch.io via the web UI
+- [ ] Alternatively, build locally and package: `npm run artifacts:package`
 
 ## 7) Open source compliance
 
