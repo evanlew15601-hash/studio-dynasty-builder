@@ -5,6 +5,7 @@ import { fileURLToPath } from "node:url";
 import { componentTagger } from "lovable-tagger";
 
 const rootDir = fileURLToPath(new URL(".", import.meta.url));
+const tauriDevHost = process.env.TAURI_DEV_HOST;
 
 function normalizeBase(base: string): string {
   const trimmed = base.trim();
@@ -43,8 +44,15 @@ export default defineConfig(({ mode }) => {
   return {
     base,
     server: {
-      host: "127.0.0.1",
+      host: tauriDevHost || "127.0.0.1",
       port: 8080,
+      hmr: tauriDevHost
+        ? {
+          protocol: "ws",
+          host: tauriDevHost,
+          port: 1421,
+        }
+        : undefined,
     },
     plugins: [
       react(),
