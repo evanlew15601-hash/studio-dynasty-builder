@@ -60,6 +60,28 @@ jobs:
           node-version: lts/*
           cache: npm
 
+      - name: Determine release version
+        id: version
+        shell: bash
+        env:
+          INPUT_VERSION: ${{ github.event.inputs.version }}
+        run: |
+          set -euo pipefail
+
+          VERSION="${INPUT_VERSION:-}"
+
+          if [ -z "$VERSION" ] && [[ "${GITHUB_REF:-}" == refs/tags/* ]]; then
+            VERSION="${GITHUB_REF#refs/tags/}"
+            VERSION="${VERSION#v}"
+          fi
+
+          if [ -z "$VERSION" ]; then
+            VERSION="$(node -p "require('./package.json').version")"
+          fi
+
+          echo "version=$VERSION" >> "$GITHUB_OUTPUT"
+          echo "APP_VERSION=$VERSION" >> "$GITHUB_ENV"
+
       - name: Install Rust stable
         uses: dtolnay/rust-toolchain@stable
 
@@ -238,24 +260,25 @@ jobs:
           shopt -s nullglob
 
           if [ "${{ matrix.channel }}" = "windows" ]; then
-            rm -rf portable
-            mkdir -p portable
+            OUT_DIR="studio-magnate-windows-${APP_VERSION}"
+            rm -rf "$OUT_DIR"
+            mkdir -p "$OUT_DIR"
 
             if [ -f src-tauri/target/release/studio-magnate.exe ]; then
-              cp src-tauri/target/release/studio-magnate.exe portable/
+              cp src-tauri/target/release/studio-magnate.exe "$OUT_DIR"/
             else
-              cp src-tauri/target/release/*.exe portable/
+              cp src-tauri/target/release/*.exe "$OUT_DIR"/
             fi
 
-            cp src-tauri/target/release/*.dll portable/ || true
+            cp src-tauri/target/release/*.dll "$OUT_DIR"/ || true
 
             if [ -d src-tauri/target/release/resources ]; then
-              cp -R src-tauri/target/release/resources portable/
+              cp -R src-tauri/target/release/resources "$OUT_DIR"/
             fi
 
             # Push a directory instead of a .zip. This avoids intermittent "zip: not a valid zip file"
             # failures and enables better delta-patching on itch.io.
-            echo "path=portable" >> "$GITHUB_OUTPUT"
+            echo "path=$OUT_DIR" >> "$GITHUB_OUTPUT"
             exit 0
           fi
 
@@ -266,14 +289,20 @@ jobs:
               exit 1
             fi
 
-            echo "path=${appimages[0]}" >> "$GITHUB_OUTPUT"
+            OUT_PATH="studio-magnate-linux-${APP_VERSION}.AppImage"
+            cp -p "${appimages[0]}" "$OUT_PATH"
+
+            echo "path=$OUT_PATH" >> "$GITHUB_OUTPUT"
             exit 0
           fi
 
           if [ "${{ matrix.channel }}" = "mac" ]; then
             dmgs=(src-tauri/target/release/bundle/dmg/*.dmg)
             if [ ${#dmgs[@]} -ge 1 ]; then
-              echo "path=${dmgs[0]}" >> "$GITHUB_OUTPUT"
+              OUT_PATH="studio-magnate-mac-${APP_VERSION}.dmg"
+              cp -p "${dmgs[0]}" "$OUT_PATH"
+
+              echo "path=$OUT_PATH" >> "$GITHUB_OUTPUT"
               exit 0
             fi
 
@@ -283,8 +312,9 @@ jobs:
               exit 1
             fi
 
-            ditto -c -k --sequesterRsrc --keepParent "${apps[0]}" studio-magnate-macos.zip
-            echo "path=studio-magnate-macos.zip" >> "$GITHUB_OUTPUT"
+            OUT_PATH="studio-magnate-macos-${APP_VERSION}.zip"
+            ditto -c -k --sequesterRsrc --keepParent "${apps[0]}" "$OUT_PATH"
+            echo "path=$OUT_PATH" >> "$GITHUB_OUTPUT"
             exit 0
           fi
 
@@ -294,7 +324,7 @@ jobs:
       - name: Upload build artifact
         uses: actions/upload-artifact@v6
         with:
-          name: studio-magnate-${{ matrix.channel }}
+          name: studio-magnate-${{ matrix.channel }}-${{ env.APP_VERSION }}
           path: ${{ steps.artifact.outputs.path }}
           if-no-files-found: error
 
@@ -390,23 +420,13 @@ jobs:
           ITCH_TARGET: ${{ secrets.ITCH_TARGET || vars.ITCH_TARGET }}
           ITCH_USERNAME: ${{ secrets.ITCH_USERNAME || vars.ITCH_USERNAME }}
           ITCH_GAME: ${{ secrets.ITCH_GAME || vars.ITCH_GAME }}
-          INPUT_VERSION: ${{ github.event.inputs.version }}
         run: |
           set -euo pipefail
 
           mkdir -p ci-logs
           BUTLER_LOG_FILE="ci-logs/butler-upload-${{ matrix.channel }}.log"
 
-          VERSION="${INPUT_VERSION:-}"
-
-          if [ -z "$VERSION" ] && [[ "${GITHUB_REF:-}" == refs/tags/* ]]; then
-            VERSION="${GITHUB_REF#refs/tags/}"
-            VERSION="${VERSION#v}"
-          fi
-
-          if [ -z "$VERSION" ]; then
-            VERSION="$(node -p "require('./package.json').version")"
-          fi
+          VERSION="${APP_VERSION}"
 
           TARGET_BASE=""
           if [ -n "${ITCH_TARGET:-}" ]; then
