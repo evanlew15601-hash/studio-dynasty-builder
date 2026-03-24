@@ -271,7 +271,12 @@ export const useGameStore: import('zustand').UseBoundStore<import('zustand').Sto
     initGame: (state, seed) => {
       const gameSeed = seed ?? generateGameSeed();
       set((s) => {
-        const next = { ...state, universeSeed: state.universeSeed ?? gameSeed, rngState: state.rngState ?? gameSeed };
+        const next = {
+          ...state,
+          universeSeed: state.universeSeed ?? gameSeed,
+          rngState: state.rngState ?? gameSeed,
+          aiStudioProjects: state.aiStudioProjects ?? [],
+        };
         s.game = normalizeStudioGovernanceState(normalizePublicDomainState(normalizeFranchisesState(next) as any) as any);
         s.seed = gameSeed;
         s.rng = createRng(gameSeed);
@@ -296,6 +301,7 @@ export const useGameStore: import('zustand').UseBoundStore<import('zustand').Sto
           ...state,
           universeSeed: typeof state.universeSeed === 'number' ? state.universeSeed : derivedUniverseSeed,
           rngState: typeof state.rngState === 'number' ? state.rngState : derivedRngState,
+          aiStudioProjects: state.aiStudioProjects ?? [],
         };
         s.game = normalizeStudioGovernanceState(normalizePublicDomainState(normalizeFranchisesState(next) as any) as any);
         s.seed = gameSeed;
@@ -349,6 +355,7 @@ export const useGameStore: import('zustand').UseBoundStore<import('zustand').Sto
           ...(result.nextState as any),
           universeSeed: (s.game as any)?.universeSeed,
           rngState: rng.state,
+          aiStudioProjects: (result.nextState as any).aiStudioProjects ?? (s.game as any)?.aiStudioProjects ?? [],
         };
         s.game = normalizeStudioGovernanceState(normalizePublicDomainState(normalizeFranchisesState(next) as any) as any);
         // Persist the PRNG state ("seed" here is treated as current RNG state).
