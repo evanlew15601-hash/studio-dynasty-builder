@@ -114,7 +114,7 @@ export const PlatformOriginalsPipelineSystem: TickSystem = {
 
         const out: Project = {
           ...p,
-          currentPhase: phase,
+          currentPhase: phase as Project['currentPhase'],
           status: phase,
           phaseDuration: nextRemaining,
           ...(seasonsOut ? { seasons: seasonsOut } : {}),
@@ -142,7 +142,7 @@ export const PlatformOriginalsPipelineSystem: TickSystem = {
 
         const out: Project = {
           ...p,
-          currentPhase: phaseAfter,
+          currentPhase: phaseAfter as Project['currentPhase'],
           status: phaseAfter,
           phaseDuration: defaultPhaseWeeks(phaseAfter),
           ...(seasonsOut ? { seasons: seasonsOut } : {}),
@@ -185,7 +185,7 @@ export const PlatformOriginalsPipelineSystem: TickSystem = {
       const out: Project = {
         ...p,
         status: 'released',
-        currentPhase: 'distribution',
+        currentPhase: 'distribution' as Project['currentPhase'],
         phaseDuration: 0,
         releaseWeek: ctx.week,
         releaseYear: ctx.year,
