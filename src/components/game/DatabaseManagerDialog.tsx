@@ -57,7 +57,7 @@ export function DatabaseManagerDialog(props: {
   const [confirmState, setConfirmState] = useState<ConfirmState | null>(null);
   const confirmActionRef = useRef<(() => Promise<void>) | null>(null);
 
-  const allDbs = useMemo(() => listModSlots(), [props.open, activeDb]);
+  const allDbs = useMemo(() => listModSlots(), [activeDb]);
 
   const openConfirm = (state: ConfirmState, onConfirm: () => Promise<void>) => {
     confirmActionRef.current = onConfirm;

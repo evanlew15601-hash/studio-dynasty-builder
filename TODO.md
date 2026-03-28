@@ -1,9 +1,12 @@
-# TypeScript Error Fix: shortlistedTalentIds on GameStoreState
+# Fix ESLint Issues Plan Progress
 
-## Steps
-- [x] Step 1: Edit src/game/store.ts to fix toggleShortlist selector (access store.game.shortlistedTalentIds instead of store.shortlistedTalentIds)
-- [ ] Step 2: Verify TypeScript compilation (no errors)
-- [ ] Step 3: Test shortlist functionality
-- [ ] Step 4: attempt_completion
+## Plan Steps (Approved)
+1. [ ] Fix no-useless-escape errors in src/content/onlineLeagueSql.ts
+2. [ ] Fix react-hooks/exhaustive-deps warnings across game components (add deps, useCallback)
+3. [ ] Fix react-refresh/only-export-components warnings (extract utils to .ts files)
+4. [ ] Verify with `npm run lint`
+5. [ ] attempt_completion
 
-**Current: Step 1 complete. Proceeding to Step 2**
+## Progress
+- Plan created and approved
+

@@ -45,6 +45,5 @@ export const applyEnhancedFinancialAccuracy = (projects: Project[]) => {
 };
 
 // Deprecated: financial recalculation is now handled as part of the Advance Week tick.
-export const EnhancedFinancialAccuracy: React.FC<EnhancedFinancialAccuracyProps> = () => {
-  return null;
-};
+// Component is deprecated/no-op, exports are utils
+export const EnhancedFinancialAccuracy: React.FC<EnhancedFinancialAccuracyProps> = () => null;
