@@ -1,9 +1,2 @@
-# TypeScript Error Fix: shortlistedTalentIds on GameStoreState
+# ESLint Fixes Progress Tracker\n\n## Plan Status\n- [x] Step 1: Fix errors in `src/content/onlineLeagueSql.ts`\n- [x] Step 2: Fix exhaustive-deps in sample game files (AwardsSystem.tsx, BackgroundSimulation.tsx)\n- [ ] Step 3: Fix react-refresh warnings (move utils from UI/game components)\n- [ ] Step 4: Batch fix remaining exhaustive-deps across all game components\n- [ ] Step 5: Run `npm run lint` to verify 0 problems\n- [ ] Step 6: Complete task\n\n## Current Progress\n**Completed: 2/6 steps**\n\n**Next Action:** Fix react-refresh warnings (e.g., badgeVariants in badge.tsx).\n\nRun `npm run lint` after each major step to track remaining issues.
 
-## Steps
-- [x] Step 1: Edit src/game/store.ts to fix toggleShortlist selector (access store.game.shortlistedTalentIds instead of store.shortlistedTalentIds)
-- [ ] Step 2: Verify TypeScript compilation (no errors)
-- [ ] Step 3: Test shortlist functionality
-- [ ] Step 4: attempt_completion
-
-**Current: Step 1 complete. Proceeding to Step 2**

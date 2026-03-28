@@ -200,11 +200,7 @@ begin
 end;
 $$;
 
--- Permit calling RPCs from authenticated clients.
-grant execute on function public.create_online_league(text, text, text) to authenticated;
-grant execute on function public.join_online_league(text, text) to authenticated;
-
--- === 20260314001000_online_league_week_gating.sql ===
+-- Permit calling RPCs from authenticated clients.\ngrant execute on function public.create_online_league(text, text, text) to authenticated;\ngrant execute on function public.join_online_league(text, text) to authenticated;\n\n-- === 20260314001000_online_league_week_gating.sql ===\n-- Online League: lockstep week advancement\n--\n-- Goal: In online mode, the in-game week should only advance when either:\n-- - every league member has marked themselves \"ready\" for the next turn, or\n-- - the league owner (host) forces the advance.\n--\n-- Note: The readiness check counts all registered members (not only recently-active sessions).\n\ncreate table if not exists public.online_league_clock (\n  league_id uuid primary key references public.online_leagues (id) on delete cascade,\n  turn integer not null default 0,\n  last_advanced_by uuid,\n  updated_at timestamptz not null default now()\n);
 -- Online League: lockstep week advancement
 --
 -- Goal: In online mode, the in-game week should only advance when either:
@@ -231,7 +227,7 @@ create table if not exists public.online_league_ready (
 alter table public.online_league_clock enable row level security;
 alter table public.online_league_ready enable row level security;
 
-create policy \"online_league_clock_select_for_members\"
+create policy "online_league_clock_select_for_members"
   on public.online_league_clock
   for select
   to authenticated
@@ -244,7 +240,7 @@ create policy \"online_league_clock_select_for_members\"
     )
   );
 
-create policy \"online_league_ready_select_for_members\"
+create policy "online_league_ready_select_for_members"
   on public.online_league_ready
   for select
   to authenticated

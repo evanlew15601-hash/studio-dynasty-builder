@@ -60,7 +60,7 @@ export const AwardsSystem: React.FC<AwardsSystemProps> = ({
 
   
 
-  const playerProjects = useMemo(() => gameState?.projects ?? [], [gameState?.projects]);
+  const playerProjects = useMemo(() => gameState?.projects ?? [], []);
   const allReleases = useMemo(() => gameState?.allReleases ?? [], [gameState?.allReleases]);
 
   const playerProjectIds = useMemo(() => getPlayerProjectIds(gameState), [playerProjects, gameState]);

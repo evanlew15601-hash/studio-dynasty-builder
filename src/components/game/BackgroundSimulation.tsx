@@ -1,4 +1,4 @@
-import React, { useEffect, useRef, useState } from 'react';
+import React, { useCallback, useEffect, useRef, useState } from 'react';
 import type { Studio } from '@/types/game';
 import { useGameStore } from '@/game/store';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
@@ -59,52 +59,7 @@ export const BackgroundSimulation: React.FC<BackgroundSimulationProps> = () => {
 
   const initForUniverseSeedRef = useRef<number | null>(null);
 
-  // Initialize background systems (once per loaded save/game).
-  useEffect(() => {
-    const universeSeed = gameState?.universeSeed;
-    if (typeof universeSeed !== 'number') return;
-
-    if (initForUniverseSeedRef.current === universeSeed) return;
-    initForUniverseSeedRef.current = universeSeed;
-
-    // Initialize market undercurrents
-    const undercurrents: MarketUndercurrent[] = [
-      {
-        sector: 'streaming',
-        trend: 'Premium content consolidation',
-        strength: 60 + Math.random() * 30,
-        growth: Math.random() * 4 - 2,
-        maturity: Math.floor(Math.random() * 20)
-      },
-      {
-        sector: 'international',
-        trend: 'Cross-cultural storytelling demand',
-        strength: 40 + Math.random() * 40,
-        growth: Math.random() * 3,
-        maturity: Math.floor(Math.random() * 15)
-      },
-      {
-        sector: 'technology',
-        trend: 'AI-assisted production tools',
-        strength: 30 + Math.random() * 50,
-        growth: Math.random() * 5 - 1,
-        maturity: Math.floor(Math.random() * 10)
-      }
-    ];
-    setMarketUndercurrents(undercurrents);
-
-    // Initialize talent evolution tracking
-    const topTalent = gameState.talent
-      .filter(t => t.reputation > 50)
-      .slice(0, 15)
-      .map(t => ({
-        talentId: t.id,
-        trajectory: (['rising', 'stable', 'declining'] as const)[Math.floor(Math.random() * 3)],
-        momentum: Math.random() * 40 - 20,
-        careerEvents: []
-      }));
-    setTalentEvolution(topTalent);
-  }, [gameState?.universeSeed]);
+  // Initialize background systems (once per loaded save/game).\n  useEffect(() => {\n    const universeSeed = gameState?.universeSeed;\n    if (typeof universeSeed !== 'number') return;\n\n    if (initForUniverseSeedRef.current === universeSeed) return;\n    initForUniverseSeedRef.current = universeSeed;\n\n    // Initialize market undercurrents\n    const undercurrents: MarketUndercurrent[] = [\n      {\n        sector: 'streaming',\n        trend: 'Premium content consolidation',\n        strength: 60 + Math.random() * 30,\n        growth: Math.random() * 4 - 2,\n        maturity: Math.floor(Math.random() * 20)\n      },\n      {\n        sector: 'international',\n        trend: 'Cross-cultural storytelling demand',\n        strength: 40 + Math.random() * 40,\n        growth: Math.random() * 3,\n        maturity: Math.floor(Math.random() * 15)\n      },\n      {\n        sector: 'technology',\n        trend: 'AI-assisted production tools',\n        strength: 30 + Math.random() * 50,\n        growth: Math.random() * 5 - 1,\n        maturity: Math.floor(Math.random() * 10)\n      }\n    ];\n    setMarketUndercurrents(undercurrents);\n\n    // Initialize talent evolution tracking\n    const topTalent = gameState?.talent\n      .filter(t => t.reputation > 50)\n      .slice(0, 15)\n      .map(t => ({\n        talentId: t.id,\n        trajectory: (['rising', 'stable', 'declining'] as const)[Math.floor(Math.random() * 3)],\n        momentum: Math.random() * 40 - 20,\n        careerEvents: []\n      }));\n    setTalentEvolution(topTalent || []);\n  }, [gameState?.universeSeed, gameState?.talent]);
 
   // Generate new background activities each week
   const generateBackgroundActivity = (): BackgroundActivity | null => {
@@ -404,11 +359,7 @@ export const BackgroundSimulation: React.FC<BackgroundSimulationProps> = () => {
     setSimulationIntensity(newIntensity);
   };
 
-  // Process updates when week advances
-  useEffect(() => {
-    if (!gameState) return;
-    processWeeklyBackground();
-  }, [gameState?.currentWeek, gameState?.currentYear]);
+  const processWeeklyBackgroundRef = useCallback(processWeeklyBackground, [gameState]);\n\n  // Process updates when week advances\n  useEffect(() => {\n    if (!gameState) return;\n    processWeeklyBackgroundRef();\n  }, [gameState?.currentWeek, gameState?.currentYear, processWeeklyBackgroundRef]);
 
   if (!gameState) {
     return <div className="p-6 text-sm text-muted-foreground">Loading world simulation...</div>;
