@@ -17,8 +17,10 @@ function driftMarketValue(t: TalentPerson, nextAge: number): TalentPerson['marke
   const ageFactor = Math.max(0.6, Math.min(1.15, ageFactorRaw));
 
   const base = current ?? 0;
+  const MAX_MARKET_VALUE = 500_000_000;
   const next = base * lerp(1, ageFactor, 0.15);
-  return Math.max(0, Math.round(next));
+  return Math.min(MAX_MARKET_VALUE, Math.max(0, Math.round(next)));
+
 }
 
 /**
