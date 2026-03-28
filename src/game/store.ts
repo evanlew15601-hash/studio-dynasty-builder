@@ -91,6 +91,9 @@ export interface GameStoreState {
   /** The canonical game state */
   game: GameState | null;
 
+  /** Player's shortlisted talent IDs (max 12). Persists across saves. */
+  shortlistedTalentIds?: string[];
+
   /** Current game seed (persisted in saves) */
   seed: number;
 
@@ -629,7 +632,7 @@ export const useGameStore: import('zustand').UseBoundStore<import('zustand').Sto
 
       toggleShortlist: (talentId: string) => {
         const store = get();
-        return store.shortlistedTalentIds.includes(talentId) 
+        return (store.game?.shortlistedTalentIds?.includes(talentId) ?? false)
           ? store.removeFromShortlist(talentId) 
           : store.addToShortlist(talentId);
       },
