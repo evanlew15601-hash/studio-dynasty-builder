@@ -1,35 +1,37 @@
-# Fix Talent Management Page & Add Shortlist System
+# Online League SQL Setup — FIXED
 
-## Status: [IN PROGRESS] 1/12
+## Status: [IN PROGRESS] 1/10
 
 ## Overview
-TalentMarketplace lags (renders ALL talent), Cast button useless → Shortlist (limit 12) → CastingBoard shows shortlist tab/quick-assign.
+User request: Show full SQL for online league schema in the online league help page (src/pages/Help.tsx + src/pages/Online.tsx area) for easy copy-paste. Currently exists in src/content/online_league_setup.sql (bundled migrations) and src/content/help.md (mentions \"Copy Online League SQL\" but likely no UI button/modal implements it).
 
-**Plan confirmed**: Limit 12, pagination, store updates.
+**Confirmed files:**
+- `src/pages/Help.tsx`: Renders src/content/help.md via MarkdownLite; has \"Online League (beta)\" section referencing non-existent \"Configure… → Copy Online League SQL\".
+- `src/pages/Online.tsx`: Online landing/game page; imports GameLanding (likely has league config UI).
+- `src/content/help.md`: Has setup steps mentioning SQL copy (outdated/missing implementation).
+- `src/content/online_league_setup.sql`: PERFECT – full bundled SQL from all 8 migrations, safe idempotent (IF NOT EXISTS), ready-to-paste.
+
+**Plan:** Add UI to Online.tsx/Help.tsx: collapsible \"Copy SQL\" section with syntax-highlighted SQL from online_league_setup.sql, one-click copy-to-clipboard, instructions. Link between pages.
 
 ## Steps
 - [x] 1. Plan + TODO.md created
-- [ ] 2. Read src/game/store.ts (main game store for types/state)
-- [ ] 3. Read src/types/game.ts (extend GameState with shortlistedTalentIds: string[])
-- [ ] 4. Update types/game.ts + store.ts (add shortlist state/actions: add/remove/toggle)
-- [ ] 5. Update TalentMarketplace.tsx (add pagination 25/page, replace Cast→Shortlist toggle, shortlist badge)
-- [ ] 6. Update CastingBoard.tsx (add \"Shortlist\" tab first, quick-assign using fit scores, \"Assign if agree\" workflow)
-- [ ] 7. Add shared ShortlistSummary component/panel showing count/badges
-- [ ] 8. vitest run tests/*talent* tests/castingEligibility.test.ts (add shortlist tests if missing)
-- [ ] 9. Manual test: Marketplace paginates fast, shortlist toggle/limit 12, badge shows
-- [ ] 10. Casting: Shortlist tab, fit-sorted, quick-assign to role if available
-- [ ] 11. Performance: Marketplace <1s load even 1000+ talents
-- [ ] 12. attempt_completion
+- [ ] 2. Create src/content/onlineLeagueSql.ts (export sqlContent as string from online_league_setup.sql)
+- [ ] 3. Update src/pages/Online.tsx: Add \"Setup SQL\" collapsible/card with SyntaxHighlighter + CopyButton before GameLanding.
+- [ ] 4. Update src/pages/Help.tsx: Add direct link to Online.tsx#sql-setup; enhance MD if needed.
+- [ ] 5. Create reusable CopySQLButton.tsx (Clipboard API + toast).
+- [ ] 6. Add react-syntax-highlighter if missing (`bun add react-syntax-highlighter`).
+- [ ] 7. Test copy functionality.
+- [ ] 8. Manual test: dev server → Online → copy SQL → verify.
+- [ ] 9. Update src/content/help.md with link.
+- [ ] 10. attempt_completion.
 
 ## Key Files
-- `src/components/game/TalentMarketplace.tsx` (lag + button fix)
-- `src/components/game/CastingBoard.tsx` (shortlist integration)
-- `src/game/store.ts` (shortlist state/actions)
-- `src/types/game.ts` (GameState extension)
+- `src/pages/Online.tsx` (primary: add SQL display)
+- `src/pages/Help.tsx` (link)
+- `src/content/online_league_setup.sql` (source ✅)
+- `src/content/help.md` (docs)
 
 ## Risks/Notes
-- Shortlist: gameState.shortlistedTalentIds: string[] (max 12)
-- Quick-assign: Use getTalentRoleFitScore from castingEligibility, skip negotiation if fit>80 & available
-- No new deps unless virt needed (add react-window if lag persists)
-- Persist shortlist across saves/loads via game store
+- Use shadcn Accordion/Card for UX.
+- Fallback: <pre><code> if no highlighter.
 
