@@ -1014,6 +1014,9 @@ export interface AwardsSeasonState {
 }
 
 export interface GameState {
+  /** Player's shortlisted talent IDs (max 12). Persists across saves. */
+  shortlistedTalentIds?: string[];
+
   /** Stable seed for worldbuilding (used to derive deterministic per-save procedural content). */
   universeSeed?: number;
   /** Current PRNG state for deterministic simulation (if using the engine tick pipeline). */

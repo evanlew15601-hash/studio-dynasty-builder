@@ -161,6 +161,18 @@ export interface GameStoreState {
   /** Update talent */
   updateTalent: (talentId: string, updates: Partial<TalentPerson>) => void;
 
+  /** Add talent ID to player shortlist (returns true if added) */
+  addToShortlist: (talentId: string) => boolean;
+
+  /** Remove talent ID from player shortlist */
+  removeFromShortlist: (talentId: string) => boolean;
+
+  /** Toggle talent ID in player shortlist */
+  toggleShortlist: (talentId: string) => boolean;
+
+  /** Clear entire shortlist */
+  clearShortlist: () => void;
+
   /** Apply a delta to select talent stats (clamped) */
   bumpTalent: (talentId: string, delta: { reputation?: number; publicImage?: number }) => void;
 
@@ -594,7 +606,41 @@ export const useGameStore: import('zustand').UseBoundStore<import('zustand').Sto
       });
     },
 
-    upsertFranchise: (franchise) => {
+      /** Shortlist actions */
+      addToShortlist: (talentId: string) => {
+        set((s) => {
+          if (!s.game || !s.game.talent.some(t => t.id === talentId)) return false;
+          const ids = s.game.shortlistedTalentIds ?? [];
+          if (ids.includes(talentId) || ids.length >= 12) return false;
+          s.game.shortlistedTalentIds = [...ids, talentId];
+        });
+        return true;
+      },
+
+      removeFromShortlist: (talentId: string) => {
+        set((s) => {
+          if (!s.game) return false;
+          const ids = s.game.shortlistedTalentIds ?? [];
+          if (!ids.includes(talentId)) return false;
+          s.game.shortlistedTalentIds = ids.filter(id => id !== talentId);
+        });
+        return true;
+      },
+
+      toggleShortlist: (talentId: string) => {
+        const store = get();
+        return store.shortlistedTalentIds.includes(talentId) 
+          ? store.removeFromShortlist(talentId) 
+          : store.addToShortlist(talentId);
+      },
+
+      clearShortlist: () => {
+        set((s) => {
+          if (!s.game) return;
+          s.game.shortlistedTalentIds = [];
+        });
+      },
+
       set((s) => {
         if (!s.game) return;
         const idx = s.game.franchises.findIndex((f) => f.id === franchise.id);

@@ -1,33 +1,35 @@
-# Fix Casting Softlock: Show Closest Talent Options
+# Fix Talent Management Page & Add Shortlist System
 
-## Status: [IN PROGRESS] 0/9
+## Status: [IN PROGRESS] 1/12
 
 ## Overview
-Roles with strict criteria (age/race/nationality) show no options → softlock.
-**Fix**: Fuzzy matching with fit scores, UI shows sorted candidates + partial fit badges.
+TalentMarketplace lags (renders ALL talent), Cast button useless → Shortlist (limit 12) → CastingBoard shows shortlist tab/quick-assign.
+
+**Plan confirmed**: Limit 12, pagination, store updates.
 
 ## Steps
-- [ ] 1. Implement `getTalentRoleFitScore` & `talentSortsRole` in `src/utils/castingEligibility.ts`
-- [ ] 2. Run `vitest run tests/castingEligibility.test.ts` → update tests if needed
-- [x] 3. Plan confirmed
-- [ ] 4. Read `src/components/game/CastingBoard.tsx` full content
-- [ ] 5. Update CastingBoard: filter/sort by fit score, badges for mismatches, perfect/low warnings
-- [ ] 6. Run relevant UI/game tests `vitest run tests/casting*`
-- [ ] 7. Update `src/components/game/PersistentCharacterCasting.tsx` to use sorting
-- [ ] 8. Manual verify: casting UI shows closest options, negotiation works, no softlock
-- [ ] 9. attempt_completion
+- [x] 1. Plan + TODO.md created
+- [ ] 2. Read src/game/store.ts (main game store for types/state)
+- [ ] 3. Read src/types/game.ts (extend GameState with shortlistedTalentIds: string[])
+- [ ] 4. Update types/game.ts + store.ts (add shortlist state/actions: add/remove/toggle)
+- [ ] 5. Update TalentMarketplace.tsx (add pagination 25/page, replace Cast→Shortlist toggle, shortlist badge)
+- [ ] 6. Update CastingBoard.tsx (add \"Shortlist\" tab first, quick-assign using fit scores, \"Assign if agree\" workflow)
+- [ ] 7. Add shared ShortlistSummary component/panel showing count/badges
+- [ ] 8. vitest run tests/*talent* tests/castingEligibility.test.ts (add shortlist tests if missing)
+- [ ] 9. Manual test: Marketplace paginates fast, shortlist toggle/limit 12, badge shows
+- [ ] 10. Casting: Shortlist tab, fit-sorted, quick-assign to role if available
+- [ ] 11. Performance: Marketplace <1s load even 1000+ talents
+- [ ] 12. attempt_completion
 
 ## Key Files
-```
-src/utils/castingEligibility.ts     # Fit score logic
-src/components/game/CastingBoard.tsx # Player casting UI
-src/components/game/PersistentCharacterCasting.tsx # History UI
-tests/castingEligibility.test.ts    # Tests
-```
+- `src/components/game/TalentMarketplace.tsx` (lag + button fix)
+- `src/components/game/CastingBoard.tsx` (shortlist integration)
+- `src/game/store.ts` (shortlist state/actions)
+- `src/types/game.ts` (GameState extension)
 
 ## Risks/Notes
-- Preserve strict mode for tests/debug
-- Threshold: warn <70/100, block <50/100?
-- Age flex: ±4yrs=100%, ±8yrs=75%, etc.
-- Races: exact=100%, similar group=60%
+- Shortlist: gameState.shortlistedTalentIds: string[] (max 12)
+- Quick-assign: Use getTalentRoleFitScore from castingEligibility, skip negotiation if fit>80 & available
+- No new deps unless virt needed (add react-window if lag persists)
+- Persist shortlist across saves/loads via game store
 
