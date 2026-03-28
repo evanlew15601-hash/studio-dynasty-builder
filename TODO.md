@@ -1,17 +1,33 @@
-# Streaming Wars Fixes TODO
+# Fix Casting Softlock: Show Closest Talent Options
 
-## Plan Steps:
+## Status: [IN PROGRESS] 0/9
 
-1. ~~Create this TODO.md~~
-2. ~~Remove touring history revenue from FinancialEngine and related calls~~
-3. ~~Add cap and balancing to actor market value in talentCareerArcSystem and mediaReputationIntegration.ts~~
-4. Enable commissioning original films for Streaming Wars platforms (check platformOpportunitiesSystem/platform UI).
-5. Enable adding loglines to Streaming Wars originals projects.
-6. Add cast support to Streaming Wars originals (like regular projects).
-7. Verify Binge and '3' (batch?) release flows update performance evaluations.
-8. Remove competitor system health test UI if present in release.
-9. Test all changes with relevant tests.
-10. attempt_completion
+## Overview
+Roles with strict criteria (age/race/nationality) show no options → softlock.
+**Fix**: Fuzzy matching with fit scores, UI shows sorted candidates + partial fit badges.
 
-**Progress: Step 1 complete**
+## Steps
+- [ ] 1. Implement `getTalentRoleFitScore` & `talentSortsRole` in `src/utils/castingEligibility.ts`
+- [ ] 2. Run `vitest run tests/castingEligibility.test.ts` → update tests if needed
+- [x] 3. Plan confirmed
+- [ ] 4. Read `src/components/game/CastingBoard.tsx` full content
+- [ ] 5. Update CastingBoard: filter/sort by fit score, badges for mismatches, perfect/low warnings
+- [ ] 6. Run relevant UI/game tests `vitest run tests/casting*`
+- [ ] 7. Update `src/components/game/PersistentCharacterCasting.tsx` to use sorting
+- [ ] 8. Manual verify: casting UI shows closest options, negotiation works, no softlock
+- [ ] 9. attempt_completion
+
+## Key Files
+```
+src/utils/castingEligibility.ts     # Fit score logic
+src/components/game/CastingBoard.tsx # Player casting UI
+src/components/game/PersistentCharacterCasting.tsx # History UI
+tests/castingEligibility.test.ts    # Tests
+```
+
+## Risks/Notes
+- Preserve strict mode for tests/debug
+- Threshold: warn <70/100, block <50/100?
+- Age flex: ±4yrs=100%, ±8yrs=75%, etc.
+- Races: exact=100%, similar group=60%
 
