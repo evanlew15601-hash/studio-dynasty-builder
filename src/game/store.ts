@@ -641,7 +641,8 @@ export const useGameStore: import('zustand').UseBoundStore<import('zustand').Sto
         });
       },
 
-      set((s) => {
+      upsertFranchise: (franchise: Franchise) => {
+        set((s) => {
         if (!s.game) return;
         const idx = s.game.franchises.findIndex((f) => f.id === franchise.id);
         if (idx >= 0) {
