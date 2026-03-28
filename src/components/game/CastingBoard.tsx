@@ -1,4 +1,5 @@
-import React, { useState } from 'react';
+
+import { useState, useMemo } from 'react';
 import { Project, TalentPerson, ProductionRole, ScriptCharacter } from '@/types/game';
 import { useGameStore } from '@/game/store';
 import { useUiStore } from '@/game/uiStore';
@@ -27,7 +28,9 @@ interface CastingBoardProps {
 export const CastingBoard: React.FC<CastingBoardProps> = ({
   selectedProject: propSelectedProject,
 }) => {
-  const gameState = useGameStore((s) => s.game);
+const gameState = useGameStore((s) => s.game);
+  const shortlistedTalentIds = useGameStore((s) => s.game?.shortlistedTalentIds ?? []);
+  const toggleShortlist = useGameStore((s) => s.toggleShortlist);
   const replaceProject = useGameStore((s) => s.replaceProject);
   const updateTalent = useGameStore((s) => s.updateTalent);
   const openTalentProfile = useUiStore((s) => s.openTalentProfile);
@@ -42,6 +45,9 @@ export const CastingBoard: React.FC<CastingBoardProps> = ({
     hasAwards: null,
     searchQuery: ''
   });
+
+  const TALENT_PER_PAGE = 20;
+  const [currentPage, setCurrentPage] = useState(0);
 
   const [negotiationTarget, setNegotiationTarget] = useState<{ talent: TalentPerson; role: string } | null>(null);
 
@@ -68,6 +74,11 @@ export const CastingBoard: React.FC<CastingBoardProps> = ({
     
     return true;
   });
+
+  const paginatedTalent = useMemo(() => {
+    const start = currentPage * TALENT_PER_PAGE;
+    return availableTalent.slice(start, start + TALENT_PER_PAGE);
+  }, [availableTalent, currentPage]);
 
   const handleHireTalent = (talent: TalentPerson, role: string) => {
     if (!selectedProject) {
@@ -344,19 +355,93 @@ export const CastingBoard: React.FC<CastingBoardProps> = ({
         </CardContent>
       </Card>
 
-      {/* Available Talent */}
-      <div className="grid grid-cols-1 lg:grid-cols-2 xl:grid-cols-3 gap-6">
-        {availableTalent.map((talent) => (
-          <Card key={talent.id} className="card-premium hover:shadow-golden transition-all duration-300">
-            <CardHeader className="pb-3">
-              <div className="flex items-start justify-between">
-                <div className="flex items-center space-x-3">
-                  <Avatar className="h-12 w-12">
-                    <AvatarFallback className="bg-gradient-golden text-primary-foreground">
-                      {talent.name.split(' ').map(n => n[0]).join('')}
-                    </AvatarFallback>
+      {/* Shortlist Panel */}
+      {shortlistedTalentIds.length > 0 && (
+        <Card className="card-premium">
+          <CardHeader>
+            <div className="flex items-center gap-2">
+              <h3 className="font-bold text-lg">Shortlist ({shortlistedTalentIds.length})</h3>
+              <Button
+                size="sm"
+                variant="outline"
+                onClick={() => useGameStore.getState().clearShortlist()}
+              >
+                Clear All
+              </Button>
+            </div>
+          </CardHeader>
+          <CardContent className="grid grid-cols-3 md:grid-cols-4 lg:grid-cols-5 gap-2 p-4">
+            {shortlistedTalentIds.slice(0, 20).map((id) => {
+              const talent = gameState.talent.find(t => t.id === id);
+              if (!talent) return null;
+              return (
+                <Button
+                  key={id}
+                  variant="outline"
+                  size="sm"
+                  className="h-16 p-1 flex flex-col gap-1"
+                  onClick={() => openTalentProfile(id)}
+                >
+                  <Avatar className="h-10 w-10 mx-auto">
+                    <AvatarFallback className="text-xs">{talent.name[0]}</AvatarFallback>
                   </Avatar>
-                  <div>
+                  <span className="text-xs text-left truncate">{talent.name}</span>
+                </Button>
+              );
+            })}
+          </CardContent>
+        </Card>
+      )}
+
+      {/* Available Talent */}
+      {/* Pager */}
+      {availableTalent.length > TALENT_PER_PAGE && (
+        <div className="flex items-center gap-2 justify-center pt-6">
+          <Button
+            variant="outline"
+            size="sm"
+            onClick={() => setCurrentPage(p => Math.max(0, p - 1))}
+            disabled={currentPage === 0}
+          >
+            Previous
+          </Button>
+          <div className="flex items-center gap-1 text-sm text-muted-foreground">
+            <span>{currentPage + 1}</span>
+            <span>of</span>
+            <span>{Math.ceil(availableTalent.length / TALENT_PER_PAGE)}</span>
+          </div>
+          <Button
+            variant="outline"
+            size="sm"
+            onClick={() => setCurrentPage(p => Math.min(Math.ceil(availableTalent.length / TALENT_PER_PAGE) - 1, p + 1))}
+            disabled={currentPage === Math.ceil(availableTalent.length / TALENT_PER_PAGE) - 1}
+          >
+            Next
+          </Button>
+        </div>
+      )}
+
+      {paginatedTalent.length === 0 ? (
+        <div className="col-span-full text-center py-12 text-muted-foreground">
+          <TalentIcon className="mx-auto mb-4" size={64} />
+          <p className="text-lg font-medium mb-2">No Matching Talent</p>
+          <p className="text-sm">
+            Adjust your filters or check back later. All available talent shown above if no project selected.
+          </p>
+        </div>
+      ) : (
+        <div className="grid grid-cols-1 lg:grid-cols-2 xl:grid-cols-3 gap-6">
+          {paginatedTalent.map((talent) => (
+            <Card key={talent.id} className="card-premium hover:shadow-golden transition-all duration-300">
+              <CardHeader className="pb-3">
+                <div className="flex items-start justify-between">
+                  <div className="flex items-center space-x-3">
+                    <Avatar className="h-12 w-12">
+                      <AvatarFallback className="bg-gradient-golden text-primary-foreground">
+                        {talent.name.split(' ').map(n => n[0]).join('')}
+                      </AvatarFallback>
+                    </Avatar>
+                  <div className="flex-1">
                     <div className="flex items-center gap-2">
                       <button
                         type="button"
@@ -378,6 +463,20 @@ export const CastingBoard: React.FC<CastingBoardProps> = ({
                     <Badge variant="outline" className="capitalize">
                       {talent.type}
                     </Badge>
+                    {shortlistedTalentIds.includes(talent.id) ? (
+                      <Badge variant="default" className="mt-1 bg-primary">
+                        Shortlisted
+                      </Badge>
+                    ) : (
+                      <Button
+                        variant="ghost"
+                        size="sm"
+                        className="mt-1 h-6 px-2"
+                        onClick={() => toggleShortlist(talent.id)}
+                      >
+                        Shortlist
+                      </Button>
+                    )}
                   </div>
                 </div>
                 <div className="text-right">
@@ -463,7 +562,8 @@ export const CastingBoard: React.FC<CastingBoardProps> = ({
             </CardContent>
           </Card>
         ))}
-      </div>
+        </div>
+      )}
 
       {availableTalent.length === 0 && (
         <Card className="card-premium">

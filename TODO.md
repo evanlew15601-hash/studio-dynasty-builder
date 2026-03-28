@@ -1,12 +1,31 @@
-# Fix ESLint Issues Plan Progress
+# Studio Dynasty Builder Fixes - Progress Tracker
 
-## Plan Steps (Approved)
-1. [ ] Fix no-useless-escape errors in src/content/onlineLeagueSql.ts
-2. [ ] Fix react-hooks/exhaustive-deps warnings across game components (add deps, useCallback)
-3. [ ] Fix react-refresh/only-export-components warnings (extract utils to .ts files)
-4. [ ] Verify with `npm run lint`
-5. [ ] attempt_completion
+## Approved Plan Steps (sequential)
 
-## Progress
-- Plan created and approved
+### 1. Create TODO.md [DONE]
 
+### 2. Issue 1: Add Online League SQL visibility/modal trigger [DONE ✅]
+- OnlineLeagueSQLDialog component ✅
+- Trigger in StudioMagnateGame (online mode) ✅
+- Copy/download SQL ✅
+
+### 3. Issue 2+3: Talent page performance + Shortlist System [DONE ✅]
+- Pagination in CastingBoard.tsx (20/page, pager) ✅
+- Shortlist panel, toggle button/badge per talent ✅
+- Store integration ✅
+
+### 4. Issue 4: Streaming Wars verification
+- Systems in place (commissioning/originals/roles/loglines/releases)
+- Verify UI (StreamingHub.tsx etc.)
+- [ ]
+
+### 5. Issue 5: Remove Touring Revenue [DONE - no code]
+
+### 6. Issue 6: Actor market value inflation fix
+- Cap/decay in talentCareerArcSystem.ts
+- [ ]
+
+### 7. Testing + completion
+- Run tests
+- Verify all issues
+- [ ]

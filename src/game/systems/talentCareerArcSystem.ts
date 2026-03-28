@@ -85,13 +85,34 @@ function pushTalentEvent(params: {
   const rep = clamp(talent.reputation ?? 50, 0, 100);
   const mv = clamp(talent.marketValue ?? 0, 0, 999);
 
-  const MAX_MARKET_VALUE = 500_000_000;
+const MAX_MARKET_VALUE = 250_000_000;
+  const adjustment = event.impactOnMarketValue || 0;
+
+  // Market correction: soft cap growth above 150M, decay if stagnant
+  const baseAdjusted = mv + adjustment;
+  let finalValue;
+  if (baseAdjusted > MAX_MARKET_VALUE) {
+    finalValue = MAX_MARKET_VALUE;
+  } else if (baseAdjusted > 150_000_000) {
+    // Soft cap: diminishing returns 50-75% multiplier
+    finalValue = 150_000_000 + (baseAdjusted - 150_000_000) * 0.5;
+  } else {
+    finalValue = baseAdjusted;
+  }
+
+  // Weekly decay (1% if over 100M, more for higher values)
+  if (finalValue > 100_000_000) {
+    const decayPct = Math.max(0.005, (finalValue - 100_000_000) / MAX_MARKET_VALUE * 0.02);
+    finalValue *= (1 - decayPct);
+  }
+
   return {
     ...talent,
     reputation: clamp(rep + (event.impactOnReputation || 0), 0, 100),
-    marketValue: Math.min(MAX_MARKET_VALUE, Math.max(0, mv + (event.impactOnMarketValue || 0))),
+    marketValue: Math.max(0, Math.floor(finalValue)),
     careerEvolution: [...(talent.careerEvolution || []), event],
   };
+
 
 }
 

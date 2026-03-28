@@ -159,6 +159,7 @@ import { TalentProfileDialog } from './TalentProfileDialog';
 import { StudioIconRenderer as StudioIconRendererLazy } from './StudioIconCustomizer';
 import { SaveLoadDialog } from './SaveLoadDialog';
 import { GameSettingsDialog } from './GameSettingsDialog';
+import { OnlineLeagueSQLDialog } from './OnlineLeagueSQLDialog';
 
 // Ensure AI films have credited talent so awards/filmographies have real people to reference
 
@@ -2797,6 +2798,14 @@ export const StudioMagnateGame: React.FC<StudioMagnateGameProps> = ({
               >
                 Saves…
               </Button>
+
+{!!onlineLeagueCode?.trim() && (
+                <OnlineLeagueSQLDialog>
+                  <Button size="sm" variant="outline">
+                    League SQL Schema
+                  </Button>
+                </OnlineLeagueSQLDialog>
+              )}
 
               <Button
                 size="sm"
