@@ -1,5 +1,5 @@
 // Enhanced Talent Market with AI Studio Integration
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useMemo, useCallback } from 'react';
 import { useGameStore } from '@/game/store';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
@@ -42,69 +42,87 @@ export const TalentMarketplace: React.FC<TalentMarketplaceProps> = ({
   const [showAvailableOnly, setShowAvailableOnly] = useState(false);
 
   const [selectedRole, setSelectedRole] = useState<string>('all');
-  const [commitments, setCommitments] = useState<TalentCommitment[]>([]);
+  // commitments now memoized above
   const [resetAiConfirmOpen, setResetAiConfirmOpen] = useState(false);
   const [currentPage, setCurrentPage] = useState(0);
   const TALENT_PER_PAGE = 20;
 
-  // **CHECKPOINT 2 TEST**: Load talent commitments
-  useEffect(() => {
-    const allCommitments = AIStudioManager.getAllCommitments();
-    setCommitments(allCommitments);
-  }, [currentWeek, currentYear]);
+// **CHECKPOINT 2 FIXED**: Memoized commitments (fixes infinite re-render)
+  const commitments = useMemo(() => AIStudioManager.getAllCommitments(), [currentWeek, currentYear]);
 
-  // **CHECKPOINT 2 TEST**: Filter talent by availability
-  const getFilteredTalent = () => {
-    let filtered = [...talent];
+// **CHECKPOINT 2 FIXED**: Pure filtering logic (memoized)
+  const getFilteredTalentLogic = useCallback((
+    talentList: TalentPerson[],
+    roleFilter: string,
+    availableOnly: boolean,
+    currentCommitments: TalentCommitment[],
+    currWeek: number,
+    currYear: number
+  ) => {
+    let filtered = [...talentList];
 
     // Filter by role if specified
-    if (selectedRole !== 'all') {
+    if (roleFilter !== 'all') {
       filtered = filtered.filter(t => 
-        (t.specialties as string[])?.includes(selectedRole) || 
-        (t.specialties as string[])?.some(s => s.toLowerCase().includes(selectedRole.toLowerCase()))
+        (t.specialties as string[])?.includes(roleFilter) || 
+        (t.specialties as string[])?.some(s => s.toLowerCase().includes(roleFilter.toLowerCase()))
       );
     }
 
     // Filter by availability if requested
-    if (showAvailableOnly) {
+    if (availableOnly) {
+      const currentAbsWeek = (currYear * 52) + currWeek;
       filtered = filtered.filter(t => {
-        const commitment = AIStudioManager.getTalentCommitment(t.id, currentWeek, currentYear);
+        const commitment = currentCommitments.find(c => 
+          c.talentId === t.id && currentAbsWeek >= c.startAbsWeek && currentAbsWeek <= c.endAbsWeek
+        );
         return !commitment;
       });
     }
 
     return filtered;
-  };
+  }, []);
 
-  // **CHECKPOINT 2 TEST**: Get talent's current status
-  const getTalentStatus = (talentId: string) => {
-    const commitment = AIStudioManager.getTalentCommitment(talentId, currentWeek, currentYear);
+  const filteredTalent = useMemo(() => 
+    getFilteredTalentLogic(talent, selectedRole, showAvailableOnly, commitments, currentWeek, currentYear),
+    [talent, selectedRole, showAvailableOnly, commitments, currentWeek, currentYear, getFilteredTalentLogic]
+  );
+
+// **CHECKPOINT 2 FIXED**: Memoized status (useCallback)
+  const getTalentStatus = useCallback((talentId: string) => {
+    const commitment = commitments.find(c => 
+      c.talentId === talentId && 
+      ((currentYear * 52) + currentWeek) >= c.startAbsWeek && 
+      ((currentYear * 52) + currentWeek) <= c.endAbsWeek
+    );
     
     if (!commitment) {
       return {
         status: 'available',
         message: 'Available for casting',
         color: 'green'
-      };
+      } as const;
     }
 
     const currentAbsWeek = (currentYear * 52) + currentWeek;
     const weeksRemaining = Math.max(0, commitment.endAbsWeek - currentAbsWeek);
     return {
-      status: 'busy',
+      status: 'busy' as const,
       message: `Filming "${commitment.studio}" (${weeksRemaining} weeks remaining)`,
-      color: 'red',
+      color: 'red' as const,
       commitment
     };
-  };
+  }, [commitments, currentWeek, currentYear]);
 
-  // **CHECKPOINT 2 TEST**: Get talent's recent filmography
-  const getTalentFilmography = (talentId: string) => {
+// **CHECKPOINT 2 FIXED**: Memoized filmography (useCallback)
+  const getTalentFilmography = useCallback((talentId: string) => {
     return AIStudioManager.getTalentFilmography(talentId);
-  };
+  }, []);
 
-  const filteredTalent = getFilteredTalent();
-  const paginatedTalent = filteredTalent.slice(currentPage * TALENT_PER_PAGE, (currentPage + 1) * TALENT_PER_PAGE);
+  const paginatedTalent = useMemo(
+    () => filteredTalent.slice(currentPage * TALENT_PER_PAGE, (currentPage + 1) * TALENT_PER_PAGE),
+    [filteredTalent, currentPage]
+  );
 
   return (
     <>
@@ -124,7 +142,6 @@ export const TalentMarketplace: React.FC<TalentMarketplaceProps> = ({
                 setResetAiConfirmOpen(false);
                 AIStudioManager.resetAISystem();
                 mergeGameState({ aiStudioState: AIStudioManager.snapshot() });
-                setCommitments([]);
               }}
             >
               Reset
@@ -354,7 +371,7 @@ export const TalentMarketplace: React.FC<TalentMarketplaceProps> = ({
               <div>
                 <div className="font-semibold">Available Talent</div>
                 <div className="text-muted-foreground">
-                  {talent.filter(t => !AIStudioManager.getTalentCommitment(t.id, currentWeek, currentYear)).length}/{talent.length}
+                  {filteredTalent.length}/{talent.length}
                 </div>
               </div>
             </div>
