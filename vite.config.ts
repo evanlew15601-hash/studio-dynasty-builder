@@ -58,5 +58,12 @@ export default defineConfig(({ mode }) => {
         "react-dom": path.resolve(rootDir, "./node_modules/react-dom"),
       },
     },
+    optimizeDeps: {
+      include: ['react', 'react-dom', 'react/jsx-runtime']
+    },
+    ssr: {
+      noExternal: ['react', 'react-dom']
+    }
   };
+
 });
