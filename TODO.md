@@ -1,17 +1,9 @@
-# Vite Build Fix - OnlineLeague.tsx Syntax Error
+# PROJECT RECONCILIATION - Shortlist Wiring
+Status: 0/2
 
-## Plan Steps
+1. [ ] Create TODO.md ✅
+2. [✅] Edit src/components/game/TalentMarketplace.tsx: Add shortlist buttons
+3. [ ] Test + attempt_completion
 
-### 1. [ ] Diagnosis & Planning ✅ COMPLETE
-Analyzed src/components/game/OnlineLeague.tsx. Confirmed unterminated string in setError('Unable.
-
-### 2. [ ] Apply surgical edit
-Use edit_file to fix the string literal.
-
-### 3. [ ] Test build
-Run `npm run build` to verify no esbuild errors.
-
-### 4. [ ] Update TODO and complete
-Mark done, attempt_completion.
-
-**Progress: 1/4**
+**Shortlist**: State/actions ready (store.ts/CastingBoard.tsx). Missing Marketplace UI → wire toggleShortlist.
+**Originals/Commission**: Confirmed working (ScriptDevelopment/TVShowDevelopment + expansion UI).

@@ -1,5 +1,6 @@
 // Enhanced Talent Market with AI Studio Integration
 import React, { useState, useEffect } from 'react';
+import { useGameStore } from '@/game/store';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
@@ -12,6 +13,7 @@ import {
   AlertDialogFooter,
   AlertDialogHeader,
   AlertDialogTitle,
+
 } from '@/components/ui/alert-dialog';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { Switch } from '@/components/ui/switch';
@@ -36,7 +38,10 @@ export const TalentMarketplace: React.FC<TalentMarketplaceProps> = ({
 }) => {
   const openTalentProfile = useUiStore((s) => s.openTalentProfile);
   const mergeGameState = useGameStore((s) => s.mergeGameState);
+  const shortlistedTalentIds = useGameStore((s) => s.game?.shortlistedTalentIds ?? []);
+  const toggleShortlist = useGameStore((s) => s.toggleShortlist);
   const [showAvailableOnly, setShowAvailableOnly] = useState(false);
+
   const [selectedRole, setSelectedRole] = useState<string>('all');
   const [commitments, setCommitments] = useState<TalentCommitment[]>([]);
   const [resetAiConfirmOpen, setResetAiConfirmOpen] = useState(false);
@@ -280,6 +285,26 @@ export const TalentMarketplace: React.FC<TalentMarketplaceProps> = ({
                     <User size={14} className="mr-1" />
                     Profile
                   </Button>
+                  {shortlistedTalentIds.includes(person.id) ? (
+                    <Badge 
+                      variant="default" 
+                      className="flex-1 h-10 px-3 justify-center items-center text-xs font-medium bg-primary hover:bg-primary/90"
+                      onClick={() => toggleShortlist(person.id)}
+                    >
+                      <Star size={14} className="mr-1" />
+                      Shortlisted
+                    </Badge>
+                  ) : (
+                    <Button
+                      size="sm"
+                      variant="outline"
+                      className="flex-1"
+                      onClick={() => toggleShortlist(person.id)}
+                    >
+                      <Star size={14} className="mr-1" />
+                      Shortlist
+                    </Button>
+                  )}
                   <Button 
                     size="sm" 
                     variant={status.status === 'available' ? 'default' : 'outline'}
