@@ -1,18 +1,20 @@
 // Role-Based Casting System - Assign specific actors to specific roles
 import React, { useState } from 'react';
 import { Project, TalentPerson, ScriptCharacter } from '@/types/game';
+import { useGameStore } from '@/game/store';
 import { useUiStore } from '@/game/uiStore';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
 import { Avatar, AvatarFallback } from '@/components/ui/avatar';
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from '@/components/ui/dialog';
+import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 
 import { useToast } from '@/hooks/use-toast';
 import { CastingIcon, TalentIcon } from '@/components/ui/icons';
-import { Search } from 'lucide-react';
+import { Search, Star as StarIcon } from 'lucide-react';
 
 interface RoleCast {
   characterId: string;
@@ -42,6 +44,9 @@ export const CastingRoleManager: React.FC<CastingRoleManagerProps> = ({
   const openTalentProfile = useUiStore((s) => s.openTalentProfile);
   const [castingDialogOpen, setCastingDialogOpen] = useState(false);
   const [selectedRole, setSelectedRole] = useState<RoleCast | null>(null);
+  const shortlistedTalentIds = useGameStore((s) => s.game?.shortlistedTalentIds ?? []);
+  const toggleShortlist = useGameStore((s) => s.toggleShortlist);
+  const [tab, setTab] = useState<'shortlist' | 'browse'>('shortlist');
   const [talentFilter, setTalentFilter] = useState('');
 
   // Initialize roles from script characters and current cast
@@ -118,21 +123,32 @@ export const CastingRoleManager: React.FC<CastingRoleManagerProps> = ({
   const [projectRoles, setProjectRoles] = useState<RoleCast[]>(initializeRoles);
 
   const getFilteredTalent = () => {
-    return availableTalent.filter(talent => {
-      // Filter by search query
-      if (talentFilter && !talent.name.toLowerCase().includes(talentFilter.toLowerCase())) {
-        return false;
-      }
+    let talentPool = availableTalent.filter(talent => talent.contractStatus === 'available');
 
-      // Filter by role type compatibility
-      if (selectedRole) {
+    // Filter by role type compatibility
+    if (selectedRole) {
+      talentPool = talentPool.filter(talent => {
         if (selectedRole.requiredType === 'director' && talent.type !== 'director') return false;
         if (selectedRole.requiredType === 'actor' && talent.type !== 'actor') return false;
-      }
+        return true;
+      });
+    }
 
-      // Only available talent
-      return talent.contractStatus === 'available';
-    });
+    // Filter by search query
+    if (talentFilter) {
+      talentPool = talentPool.filter(talent => 
+        talent.name.toLowerCase().includes(talentFilter.toLowerCase())
+      );
+    }
+
+    if (tab === 'shortlist') {
+      // Shortlist first: available shortlisted + rest
+      const shortlistedAvailable = talentPool.filter(t => shortlistedTalentIds.includes(t.id));
+      const otherAvailable = talentPool.filter(t => !shortlistedTalentIds.includes(t.id));
+      return [...shortlistedAvailable, ...otherAvailable];
+    }
+
+    return talentPool;
   };
 
   const calculateTalentCost = (talent: TalentPerson): number => {
@@ -413,8 +429,26 @@ export const CastingRoleManager: React.FC<CastingRoleManagerProps> = ({
             </DialogTitle>
           </DialogHeader>
 
+          {/* Talent Tabs */}
+          <Tabs value={tab} onValueChange={(v) => setTab(v as 'shortlist' | 'browse')} className="w-full">
+            <TabsList className="grid w-full grid-cols-2">
+              <TabsTrigger value="shortlist">
+                Shortlist ({shortlistedTalentIds.filter(id => availableTalent.some(t => t.id === id && t.contractStatus === 'available')).length})
+              </TabsTrigger>
+              <TabsTrigger value="browse">
+                Browse All
+              </TabsTrigger>
+            </TabsList>
+            <TabsContent value="shortlist" className="mt-4">
+              Shortlist prioritized - quick cast your favorites first.
+            </TabsContent>
+            <TabsContent value="browse" className="mt-4">
+              Full available talent pool.
+            </TabsContent>
+          </Tabs>
+
           {/* Talent Filters */}
-          <div className="flex gap-4 mb-4">
+          <div className="flex gap-4 mt-4">
             <div className="flex-1">
               <Label htmlFor="talent-search">Search Talent</Label>
               <div className="relative">
@@ -448,8 +482,16 @@ export const CastingRoleManager: React.FC<CastingRoleManagerProps> = ({
                       <Avatar>
                         <AvatarFallback>{talent.name.substring(0, 2)}</AvatarFallback>
                       </Avatar>
-                      <div>
-                        <div className="font-medium">{talent.name}</div>
+                      <div className="flex-1">
+                        <div className="flex items-center gap-2 mb-1">
+                          <div className="font-medium">{talent.name}</div>
+                          {shortlistedTalentIds.includes(talent.id) && (
+                            <Badge variant="default" className="text-xs">
+                              <StarIcon className="h-3 w-3 mr-1" />
+                              Shortlisted
+                            </Badge>
+                          )}
+                        </div>
                         <div className="text-sm text-muted-foreground">
                           {talent.type} • Age {talent.age} • Rep: {Math.round(talent.reputation)}
                         </div>
@@ -470,6 +512,14 @@ export const CastingRoleManager: React.FC<CastingRoleManagerProps> = ({
                     </div>
                     <div className="flex items-center gap-2">
                       <Button
+                        variant="outline"
+                        size="sm"
+                        onClick={() => toggleShortlist(talent.id)}
+                        className="h-8 w-8 p-0"
+                      >
+                        <StarIcon className="h-4 w-4" fill={shortlistedTalentIds.includes(talent.id) ? "currentColor" : "none"} />
+                      </Button>
+                      <Button
                         variant="link"
                         size="sm"
                         className="h-auto p-0"
@@ -484,8 +534,9 @@ export const CastingRoleManager: React.FC<CastingRoleManagerProps> = ({
                         onClick={() => handleCastTalent(talent)}
                         disabled={!canAfford}
                         variant={canAfford ? "default" : "outline"}
+                        size="sm"
                       >
-                        {canAfford ? "Cast" : "Can't Afford"}
+                        {shortlistedTalentIds.includes(talent.id) ? "Quick Cast" : "Cast"}
                       </Button>
                     </div>
                   </div>

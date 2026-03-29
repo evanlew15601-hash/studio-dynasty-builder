@@ -95,14 +95,14 @@ const MAX_MARKET_VALUE = 250_000_000;
     finalValue = MAX_MARKET_VALUE;
   } else if (baseAdjusted > 150_000_000) {
     // Soft cap: diminishing returns 50-75% multiplier
-    finalValue = 150_000_000 + (baseAdjusted - 150_000_000) * 0.5;
+    finalValue = 150_000_000 + (baseAdjusted - 150_000_000) * 0.625;
   } else {
     finalValue = baseAdjusted;
   }
 
-  // Weekly decay (1% if over 100M, more for higher values)
+  // Weekly decay (1.5% if over 100M, more for higher values)
   if (finalValue > 100_000_000) {
-    const decayPct = Math.max(0.005, (finalValue - 100_000_000) / MAX_MARKET_VALUE * 0.02);
+    const decayPct = Math.max(0.015, (finalValue - 100_000_000) / MAX_MARKET_VALUE * 0.035);
     finalValue *= (1 - decayPct);
   }
 

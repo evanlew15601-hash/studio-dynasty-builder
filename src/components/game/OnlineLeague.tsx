@@ -1,12 +1,16 @@
 import React, { useCallback, useEffect, useMemo, useRef, useState } from 'react';
+import React, { useState } from 'react';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Badge } from '@/components/ui/badge';
 import { Separator } from '@/components/ui/separator';
+import { Database } from 'lucide-react';
 import { OnlineLeagueSQLDialog } from './OnlineLeagueSQLDialog';
+import { SupabaseConfigDialog } from './SupabaseConfigDialog';
 import { useGameStore } from '@/game/store';
-import { getSupabaseClient, onSupabaseConfigChanged } from '@/integrations/supabase/client';
+import { getSupabaseClient, getSupabaseConfigStatus, onSupabaseConfigChanged } from '@/integrations/supabase/client';
+import { useToast } from '@/hooks/use-toast';
 
 type PresenceStudioSnapshot = {
   studioName: string;
@@ -183,7 +187,47 @@ export const OnlineLeague: React.FC<OnlineLeagueProps> = ({ initialLeagueCode })
       <CardHeader>
         <CardTitle>Online League</CardTitle>
       </CardHeader>
-      <CardContent>
+      <CardContent className="space-y-6">
+{(!canUseOnline || !status.configured) && (
+          <div className="rounded-2xl border-2 border-destructive/50 bg-destructive/10 p-6 text-destructive-foreground">
+            <div className="flex items-start gap-3 mb-4">
+              <div className="flex-shrink-0 w-10 h-10 bg-destructive/20 rounded-xl flex items-center justify-center">
+                <Database className="w-5 h-5" />
+              </div>
+              <div>
+                <h3 className="font-bold text-lg mb-1">SETUP REQUIRED: Online League Database</h3>
+                <p className="text-sm mb-3">Online League needs a one-time Supabase database setup before you can play multiplayer.</p>
+              </div>
+            </div>
+            <div className="space-y-2 text-sm">
+              <ol className="list-decimal pl-6 space-y-1 mb-4">
+                <li>Create a free Supabase project</li>
+                <li className="font-medium">Run the Online League SQL schema (copy below)</li>
+                <li>Enable anonymous authentication</li>
+                <li>Copy your Project URL + anon key into Configure</li>
+              </ol>
+            </div>
+            <div className="flex flex-wrap gap-3 pt-4 border-t border-destructive/20">
+              <OnlineLeagueSQLDialog>
+                <Button size="sm" className="bg-destructive hover:bg-destructive/90 font-medium">
+                  📋 Copy SQL Schema
+                </Button>
+              </OnlineLeagueSQLDialog>
+              <SupabaseConfigDialog open={supabaseConfigOpen} onOpenChange={setSupabaseConfigOpen}>
+                <Button size="sm" variant="outline" className="font-medium">
+                  ⚙️ Configure Supabase
+                </Button>
+              </SupabaseConfigDialog>
+              <Button size="sm" variant="secondary" asChild>
+                <a href="https://supabase.com/dashboard/projects" target="_blank" rel="noreferrer" className="font-medium">
+                  Create Supabase →
+                </a>
+              </Button>
+            </div>
+            <p className="text-xs mt-3 opacity-75">Run SQL **once** only. Takes 30 seconds. No ongoing costs.</p>
+          </div>
+        )}
+
         <div className="space-y-4">
           {/* Online league interface will be implemented here */}
         </div>

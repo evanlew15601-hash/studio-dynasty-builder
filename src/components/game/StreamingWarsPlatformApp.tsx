@@ -218,12 +218,14 @@ export const StreamingWarsPlatformApp: React.FC = () => {
   const [brandingConflictMessage, setBrandingConflictMessage] = useState('');
 
   const [originalsOpen, setOriginalsOpen] = useState(false);
+  const [originalType, setOriginalType] = useState<'series' | 'film'>('series');
   const [originalTitle, setOriginalTitle] = useState('');
   const [originalLogline, setOriginalLogline] = useState('A gripping drama about ambition and betrayal in the cutthroat world of studio filmmaking.');
   const [originalGenre, setOriginalGenre] = useState<Genre>('drama');
   const [originalEpisodeCount, setOriginalEpisodeCount] = useState(10);
   const [originalEpisodeBudget, setOriginalEpisodeBudget] = useState(2_500_000);
-  const [originalReleaseFormat, setOriginalReleaseFormat] = useState<'weekly' | 'binge' | 'batch'>('weekly');
+  const [originalTotalBudget, setOriginalTotalBudget] = useState(25_000_000);
+  const [originalReleaseFormat, setOriginalReleaseFormat] = useState<'weekly' | 'binge' | 'batch' | 'premiere'>('weekly');
 
   const [licenseOpen, setLicenseOpen] = useState(false);
   const [licenseProject, setLicenseProject] = useState<Project | null>(null);
@@ -2260,9 +2262,14 @@ export const StreamingWarsPlatformApp: React.FC = () => {
                 </div>
               )}
 
-              <Button type="button" onClick={() => setOriginalsOpen(true)} disabled={!playerPlatformId || player?.status !== 'active'}>
-                Commission Original
-              </Button>
+              <div className="flex gap-2">
+                <Button type="button" onClick={() => { setOriginalType('series'); setOriginalsOpen(true); }} disabled={!playerPlatformId || player?.status !== 'active'}>
+                  Commission Original Series
+                </Button>
+                <Button type="button" variant="outline" onClick={() => { setOriginalType('film'); setOriginalsOpen(true); }} disabled={!playerPlatformId || player?.status !== 'active'}>
+                  Commission Original Film
+                </Button>
+              </div>
 
               {originals.length > 0 ? (
                 <div className="space-y-2">
