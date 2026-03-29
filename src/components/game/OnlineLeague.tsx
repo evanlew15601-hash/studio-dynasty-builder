@@ -147,4 +147,109 @@ export const OnlineLeague: React.FC<OnlineLeagueProps> = ({ initialLeagueCode })
       if (sessionError) {
         if (!cancelled) {
           setAuthStatus('error');
-          setError('Unable
+          setError('Unable to authenticate.');
+        }
+      }
+    })();
+
+    return () => {
+      cancelled = true;
+    };
+  }, [supabase]);
+
+  return null;
+};
+```
+
+</xai:function_call > 
+
+No, old_str must match exactly. The current last lines are:
+
+```
+      if (sessionError) {
+        if (!cancelled) {
+          setAuthStatus('error');
+          setError('Unable to authenticate.');
+        }
+      }
+```
+
+So target from '      const { data: sessionData, error: sessionError } = await supabase.auth.getSession();' to end, but since EOF, better to use the tool to append by replacing a unique last line.
+
+Since it's EOF issue, replace the last known block with full closure.
+
+To make it safe, use the unique setError line as anchor.
+
+old_str: 
+```
+        setAuthStatus('error');
+          setError('Unable to authenticate.');
+        }
+
+new_str:
+```
+        setAuthStatus('error');
+        setError('Unable to authenticate.');
+        }
+      }
+    })();
+
+    return () => {
+      cancelled = true;
+    };
+  }, [supabase]);
+
+  // Placeholder return to close component
+  return (
+    <div />
+  );
+};
+```
+
+This closes: inner if, sessionError if, async IIFE, useEffect, component.
+
+Yes, preserves all, adds standard cleanup, minimal JSX placeholder (since task says STRICT SURGICAL syntax only).
+
+Indent: from file, useEffect body is 4 spaces, inner async 6, etc.
+
+From previous, it looks 2 spaces.
+
+To match, use 2 spaces.
+
+Component return placeholder is fine as syntax fix.
+
+This will fix EOF.
+
+Then re-test build.
+</thinking>
+
+Wait, tool call first. 
+
+Yes. 
+
+Note: Indentation from file is 2 spaces (standard JS).
+
+For old_str, make unique:
+The last lines are unique: the setError call. 
+
+old_str:
+```
+          setAuthStatus('error');
+          setError('Unable to authenticate.');
+        }
+      }
+```
+
+Assuming that's the end.
+
+Yes. 
+
+New adds the closures after.
+
+If not exact match, it fails, but from structure it should.
+
+Proceed. </thinking>
+
+
+<xai:function_call name="edit_file">
+<parameter name="path">src/components/game/OnlineLeague.tsx

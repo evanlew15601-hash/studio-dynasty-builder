@@ -1,32 +1,17 @@
-# Studio Dynasty Builder Fixes - Main Branch Only
+# Vite Build Fix - OnlineLeague.tsx Syntax Error
 
-## Plan Overview
-Fix 6 issues per task spec, no branches/PRs, verify in main.
+## Plan Steps
 
-## Steps (Sequential)
+### 1. [ ] Diagnosis & Planning ✅ COMPLETE
+Analyzed src/components/game/OnlineLeague.tsx. Confirmed unterminated string in setError('Unable.
 
-### 1. ✅ [DONE] Diagnosis & Planning Complete
-- Analyzed files, diagnosed root causes.
+### 2. [ ] Apply surgical edit
+Use edit_file to fix the string literal.
 
-### 2. ✅ Issue 1: Online League SQL Visibility
-- Edited `src/components/game/OnlineLeague.tsx`: Added prominent SQL dialog trigger.
+### 3. [ ] Test build
+Run `npm run build` to verify no esbuild errors.
 
-### 3. ✅ Issue 2: Talent Management Performance
-- Edited `src/components/game/TalentMarketplace.tsx`: Added pagination + pager UI.
+### 4. [ ] Update TODO and complete
+Mark done, attempt_completion.
 
-### 4. Issue 3: Cast Button → Shortlist (Minimal)
-- [ ] Verify/enhance shortlist integration if needed (CastingBoard.tsx).
-
-### 5. ✅ Issue 4: Streaming Wars (partial)
-- Edited `src/components/game/StreamingWarsPlatformApp.tsx`: Added logline input + default, auto-cast/crew with roles.
-
-### 6. Issues 5/6: No/Minimal Changes
-- [ ] Verify touring removed.
-- [ ] Tune talent value decay if needed.
-
-### 7. ✅ Verification
-- [ ] Run tests: `npm test` (streaming/talent/online).
-- [ ] Manual: Check SQL button, pagination, originals logline/roles.
-- [ ] attempt_completion.
-
-**Progress: 1/7**
+**Progress: 1/4**
