@@ -219,7 +219,7 @@ export const StreamingWarsPlatformApp: React.FC = () => {
 
   const [originalsOpen, setOriginalsOpen] = useState(false);
   const [originalTitle, setOriginalTitle] = useState('');
-  const [originalLogline, setOriginalLogline] = useState('');
+  const [originalLogline, setOriginalLogline] = useState('A gripping drama about ambition and betrayal in the cutthroat world of studio filmmaking.');
   const [originalGenre, setOriginalGenre] = useState<Genre>('drama');
   const [originalEpisodeCount, setOriginalEpisodeCount] = useState(10);
   const [originalEpisodeBudget, setOriginalEpisodeBudget] = useState(2_500_000);

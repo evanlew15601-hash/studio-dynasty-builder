@@ -4,6 +4,7 @@ import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Badge } from '@/components/ui/badge';
 import { Separator } from '@/components/ui/separator';
+import { OnlineLeagueSQLDialog } from './OnlineLeagueSQLDialog';
 import { useGameStore } from '@/game/store';
 import { getSupabaseClient, onSupabaseConfigChanged } from '@/integrations/supabase/client';
 
@@ -527,11 +528,7 @@ export const OnlineLeague: React.FC<OnlineLeagueProps> = ({ initialLeagueCode })
         </CardContent>
       </Card>
 
-      {!canUseOnline && (
-        <Card>
-          <CardHeader>
-            <CardTitle>Not configured</CardTitle>
-          </CardHeader>
+      {/* Legacy non-configured card moved below SQL prompt if needed, but now prominent above */}
           <CardContent className="space-y-2 text-sm text-muted-foreground">
             <p>
               Online League requires a Supabase project.
@@ -545,12 +542,31 @@ export const OnlineLeague: React.FC<OnlineLeagueProps> = ({ initialLeagueCode })
         </Card>
       )}
 
-      {canUseOnline && (
-        <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
+{canUseOnline && (
+        <>
           <Card>
             <CardHeader>
-              <CardTitle>League Lobby</CardTitle>
+              <CardTitle>⚠️ CRITICAL: Setup Required</CardTitle>
             </CardHeader>
+            <CardContent className="space-y-4">
+              <div className="text-destructive">
+                <h3 className="font-semibold">Step 1: Run SQL Schema (REQUIRED)</h3>
+                <OnlineLeagueSQLDialog>
+                  <Button className="mt-2 w-full bg-blue-600 hover:bg-blue-700 font-semibold">
+                    📋 Open SQL Schema + Copy
+                  </Button>
+                </OnlineLeagueSQLDialog>
+                <p className="text-sm mt-2">Copy & paste into Supabase SQL Editor → New Query → Run once.</p>
+              </div>
+              <Separator />
+            </CardContent>
+          </Card>
+
+          <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
+            <Card>
+              <CardHeader>
+                <CardTitle>League Lobby</CardTitle>
+              </CardHeader>
             <CardContent className="space-y-4">
               <div className="text-sm text-muted-foreground">
                 This is an optional online mode. Single-player gameplay is unchanged; this screen only shares lightweight snapshots to a league you join with an invite code.

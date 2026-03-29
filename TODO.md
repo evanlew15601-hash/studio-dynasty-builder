@@ -1,31 +1,32 @@
-# Studio Dynasty Builder Fixes - Progress Tracker
+# Studio Dynasty Builder Fixes - Main Branch Only
 
-## Approved Plan Steps (sequential)
+## Plan Overview
+Fix 6 issues per task spec, no branches/PRs, verify in main.
 
-### 1. Create TODO.md [DONE]
+## Steps (Sequential)
 
-### 2. Issue 1: Add Online League SQL visibility/modal trigger [DONE ✅]
-- OnlineLeagueSQLDialog component ✅
-- Trigger in StudioMagnateGame (online mode) ✅
-- Copy/download SQL ✅
+### 1. ✅ [DONE] Diagnosis & Planning Complete
+- Analyzed files, diagnosed root causes.
 
-### 3. Issue 2+3: Talent page performance + Shortlist System [DONE ✅]
-- Pagination in CastingBoard.tsx (20/page, pager) ✅
-- Shortlist panel, toggle button/badge per talent ✅
-- Store integration ✅
+### 2. ✅ Issue 1: Online League SQL Visibility
+- Edited `src/components/game/OnlineLeague.tsx`: Added prominent SQL dialog trigger.
 
-### 4. Issue 4: Streaming Wars verification
-- Systems in place (commissioning/originals/roles/loglines/releases)
-- Verify UI (StreamingHub.tsx etc.)
-- [ ]
+### 3. ✅ Issue 2: Talent Management Performance
+- Edited `src/components/game/TalentMarketplace.tsx`: Added pagination + pager UI.
 
-### 5. Issue 5: Remove Touring Revenue [DONE - no code]
+### 4. Issue 3: Cast Button → Shortlist (Minimal)
+- [ ] Verify/enhance shortlist integration if needed (CastingBoard.tsx).
 
-### 6. Issue 6: Actor market value inflation fix
-- Cap/decay in talentCareerArcSystem.ts
-- [ ]
+### 5. ✅ Issue 4: Streaming Wars (partial)
+- Edited `src/components/game/StreamingWarsPlatformApp.tsx`: Added logline input + default, auto-cast/crew with roles.
 
-### 7. Testing + completion
-- Run tests
-- Verify all issues
-- [ ]
+### 6. Issues 5/6: No/Minimal Changes
+- [ ] Verify touring removed.
+- [ ] Tune talent value decay if needed.
+
+### 7. ✅ Verification
+- [ ] Run tests: `npm test` (streaming/talent/online).
+- [ ] Manual: Check SQL button, pagination, originals logline/roles.
+- [ ] attempt_completion.
+
+**Progress: 1/7**

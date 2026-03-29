@@ -40,6 +40,8 @@ export const TalentMarketplace: React.FC<TalentMarketplaceProps> = ({
   const [selectedRole, setSelectedRole] = useState<string>('all');
   const [commitments, setCommitments] = useState<TalentCommitment[]>([]);
   const [resetAiConfirmOpen, setResetAiConfirmOpen] = useState(false);
+  const [currentPage, setCurrentPage] = useState(0);
+  const TALENT_PER_PAGE = 20;
 
   // **CHECKPOINT 2 TEST**: Load talent commitments
   useEffect(() => {
@@ -98,6 +100,7 @@ export const TalentMarketplace: React.FC<TalentMarketplaceProps> = ({
   };
 
   const filteredTalent = getFilteredTalent();
+  const paginatedTalent = filteredTalent.slice(currentPage * TALENT_PER_PAGE, (currentPage + 1) * TALENT_PER_PAGE);
 
   return (
     <>
@@ -162,15 +165,39 @@ export const TalentMarketplace: React.FC<TalentMarketplaceProps> = ({
             </select>
 
             <div className="text-sm text-muted-foreground">
-              Showing {filteredTalent.length} of {talent.length} talent
+              Showing {paginatedTalent.length} of {filteredTalent.length} talent (page {currentPage + 1})
             </div>
           </div>
         </CardContent>
       </Card>
 
+      {filteredTalent.length > TALENT_PER_PAGE && (
+        <div className="flex items-center gap-2 justify-center pt-6">
+          <Button
+            variant="outline"
+            size="sm"
+            onClick={() => setCurrentPage(p => Math.max(0, p - 1))}
+            disabled={currentPage === 0}
+          >
+            Previous
+          </Button>
+          <div className="text-sm text-muted-foreground">
+            Page {currentPage + 1} of {Math.ceil(filteredTalent.length / TALENT_PER_PAGE)}
+          </div>
+          <Button
+            variant="outline"
+            size="sm"
+            onClick={() => setCurrentPage(p => Math.min(Math.ceil(filteredTalent.length / TALENT_PER_PAGE) - 1, p + 1))}
+            disabled={currentPage === Math.ceil(filteredTalent.length / TALENT_PER_PAGE) - 1}
+          >
+            Next
+          </Button>
+        </div>
+      )}
+
       {/* **CHECKPOINT 2 TEST**: Talent grid with availability status */}
       <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
-        {filteredTalent.map(person => {
+        {paginatedTalent.map(person => {
           const status = getTalentStatus(person.id);
           const filmography = getTalentFilmography(person.id);
           
