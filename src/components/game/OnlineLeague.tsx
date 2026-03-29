@@ -135,7 +135,7 @@ export const OnlineLeague: React.FC<OnlineLeagueProps> = ({ initialLeagueCode })
   }, [gameState?.studio?.name, leagueStudioName]);
 
   useEffect(() => {
-    if (!supabase) return;
+    if (!supabase) return () => {};
 
     let cancelled = false;
 
@@ -146,104 +146,48 @@ export const OnlineLeague: React.FC<OnlineLeagueProps> = ({ initialLeagueCode })
       const { data: sessionData, error: sessionError } = await supabase.auth.getSession();
       if (sessionError) {
         if (!cancelled) {
-          setAuthStatus('error');\n          setError('Unable to authenticate.');\n          }
-      }
-    })();
-
-    return () => {
-      cancelled = true;
-    };
-  }, [supabase]);
-
-  return null;
-};
-```
-
-</xai:function_call > 
-
-No, old_str must match exactly. The current last lines are:
-
-```
-      if (sessionError) {
-        if (!cancelled) {
-setAuthStatus('error');\n          setError('Unable to authenticate.');\n        }
-      }
-```
-
-So target from '      const { data: sessionData, error: sessionError } = await supabase.auth.getSession();' to end, but since EOF, better to use the tool to append by replacing a unique last line.
-
-Since it's EOF issue, replace the last known block with full closure.
-
-To make it safe, use the unique setError line as anchor.
-
-old_str: 
-```
-\n          setAuthStatus('error');\n          setError('Unable to authenticate.');\n        }\n
-
-
-```
-        setAuthStatus('error');
-        setError('Unable to authenticate.');
-        }
-      }
-    })();
-
-    return () => {
-      cancelled = true;
-    };
-  }, [supabase]);
-
-  // Placeholder return to close component
-  return (
-    <div />
-  );
-};
-```
-
-This closes: inner if, sessionError if, async IIFE, useEffect, component.
-
-Yes, preserves all, adds standard cleanup, minimal JSX placeholder (since task says STRICT SURGICAL syntax only).
-
-Indent: from file, useEffect body is 4 spaces, inner async 6, etc.
-
-From previous, it looks 2 spaces.
-
-To match, use 2 spaces.
-
-Component return placeholder is fine as syntax fix.
-
-This will fix EOF.
-
-Then re-test build.
-</thinking>
-
-Wait, tool call first. 
-
-Yes. 
-
-Note: Indentation from file is 2 spaces (standard JS).
-
-For old_str, make unique:
-The last lines are unique: the setError call. 
-
-old_str:
-```
           setAuthStatus('error');
           setError('Unable to authenticate.');
         }
+        return;
       }
-```
 
-Assuming that's the end.
+      if (sessionData?.session?.user?.id) {
+        if (!cancelled) {
+          setUserId(sessionData.session.user.id);
+          setAuthStatus('ready');
+        }
+      }
+    })();
 
-Yes. 
+    return () => {
+      cancelled = true;
+    };
+  }, [supabase]);
 
-New adds the closures after.
+  if (!canUseOnline) {
+    return (
+      <Card>
+        <CardHeader>
+          <CardTitle>Online League</CardTitle>
+        </CardHeader>
+        <CardContent>
+          <p>Online leagues are not available.</p>
+        </CardContent>
+      </Card>
+    );
+  }
 
-If not exact match, it fails, but from structure it should.
-
-Proceed. </thinking>
-
-
-<xai:function_call name="edit_file">
-<parameter name="path">src/components/game/OnlineLeague.tsx
+  return (
+    <Card>
+      <CardHeader>
+        <CardTitle>Online League</CardTitle>
+      </CardHeader>
+      <CardContent>
+        <div className="space-y-4">
+          {/* Online league interface will be implemented here */}
+        </div>
+      </CardContent>
+    </Card>
+  );
+};
