@@ -21,7 +21,6 @@ import { AIStudioManager } from './AIStudioManager';
 import type { TalentCommitment, TalentPerson } from '@/types/game';
 import { Calendar, Clock, Star, Film, DollarSign, User } from 'lucide-react';
 import { useUiStore } from '@/game/uiStore';
-import { useGameStore } from '@/game/store';
 
 interface TalentMarketplaceProps {
   talent: TalentPerson[];
