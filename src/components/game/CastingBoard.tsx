@@ -34,7 +34,7 @@ const gameState = useGameStore((s) => s.game);
   const replaceProject = useGameStore((s) => s.replaceProject);
   const updateTalent = useGameStore((s) => s.updateTalent);
   const openTalentProfile = useUiStore((s) => s.openTalentProfile);
-  const { toast } = useToast();
+const { toast } = useToast();
   const [filters, setFilters] = useState<CastingFilters>({
     talentType: 'all',
     genre: 'all',
@@ -51,6 +51,30 @@ const gameState = useGameStore((s) => s.game);
 
   const [negotiationTarget, setNegotiationTarget] = useState<{ talent: TalentPerson; role: string } | null>(null);
 
+  const availableTalent = useMemo(() => {
+    if (!gameState?.talent) return [];
+    return gameState.talent.filter(talent => {
+      if (talent.contractStatus !== 'available') return false;
+      
+      // Apply filters
+      if (filters.talentType !== 'all' && talent.type !== filters.talentType) return false;
+      if (filters.genre !== 'all' && !talent.genres.includes(filters.genre)) return false;
+      if (talent.age < filters.ageRange[0] || talent.age > filters.ageRange[1]) return false;
+      if (talent.reputation < filters.reputationRange[0] || talent.reputation > filters.reputationRange[1]) return false;
+      if (talent.experience < filters.experienceRange[0] || talent.experience > filters.experienceRange[1]) return false;
+      if (talent.marketValue < filters.marketValueRange[0] || talent.marketValue > filters.marketValueRange[1]) return false;
+      if (filters.hasAwards !== null && (talent.awards?.length > 0) !== filters.hasAwards) return false;
+      if (filters.searchQuery && !talent.name.toLowerCase().includes(filters.searchQuery.toLowerCase())) return false;
+      
+      return true;
+    });
+  }, [gameState, filters]);
+
+  const paginatedTalent = useMemo(() => {
+    const start = currentPage * TALENT_PER_PAGE;
+    return availableTalent.slice(start, start + TALENT_PER_PAGE);
+  }, [availableTalent, currentPage]);
+
   if (!gameState) {
     return <div className="p-6 text-sm text-muted-foreground">Loading casting board...</div>;
   }
@@ -59,26 +83,7 @@ const gameState = useGameStore((s) => s.game);
     ? gameState.projects.find(p => p.id === propSelectedProject.id) || propSelectedProject
     : null;
 
-  const availableTalent = gameState.talent.filter(talent => {
-    if (talent.contractStatus !== 'available') return false;
-    
-    // Apply filters
-    if (filters.talentType !== 'all' && talent.type !== filters.talentType) return false;
-    if (filters.genre !== 'all' && !talent.genres.includes(filters.genre)) return false;
-    if (talent.age < filters.ageRange[0] || talent.age > filters.ageRange[1]) return false;
-    if (talent.reputation < filters.reputationRange[0] || talent.reputation > filters.reputationRange[1]) return false;
-    if (talent.experience < filters.experienceRange[0] || talent.experience > filters.experienceRange[1]) return false;
-    if (talent.marketValue < filters.marketValueRange[0] || talent.marketValue > filters.marketValueRange[1]) return false;
-    if (filters.hasAwards !== null && (talent.awards?.length > 0) !== filters.hasAwards) return false;
-    if (filters.searchQuery && !talent.name.toLowerCase().includes(filters.searchQuery.toLowerCase())) return false;
-    
-    return true;
-  });
 
-  const paginatedTalent = useMemo(() => {
-    const start = currentPage * TALENT_PER_PAGE;
-    return availableTalent.slice(start, start + TALENT_PER_PAGE);
-  }, [availableTalent, currentPage]);
 
   const handleHireTalent = (talent: TalentPerson, role: string) => {
     if (!selectedProject) {
