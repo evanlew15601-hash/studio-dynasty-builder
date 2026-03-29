@@ -146,9 +146,7 @@ export const OnlineLeague: React.FC<OnlineLeagueProps> = ({ initialLeagueCode })
       const { data: sessionData, error: sessionError } = await supabase.auth.getSession();
       if (sessionError) {
         if (!cancelled) {
-          setAuthStatus('error');
-          setError('Unable to authenticate.');
-        }
+          setAuthStatus('error');\n          setError('Unable to authenticate.');\n          }
       }
     })();
 
@@ -168,9 +166,7 @@ No, old_str must match exactly. The current last lines are:
 ```
       if (sessionError) {
         if (!cancelled) {
-          setAuthStatus('error');
-          setError('Unable to authenticate.');
-        }
+setAuthStatus('error');\n          setError('Unable to authenticate.');\n        }
       }
 ```
 
@@ -182,11 +178,9 @@ To make it safe, use the unique setError line as anchor.
 
 old_str: 
 ```
-        setAuthStatus('error');
-          setError('Unable to authenticate.');
-        }
+\n          setAuthStatus('error');\n          setError('Unable to authenticate.');\n        }\n
 
-new_str:
+
 ```
         setAuthStatus('error');
         setError('Unable to authenticate.');
