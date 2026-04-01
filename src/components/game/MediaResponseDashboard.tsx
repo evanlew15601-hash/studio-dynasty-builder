@@ -1,0 +1,463 @@
+import React, { useState } from 'react';
+import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
+import { Button } from '@/components/ui/button';
+import { Badge } from '@/components/ui/badge';
+import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
+import { Input } from '@/components/ui/input';
+import { Label } from '@/components/ui/label';
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
+import { Textarea } from '@/components/ui/textarea';
+import { MediaItem, MediaCampaign } from '@/types/game';
+import { MediaResponseSystem } from './MediaResponseSystem';
+import { MediaEngine } from './MediaEngine';
+import { useGameStore } from '@/game/store';
+import { 
+  Megaphone, 
+  Shield, 
+  DollarSign, 
+  Clock, 
+  TrendingUp,
+  AlertTriangle,
+  CheckCircle,
+  XCircle,
+  MessageSquare
+} from 'lucide-react';
+
+interface MediaResponseDashboardProps {}
+
+export const MediaResponseDashboard: React.FC<MediaResponseDashboardProps> = () => {
+  const gameState = useGameStore((s) => s.game);
+  const updateStudio = useGameStore((s) => s.updateStudio);
+  const updateBudget = useGameStore((s) => s.updateBudget);
+  const mergeGameState = useGameStore((s) => s.mergeGameState);
+  const [selectedMedia, setSelectedMedia] = useState<MediaItem | null>(null);
+  const [customMessage, setCustomMessage] = useState('');
+  const [campaignForm, setCampaignForm] = useState({
+    name: '',
+    type: 'pr_boost' as MediaCampaign['type'],
+    budget: 1000000,
+    duration: 4,
+    targetType: 'studio' as 'studio' | 'talent' | 'project'
+  });
+
+  const recentMedia = MediaEngine.getRecentMedia(20);
+  const playerRelevantMedia = gameState
+    ? recentMedia.filter(item =>
+        item.targets.studios?.includes(gameState.studio.id) ||
+        item.targets.projects?.some(projectId => 
+          gameState.projects.some(p => p.id === projectId)
+        )
+      )
+    : [];
+
+  const activeCampaigns = MediaResponseSystem.getActiveCampaigns();
+  const playerReactions = MediaResponseSystem.getPlayerReactions();
+
+  const handleMediaResponse = async (action: any, mediaItem: MediaItem) => {
+    if (!gameState) return;
+
+    try {
+      if (!MediaResponseSystem.canAffordResponse(action, mediaItem, gameState)) {
+        alert('Insufficient budget for this response!');
+        return;
+      }
+
+      const reaction = MediaResponseSystem.respondToMedia(
+        mediaItem.id,
+        action,
+        gameState,
+        customMessage || undefined
+      );
+
+      const reputationDelta = reaction.impact?.reputationChange || 0;
+
+      // Apply effects to game state
+      if (reaction.cost) {
+        updateBudget(-reaction.cost);
+      }
+
+      if (reputationDelta) {
+        updateStudio({
+          reputation: Math.max(0, Math.min(100, (gameState.studio.reputation || 0) + reputationDelta)),
+        });
+      }
+
+      // Process the new media events
+      MediaEngine.processMediaEvents(gameState);
+
+      // Persist media system state to the save snapshot.
+      mergeGameState({
+        mediaState: {
+          engine: MediaEngine.snapshot(),
+          response: MediaResponseSystem.snapshot(),
+        },
+      });
+
+      alert('Response "' + action + '" executed! Cost: ' + '\u0024' + (reaction.cost?.toLocaleString() || 0));
+      setSelectedMedia(null);
+      setCustomMessage('');
+    } catch (error) {
+      console.error('Failed to respond to media:', error);
+      alert('Failed to execute response. Please try again.');
+    }
+  };
+
+  const launchPRCampaign = () => {
+    if (!gameState) return;
+
+    const cost = Number(campaignForm.budget) || 0;
+    const campaignName = campaignForm.name;
+
+    if (!campaignName) {
+      alert('Please enter a campaign name first.');
+      return;
+    }
+
+    if (cost <= 0) {
+      alert('Campaign budget must be greater than zero.');
+      return;
+    }
+
+    if (gameState.studio.budget < cost) {
+      alert('Insufficient budget for this campaign!');
+      return;
+    }
+
+    const targets: MediaCampaign['targets'] = {};
+    if (campaignForm.targetType === 'studio') {
+      targets.studio = true;
+    } else if (campaignForm.targetType === 'talent' && gameState.talent.length > 0) {
+      targets.talent = [gameState.talent[0].id];
+    } else if (campaignForm.targetType === 'project' && gameState.projects.length > 0) {
+      targets.projects = [gameState.projects[0].id];
+    }
+
+    MediaResponseSystem.createPRCampaign(
+      gameState.studio.id,
+      campaignName,
+      campaignForm.type,
+      targets,
+      campaignForm.budget,
+      campaignForm.duration,
+      gameState
+    );
+
+    updateBudget(-cost);
+
+    // Persist media system state to the save snapshot.
+    mergeGameState({
+      mediaState: {
+        engine: MediaEngine.snapshot(),
+        response: MediaResponseSystem.snapshot(),
+      },
+    });
+
+    setCampaignForm({
+      name: '',
+      type: 'pr_boost',
+      budget: 1000000,
+      duration: 4,
+      targetType: 'studio'
+    });
+
+    alert('PR Campaign "' + campaignName + '" launched! Cost: ' + '\u0024' + cost.toLocaleString());
+  };
+
+  const getResponseCost = (action: string, mediaItem: MediaItem) => {
+    return MediaResponseSystem.canAffordResponse(action as any, mediaItem, gameState)
+      ? 'Affordable'
+      : 'Too Expensive';
+  };
+
+  const getResponseIcon = (action: string) => {
+    switch (action) {
+      case 'deny': return <XCircle className="h-4 w-4" />;
+      case 'confirm': return <CheckCircle className="h-4 w-4" />;
+      case 'deflect': return <MessageSquare className="h-4 w-4" />;
+      case 'counter_attack': return <Shield className="h-4 w-4" />;
+      case 'capitalize': return <TrendingUp className="h-4 w-4" />;
+      case 'ignore': return <Clock className="h-4 w-4" />;
+      default: return <MessageSquare className="h-4 w-4" />;
+    }
+  };
+
+  if (!gameState) {
+    return <div className="p-6 text-sm text-muted-foreground">Loading media response center...</div>;
+  }
+
+  return (
+    <div className="space-y-6">
+      <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+        <Card>
+          <CardContent className="p-4">
+            <div className="flex items-center justify-between">
+              <div>
+                <p className="text-sm font-medium text-muted-foreground">Active Campaigns</p>
+                <p className="text-2xl font-bold">{activeCampaigns.length}</p>
+              </div>
+              <Megaphone className="h-8 w-8 text-muted-foreground" />
+            </div>
+          </CardContent>
+        </Card>
+
+        <Card>
+          <CardContent className="p-4">
+            <div className="flex items-center justify-between">
+              <div>
+                <p className="text-sm font-medium text-muted-foreground">Recent Responses</p>
+                <p className="text-2xl font-bold">{playerReactions.length}</p>
+              </div>
+              <MessageSquare className="h-8 w-8 text-muted-foreground" />
+            </div>
+          </CardContent>
+        </Card>
+
+        <Card>
+          <CardContent className="p-4">
+            <div className="flex items-center justify-between">
+              <div>
+                <p className="text-sm font-medium text-muted-foreground">Stories About You</p>
+                <p className="text-2xl font-bold">{playerRelevantMedia.length}</p>
+              </div>
+              <AlertTriangle className="h-8 w-8 text-muted-foreground" />
+            </div>
+          </CardContent>
+        </Card>
+      </div>
+
+      <Tabs defaultValue="responses" className="space-y-4">
+        <TabsList>
+          <TabsTrigger value="responses">Media Responses</TabsTrigger>
+          <TabsTrigger value="campaigns">PR Campaigns</TabsTrigger>
+          <TabsTrigger value="active">Active Campaigns</TabsTrigger>
+        </TabsList>
+
+        <TabsContent value="responses">
+          <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
+            <Card>
+              <CardHeader>
+                <CardTitle>Stories About Your Studio</CardTitle>
+              </CardHeader>
+              <CardContent>
+                <div className="space-y-4 max-h-96 overflow-y-auto">
+                  {playerRelevantMedia.map(item => (
+                    <div 
+                      key={item.id} 
+                      className={`border rounded-lg p-3 cursor-pointer transition-colors ${
+                        selectedMedia?.id === item.id ? 'ring-2 ring-primary' : 'hover:bg-accent'
+                      }`}
+                      onClick={() => setSelectedMedia(item)}
+                    >
+                      <h4 className="font-medium text-sm mb-1">{item.headline}</h4>
+                      <p className="text-xs text-muted-foreground mb-2">{item.content.slice(0, 100)}...</p>
+                      <div className="flex items-center justify-between">
+                        <Badge variant={
+                          item.sentiment === 'positive' ? 'default' : 
+                          item.sentiment === 'negative' ? 'destructive' : 'secondary'
+                        }>
+                          {item.sentiment}
+                        </Badge>
+                        <span className="text-xs text-muted-foreground">
+                          {item.source.name}
+                        </span>
+                      </div>
+                    </div>
+                  ))}
+                </div>
+              </CardContent>
+            </Card>
+
+            <Card>
+              <CardHeader>
+                <CardTitle>Response Options</CardTitle>
+              </CardHeader>
+              <CardContent>
+                {selectedMedia ? (
+                  <div className="space-y-4">
+                    <div className="p-3 border rounded-lg bg-muted/50">
+                      <h4 className="font-medium mb-2">Responding to:</h4>
+                      <p className="text-sm">{selectedMedia.headline}</p>
+                      <Badge className="mt-2" variant={
+                        selectedMedia.sentiment === 'positive' ? 'default' : 
+                        selectedMedia.sentiment === 'negative' ? 'destructive' : 'secondary'
+                      }>
+                        {selectedMedia.sentiment} story
+                      </Badge>
+                    </div>
+
+                    <div className="space-y-2">
+                      <Label htmlFor="customMessage">Custom Statement (Optional)</Label>
+                      <Textarea
+                        id="customMessage"
+                        placeholder="Add a custom statement or quote..."
+                        value={customMessage}
+                        onChange={(e) => setCustomMessage(e.target.value)}
+                      />
+                    </div>
+
+                    <div className="grid grid-cols-2 gap-2">
+                      {[
+                        { action: 'deny', label: 'Deny Story', variant: 'destructive' },
+                        { action: 'confirm', label: 'Confirm Story', variant: 'default' },
+                        { action: 'deflect', label: 'Deflect/Redirect', variant: 'secondary' },
+                        { action: 'counter_attack', label: 'Counter-Attack', variant: 'destructive' },
+                        { action: 'capitalize', label: 'Capitalize On It', variant: 'default' },
+                        { action: 'ignore', label: 'No Response', variant: 'outline' }
+                      ].map(({ action, label, variant }) => (
+                        <Button
+                          key={action}
+                          variant={variant as any}
+                          size="sm"
+                          className="justify-start text-xs"
+                          onClick={() => handleMediaResponse(action, selectedMedia)}
+                          disabled={!MediaResponseSystem.canAffordResponse(action as any, selectedMedia, gameState)}
+                        >
+                          {getResponseIcon(action)}
+                          <span className="ml-2">{label}</span>
+                        </Button>
+                      ))}
+                    </div>
+                  </div>
+                ) : (
+                  <div className="text-center text-muted-foreground py-8">
+                    <MessageSquare className="h-12 w-12 mx-auto mb-4 opacity-50" />
+                    <p>Select a media story to respond to</p>
+                  </div>
+                )}
+              </CardContent>
+            </Card>
+          </div>
+        </TabsContent>
+
+        <TabsContent value="campaigns">
+          <Card>
+            <CardHeader>
+              <CardTitle>Launch PR Campaign</CardTitle>
+            </CardHeader>
+            <CardContent className="space-y-4">
+              <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                <div>
+                  <Label htmlFor="campaignName">Campaign Name</Label>
+                  <Input
+                    id="campaignName"
+                    placeholder="e.g., Reputation Recovery"
+                    value={campaignForm.name}
+                    onChange={(e) => setCampaignForm(prev => ({ ...prev, name: e.target.value }))}
+                  />
+                </div>
+
+                <div>
+                  <Label htmlFor="campaignType">Campaign Type</Label>
+                  <Select value={campaignForm.type} onValueChange={(value) => 
+                    setCampaignForm(prev => ({ ...prev, type: value as any }))
+                  }>
+                    <SelectTrigger>
+                      <SelectValue />
+                    </SelectTrigger>
+                    <SelectContent>
+                      <SelectItem value="pr_boost">PR Boost</SelectItem>
+                      <SelectItem value="damage_control">Damage Control</SelectItem>
+                      <SelectItem value="product_placement">Product Placement</SelectItem>
+                      <SelectItem value="exclusive_access">Exclusive Access</SelectItem>
+                      <SelectItem value="social_media_blitz">Social Media Blitz</SelectItem>
+                    </SelectContent>
+                  </Select>
+                </div>
+
+                <div>
+                  <Label htmlFor="budget">Budget</Label>
+                  <Input
+                    id="budget"
+                    type="number"
+                    value={campaignForm.budget}
+                    onChange={(e) => setCampaignForm(prev => ({ ...prev, budget: parseInt(e.target.value) }))}
+                  />
+                </div>
+
+                <div>
+                  <Label htmlFor="duration">Duration (weeks)</Label>
+                  <Input
+                    id="duration"
+                    type="number"
+                    min="1"
+                    max="12"
+                    value={campaignForm.duration}
+                    onChange={(e) => setCampaignForm(prev => ({ ...prev, duration: parseInt(e.target.value) }))}
+                  />
+                </div>
+              </div>
+
+              <div className="flex items-center justify-between pt-4 border-t">
+                <div>
+                  <p className="text-sm text-muted-foreground">
+                    Estimated Cost: ${campaignForm.budget.toLocaleString()}
+                  </p>
+                  <p className="text-sm text-muted-foreground">
+                    Current Budget: ${gameState.studio.budget.toLocaleString()}
+                  </p>
+                </div>
+                <Button 
+                  onClick={launchPRCampaign}
+                  disabled={
+                    !campaignForm.name || 
+                    campaignForm.budget <= 0 ||
+                    gameState.studio.budget < campaignForm.budget
+                  }
+                >
+                  <Megaphone className="h-4 w-4 mr-2" />
+                  Launch Campaign
+                </Button>
+              </div>
+            </CardContent>
+          </Card>
+        </TabsContent>
+
+        <TabsContent value="active">
+          <Card>
+            <CardHeader>
+              <CardTitle>Active PR Campaigns</CardTitle>
+            </CardHeader>
+            <CardContent>
+              <div className="space-y-4">
+                {activeCampaigns.map(campaign => (
+                  <div key={campaign.id} className="border rounded-lg p-4">
+                    <div className="flex items-center justify-between mb-2">
+                      <h4 className="font-medium">{campaign.name}</h4>
+                      <Badge variant="default">{campaign.status}</Badge>
+                    </div>
+                    <div className="grid grid-cols-2 md:grid-cols-4 gap-4 text-sm">
+                      <div>
+                        <span className="text-muted-foreground">Type:</span>
+                        <p className="font-medium">{campaign.type.replace('_', ' ')}</p>
+                      </div>
+                      <div>
+                        <span className="text-muted-foreground">Budget:</span>
+                        <p className="font-medium">${(campaign.budget / 1000000).toFixed(1)}M</p>
+                      </div>
+                      <div>
+                        <span className="text-muted-foreground">Effectiveness:</span>
+                        <p className="font-medium">{campaign.effectiveness}%</p>
+                      </div>
+                      <div>
+                        <span className="text-muted-foreground">Ends:</span>
+                        <p className="font-medium">Week {campaign.duration.endWeek}</p>
+                      </div>
+                    </div>
+                  </div>
+                ))}
+
+                {activeCampaigns.length === 0 && (
+                  <div className="text-center text-muted-foreground py-8">
+                    <Megaphone className="h-12 w-12 mx-auto mb-4 opacity-50" />
+                    <p>No active PR campaigns</p>
+                    <p className="text-sm">Launch a campaign to influence media coverage</p>
+                  </div>
+                )}
+              </div>
+            </CardContent>
+          </Card>
+        </TabsContent>
+      </Tabs>
+    </div>
+  );
+};

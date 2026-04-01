@@ -1,0 +1,195 @@
+import { GameLanding } from '@/components/game/GameLanding';
+import { SaveLoadDialog } from '@/components/game/SaveLoadDialog';
+import { GlobalLoadingOverlay } from '@/components/ui/global-loading-overlay';
+import { LoadingProvider } from '@/contexts/LoadingContext';
+import { Suspense, lazy, useEffect, useState } from 'react';
+import { AUTO_LOAD_SLOT_KEY, decodeAutoLoadTarget, loadGameAsync, type SaveGameSnapshot } from '@/utils/saveLoad';
+import { patchLoadedSnapshot } from '@/utils/snapshotPatches';
+import { useToast } from '@/hooks/use-toast';
+import { getActiveModSlot, listModSlots } from '@/utils/moddingStore';
+
+import { Genre } from '@/types/game';
+import type { StudioIconConfig } from '@/components/game/StudioIconCustomizer';
+
+const StudioMagnateGame = lazy(() =>
+  import('@/components/game/StudioMagnateGame').then((m) => ({ default: m.StudioMagnateGame }))
+);
+
+type GameConfig = {
+  studioName: string;
+  specialties: Genre[];
+  difficulty: 'easy' | 'normal' | 'hard' | 'magnate';
+  startingBudget: number;
+  studioIcon?: StudioIconConfig;
+  enableStreamingWars: boolean;
+};
+
+function generateLeagueCode(): string {
+  const alphabet = 'ABCDEFGHJKLMNPQRSTUVWXYZ23456789';
+  let out = '';
+  for (let i = 0; i < 7; i += 1) {
+    out += alphabet[Math.floor(Math.random() * alphabet.length)];
+  }
+  return out;
+}
+
+const Online = () => {
+  const { toast } = useToast();
+  const [gameStarted, setGameStarted] = useState(false);
+  const [gameConfig, setGameConfig] = useState<GameConfig | null>(null);
+  const [loadedSnapshot, setLoadedSnapshot] = useState<SaveGameSnapshot | null>(null);
+  const [saveDialogOpen, setSaveDialogOpen] = useState(false);
+  const [onlineLeagueCode, setOnlineLeagueCode] = useState('');
+  const [onlineHostSync, setOnlineHostSync] = useState(false);
+  const [onlineSeasonYears, setOnlineSeasonYears] = useState(6);
+
+  useEffect(() => {
+    if (typeof window === 'undefined') return;
+    const last = window.localStorage.getItem('studio-magnate-online-last-league');
+    if (last) setOnlineLeagueCode(last);
+
+    const hostSync = window.localStorage.getItem('studio-magnate-online-host-sync');
+    if (hostSync) setOnlineHostSync(hostSync === '1');
+
+    const seasonYears = window.localStorage.getItem('studio-magnate-online-season-years');
+    if (seasonYears) {
+      const parsed = Number.parseInt(seasonYears, 10);
+      if (Number.isFinite(parsed) && parsed > 0) setOnlineSeasonYears(parsed);
+    }
+  }, []);
+
+  const handleStartGame = (config: GameConfig) => {
+    setLoadedSnapshot(null);
+    setGameConfig(config);
+    setGameStarted(true);
+  };
+
+  const handleLeagueCodeChange = (code: string) => {
+    setOnlineLeagueCode(code);
+    if (typeof window !== 'undefined') {
+      window.localStorage.setItem('studio-magnate-online-last-league', code);
+    }
+  };
+
+  const handleLoadGame = () => {
+    setSaveDialogOpen(true);
+  };
+
+  const handleLoadedSnapshot = (snapshot: SaveGameSnapshot) => {
+    const patched = patchLoadedSnapshot(snapshot, { mode: 'online' });
+    setLoadedSnapshot(patched);
+    setGameConfig(null);
+    setGameStarted(true);
+  };
+
+  useEffect(() => {
+    if (typeof window === 'undefined') return;
+    if (gameStarted) return;
+
+    const raw = window.localStorage.getItem(AUTO_LOAD_SLOT_KEY);
+    if (!raw) return;
+
+    window.localStorage.removeItem(AUTO_LOAD_SLOT_KEY);
+
+    const decoded = decodeAutoLoadTarget(raw);
+    if (!decoded) return;
+
+    void (async () => {
+      const current = getActiveModSlot();
+      if (current !== decoded.modSlotId) {
+        const available = listModSlots();
+        const isMissing = !available.includes(decoded.modSlotId);
+
+        toast({
+          title: isMissing ? 'Missing mod database' : 'Wrong database selected',
+          description: isMissing
+            ? `Auto-load save requires DB "${decoded.modSlotId}", but that database doesn't exist on this device.`
+            : `Auto-load save requires DB "${decoded.modSlotId}". Select that database on the main menu first, then load.`,
+          variant: 'destructive',
+        });
+        return;
+      }
+
+      const snapshot = await loadGameAsync(decoded.slotId, decoded.modSlotId);
+      if (!snapshot) return;
+
+      const patched = patchLoadedSnapshot(snapshot, { mode: 'online' });
+      setLoadedSnapshot(patched);
+      setGameConfig(null);
+      setGameStarted(true);
+    })();
+  }, [gameStarted, toast]);
+
+  const handleGenerateLeagueCode = () => {
+    const next = generateLeagueCode();
+    setOnlineLeagueCode(next);
+    if (typeof window !== 'undefined') {
+      window.localStorage.setItem('studio-magnate-online-last-league', next);
+    }
+  };
+
+  const handleOnlineHostSyncChange = (enabled: boolean) => {
+    setOnlineHostSync(enabled);
+    if (typeof window !== 'undefined') {
+      window.localStorage.setItem('studio-magnate-online-host-sync', enabled ? '1' : '0');
+    }
+  };
+
+  const handleOnlineSeasonYearsChange = (years: number) => {
+    const normalized = Math.max(1, Math.min(20, Math.floor(years)));
+    setOnlineSeasonYears(normalized);
+    if (typeof window !== 'undefined') {
+      window.localStorage.setItem('studio-magnate-online-season-years', String(normalized));
+    }
+  };
+
+  return (
+    <LoadingProvider>
+      <GlobalLoadingOverlay />
+      {!gameStarted ? (
+        <>
+          <GameLanding
+            mode="online"
+            onlineLeagueCode={onlineLeagueCode}
+            onOnlineLeagueCodeChange={handleLeagueCodeChange}
+            onGenerateOnlineLeagueCode={handleGenerateLeagueCode}
+            onlineHostSync={onlineHostSync}
+            onOnlineHostSyncChange={handleOnlineHostSyncChange}
+            onlineSeasonYears={onlineSeasonYears}
+            onOnlineSeasonYearsChange={handleOnlineSeasonYearsChange}
+            onStartGame={handleStartGame}
+            onLoadGame={handleLoadGame}
+          />
+          <SaveLoadDialog
+            open={saveDialogOpen}
+            onOpenChange={setSaveDialogOpen}
+            mode="online"
+            onLoaded={handleLoadedSnapshot}
+          />
+        </>
+      ) : (
+        <Suspense fallback={null}>
+          <StudioMagnateGame
+            gameConfig={gameConfig ?? undefined}
+            initialGameState={loadedSnapshot?.gameState}
+            initialPhase={loadedSnapshot?.meta.currentPhase}
+            initialUnlockedAchievements={loadedSnapshot?.unlockedAchievements}
+            onlineLeagueCode={onlineLeagueCode}
+            onlineSeasonYears={onlineSeasonYears}
+            onlineHostSync={onlineHostSync}
+            onReturnToMainMenu={() => {
+              setGameStarted(false);
+              setGameConfig(null);
+              setLoadedSnapshot(null);
+            }}
+            onPhaseChange={(phase) => {
+              if (loadedSnapshot) setLoadedSnapshot({ ...loadedSnapshot, meta: { ...loadedSnapshot.meta, currentPhase: phase } });
+            }}
+          />
+        </Suspense>
+      )}
+    </LoadingProvider>
+  );
+};
+
+export default Online;

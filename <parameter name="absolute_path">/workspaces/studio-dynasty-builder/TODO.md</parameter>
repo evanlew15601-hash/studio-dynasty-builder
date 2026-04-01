@@ -1,0 +1,19 @@
+<parameter name="content"># React Duplicate 'React' Declaration Fix - Round 2 ✅ STARTED
+
+## Root Cause
+- Error: `Uncaught SyntaxError: Identifier 'React' has already been declared (OnlineLeague.tsx:4:92)`
+- Previous vite.config.ts alias fix insufficient
+- Vite deps cache holding old chunks (chunk-WPQCFWW4.js)
+- OnlineLeague.tsx likely has duplicate import React
+
+## Steps:
+1. [ ] Kill all vite processes: `pkill -f vite`
+2. [ ] Full Vite cache clear: `rm -rf node_modules/.vite`
+3. [ ] Restart dev server: `npm run dev`
+4. [ ] Hard browser refresh Ctrl+Shift+R on http://127.0.0.1:8080
+5. [ ] Read & fix src/pages/OnlineLeague.tsx duplicate import
+6. [ ] Verify no console errors
+7. [ ] Test TalentMarketplace changes visible (CHECKPOINT 2 comments)
+8. [ ] Mark COMPLETE
+
+**Expected Result:** App loads clean, previous fixes visible in browser.</parameter>
