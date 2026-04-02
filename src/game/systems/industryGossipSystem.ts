@@ -1,4 +1,5 @@
 import type { GameEvent, GameState, Scandal, TalentPerson, WorldHistoryEntry } from '@/types/game';
+import { clampMarketValue } from './talentLifecycleSystem';
 import type { TickSystem } from '../core/types';
 import { stableInt } from '@/utils/stableRandom';
 import { pushWorldHistory } from '@/utils/worldHistory';
@@ -289,7 +290,7 @@ export const IndustryGossipSystem: TickSystem = {
           const pi = clamp(t.publicImage ?? rep, 0, 100);
 
           const nextRep = clamp(rep + scandal.reputationImpact, 0, 100);
-          const nextMv = Math.max(0, mv + scandal.marketValueImpact);
+          const nextMv = clampMarketValue(Math.max(0, mv + scandal.marketValueImpact), t.type);
           const nextPi = clamp(pi + Math.round(scandal.reputationImpact * 1.2), 0, 100);
 
           const next: TalentPerson = {

@@ -1758,18 +1758,70 @@ export const StudioMagnateGame: React.FC<StudioMagnateGameProps> = ({
              timeState.currentWeek,
              timeState.currentYear
            );
+
+           // Auto-evaluate TV streaming contract performance each week
+           if (updatedProject.streamingContract && updatedProject.streamingContract.status === 'active') {
+             const contract = updatedProject.streamingContract;
+             const totalViews = updatedProject.metrics?.streaming?.totalViews ?? updatedProject.metrics?.streamingViews ?? 0;
+             if (totalViews > 0) {
+               const scores: number[] = [];
+               const viewershipScore = contract.expectedViewers > 0
+                 ? Math.min(100, (totalViews / contract.expectedViewers) * 100)
+                 : 0;
+               scores.push(viewershipScore);
+               if (updatedProject.metrics?.streaming) {
+                 if (contract.expectedCompletionRate > 0) {
+                   scores.push(Math.min(100, (updatedProject.metrics.streaming.completionRate / contract.expectedCompletionRate) * 100));
+                 }
+                 if (contract.expectedSubscriberGrowth > 0) {
+                   scores.push(Math.min(100, (updatedProject.metrics.streaming.subscriberGrowth / contract.expectedSubscriberGrowth) * 100));
+                 }
+               }
+               const performanceScore = Math.floor(scores.reduce((s, v) => s + v, 0) / scores.length);
+               updatedProject = {
+                 ...updatedProject,
+                 streamingContract: { ...contract, performanceScore },
+               };
+             }
+           }
          } else {
            if (updatedProject.releaseStrategy?.type === 'streaming') {
              if (diagnosticsEnabled) {
                console.log(`    PROCESSING STREAMING: ${project.title}`);
              }
 
-             updatedProject = StreamingFilmSystem.processWeeklyPerformance(
-               updatedProject,
-               timeState.currentWeek,
-               timeState.currentYear
-             );
-           } else {
+              updatedProject = StreamingFilmSystem.processWeeklyPerformance(
+                updatedProject,
+                timeState.currentWeek,
+                timeState.currentYear
+              );
+
+              // Auto-evaluate streaming contract performance each week
+              if (updatedProject.streamingContract && updatedProject.streamingContract.status === 'active') {
+                const contract = updatedProject.streamingContract;
+                const totalViews = updatedProject.metrics?.streaming?.totalViews ?? updatedProject.metrics?.streamingViews ?? 0;
+                if (totalViews > 0) {
+                  const scores: number[] = [];
+                  const viewershipScore = contract.expectedViewers > 0
+                    ? Math.min(100, (totalViews / contract.expectedViewers) * 100)
+                    : 0;
+                  scores.push(viewershipScore);
+                  if (updatedProject.metrics?.streaming) {
+                    if (contract.expectedCompletionRate > 0) {
+                      scores.push(Math.min(100, (updatedProject.metrics.streaming.completionRate / contract.expectedCompletionRate) * 100));
+                    }
+                    if (contract.expectedSubscriberGrowth > 0) {
+                      scores.push(Math.min(100, (updatedProject.metrics.streaming.subscriberGrowth / contract.expectedSubscriberGrowth) * 100));
+                    }
+                  }
+                  const performanceScore = Math.floor(scores.reduce((s, v) => s + v, 0) / scores.length);
+                  updatedProject = {
+                    ...updatedProject,
+                    streamingContract: { ...contract, performanceScore },
+                  };
+                }
+              }
+            } else {
              if (diagnosticsEnabled) {
                console.log(`    PROCESSING BOX OFFICE: ${project.title}`);
                console.log(`    PRE-REVENUE: boxOfficeTotal = ${updatedProject.metrics?.boxOfficeTotal || 0}`);

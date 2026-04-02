@@ -8,7 +8,7 @@ import { Alert, AlertDescription } from '@/components/ui/alert';
 
 import { FinancialEngine } from './FinancialEngine';
 import { LineChart, Line, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer, BarChart, Bar, PieChart, Pie, Cell } from 'recharts';
-import { TrendingUp, TrendingDown, AlertTriangle, DollarSign, Activity, PieChart as PieChartIcon, Ticket } from 'lucide-react';
+import { TrendingUp, TrendingDown, AlertTriangle, DollarSign, Activity, PieChart as PieChartIcon } from 'lucide-react';
 
 import { useGameStore } from '@/game/store';
 import { formatMoneyCompact } from '@/utils/money';
@@ -170,44 +170,6 @@ export const FinancialDashboard: React.FC = () => {
     return `W${parsed.week}`;
   };
 
-  // Touring analytics (category-level)
-  const getTouringWeeklyData = () => {
-    const weeks = selectedTimeframe === '4weeks' ? 4 : selectedTimeframe === '12weeks' ? 12 : 52;
-    const data: Array<{ week: string; touringRevenue: number; touringExpenses: number; net: number }> = [];
-    for (let i = weeks - 1; i >= 0; i--) {
-      let week = currentWeek - i;
-      let year = currentYear;
-      if (week <= 0) {
-        week += 52;
-        year -= 1;
-      }
-      const wf = getWeeklyFinancials(week, year);
-      const touring = wf.transactions.filter(t => t.category === 'touring');
-      const rev = touring.filter(t => t.type === 'revenue').reduce((s, t) => s + t.amount, 0);
-      const exp = touring.filter(t => t.type === 'expense').reduce((s, t) => s + t.amount, 0);
-      data.push({
-        week: `Y${year}W${week}`,
-        touringRevenue: rev,
-        touringExpenses: exp,
-        net: rev - exp
-      });
-    }
-    return data;
-  };
-
-  const touringWeeklyData = getTouringWeeklyData();
-
-  const touringSummary = (() => {
-    const totals = touringWeeklyData.reduce(
-      (acc, w) => {
-        acc.revenue += w.touringRevenue;
-        acc.expenses += w.touringExpenses;
-        return acc;
-      },
-      { revenue: 0, expenses: 0 }
-    );
-    return { ...totals, net: totals.revenue - totals.expenses };
-  })();
   
   // Category breakdown for pie chart
   const getCategoryBreakdown = () => {
@@ -402,44 +364,6 @@ export const FinancialDashboard: React.FC = () => {
             </CardContent>
           </Card>
 
-          {/* Touring Analytics */}
-          <Card className="card-premium">
-            <CardHeader>
-              <CardTitle className="flex items-center font-studio text-primary">
-                <Ticket className="mr-2" size={20} />
-                Touring Analytics
-              </CardTitle>
-            </CardHeader>
-            <CardContent>
-              <div className="grid grid-cols-1 md:grid-cols-3 gap-4 mb-4">
-                <div className="p-3 rounded border border-border/50">
-                  <div className="text-xs text-muted-foreground">Touring Revenue</div>
-                  <div className="text-lg font-semibold text-green-600">{formatMoneyCompact(touringSummary.revenue)}</div>
-                </div>
-                <div className="p-3 rounded border border-border/50">
-                  <div className="text-xs text-muted-foreground">Touring Expenses</div>
-                  <div className="text-lg font-semibold text-red-600">{formatMoneyCompact(touringSummary.expenses)}</div>
-                </div>
-                <div className="p-3 rounded border border-border/50">
-                  <div className="text-xs text-muted-foreground">Net Touring</div>
-                  <div className={`text-lg font-semibold ${touringSummary.net >= 0 ? 'text-green-700' : 'text-red-700'}`}>
-                    {formatMoneyCompact(touringSummary.net)}
-                  </div>
-                </div>
-              </div>
-
-              <ResponsiveContainer width="100%" height={220}>
-                <BarChart data={touringWeeklyData}>
-                  <CartesianGrid strokeDasharray="3 3" />
-                  <XAxis dataKey="week" ticks={xTicks} tickFormatter={formatWeekTick} />
-                  <YAxis tickFormatter={(value: number) => formatMoneyCompact(value)} />
-                  <Tooltip formatter={(value: number, name: string) => [formatMoneyCompact(value), name === 'touringRevenue' ? 'Revenue' : name === 'touringExpenses' ? 'Expenses' : 'Net']} />
-                  <Bar dataKey="touringRevenue" name="Revenue" fill="#10b981" />
-                  <Bar dataKey="touringExpenses" name="Expenses" fill="#ef4444" />
-                </BarChart>
-              </ResponsiveContainer>
-            </CardContent>
-          </Card>
         </TabsContent>
       </Tabs>
 

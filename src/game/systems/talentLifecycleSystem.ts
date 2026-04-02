@@ -6,6 +6,35 @@ function lerp(a: number, b: number, t: number): number {
   return a + (b - a) * t;
 }
 
+/**
+ * Hard caps on talent market value to prevent runaway inflation.
+ * Even the biggest A-list stars shouldn't exceed ~$50M per project
+ * in a realistic simulation. Directors cap lower.
+ */
+const MARKET_VALUE_HARD_CAP_ACTOR = 50_000_000;    // $50M
+const MARKET_VALUE_HARD_CAP_DIRECTOR = 30_000_000;  // $30M
+
+/**
+ * Soft cap where diminishing returns kick in aggressively.
+ * Above this, any growth is reduced by 90%.
+ */
+const MARKET_VALUE_SOFT_CAP_ACTOR = 25_000_000;
+const MARKET_VALUE_SOFT_CAP_DIRECTOR = 15_000_000;
+
+function getMarketValueCaps(type: string): { soft: number; hard: number } {
+  if (type === 'director') return { soft: MARKET_VALUE_SOFT_CAP_DIRECTOR, hard: MARKET_VALUE_HARD_CAP_DIRECTOR };
+  return { soft: MARKET_VALUE_SOFT_CAP_ACTOR, hard: MARKET_VALUE_HARD_CAP_ACTOR };
+}
+
+export function clampMarketValue(value: number, type: string): number {
+  const { soft, hard } = getMarketValueCaps(type);
+  if (value <= soft) return value;
+  // Above soft cap: only 10% of growth above soft cap actually applies
+  const excess = value - soft;
+  const dampened = soft + excess * 0.1;
+  return Math.min(hard, Math.max(0, Math.round(dampened)));
+}
+
 function driftMarketValue(t: TalentPerson, nextAge: number): TalentPerson['marketValue'] {
   if (t.type !== 'actor' && t.type !== 'director') return t.marketValue;
 
@@ -18,7 +47,7 @@ function driftMarketValue(t: TalentPerson, nextAge: number): TalentPerson['marke
 
   const base = current ?? 0;
   const next = base * lerp(1, ageFactor, 0.15);
-  return Math.max(0, Math.round(next));
+  return clampMarketValue(Math.max(0, Math.round(next)), t.type);
 }
 
 /**
