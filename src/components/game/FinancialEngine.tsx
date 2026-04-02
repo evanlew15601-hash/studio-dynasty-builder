@@ -195,14 +195,6 @@ export class FinancialEngine {
     return this.recordTransaction('expense', 'overhead', amount, week, year, description);
   }
 
-  // Touring helpers for record label/artist touring operations
-  static recordTouringRevenue(amount: number, week: number, year: number, description: string, filmId?: string): string {
-    return this.recordTransaction('revenue', 'touring', amount, week, year, description, filmId);
-  }
-
-  static recordTouringExpense(amount: number, week: number, year: number, description: string, filmId?: string): string {
-    return this.recordTransaction('expense', 'touring', amount, week, year, description, filmId);
-  }
   
   static getWeeklyFinancials(week: number, year: number): WeeklyFinancials {
     this.ensureLoaded();

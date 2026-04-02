@@ -364,44 +364,6 @@ export const FinancialDashboard: React.FC = () => {
             </CardContent>
           </Card>
 
-          {/* Touring Analytics */}
-          <Card className="card-premium">
-            <CardHeader>
-              <CardTitle className="flex items-center font-studio text-primary">
-                <Ticket className="mr-2" size={20} />
-                Touring Analytics
-              </CardTitle>
-            </CardHeader>
-            <CardContent>
-              <div className="grid grid-cols-1 md:grid-cols-3 gap-4 mb-4">
-                <div className="p-3 rounded border border-border/50">
-                  <div className="text-xs text-muted-foreground">Touring Revenue</div>
-                  <div className="text-lg font-semibold text-green-600">{formatMoneyCompact(touringSummary.revenue)}</div>
-                </div>
-                <div className="p-3 rounded border border-border/50">
-                  <div className="text-xs text-muted-foreground">Touring Expenses</div>
-                  <div className="text-lg font-semibold text-red-600">{formatMoneyCompact(touringSummary.expenses)}</div>
-                </div>
-                <div className="p-3 rounded border border-border/50">
-                  <div className="text-xs text-muted-foreground">Net Touring</div>
-                  <div className={`text-lg font-semibold ${touringSummary.net >= 0 ? 'text-green-700' : 'text-red-700'}`}>
-                    {formatMoneyCompact(touringSummary.net)}
-                  </div>
-                </div>
-              </div>
-
-              <ResponsiveContainer width="100%" height={220}>
-                <BarChart data={touringWeeklyData}>
-                  <CartesianGrid strokeDasharray="3 3" />
-                  <XAxis dataKey="week" ticks={xTicks} tickFormatter={formatWeekTick} />
-                  <YAxis tickFormatter={(value: number) => formatMoneyCompact(value)} />
-                  <Tooltip formatter={(value: number, name: string) => [formatMoneyCompact(value), name === 'touringRevenue' ? 'Revenue' : name === 'touringExpenses' ? 'Expenses' : 'Net']} />
-                  <Bar dataKey="touringRevenue" name="Revenue" fill="#10b981" />
-                  <Bar dataKey="touringExpenses" name="Expenses" fill="#ef4444" />
-                </BarChart>
-              </ResponsiveContainer>
-            </CardContent>
-          </Card>
         </TabsContent>
       </Tabs>
 
