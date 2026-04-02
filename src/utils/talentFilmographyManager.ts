@@ -118,14 +118,37 @@ export const TalentFilmographyManager = {
 
       const newFame = Math.max(0, Math.min(100, (talent.fame || 0) + fameBoost));
 
+      // Market value boost from successful releases (capped via soft/hard cap)
+      let mvBoost = 0;
+      if (multiplier > 3) mvBoost = 500_000;
+      else if (multiplier > 2) mvBoost = 250_000;
+      else if (multiplier > 1) mvBoost = 100_000;
+      else if (multiplier < 0.5) mvBoost = -200_000;
+
+      const currentMv = talent.marketValue ?? 1_000_000;
+      const rawNextMv = Math.max(0, currentMv + mvBoost);
+      const nextMv = clampMarketValue(rawNextMv, talent.type);
+
+      // Boost studioLoyalty for working together — key for Inner Circle tracking
+      const studioId = gameState.studio?.id;
+      const currentLoyalty = talent.studioLoyalty?.[studioId] ?? 50;
+      const loyaltyBoost = role === 'Director' ? 8 : role === 'Lead Actor' ? 6 : 3;
+      const nextLoyalty = Math.min(100, currentLoyalty + loyaltyBoost);
+
+      const updatedLoyalty = studioId
+        ? { ...(talent.studioLoyalty || {}), [studioId]: nextLoyalty }
+        : talent.studioLoyalty;
+
       logDebug(
-        `[Filmography] ${talent.name} in "${project.title}" as ${role}. Fame: ${talent.fame || 0} -> ${newFame}`
+        `[Filmography] ${talent.name} in "${project.title}" as ${role}. Fame: ${talent.fame || 0} -> ${newFame}, MV: ${currentMv} -> ${nextMv}, Loyalty: ${currentLoyalty} -> ${nextLoyalty}`
       );
 
       return {
         ...talent,
         filmography: updatedFilmography,
         fame: newFame,
+        marketValue: nextMv,
+        studioLoyalty: updatedLoyalty,
         lastWorkWeek: workAbsWeek,
         recentProjects: nextRecentProjects,
       };
