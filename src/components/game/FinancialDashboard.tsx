@@ -8,7 +8,7 @@ import { Alert, AlertDescription } from '@/components/ui/alert';
 
 import { FinancialEngine } from './FinancialEngine';
 import { LineChart, Line, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer, BarChart, Bar, PieChart, Pie, Cell } from 'recharts';
-import { TrendingUp, TrendingDown, AlertTriangle, DollarSign, Activity, PieChart as PieChartIcon, Ticket } from 'lucide-react';
+import { TrendingUp, TrendingDown, AlertTriangle, DollarSign, Activity, PieChart as PieChartIcon } from 'lucide-react';
 
 import { useGameStore } from '@/game/store';
 import { formatMoneyCompact } from '@/utils/money';
