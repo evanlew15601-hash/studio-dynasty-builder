@@ -83,12 +83,12 @@ function pushTalentEvent(params: {
   const { talent, event } = params;
 
   const rep = clamp(talent.reputation ?? 50, 0, 100);
-  const mv = clamp(talent.marketValue ?? 0, 0, 999);
+  const mv = talent.marketValue ?? 0;
 
   return {
     ...talent,
     reputation: clamp(rep + (event.impactOnReputation || 0), 0, 100),
-    marketValue: Math.max(0, mv + (event.impactOnMarketValue || 0)),
+    marketValue: clampMarketValue(Math.max(0, mv + (event.impactOnMarketValue || 0)), talent.type),
     careerEvolution: [...(talent.careerEvolution || []), event],
   };
 }

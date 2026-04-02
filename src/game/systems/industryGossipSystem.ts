@@ -290,7 +290,7 @@ export const IndustryGossipSystem: TickSystem = {
           const pi = clamp(t.publicImage ?? rep, 0, 100);
 
           const nextRep = clamp(rep + scandal.reputationImpact, 0, 100);
-          const nextMv = Math.max(0, mv + scandal.marketValueImpact);
+          const nextMv = clampMarketValue(Math.max(0, mv + scandal.marketValueImpact), t.type);
           const nextPi = clamp(pi + Math.round(scandal.reputationImpact * 1.2), 0, 100);
 
           const next: TalentPerson = {
