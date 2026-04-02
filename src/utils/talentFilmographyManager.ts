@@ -1,6 +1,7 @@
 // Talent Filmography Management
 import { GameState, TalentPerson, Project } from '@/types/game';
 import { logDebug } from '@/utils/logger';
+import { clampMarketValue } from '@/game/systems/talentLifecycleSystem';
 
 export const TalentFilmographyManager = {
   /**
