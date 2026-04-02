@@ -170,44 +170,6 @@ export const FinancialDashboard: React.FC = () => {
     return `W${parsed.week}`;
   };
 
-  // Touring analytics (category-level)
-  const getTouringWeeklyData = () => {
-    const weeks = selectedTimeframe === '4weeks' ? 4 : selectedTimeframe === '12weeks' ? 12 : 52;
-    const data: Array<{ week: string; touringRevenue: number; touringExpenses: number; net: number }> = [];
-    for (let i = weeks - 1; i >= 0; i--) {
-      let week = currentWeek - i;
-      let year = currentYear;
-      if (week <= 0) {
-        week += 52;
-        year -= 1;
-      }
-      const wf = getWeeklyFinancials(week, year);
-      const touring = wf.transactions.filter(t => t.category === 'touring');
-      const rev = touring.filter(t => t.type === 'revenue').reduce((s, t) => s + t.amount, 0);
-      const exp = touring.filter(t => t.type === 'expense').reduce((s, t) => s + t.amount, 0);
-      data.push({
-        week: `Y${year}W${week}`,
-        touringRevenue: rev,
-        touringExpenses: exp,
-        net: rev - exp
-      });
-    }
-    return data;
-  };
-
-  const touringWeeklyData = getTouringWeeklyData();
-
-  const touringSummary = (() => {
-    const totals = touringWeeklyData.reduce(
-      (acc, w) => {
-        acc.revenue += w.touringRevenue;
-        acc.expenses += w.touringExpenses;
-        return acc;
-      },
-      { revenue: 0, expenses: 0 }
-    );
-    return { ...totals, net: totals.revenue - totals.expenses };
-  })();
   
   // Category breakdown for pie chart
   const getCategoryBreakdown = () => {
