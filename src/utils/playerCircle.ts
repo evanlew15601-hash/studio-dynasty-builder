@@ -49,16 +49,21 @@ export function computePlayerCircle(state: GameState, options?: { limit?: number
 
   const byId = new Map((state.talent || []).map((t) => [t.id, t] as const));
 
-  // Collaborators are people you are actively working with (credits/contracts), not just people whose
-  // global contractStatus happened to be toggled.
+  // Collaborators are people you have worked with (credits/contracts) or who have studio loyalty.
   const collaboratorIds = new Set<string>();
 
+  // Current contracts
   for (const t of state.talent || []) {
     if (t.contractStatus === 'contracted' || t.contractStatus === 'exclusive') {
       collaboratorIds.add(t.id);
     }
+    // Talent who have developed loyalty to the player studio through past work
+    if ((t.studioLoyalty?.[studioId] ?? 0) > 50) {
+      collaboratorIds.add(t.id);
+    }
   }
 
+  // Active project assignments
   for (const p of state.projects || []) {
     for (const c of p.cast || []) {
       if ((c as any)?.talentId) collaboratorIds.add((c as any).talentId);
@@ -68,6 +73,22 @@ export function computePlayerCircle(state: GameState, options?: { limit?: number
     }
     for (const ct of p.contractedTalent || []) {
       if ((ct as any)?.talentId) collaboratorIds.add((ct as any).talentId);
+    }
+    // Script character assignments (the primary casting data structure)
+    for (const ch of p.script?.characters || []) {
+      if (ch.assignedTalentId) collaboratorIds.add(ch.assignedTalentId);
+    }
+  }
+
+  // Also include talent from released projects (allReleases) who have worked with us
+  for (const r of state.allReleases || []) {
+    if (!r || !('script' in (r as any))) continue;
+    const p = r as any;
+    for (const ch of p.script?.characters || []) {
+      if (ch.assignedTalentId) collaboratorIds.add(ch.assignedTalentId);
+    }
+    for (const c of p.cast || []) {
+      if ((c as any)?.talentId) collaboratorIds.add((c as any).talentId);
     }
   }
 
