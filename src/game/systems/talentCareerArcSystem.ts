@@ -1,4 +1,5 @@
 import type { CareerEvent, GameState, Project, TalentPerson, WorldHistoryEntry } from '@/types/game';
+import { clampMarketValue } from './talentLifecycleSystem';
 import { pushWorldHistory } from '@/utils/worldHistory';
 import type { TickSystem } from '../core/types';
 
