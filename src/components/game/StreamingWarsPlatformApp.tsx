@@ -220,6 +220,7 @@ export const StreamingWarsPlatformApp: React.FC = () => {
   const [originalsOpen, setOriginalsOpen] = useState(false);
   const [originalType, setOriginalType] = useState<'series' | 'film'>('series');
   const [originalTitle, setOriginalTitle] = useState('');
+  const [originalLogline, setOriginalLogline] = useState('A gripping drama about ambition and betrayal in the cutthroat world of studio filmmaking.');
   const [originalGenre, setOriginalGenre] = useState<Genre>('drama');
   const [originalEpisodeCount, setOriginalEpisodeCount] = useState(10);
   const [originalEpisodeBudget, setOriginalEpisodeBudget] = useState(2_500_000);
@@ -1369,11 +1370,11 @@ export const StreamingWarsPlatformApp: React.FC = () => {
       id: `script:original:${gameState.currentYear}:W${gameState.currentWeek}:${idSuffix}`,
       title,
       genre: originalGenre,
-      logline: `An original ${originalGenre} series commissioned for ${gameState.platformMarket?.player?.name ?? 'your platform'}.`,
+      logline: originalLogline || `An original ${originalGenre} ${originalType} commissioned for ${gameState.platformMarket?.player?.name ?? 'your platform'}.`,
       writer: 'In-house',
       pages: 60,
       quality: finalQuality,
-      budget: perEpisodeBudget,
+      budget: originalType === 'film' ? originalTotalBudget : perEpisodeBudget,
       developmentStage: 'concept',
       themes: [],
       targetAudience: 'general',
@@ -1403,7 +1404,7 @@ export const StreamingWarsPlatformApp: React.FC = () => {
       platformId: playerPlatformId,
       persistentRights: true,
       name: `${gameState.platformMarket?.player?.name ?? 'Your Platform'} Original - ${title}`,
-      type: 'series',
+      type: originalType === 'film' ? 'film' : 'series',
       duration,
       startWeek: gameState.currentWeek,
       startYear: gameState.currentYear,
@@ -1421,7 +1422,7 @@ export const StreamingWarsPlatformApp: React.FC = () => {
       marketingSupport: 0,
     };
 
-    const totalBudget = perEpisodeBudget * episodeCount;
+    const totalBudget = originalType === 'film' ? originalTotalBudget : (perEpisodeBudget * episodeCount);
 
     const releaseFormat = originalReleaseFormat as any;
 
@@ -1463,7 +1464,7 @@ export const StreamingWarsPlatformApp: React.FC = () => {
       id: `project:original:${gameState.currentYear}:W${gameState.currentWeek}:${idSuffix}`,
       title,
       script,
-      type: 'series',
+      type: originalType === 'film' ? 'feature' : 'series',
       currentPhase: 'development',
       budget: {
         total: totalBudget,
@@ -1492,6 +1493,7 @@ export const StreamingWarsPlatformApp: React.FC = () => {
           contingency: 0,
         },
       },
+      cast: [],
       crew: [],
       timeline: {
         preProduction: { start: now, end: now },
@@ -1524,9 +1526,9 @@ export const StreamingWarsPlatformApp: React.FC = () => {
         completionThreshold: 60,
         issues: [],
       },
-      seasons: [season1],
-      currentSeason: 1,
-      totalOrderedSeasons: 1,
+      seasons: originalType === 'film' ? undefined : [season1],
+      currentSeason: originalType === 'film' ? undefined : 1,
+      totalOrderedSeasons: originalType === 'film' ? undefined : 1,
       releaseFormat,
       episodeCount,
       streamingContract: contract,
@@ -2260,9 +2262,12 @@ export const StreamingWarsPlatformApp: React.FC = () => {
                 </div>
               )}
 
-              <div className="flex gap-2">
+                            <div className="flex gap-2">
                 <Button type="button" onClick={() => { setOriginalType('series'); setOriginalsOpen(true); }} disabled={!playerPlatformId || player?.status !== 'active'}>
                   Commission Original Series
+                </Button>
+                <Button type="button" variant="outline" onClick={() => { setOriginalType('film'); setOriginalsOpen(true); }} disabled={!playerPlatformId || player?.status !== 'active'}>
+                  Commission Original Film
                 </Button>
               </div>
 
@@ -3070,7 +3075,7 @@ export const StreamingWarsPlatformApp: React.FC = () => {
       <Dialog open={originalsOpen} onOpenChange={setOriginalsOpen}>
         <DialogContent>
           <DialogHeader>
-            <DialogTitle>Commission an Original series</DialogTitle>
+            <DialogTitle>Commission an Original {originalType === 'film' ? 'film' : 'series'}</DialogTitle>
           </DialogHeader>
 
           <div className="space-y-4">
@@ -3081,6 +3086,16 @@ export const StreamingWarsPlatformApp: React.FC = () => {
                 value={originalTitle}
                 onChange={(e) => setOriginalTitle(e.target.value)}
                 placeholder="A show people can’t stop watching"
+              />
+            </div>
+
+            <div className="space-y-2">
+              <Label htmlFor="original-logline">Logline</Label>
+              <Input
+                id="original-logline"
+                value={originalLogline}
+                onChange={(e) => setOriginalLogline(e.target.value)}
+                placeholder="A brief summary of the plot..."
               />
             </div>
 
@@ -3107,6 +3122,7 @@ export const StreamingWarsPlatformApp: React.FC = () => {
                 </Select>
               </div>
 
+              {originalType === 'series' && (<>
               <div className="space-y-2">
                 <Label htmlFor="episodes">Episode count</Label>
                 <Input
@@ -3132,17 +3148,18 @@ export const StreamingWarsPlatformApp: React.FC = () => {
                   </SelectContent>
                 </Select>
               </div>
+              </>)}
             </div>
 
             <div className="space-y-2">
-              <Label htmlFor="episode-budget">Per-episode budget</Label>
-              <Input
+              <Label htmlFor="episode-budget">{originalType === 'film' ? 'Total budget' : 'Per-episode budget'}</Label>
+                            <Input
                 id="episode-budget"
                 type="number"
                 min={250000}
                 step={250000}
-                value={originalEpisodeBudget}
-                onChange={(e) => setOriginalEpisodeBudget(Math.max(250000, parseInt(e.target.value || '2500000', 10)))}
+                value={originalType === 'film' ? originalTotalBudget : originalEpisodeBudget}
+                onChange={(e) => originalType === 'film' ? setOriginalTotalBudget(Math.max(250000, parseInt(e.target.value || '2500000', 10))) : setOriginalEpisodeBudget(Math.max(250000, parseInt(e.target.value || '2500000', 10)))}
               />
               <p className="text-xs text-muted-foreground">Commissioning costs a one-time fee (to prevent spam) and increases platform burn while the show is in the pipeline.</p>
               <p className="text-xs text-muted-foreground">It will progress automatically and premiere on your platform in ~{ORIGINAL_PHASE_WEEKS.development + ORIGINAL_PHASE_WEEKS.production + ORIGINAL_PHASE_WEEKS['post-production']} weeks.</p>
