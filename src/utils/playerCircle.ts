@@ -55,6 +55,8 @@ export function computePlayerCircle(state: GameState, options?: { limit?: number
   }
 
   const contracted = (state.talent || []).filter((t) => {
+    const loyalty = getStudioLoyalty(t, studioId);
+    if (loyalty >= 60) return true;
     if (t.contractStatus === 'contracted' || t.contractStatus === 'exclusive') return true;
 
     // TalentAvailabilitySystem marks working talent as busy, preserving the underlying
