@@ -110,7 +110,10 @@ export class TVEpisodeSystem {
     if (!season) return withSeason;
 
     const currentAbs = absWeek(currentWeek, currentYear);
-    const premiereAbs = absWeek(premiereWeek, premiereYear);
+    let premiereAbs = absWeek(premiereWeek, premiereYear);
+    if (season.premiereDate && typeof season.premiereDate.week === 'number' && typeof season.premiereDate.year === 'number') {
+      premiereAbs = absWeek(season.premiereDate.week, season.premiereDate.year);
+    }
     if (currentAbs < premiereAbs) return withSeason;
 
     const weeksSincePremiere = currentAbs - premiereAbs;

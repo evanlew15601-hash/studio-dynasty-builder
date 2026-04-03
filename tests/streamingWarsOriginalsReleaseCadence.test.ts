@@ -3,6 +3,7 @@ import type { GameState, Project } from '@/types/game';
 import type { TickContext } from '@/game/core/types';
 import { createRng } from '@/game/core/rng';
 import { PlatformOriginalsReleaseCadenceSystem } from '@/game/systems/platformOriginalsReleaseCadenceSystem';
+import { TelevisionPerformanceSystem } from '@/game/systems/televisionPerformanceSystem';
 
 function makeCtx(seed: number, week: number, year: number): TickContext {
   return {
@@ -154,6 +155,11 @@ function makeReleasedOriginal(params: { id: string; platformId: string; releaseW
   } as any;
 }
 
+function tickSystems(state: any, ctx: any) {
+  const s = PlatformOriginalsReleaseCadenceSystem.onTick(state, ctx) as any;
+  return TelevisionPerformanceSystem.onTick(s, ctx) as any;
+}
+
 describe('Streaming Wars: Originals release cadence', () => {
   it('increments episodesAired weekly after premiere for weekly releases', () => {
     const platformId = 'player-platform:studio-1';
@@ -176,12 +182,12 @@ describe('Streaming Wars: Originals release cadence', () => {
       projects: [makeReleasedOriginal({ id: 'project:original:2027:W1:111111', platformId, releaseWeek: 1, releaseYear: 2027, releaseFormat: 'weekly' })],
     });
 
-    const week1 = PlatformOriginalsReleaseCadenceSystem.onTick(base as any, makeCtx(1, 1, 2027));
+    const week1 = tickSystems(base as any, makeCtx(1, 1, 2027));
     expect(week1.projects?.[0]?.seasons?.[0]?.episodesAired).toBe(1);
     expect(week1.projects?.[0]?.seasons?.[0]?.productionStatus).toBe('complete');
     expect(week1.projects?.[0]?.seasons?.[0]?.airingStatus).toBe('airing');
 
-    const week4 = PlatformOriginalsReleaseCadenceSystem.onTick(week1 as any, makeCtx(1, 4, 2027));
+    const week4 = tickSystems(week1 as any, makeCtx(1, 4, 2027));
     expect(week4.projects?.[0]?.seasons?.[0]?.episodesAired).toBe(4);
     expect(week4.projects?.[0]?.seasons?.[0]?.productionStatus).toBe('complete');
     expect(week4.projects?.[0]?.seasons?.[0]?.airingStatus).toBe('airing');
@@ -208,7 +214,7 @@ describe('Streaming Wars: Originals release cadence', () => {
       projects: [makeReleasedOriginal({ id: 'project:original:2027:W1:222222', platformId, releaseWeek: 1, releaseYear: 2027, releaseFormat: 'binge' })],
     });
 
-    const next = PlatformOriginalsReleaseCadenceSystem.onTick(base as any, makeCtx(1, 1, 2027));
+    const next = tickSystems(base as any, makeCtx(1, 1, 2027));
     expect(next.projects?.[0]?.seasons?.[0]?.episodesAired).toBe(10);
     expect(next.projects?.[0]?.seasons?.[0]?.productionStatus).toBe('complete');
     expect(next.projects?.[0]?.seasons?.[0]?.airingStatus).toBe('complete');
