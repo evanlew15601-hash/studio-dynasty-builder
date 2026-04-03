@@ -40,6 +40,7 @@ function contractKey(talentId: string, projectId: string, role: string): string 
 }
 
 export function createOnlineLeagueTurnBaseline(state: GameState): OnlineLeagueTurnBaseline {
+  if (!state) return { contractedKeys: new Set<string>() };
   const keys = new Set<string>();
 
   for (const project of state.projects || []) {
@@ -143,6 +144,9 @@ export function buildOnlineLeagueTurnSubmission(params: {
         publicDomainName,
         franchiseId,
         franchiseTitle,
+        releaseFormat: p.releaseFormat,
+        totalEpisodes: p.seasons?.[0]?.totalEpisodes ?? p.episodeCount,
+        episodesAired: p.seasons?.[0]?.episodesAired,
       };
     });
 
