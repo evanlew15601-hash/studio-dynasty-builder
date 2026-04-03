@@ -1,5 +1,4 @@
 import React, { useCallback, useEffect, useMemo, useRef, useState } from 'react';
-import React, { useState } from 'react';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
@@ -188,7 +187,7 @@ export const OnlineLeague: React.FC<OnlineLeagueProps> = ({ initialLeagueCode })
         <CardTitle>Online League</CardTitle>
       </CardHeader>
       <CardContent className="space-y-6">
-{(!canUseOnline || !status.configured) && (
+{(!canUseOnline || !getSupabaseConfigStatus().configured) && (
           <div className="rounded-2xl border-2 border-destructive/50 bg-destructive/10 p-6 text-destructive-foreground">
             <div className="flex items-start gap-3 mb-4">
               <div className="flex-shrink-0 w-10 h-10 bg-destructive/20 rounded-xl flex items-center justify-center">
@@ -213,7 +212,7 @@ export const OnlineLeague: React.FC<OnlineLeagueProps> = ({ initialLeagueCode })
                   📋 Copy SQL Schema
                 </Button>
               </OnlineLeagueSQLDialog>
-              <SupabaseConfigDialog open={supabaseConfigOpen} onOpenChange={setSupabaseConfigOpen}>
+              <SupabaseConfigDialog>
                 <Button size="sm" variant="outline" className="font-medium">
                   ⚙️ Configure Supabase
                 </Button>
