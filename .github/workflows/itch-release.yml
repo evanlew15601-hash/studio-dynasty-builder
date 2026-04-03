@@ -222,7 +222,8 @@ jobs:
                 exit 1
                 ;;
             esac
-          } 2>&1 | tee "$LOG_FILE"
+          } > "$LOG_FILE" 2>&1
+          cat "$LOG_FILE"
 
       - name: Upload build logs
         if: always()
