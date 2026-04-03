@@ -733,7 +733,7 @@ export const StudioMagnateGame: React.FC<StudioMagnateGameProps> = ({
     lastFirstWeekModalKeyRef.current = key;
     setFirstWeekModalProject(newlyReleasedFilm);
     setShowFirstWeekModal(true);
-  }, [gameState.currentWeek, gameState.currentYear, gameState.projects, showFirstWeekModal]);
+  }, [gameState.currentWeek, gameState.currentYear, gameState.projects]);
   
   // Award show modal state
   const [currentAwardShow, setCurrentAwardShow] = useState<AwardShowCeremony | null>(null);

@@ -276,13 +276,15 @@ export const EpisodeTrackingSystem: React.FC = () => {
     if (!gameState) return;
 
     const preRelease = getPreReleaseProjects();
-    preRelease.forEach(project => {
-      if (!project.seasons || project.seasons.length === 0) {
+    const needsUpdate = preRelease.filter(p => !p.seasons || p.seasons.length === 0);
+    
+    if (needsUpdate.length > 0) {
+      needsUpdate.forEach(project => {
         const seasonData = initializeSeasonData(project);
         updateProject(project.id, { seasons: [seasonData] });
-      }
-    });
-  }, [gameState, updateProject]);
+      });
+    }
+  }, [gameState?.currentWeek, gameState?.currentYear]);
 
   if (!gameState) {
     return <div className="p-6 text-sm text-muted-foreground">Loading episode tracking...</div>;

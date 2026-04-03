@@ -348,7 +348,7 @@ export const ModsPanel: React.FC<ModsPanelProps> = ({ showDatabaseControls = tru
       const b = getModBundle();
       syncFromBundle(b, true);
     }
-  }, [activeSlot]);
+  }, []);
 
   const handleDatabaseChange = (slotId: string) => {
     setActiveModSlot(slotId);
