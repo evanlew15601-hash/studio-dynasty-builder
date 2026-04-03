@@ -1369,6 +1369,7 @@ export const StreamingWarsPlatformApp: React.FC = () => {
       id: `script:original:${gameState.currentYear}:W${gameState.currentWeek}:${idSuffix}`,
       title,
       genre: originalGenre,
+      logline: `An original ${originalGenre} series commissioned for ${gameState.platformMarket?.player?.name ?? 'your platform'}.`,
       writer: 'In-house',
       pages: 60,
       quality: finalQuality,
