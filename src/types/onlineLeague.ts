@@ -22,6 +22,9 @@ export type LeagueReleasedProjectSnapshot = {
   publicDomainName?: string;
   franchiseId?: string;
   franchiseTitle?: string;
+  releaseFormat?: string;
+  totalEpisodes?: number;
+  episodesAired?: number;
 };
 
 export type OnlineLeagueTurnStateSlice = {
