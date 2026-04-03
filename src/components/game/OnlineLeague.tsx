@@ -77,6 +77,7 @@ export const OnlineLeague: React.FC<OnlineLeagueProps> = ({ initialLeagueCode })
   const [presence, setPresence] = useState<Record<string, PresenceStudioSnapshot[]>>({});
   const [persistedSnapshots, setPersistedSnapshots] = useState<PersistedLeagueSnapshot[]>([]);
   const [leagueBusy, setLeagueBusy] = useState(false);
+  const [supabaseConfigOpen, setSupabaseConfigOpen] = useState(false);
 
   const [configVersion, setConfigVersion] = useState(0);
 
@@ -212,11 +213,10 @@ export const OnlineLeague: React.FC<OnlineLeagueProps> = ({ initialLeagueCode })
                   📋 Copy SQL Schema
                 </Button>
               </OnlineLeagueSQLDialog>
-              <SupabaseConfigDialog>
-                <Button size="sm" variant="outline" className="font-medium">
+              <Button size="sm" variant="outline" className="font-medium" onClick={() => setSupabaseConfigOpen(true)}>
                   ⚙️ Configure Supabase
                 </Button>
-              </SupabaseConfigDialog>
+                <SupabaseConfigDialog open={supabaseConfigOpen} onOpenChange={setSupabaseConfigOpen} />
               <Button size="sm" variant="secondary" asChild>
                 <a href="https://supabase.com/dashboard/projects" target="_blank" rel="noreferrer" className="font-medium">
                   Create Supabase →
