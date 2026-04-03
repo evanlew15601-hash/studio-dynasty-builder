@@ -1423,7 +1423,7 @@ export const StreamingWarsPlatformApp: React.FC = () => {
 
     const totalBudget = perEpisodeBudget * episodeCount;
 
-    const releaseFormat = originalReleaseFormat;
+    const releaseFormat = originalReleaseFormat as any;
 
     const episodes: EpisodeData[] = Array.from({ length: episodeCount }).map((_, idx) => {
       const n = idx + 1;
