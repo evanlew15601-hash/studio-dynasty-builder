@@ -4,7 +4,7 @@ import { TooltipProvider } from "@/components/ui/tooltip";
 import { ErrorBoundary } from "@/components/ui/error-boundary";
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
 import { Suspense, lazy } from "react";
-import { BrowserRouter, Routes, Route } from "react-router-dom";
+import { HashRouter, Routes, Route } from "react-router-dom";
 
 const Index = lazy(() => import("./pages/Index"));
 const Online = lazy(() => import("./pages/Online"));
@@ -20,8 +20,8 @@ const App = () => (
       <Toaster />
       <Sonner />
       <ErrorBoundary>
-        <BrowserRouter
-          basename={import.meta.env.BASE_URL}
+        <HashRouter
+          
           future={{ v7_startTransition: true, v7_relativeSplatPath: true }}
         >
           <Suspense fallback={<div className="p-6 text-sm text-muted-foreground">Loading…</div>}>
@@ -33,7 +33,7 @@ const App = () => (
               <Route path="*" element={<NotFound />} />
             </Routes>
           </Suspense>
-        </BrowserRouter>
+        </HashRouter>
       </ErrorBoundary>
     </TooltipProvider>
   </QueryClientProvider>
