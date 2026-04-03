@@ -312,9 +312,29 @@ export const PlatformOriginalsReleaseCadenceSystem: TickSystem = {
       const dropsTotal = releaseFormat === 'binge' ? 1 : Math.ceil(active.total / batchSize);
       const finaleAbs = active.premiereAbs + (dropsTotal - 1);
       
-      const episodesOut = active.season.episodes;
-      const premiereDate = active.season.premiereDate;
-      const finaleDate = active.season.finaleDate;
+      let episodesOut = active.season.episodes;
+      const needsAirDates =
+        nextAired > 0 &&
+        active.season.episodes
+          .slice(0, nextAired)
+          .some((ep) => ep && !ep.airDate);
+
+      if (needsAirDates) {
+        episodesOut = active.season.episodes.map((ep) => {
+          if (!ep) return ep;
+          if (ep.airDate) return ep;
+          if (ep.episodeNumber > nextAired) return ep;
+
+          const abs = active.premiereAbs + (releaseFormat === 'binge' ? 0 : Math.floor((ep.episodeNumber - 1) / batchSize));
+          const { week, year } = fromAbs(abs);
+          return {
+            ...ep,
+            airDate: { week, year },
+          };
+        });
+      }
+      const premiereDate = active.season.premiereDate ?? fromAbs(active.premiereAbs);
+      const finaleDate = expectedAired >= active.total ? (active.season.finaleDate ?? fromAbs(finaleAbs)) : active.season.finaleDate;
 
       if (expectedAired >= active.total && nextAired < active.total) {
         ctx.recap.push({
