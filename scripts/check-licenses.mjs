@@ -10,6 +10,7 @@ const allowedExact = new Set([
   'BSD',
   'BSD-2-Clause',
   'BSD-3-Clause',
+  'CC-BY-4.0',
   'CC0-1.0',
   'ISC',
   'MIT',
