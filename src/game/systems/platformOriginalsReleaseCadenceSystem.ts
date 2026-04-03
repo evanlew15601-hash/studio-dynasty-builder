@@ -307,39 +307,16 @@ export const PlatformOriginalsReleaseCadenceSystem: TickSystem = {
 
       expectedAired = clampInt(expectedAired, 0, active.total);
 
-      const prevAired = clampInt(active.season.episodesAired ?? 0, 0, active.total);
-      const nextAired = Math.max(prevAired, expectedAired);
-
-      let episodesOut = active.season.episodes;
-
-      const needsAirDates =
-        nextAired > 0 &&
-        active.season.episodes
-          .slice(0, nextAired)
-          .some((ep) => ep && !ep.airDate);
-
-      if (needsAirDates) {
-        episodesOut = active.season.episodes.map((ep) => {
-          if (!ep) return ep;
-          if (ep.airDate) return ep;
-          if (ep.episodeNumber > nextAired) return ep;
-
-          const abs = active.premiereAbs + (releaseFormat === 'binge' ? 0 : Math.floor((ep.episodeNumber - 1) / batchSize));
-          const { week, year } = fromAbs(abs);
-          return {
-            ...ep,
-            airDate: { week, year },
-          };
-        });
-      }
-
-      const premiereDate = active.season.premiereDate ?? fromAbs(active.premiereAbs);
-
+      const nextAired = active.season.episodesAired ?? 0;
+      
       const dropsTotal = releaseFormat === 'binge' ? 1 : Math.ceil(active.total / batchSize);
       const finaleAbs = active.premiereAbs + (dropsTotal - 1);
-      const finaleDate = nextAired >= active.total ? (active.season.finaleDate ?? fromAbs(finaleAbs)) : active.season.finaleDate;
+      
+      const episodesOut = active.season.episodes;
+      const premiereDate = active.season.premiereDate;
+      const finaleDate = active.season.finaleDate;
 
-      if (nextAired >= active.total && !active.season.finaleDate) {
+      if (expectedAired >= active.total && nextAired < active.total) {
         ctx.recap.push({
           type: 'release',
           title: 'Season finale',
@@ -386,7 +363,7 @@ export const PlatformOriginalsReleaseCadenceSystem: TickSystem = {
       const changedThis =
         ensured.changed ||
         scheduledNextSeason ||
-        nextAired !== prevAired ||
+        nextAired !== nextAired ||
         airingStatus !== active.season.airingStatus ||
         active.season.productionStatus !== 'complete' ||
         !active.season.premiereDate ||
