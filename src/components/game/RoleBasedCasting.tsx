@@ -85,7 +85,7 @@ export const RoleBasedCasting: React.FC<RoleBasedCastingProps> = ({
         description: `${rolesToCreate.length} role${rolesToCreate.length > 1 ? 's' : ''} prepared (Director/Lead ensured)`,
       });
     }
-  }, [project?.id, project?.script?.franchiseId, project?.script?.publicDomainId, project?.script?.characters?.length, gameState]);
+  }, [project?.id, project?.script?.franchiseId, project?.script?.publicDomainId, project?.script?.characters?.length]);
 
   if (!gameState) {
     return <div className="p-6 text-sm text-muted-foreground">Loading casting system...</div>;
