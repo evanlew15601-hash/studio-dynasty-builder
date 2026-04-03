@@ -3,6 +3,7 @@ import type { GameState, Project } from '@/types/game';
 import type { TickContext } from '@/game/core/types';
 import { createRng } from '@/game/core/rng';
 import { PlatformOriginalsReleaseCadenceSystem } from '@/game/systems/platformOriginalsReleaseCadenceSystem';
+import { TelevisionPerformanceSystem } from '@/game/systems/televisionPerformanceSystem';
 
 function makeCtx(seed: number, week: number, year: number): TickContext {
   return {
@@ -55,6 +56,11 @@ function makeBaseState(overrides?: Partial<GameState>): GameState {
   };
 
   return { ...base, ...(overrides || {}) } as GameState;
+}
+
+function tickSystems(state: any, ctx: any) {
+  const s = PlatformOriginalsReleaseCadenceSystem.onTick(state, ctx) as any;
+  return TelevisionPerformanceSystem.onTick(s, ctx) as any;
 }
 
 describe('Streaming Wars: Originals release cadence (multi-season)', () => {
@@ -205,7 +211,7 @@ describe('Streaming Wars: Originals release cadence (multi-season)', () => {
       projects: [project],
     });
 
-    const week22 = PlatformOriginalsReleaseCadenceSystem.onTick(base as any, makeCtx(1, 22, 2027));
+    const week22 = tickSystems(base as any, makeCtx(1, 22, 2027));
 
     const out = week22.projects?.[0] as any;
 
