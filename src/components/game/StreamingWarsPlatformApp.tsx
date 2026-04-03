@@ -220,7 +220,6 @@ export const StreamingWarsPlatformApp: React.FC = () => {
   const [originalsOpen, setOriginalsOpen] = useState(false);
   const [originalType, setOriginalType] = useState<'series' | 'film'>('series');
   const [originalTitle, setOriginalTitle] = useState('');
-  const [originalLogline, setOriginalLogline] = useState('A gripping drama about ambition and betrayal in the cutthroat world of studio filmmaking.');
   const [originalGenre, setOriginalGenre] = useState<Genre>('drama');
   const [originalEpisodeCount, setOriginalEpisodeCount] = useState(10);
   const [originalEpisodeBudget, setOriginalEpisodeBudget] = useState(2_500_000);
@@ -1370,7 +1369,6 @@ export const StreamingWarsPlatformApp: React.FC = () => {
       id: `script:original:${gameState.currentYear}:W${gameState.currentWeek}:${idSuffix}`,
       title,
       genre: originalGenre,
-      logline: `An original ${originalGenre} series commissioned for ${gameState.platformMarket?.player?.name ?? 'your platform'}.`,
       writer: 'In-house',
       pages: 60,
       quality: finalQuality,
@@ -1493,7 +1491,6 @@ export const StreamingWarsPlatformApp: React.FC = () => {
           contingency: 0,
         },
       },
-      cast: [],
       crew: [],
       timeline: {
         preProduction: { start: now, end: now },
@@ -2265,9 +2262,6 @@ export const StreamingWarsPlatformApp: React.FC = () => {
               <div className="flex gap-2">
                 <Button type="button" onClick={() => { setOriginalType('series'); setOriginalsOpen(true); }} disabled={!playerPlatformId || player?.status !== 'active'}>
                   Commission Original Series
-                </Button>
-                <Button type="button" variant="outline" onClick={() => { setOriginalType('film'); setOriginalsOpen(true); }} disabled={!playerPlatformId || player?.status !== 'active'}>
-                  Commission Original Film
                 </Button>
               </div>
 

@@ -330,7 +330,7 @@ export interface Project {
   type: 'feature' | 'series' | 'limited-series' | 'documentary';
   currentPhase: ProductionPhase;
   budget: ProjectBudget;
-  cast: ProductionRole[];
+  cast?: ProductionRole[];
   crew: ProductionRole[];
   timeline: ProjectTimeline;
   locations: Location[];
