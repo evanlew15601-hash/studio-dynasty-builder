@@ -33,6 +33,7 @@ export interface WorldRelationshipBlueprint {
 
 export interface WorldTalentBlueprint {
   slug: string;
+  portraitFile?: string;
   tier: 'marquee' | 'notable';
   name: string;
   type: 'actor' | 'director';
@@ -76,6 +77,7 @@ const T = {
 export const CORE_TALENT_BIBLE: WorldTalentBlueprint[] = [
   {
     slug: 'eleanor-vale',
+    portraitFile: 'eleanor-vale.webp',
     tier: 'marquee',
     name: 'Eleanor Vale',
     type: 'actor',
@@ -112,6 +114,7 @@ export const CORE_TALENT_BIBLE: WorldTalentBlueprint[] = [
   },
   {
     slug: 'mateo-ionescu',
+    portraitFile: 'mateo-ionescu.webp',
     tier: 'marquee',
     name: 'Mateo Ionescu',
     type: 'director',
@@ -144,6 +147,7 @@ export const CORE_TALENT_BIBLE: WorldTalentBlueprint[] = [
   },
   {
     slug: 'calvin-stroud',
+    portraitFile: 'calvin-stroud.webp',
     tier: 'marquee',
     name: 'Calvin Stroud',
     type: 'director',
@@ -176,6 +180,7 @@ export const CORE_TALENT_BIBLE: WorldTalentBlueprint[] = [
   },
   {
     slug: 'nadia-serrano',
+    portraitFile: 'nadia-serrano.webp',
     tier: 'marquee',
     name: 'Nadia Serrano',
     type: 'director',
@@ -209,6 +214,7 @@ export const CORE_TALENT_BIBLE: WorldTalentBlueprint[] = [
   },
   {
     slug: 'rina-matsuda',
+    portraitFile: 'rina-matsuda.webp',
     tier: 'marquee',
     name: 'Rina Matsuda',
     type: 'actor',
@@ -241,6 +247,7 @@ export const CORE_TALENT_BIBLE: WorldTalentBlueprint[] = [
   },
   {
     slug: 'jonah-pike',
+    portraitFile: 'jonah-pike.webp',
     tier: 'marquee',
     name: 'Jonah Pike',
     type: 'director',
@@ -273,6 +280,7 @@ export const CORE_TALENT_BIBLE: WorldTalentBlueprint[] = [
   },
   {
     slug: 'selma-korovin',
+    portraitFile: 'selma-korovin.webp',
     tier: 'marquee',
     name: 'Selma Korovin',
     type: 'director',
@@ -308,6 +316,7 @@ export const CORE_TALENT_BIBLE: WorldTalentBlueprint[] = [
   // --- Additional marquee anchors (kept concise; depth comes from archetype + narrative tags) ---
   {
     slug: 'maris-quinlan',
+    portraitFile: 'maris-quinlan.webp',
     tier: 'marquee',
     name: 'Maris Quinlan',
     type: 'actor',
@@ -339,6 +348,7 @@ export const CORE_TALENT_BIBLE: WorldTalentBlueprint[] = [
   },
   {
     slug: 'dante-vero',
+    portraitFile: 'dante-vero.webp',
     tier: 'marquee',
     name: 'Dante Vero',
     type: 'actor',
@@ -357,6 +367,7 @@ export const CORE_TALENT_BIBLE: WorldTalentBlueprint[] = [
   },
   {
     slug: 'imani-brooks',
+    portraitFile: 'imani-brooks.webp',
     tier: 'marquee',
     name: 'Imani Brooks',
     type: 'actor',
@@ -376,6 +387,7 @@ export const CORE_TALENT_BIBLE: WorldTalentBlueprint[] = [
   },
   {
     slug: 'lex-holloway',
+    portraitFile: 'lex-holloway.webp',
     tier: 'marquee',
     name: 'Lex Holloway',
     type: 'actor',
@@ -395,6 +407,7 @@ export const CORE_TALENT_BIBLE: WorldTalentBlueprint[] = [
   },
   {
     slug: 'harper-quibble',
+    portraitFile: 'harper-quibble.webp',
     tier: 'marquee',
     name: 'Harper Quibble',
     type: 'director',
@@ -428,6 +441,7 @@ export const CORE_TALENT_BIBLE: WorldTalentBlueprint[] = [
   },
   {
     slug: 'gunnar-slate',
+    portraitFile: 'gunnar-slate.webp',
     tier: 'marquee',
     name: 'Gunnar Slate',
     type: 'director',
@@ -460,6 +474,7 @@ export const CORE_TALENT_BIBLE: WorldTalentBlueprint[] = [
   },
   {
     slug: 'brock-stormer',
+    portraitFile: 'brock-stormer.webp',
     tier: 'marquee',
     name: 'Brock Stormer',
     type: 'actor',

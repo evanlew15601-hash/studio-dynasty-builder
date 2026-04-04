@@ -274,6 +274,7 @@ function buildCoreTalent(currentYear: number): TalentPerson[] {
     return {
       id,
       name: b.name,
+      portraitFile: b.portraitFile,
       type: b.type,
       age,
       gender: b.gender,
@@ -383,6 +384,7 @@ export function buildCoreTalentDebutsForYear(year: number): TalentPerson[] {
       return {
         id,
         name: b.name,
+        portraitFile: b.portraitFile,
         type: b.type,
         age,
         gender: b.gender,
