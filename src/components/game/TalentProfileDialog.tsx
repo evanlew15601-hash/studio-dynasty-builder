@@ -4,6 +4,7 @@ import { formatMoneyCompact } from '@/utils/money';
 import { useGameStore } from '@/game/store';
 import { useUiStore } from '@/game/uiStore';
 import { Badge } from '@/components/ui/badge';
+import { TalentPortrait } from '@/components/ui/talent-portrait';
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from '@/components/ui/dialog';
 import { ScrollArea } from '@/components/ui/scroll-area';
 import { Separator } from '@/components/ui/separator';
@@ -57,7 +58,10 @@ export const TalentProfileDialog: React.FC = () => {
     >
       <DialogContent className="max-w-2xl">
         <DialogHeader>
-          <DialogTitle>{talent ? talent.name : 'Talent Profile'}</DialogTitle>
+          <DialogTitle className="flex items-center gap-4">
+            {talent && <TalentPortrait talent={talent} size="sm" />}
+            <span>{talent ? talent.name : 'Talent Profile'}</span>
+          </DialogTitle>
         </DialogHeader>
 
         {!gameState || !talent ? (

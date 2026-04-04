@@ -6,7 +6,7 @@ import { useUiStore } from '@/game/uiStore';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
-import { Avatar, AvatarFallback } from '@/components/ui/avatar';
+import { TalentPortrait } from '@/components/ui/talent-portrait';
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from '@/components/ui/dialog';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { Input } from '@/components/ui/input';
@@ -359,9 +359,7 @@ export const CastingRoleManager: React.FC<CastingRoleManagerProps> = ({
                 return (
                   <div key={role.characterId} className="flex items-center justify-between p-4 border rounded-lg">
                     <div className="flex items-center gap-3">
-                      <Avatar>
-                        <AvatarFallback>{role.talentName?.substring(0, 2)}</AvatarFallback>
-                      </Avatar>
+                      <TalentPortrait talent={talent || { name: role.talentName || 'Unknown', type: role.requiredType }} size="sm" />
                       <div>
                         <div className="font-medium">{role.talentName}</div>
                         <div className="text-sm text-muted-foreground">as {role.characterName}</div>
@@ -479,9 +477,7 @@ export const CastingRoleManager: React.FC<CastingRoleManagerProps> = ({
                 return (
                   <div key={talent.id} className="flex items-center justify-between p-4 border rounded-lg">
                     <div className="flex items-center gap-4">
-                      <Avatar>
-                        <AvatarFallback>{talent.name.substring(0, 2)}</AvatarFallback>
-                      </Avatar>
+                      <TalentPortrait talent={talent} size="md" />
                       <div className="flex-1">
                         <div className="flex items-center gap-2 mb-1">
                           <div className="font-medium">{talent.name}</div>

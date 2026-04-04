@@ -34,6 +34,7 @@ export interface Franchise {
 export interface PublicDomainIP {
   id: string;
   name: string;
+  portraitFile?: string;
   domainType: 'literature' | 'mythology' | 'folklore' | 'historical' | 'religious';
   dateEnteredDomain: string; // YYYY-MM-DD
   coreElements: string[]; // Key characters, themes, settings
@@ -64,6 +65,7 @@ export interface Loan {
 export interface Studio {
   id: string;
   name: string;
+  portraitFile?: string;
   reputation: number;
   budget: number;
   founded: number;
@@ -99,6 +101,7 @@ export type Race =
 export interface ScriptCharacter {
   id: string;
   name: string;
+  portraitFile?: string;
   description?: string;
   importance: 'lead' | 'supporting' | 'minor' | 'crew';
   traits?: string[];
@@ -129,6 +132,7 @@ export interface ScriptCharacter {
 export interface TalentPerson {
   id: string;
   name: string;
+  portraitFile?: string;
   type: 'actor' | 'director' | 'writer' | 'producer' | 'cinematographer' | 'editor' | 'composer';
   age: number;
   gender?: Gender;
@@ -282,6 +286,7 @@ export interface Scandal {
 export interface TalentTrait {
   id: string;
   name: string;
+  portraitFile?: string;
   description: string;
   type: 'positive' | 'negative' | 'neutral';
   impact: TraitImpact;
@@ -298,6 +303,7 @@ export interface TraitImpact {
 
 export interface PersonalityTrait {
   name: string;
+  portraitFile?: string;
   intensity: number; // 1-5
   description: string;
 }
@@ -435,6 +441,7 @@ export interface ProjectTimeline {
 
 export interface Milestone {
   name: string;
+  portraitFile?: string;
   date: Date;
   completed: boolean;
   dependencies: string[];
@@ -443,6 +450,7 @@ export interface Milestone {
 export interface Location {
   id: string;
   name: string;
+  portraitFile?: string;
   type: 'studio' | 'practical' | 'backlot' | 'international';
   cost: number;
   availability: DateRange[];
@@ -598,6 +606,7 @@ export interface CriticalMetrics {
 
 export interface Award {
   name: string;
+  portraitFile?: string;
   category: string;
   year: number;
   won: boolean;
@@ -648,6 +657,7 @@ export interface Producer extends TalentPerson {
 
 export interface ProducerTrait {
   name: string;
+  portraitFile?: string;
   description: string;
   effect: ProducerEffect;
 }
@@ -676,6 +686,7 @@ export type RelationshipType =
 export interface TalentAgent {
   id: string;
   name: string;
+  portraitFile?: string;
   agency: string;
   powerLevel: number; // 1-10, affects negotiation strength
   commission: number; // Percentage taken from deals
@@ -727,6 +738,7 @@ export interface BurnoutCalculation {
 export interface MediaSource {
   id: string;
   name: string;
+  portraitFile?: string;
   type: 'newspaper' | 'magazine' | 'blog' | 'social_media' | 'trade_publication' | 'tv_network';
   credibility: number; // 0-100, affects how much impact their stories have
   bias: number; // -100 to 100, affects sentiment of stories they generate
@@ -804,6 +816,7 @@ export interface MediaCampaign {
   id: string;
   studioId: string;
   name: string;
+  portraitFile?: string;
   type: 'pr_boost' | 'damage_control' | 'product_placement' | 'exclusive_access' | 'social_media_blitz';
   targets: {
     projects?: string[];
@@ -1116,6 +1129,7 @@ export interface AudiencePreference {
 
 export interface TechAdvancement {
   name: string;
+  portraitFile?: string;
   description: string;
   costImpact: number;
   qualityImpact: number;
@@ -1124,6 +1138,7 @@ export interface TechAdvancement {
 
 export interface RegulatoryChange {
   name: string;
+  portraitFile?: string;
   description: string;
   impact: 'positive' | 'negative' | 'neutral';
   affectedAreas: string[];
@@ -1192,6 +1207,7 @@ export interface MarketingStrategy {
 
 export interface MarketingChannel {
   name: string;
+  portraitFile?: string;
   type: 'tv' | 'digital' | 'print' | 'outdoor' | 'social' | 'events' | 'pr';
   cost: number;
   reach: number;
@@ -1209,6 +1225,7 @@ export interface MarketingActivity {
   id: string;
   type: 'trailer' | 'tv-spot' | 'press-junket' | 'test-screening' | 'premiere' | 'social-campaign';
   name: string;
+  portraitFile?: string;
   cost: number;
   duration: number;
   weeksRemaining: number;
@@ -1326,6 +1343,7 @@ export interface TalentAward {
 export interface AwardsEvent {
   id: string;
   name: string;
+  portraitFile?: string;
   ceremony:
     | 'Crown'
     | 'Crystal Ring'
@@ -1359,6 +1377,7 @@ export interface AwardsCampaign {
 export interface AwardsCampaignActivity {
   type: 'screenings' | 'advertising' | 'events' | 'consultants' | 'talent-support';
   name: string;
+  portraitFile?: string;
   cost: number;
   effectivenessBoost: number;
   prestigeBoost: number;
@@ -1368,6 +1387,7 @@ export interface AwardsCampaignActivity {
 export interface IndustryTrend {
   id: string;
   name: string;
+  portraitFile?: string;
   type: 'genre' | 'technology' | 'audience' | 'business';
   description: string;
   impact: TrendImpact;
@@ -1388,6 +1408,7 @@ export interface SeasonalTrend {
   season: 'spring' | 'summer' | 'fall' | 'winter' | 'holiday';
   weeks: number[]; // weeks of year when active
   name: string;
+  portraitFile?: string;
   description: string;
   impact: SeasonalImpact;
 }
