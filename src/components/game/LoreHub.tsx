@@ -3,6 +3,7 @@ import type { Franchise, GameState, Project, PublicDomainIP, Studio, TalentPerso
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
+import { TalentPortrait } from '@/components/ui/talent-portrait';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { ScrollArea } from '@/components/ui/scroll-area';
@@ -114,10 +115,13 @@ const TalentEncyclopedia: React.FC<{ talent: TalentPerson[] }> = ({ talent }) =>
                   onClick={() => setSelectedId(t.id)}
                 >
                   <div className="flex items-start justify-between gap-3">
-                    <div>
-                      <div className="font-medium">{t.name}</div>
-                      <div className="text-xs text-muted-foreground capitalize">
-                        {t.type} • Age {t.age} • {t.experience}y exp
+                    <div className="flex items-center gap-3">
+                      <TalentPortrait talent={t} size="sm" />
+                      <div>
+                        <div className="font-medium">{t.name}</div>
+                        <div className="text-xs text-muted-foreground capitalize">
+                          {t.type} • Age {t.age} • {t.experience}y exp
+                        </div>
                       </div>
                     </div>
                     <Badge variant="secondary">{Math.round(t.reputation || 0)}</Badge>

@@ -8,6 +8,7 @@ import { Input } from '@/components/ui/input';
 import { Textarea } from '@/components/ui/textarea';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { Badge } from '@/components/ui/badge';
+import { TalentPortrait } from '@/components/ui/talent-portrait';
 import { ScrollArea } from '@/components/ui/scroll-area';
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
 import { Button } from '@/components/ui/button';
@@ -420,7 +421,12 @@ export const IndustryDatabasePanel: React.FC<IndustryDatabasePanelProps> = ({ sl
             <TableCell>
               <Badge variant="secondary">#{idx + 1}</Badge>
             </TableCell>
-            <TableCell className="font-medium">{t.name}</TableCell>
+            <TableCell>
+              <div className="flex items-center gap-3">
+                <TalentPortrait talent={t as any} size="sm" />
+                <div className="font-medium">{t.name}</div>
+              </div>
+            </TableCell>
             <TableCell className="text-right">{rankLabel === 'Fame' ? (t.fame ?? '—') : (t.reputation ?? '—')}</TableCell>
             <TableCell className="text-right">{t.marketValue ? formatCurrency(t.marketValue) : '—'}</TableCell>
             <TableCell className="text-right">{t.awardsCount ?? 0}</TableCell>
