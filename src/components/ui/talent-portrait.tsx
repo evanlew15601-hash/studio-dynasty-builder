@@ -56,8 +56,8 @@ export const TalentPortrait: React.FC<TalentPortraitProps> = ({ talent, classNam
           // Using path join directly in JS for fallback logic before querying disk via Tauri 
           // (or just attempting to resolve it by trusting Tauri's asset schema)
           // For simplicity in UI logic:
-          const basePath = appDataDir.replace(/saves\\?$/, '');
-          const modPath = `${basePath}mods\\${activeModSlot}\\portraits\\${talent.portraitFile}`;
+          const isWindows = appDataDir.includes('\\'); const sep = isWindows ? '\\' : '/'; const basePath = appDataDir.replace(/saves[\\/]?$/, '');
+          const modPath = `${basePath}mods${sep}${activeModSlot}${sep}portraits${sep}${talent.portraitFile}`;
           
           // Check if file actually exists via Rust (optional, but prevents massive 404 console spam)
           const exists = await invoke<boolean>('file_exists', { path: modPath });
