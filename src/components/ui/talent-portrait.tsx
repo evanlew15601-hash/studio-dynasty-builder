@@ -72,7 +72,7 @@ export const TalentPortrait = React.forwardRef<HTMLDivElement, TalentPortraitPro
       }
       
       // Fallback: bundled file
-      setResolvedSrc(`./portraits/${talent.portraitFile.replace('.webp', '.svg')}`);
+      setResolvedSrc(`/portraits/${talent.portraitFile}`);
     };
     
     runAsync();
