@@ -80,13 +80,13 @@ export const TalentPortrait: React.FC<TalentPortraitProps> = ({ talent, classNam
 
   const getFallbackIcon = () => {
     switch (talent.type) {
-      case 'director': return <Clapperboard size={iconSizes[size]} className="opacity-40" />;
-      case 'writer': return <PenTool size={iconSizes[size]} className="opacity-40" />;
-      case 'composer': return <Mic size={iconSizes[size]} className="opacity-40" />;
-      case 'cinematographer': return <Camera size={iconSizes[size]} className="opacity-40" />;
-      case 'producer': return <Film size={iconSizes[size]} className="opacity-40" />;
-      case 'editor': return <PlayCircle size={iconSizes[size]} className="opacity-40" />;
-      default: return <User size={iconSizes[size]} className="opacity-40" />;
+      case 'director': return <Clapperboard size={iconSizes[size]} className="opacity-50 text-primary" />;
+      case 'writer': return <PenTool size={iconSizes[size]} className="opacity-50 text-primary" />;
+      case 'composer': return <Mic size={iconSizes[size]} className="opacity-50 text-primary" />;
+      case 'cinematographer': return <Camera size={iconSizes[size]} className="opacity-50 text-primary" />;
+      case 'producer': return <Film size={iconSizes[size]} className="opacity-50 text-primary" />;
+      case 'editor': return <PlayCircle size={iconSizes[size]} className="opacity-50 text-primary" />;
+      default: return <User size={iconSizes[size]} className="opacity-50 text-primary" />;
     }
   };
 
@@ -108,7 +108,7 @@ export const TalentPortrait: React.FC<TalentPortraitProps> = ({ talent, classNam
           draggable={false}
         />
       ) : (
-        <div className="absolute inset-0 flex items-center justify-center bg-gradient-to-t from-background/30 to-background/5">
+        <div className="absolute inset-0 flex items-center justify-center bg-primary/10">
           {getFallbackIcon()}
         </div>
       )}
