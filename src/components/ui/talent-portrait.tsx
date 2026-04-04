@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from 'react';
-import { User, Clapperboard, PenTool, Mic, Camera, Film, PlayCircle } from 'lucide-react';
+import { User } from 'lucide-react';
 import { cn } from '@/lib/utils';
 import { isTauriRuntime } from '@/integrations/tauri/saves';
 import { getActiveModSlot } from '@/utils/moddingStore';
@@ -79,15 +79,8 @@ export const TalentPortrait = React.forwardRef<HTMLDivElement, TalentPortraitPro
   }, [talent.portraitFile]);
 
   const getFallbackIcon = () => {
-    switch (talent.type) {
-      case 'director': return <Clapperboard size={iconSizes[size]} className="opacity-50 text-primary" />;
-      case 'writer': return <PenTool size={iconSizes[size]} className="opacity-50 text-primary" />;
-      case 'composer': return <Mic size={iconSizes[size]} className="opacity-50 text-primary" />;
-      case 'cinematographer': return <Camera size={iconSizes[size]} className="opacity-50 text-primary" />;
-      case 'producer': return <Film size={iconSizes[size]} className="opacity-50 text-primary" />;
-      case 'editor': return <PlayCircle size={iconSizes[size]} className="opacity-50 text-primary" />;
-      default: return <User size={iconSizes[size]} className="opacity-50 text-primary" />;
-    }
+    // All talents are human beings, so they receive a uniform human silhouette
+    return <User size={iconSizes[size]} className="opacity-50 text-primary" strokeWidth={1.5} />;
   };
 
   return (
