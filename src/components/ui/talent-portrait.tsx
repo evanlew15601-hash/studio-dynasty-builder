@@ -30,21 +30,26 @@ const iconSizes = {
 
 export const TalentPortrait = React.forwardRef<HTMLDivElement, TalentPortraitProps>(({ talent, className, size = 'md' }, ref) => {
   const [error, setError] = useState(false);
-  const [resolvedSrc, setResolvedSrc] = useState<string | null>(null);
+  
+  // Initialize with the resolved path immediately so we don't have to dispatch setResolvedSrc inside the hook for basic web paths.
+  // This completely eliminates the infinite update loop that was caused by component mounting triggering an effect state update.
+  const [resolvedSrc, setResolvedSrc] = useState<string | null>(
+    talent.portraitFile ? `/portraits/${talent.portraitFile}` : null
+  );
 
   useEffect(() => {
     let isMounted = true;
     setError(false);
     
     if (!talent.portraitFile) {
-      setResolvedSrc(prev => prev === null ? null : null);
+      setResolvedSrc(null);
       return;
     }
     
     const targetFile = talent.portraitFile;
     const defaultSrc = `/portraits/${targetFile}`;
     
-    // Optimistically set the default web path immediately to break any async react batching loops
+    // Reset to default on portrait change
     setResolvedSrc(prev => prev === defaultSrc ? prev : defaultSrc);
     
     if (isTauriRuntime()) {
