@@ -307,7 +307,8 @@ export const PlatformOriginalsReleaseCadenceSystem: TickSystem = {
 
       expectedAired = clampInt(expectedAired, 0, active.total);
 
-      const nextAired = active.season.episodesAired ?? 0;
+      const prevAired = clampInt(active.season.episodesAired ?? 0, 0, active.total);
+      const nextAired = Math.max(prevAired, expectedAired);
       
       const dropsTotal = releaseFormat === 'binge' ? 1 : Math.ceil(active.total / batchSize);
       const finaleAbs = active.premiereAbs + (dropsTotal - 1);
@@ -383,7 +384,7 @@ export const PlatformOriginalsReleaseCadenceSystem: TickSystem = {
       const changedThis =
         ensured.changed ||
         scheduledNextSeason ||
-        nextAired !== nextAired ||
+        nextAired !== prevAired ||
         airingStatus !== active.season.airingStatus ||
         active.season.productionStatus !== 'complete' ||
         !active.season.premiereDate ||

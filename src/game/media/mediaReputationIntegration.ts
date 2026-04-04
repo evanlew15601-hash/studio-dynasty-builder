@@ -240,9 +240,9 @@ export class MediaReputationIntegration {
   }
 
   private static applyMarketValueChange(talent: TalentPerson, percentChange: number): void {
-    const MAX_MARKET_VALUE = 500_000_000;
+    const MAX_MARKET_VALUE = 35_000_000;
     const change = talent.marketValue * percentChange;
-    talent.marketValue = Math.min(MAX_MARKET_VALUE, Math.max(100000, talent.marketValue + change)); // Min $100K, max $500M
+    talent.marketValue = Math.min(MAX_MARKET_VALUE, Math.max(100000, talent.marketValue + change)); // Min $100K, max $35M
   }
 
   private static applyBurnoutChange(talent: TalentPerson, increase: number): void {

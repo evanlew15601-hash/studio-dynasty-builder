@@ -85,7 +85,7 @@ function pushTalentEvent(params: {
   const rep = clamp(talent.reputation ?? 50, 0, 100);
   const mv = talent.marketValue ?? 0;
 
-const MAX_MARKET_VALUE = 250_000_000;
+const MAX_MARKET_VALUE = 35_000_000;
   const adjustment = event.impactOnMarketValue || 0;
 
   // Market correction: soft cap growth above 150M, decay if stagnant
@@ -196,7 +196,7 @@ export const TalentCareerArcSystem: TickSystem = {
               week: ctx.week,
               description: `${t.name} staged a comeback with "${p.title}".`,
               impactOnReputation: 2,
-              impactOnMarketValue: Math.round((t.marketValue || 5000000) * 0.15),
+              impactOnMarketValue: Math.round((t.marketValue || 5000000) * 0.08),
               sourceProjectId: p.id,
             };
 
@@ -235,7 +235,7 @@ export const TalentCareerArcSystem: TickSystem = {
               week: ctx.week,
               description: `${t.name} broke through with "${p.title}".`,
               impactOnReputation: 2,
-              impactOnMarketValue: Math.round((t.marketValue || 5000000) * 0.10),
+              impactOnMarketValue: Math.round((t.marketValue || 5000000) * 0.05),
               sourceProjectId: p.id,
             };
 
@@ -272,7 +272,7 @@ export const TalentCareerArcSystem: TickSystem = {
             week: ctx.week,
             description: `"${p.title}" flopped, denting ${t.name}'s momentum.`,
             impactOnReputation: -2,
-            impactOnMarketValue: -Math.round((t.marketValue || 5000000) * 0.10),
+            impactOnMarketValue: -Math.round((t.marketValue || 5000000) * 0.05),
             sourceProjectId: p.id,
           };
 
