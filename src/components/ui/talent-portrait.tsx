@@ -37,42 +37,39 @@ export const TalentPortrait = React.forwardRef<HTMLDivElement, TalentPortraitPro
     setError(false);
     
     if (!talent.portraitFile) {
-      setResolvedSrc(null);
+      setResolvedSrc(prev => prev === null ? null : null);
       return;
     }
     
-    const runAsync = async () => {
-      if (isTauriRuntime()) {
+    const targetFile = talent.portraitFile;
+    const defaultSrc = `/portraits/${targetFile}`;
+    
+    // Optimistically set the default web path immediately to break any async react batching loops
+    setResolvedSrc(prev => prev === defaultSrc ? prev : defaultSrc);
+    
+    if (isTauriRuntime()) {
+      const checkModPath = async () => {
         try {
-          const { invoke } = await import('@tauri-apps/api/core');
-          const { convertFileSrc } = await import('@tauri-apps/api/core');
+          const { invoke, convertFileSrc } = await import('@tauri-apps/api/core');
           const appDataDir = await invoke<string>('get_saves_dir');
           
           const activeModSlot = getActiveModSlot();
           const isWindows = appDataDir.includes('\\');
           const sep = isWindows ? '\\' : '/';
-          const basePath = appDataDir;
-          const modPath = `${basePath}mods${sep}${activeModSlot}${sep}portraits${sep}${talent.portraitFile}`;
+          const modPath = `${appDataDir}mods${sep}${activeModSlot}${sep}portraits${sep}${targetFile}`;
           
           const exists = await invoke<boolean>('file_exists', { path: modPath });
           
           if (exists && isMounted) {
             const nextSrc = convertFileSrc(modPath);
             setResolvedSrc(prev => prev === nextSrc ? prev : nextSrc);
-            return;
           }
         } catch (err) {
-          // Fallback on error
+          // Ignore
         }
-      }
-      
-      if (isMounted) {
-        const nextSrc = `/portraits/${talent.portraitFile}`;
-        setResolvedSrc(prev => prev === nextSrc ? prev : nextSrc);
-      }
-    };
-    
-    runAsync();
+      };
+      checkModPath();
+    }
     
     return () => {
       isMounted = false;
