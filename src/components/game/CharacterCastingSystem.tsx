@@ -9,7 +9,7 @@ import { TalentNegotiationDialog } from './TalentNegotiationDialog';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
-import { Avatar, AvatarFallback } from '@/components/ui/avatar';
+import { TalentPortrait } from '@/components/ui/talent-portrait';
 import { useToast } from '@/hooks/use-toast';
 import { Users, User, Crown, Star, UserCheck, AlertTriangle, CheckCircle } from 'lucide-react';
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger } from '@/components/ui/dialog';
@@ -638,11 +638,7 @@ const CastingSlotCard: React.FC<CastingSlotCardProps> = ({
         {slot.talent ? (
           <div className="flex items-center justify-between p-4 bg-background rounded-lg border border-green-500/30 dark:border-green-400/30">
             <div className="flex items-center gap-3">
-              <Avatar>
-                <AvatarFallback className="bg-green-100 text-green-700">
-                  {slot.talent.name.split(' ').map(n => n[0]).join('')}
-                </AvatarFallback>
-              </Avatar>
+              <TalentPortrait talent={slot.talent} size="sm" />
               <div>
                 <button
                   type="button"
@@ -775,15 +771,7 @@ const CastingCandidatesList: React.FC<CastingCandidatesListProps> = ({
                 } bg-card`}
               >
                 <div className="flex items-center gap-3">
-                  <Avatar>
-                    <AvatarFallback className={`${
-                      isCurrent ? 'bg-green-100 text-green-800 dark:bg-green-900/50 dark:text-green-300' :
-                      isGenreMatch ? 'bg-blue-100 text-blue-800 dark:bg-blue-900/50 dark:text-blue-300' :
-                      'bg-muted text-foreground'
-                    }`}>
-                      {talent.name.split(' ').map(n => n[0]).join('')}
-                    </AvatarFallback>
-                  </Avatar>
+                  <TalentPortrait talent={talent} size="sm" />
                   <div>
                     <div className="flex items-center gap-2">
                       <button

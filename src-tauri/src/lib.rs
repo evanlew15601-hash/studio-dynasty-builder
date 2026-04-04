@@ -87,6 +87,11 @@ fn delete_slot(app: tauri::AppHandle, slot_id: String) -> Result<(), String> {
   }
 }
 
+#[tauri::command(rename_all = "camelCase")]
+fn file_exists(path: String) -> Result<bool, String> {
+  Ok(PathBuf::from(path).exists())
+}
+
 #[cfg_attr(mobile, tauri::mobile_entry_point)]
 pub fn run() {
   tauri::Builder::default()
@@ -95,7 +100,8 @@ pub fn run() {
       save_slot,
       load_slot,
       list_slots,
-      delete_slot
+      delete_slot,
+      file_exists
     ])
     .run(tauri::generate_context!())
     .expect("error while running tauri application");

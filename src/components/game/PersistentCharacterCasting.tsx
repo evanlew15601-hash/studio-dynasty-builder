@@ -3,7 +3,7 @@ import { GameState, Project, TalentPerson, ScriptCharacter } from '@/types/game'
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
-import { Avatar, AvatarFallback } from '@/components/ui/avatar';
+import { TalentPortrait } from '@/components/ui/talent-portrait';
 import { useToast } from '@/hooks/use-toast';
 import { Crown, History, UserCheck, Star, Users, ArrowRight } from 'lucide-react';
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger } from '@/components/ui/dialog';
@@ -262,11 +262,7 @@ export const PersistentCharacterCasting: React.FC<PersistentCharacterCastingProp
                 {currentTalent && (
                   <div className="mb-4 p-3 bg-green-50 dark:bg-green-950/20 border border-green-200 dark:border-green-800 rounded">
                     <div className="flex items-center gap-3">
-                      <Avatar>
-                        <AvatarFallback className="bg-green-100 text-green-700">
-                          {currentTalent.name.split(' ').map(n => n[0]).join('')}
-                        </AvatarFallback>
-                      </Avatar>
+                      <TalentPortrait talent={currentTalent} size="sm" />
                       <div>
                         <p className="font-medium">{currentTalent.name}</p>
                         <p className="text-sm text-muted-foreground">
@@ -295,11 +291,7 @@ export const PersistentCharacterCasting: React.FC<PersistentCharacterCastingProp
                         return (
                           <div key={history.talentId} className="flex items-center justify-between p-3 border rounded bg-amber-50/50 dark:bg-amber-950/20 border-amber-200/50 dark:border-amber-800/50">
                             <div className="flex items-center gap-3">
-                              <Avatar>
-                                <AvatarFallback className="bg-amber-100 text-amber-700">
-                                  {talent.name.split(' ').map(n => n[0]).join('')}
-                                </AvatarFallback>
-                              </Avatar>
+                              <TalentPortrait talent={talent} size="sm" />
                               <div>
                                 <p className="font-medium">{talent.name}</p>
                                 <p className="text-sm text-muted-foreground">

@@ -11,5 +11,7 @@ commands.allow = [
   "list_slots",
   "listSlots",
   "delete_slot",
-  "deleteSlot"
+  "deleteSlot",
+  "file_exists",
+  "fileExists"
 ]

@@ -1,6 +1,11 @@
-import React, { useState, useEffect } from 'react';
+import re
+
+with open('src/components/ui/talent-portrait.tsx', 'r') as f:
+    content = f.read()
+
+replacement = '''import React, { useState, useEffect } from 'react';
 import { User, Clapperboard, PenTool, Mic, Camera, Film, PlayCircle } from 'lucide-react';
-import { cn } from '@/lib/utils';
+import { cn } from '@/utils/modding';
 import { isTauriRuntime } from '@/integrations/tauri/saves';
 import { getActiveModSlot } from '@/utils/moddingStore';
 
@@ -56,8 +61,8 @@ export const TalentPortrait: React.FC<TalentPortraitProps> = ({ talent, classNam
           // Using path join directly in JS for fallback logic before querying disk via Tauri 
           // (or just attempting to resolve it by trusting Tauri's asset schema)
           // For simplicity in UI logic:
-          const basePath = appDataDir.replace(/saves\\?$/, '');
-          const modPath = `${basePath}mods\\${activeModSlot}\\portraits\\${talent.portraitFile}`;
+          const basePath = appDataDir.replace(/saves\\\\?$/, '');
+          const modPath = `${basePath}mods\\\\${activeModSlot}\\\\portraits\\\\${talent.portraitFile}`;
           
           // Check if file actually exists via Rust (optional, but prevents massive 404 console spam)
           const exists = await invoke<boolean>('file_exists', { path: modPath });
@@ -118,3 +123,7 @@ export const TalentPortrait: React.FC<TalentPortraitProps> = ({ talent, classNam
     </div>
   );
 };
+'''
+
+with open('src/components/ui/talent-portrait.tsx', 'w') as f:
+    f.write(replacement)

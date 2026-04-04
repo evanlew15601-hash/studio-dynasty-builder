@@ -6,7 +6,7 @@ import { useUiStore } from '@/game/uiStore';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
-import { Avatar, AvatarFallback } from '@/components/ui/avatar';
+import { TalentPortrait } from '@/components/ui/talent-portrait';
 import { useToast } from '@/hooks/use-toast';
 import { isDirectorRole } from '@/utils/scriptRoles';
 import { describeTalentInterest, recordStudioNegotiationOutcome } from '@/utils/talentNegotiation';
@@ -333,9 +333,7 @@ const { toast } = useToast();
                       const talent = gameState.talent.find(t => t.id === role.talentId);
                       return talent ? (
                         <div key={index} className="flex items-center space-x-3 p-3 rounded-lg bg-card border">
-                          <Avatar>
-                            <AvatarFallback>{talent.name.split(' ').map(n => n[0]).join('')}</AvatarFallback>
-                          </Avatar>
+                          <TalentPortrait talent={talent} size="sm" />
                           <div className="flex-1">
                             <button
                               type="button"
@@ -387,9 +385,7 @@ const { toast } = useToast();
                   className="h-16 p-1 flex flex-col gap-1"
                   onClick={() => openTalentProfile(id)}
                 >
-                  <Avatar className="h-10 w-10 mx-auto">
-                    <AvatarFallback className="text-xs">{talent.name[0]}</AvatarFallback>
-                  </Avatar>
+                  <TalentPortrait talent={talent} size="sm" className="mx-auto" />
                   <span className="text-xs text-left truncate">{talent.name}</span>
                 </Button>
               );
@@ -441,11 +437,7 @@ const { toast } = useToast();
               <CardHeader className="pb-3">
                 <div className="flex items-start justify-between">
                   <div className="flex items-center space-x-3">
-                    <Avatar className="h-12 w-12">
-                      <AvatarFallback className="bg-gradient-golden text-primary-foreground">
-                        {talent.name.split(' ').map(n => n[0]).join('')}
-                      </AvatarFallback>
-                    </Avatar>
+                    <TalentPortrait talent={talent} size="md" />
                   <div className="flex-1">
                     <div className="flex items-center gap-2">
                       <button
