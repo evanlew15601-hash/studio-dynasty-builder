@@ -10,6 +10,8 @@ export default tseslint.config(
       "dist",
       "**/*.timestamp-*",
       "**/*.timestamp-*.mjs",
+      "src-tauri/**",
+      "*.js"
     ],
   },
   {
