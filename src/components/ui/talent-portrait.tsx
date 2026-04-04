@@ -72,7 +72,7 @@ export const TalentPortrait: React.FC<TalentPortraitProps> = ({ talent, classNam
       }
       
       // Fallback: bundled file
-      setResolvedSrc(`./portraits/${talent.portraitFile}`);
+      setResolvedSrc(`./portraits/${talent.portraitFile.replace('.webp', '.svg')}`);
     };
     
     runAsync();
