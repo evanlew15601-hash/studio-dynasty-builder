@@ -511,6 +511,7 @@ function buildNotablePool(): WorldTalentBlueprint[] {
   const base: Array<Omit<WorldTalentBlueprint, 'tier' | 'filmography' | 'awards' | 'relationships'>> = [
     {
       slug: 'hayden-keats',
+      portraitFile: 'hayden-keats.webp',
       name: 'Hayden Keats',
       type: 'director',
       gender: 'Male',
@@ -529,6 +530,7 @@ function buildNotablePool(): WorldTalentBlueprint[] {
     },
     {
       slug: 'safiya-nasser',
+      portraitFile: 'safiya-nasser.webp',
       name: 'Safiya Nasser',
       type: 'actor',
       gender: 'Female',
@@ -547,6 +549,7 @@ function buildNotablePool(): WorldTalentBlueprint[] {
     },
     {
       slug: 'owen-trask',
+      portraitFile: 'owen-trask.webp',
       name: 'Owen Trask',
       type: 'director',
       gender: 'Male',
@@ -565,6 +568,7 @@ function buildNotablePool(): WorldTalentBlueprint[] {
     },
     {
       slug: 'luz-caraballo',
+      portraitFile: 'luz-caraballo.webp',
       name: 'Luz Caraballo',
       type: 'actor',
       gender: 'Female',
@@ -588,6 +592,7 @@ function buildNotablePool(): WorldTalentBlueprint[] {
   const extraNames: Array<Omit<WorldTalentBlueprint, 'tier' | 'filmography' | 'awards' | 'relationships'>> = [
     {
       slug: 'vince-ravel',
+      portraitFile: 'vince-ravel.webp',
       name: 'Vince Ravel',
       type: 'actor',
       gender: 'Male',
@@ -606,6 +611,7 @@ function buildNotablePool(): WorldTalentBlueprint[] {
     },
     {
       slug: 'talia-soren',
+      portraitFile: 'talia-soren.webp',
       name: 'Talia Soren',
       type: 'director',
       gender: 'Female',
@@ -624,6 +630,7 @@ function buildNotablePool(): WorldTalentBlueprint[] {
     },
     {
       slug: 'gabe-ikeda',
+      portraitFile: 'gabe-ikeda.webp',
       name: 'Gabe Ikeda',
       type: 'director',
       gender: 'Male',
@@ -642,6 +649,7 @@ function buildNotablePool(): WorldTalentBlueprint[] {
     },
     {
       slug: 'alina-vetrova',
+      portraitFile: 'alina-vetrova.webp',
       name: 'Alina Vetrova',
       type: 'actor',
       gender: 'Female',
@@ -661,6 +669,7 @@ function buildNotablePool(): WorldTalentBlueprint[] {
     },
     {
       slug: 'samir-khan',
+      portraitFile: 'samir-khan.webp',
       name: 'Samir Khan',
       type: 'actor',
       gender: 'Male',
@@ -679,6 +688,7 @@ function buildNotablePool(): WorldTalentBlueprint[] {
     },
     {
       slug: 'rachel-voight',
+      portraitFile: 'rachel-voight.webp',
       name: 'Rachel Voight',
       type: 'director',
       gender: 'Female',
@@ -696,6 +706,7 @@ function buildNotablePool(): WorldTalentBlueprint[] {
     },
     {
       slug: 'diego-leroux',
+      portraitFile: 'diego-leroux.webp',
       name: 'Diego Leroux',
       type: 'director',
       gender: 'Male',
@@ -714,6 +725,7 @@ function buildNotablePool(): WorldTalentBlueprint[] {
     },
     {
       slug: 'hye-jin-park',
+      portraitFile: 'hye-jin-park.webp',
       name: 'Hye-jin Park',
       type: 'actor',
       gender: 'Female',
@@ -733,6 +745,7 @@ function buildNotablePool(): WorldTalentBlueprint[] {
     },
     {
       slug: 'malcolm-ryder',
+      portraitFile: 'malcolm-ryder.webp',
       name: 'Malcolm Ryder',
       type: 'actor',
       gender: 'Male',
@@ -751,6 +764,7 @@ function buildNotablePool(): WorldTalentBlueprint[] {
     },
     {
       slug: 'sienna-choi',
+      portraitFile: 'sienna-choi.webp',
       name: 'Sienna Choi',
       type: 'director',
       gender: 'Female',
@@ -768,6 +782,7 @@ function buildNotablePool(): WorldTalentBlueprint[] {
     },
     {
       slug: 'omar-aziz',
+      portraitFile: 'omar-aziz.webp',
       name: 'Omar Aziz',
       type: 'director',
       gender: 'Male',
@@ -786,6 +801,7 @@ function buildNotablePool(): WorldTalentBlueprint[] {
     },
     {
       slug: 'cassidy-wren',
+      portraitFile: 'cassidy-wren.webp',
       name: 'Cassidy Wren',
       type: 'actor',
       gender: 'Female',
@@ -805,6 +821,7 @@ function buildNotablePool(): WorldTalentBlueprint[] {
     },
     {
       slug: 'edgar-sloan',
+      portraitFile: 'edgar-sloan.webp',
       name: 'Edgar Sloan',
       type: 'actor',
       gender: 'Male',
@@ -823,6 +840,7 @@ function buildNotablePool(): WorldTalentBlueprint[] {
     },
     {
       slug: 'yara-haddad',
+      portraitFile: 'yara-haddad.webp',
       name: 'Yara Haddad',
       type: 'actor',
       gender: 'Female',
@@ -841,6 +859,7 @@ function buildNotablePool(): WorldTalentBlueprint[] {
     },
     {
       slug: 'pavel-drago',
+      portraitFile: 'pavel-drago.webp',
       name: 'Pavel Drago',
       type: 'director',
       gender: 'Male',
@@ -859,6 +878,7 @@ function buildNotablePool(): WorldTalentBlueprint[] {
     },
     {
       slug: 'polly-pastiche',
+      portraitFile: 'polly-pastiche.webp',
       name: 'Polly Pastiche',
       type: 'actor',
       gender: 'Female',
@@ -877,6 +897,7 @@ function buildNotablePool(): WorldTalentBlueprint[] {
     },
     {
       slug: 'kieran-boom',
+      portraitFile: 'kieran-boom.webp',
       name: 'Kieran Boom',
       type: 'director',
       gender: 'Male',
@@ -896,6 +917,7 @@ function buildNotablePool(): WorldTalentBlueprint[] {
     // --- Handcrafted future debuts (added to the universe later as "new faces") ---
     {
       slug: 'jules-hartman',
+      portraitFile: 'jules-hartman.webp',
       name: 'Jules Hartman',
       type: 'actor',
       gender: 'Male',
@@ -914,6 +936,7 @@ function buildNotablePool(): WorldTalentBlueprint[] {
     },
     {
       slug: 'rani-sundar',
+      portraitFile: 'rani-sundar.webp',
       name: 'Rani Sundar',
       type: 'actor',
       gender: 'Female',
@@ -932,6 +955,7 @@ function buildNotablePool(): WorldTalentBlueprint[] {
     },
     {
       slug: 'leon-ibarra',
+      portraitFile: 'leon-ibarra.webp',
       name: 'León Ibarra',
       type: 'actor',
       gender: 'Male',
@@ -950,6 +974,7 @@ function buildNotablePool(): WorldTalentBlueprint[] {
     },
     {
       slug: 'hazel-ramirez',
+      portraitFile: 'hazel-ramirez.webp',
       name: 'Hazel Ramirez',
       type: 'actor',
       gender: 'Female',
@@ -968,6 +993,7 @@ function buildNotablePool(): WorldTalentBlueprint[] {
     },
     {
       slug: 'maya-rivera',
+      portraitFile: 'maya-rivera.webp',
       name: 'Maya Rivera',
       type: 'actor',
       gender: 'Female',
@@ -986,6 +1012,7 @@ function buildNotablePool(): WorldTalentBlueprint[] {
     },
     {
       slug: 'cassia-li',
+      portraitFile: 'cassia-li.webp',
       name: 'Cassia Li',
       type: 'director',
       gender: 'Female',
@@ -1003,6 +1030,7 @@ function buildNotablePool(): WorldTalentBlueprint[] {
     },
     {
       slug: 'benoit-renaud',
+      portraitFile: 'benoit-renaud.webp',
       name: 'Benoît Renaud',
       type: 'director',
       gender: 'Male',
