@@ -36,7 +36,7 @@ export const TalentPortrait = React.forwardRef<HTMLDivElement, TalentPortraitPro
     setError(false);
     
     if (!talent.portraitFile) {
-      setResolvedSrc(null);
+      setResolvedSrc(prev => prev === null ? null : null);
       return;
     }
     
@@ -63,7 +63,8 @@ export const TalentPortrait = React.forwardRef<HTMLDivElement, TalentPortraitPro
           const exists = await invoke<boolean>('file_exists', { path: modPath });
           
           if (exists) {
-            setResolvedSrc(convertFileSrc(modPath));
+            const nextSrc = convertFileSrc(modPath);
+            setResolvedSrc(prev => prev === nextSrc ? prev : nextSrc);
             return;
           }
         } catch (err) {
@@ -72,7 +73,8 @@ export const TalentPortrait = React.forwardRef<HTMLDivElement, TalentPortraitPro
       }
       
       // Fallback: bundled file
-      setResolvedSrc(`/portraits/${talent.portraitFile}`);
+      const nextSrc = `/portraits/${talent.portraitFile}`;
+      setResolvedSrc(prev => prev === nextSrc ? prev : nextSrc);
     };
     
     runAsync();
