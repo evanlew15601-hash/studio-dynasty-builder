@@ -30,59 +30,9 @@ const iconSizes = {
 
 export const TalentPortrait = React.forwardRef<HTMLDivElement, TalentPortraitProps>(({ talent, className, size = 'md' }, ref) => {
   const [error, setError] = useState(false);
-  
-  // Initialize with the resolved path immediately so we don't have to dispatch setResolvedSrc inside the hook for basic web paths.
-  // This completely eliminates the infinite update loop that was caused by component mounting triggering an effect state update.
-  const [resolvedSrc, setResolvedSrc] = useState<string | null>(
-    talent.portraitFile ? `/portraits/${talent.portraitFile}` : null
-  );
-
-  useEffect(() => {
-    let isMounted = true;
-    setError(false);
-    
-    if (!talent.portraitFile) {
-      setResolvedSrc(null);
-      return;
-    }
-    
-    const targetFile = talent.portraitFile;
-    const defaultSrc = `/portraits/${targetFile}`;
-    
-    // Reset to default on portrait change
-    setResolvedSrc(prev => prev === defaultSrc ? prev : defaultSrc);
-    
-    if (isTauriRuntime()) {
-      const checkModPath = async () => {
-        try {
-          const { invoke, convertFileSrc } = await import('@tauri-apps/api/core');
-          const appDataDir = await invoke<string>('get_saves_dir');
-          
-          const activeModSlot = getActiveModSlot();
-          const isWindows = appDataDir.includes('\\');
-          const sep = isWindows ? '\\' : '/';
-          const modPath = `${appDataDir}mods${sep}${activeModSlot}${sep}portraits${sep}${targetFile}`;
-          
-          const exists = await invoke<boolean>('file_exists', { path: modPath });
-          
-          if (exists && isMounted) {
-            const nextSrc = convertFileSrc(modPath);
-            setResolvedSrc(prev => prev === nextSrc ? prev : nextSrc);
-          }
-        } catch (err) {
-          // Ignore
-        }
-      };
-      checkModPath();
-    }
-    
-    return () => {
-      isMounted = false;
-    };
-  }, [talent.portraitFile]);
+  const resolvedSrc = talent.portraitFile ? `/portraits/${talent.portraitFile}` : null;
 
   const getFallbackIcon = () => {
-    // All talents are human beings, so they receive a uniform human silhouette
     return <User size={iconSizes[size]} className="opacity-50 text-primary" strokeWidth={1.5} />;
   };
 
@@ -110,9 +60,9 @@ export const TalentPortrait = React.forwardRef<HTMLDivElement, TalentPortraitPro
         </div>
       )}
       
-      {/* Subtle bottom shadow to anchor the face/icon and create a nice framing effect */}
       <div className="absolute inset-x-0 bottom-0 h-1/4 bg-gradient-to-t from-black/40 to-transparent pointer-events-none" />
     </div>
   );
 });
 TalentPortrait.displayName = "TalentPortrait";
+
