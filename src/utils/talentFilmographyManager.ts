@@ -118,8 +118,8 @@ export const TalentFilmographyManager = {
 
       const newFame = Math.max(0, Math.min(100, (talent.fame || 0) + fameBoost));
 
-      let newLoyalty = talent.studioLoyalty ? { ...talent.studioLoyalty } : {};
-      const studioId = project.studioId || gameState.studio?.id;
+      const newLoyalty = talent.studioLoyalty ? { ...talent.studioLoyalty } : {};
+      const studioId = (project as any).studioId || gameState.studio?.id;
       if (studioId) {
         const currentLoyalty = newLoyalty[studioId] || 50;
         let loyaltyBoost = 3;
