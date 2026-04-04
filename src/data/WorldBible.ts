@@ -1442,6 +1442,7 @@ function buildNotablePool(): WorldTalentBlueprint[] {
     const genres = toGenre(idx);
     pad.push({
       slug,
+      portraitFile: `${slug}.webp`,
       tier: 'notable',
       name,
       type: 'actor',
@@ -1471,6 +1472,7 @@ function buildNotablePool(): WorldTalentBlueprint[] {
     const genres = toGenre(idx);
     pad.push({
       slug,
+      portraitFile: `${slug}.webp`,
       tier: 'notable',
       name,
       type: 'director',
