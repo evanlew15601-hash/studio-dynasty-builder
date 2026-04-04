@@ -28,7 +28,7 @@ const iconSizes = {
   xl: 54,
 };
 
-export const TalentPortrait: React.FC<TalentPortraitProps> = ({ talent, className, size = 'md' }) => {
+export const TalentPortrait = React.forwardRef<HTMLDivElement, TalentPortraitProps>(({ talent, className, size = 'md' }, ref) => {
   const [error, setError] = useState(false);
   const [resolvedSrc, setResolvedSrc] = useState<string | null>(null);
 
@@ -92,6 +92,7 @@ export const TalentPortrait: React.FC<TalentPortraitProps> = ({ talent, classNam
 
   return (
     <div
+      ref={ref}
       className={cn(
         "relative flex flex-col items-center justify-end overflow-hidden rounded-sm border-2 border-border/40 bg-muted shrink-0 shadow-sm",
         sizeClasses[size],
@@ -117,4 +118,5 @@ export const TalentPortrait: React.FC<TalentPortraitProps> = ({ talent, classNam
       <div className="absolute inset-x-0 bottom-0 h-1/4 bg-gradient-to-t from-black/40 to-transparent pointer-events-none" />
     </div>
   );
-};
+});
+TalentPortrait.displayName = "TalentPortrait";
