@@ -33,15 +33,14 @@ export const TalentPortrait = React.forwardRef<HTMLDivElement, TalentPortraitPro
   const [resolvedSrc, setResolvedSrc] = useState<string | null>(null);
 
   useEffect(() => {
+    let isMounted = true;
     setError(false);
     
     if (!talent.portraitFile) {
-      setResolvedSrc(prev => prev === null ? null : null);
+      setResolvedSrc(null);
       return;
     }
     
-    // First, verify if a mod overrides this portrait on local disk.
-    // If not Tauri, we just use the bundled static path.
     const runAsync = async () => {
       if (isTauriRuntime()) {
         try {
@@ -49,20 +48,15 @@ export const TalentPortrait = React.forwardRef<HTMLDivElement, TalentPortraitPro
           const { convertFileSrc } = await import('@tauri-apps/api/core');
           const appDataDir = await invoke<string>('get_saves_dir');
           
-          // Saves dir returns `AppData/Roaming/com.studiomagnate.studiomagnate/saves`
-          // We assume mods are kept at `.../mods/{activeSlot}/portraits/`
           const activeModSlot = getActiveModSlot();
-          
-          // Using path join directly in JS for fallback logic before querying disk via Tauri 
-          // (or just attempting to resolve it by trusting Tauri's asset schema)
-          // For simplicity in UI logic:
-          const isWindows = appDataDir.includes('\\'); const sep = isWindows ? '\\' : '/'; const basePath = appDataDir.replace(/saves[\\/]?$/, '');
+          const isWindows = appDataDir.includes('\\');
+          const sep = isWindows ? '\\' : '/';
+          const basePath = appDataDir;
           const modPath = `${basePath}mods${sep}${activeModSlot}${sep}portraits${sep}${talent.portraitFile}`;
           
-          // Check if file actually exists via Rust (optional, but prevents massive 404 console spam)
           const exists = await invoke<boolean>('file_exists', { path: modPath });
           
-          if (exists) {
+          if (exists && isMounted) {
             const nextSrc = convertFileSrc(modPath);
             setResolvedSrc(prev => prev === nextSrc ? prev : nextSrc);
             return;
@@ -72,12 +66,17 @@ export const TalentPortrait = React.forwardRef<HTMLDivElement, TalentPortraitPro
         }
       }
       
-      // Fallback: bundled file
-      const nextSrc = `/portraits/${talent.portraitFile}`;
-      setResolvedSrc(prev => prev === nextSrc ? prev : nextSrc);
+      if (isMounted) {
+        const nextSrc = `/portraits/${talent.portraitFile}`;
+        setResolvedSrc(prev => prev === nextSrc ? prev : nextSrc);
+      }
     };
     
     runAsync();
+    
+    return () => {
+      isMounted = false;
+    };
   }, [talent.portraitFile]);
 
   const getFallbackIcon = () => {
