@@ -20,6 +20,7 @@ import { Switch } from '@/components/ui/switch';
 import { AIStudioManager } from './AIStudioManager';
 import type { TalentCommitment, TalentPerson } from '@/types/game';
 import { Calendar, Clock, Star, Film, DollarSign, User } from 'lucide-react';
+import { TalentPortrait } from '@/components/ui/talent-portrait';
 import { useUiStore } from '@/game/uiStore';
 
 interface TalentMarketplaceProps {
@@ -226,17 +227,20 @@ export const TalentMarketplace: React.FC<TalentMarketplaceProps> = ({
             <Card key={person.id} className={`card-premium ${status.status === 'busy' ? 'opacity-75' : ''}`}>
               <CardContent className="p-4">
                 <div className="flex justify-between items-start mb-3">
-                  <div>
-                    <button
-                      type="button"
-                      className="font-semibold hover:underline text-left"
-                      onClick={() => openTalentProfile(person.id)}
-                    >
-                      {person.name}
-                    </button>
+                  <div className="flex items-center gap-3">
+                    <TalentPortrait talent={person} size="sm" />
+                    <div>
+                      <button
+                        type="button"
+                        className="font-semibold hover:underline text-left"
+                        onClick={() => openTalentProfile(person.id)}
+                      >
+                        {person.name}
+                      </button>
                     <div className="flex items-center gap-2 text-sm text-muted-foreground">
                       <Star size={14} />
                       <span>{Math.round(person.reputation)}/100</span>
+                    </div>
                     </div>
                   </div>
                   

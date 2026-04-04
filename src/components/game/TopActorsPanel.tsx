@@ -1,6 +1,7 @@
 import React from 'react';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
+import { TalentPortrait } from '@/components/ui/talent-portrait';
 import { useGameStore } from '@/game/store';
 import { useUiStore } from '@/game/uiStore';
 
@@ -51,6 +52,7 @@ export const TopActorsPanel: React.FC<TopActorsPanelProps> = () => {
                 >
                   <div className="flex items-center gap-3">
                     <Badge variant="secondary" className="w-10 justify-center">#{idx + 1}</Badge>
+                    <TalentPortrait talent={a} size="sm" />
                     <div>
                       <div className="font-medium">{a.name}</div>
                       <div className="text-sm text-muted-foreground flex flex-wrap gap-3">

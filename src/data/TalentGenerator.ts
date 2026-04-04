@@ -446,6 +446,9 @@ export class TalentGenerator {
     
     actor.biography = this.generateBiography(actor, template);
     
+    // Optional placeholder logic for seeded actors if you place actor_1.webp, actor_2.webp, etc in public/portraits/
+    // actor.portraitFile = `actor_${Math.floor(Math.random() * 50)}.webp`;
+    
     return actor;
   }
 
