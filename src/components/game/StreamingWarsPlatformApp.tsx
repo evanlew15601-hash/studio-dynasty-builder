@@ -31,6 +31,7 @@ import { getPlatformRelaunchWindow } from '@/utils/platformRelaunch';
 import { StreamingPlatformPreview } from './StreamingPlatformPreview';
 import { StudioIconCustomizer, DEFAULT_ICON, ICON_COLORS, ACCENT_COLORS, type StudioIconConfig } from './StudioIconCustomizer';
 import type { PlayerPlatformBranding } from '@/types/platformEconomy';
+import { importRolesForScript } from '@/utils/roleImport';
 import { BarChart3, Crown, Film, Home, LayoutGrid, Swords, TrendingUp, Users } from 'lucide-react';
 
 const COMPACT_NUMBER_FORMAT = new Intl.NumberFormat(undefined, {
@@ -234,6 +235,11 @@ export const StreamingWarsPlatformApp: React.FC = () => {
 
   const [titleOpen, setTitleOpen] = useState(false);
   const [titleProject, setTitleProject] = useState<Project | null>(null);
+
+  const [editOriginalOpen, setEditOriginalOpen] = useState(false);
+  const [editingOriginal, setEditingOriginal] = useState<Project | null>(null);
+  const [editOriginalTitle, setEditOriginalTitle] = useState('');
+  const [editOriginalLogline, setEditOriginalLogline] = useState('');
 
   const {
     player,
@@ -1375,7 +1381,7 @@ export const StreamingWarsPlatformApp: React.FC = () => {
       pages: 60,
       quality: finalQuality,
       budget: originalType === 'film' ? originalTotalBudget : perEpisodeBudget,
-      developmentStage: 'concept',
+      developmentStage: 'final', // Mark as final since it's commissioned and ready
       themes: [],
       targetAudience: 'general',
       estimatedRuntime: 50,
@@ -1388,6 +1394,34 @@ export const StreamingWarsPlatformApp: React.FC = () => {
         criticalPotential: 6,
         cgiIntensity: 'minimal',
       },
+      characters: [
+        {
+          id: 'lead-actor',
+          name: 'Lead Actor',
+          description: 'The main character driving the story',
+          importance: 'lead',
+          traits: ['protagonist'],
+          requiredType: 'actor',
+          ageRange: [25, 45],
+        },
+        {
+          id: 'supporting-actor',
+          name: 'Supporting Actor',
+          description: 'Key supporting character',
+          importance: 'supporting',
+          traits: ['ally'],
+          requiredType: 'actor',
+          ageRange: [25, 55],
+        },
+        {
+          id: 'director',
+          name: 'Director',
+          description: 'Film director responsible for creative vision',
+          importance: 'crew',
+          traits: ['mandatory'],
+          requiredType: 'director',
+        },
+      ],
     };
 
     upsertScript(script);
@@ -2434,6 +2468,19 @@ export const StreamingWarsPlatformApp: React.FC = () => {
                                 Rush {rushWeeks}w ({formatUsdCompact(rushCost ?? 0)})
                               </Button>
                             )}
+                            <Button
+                              type="button"
+                              size="sm"
+                              variant="outline"
+                              onClick={() => {
+                                setEditingOriginal(p);
+                                setEditOriginalTitle(p.title);
+                                setEditOriginalLogline(p.script?.logline || '');
+                                setEditOriginalOpen(true);
+                              }}
+                            >
+                              Edit
+                            </Button>
                             <Badge variant="outline">Original</Badge>
                           </div>
                         </div>
@@ -3176,6 +3223,61 @@ export const StreamingWarsPlatformApp: React.FC = () => {
             </Button>
             <Button type="button" onClick={onCommissionOriginal} disabled={!playerPlatformId || originalTitle.trim().length === 0}>
               Commission
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
+
+      <Dialog open={editOriginalOpen} onOpenChange={setEditOriginalOpen}>
+        <DialogContent>
+          <DialogHeader>
+            <DialogTitle>Edit Commissioned Original</DialogTitle>
+          </DialogHeader>
+
+          <div className="space-y-4">
+            <div className="space-y-2">
+              <Label htmlFor="edit-original-title">Title</Label>
+              <Input
+                id="edit-original-title"
+                value={editOriginalTitle}
+                onChange={(e) => setEditOriginalTitle(e.target.value)}
+                placeholder="A show people can't stop watching"
+              />
+            </div>
+
+            <div className="space-y-2">
+              <Label htmlFor="edit-original-logline">Logline</Label>
+              <Input
+                id="edit-original-logline"
+                value={editOriginalLogline}
+                onChange={(e) => setEditOriginalLogline(e.target.value)}
+                placeholder="A brief summary of the plot..."
+              />
+            </div>
+          </div>
+
+          <DialogFooter>
+            <Button variant="secondary" type="button" onClick={() => setEditOriginalOpen(false)}>
+              Cancel
+            </Button>
+            <Button
+              type="button"
+              onClick={() => {
+                if (!editingOriginal) return;
+
+                updateProject(editingOriginal.id, {
+                  title: editOriginalTitle.trim(),
+                  script: editingOriginal.script ? {
+                    ...editingOriginal.script,
+                    logline: editOriginalLogline.trim(),
+                  } : editingOriginal.script,
+                });
+                setEditOriginalOpen(false);
+                setEditingOriginal(null);
+              }}
+              disabled={!editOriginalTitle.trim() || !editOriginalLogline.trim()}
+            >
+              Save Changes
             </Button>
           </DialogFooter>
         </DialogContent>

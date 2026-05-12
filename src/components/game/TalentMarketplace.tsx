@@ -1,5 +1,6 @@
 // Enhanced Talent Market with AI Studio Integration
 import React, { useState, useEffect, useMemo, useCallback } from 'react';
+import { useShallow } from 'zustand/react/shallow';
 import { useGameStore } from '@/game/store';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
@@ -37,9 +38,15 @@ export const TalentMarketplace: React.FC<TalentMarketplaceProps> = ({
   onCastTalent
 }) => {
   const openTalentProfile = useUiStore((s) => s.openTalentProfile);
-  const mergeGameState = useGameStore((s) => s.mergeGameState);
-  const shortlistedTalentIds = useGameStore((s) => s.game?.shortlistedTalentIds ?? []);
-  const toggleShortlist = useGameStore((s) => s.toggleShortlist);
+  const {
+    mergeGameState,
+    shortlistedTalentIds,
+    toggleShortlist,
+  } = useGameStore(useShallow((s) => ({
+    mergeGameState: s.mergeGameState,
+    shortlistedTalentIds: s.game?.shortlistedTalentIds ?? [],
+    toggleShortlist: s.toggleShortlist,
+  })));
   const [showAvailableOnly, setShowAvailableOnly] = useState(false);
 
   const [selectedRole, setSelectedRole] = useState<string>('all');

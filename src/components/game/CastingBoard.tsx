@@ -1,5 +1,6 @@
 
 import { useState, useMemo } from 'react';
+import { useShallow } from 'zustand/react/shallow';
 import { Project, TalentPerson, ProductionRole, ScriptCharacter } from '@/types/game';
 import { useGameStore } from '@/game/store';
 import { useUiStore } from '@/game/uiStore';
@@ -28,11 +29,19 @@ interface CastingBoardProps {
 export const CastingBoard: React.FC<CastingBoardProps> = ({
   selectedProject: propSelectedProject,
 }) => {
-const gameState = useGameStore((s) => s.game);
-  const shortlistedTalentIds = useGameStore((s) => s.game?.shortlistedTalentIds ?? []);
-  const toggleShortlist = useGameStore((s) => s.toggleShortlist);
-  const replaceProject = useGameStore((s) => s.replaceProject);
-  const updateTalent = useGameStore((s) => s.updateTalent);
+  const {
+    gameState,
+    shortlistedTalentIds,
+    toggleShortlist,
+    replaceProject,
+    updateTalent,
+  } = useGameStore(useShallow((s) => ({
+    gameState: s.game,
+    shortlistedTalentIds: s.game?.shortlistedTalentIds ?? [],
+    toggleShortlist: s.toggleShortlist,
+    replaceProject: s.replaceProject,
+    updateTalent: s.updateTalent,
+  })));
   const openTalentProfile = useUiStore((s) => s.openTalentProfile);
 const { toast } = useToast();
   const [filters, setFilters] = useState<CastingFilters>({
