@@ -27,9 +27,9 @@
     "pretauri": "if [ -f \"$HOME/.cargo/env\" ]; then . \"$HOME/.cargo/env\"; fi",
     "pretauri:dev": "if [ -f \"$HOME/.cargo/env\" ]; then . \"$HOME/.cargo/env\"; fi",
     "pretauri:build": "if [ -f \"$HOME/.cargo/env\" ]; then . \"$HOME/.cargo/env\"; fi",
-    "tauri": "node ./node_modules/@tauri-apps/cli/tauri.js",
-    "tauri:dev": "node ./node_modules/@tauri-apps/cli/tauri.js dev",
-    "tauri:build": "node ./node_modules/@tauri-apps/cli/tauri.js build --config src-tauri/tauri.release.conf.json"
+    "tauri": "bash -lc 'source \"$HOME/.cargo/env\" && exec node ./node_modules/@tauri-apps/cli/tauri.js'",
+    "tauri:dev": "bash -lc 'source \"$HOME/.cargo/env\" && exec node ./node_modules/@tauri-apps/cli/tauri.js dev'",
+    "tauri:build": "bash -lc 'source \"$HOME/.cargo/env\" && exec node ./node_modules/@tauri-apps/cli/tauri.js build --config src-tauri/tauri.release.conf.json'"
   },
   "dependencies": {
     "@hookform/resolvers": "^3.9.0",
