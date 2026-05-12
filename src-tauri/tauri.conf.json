@@ -54,8 +54,7 @@
       "nsis": {
         "installMode": "perMachine",
         "displayLanguageSelector": true,
-        "installerIcon": "icons/icon.ico",
-        "installerHeaderIcon": "icons/icon.ico"
+        "installerIcon": "icons/icon.ico"
       },
       "wix": {
         "language": "en-US",
