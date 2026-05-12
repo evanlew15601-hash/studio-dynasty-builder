@@ -1,4 +1,5 @@
 import React, { useState } from 'react';
+import { useShallow } from 'zustand/react/shallow';
 import { Franchise, Project } from '@/types/game';
 import { useGameStore } from '@/game/store';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
@@ -16,10 +17,14 @@ import { triggerDateFromWeekYear } from '@/utils/gameTime';
 interface EnhancedFranchiseSystemProps {}
 
 export const EnhancedFranchiseSystem: React.FC<EnhancedFranchiseSystemProps> = () => {
-  const gameState = useGameStore((s) => s.game);
-  const upsertFranchise = useGameStore((s) => s.upsertFranchise);
-  const appendFranchiseEntry = useGameStore((s) => s.appendFranchiseEntry);
-  const updateProject = useGameStore((s) => s.updateProject);
+  const { gameState, upsertFranchise, appendFranchiseEntry, updateProject } = useGameStore(
+    useShallow((s) => ({
+      gameState: s.game,
+      upsertFranchise: s.upsertFranchise,
+      appendFranchiseEntry: s.appendFranchiseEntry,
+      updateProject: s.updateProject,
+    }))
+  );
   const { toast } = useToast();
   const [isCreating, setIsCreating] = useState(false);
   

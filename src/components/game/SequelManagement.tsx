@@ -1,4 +1,5 @@
 import React, { useState } from 'react';
+import { useShallow } from 'zustand/react/shallow';
 import { Project, Franchise, Script } from '@/types/game';
 import { useGameStore } from '@/game/store';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
@@ -42,9 +43,13 @@ export const SequelManagement: React.FC<SequelManagementProps> = ({
   onProjectCreate,
   onCreateFranchise
 }) => {
-  const gameState = useGameStore((s) => s.game);
-  const replaceProject = useGameStore((s) => s.replaceProject);
-  const appendFranchiseEntry = useGameStore((s) => s.appendFranchiseEntry);
+  const { gameState, replaceProject, appendFranchiseEntry } = useGameStore(
+    useShallow((s) => ({
+      gameState: s.game,
+      replaceProject: s.replaceProject,
+      appendFranchiseEntry: s.appendFranchiseEntry,
+    }))
+  );
   const { toast } = useToast();
   const [selectedProject, setSelectedProject] = useState<Project | null>(null);
   const [sequelPlan, setSequelPlan] = useState<SequelPlan | null>(null);

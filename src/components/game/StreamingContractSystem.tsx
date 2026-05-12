@@ -8,6 +8,7 @@ import { useToast } from '@/hooks/use-toast';
 import { StreamingContract } from '@/types/streamingTypes';
 import { PostTheatricalRelease, Project } from '@/types/game';
 import { Monitor, Tv, Award } from 'lucide-react';
+import { useShallow } from 'zustand/react/shallow';
 import { useGameStore } from '@/game/store';
 import {
   getAllProviders,
@@ -25,9 +26,11 @@ import { triggerDateFromWeekYear } from '@/utils/gameTime';
 interface StreamingContractSystemProps {}
 
 export const StreamingContractSystem: React.FC<StreamingContractSystemProps> = () => {
-  const gameState = useGameStore((s) => s.game);
-  const updateProject = useGameStore((s) => s.updateProject);
-  const updateBudget = useGameStore((s) => s.updateBudget);
+  const { gameState, updateProject, updateBudget } = useGameStore(useShallow((s) => ({
+    gameState: s.game,
+    updateProject: s.updateProject,
+    updateBudget: s.updateBudget,
+  })));
   const { toast } = useToast();
   const [, setSelectedProject] = useState<Project | null>(null);
   const mods = useMemo(() => getModBundle(), []);

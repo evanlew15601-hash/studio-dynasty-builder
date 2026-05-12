@@ -1,4 +1,5 @@
 import React, { useState } from 'react';
+import { useShallow } from 'zustand/react/shallow';
 import { useGameStore } from '@/game/store';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
@@ -24,10 +25,14 @@ interface Loan {
 interface EnhancedLoanSystemProps {}
 
 export const EnhancedLoanSystem: React.FC<EnhancedLoanSystemProps> = () => {
-  const gameState = useGameStore((s) => s.game);
-  const updateStudio = useGameStore((s) => s.updateStudio);
-  const updateBudget = useGameStore((s) => s.updateBudget);
-  const updateReputation = useGameStore((s) => s.updateReputation);
+  const { gameState, updateStudio, updateBudget, updateReputation } = useGameStore(
+    useShallow((s) => ({
+      gameState: s.game,
+      updateStudio: s.updateStudio,
+      updateBudget: s.updateBudget,
+      updateReputation: s.updateReputation,
+    }))
+  );
   const { toast } = useToast();
   const [loanAmount, setLoanAmount] = useState([5000000]); // $5M default
   const [loanTerm, setLoanTerm] = useState([52]); // 1 year default

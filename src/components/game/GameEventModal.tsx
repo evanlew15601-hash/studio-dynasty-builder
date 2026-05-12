@@ -1,4 +1,5 @@
 import React from 'react';
+import { useShallow } from 'zustand/react/shallow';
 import type { EventChoice, EventConsequence, GameEvent } from '@/types/game';
 import { useGameStore } from '@/game/store';
 import { Dialog, DialogContent, DialogFooter, DialogHeader, DialogTitle } from '@/components/ui/dialog';
@@ -29,8 +30,12 @@ function consequenceTone(c: EventConsequence): 'default' | 'destructive' | 'seco
 export const GameEventModal: React.FC<{
   onChoice?: (event: GameEvent, choiceId: string | number | undefined) => void;
 }> = ({ onChoice }) => {
-  const game = useGameStore((s) => s.game);
-  const resolve = useGameStore((s) => s.resolveGameEvent);
+  const { game, resolve } = useGameStore(
+    useShallow((s) => ({
+      game: s.game,
+      resolve: s.resolveGameEvent,
+    }))
+  );
 
   const event = game?.eventQueue?.[0];
 

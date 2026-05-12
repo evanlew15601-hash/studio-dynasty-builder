@@ -1,4 +1,5 @@
 import React, { useCallback, useMemo, useState } from 'react';
+import { useShallow } from 'zustand/react/shallow';
 import { Project, AwardsCampaign } from '@/types/game';
 import { getPlayerProjectIds, isPlayerOwnedProject } from '@/utils/playerProjects';
 import { useGameStore } from '@/game/store';
@@ -25,12 +26,15 @@ interface AwardsSystemProps {
 export const AwardsSystem: React.FC<AwardsSystemProps> = ({ 
   onNavigatePhase
 }) => {
-  const gameState = useGameStore((s) => s.game);
+  const { gameState, replaceProject, addProject, updateBudget } = useGameStore(
+    useShallow((s) => ({
+      gameState: s.game,
+      replaceProject: s.replaceProject,
+      addProject: s.addProject,
+      updateBudget: s.updateBudget,
+    }))
+  );
   const setPhase = useUiStore((s) => s.setPhase);
-  const navigatePhase = onNavigatePhase ?? ((phase: 'media' | 'distribution') => setPhase(phase));
-  const replaceProject = useGameStore((s) => s.replaceProject);
-  const addProject = useGameStore((s) => s.addProject);
-  const updateBudget = useGameStore((s) => s.updateBudget);
   const { toast } = useToast();
 
   const [contenderScope, setContenderScope] = useState<'player' | 'all'>('player');

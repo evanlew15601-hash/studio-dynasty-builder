@@ -1,4 +1,5 @@
 import React, { useState } from 'react';
+import { useShallow } from 'zustand/react/shallow';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
@@ -26,10 +27,14 @@ import {
 interface MediaResponseDashboardProps {}
 
 export const MediaResponseDashboard: React.FC<MediaResponseDashboardProps> = () => {
-  const gameState = useGameStore((s) => s.game);
-  const updateStudio = useGameStore((s) => s.updateStudio);
-  const updateBudget = useGameStore((s) => s.updateBudget);
-  const mergeGameState = useGameStore((s) => s.mergeGameState);
+  const { gameState, updateStudio, updateBudget, mergeGameState } = useGameStore(
+    useShallow((s) => ({
+      gameState: s.game,
+      updateStudio: s.updateStudio,
+      updateBudget: s.updateBudget,
+      mergeGameState: s.mergeGameState,
+    }))
+  );
   const [selectedMedia, setSelectedMedia] = useState<MediaItem | null>(null);
   const [customMessage, setCustomMessage] = useState('');
   const [campaignForm, setCampaignForm] = useState({

@@ -10,14 +10,17 @@ import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger } from 
 import { useToast } from '@/hooks/use-toast';
 import { EpisodeData, SeasonData } from '@/types/streamingTypes';
 import { Project } from '@/types/game';
+import { useShallow } from 'zustand/react/shallow';
 import { useGameStore } from '@/game/store';
 import { Play, Users, Calendar, BarChart3, Star, Edit, Settings } from 'lucide-react';
 import { TVRatingsSystem } from './TVRatingsSystem';
 import { stableInt } from '@/utils/stableRandom';
 
 export const EpisodeTrackingSystem: React.FC = () => {
-  const gameState = useGameStore((s) => s.game);
-  const updateProject = useGameStore((s) => s.updateProject);
+  const { gameState, updateProject } = useGameStore(useShallow((s) => ({
+    gameState: s.game,
+    updateProject: s.updateProject,
+  })));
   const { toast } = useToast();
   const [selectedSeason] = useState<number>(1);
 

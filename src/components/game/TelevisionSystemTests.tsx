@@ -1,4 +1,5 @@
 import React, { useState } from 'react';
+import { useShallow } from 'zustand/react/shallow';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
@@ -44,9 +45,13 @@ const INITIAL_TESTS: TestResult[] = [
 ];
 
 export const TelevisionSystemTests: React.FC<TelevisionSystemTestsProps> = () => {
-  const gameState = useGameStore((s) => s.game);
-  const updateBudget = useGameStore((s) => s.updateBudget);
-  const mergeGameState = useGameStore((s) => s.mergeGameState);
+  const { gameState, updateBudget, mergeGameState } = useGameStore(
+    useShallow((s) => ({
+      gameState: s.game,
+      updateBudget: s.updateBudget,
+      mergeGameState: s.mergeGameState,
+    }))
+  );
   const { toast } = useToast();
   const [testResults, setTestResults] = useState<TestResult[]>(INITIAL_TESTS);
   const [isRunning, setIsRunning] = useState(false);

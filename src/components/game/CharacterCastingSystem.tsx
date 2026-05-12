@@ -1,4 +1,5 @@
 import React, { useState } from 'react';
+import { useShallow } from 'zustand/react/shallow';
 import { Project, TalentPerson, ScriptCharacter } from '@/types/game';
 import { useGameStore } from '@/game/store';
 import { useUiStore } from '@/game/uiStore';
@@ -29,10 +30,14 @@ interface CastingSlot {
 export const CharacterCastingSystem: React.FC<CharacterCastingSystemProps> = ({
   project: propProject
 }) => {
-  const gameState = useGameStore((s) => s.game);
-  const project = useGameStore((s) => s.game?.projects.find(p => p.id === propProject.id) || propProject);
-  const replaceProject = useGameStore((s) => s.replaceProject);
-  const updateTalent = useGameStore((s) => s.updateTalent);
+  const { gameState, project, replaceProject, updateTalent } = useGameStore(
+    useShallow((s) => ({
+      gameState: s.game,
+      project: s.game?.projects.find(p => p.id === propProject.id) || propProject,
+      replaceProject: s.replaceProject,
+      updateTalent: s.updateTalent,
+    }))
+  );
   const { toast } = useToast();
   const [filterType, setFilterType] = useState<'all' | 'cast' | 'crew'>('all');
   const [negotiationTarget, setNegotiationTarget] = useState<{ character: ScriptCharacter; talent: TalentPerson } | null>(null);

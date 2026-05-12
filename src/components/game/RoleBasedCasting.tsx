@@ -1,4 +1,5 @@
 import React from 'react';
+import { useShallow } from 'zustand/react/shallow';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
@@ -18,10 +19,14 @@ interface RoleBasedCastingProps {
 export const RoleBasedCasting: React.FC<RoleBasedCastingProps> = ({
   project: propProject
 }) => {
-  const gameState = useGameStore((s) => s.game);
-  const project = useGameStore((s) => s.game?.projects.find(p => p.id === propProject.id) || propProject);
-  const updateProject = useGameStore((s) => s.updateProject);
-  const updateTalent = useGameStore((s) => s.updateTalent);
+  const { gameState, project, updateProject, updateTalent } = useGameStore(
+    useShallow((s) => ({
+      gameState: s.game,
+      project: s.game?.projects.find(p => p.id === propProject.id) || propProject,
+      updateProject: s.updateProject,
+      updateTalent: s.updateTalent,
+    }))
+  );
   const { toast } = useToast();
   const [negotiationTarget, setNegotiationTarget] = React.useState<{ role: ScriptCharacter; talent: TalentPerson } | null>(null);
 

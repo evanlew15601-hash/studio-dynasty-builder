@@ -1,4 +1,5 @@
 import React, { useMemo, useState } from 'react';
+import { useShallow } from 'zustand/react/shallow';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
@@ -196,13 +197,25 @@ const statusVariant = (status: string | undefined): BadgeVariant => {
 };
 
 export const StreamingWarsPlatformApp: React.FC = () => {
-  const gameState = useGameStore((s) => s.game);
-  const setGameState = useGameStore((s) => s.setGameState);
-  const addProject = useGameStore((s) => s.addProject);
-  const upsertScript = useGameStore((s) => s.upsertScript);
-  const spendStudioFunds = useGameStore((s) => s.spendStudioFunds);
-  const updateProject = useGameStore((s) => s.updateProject);
-  const updateBudget = useGameStore((s) => s.updateBudget);
+  const {
+    gameState,
+    setGameState,
+    addProject,
+    upsertScript,
+    spendStudioFunds,
+    updateProject,
+    updateBudget,
+  } = useGameStore(
+    useShallow((s) => ({
+      gameState: s.game,
+      setGameState: s.setGameState,
+      addProject: s.addProject,
+      upsertScript: s.upsertScript,
+      spendStudioFunds: s.spendStudioFunds,
+      updateProject: s.updateProject,
+      updateBudget: s.updateBudget,
+    }))
+  );
 
   const platformMarket = gameState?.platformMarket;
 

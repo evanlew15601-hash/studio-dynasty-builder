@@ -1,4 +1,5 @@
 import React from 'react';
+import { useShallow } from 'zustand/react/shallow';
 import { Project, MarketingActivity } from '@/types/game';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
@@ -119,9 +120,13 @@ const MARKETING_ACTIVITIES = [
 export const MarketingActivities: React.FC<MarketingActivitiesProps> = ({
   project
 }) => {
-  const gameState = useGameStore((s) => s.game);
-  const replaceProject = useGameStore((s) => s.replaceProject);
-  const updateBudget = useGameStore((s) => s.updateBudget);
+  const { gameState, replaceProject, updateBudget } = useGameStore(
+    useShallow((s) => ({
+      gameState: s.game,
+      replaceProject: s.replaceProject,
+      updateBudget: s.updateBudget,
+    }))
+  );
   const { toast } = useToast();
 
   if (!gameState) {

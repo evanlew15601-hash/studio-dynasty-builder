@@ -18,6 +18,7 @@ import { AIStudioManager } from './AIStudioManager';
 import type { AIFilmProject, TalentCommitment } from '@/types/game';
 
 import { Building, Film, Users, Play, TestTube } from 'lucide-react';
+import { useShallow } from 'zustand/react/shallow';
 import { useGameStore } from '@/game/store';
 
 
@@ -27,8 +28,10 @@ export const CompetitorMonitor: React.FC = () => {
   const [testResults, setTestResults] = useState<any>(null);
   const [resetAiConfirmOpen, setResetAiConfirmOpen] = useState(false);
 
-  const game = useGameStore((s) => s.game);
-  const mergeGameState = useGameStore((s) => s.mergeGameState);
+  const { game, mergeGameState } = useGameStore(useShallow((s) => ({
+    game: s.game,
+    mergeGameState: s.mergeGameState,
+  })));
 
   const competitorStudios = game?.competitorStudios ?? [];
   const currentWeek = game?.currentWeek ?? 0;

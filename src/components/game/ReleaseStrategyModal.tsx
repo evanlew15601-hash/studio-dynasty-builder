@@ -1,4 +1,5 @@
 import React, { useEffect, useMemo, useState } from 'react';
+import { useShallow } from 'zustand/react/shallow';
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription } from '@/components/ui/dialog';
 import {
   AlertDialog,
@@ -34,9 +35,13 @@ export const ReleaseStrategyModal: React.FC<ReleaseStrategyModalProps> = ({
   isOpen,
   onClose
 }) => {
-  const gameState = useGameStore((s) => s.game);
-  const updateProject = useGameStore((s) => s.updateProject);
-  const updateBudget = useGameStore((s) => s.updateBudget);
+  const { gameState, updateProject, updateBudget } = useGameStore(
+    useShallow((s) => ({
+      gameState: s.game,
+      updateProject: s.updateProject,
+      updateBudget: s.updateBudget,
+    }))
+  );
   const { toast } = useToast();
   const [selectedDate, setSelectedDate] = useState<{ week: number; year: number } | null>(null);
   const [selectedReleaseType, setSelectedReleaseType] = useState<ReleaseStrategy['type']>('wide');

@@ -1,4 +1,5 @@
 import React, { useEffect, useState } from 'react';
+import { useShallow } from 'zustand/react/shallow';
 import { Card, CardHeader, CardTitle, CardContent } from '@/components/ui/card';
 import { isDebugUiEnabled } from '@/utils/debugFlags';
 import { Button } from '@/components/ui/button';
@@ -51,10 +52,14 @@ export const DebugControlPanel: React.FC<DebugControlPanelProps> = ({
   onAdvanceToDate,
 }) => {
   const debugUiEnabled = isDebugUiEnabled();
-  const gameState = useGameStore((s) => s.game);
-  const setGameState = useGameStore((s) => s.setGameState);
-  const updateStudio = useGameStore((s) => s.updateStudio);
-  const replaceProject = useGameStore((s) => s.replaceProject);
+  const { gameState, setGameState, updateStudio, replaceProject } = useGameStore(
+    useShallow((s) => ({
+      gameState: s.game,
+      setGameState: s.setGameState,
+      updateStudio: s.updateStudio,
+      replaceProject: s.replaceProject,
+    }))
+  );
 
   const time = gameState
     ? {

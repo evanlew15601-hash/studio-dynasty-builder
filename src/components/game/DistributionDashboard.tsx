@@ -1,4 +1,5 @@
 import React from 'react';
+import { useShallow } from 'zustand/react/shallow';
 import type { GameState, Project } from '@/types/game';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
@@ -26,8 +27,12 @@ export const DistributionDashboard: React.FC<DistributionDashboardProps> = ({
   gameState: propGameState,
   onProjectUpdate: propOnProjectUpdate,
 }) => {
-  const storeGameState = useGameStore((s) => s.game);
-  const replaceProject = useGameStore((s) => s.replaceProject);
+  const { storeGameState, replaceProject } = useGameStore(
+    useShallow((s) => ({
+      storeGameState: s.game,
+      replaceProject: s.replaceProject,
+    }))
+  );
   const gameState = propGameState ?? storeGameState;
   const onProjectUpdate = propOnProjectUpdate ?? replaceProject;
   const { toast } = useToast();

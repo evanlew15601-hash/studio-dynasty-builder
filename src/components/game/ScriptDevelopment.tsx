@@ -18,6 +18,7 @@ import { applyGovernanceImpact, getGreenlightGateReport } from '@/utils/studioGo
 import { computeFilmContentRating, contentRatingToSliderValue } from '@/utils/contentRating';
 import { FinancialEngine } from './FinancialEngine';
 import { ScriptIcon, ClapperboardIcon } from '@/components/ui/icons';
+import { useShallow } from 'zustand/react/shallow';
 import { useGameStore } from '@/game/store';
 import { nextNumericId } from '@/utils/idAllocator';
 
@@ -36,10 +37,12 @@ export const ScriptDevelopment: React.FC<ScriptDevelopmentProps> = ({
   selectedPublicDomain,
   onProjectCreate,
 }) => {
-  const gameState = useGameStore((s) => s.game);
-  const mergeGameState = useGameStore((s) => s.mergeGameState);
-  const spendStudioFunds = useGameStore((s) => s.spendStudioFunds);
-  const upsertScript = useGameStore((s) => s.upsertScript);
+  const { gameState, mergeGameState, spendStudioFunds, upsertScript } = useGameStore(useShallow((s) => ({
+    gameState: s.game,
+    mergeGameState: s.mergeGameState,
+    spendStudioFunds: s.spendStudioFunds,
+    upsertScript: s.upsertScript,
+  })));
   const { toast } = useToast();
   
   const [isCreating, setIsCreating] = useState(false);

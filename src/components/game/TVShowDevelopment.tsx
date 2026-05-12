@@ -1,4 +1,5 @@
 import React, { useState, useEffect, useCallback } from 'react';
+import { useShallow } from 'zustand/react/shallow';
 import { Script, Genre } from '@/types/game';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
@@ -36,10 +37,14 @@ export const TVShowDevelopment: React.FC<TVShowDevelopmentProps> = ({
   selectedPublicDomain,
   onProjectCreate,
 }) => {
-  const gameState = useGameStore((s) => s.game);
-  const mergeGameState = useGameStore((s) => s.mergeGameState);
-  const spendStudioFunds = useGameStore((s) => s.spendStudioFunds);
-  const upsertScript = useGameStore((s) => s.upsertScript);
+  const { gameState, mergeGameState, spendStudioFunds, upsertScript } = useGameStore(
+    useShallow((s) => ({
+      gameState: s.game,
+      mergeGameState: s.mergeGameState,
+      spendStudioFunds: s.spendStudioFunds,
+      upsertScript: s.upsertScript,
+    }))
+  );
   const { toast } = useToast();
   
   const [isCreating, setIsCreating] = useState(false);

@@ -1,4 +1,5 @@
 import React, { useMemo, useState } from 'react';
+import { useShallow } from 'zustand/react/shallow';
 import { Project } from '@/types/game';
 import { TimeSystem } from './TimeSystem';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
@@ -27,10 +28,13 @@ interface MarketingReleaseManagementProps {
 export const MarketingReleaseManagement: React.FC<MarketingReleaseManagementProps> = ({
   projectTypeFilter
 }) => {
-  const gameState = useGameStore((s) => s.game);
-  
-  const replaceProject = useGameStore((s) => s.replaceProject);
-  const updateBudget = useGameStore((s) => s.updateBudget);
+  const { gameState, replaceProject, updateBudget } = useGameStore(
+    useShallow((s) => ({
+      gameState: s.game,
+      replaceProject: s.replaceProject,
+      updateBudget: s.updateBudget,
+    }))
+  );
   const [selectedProjectId, setSelectedProjectId] = useState<string | null>(null);
   const [showMarketingModal, setShowMarketingModal] = useState(false);
   const [showReleaseModal, setShowReleaseModal] = useState(false);
