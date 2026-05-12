@@ -12,11 +12,12 @@
     "withGlobalTauri": false,
     "security": {
       "csp": {
-        "default-src": "'self' customprotocol: asset:",
+        "default-src": "'self' customprotocol: asset: http://127.0.0.1:*",
         "connect-src": "ipc: http://ipc.localhost 'self' https://fonts.googleapis.com https://fonts.gstatic.com http://localhost:* http://127.0.0.1:* ws://localhost:* ws://127.0.0.1:* https://*.supabase.co wss://*.supabase.co",
         "img-src": "'self' asset: http://asset.localhost blob: data:",
         "font-src": "'self' data: https://fonts.gstatic.com",
-        "style-src": "'unsafe-inline' 'self' https://fonts.googleapis.com"
+        "style-src": "'unsafe-inline' 'self' https://fonts.googleapis.com",
+        "script-src": "'self' 'unsafe-eval'"
       }
     },
     "windows": [
@@ -25,7 +26,10 @@
         "title": "Studio Magnate",
         "width": 1280,
         "height": 800,
-        "resizable": true
+        "resizable": true,
+        "center": true,
+        "decorations": true,
+        "transparent": false
       }
     ]
   },
@@ -44,12 +48,14 @@
     ],
     "windows": {
       "webviewInstallMode": {
-        "type": "offlineInstaller",
-        "silent": true
+        "type": "downloadBootstrapper",
+        "silent": false
       },
       "nsis": {
         "installMode": "perMachine",
-        "displayLanguageSelector": true
+        "displayLanguageSelector": true,
+        "installerIcon": "icons/icon.ico",
+        "installerHeaderIcon": "icons/icon.ico"
       },
       "wix": {
         "language": "en-US",
