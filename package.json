@@ -24,6 +24,9 @@
     "sbom:generate": "node scripts/generate-sbom.mjs",
     "smoke:save-migrations": "node scripts/smoke-save-migrations.mjs",
     "artifacts:package": "node scripts/package-tauri-artifacts.mjs",
+    "pretauri": "if [ -f \"$HOME/.cargo/env\" ]; then . \"$HOME/.cargo/env\"; fi",
+    "pretauri:dev": "if [ -f \"$HOME/.cargo/env\" ]; then . \"$HOME/.cargo/env\"; fi",
+    "pretauri:build": "if [ -f \"$HOME/.cargo/env\" ]; then . \"$HOME/.cargo/env\"; fi",
     "tauri": "node ./node_modules/@tauri-apps/cli/tauri.js",
     "tauri:dev": "node ./node_modules/@tauri-apps/cli/tauri.js dev",
     "tauri:build": "node ./node_modules/@tauri-apps/cli/tauri.js build --config src-tauri/tauri.release.conf.json"
