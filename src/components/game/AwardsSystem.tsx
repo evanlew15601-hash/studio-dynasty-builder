@@ -538,10 +538,10 @@ export const AwardsSystem: React.FC<AwardsSystemProps> = ({
           <CardTitle className="text-sm font-medium">Navigate</CardTitle>
         </CardHeader>
         <CardContent className="flex flex-wrap gap-2">
-          <Button size="sm" variant="outline" onClick={() => navigatePhase('media')}>
+          <Button size="sm" variant="outline" onClick={() => onNavigatePhase?.('media')}>
             Open Media Dashboard
           </Button>
-          <Button size="sm" variant="outline" onClick={() => navigatePhase('distribution')}>
+          <Button size="sm" variant="outline" onClick={() => onNavigatePhase?.('distribution')}>
             Manage Post-Theatrical Distribution
           </Button>
         </CardContent>

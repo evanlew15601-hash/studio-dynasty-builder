@@ -35,9 +35,11 @@ export const RoleBasedCasting: React.FC<RoleBasedCastingProps> = ({
     if (!gameState || !project?.script) return;
 
     const existing = project.script.characters || [];
-    const importedRoles = (!existing || existing.length === 0)
-      ? importRolesForScript(project.script, gameState)
-      : [];
+    
+    // Skip if we already have characters (prevent infinite loop)
+    if (existing.length > 0) return;
+    
+    const importedRoles = importRolesForScript(project.script, gameState);
 
     // Determine if TV and whether mandatory roles are missing
     const combined = [...existing, ...importedRoles];
@@ -90,7 +92,7 @@ export const RoleBasedCasting: React.FC<RoleBasedCastingProps> = ({
         description: `${rolesToCreate.length} role${rolesToCreate.length > 1 ? 's' : ''} prepared (Director/Lead ensured)`,
       });
     }
-  }, [project?.id, project?.script?.franchiseId, project?.script?.publicDomainId, project?.script?.characters?.length]);
+  }, [project?.id, project?.script?.franchiseId, project?.script?.publicDomainId]);
 
   if (!gameState) {
     return <div className="p-6 text-sm text-muted-foreground">Loading casting system...</div>;

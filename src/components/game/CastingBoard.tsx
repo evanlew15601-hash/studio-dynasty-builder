@@ -30,13 +30,21 @@ export const CastingBoard: React.FC<CastingBoardProps> = ({
   selectedProject: propSelectedProject,
 }) => {
   const {
-    gameState,
+    talent: allTalent,
+    projects,
+    studio,
+    currentWeek,
+    currentYear,
     shortlistedTalentIds,
     toggleShortlist,
     replaceProject,
     updateTalent,
   } = useGameStore(useShallow((s) => ({
-    gameState: s.game,
+    talent: s.game?.talent ?? [],
+    projects: s.game?.projects ?? [],
+    studio: s.game?.studio!,
+    currentWeek: s.game?.currentWeek ?? 0,
+    currentYear: s.game?.currentYear ?? 0,
     shortlistedTalentIds: s.game?.shortlistedTalentIds ?? [],
     toggleShortlist: s.toggleShortlist,
     replaceProject: s.replaceProject,
@@ -61,8 +69,7 @@ const { toast } = useToast();
   const [negotiationTarget, setNegotiationTarget] = useState<{ talent: TalentPerson; role: string } | null>(null);
 
   const availableTalent = useMemo(() => {
-    if (!gameState?.talent) return [];
-    return gameState.talent.filter(talent => {
+    return allTalent.filter(talent => {
       if (talent.contractStatus !== 'available') return false;
       
       // Apply filters
@@ -77,19 +84,19 @@ const { toast } = useToast();
       
       return true;
     });
-  }, [gameState, filters]);
+  }, [allTalent, filters]);
 
   const paginatedTalent = useMemo(() => {
     const start = currentPage * TALENT_PER_PAGE;
     return availableTalent.slice(start, start + TALENT_PER_PAGE);
   }, [availableTalent, currentPage]);
 
-  if (!gameState) {
+  if (!projects.length) {
     return <div className="p-6 text-sm text-muted-foreground">Loading casting board...</div>;
   }
 
   const selectedProject = propSelectedProject
-    ? gameState.projects.find(p => p.id === propSelectedProject.id) || propSelectedProject
+    ? projects.find(p => p.id === propSelectedProject.id) || propSelectedProject
     : null;
 
 
@@ -135,7 +142,7 @@ const { toast } = useToast();
       weeklyPay: weeklySalary,
       contractWeeks: contractWeeks,
       weeksRemaining: contractWeeks,
-      startWeek: gameState.currentWeek
+      startWeek: currentWeek
     };
 
     // Base project updates for legacy cast/crew/contracted structures
@@ -222,9 +229,9 @@ const { toast } = useToast();
       currentContractWeeks: contractWeeks,
       studioInterest: recordStudioNegotiationOutcome({
         talent,
-        studioId: gameState.studio.id,
-        currentWeek: gameState.currentWeek,
-        currentYear: gameState.currentYear,
+        studioId: studio.id,
+        currentWeek: currentWeek,
+        currentYear: currentYear,
         interestScore: result.interestScore,
         outcome: 'signed',
       }),
@@ -250,14 +257,14 @@ const { toast } = useToast();
         <TalentNegotiationDialog
           open={true}
           onOpenChange={(open) => setNegotiationTarget(open ? negotiationTarget : null)}
-          studio={gameState.studio}
+          studio={studio}
           project={selectedProject}
           talent={negotiationTarget.talent}
           roleLabel={negotiationTarget.role}
           requiredType={negotiationTarget.talent.type === 'director' ? 'director' : 'actor'}
           importance={negotiationTarget.role.toLowerCase().includes('lead') ? 'lead' : undefined}
-          currentWeek={gameState.currentWeek}
-          currentYear={gameState.currentYear}
+          currentWeek={currentWeek}
+          currentYear={currentYear}
           onAccepted={finalizeHireTalent}
           onRejected={(res) => {
             const label = describeTalentInterest(res.interestScore).label;
@@ -266,9 +273,9 @@ const { toast } = useToast();
               updateTalent(negotiationTarget.talent.id, {
                 studioInterest: recordStudioNegotiationOutcome({
                   talent: negotiationTarget.talent,
-                  studioId: gameState.studio.id,
-                  currentWeek: gameState.currentWeek,
-                  currentYear: gameState.currentYear,
+                  studioId: studio.id,
+                  currentWeek: currentWeek,
+                  currentYear: currentYear,
                   interestScore: res.interestScore,
                   outcome: 'rejected',
                 }),
@@ -295,7 +302,7 @@ const { toast } = useToast();
       <CastingBoardFilters
         filters={filters}
         onFiltersChange={setFilters}
-        talent={gameState.talent.filter(t => t.contractStatus === 'available')}
+        talent={allTalent.filter(t => t.contractStatus === 'available')}
       />
 
       {/* Project Selection */}
@@ -339,7 +346,7 @@ const { toast } = useToast();
                   </h4>
                   <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
                     {selectedProject.cast.map((role, index) => {
-                      const talent = gameState.talent.find(t => t.id === role.talentId);
+                      const talent = allTalent.find(t => t.id === role.talentId);
                       return talent ? (
                         <div key={index} className="flex items-center space-x-3 p-3 rounded-lg bg-card border">
                           <TalentPortrait talent={talent} size="sm" />
@@ -384,7 +391,7 @@ const { toast } = useToast();
           </CardHeader>
           <CardContent className="grid grid-cols-3 md:grid-cols-4 lg:grid-cols-5 gap-2 p-4">
             {shortlistedTalentIds.slice(0, 20).map((id) => {
-              const talent = gameState.talent.find(t => t.id === id);
+              const talent = allTalent.find(t => t.id === id);
               if (!talent) return null;
               return (
                 <Button
