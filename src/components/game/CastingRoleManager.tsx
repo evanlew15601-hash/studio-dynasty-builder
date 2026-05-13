@@ -12,6 +12,8 @@ import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 
+const EMPTY_SHORTLISTED_IDS: string[] = [];
+
 import { useToast } from '@/hooks/use-toast';
 import { CastingIcon, TalentIcon } from '@/components/ui/icons';
 import { Search, Star as StarIcon } from 'lucide-react';
@@ -44,7 +46,7 @@ export const CastingRoleManager: React.FC<CastingRoleManagerProps> = ({
   const openTalentProfile = useUiStore((s) => s.openTalentProfile);
   const [castingDialogOpen, setCastingDialogOpen] = useState(false);
   const [selectedRole, setSelectedRole] = useState<RoleCast | null>(null);
-  const shortlistedTalentIds = useGameStore((s) => s.game?.shortlistedTalentIds ?? []);
+  const shortlistedTalentIds = useGameStore((s) => s.game?.shortlistedTalentIds ?? EMPTY_SHORTLISTED_IDS);
   const toggleShortlist = useGameStore((s) => s.toggleShortlist);
   const [tab, setTab] = useState<'shortlist' | 'browse'>('shortlist');
   const [talentFilter, setTalentFilter] = useState('');

@@ -23,6 +23,8 @@ import { Calendar, Clock, Star, Film, DollarSign, User } from 'lucide-react';
 import { TalentPortrait } from '@/components/ui/talent-portrait';
 import { useUiStore } from '@/game/uiStore';
 
+const EMPTY_SHORTLISTED_IDS: string[] = [];
+
 interface TalentMarketplaceProps {
   talent: TalentPerson[];
   currentWeek: number;
@@ -38,7 +40,7 @@ export const TalentMarketplace: React.FC<TalentMarketplaceProps> = ({
 }) => {
   const openTalentProfile = useUiStore((s) => s.openTalentProfile);
   const mergeGameState = useGameStore((s) => s.mergeGameState);
-  const shortlistedTalentIds = useGameStore((s) => s.game?.shortlistedTalentIds ?? []);
+  const shortlistedTalentIds = useGameStore((s) => s.game?.shortlistedTalentIds ?? EMPTY_SHORTLISTED_IDS);
   const toggleShortlist = useGameStore((s) => s.toggleShortlist);
   const [showAvailableOnly, setShowAvailableOnly] = useState(false);
   const [selectedRole, setSelectedRole] = useState<string>('all');

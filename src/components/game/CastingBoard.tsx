@@ -4,6 +4,10 @@ import { Project, TalentPerson, ProductionRole, ScriptCharacter } from '@/types/
 import { useGameStore } from '@/game/store';
 import { useUiStore } from '@/game/uiStore';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
+
+const EMPTY_TALENT: TalentPerson[] = [];
+const EMPTY_PROJECTS: Project[] = [];
+const EMPTY_SHORTLISTED_IDS: string[] = [];
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
 import { TalentPortrait } from '@/components/ui/talent-portrait';
@@ -29,12 +33,12 @@ export const CastingBoard: React.FC<CastingBoardProps> = ({
   selectedProject: propSelectedProject,
 }) => {
   // Use individual selectors to avoid object literal recreation
-  const allTalent = useGameStore((s) => s.game?.talent ?? []);
-  const projects = useGameStore((s) => s.game?.projects ?? []);
+  const allTalent = useGameStore((s) => s.game?.talent ?? EMPTY_TALENT);
+  const projects = useGameStore((s) => s.game?.projects ?? EMPTY_PROJECTS);
   const studio = useGameStore((s) => s.game?.studio!);
   const currentWeek = useGameStore((s) => s.game?.currentWeek ?? 0);
   const currentYear = useGameStore((s) => s.game?.currentYear ?? 0);
-  const shortlistedTalentIds = useGameStore((s) => s.game?.shortlistedTalentIds ?? []);
+  const shortlistedTalentIds = useGameStore((s) => s.game?.shortlistedTalentIds ?? EMPTY_SHORTLISTED_IDS);
   const toggleShortlist = useGameStore((s) => s.toggleShortlist);
   const replaceProject = useGameStore((s) => s.replaceProject);
   const updateTalent = useGameStore((s) => s.updateTalent);
