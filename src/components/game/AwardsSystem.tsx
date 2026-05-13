@@ -35,6 +35,7 @@ export const AwardsSystem: React.FC<AwardsSystemProps> = ({
     }))
   );
   const setPhase = useUiStore((s) => s.setPhase);
+  const navigatePhase = onNavigatePhase ?? ((phase: 'media' | 'distribution') => setPhase(phase));
   const { toast } = useToast();
 
   const [contenderScope, setContenderScope] = useState<'player' | 'all'>('player');
@@ -538,10 +539,10 @@ export const AwardsSystem: React.FC<AwardsSystemProps> = ({
           <CardTitle className="text-sm font-medium">Navigate</CardTitle>
         </CardHeader>
         <CardContent className="flex flex-wrap gap-2">
-          <Button size="sm" variant="outline" onClick={() => onNavigatePhase?.('media')}>
+          <Button size="sm" variant="outline" onClick={() => navigatePhase('media')}>
             Open Media Dashboard
           </Button>
-          <Button size="sm" variant="outline" onClick={() => onNavigatePhase?.('distribution')}>
+          <Button size="sm" variant="outline" onClick={() => navigatePhase('distribution')}>
             Manage Post-Theatrical Distribution
           </Button>
         </CardContent>

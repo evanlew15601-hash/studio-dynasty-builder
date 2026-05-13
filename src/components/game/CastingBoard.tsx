@@ -35,7 +35,7 @@ export const CastingBoard: React.FC<CastingBoardProps> = ({
   // Use individual selectors to avoid object literal recreation
   const allTalent = useGameStore((s) => s.game?.talent ?? EMPTY_TALENT);
   const projects = useGameStore((s) => s.game?.projects ?? EMPTY_PROJECTS);
-  const studio = useGameStore((s) => s.game?.studio!);
+  const studio = useGameStore((s) => s.game!.studio);
   const currentWeek = useGameStore((s) => s.game?.currentWeek ?? 0);
   const currentYear = useGameStore((s) => s.game?.currentYear ?? 0);
   const shortlistedTalentIds = useGameStore((s) => s.game?.shortlistedTalentIds ?? EMPTY_SHORTLISTED_IDS);
