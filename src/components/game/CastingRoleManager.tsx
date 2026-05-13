@@ -1,6 +1,5 @@
 // Role-Based Casting System - Assign specific actors to specific roles
 import React, { useState } from 'react';
-import { useShallow } from 'zustand/react/shallow';
 import { Project, TalentPerson, ScriptCharacter } from '@/types/game';
 import { useGameStore } from '@/game/store';
 import { useUiStore } from '@/game/uiStore';
@@ -45,10 +44,8 @@ export const CastingRoleManager: React.FC<CastingRoleManagerProps> = ({
   const openTalentProfile = useUiStore((s) => s.openTalentProfile);
   const [castingDialogOpen, setCastingDialogOpen] = useState(false);
   const [selectedRole, setSelectedRole] = useState<RoleCast | null>(null);
-  const { shortlistedTalentIds, toggleShortlist } = useGameStore(useShallow((s) => ({
-    shortlistedTalentIds: s.game?.shortlistedTalentIds ?? [],
-    toggleShortlist: s.toggleShortlist,
-  })));
+  const shortlistedTalentIds = useGameStore((s) => s.game?.shortlistedTalentIds ?? []);
+  const toggleShortlist = useGameStore((s) => s.toggleShortlist);
   const [tab, setTab] = useState<'shortlist' | 'browse'>('shortlist');
   const [talentFilter, setTalentFilter] = useState('');
 

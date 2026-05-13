@@ -1,6 +1,5 @@
 
 import { useState, useMemo } from 'react';
-import { useShallow } from 'zustand/react/shallow';
 import { Project, TalentPerson, ProductionRole, ScriptCharacter } from '@/types/game';
 import { useGameStore } from '@/game/store';
 import { useUiStore } from '@/game/uiStore';
@@ -29,27 +28,16 @@ interface CastingBoardProps {
 export const CastingBoard: React.FC<CastingBoardProps> = ({
   selectedProject: propSelectedProject,
 }) => {
-  const {
-    talent: allTalent,
-    projects,
-    studio,
-    currentWeek,
-    currentYear,
-    shortlistedTalentIds,
-    toggleShortlist,
-    replaceProject,
-    updateTalent,
-  } = useGameStore(useShallow((s) => ({
-    talent: s.game?.talent ?? [],
-    projects: s.game?.projects ?? [],
-    studio: s.game?.studio!,
-    currentWeek: s.game?.currentWeek ?? 0,
-    currentYear: s.game?.currentYear ?? 0,
-    shortlistedTalentIds: s.game?.shortlistedTalentIds ?? [],
-    toggleShortlist: s.toggleShortlist,
-    replaceProject: s.replaceProject,
-    updateTalent: s.updateTalent,
-  })));
+  // Use individual selectors to avoid object literal recreation
+  const allTalent = useGameStore((s) => s.game?.talent ?? []);
+  const projects = useGameStore((s) => s.game?.projects ?? []);
+  const studio = useGameStore((s) => s.game?.studio!);
+  const currentWeek = useGameStore((s) => s.game?.currentWeek ?? 0);
+  const currentYear = useGameStore((s) => s.game?.currentYear ?? 0);
+  const shortlistedTalentIds = useGameStore((s) => s.game?.shortlistedTalentIds ?? []);
+  const toggleShortlist = useGameStore((s) => s.toggleShortlist);
+  const replaceProject = useGameStore((s) => s.replaceProject);
+  const updateTalent = useGameStore((s) => s.updateTalent);
   const openTalentProfile = useUiStore((s) => s.openTalentProfile);
 const { toast } = useToast();
   const [filters, setFilters] = useState<CastingFilters>({
