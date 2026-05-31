@@ -395,9 +395,21 @@ export class TalentGenerator {
     return traits;
   }
 
+  generateActorAge(): number {
+    const roll = Math.random();
+
+    // Weight the available actor market toward 20s and early-30s performers so
+    // common young lead/supporting requirements remain castable.
+    if (roll < 0.22) return 18 + Math.floor(Math.random() * 7); // 18-24
+    if (roll < 0.52) return 25 + Math.floor(Math.random() * 10); // 25-34
+    if (roll < 0.74) return 35 + Math.floor(Math.random() * 10); // 35-44
+    if (roll < 0.9) return 45 + Math.floor(Math.random() * 10); // 45-54
+    return 55 + Math.floor(Math.random() * 11); // 55-65
+  }
+
   generateActor(): TalentPerson {
     const gender = Math.random() < 0.5 ? 'male' : 'female';
-    const age = 18 + Math.floor(Math.random() * 47); // 18-65
+    const age = this.generateActorAge();
     const experience = Math.min(age - 16, Math.floor(Math.random() * 25));
     const reputation = Math.max(10, Math.floor(Math.random() * 90) + (experience * 2));
     const careerStage = this.determineCareerStage(age, experience, reputation);

@@ -222,12 +222,48 @@ export const CharacterCastingSystem: React.FC<CharacterCastingSystemProps> = ({
 
     const negotiatedByTalentId = new Map<string, { weeklyPay: number; contractWeeks: number; interestLabel: string; interestScore: number }>();
 
+    const getSlotDeal = (slot: CastingSlot) => {
+      if (slot.character.negotiatedContract) return slot.character.negotiatedContract;
+      if (!slot.talent) return null;
+
+      const roleLabel = isDirectorRole(slot.character)
+        ? 'Director'
+        : slot.character.importance === 'lead'
+          ? `Lead - ${slot.character.name}`
+          : `Supporting - ${slot.character.name}`;
+
+      const existingContract = (project.contractedTalent || []).find(ct =>
+        ct.talentId === slot.talent?.id && (ct.role === roleLabel || ct.role === slot.character.name)
+      ) || (project.contractedTalent || []).find(ct => ct.talentId === slot.talent?.id);
+
+      if (existingContract) {
+        return {
+          weeklyPay: existingContract.weeklyPay,
+          contractWeeks: existingContract.contractWeeks,
+          askWeeklyPay: existingContract.weeklyPay,
+          interestScore: 65,
+        };
+      }
+
+      const existingRole = [...(project.cast || []), ...(project.crew || [])].find(r => r.talentId === slot.talent?.id);
+      if (existingRole) {
+        return {
+          weeklyPay: existingRole.salary,
+          contractWeeks: Math.max(8, Math.ceil((slot.contractCost || existingRole.salary * 8) / Math.max(1, existingRole.salary))),
+          askWeeklyPay: existingRole.salary,
+          interestScore: 65,
+        };
+      }
+
+      return null;
+    };
+
     let requiredCashTotal = 0;
 
     for (const slot of slots) {
       if (!slot.talent) continue;
 
-      const deal = slot.character.negotiatedContract;
+      const deal = getSlotDeal(slot);
       if (!deal) {
         toast({
           title: 'Missing Contract Terms',

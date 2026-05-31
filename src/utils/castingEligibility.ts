@@ -23,7 +23,7 @@ export function getTalentRoleFitScore(talent: TalentPerson, role: ScriptCharacte
   // Age match (20 points, fuzzy ±4 years = full, linear falloff)
   if (requiredType !== 'director' && role.ageRange && talent.age !== undefined) {
     const [minAge, maxAge] = role.ageRange;
-    const ageDiff = Math.max(0, Math.min(talent.age - minAge, maxAge - talent.age));
+    const ageDiff = talent.age < minAge ? minAge - talent.age : talent.age > maxAge ? talent.age - maxAge : 0;
     const ageFlex = 4; // ±4 years full score
     const ageScore = Math.max(0, 20 * (1 - ageDiff / ageFlex));
     score += ageScore;
@@ -108,17 +108,24 @@ export function talentSortsRole(t1: TalentPerson, t2: TalentPerson, role: Script
 }
 
 // Backward-compatible strict matcher
-export function talentMatchesRole(talent: TalentPerson, role: ScriptCharacter): boolean {
+export interface TalentRoleMatchOptions {
+  ageFlexYears?: number;
+  ignoreRequirements?: boolean;
+}
+
+export function talentMatchesRole(talent: TalentPerson, role: ScriptCharacter, options: TalentRoleMatchOptions = {}): boolean {
   // Crew roles should always pull from the director pool, even if older/invalid data stored requiredType incorrectly.
   const requiredType = getRoleRequiredType(role);
 
   if (talent.type !== requiredType) return false;
+  if (options.ignoreRequirements) return true;
 
   // Age ranges make sense for on-screen roles, but they create unnecessary friction
   // for director/crew slots (and some imported role templates mistakenly include them).
   if (requiredType !== 'director' && role.ageRange) {
     const [minAge, maxAge] = role.ageRange;
-    if (talent.age < minAge || talent.age > maxAge) return false;
+    const flex = Math.max(0, options.ageFlexYears ?? 0);
+    if (talent.age < minAge - flex || talent.age > maxAge + flex) return false;
   }
 
   // Gender is mandatory for actor roles. We allow legacy roles with missing requiredGender
@@ -141,6 +148,12 @@ export function talentMatchesRole(talent: TalentPerson, role: ScriptCharacter): 
   return true;
 }
 
+export function talentMatchesRoleExceptAge(talent: TalentPerson, role: ScriptCharacter): boolean {
+  if (!role.ageRange) return talentMatchesRole(talent, role);
+  const { ageRange: _ageRange, ...roleWithoutAge } = role;
+  return talentMatchesRole(talent, roleWithoutAge as ScriptCharacter);
+}
+
 export function getTalentRoleFitBreakdown(talent: TalentPerson, role: ScriptCharacter): RoleFitBreakdown {
   const requiredType = getRoleRequiredType(role);
   const typeMatch = talent.type === requiredType;
@@ -149,7 +162,7 @@ export function getTalentRoleFitBreakdown(talent: TalentPerson, role: ScriptChar
   let ageDiff = 0;
   if (requiredType !== 'director' && role.ageRange && talent.age !== undefined) {
     const [minAge, maxAge] = role.ageRange;
-    ageDiff = Math.max(0, Math.min(talent.age - minAge, maxAge - talent.age));
+    ageDiff = talent.age < minAge ? minAge - talent.age : talent.age > maxAge ? talent.age - maxAge : 0;
     ageMatch = ageDiff === 0;
   }
 

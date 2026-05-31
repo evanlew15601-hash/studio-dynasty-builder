@@ -14,6 +14,15 @@ function withRandomSequence<T>(values: number[], fn: () => T): T {
 }
 
 describe('TalentGenerator biographies (system data)', () => {
+  it('weights generated actor ages toward 20s and early 30s bands', () => {
+    const generator = new TalentGenerator();
+
+    expect(withRandomSequence([0.1, 0.5], () => generator.generateActorAge())).toBe(21);
+    expect(withRandomSequence([0.3, 0.5], () => generator.generateActorAge())).toBe(30);
+    expect(withRandomSequence([0.6, 0.5], () => generator.generateActorAge())).toBe(40);
+    expect(withRandomSequence([0.95, 0.5], () => generator.generateActorAge())).toBe(60);
+  });
+
   it('generates multiple biography structures (not just one repetitive template)', () => {
     const template: any = {
       careerPath: 'Started in small independent films',
