@@ -55,7 +55,6 @@ import { PerformanceMetrics } from './PerformanceMetrics';
 import { AchievementNotifications } from './AchievementNotifications';
 import { DeepReputationPanel } from './DeepReputationPanel';
 import { MediaAnalyticsPanel } from './MediaAnalyticsPanel';
-import { BackgroundSimulation as BackgroundSimulationComponent } from './BackgroundSimulation';
 import { SequelManagement as SequelManagementComponent } from './SequelManagement';
 import { generateInitialTalentPool } from '@/data/WorldGenerator';
 import { 
@@ -3597,7 +3596,6 @@ export const StudioMagnateGame: React.FC<StudioMagnateGameProps> = ({
         {currentPhase === 'stats' && (
           <div className="space-y-6">
             <PerformanceMetrics />
-            <BackgroundSimulationComponent />
             {import.meta.env.DEV && (
               <IntegrationMonitor />
             )}

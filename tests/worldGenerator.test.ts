@@ -28,4 +28,23 @@ describe('world generator (core universe)', () => {
     // Chemistry is derived from relationship type (negative for rivals)
     expect((eleanor?.chemistry?.[jonah!.id] ?? 0)).toBeLessThan(0);
   });
+
+  it('includes handcrafted young core actors with lore in the 2026 starting pool', () => {
+    const pool = generateInitialTalentPool({ currentYear: 2026, actorCount: 0, directorCount: 0 });
+    const youngCoreNames = ['Nia Park', 'Malik Baptiste', 'Sofía Marín', 'Aisha Okonkwo', 'Meilin Zhou', 'Noah Sato'];
+
+    for (const name of youngCoreNames) {
+      const actor = pool.find((t) => t.name === name);
+      expect(actor, `${name} should be in the core starting pool`).toBeTruthy();
+      expect(actor!.type).toBe('actor');
+      expect(actor!.isNotable).toBe(true);
+      expect(actor!.age).toBeGreaterThanOrEqual(20);
+      expect(actor!.age).toBeLessThanOrEqual(30);
+      expect((actor!.biography || '').trim().length).toBeGreaterThan(120);
+      expect(actor!.archetype).toBeTruthy();
+      expect(actor!.narratives?.length || 0).toBeGreaterThan(0);
+      expect(actor!.movementTags?.length || 0).toBeGreaterThan(0);
+    }
+  });
+
 });

@@ -4,7 +4,7 @@ import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
 import { useToast } from '@/hooks/use-toast';
 import { Project, TalentPerson, ScriptCharacter } from '@/types/game';
-import { talentMatchesRole } from '@/utils/castingEligibility';
+import { getTalentRoleFitScore, talentMatchesRole, talentMatchesRoleExceptAge } from '@/utils/castingEligibility';
 import { Users, User, Crown, Star, CheckCircle } from 'lucide-react';
 import { importRolesForScript } from '@/utils/roleImport';
 import { useGameStore } from '@/game/store';
@@ -24,6 +24,9 @@ export const RoleBasedCasting: React.FC<RoleBasedCastingProps> = ({
   const updateTalent = useGameStore((s) => s.updateTalent);
   const { toast } = useToast();
   const [negotiationTarget, setNegotiationTarget] = React.useState<{ role: ScriptCharacter; talent: TalentPerson } | null>(null);
+  const [editingRoleId, setEditingRoleId] = React.useState<string | null>(null);
+  const [requirementDraft, setRequirementDraft] = React.useState({ minAge: '', maxAge: '', gender: '', race: '', nationality: '' });
+  const [overrideRoleIds, setOverrideRoleIds] = React.useState<Set<string>>(() => new Set());
 
   // Import roles when project changes or script updates (auto-add mandatory TV roles)
   React.useEffect(() => {
@@ -98,9 +101,77 @@ export const RoleBasedCasting: React.FC<RoleBasedCastingProps> = ({
   };
 
   const getAvailableTalent = (role: ScriptCharacter) => {
-    return gameState.talent.filter(talent => {
+    const availableOfType = gameState.talent.filter(talent => {
       if (talent.contractStatus !== 'available') return false;
-      return talentMatchesRole(talent, role);
+      return talent.type === resolveRequiredType(role);
+    });
+
+    if (overrideRoleIds.has(role.id)) {
+      return {
+        candidates: [...availableOfType].sort((a, b) => getTalentRoleFitScore(b, role) - getTalentRoleFitScore(a, role)),
+        mode: 'override' as const,
+        strictCount: availableOfType.filter(talent => talentMatchesRole(talent, role)).length,
+      };
+    }
+
+    const strict = availableOfType.filter(talent => talentMatchesRole(talent, role));
+    if (strict.length > 0) return { candidates: strict, mode: 'strict' as const, strictCount: strict.length };
+
+    const ageOnlyIssue = !!role.ageRange && availableOfType.some(talent => talentMatchesRoleExceptAge(talent, role));
+    if (ageOnlyIssue) {
+      const flexibleAge = availableOfType.filter(talent => talentMatchesRole(talent, role, { ageFlexYears: 5 }));
+      if (flexibleAge.length > 0) return { candidates: flexibleAge, mode: 'age-flex' as const, strictCount: 0 };
+    }
+
+    return { candidates: [] as TalentPerson[], mode: 'empty' as const, strictCount: 0 };
+  };
+
+  const startEditingRole = (role: ScriptCharacter) => {
+    setEditingRoleId(role.id);
+    setRequirementDraft({
+      minAge: role.ageRange?.[0]?.toString() || '',
+      maxAge: role.ageRange?.[1]?.toString() || '',
+      gender: role.requiredGender || '',
+      race: role.requiredRace || '',
+      nationality: role.requiredNationality || '',
+    });
+  };
+
+  const saveRoleRequirements = (role: ScriptCharacter) => {
+    const minAge = Number.parseInt(requirementDraft.minAge, 10);
+    const maxAge = Number.parseInt(requirementDraft.maxAge, 10);
+    const nextAgeRange = Number.isFinite(minAge) && Number.isFinite(maxAge)
+      ? [Math.max(0, Math.min(minAge, maxAge)), Math.max(minAge, maxAge)] as [number, number]
+      : undefined;
+
+    const updatedCharacters = (project.script?.characters || []).map(c =>
+      c.id === role.id
+        ? {
+          ...c,
+          ageRange: nextAgeRange,
+          requiredGender: requirementDraft.gender || undefined,
+          requiredRace: requirementDraft.race || undefined,
+          requiredNationality: requirementDraft.nationality || undefined,
+        }
+        : c
+    );
+
+    updateProject(project.id, {
+      script: {
+        ...project.script!,
+        characters: updatedCharacters,
+      }
+    } as any);
+    setEditingRoleId(null);
+    toast({ title: 'Role Requirements Updated', description: `${role.name} casting requirements were adjusted.` });
+  };
+
+  const toggleOverride = (roleId: string) => {
+    setOverrideRoleIds(prev => {
+      const next = new Set(prev);
+      if (next.has(roleId)) next.delete(roleId);
+      else next.add(roleId);
+      return next;
     });
   };
 
@@ -117,7 +188,20 @@ export const RoleBasedCasting: React.FC<RoleBasedCastingProps> = ({
     const weeklyPay = result.weeklyPay;
 
     const updatedCharacters = (project.script?.characters || []).map(c =>
-      c.id === character.id ? { ...c, assignedTalentId: talent.id } : c
+      c.id === character.id
+        ? {
+          ...c,
+          assignedTalentId: talent.id,
+          negotiatedContract: {
+            weeklyPay,
+            contractWeeks,
+            interestScore: result.interestScore,
+            askWeeklyPay: result.askWeeklyPay,
+            negotiatedWeek: gameState.currentWeek,
+            negotiatedYear: gameState.currentYear,
+          },
+        }
+        : c
     );
 
     const roleLabel = requiredType === 'director'
@@ -374,7 +458,8 @@ export const RoleBasedCasting: React.FC<RoleBasedCastingProps> = ({
           const requiredType = resolveRequiredType(character);
           const isDirectorRole = requiredType === 'director';
 
-          const availableTalent = getAvailableTalent(character);
+          const availability = getAvailableTalent(character);
+          const availableTalent = availability.candidates;
           const castTalent = character.assignedTalentId 
             ? gameState.talent.find(t => t.id === character.assignedTalentId)
             : null;
@@ -423,9 +508,59 @@ export const RoleBasedCasting: React.FC<RoleBasedCastingProps> = ({
                   </div>
                 ) : (
                   <div className="space-y-3">
-                    <p className="text-sm text-amber-700 dark:text-amber-300">
-                      Role not cast • {availableTalent.length} available candidates
-                    </p>
+                    <div className="space-y-2">
+                      <p className="text-sm text-amber-700 dark:text-amber-300">
+                        Role not cast • {availableTalent.length} available candidates
+                        {availability.mode === 'age-flex' && ' (age range auto-expanded ±5 years)'}
+                        {availability.mode === 'override' && availability.strictCount === 0 && ' (override: requirements ignored)'}
+                      </p>
+                      {availability.mode === 'empty' && (
+                        <div className="rounded-md border border-destructive/30 bg-destructive/10 p-3 text-sm text-destructive">
+                          No matching talent exists for these requirements. Edit this role or enable override casting to keep production moving.
+                        </div>
+                      )}
+                      <div className="flex flex-wrap gap-2">
+                        <Button type="button" variant="outline" size="sm" onClick={() => startEditingRole(character)}>
+                          Edit Requirements
+                        </Button>
+                        <Button type="button" variant={overrideRoleIds.has(character.id) ? "default" : "outline"} size="sm" onClick={() => toggleOverride(character.id)}>
+                          {overrideRoleIds.has(character.id) ? 'Override On' : 'Allow Any Available'}
+                        </Button>
+                      </div>
+                    </div>
+
+                    {editingRoleId === character.id && (
+                      <div className="grid gap-2 rounded-md border bg-muted/30 p-3 sm:grid-cols-5">
+                        <label className="text-xs font-medium">
+                          Min Age
+                          <input className="mt-1 w-full rounded border bg-background px-2 py-1 text-sm" value={requirementDraft.minAge} onChange={(e) => setRequirementDraft(d => ({ ...d, minAge: e.target.value }))} placeholder="Any" type="number" />
+                        </label>
+                        <label className="text-xs font-medium">
+                          Max Age
+                          <input className="mt-1 w-full rounded border bg-background px-2 py-1 text-sm" value={requirementDraft.maxAge} onChange={(e) => setRequirementDraft(d => ({ ...d, maxAge: e.target.value }))} placeholder="Any" type="number" />
+                        </label>
+                        <label className="text-xs font-medium">
+                          Gender
+                          <select className="mt-1 w-full rounded border bg-background px-2 py-1 text-sm" value={requirementDraft.gender} onChange={(e) => setRequirementDraft(d => ({ ...d, gender: e.target.value }))}>
+                            <option value="">Any</option>
+                            <option value="Male">Male</option>
+                            <option value="Female">Female</option>
+                          </select>
+                        </label>
+                        <label className="text-xs font-medium">
+                          Race
+                          <input className="mt-1 w-full rounded border bg-background px-2 py-1 text-sm" value={requirementDraft.race} onChange={(e) => setRequirementDraft(d => ({ ...d, race: e.target.value }))} placeholder="Any" />
+                        </label>
+                        <label className="text-xs font-medium">
+                          Nationality
+                          <input className="mt-1 w-full rounded border bg-background px-2 py-1 text-sm" value={requirementDraft.nationality} onChange={(e) => setRequirementDraft(d => ({ ...d, nationality: e.target.value }))} placeholder="Any" />
+                        </label>
+                        <div className="flex gap-2 sm:col-span-5">
+                          <Button type="button" size="sm" onClick={() => saveRoleRequirements(character)}>Save Requirements</Button>
+                          <Button type="button" size="sm" variant="ghost" onClick={() => setEditingRoleId(null)}>Cancel</Button>
+                        </div>
+                      </div>
+                    )}
                     <div className="grid gap-2 max-h-40 overflow-y-auto">
                       {availableTalent.slice(0, 5).map((talent) => (
                         <div key={talent.id} className="flex items-center justify-between p-2 border rounded bg-card">

@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest';
-import { talentMatchesRole } from '@/utils/castingEligibility';
+import { talentMatchesRole, talentMatchesRoleExceptAge } from '@/utils/castingEligibility';
 import type { ScriptCharacter, TalentPerson } from '@/types/game';
 
 describe('talentMatchesRole', () => {
@@ -39,6 +39,71 @@ describe('talentMatchesRole', () => {
     expect(talentMatchesRole(wrongGender, role)).toBe(false);
     expect(talentMatchesRole(wrongRace, role)).toBe(false);
     expect(talentMatchesRole(wrongNation, role)).toBe(false);
+  });
+
+
+  it('supports a controlled ±5 age expansion only when age is the mismatch', () => {
+    const role: ScriptCharacter = {
+      id: 'role-age-flex',
+      name: 'Young Lead',
+      importance: 'lead',
+      requiredType: 'actor',
+      ageRange: [25, 30],
+      requiredGender: 'Female',
+    };
+
+    const nearAge: TalentPerson = {
+      id: 't-age-flex',
+      name: 'Near Age Actor',
+      type: 'actor',
+      age: 34,
+      gender: 'Female',
+      experience: 8,
+      reputation: 55,
+      marketValue: 1_000_000,
+      genres: ['drama'],
+      contractStatus: 'available',
+      availability: { start: new Date(), end: new Date() },
+    };
+
+    const wrongGender = { ...nearAge, id: 't-wrong-gender', gender: 'Male' as const };
+
+    expect(talentMatchesRole(nearAge, role)).toBe(false);
+    expect(talentMatchesRoleExceptAge(nearAge, role)).toBe(true);
+    expect(talentMatchesRole(nearAge, role, { ageFlexYears: 5 })).toBe(true);
+    expect(talentMatchesRoleExceptAge(wrongGender, role)).toBe(false);
+    expect(talentMatchesRole(wrongGender, role, { ageFlexYears: 5 })).toBe(false);
+  });
+
+  it('can intentionally override actor role requirements while preserving talent type', () => {
+    const role: ScriptCharacter = {
+      id: 'role-override',
+      name: 'Specific Lead',
+      importance: 'lead',
+      requiredType: 'actor',
+      ageRange: [20, 25],
+      requiredGender: 'Female',
+    };
+
+    const actor: TalentPerson = {
+      id: 't-override-actor',
+      name: 'Override Actor',
+      type: 'actor',
+      age: 55,
+      gender: 'Male',
+      experience: 25,
+      reputation: 70,
+      marketValue: 2_000_000,
+      genres: ['drama'],
+      contractStatus: 'available',
+      availability: { start: new Date(), end: new Date() },
+    };
+
+    const director: TalentPerson = { ...actor, id: 't-override-director', type: 'director' };
+
+    expect(talentMatchesRole(actor, role)).toBe(false);
+    expect(talentMatchesRole(actor, role, { ignoreRequirements: true })).toBe(true);
+    expect(talentMatchesRole(director, role, { ignoreRequirements: true })).toBe(false);
   });
 
   it('allows legacy actor roles with missing requiredGender (treats as any gender)', () => {
