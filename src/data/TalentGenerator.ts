@@ -398,13 +398,14 @@ export class TalentGenerator {
   generateActorAge(): number {
     const roll = Math.random();
 
-    // Weight the available actor market toward 20s and early-30s performers so
-    // common young lead/supporting requirements remain castable.
-    if (roll < 0.22) return 18 + Math.floor(Math.random() * 7); // 18-24
-    if (roll < 0.52) return 25 + Math.floor(Math.random() * 10); // 25-34
-    if (roll < 0.74) return 35 + Math.floor(Math.random() * 10); // 35-44
-    if (roll < 0.9) return 45 + Math.floor(Math.random() * 10); // 45-54
-    return 55 + Math.floor(Math.random() * 11); // 55-65
+    // Increase weighting toward younger performers so studios can reliably cast
+    // teen/young-adult leads and supporting roles across all save games.
+    // New distribution favors ages 18-34 (~80% of actors).
+    if (roll < 0.30) return 18 + Math.floor(Math.random() * 7); // 18-24 (30%)
+    if (roll < 0.80) return 25 + Math.floor(Math.random() * 10); // 25-34 (50%)
+    if (roll < 0.90) return 35 + Math.floor(Math.random() * 10); // 35-44 (10%)
+    if (roll < 0.97) return 45 + Math.floor(Math.random() * 10); // 45-54 (7%)
+    return 55 + Math.floor(Math.random() * 11); // 55-65 (3%)
   }
 
   generateActor(): TalentPerson {

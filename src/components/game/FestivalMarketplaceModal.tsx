@@ -16,13 +16,11 @@ interface Props {
 }
 
 export const FestivalMarketplaceModal: React.FC<Props> = ({ open, onOpenChange, festivalId }) => {
-  const { game: gameState, rng, updateProject, updateBudget, spendStudioFunds, updateStudio, updateReputation } = useGameStore((s) => ({
+  const { game: gameState, rng, updateProject, spendStudioFunds, updateReputation } = useGameStore((s) => ({
     game: s.game,
     rng: s.rng,
     updateProject: s.updateProject,
-    updateBudget: s.updateBudget,
     spendStudioFunds: s.spendStudioFunds,
-    updateStudio: s.updateStudio,
     updateReputation: s.updateReputation,
   }));
 
@@ -77,7 +75,6 @@ export const FestivalMarketplaceModal: React.FC<Props> = ({ open, onOpenChange, 
     FinancialEngine.recordTransaction('expense', 'licensing', bidAmount, week, year, `Acquired ${selected.title} at ${festival?.name || 'Festival'}`, selected.id);
 
     // Small reputation bump for successful acquisitions
-    updateStudio({});
     updateReputation(1);
 
     toast({ title: 'Acquired Rights', description: `You acquired ${selected.title} for ${(bidAmount / 1000000).toFixed(2)}M` });
