@@ -32,6 +32,15 @@ export const FestivalManagement: React.FC = () => {
   const [bidAmount, setBidAmount] = useState<number>(0);
   const [auctionPreview, setAuctionPreview] = useState<any | null>(null);
 
+  useEffect(() => {
+    if (currentFestival?.id && currentFestival.id !== selectedFestivalId) {
+      setSelectedFestivalId(currentFestival.id);
+      setSelectedProjectId(null);
+      setBidAmount(0);
+      setAuctionPreview(null);
+    }
+  }, [currentFestival?.id, selectedFestivalId]);
+
   const festival = getFestivalById(selectedFestivalId);
 
   useEffect(() => {

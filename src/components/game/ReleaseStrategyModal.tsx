@@ -22,7 +22,7 @@ import { useToast } from '@/hooks/use-toast';
 import { useGameStore } from '@/game/store';
 import { getStreamingProviders } from '@/data/ProviderDealsDatabase';
 import { getModBundle } from '@/utils/moddingStore';
-import { getFestivalOptions } from '@/data/Festivals';
+import { getFestivalByWeek, getFestivalOptions } from '@/data/Festivals';
 import FestivalMarketplaceModal from '@/components/game/FestivalMarketplaceModal';
 import { FinancialEngine } from './FinancialEngine';
 
@@ -45,10 +45,11 @@ export const ReleaseStrategyModal: React.FC<ReleaseStrategyModalProps> = ({
     }))
   );
   const { toast } = useToast();
+  const currentFestival = getFestivalByWeek(gameState?.currentWeek);
   const [selectedDate, setSelectedDate] = useState<{ week: number; year: number } | null>(null);
   const [selectedReleaseType, setSelectedReleaseType] = useState<ReleaseStrategy['type']>('wide');
   const [selectedStreamingProviderId, setSelectedStreamingProviderId] = useState<string>('');
-  const [selectedFestivalId, setSelectedFestivalId] = useState<string>('cannes-like');
+  const [selectedFestivalId, setSelectedFestivalId] = useState<string>(currentFestival?.id ?? 'cannes-like');
   const [clearConfirmOpen, setClearConfirmOpen] = useState(false);
   const [marketplaceOpen, setMarketplaceOpen] = useState(false);
 
@@ -77,6 +78,12 @@ export const ReleaseStrategyModal: React.FC<ReleaseStrategyModalProps> = ({
 
     setSelectedStreamingProviderId(project.streamingPremiereDeal?.providerId || '');
   }, [isOpen, project?.id, project?.scheduledReleaseWeek, project?.scheduledReleaseYear, project?.releaseStrategy?.type, project?.streamingPremiereDeal?.providerId, project?.type]);
+
+  useEffect(() => {
+    if (currentFestival?.id && selectedFestivalId === 'cannes-like') {
+      setSelectedFestivalId(currentFestival.id);
+    }
+  }, [currentFestival?.id, selectedFestivalId]);
 
   const mods = useMemo(() => getModBundle(), []);
   const streamingProviders = useMemo(() => getStreamingProviders(mods), [mods]);
