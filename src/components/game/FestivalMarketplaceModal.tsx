@@ -68,7 +68,7 @@ export const FestivalMarketplaceModal: React.FC<Props> = ({ open, onOpenChange, 
     }
 
     // Apply project patch
-    const patch = createPurchasePatch(selected, gameState.studio.id, bidAmount, week, year);
+    const patch = createPurchasePatch(selected, gameState.studio.id, gameState.studio.name, bidAmount, week, year);
     updateProject(selected.id, patch as any);
 
     // Record transaction

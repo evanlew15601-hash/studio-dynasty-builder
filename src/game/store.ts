@@ -60,6 +60,7 @@ import { StudioRevenueSystem } from './systems/studioRevenueSystem';
 import { LoanPaymentSystem } from './systems/loanPaymentSystem';
 import { AiStudioFilmSystem } from './systems/aiStudioFilmSystem';
 import { CompetitorFilmReleaseSystem } from './systems/competitorFilmReleaseSystem';
+import { FestivalIndieSupplySystem } from './systems/festivalIndieSupplySystem';
 import { MediaHydrationSystem } from './systems/mediaHydrationSystem';
 import { MediaWeeklySystem } from './systems/mediaWeeklySystem';
 import { PlayerCircleDramaSystem } from './systems/playerCircleDramaSystem';
@@ -240,6 +241,7 @@ export const useGameStore: import('zustand').UseBoundStore<import('zustand').Sto
       r.register(MarketingCampaignSystem);
       r.register(ScheduledReleaseSystem);
       r.register(CompetitorFilmReleaseSystem);
+      r.register(FestivalIndieSupplySystem);
       r.register(TelevisionPerformanceSystem);
       r.register(StreamingPerformanceSystem);
       r.register(StreamingContractLifecycleSystem);

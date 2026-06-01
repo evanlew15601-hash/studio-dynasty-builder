@@ -65,7 +65,7 @@ export const FestivalManagement: React.FC = () => {
       return;
     }
 
-    const patch = createPurchasePatch(selected, gameState.studio.id, bidAmount, gameState.currentWeek, gameState.currentYear);
+    const patch = createPurchasePatch(selected, gameState.studio.id, gameState.studio.name, bidAmount, gameState.currentWeek, gameState.currentYear);
     updateProject(selected.id, patch as any);
 
     FinancialEngine.recordTransaction('expense', 'licensing', bidAmount, gameState.currentWeek, gameState.currentYear, `Acquired ${selected.title} at ${festival?.name || 'Festival'}`, selected.id);

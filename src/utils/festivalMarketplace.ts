@@ -9,9 +9,16 @@ import { createRng } from '@/game/core/rng';
 // not just projects already tagged with a festival release path.
 export function listAvailableFestivalIndieProjects(state: GameState, festivalId?: string): Project[] {
   const candidates: Project[] = [];
+  const seenIds = new Set<string>();
+  const projectSources = [
+    ...(state.projects || []),
+    ...((state.aiStudioProjects as any) || []),
+    ...(state.allReleases || []),
+  ];
 
-  for (const p of (state.allReleases || [])) {
-    if (!p) continue;
+  for (const p of projectSources) {
+    if (!p || !p.id || seenIds.has(p.id)) continue;
+    seenIds.add(p.id);
     if (p.status === 'released' || p.status === 'archived') continue;
     if (isPlayerOwnedProject({ project: p, state })) continue;
     if (festivalId && p.releaseStrategy?.type === 'festival' && (p.releaseStrategy as any)?.festivalId && (p.releaseStrategy as any).festivalId !== festivalId) continue;
@@ -24,10 +31,18 @@ export function listAvailableFestivalIndieProjects(state: GameState, festivalId?
 }
 
 // Create an update patch for purchasing a film's rights at festival bidding.
-export function createPurchasePatch(project: Project, buyerStudioId: string, offerAmount: number, week: number, year: number) {
+export function createPurchasePatch(
+  project: Project,
+  buyerStudioId: string,
+  buyerStudioName: string,
+  offerAmount: number,
+  week: number,
+  year: number
+) {
   const patch: Partial<Project> = {
-    studioName: buyerStudioId,
-    status: 'acquired',
+    studioId: buyerStudioId,
+    studioName: buyerStudioName,
+    status: 'ready-for-release',
     distributionStrategy: project.distributionStrategy || {},
     metrics: {
       ...(project.metrics || {}),
