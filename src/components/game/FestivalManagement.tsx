@@ -122,6 +122,9 @@ export const FestivalManagement: React.FC = () => {
               <div className="text-sm text-muted-foreground">
                 {festival?.awards?.length ? festival.awards.join(' • ') : 'No awards defined.'}
               </div>
+              {festival?.schedule && (
+                <div className="text-sm text-muted-foreground">When: {festival.schedule}</div>
+              )}
             </div>
           </div>
         </CardContent>

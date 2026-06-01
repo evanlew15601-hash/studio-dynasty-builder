@@ -572,19 +572,25 @@ export const ReleaseStrategyModal: React.FC<ReleaseStrategyModalProps> = ({
                     </CardHeader>
                     <CardContent>
                       <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
-                        {getFestivalOptions().map((fest) => (
-                          <Button
-                            key={fest.id}
-                            type="button"
-                            variant={selectedFestivalId === fest.id ? 'default' : 'outline'}
-                            onClick={() => setSelectedFestivalId(fest.id)}
-                          >
-                            <div className="text-left">
-                              <div className="font-semibold">{fest.label}</div>
-                              <div className="text-xs text-muted-foreground">Prestige: {fest.prestige}</div>
-                            </div>
-                          </Button>
-                        ))}
+                        {getFestivalOptions().map((fest) => {
+                    const festivalDef = getFestivalById(fest.id);
+                    return (
+                      <Button
+                        key={fest.id}
+                        type="button"
+                        variant={selectedFestivalId === fest.id ? 'default' : 'outline'}
+                        onClick={() => setSelectedFestivalId(fest.id)}
+                      >
+                        <div className="text-left">
+                          <div className="font-semibold">{fest.label}</div>
+                          <div className="text-xs text-muted-foreground">Prestige: {fest.prestige}</div>
+                          {festivalDef?.schedule && (
+                            <div className="text-xs text-muted-foreground">{festivalDef.schedule}</div>
+                          )}
+                        </div>
+                      </Button>
+                    );
+                  })}
                       </div>
                     </CardContent>
                   </Card>

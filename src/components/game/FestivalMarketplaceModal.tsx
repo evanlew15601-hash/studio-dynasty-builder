@@ -92,6 +92,17 @@ export const FestivalMarketplaceModal: React.FC<Props> = ({ open, onOpenChange, 
         </DialogHeader>
 
         <div className="space-y-4">
+          {festival?.schedule && (
+            <Card>
+              <CardHeader>
+                <CardTitle>Festival Schedule</CardTitle>
+              </CardHeader>
+              <CardContent>
+                <p className="text-sm text-muted-foreground">{festival.schedule}</p>
+              </CardContent>
+            </Card>
+          )}
+
           <Card>
             <CardHeader>
               <CardTitle>Available Indie Films</CardTitle>

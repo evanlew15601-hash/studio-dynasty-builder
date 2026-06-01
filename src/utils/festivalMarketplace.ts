@@ -1,16 +1,20 @@
 import type { GameState, Project } from '@/types/game';
+import { isPlayerOwnedProject } from '@/utils/playerProjects';
 import type { SeededRng } from '@/game/core/rng';
 import { createRng } from '@/game/core/rng';
 
 // List available indie projects at a festival. Policy: "indie" films are those
 // with `script?.characteristics?.commercialAppeal` < 6 or explicit `indie: true` flag.
+// Festival marketplace should surface available indie titles from the wider industry,
+// not just projects already tagged with a festival release path.
 export function listAvailableFestivalIndieProjects(state: GameState, festivalId?: string): Project[] {
   const candidates: Project[] = [];
+
   for (const p of (state.allReleases || [])) {
     if (!p) continue;
-    if (p.status === 'released') continue;
-    if (p.releaseStrategy?.type !== 'festival') continue;
-    if (festivalId && (p.releaseStrategy as any)?.festivalId && (p.releaseStrategy as any).festivalId !== festivalId) continue;
+    if (p.status === 'released' || p.status === 'archived') continue;
+    if (isPlayerOwnedProject({ project: p, state })) continue;
+    if (festivalId && p.releaseStrategy?.type === 'festival' && (p.releaseStrategy as any)?.festivalId && (p.releaseStrategy as any).festivalId !== festivalId) continue;
 
     const commercial = p.script?.characteristics?.commercialAppeal ?? p.script?.quality ?? 5;
     const isIndie = (p as any).indie === true || commercial < 6;
