@@ -1,4 +1,4 @@
-import React, { useMemo, useState } from 'react';
+import React, { useEffect, useMemo, useState } from 'react';
 import { useShallow } from 'zustand/react/shallow';
 import { useToast } from '@/hooks/use-toast';
 import { useGameStore } from '@/game/store';
@@ -6,7 +6,7 @@ import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Badge } from '@/components/ui/badge';
-import { getFestivalById, getFestivalOptions } from '@/data/Festivals';
+import { getFestivalById, getFestivalByWeek, getFestivalOptions } from '@/data/Festivals';
 import { listAvailableFestivalIndieProjects, createPurchasePatch, runFestivalAuctionRounds } from '@/utils/festivalMarketplace';
 import { FinancialEngine } from './FinancialEngine';
 import type { Project } from '@/types/game';
@@ -24,12 +24,21 @@ export const FestivalManagement: React.FC = () => {
 
   const { toast } = useToast();
   const festivalOptions = getFestivalOptions();
-  const [selectedFestivalId, setSelectedFestivalId] = useState<string>(festivalOptions[0]?.id || '');
+  const currentFestival = getFestivalByWeek(gameState?.currentWeek);
+  const [selectedFestivalId, setSelectedFestivalId] = useState<string>(
+    currentFestival?.id ?? festivalOptions[0]?.id ?? ''
+  );
   const [selectedProjectId, setSelectedProjectId] = useState<string | null>(null);
   const [bidAmount, setBidAmount] = useState<number>(0);
   const [auctionPreview, setAuctionPreview] = useState<any | null>(null);
 
   const festival = getFestivalById(selectedFestivalId);
+
+  useEffect(() => {
+    if (!selectedFestivalId) {
+      setSelectedFestivalId(currentFestival?.id ?? festivalOptions[0]?.id ?? '');
+    }
+  }, [currentFestival?.id, festivalOptions, selectedFestivalId]);
 
   const projects = useMemo(() => {
     if (!gameState || !selectedFestivalId) return [] as Project[];

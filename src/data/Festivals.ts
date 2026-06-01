@@ -52,6 +52,11 @@ export function getFestivalById(id?: string) {
   return FESTIVALS.find((f) => f.id === id);
 }
 
+export function getFestivalByWeek(week?: number) {
+  if (typeof week !== 'number') return undefined;
+  return FESTIVALS.find((f) => f.scheduleWeek === week);
+}
+
 export function getFestivalOptions() {
   return FESTIVALS.map((f) => ({ id: f.id, label: f.name, prestige: f.prestige }));
 }
