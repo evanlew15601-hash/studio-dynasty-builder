@@ -1,4 +1,5 @@
 import React, { useMemo, useState } from 'react';
+import { useShallow } from 'zustand/react/shallow';
 import { useToast } from '@/hooks/use-toast';
 import { useGameStore } from '@/game/store';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
@@ -11,13 +12,15 @@ import { FinancialEngine } from './FinancialEngine';
 import type { Project } from '@/types/game';
 
 export const FestivalManagement: React.FC = () => {
-  const { game: gameState, rng, updateProject, spendStudioFunds, updateReputation } = useGameStore((s) => ({
-    game: s.game,
-    rng: s.rng,
-    updateProject: s.updateProject,
-    spendStudioFunds: s.spendStudioFunds,
-    updateReputation: s.updateReputation,
-  }));
+  const { game: gameState, rng, updateProject, spendStudioFunds, updateReputation } = useGameStore(
+    useShallow((s) => ({
+      game: s.game,
+      rng: s.rng,
+      updateProject: s.updateProject,
+      spendStudioFunds: s.spendStudioFunds,
+      updateReputation: s.updateReputation,
+    }))
+  );
 
   const { toast } = useToast();
   const festivalOptions = getFestivalOptions();
