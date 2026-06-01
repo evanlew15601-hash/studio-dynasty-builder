@@ -5,7 +5,7 @@ import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { useToast } from '@/hooks/use-toast';
 import { useGameStore } from '@/game/store';
-import { listAvailableFestivalIndieProjects, createPurchasePatch, simulateFestivalAuction } from '@/utils/festivalMarketplace';
+import { listAvailableFestivalIndieProjects, createPurchasePatch, runFestivalAuctionRounds } from '@/utils/festivalMarketplace';
 import { getFestivalById } from '@/data/Festivals';
 import { FinancialEngine } from './FinancialEngine';
 
@@ -16,8 +16,9 @@ interface Props {
 }
 
 export const FestivalMarketplaceModal: React.FC<Props> = ({ open, onOpenChange, festivalId }) => {
-  const { game: gameState, updateProject, updateBudget, spendStudioFunds, updateStudio, updateReputation } = useGameStore((s) => ({
+  const { game: gameState, rng, updateProject, updateBudget, spendStudioFunds, updateStudio, updateReputation } = useGameStore((s) => ({
     game: s.game,
+    rng: s.rng,
     updateProject: s.updateProject,
     updateBudget: s.updateBudget,
     spendStudioFunds: s.spendStudioFunds,
@@ -28,6 +29,7 @@ export const FestivalMarketplaceModal: React.FC<Props> = ({ open, onOpenChange, 
   const { toast } = useToast();
   const [selectedProjectId, setSelectedProjectId] = useState<string | null>(null);
   const [bidAmount, setBidAmount] = useState<number>(0);
+  const [auctionPreview, setAuctionPreview] = useState<any | null>(null);
 
   const festival = getFestivalById(festivalId);
 
@@ -38,15 +40,25 @@ export const FestivalMarketplaceModal: React.FC<Props> = ({ open, onOpenChange, 
 
   const selected = projects.find((p) => p.id === selectedProjectId) || null;
 
+  const handlePreview = () => {
+    if (!selected || !gameState) return;
+    const preview = runFestivalAuctionRounds(gameState, selected, festivalId, bidAmount, 4, rng ?? undefined);
+    setAuctionPreview(preview as any);
+  };
+
   const handlePurchase = () => {
     if (!selected || !gameState) return;
     const week = gameState.currentWeek;
     const year = gameState.currentYear;
 
-    // Simulate rival auction first
-    const { rivalCount, highestRivalOffer, userWins } = simulateFestivalAuction(gameState, selected, festivalId, bidAmount);
-    if (!userWins) {
-      toast({ title: 'Outbid', description: `Rivals offered ${(highestRivalOffer / 1000000).toFixed(2)}M. Increase your offer to win.`, variant: 'destructive' });
+    // If we have a preview, prefer its result to avoid re-simulating mismatch
+    const roundsResult = auctionPreview ?? runFestivalAuctionRounds(gameState, selected, festivalId, bidAmount, 4, rng ?? undefined);
+    if (!roundsResult.userWins) {
+      toast({
+        title: 'Outbid',
+        description: `Rivals reached ${(roundsResult.finalHighest / 1000000).toFixed(2)}M. Minimum to win: ${(roundsResult.requiredToWin / 1000000).toFixed(2)}M.`,
+        variant: 'destructive',
+      });
       return;
     }
 
@@ -71,6 +83,7 @@ export const FestivalMarketplaceModal: React.FC<Props> = ({ open, onOpenChange, 
     toast({ title: 'Acquired Rights', description: `You acquired ${selected.title} for ${(bidAmount / 1000000).toFixed(2)}M` });
     setSelectedProjectId(null);
     setBidAmount(0);
+    setAuctionPreview(null);
     onOpenChange(false);
   };
 
@@ -127,7 +140,46 @@ export const FestivalMarketplaceModal: React.FC<Props> = ({ open, onOpenChange, 
                     <Input type="number" value={String(bidAmount || '')} onChange={(e) => setBidAmount(Number(e.target.value) || 0)} />
                   </div>
                   <div className="text-right">
-                    <Button onClick={handlePurchase} disabled={bidAmount <= 0}>Bid & Purchase</Button>
+                    <div className="flex flex-col gap-2">
+                      <Button onClick={handlePreview} disabled={bidAmount <= 0}>Preview Auction</Button>
+                      <Button onClick={handlePurchase} disabled={bidAmount <= 0}>Bid & Purchase</Button>
+                    </div>
+                  </div>
+                </div>
+              </CardContent>
+            </Card>
+          )}
+
+          {auctionPreview && (
+            <Card>
+              <CardHeader>
+                <CardTitle>Auction Preview</CardTitle>
+              </CardHeader>
+              <CardContent>
+                <div className="space-y-3">
+                  {auctionPreview.rounds.map((r: any) => (
+                    <div key={r.round} className="p-2 border rounded">
+                      <div className="flex justify-between items-center">
+                        <div className="font-medium">Round {r.round}</div>
+                        <div className="text-sm text-muted-foreground">Top: ${(r.highest / 1000000).toFixed(3)}M</div>
+                      </div>
+                      <div className="mt-2 grid grid-cols-1 sm:grid-cols-3 gap-2">
+                        {r.rivalBids.map((b: number, i: number) => (
+                          <div key={i} className="text-xs">
+                            <div className="flex items-center gap-2">
+                              <div className="w-24 bg-slate-100 h-2 rounded" style={{ width: `${Math.min(100, (b / Math.max(1, auctionPreview.finalHighest)) * 100)}%` }} />
+                              <div className="ml-2">${(b / 1000000).toFixed(3)}M</div>
+                            </div>
+                          </div>
+                        ))}
+                      </div>
+                    </div>
+                  ))}
+
+                  <div className="pt-2">
+                    <div className="text-sm">Final highest: ${(auctionPreview.finalHighest / 1000000).toFixed(3)}M</div>
+                    <div className="text-sm">Minimum to win: ${(auctionPreview.requiredToWin / 1000000).toFixed(3)}M</div>
+                    <div className="text-sm">You {auctionPreview.userWins ? 'would win' : 'would be outbid'} with your current offer.</div>
                   </div>
                 </div>
               </CardContent>

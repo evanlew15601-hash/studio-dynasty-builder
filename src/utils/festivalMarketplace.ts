@@ -1,4 +1,6 @@
 import type { GameState, Project } from '@/types/game';
+import type { SeededRng } from '@/game/core/rng';
+import { createRng } from '@/game/core/rng';
 
 // List available indie projects at a festival. Policy: "indie" films are those
 // with `script?.characteristics?.commercialAppeal` < 6 or explicit `indie: true` flag.
@@ -33,25 +35,67 @@ export function createPurchasePatch(project: Project, buyerStudioId: string, off
   return patch;
 }
 
-// Simulate rival bidders for a festival auction. Returns highest rival offer and whether user wins.
-export function simulateFestivalAuction(state: GameState, project: Project, festivalId?: string, userOffer: number = 0) {
-  const festival = festivalId ? undefined : undefined; // placeholder if festival data needed
-
-  // Determine number of rivals based on project's commercial appeal and festival availability
+// Multi-round auction simulation with simple genre biasing. Returns round-by-round rival bids,
+// the final highest rival offer, whether the `userOffer` wins, and a suggested minimum to win.
+export function runFestivalAuctionRounds(
+  state: GameState,
+  project: Project,
+  festivalId?: string,
+  userOffer: number = 0,
+  rounds: number = 3,
+  rng?: SeededRng
+) {
   const commercial = project.script?.characteristics?.commercialAppeal ?? project.script?.quality ?? 5;
-  const baseRivals = Math.max(1, Math.floor(3 - (commercial / 4)));
-  const rivalCount = baseRivals + Math.floor(Math.random() * 3);
 
-  // Rival bid distribution: influenced by festival prestige (not available here) and commercial appeal
-  let highest = 0;
+  // Genre bias: popular/commercial genres attract stronger rival interest
+  const genre = (project.script?.genre || '').toLowerCase();
+  const popularGenres = ['action', 'sci-fi', 'fantasy', 'superhero', 'romcom', 'comedy'];
+  const midGenres = ['drama', 'thriller', 'mystery'];
+  const artyGenres = ['arthouse', 'experimental', 'documentary'];
+
+  let genreBias = 0;
+  if (popularGenres.includes(genre)) genreBias = 0.15;
+  else if (midGenres.includes(genre)) genreBias = 0.05;
+  else if (artyGenres.includes(genre)) genreBias = -0.08;
+
+  rng = rng ?? createRng(1);
+
+  const baseRivals = Math.max(1, Math.floor(2 + Math.max(0, (commercial - 3) / 3)));
+  const rivalCount = baseRivals + Math.floor(rng.next() * 3); // 0-2 extra rivals
+
+  const seedBudget = project.budget?.total || 500000;
+
+  const roundsOut: Array<{ round: number; rivalBids: number[]; highest: number }> = [];
+
+  // Initialize rival bids
+  const rivalBids: number[] = [];
   for (let i = 0; i < rivalCount; i++) {
-    // Rival willingness scale: more commercial -> higher rival bids
-    const willingness = 0.3 + (commercial / 10) + Math.random() * 0.7; // 0.3 - 1.3
-    const rivalBid = Math.floor((project.budget?.total || 500000) * willingness);
-    if (rivalBid > highest) highest = rivalBid;
+    const aggression = 0.8 + rng.next() * 0.8; // 0.8 - 1.6
+    const willingness = 0.25 + (commercial / 12) + genreBias * rng.nextFloat(0.1, 1.0);
+    const initial = Math.max(0, Math.floor(seedBudget * Math.max(0.05, willingness) * aggression));
+    rivalBids.push(initial);
   }
 
-  const userWins = userOffer >= highest;
+  for (let r = 0; r < rounds; r++) {
+    // Each round rivals may increment their bid based on aggression and round pressure
+    for (let i = 0; i < rivalCount; i++) {
+      const prev = rivalBids[i];
+      // Chance to raise decreases each round slightly, but amount can increase
+      const raiseChance = 0.6 - r * 0.12 + rng.nextFloat(0, 0.4); // ~0.3-1.0
+      if (rng.next() < raiseChance) {
+        const raiseFactor = 1 + (0.05 + rng.nextFloat(0, 0.25)) * (1 + r * 0.3);
+        rivalBids[i] = Math.floor(prev * raiseFactor + rng.nextFloat(0, seedBudget * 0.02));
+      }
+    }
 
-  return { rivalCount, highestRivalOffer: highest, userWins };
+    const highest = rivalBids.reduce((a, b) => Math.max(a, b), 0);
+    roundsOut.push({ round: r + 1, rivalBids: [...rivalBids], highest });
+  }
+
+  const finalHighest = roundsOut.length ? roundsOut[roundsOut.length - 1].highest : 0;
+  const minIncrement = Math.max(10000, Math.ceil(finalHighest * 0.05));
+  const requiredToWin = finalHighest + minIncrement;
+  const userWins = userOffer >= requiredToWin;
+
+  return { rounds: roundsOut, rivalCount, finalHighest, userWins, requiredToWin };
 }
