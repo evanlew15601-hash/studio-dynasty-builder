@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'vitest';
 import type { GameState, TalentPerson } from '@/types/game';
-import { FestivalIndieSupplySystem } from '@/game/systems/festivalIndieSupplySystem';
+import { FestivalIndieSupplySystem, seedFestivalIndieProjectsForWeek } from '@/game/systems/festivalIndieSupplySystem';
 import { createRng } from '@/game/core/rng';
 import type { TickContext } from '@/game/core/types';
 
@@ -63,6 +63,14 @@ describe('FestivalIndieSupplySystem', () => {
     expect(next.aiStudioProjects?.length).toBeGreaterThan(0);
     expect(next.aiStudioProjects?.every((project) => project.releaseStrategy?.type === 'festival')).toBe(true);
     expect((next.aiStudioProjects?.[0].releaseStrategy as any)?.festivalId).toBe('sundance-like');
+  });
+
+  it('seeds festival indie projects on load if current week is a festival week', () => {
+    const gameState = makeBaseGameState({ currentWeek: 4, currentYear: 2025, universeSeed: 12345, aiStudioProjects: [] });
+    const loaded = seedFestivalIndieProjectsForWeek(gameState, gameState.currentWeek, gameState.currentYear);
+
+    expect(loaded.aiStudioProjects?.length).toBeGreaterThan(0);
+    expect((loaded.aiStudioProjects?.[0].releaseStrategy as any)?.festivalId).toBe('sundance-like');
   });
 
   it('does not duplicate projects when run again for the same festival year', () => {

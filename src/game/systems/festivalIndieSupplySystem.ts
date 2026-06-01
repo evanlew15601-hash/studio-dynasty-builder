@@ -172,31 +172,35 @@ function createFestivalIndieProject(
   } as Project;
 }
 
+export function seedFestivalIndieProjectsForWeek(state: GameState, week: number, year: number): GameState {
+  if (state.mode === 'online') return state;
+
+  const festival = FESTIVALS.find((fest) => fest.scheduleWeek === week);
+  if (!festival) return state;
+
+  if (alreadySeededFestivalProjects(state, festival.id, year)) return state;
+
+  const seed = seedFromString(`${state.universeSeed || 0}|festival|${festival.id}|${year}`);
+  const rng = createRng(seed);
+  const count = 2 + rng.nextInt(0, 1);
+
+  const newProjects: Project[] = [];
+  for (let i = 0; i < count; i += 1) {
+    const project = createFestivalIndieProject(festival.id, festival.name, year, week, i, rng);
+    newProjects.push(attachBasicCastForAI(project, state.talent || []));
+  }
+
+  return {
+    ...state,
+    aiStudioProjects: [...((state.aiStudioProjects as any) || []), ...newProjects],
+  } as GameState;
+}
+
 export const FestivalIndieSupplySystem: TickSystem = {
   id: 'festivalIndieSupply',
   label: 'Festival indie supply',
   dependsOn: ['competitorReleases'],
   onTick: (state, ctx) => {
-    if (state.mode === 'online') return state;
-
-    const festival = FESTIVALS.find((fest) => fest.scheduleWeek === ctx.week);
-    if (!festival) return state;
-
-    if (alreadySeededFestivalProjects(state, festival.id, ctx.year)) return state;
-
-    const seed = seedFromString(`${state.universeSeed || 0}|festival|${festival.id}|${ctx.year}`);
-    const rng = createRng(seed);
-    const count = 2 + rng.nextInt(0, 1);
-
-    const newProjects: Project[] = [];
-    for (let i = 0; i < count; i += 1) {
-      const project = createFestivalIndieProject(festival.id, festival.name, ctx.year, ctx.week, i, rng);
-      newProjects.push(attachBasicCastForAI(project, state.talent || []));
-    }
-
-    return {
-      ...state,
-      aiStudioProjects: [...((state.aiStudioProjects as any) || []), ...newProjects],
-    } as GameState;
+    return seedFestivalIndieProjectsForWeek(state, ctx.week, ctx.year);
   },
 };

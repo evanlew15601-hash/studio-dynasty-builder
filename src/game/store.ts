@@ -60,7 +60,7 @@ import { StudioRevenueSystem } from './systems/studioRevenueSystem';
 import { LoanPaymentSystem } from './systems/loanPaymentSystem';
 import { AiStudioFilmSystem } from './systems/aiStudioFilmSystem';
 import { CompetitorFilmReleaseSystem } from './systems/competitorFilmReleaseSystem';
-import { FestivalIndieSupplySystem } from './systems/festivalIndieSupplySystem';
+import { FestivalIndieSupplySystem, seedFestivalIndieProjectsForWeek } from './systems/festivalIndieSupplySystem';
 import { MediaHydrationSystem } from './systems/mediaHydrationSystem';
 import { MediaWeeklySystem } from './systems/mediaWeeklySystem';
 import { PlayerCircleDramaSystem } from './systems/playerCircleDramaSystem';
@@ -313,12 +313,17 @@ export const useGameStore: import('zustand').UseBoundStore<import('zustand').Sto
       const gameSeed = seed ?? derivedRngState;
 
       set((s) => {
-        const next = {
+        let next = {
           ...state,
           universeSeed: typeof state.universeSeed === 'number' ? state.universeSeed : derivedUniverseSeed,
           rngState: typeof state.rngState === 'number' ? state.rngState : derivedRngState,
           aiStudioProjects: state.aiStudioProjects ?? [],
         };
+
+        if (typeof next.currentWeek === 'number' && typeof next.currentYear === 'number') {
+          next = seedFestivalIndieProjectsForWeek(next as GameState, next.currentWeek, next.currentYear);
+        }
+
         s.game = normalizeStudioGovernanceState(normalizePublicDomainState(normalizeFranchisesState(next) as any) as any);
         s.seed = gameSeed;
         s.rng = createRng(gameSeed);
