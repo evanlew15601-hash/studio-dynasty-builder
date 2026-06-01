@@ -127,6 +127,21 @@ export const MarketingReleaseManagement: React.FC<MarketingReleaseManagementProp
         </div>
       </div>
 
+      <Card className="border-2 border-secondary/20 bg-gradient-to-br from-background to-secondary/5">
+        <CardHeader>
+          <CardTitle className="text-lg">Festival Release Access</CardTitle>
+        </CardHeader>
+        <CardContent>
+          <p className="text-sm text-muted-foreground mb-3">
+            Festival release and marketplace access are available inside the release planning flow.
+            Select a film in Marketing or Release, click <strong>Plan Release</strong>, choose <strong>Festival</strong>, and then open the festival marketplace.
+          </p>
+          <p className="text-sm text-muted-foreground">
+            This is not a separate top-level page yet, so Release Strategy is the main entrypoint for festival premieres.
+          </p>
+        </CardContent>
+      </Card>
+
       {/* Marketing Phase Projects */}
       {getProjectsInMarketing().length > 0 && (
         <Card className="border-2 border-primary/20 bg-gradient-to-br from-background to-primary/5">

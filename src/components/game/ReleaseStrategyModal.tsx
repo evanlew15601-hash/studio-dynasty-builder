@@ -24,7 +24,6 @@ import { getStreamingProviders } from '@/data/ProviderDealsDatabase';
 import { getModBundle } from '@/utils/moddingStore';
 import { getFestivalOptions } from '@/data/Festivals';
 import FestivalMarketplaceModal from '@/components/game/FestivalMarketplaceModal';
-import { simulateFestivalAuction } from '@/utils/festivalMarketplace';
 import { FinancialEngine } from './FinancialEngine';
 
 interface ReleaseStrategyModalProps {
@@ -591,14 +590,18 @@ export const ReleaseStrategyModal: React.FC<ReleaseStrategyModalProps> = ({
                   </Card>
                 )}
 
-                    {/* Marketplace Action */}
-                    {!isTV && selectedReleaseType === 'festival' && (
-                      <div className="flex justify-end">
-                        <Button onClick={() => setMarketplaceOpen(true)} disabled={!selectedFestivalId}>
-                          Open Festival Marketplace
-                        </Button>
-                      </div>
-                    )}
+                {!isTV && selectedReleaseType === 'festival' && (
+                  <div className="space-y-3">
+                    <p className="text-sm text-muted-foreground">
+                      Festival release unlocks a prestige premiere path and gives you access to the marketplace for indie film acquisitions.
+                    </p>
+                    <div className="flex justify-end">
+                      <Button onClick={() => setMarketplaceOpen(true)} disabled={!selectedFestivalId}>
+                        Open Festival Marketplace
+                      </Button>
+                    </div>
+                  </div>
+                )}
 
           {/* Streaming premiere deal (Direct-to-Streaming films) */}
           {!isTV && selectedReleaseType === 'streaming' && (

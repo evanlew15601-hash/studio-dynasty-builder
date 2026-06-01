@@ -49,6 +49,14 @@ export const TalentMarketplace: React.FC<TalentMarketplaceProps> = ({
   const [currentPage, setCurrentPage] = useState(0);
   const TALENT_PER_PAGE = 20;
 
+  const resolveCastRole = useCallback((person: TalentPerson) => {
+    if (person.type === 'director') return 'Director';
+    if (person.type === 'writer') return 'Writer';
+    if (person.type === 'producer') return 'Producer';
+    if (selectedRole === 'actress') return 'Lead Actress';
+    return 'Lead Actor';
+  }, [selectedRole]);
+
 // **CHECKPOINT 2 FIXED**: Memoized commitments (fixes infinite re-render)
   const commitments = useMemo(() => AIStudioManager.getAllCommitments(), [currentWeek, currentYear]);
 
@@ -330,7 +338,7 @@ export const TalentMarketplace: React.FC<TalentMarketplaceProps> = ({
                     size="sm" 
                     variant={status.status === 'available' ? 'default' : 'outline'}
                     disabled={status.status === 'busy'}
-                    onClick={() => onCastTalent?.(person.id, 'Lead Actor')}
+                    onClick={() => onCastTalent?.(person.id, resolveCastRole(person))}
                     className="flex-1"
                   >
                     {status.status === 'available' ? 'Cast' : 'Unavailable'}

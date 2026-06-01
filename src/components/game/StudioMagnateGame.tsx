@@ -30,6 +30,7 @@ import { nextNumericId } from '@/utils/idAllocator';
 import { triggerDateFromWeekYear } from '@/utils/gameTime';
 import { isTvScript } from '@/utils/scriptMedium';
 import { isPrimaryStreamingFilm } from '@/utils/projectMedium';
+import { isDirectorRole } from '@/utils/scriptRoles';
 import { createRng, generateGameSeed, seedFromString } from '@/game/core/rng';
 import { advanceWeek as engineAdvanceWeek } from '@/game/core/tick';
 import { useUiStore } from '@/game/uiStore';
@@ -120,6 +121,7 @@ import { PlayerCirclePanel } from './PlayerCirclePanel';
 import { ReleaseStrategyModal } from './ReleaseStrategyModal';
 import { ComprehensiveTelevisionSystem } from './ComprehensiveTelevisionSystem';
 import { TelevisionSystemTests } from './TelevisionSystemTests';
+import { FestivalManagement } from './FestivalManagement';
 import {
   StudioIcon,
   ScriptIcon,
@@ -127,6 +129,7 @@ import {
   ProductionIcon,
   DistributionIcon,
   MarketingIcon,
+  FestivalIcon,
   BudgetIcon,
   ReputationIcon,
   ClapperboardIcon,
@@ -708,6 +711,142 @@ export const StudioMagnateGame: React.FC<StudioMagnateGameProps> = ({
   const selectedProject = selectedProjectId
     ? (gameState.projects.find(p => p.id === selectedProjectId) || null)
     : null;
+
+  const handleTalentMarketplaceCast = useCallback((talentId: string, role: string) => {
+    const talent = gameState.talent.find((t) => t.id === talentId);
+    if (!talent) {
+      toast({
+        title: 'Casting Failed',
+        description: 'Selected talent could not be found.',
+        variant: 'destructive',
+      });
+      return;
+    }
+
+    if (!selectedProject) {
+      toast({
+        title: 'No Project Selected',
+        description: 'Select a project to cast talent into before using the talent marketplace.',
+        variant: 'destructive',
+      });
+      return;
+    }
+
+    const roleName = role || (talent.type === 'director' ? 'Director' : 'Lead Actor');
+    const weeklyPay = Math.max(1000, Math.round(talent.marketValue / 52));
+    const contractWeeks = talent.type === 'director' ? 20 : 16;
+    const duration = new Date(Date.now() + contractWeeks * 7 * 24 * 60 * 60 * 1000);
+
+    const newProductionRole = {
+      talentId: talent.id,
+      role: roleName,
+      salary: weeklyPay,
+      points: talent.type === 'actor' ? 10 : 15,
+      contractTerms: {
+        duration,
+        exclusivity: true,
+        merchandising: true,
+        sequelOptions: selectedProject.script?.franchiseId ? 2 : 1,
+      },
+    };
+
+    const updatedCast = talent.type === 'actor'
+      ? [...(selectedProject.cast ?? []).filter((entry) => entry.talentId !== talent.id && entry.role !== roleName), newProductionRole]
+      : selectedProject.cast ?? [];
+
+    const updatedCrew = talent.type !== 'actor'
+      ? [...selectedProject.crew.filter((entry) => entry.talentId !== talent.id && entry.role !== roleName), newProductionRole]
+      : selectedProject.crew;
+
+    const updatedContractedTalent = [
+      ...(selectedProject.contractedTalent ?? []).filter((ct) => ct.talentId !== talent.id && ct.role !== roleName),
+      {
+        talentId: talent.id,
+        role: roleName,
+        weeklyPay,
+        contractWeeks,
+        weeksRemaining: contractWeeks,
+        startWeek: gameState.currentWeek,
+        startYear: gameState.currentYear,
+      },
+    ];
+
+    let updatedScript = selectedProject.script;
+    if (updatedScript) {
+      const existingCharacters = updatedScript.characters ?? [];
+      if (talent.type === 'director') {
+        const directorIndex = existingCharacters.findIndex(isDirectorRole);
+        updatedScript = {
+          ...updatedScript,
+          characters:
+            directorIndex >= 0
+              ? existingCharacters.map((character, index) =>
+                  index === directorIndex ? { ...character, assignedTalentId: talent.id } : character
+                )
+              : [
+                  ...existingCharacters,
+                  {
+                    id: `director-${Date.now()}`,
+                    name: 'Director',
+                    description: 'Film director responsible for creative vision',
+                    importance: 'crew',
+                    traits: ['mandatory'],
+                    requiredType: 'director',
+                    assignedTalentId: talent.id,
+                  },
+                ],
+        };
+      } else if (talent.type === 'actor') {
+        const leadIndex = existingCharacters.findIndex(
+          (character) => character.importance === 'lead' || character.requiredType === 'actor'
+        );
+        updatedScript = {
+          ...updatedScript,
+          characters:
+            leadIndex >= 0
+              ? existingCharacters.map((character, index) =>
+                  index === leadIndex
+                    ? {
+                        ...character,
+                        requiredType: 'actor',
+                        requiredGender: character.requiredGender || talent.gender || 'Male',
+                        assignedTalentId: talent.id,
+                      }
+                    : character
+                )
+              : [
+                  ...existingCharacters,
+                  {
+                    id: `lead-${Date.now()}`,
+                    name: 'Lead Character',
+                    description: 'Main protagonist of the story',
+                    importance: 'lead',
+                    traits: ['mandatory'],
+                    requiredType: 'actor',
+                    requiredGender: talent.gender || 'Male',
+                    assignedTalentId: talent.id,
+                  },
+                ],
+        };
+      }
+    }
+
+    const updatedProject = {
+      ...selectedProject,
+      cast: updatedCast,
+      crew: updatedCrew,
+      contractedTalent: updatedContractedTalent,
+      script: updatedScript,
+    };
+
+    replaceProject(updatedProject);
+
+    toast({
+      title: 'Talent Cast',
+      description: `${talent.name} is now attached to ${selectedProject.title}.`,
+    });
+  }, [gameState.currentWeek, gameState.currentYear, gameState.talent, replaceProject, selectedProject, toast]);
+
   const [selectedFranchise, setSelectedFranchise] = useState<string | null>(null);
   const [selectedPublicDomain, setSelectedPublicDomain] = useState<string | null>(null);
   const [filmReleaseProject, setFilmReleaseProject] = useState<Project | null>(null);
@@ -2912,6 +3051,7 @@ export const StudioMagnateGame: React.FC<StudioMagnateGameProps> = ({
               { id: 'casting', label: 'Casting & Crew', IconComponent: CastingIcon },
               { id: 'production', label: 'Production', IconComponent: ProductionIcon },
               { id: 'marketing', label: 'Marketing', IconComponent: MarketingIcon },
+              { id: 'festival', label: 'Festival', IconComponent: FestivalIcon },
               { id: 'distribution', label: 'Distribution', IconComponent: DistributionIcon },
               { id: 'finance', label: 'Finance', IconComponent: BudgetIcon },
             ].map((tab) => (
@@ -3408,7 +3548,7 @@ export const StudioMagnateGame: React.FC<StudioMagnateGameProps> = ({
                     talent={gameState.talent}
                     currentWeek={gameState.currentWeek}
                     currentYear={gameState.currentYear}
-                    onCastTalent={(talentId: string) => console.log('Cast talent:', talentId)}
+                    onCastTalent={handleTalentMarketplaceCast}
                   />
                 </Suspense>
               </TabsContent>
@@ -3526,6 +3666,10 @@ export const StudioMagnateGame: React.FC<StudioMagnateGameProps> = ({
               </p>
             </div>
           )
+        )}
+
+        {currentPhase === 'festival' && (
+          <FestivalManagement />
         )}
         
         {currentPhase === 'media' && (
