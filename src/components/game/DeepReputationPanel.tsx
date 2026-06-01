@@ -363,9 +363,9 @@ export const DeepReputationPanel: React.FC<DeepReputationPanelProps> = ({ onNavi
               {insights.recommendations.length > 0 ? (
                 <ul className="space-y-3">
                   {insights.recommendations.map((recommendation, index) => (
-                    <li key={index} className="flex items-start gap-3 p-3 bg-blue-50 rounded-lg">
-                      <Lightbulb className="w-4 h-4 text-blue-500 mt-0.5 flex-shrink-0" />
-                      <span className="text-sm">{recommendation}</span>
+                    <li key={index} className="flex items-start gap-3 p-3 bg-slate-100 rounded-lg">
+                      <Lightbulb className="w-4 h-4 text-blue-600 mt-0.5 flex-shrink-0" />
+                      <span className="text-sm text-slate-900">{recommendation}</span>
                     </li>
                   ))}
                 </ul>
