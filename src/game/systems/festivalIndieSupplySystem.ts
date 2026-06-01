@@ -172,8 +172,13 @@ function createFestivalIndieProject(
   } as Project;
 }
 
-export function seedFestivalIndieProjectsForWeek(state: GameState, week: number, year: number): GameState {
-  if (state.mode === 'online') return state;
+export function seedFestivalIndieProjectsForWeek(
+  state: GameState,
+  week: number,
+  year: number,
+  options?: { force?: boolean }
+): GameState {
+  if (state.mode === 'online' && !options?.force) return state;
 
   const festival = FESTIVALS.find((fest) => fest.scheduleWeek === week);
   if (!festival) return state;

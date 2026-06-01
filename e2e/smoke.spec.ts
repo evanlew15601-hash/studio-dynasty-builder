@@ -22,7 +22,8 @@ test('can quick start a new game', async ({ page }) => {
   test.setTimeout(60_000);
 
   await page.goto('/', { waitUntil: 'domcontentloaded' });
-  await page.getByRole('button', { name: /^Quick Start$/ }).click();
+  await page.getByRole('button', { name: /^Quick Start$/ }).waitFor({ state: 'visible', timeout: 60_000 });
+  await page.getByRole('button', { name: /^Quick Start$/ }).click({ force: true });
 
   // Once the game shell mounts, the top header includes a "Save Game" button.
   // This guards against runtime errors during boot (e.g. blank screen after starting).
@@ -34,4 +35,20 @@ test('can quick start a new game', async ({ page }) => {
   await expect(page.getByRole('heading', { name: /^Settings$/ })).toBeVisible();
   await expect(page.getByText(/^UI Skin$/)).toBeVisible();
   await expect(page.getByText(/^Window Size$/)).toBeVisible();
+});
+
+test('festival page always shows at least one available indie film', async ({ page }) => {
+  test.setTimeout(60_000);
+
+  await page.goto('/', { waitUntil: 'domcontentloaded' });
+  await page.getByRole('button', { name: /^Quick Start$/ }).waitFor({ state: 'visible', timeout: 60_000 });
+  await page.getByRole('button', { name: /^Quick Start$/ }).click({ force: true });
+  await expect(page.getByRole('button', { name: /^Save Game$/ })).toBeVisible({ timeout: 55_000 });
+
+  await page.getByRole('button', { name: /^Festival$/ }).click();
+  await expect(page.getByText(/^Festival Marketplace$/)).toBeVisible({ timeout: 30_000 });
+
+  await expect(page.getByText(/Available Indie Films/i)).toBeVisible();
+  await expect(page.getByText(/No eligible festival indie films are available/i)).toHaveCount(0);
+  await expect(page.getByRole('button', { name: /^Select$/ })).toBeVisible();
 });

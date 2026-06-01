@@ -21,7 +21,13 @@ export default defineConfig({
     video: 'retain-on-failure',
     reducedMotion: 'reduce',
     launchOptions: {
-      args: ['--proxy-bypass-list=<-loopback>'],
+      args: [
+        '--proxy-bypass-list=<-loopback>',
+        '--disable-gpu',
+        '--disable-software-rasterizer',
+        '--no-sandbox',
+        '--disable-dev-shm-usage',
+      ],
     },
   },
   webServer: {

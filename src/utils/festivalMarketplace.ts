@@ -1,5 +1,7 @@
 import type { GameState, Project } from '@/types/game';
 import { isPlayerOwnedProject } from '@/utils/playerProjects';
+import { getFestivalById } from '@/data/Festivals';
+import { seedFestivalIndieProjectsForWeek } from '@/game/systems/festivalIndieSupplySystem';
 import type { SeededRng } from '@/game/core/rng';
 import { createRng } from '@/game/core/rng';
 
@@ -27,7 +29,33 @@ export function listAvailableFestivalIndieProjects(state: GameState, festivalId?
     const isIndie = (p as any).indie === true || commercial < 6;
     if (isIndie) candidates.push(p);
   }
-  return candidates;
+  if (candidates.length > 0) return candidates;
+
+  if (!festivalId) return candidates;
+
+  const festival = getFestivalById(festivalId);
+  if (!festival) return candidates;
+
+  const fallbackSource = seedFestivalIndieProjectsForWeek(
+    state,
+    festival.scheduleWeek,
+    state.currentYear || new Date().getUTCFullYear(),
+    { force: true }
+  );
+
+  const fallbackCandidates: Project[] = [];
+  const fallbackSeen = new Set<string>(seenIds);
+  for (const project of ((fallbackSource.aiStudioProjects || []) as Project[])) {
+    if (!project || !project.id || fallbackSeen.has(project.id)) continue;
+    fallbackSeen.add(project.id);
+    if (project.releaseStrategy?.type !== 'festival') continue;
+    if ((project.releaseStrategy as any)?.festivalId !== festivalId) continue;
+    if (project.status === 'released' || project.status === 'archived') continue;
+    if (isPlayerOwnedProject({ project, state })) continue;
+    fallbackCandidates.push(project);
+  }
+
+  return fallbackCandidates.length > 0 ? fallbackCandidates : candidates;
 }
 
 // Create an update patch for purchasing a film's rights at festival bidding.
