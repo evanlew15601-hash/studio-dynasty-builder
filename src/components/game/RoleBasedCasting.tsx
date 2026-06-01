@@ -138,23 +138,51 @@ export const RoleBasedCasting: React.FC<RoleBasedCastingProps> = ({
   };
 
   const saveRoleRequirements = (role: ScriptCharacter) => {
-    const minAge = Number.parseInt(requirementDraft.minAge, 10);
-    const maxAge = Number.parseInt(requirementDraft.maxAge, 10);
-    const nextAgeRange = Number.isFinite(minAge) && Number.isFinite(maxAge)
-      ? [Math.max(0, Math.min(minAge, maxAge)), Math.max(minAge, maxAge)] as [number, number]
-      : undefined;
+    const parsedMin = Number.parseInt(requirementDraft.minAge, 10);
+    const parsedMax = Number.parseInt(requirementDraft.maxAge, 10);
 
-    const updatedCharacters = (project.script?.characters || []).map(c =>
-      c.id === role.id
-        ? {
+    const hasMin = Number.isFinite(parsedMin);
+    const hasMax = Number.isFinite(parsedMax);
+
+    let nextAgeRange: [number, number] | undefined;
+    if (hasMin || hasMax) {
+      const DEFAULT_MIN = 18;
+      const DEFAULT_MAX = 100;
+      const min = hasMin ? Math.max(0, parsedMin) : DEFAULT_MIN;
+      const max = hasMax ? parsedMax : DEFAULT_MAX;
+      nextAgeRange = [Math.min(min, max), Math.max(min, max)];
+    } else {
+      nextAgeRange = undefined;
+    }
+
+    const updatedCharacters = (project.script?.characters || []).map(c => {
+      if (c.id !== role.id) return c;
+
+      const updates: Partial<typeof c> = {
+        ageRange: nextAgeRange,
+        requiredGender: requirementDraft.gender || undefined,
+        requiredRace: requirementDraft.race || undefined,
+        requiredNationality: requirementDraft.nationality || undefined,
+      };
+
+      // If role is locked/imported, persist editable fields into localOverrides
+      if (c.locked) {
+        const prevOverrides = c.localOverrides || {};
+        const overridePatch: Partial<typeof c.localOverrides> = {};
+        if (updates.ageRange !== undefined) overridePatch.ageRange = updates.ageRange as any;
+        if ('requiredGender' in updates) overridePatch.requiredGender = updates.requiredGender as any;
+        if ('requiredRace' in updates) overridePatch.requiredRace = updates.requiredRace as any;
+        if ('requiredNationality' in updates) overridePatch.requiredNationality = updates.requiredNationality as any;
+
+        return {
           ...c,
-          ageRange: nextAgeRange,
-          requiredGender: requirementDraft.gender || undefined,
-          requiredRace: requirementDraft.race || undefined,
-          requiredNationality: requirementDraft.nationality || undefined,
-        }
-        : c
-    );
+          ...updates,
+          localOverrides: { ...prevOverrides, ...overridePatch },
+        } as any;
+      }
+
+      return { ...c, ...updates } as any;
+    });
 
     updateProject(project.id, {
       script: {

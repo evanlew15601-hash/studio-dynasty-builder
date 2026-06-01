@@ -9,6 +9,7 @@ import {
   getFestivalMaxRunWeeks,
   shouldShowPlatformExpansionStatus,
 } from '@/utils/festivalMomentum';
+import { getFestivalById } from '@/data/Festivals';
 
 function absWeek(week: number, year: number): number {
   return year * 52 + week;
@@ -44,11 +45,71 @@ function ensureReleaseScores(project: Project, releaseWeek: number, releaseYear:
   const baseCritics = stableInt(`${project.id}|critics|${releaseYear}|${releaseWeek}`, 50, 90);
   const baseAudience = stableInt(`${project.id}|audience|${releaseYear}|${releaseWeek}`, 50, 90);
 
-  const criticsScore =
-    project.metrics?.criticsScore ?? clampScore(baseCritics + getFestivalCriticsBonus(project));
-  const audienceScore = project.metrics?.audienceScore ?? clampScore(baseAudience);
+  let criticsScore = project.metrics?.criticsScore ?? clampScore(baseCritics + getFestivalCriticsBonus(project));
+  let audienceScore = project.metrics?.audienceScore ?? clampScore(baseAudience);
 
   const festivalPremiered = project.metrics?.festivalPremiered === true || project.releaseStrategy?.type === 'festival';
+
+  // Festival premiere processing: simulate festival reception using in-universe
+  // festival definitions and apply acclaim boosts to critics/audience scores.
+  if (project.releaseStrategy?.type === 'festival' && !project.metrics?.festivalProcessed) {
+    const festivalId = (project.releaseStrategy as any)?.festivalId || (project.releaseStrategy as any)?.festivalName || 'cannes-like';
+    const festivalDef = getFestivalById(festivalId);
+    const festivalKey = festivalDef?.id || festivalId;
+    const prestige = festivalDef?.prestige ?? 60;
+
+    const festivalRoll = stableInt(`${project.id}|festivalOutcome|${releaseYear}|${releaseWeek}|${festivalKey}`, 0, 100);
+
+    // Scale boosts by festival prestige
+    const prestigeScale = Math.round((prestige - 50) / 12);
+
+    let criticBoost = 0;
+    let audienceBoost = 0;
+    let awardsBoost = 0;
+    let outcome: string = 'lukewarm';
+
+    if (festivalRoll >= 90) {
+      outcome = 'sweep';
+      criticBoost = 8 + prestigeScale;
+      audienceBoost = 6 + Math.max(0, Math.floor(prestigeScale / 2));
+      awardsBoost = 10 + Math.max(0, prestigeScale);
+    } else if (festivalRoll >= 75) {
+      outcome = 'hit';
+      criticBoost = 6 + Math.max(0, prestigeScale);
+      audienceBoost = 3 + Math.max(0, Math.floor(prestigeScale / 3));
+      awardsBoost = 6 + Math.max(0, Math.floor(prestigeScale / 2));
+    } else if (festivalRoll >= 60) {
+      outcome = 'well-received';
+      criticBoost = 3 + Math.max(0, Math.floor(prestigeScale / 2));
+      audienceBoost = 2;
+      awardsBoost = 3 + Math.max(0, Math.floor(prestigeScale / 3));
+    } else {
+      outcome = 'lukewarm';
+      criticBoost = 0;
+      audienceBoost = 0;
+      awardsBoost = 0;
+    }
+
+    criticsScore = clampScore((project.metrics?.criticsScore ?? criticsScore) + criticBoost);
+    audienceScore = clampScore((project.metrics?.audienceScore ?? audienceScore) + audienceBoost);
+
+    // Attach festival outcome metadata for downstream systems (awards, UI, etc.)
+    const prevMetrics = project.metrics || {};
+    return {
+      ...project,
+      metrics: {
+        ...prevMetrics,
+        criticsScore,
+        audienceScore,
+        festivalPremiered: true,
+        festivalProcessed: true,
+        festivalOutcome: outcome,
+        festivalOutcomeScore: festivalRoll,
+        festivalAwardsBoost: awardsBoost,
+        festivalId: festivalKey,
+      },
+    };
+  }
 
   return {
     ...project,

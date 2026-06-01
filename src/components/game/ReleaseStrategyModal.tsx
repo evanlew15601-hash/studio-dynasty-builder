@@ -22,6 +22,9 @@ import { useToast } from '@/hooks/use-toast';
 import { useGameStore } from '@/game/store';
 import { getStreamingProviders } from '@/data/ProviderDealsDatabase';
 import { getModBundle } from '@/utils/moddingStore';
+import { getFestivalOptions } from '@/data/Festivals';
+import FestivalMarketplaceModal from '@/components/game/FestivalMarketplaceModal';
+import { simulateFestivalAuction } from '@/utils/festivalMarketplace';
 import { FinancialEngine } from './FinancialEngine';
 
 interface ReleaseStrategyModalProps {
@@ -46,7 +49,9 @@ export const ReleaseStrategyModal: React.FC<ReleaseStrategyModalProps> = ({
   const [selectedDate, setSelectedDate] = useState<{ week: number; year: number } | null>(null);
   const [selectedReleaseType, setSelectedReleaseType] = useState<ReleaseStrategy['type']>('wide');
   const [selectedStreamingProviderId, setSelectedStreamingProviderId] = useState<string>('');
+  const [selectedFestivalId, setSelectedFestivalId] = useState<string>('cannes-like');
   const [clearConfirmOpen, setClearConfirmOpen] = useState(false);
+  const [marketplaceOpen, setMarketplaceOpen] = useState(false);
 
   useEffect(() => {
     if (!isOpen) {
@@ -298,6 +303,8 @@ export const ReleaseStrategyModal: React.FC<ReleaseStrategyModalProps> = ({
     return {
       type: selectedReleaseType,
       theatersCount,
+      festivalId: selectedReleaseType === 'festival' ? selectedFestivalId : undefined,
+      festivalName: selectedReleaseType === 'festival' ? (selectedFestivalId || undefined) : undefined,
       streamingProviderId: streamingPlatformId,
       streamingPlatformId,
       streamingExclusive: selectedReleaseType === 'streaming' ? true : undefined,
@@ -558,6 +565,41 @@ export const ReleaseStrategyModal: React.FC<ReleaseStrategyModalProps> = ({
             </Card>
           )}
 
+                {/* Festival Selector */}
+                {!isTV && selectedReleaseType === 'festival' && (
+                  <Card>
+                    <CardHeader>
+                      <CardTitle className="text-lg">Festival</CardTitle>
+                    </CardHeader>
+                    <CardContent>
+                      <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+                        {getFestivalOptions().map((fest) => (
+                          <Button
+                            key={fest.id}
+                            type="button"
+                            variant={selectedFestivalId === fest.id ? 'default' : 'outline'}
+                            onClick={() => setSelectedFestivalId(fest.id)}
+                          >
+                            <div className="text-left">
+                              <div className="font-semibold">{fest.label}</div>
+                              <div className="text-xs text-muted-foreground">Prestige: {fest.prestige}</div>
+                            </div>
+                          </Button>
+                        ))}
+                      </div>
+                    </CardContent>
+                  </Card>
+                )}
+
+                    {/* Marketplace Action */}
+                    {!isTV && selectedReleaseType === 'festival' && (
+                      <div className="flex justify-end">
+                        <Button onClick={() => setMarketplaceOpen(true)} disabled={!selectedFestivalId}>
+                          Open Festival Marketplace
+                        </Button>
+                      </div>
+                    )}
+
           {/* Streaming premiere deal (Direct-to-Streaming films) */}
           {!isTV && selectedReleaseType === 'streaming' && (
             <Card className={streamingDealMissing ? 'border-destructive/20' : undefined}>
@@ -801,6 +843,7 @@ export const ReleaseStrategyModal: React.FC<ReleaseStrategyModalProps> = ({
         </div>
       </DialogContent>
     </Dialog>
+    <FestivalMarketplaceModal open={marketplaceOpen} onOpenChange={setMarketplaceOpen} festivalId={selectedFestivalId} />
     </>
   );
 };

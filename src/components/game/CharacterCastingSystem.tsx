@@ -232,9 +232,12 @@ export const CharacterCastingSystem: React.FC<CharacterCastingSystemProps> = ({
           ? `Lead - ${slot.character.name}`
           : `Supporting - ${slot.character.name}`;
 
-      const existingContract = (project.contractedTalent || []).find(ct =>
-        ct.talentId === slot.talent?.id && (ct.role === roleLabel || ct.role === slot.character.name)
-      ) || (project.contractedTalent || []).find(ct => ct.talentId === slot.talent?.id);
+      const contractedTalent = project.contractedTalent || [];
+      const talentId = slot.talent.id;
+
+      const existingContract = contractedTalent.find(ct =>
+        ct.talentId === talentId && (ct.role === roleLabel || ct.role === slot.character.name)
+      ) || contractedTalent.find(ct => ct.talentId === talentId);
 
       if (existingContract) {
         return {
@@ -245,7 +248,7 @@ export const CharacterCastingSystem: React.FC<CharacterCastingSystemProps> = ({
         };
       }
 
-      const existingRole = [...(project.cast || []), ...(project.crew || [])].find(r => r.talentId === slot.talent?.id);
+      const existingRole = [...(project.cast || []), ...(project.crew || [])].find(r => r.talentId === talentId);
       if (existingRole) {
         return {
           weeklyPay: existingRole.salary,

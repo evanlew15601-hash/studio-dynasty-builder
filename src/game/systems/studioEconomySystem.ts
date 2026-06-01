@@ -8,6 +8,12 @@ const ACTIVE_PROJECT_OVERHEAD = 6_000;
 // remain difficult but do not force mandatory survival loans before release.
 const PRODUCTION_WEEKS = 16;
 const PRODUCTION_BUDGET_FRACTION = 0.35;
+// Draw remaining budget across pre-/post-production so full project budget is
+// eventually paid rather than only charging production week draws.
+const PRE_PRODUCTION_WEEKS = PRODUCTION_WEEKS;
+const POST_PRODUCTION_WEEKS = PRODUCTION_WEEKS;
+const PRE_PRODUCTION_BUDGET_FRACTION = 0.25;
+const POST_PRODUCTION_BUDGET_FRACTION = 0.40;
 
 const DEBT_AUTO_PAYDOWN_THRESHOLD = 1_000_000;
 const DEBT_AUTO_PAYDOWN_FRACTION = 0.05;
@@ -35,9 +41,18 @@ export const StudioEconomySystem: TickSystem = {
 
     let productionCosts = 0;
     for (const project of projects) {
-      if (project.currentPhase !== 'production') continue;
-      const weeklyProductionCost = (project.budget.total * PRODUCTION_BUDGET_FRACTION) / PRODUCTION_WEEKS;
-      productionCosts += weeklyProductionCost;
+      if (!project.budget || typeof project.budget.total !== 'number') continue;
+
+      let weeklyDraw = 0;
+      if (project.currentPhase === 'production') {
+        weeklyDraw = (project.budget.total * PRODUCTION_BUDGET_FRACTION) / PRODUCTION_WEEKS;
+      } else if (project.currentPhase === 'pre-production') {
+        weeklyDraw = (project.budget.total * PRE_PRODUCTION_BUDGET_FRACTION) / PRE_PRODUCTION_WEEKS;
+      } else if (project.currentPhase === 'post-production') {
+        weeklyDraw = (project.budget.total * POST_PRODUCTION_BUDGET_FRACTION) / POST_PRODUCTION_WEEKS;
+      }
+
+      productionCosts += weeklyDraw;
     }
 
     const totalWeeklyCosts = operationalCost + productionCosts;
