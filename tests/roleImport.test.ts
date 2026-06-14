@@ -266,4 +266,56 @@ describe('importRolesForScript', () => {
     const importedAgain = importRolesForScript({ ...script, characters: imported }, gameState);
     expect(importedAgain).toHaveLength(imported.length);
   });
+
+  it('imports active franchise character library entries and excludes retired or deceased canon entries', () => {
+    const franchise: Franchise = {
+      id: 'f-library',
+      title: 'Library Saga',
+      originDate: '2024-01-01',
+      creatorStudioId: 'studio-1',
+      genre: ['drama'],
+      tone: 'serious',
+      entries: [],
+      status: 'active',
+      franchiseTags: [],
+      culturalWeight: 50,
+      cost: 0,
+      characterLibrary: [
+        {
+          characterId: 'active-hero',
+          name: 'Mara Vale',
+          ageRange: [30, 40],
+          gender: 'Female',
+          description: 'Continuing protagonist',
+          narrativeImportance: 'lead',
+          recurrencePotential: 95,
+          status: 'active',
+          appearances: ['p-1'],
+        },
+        {
+          characterId: 'dead-mentor',
+          name: 'Elias Reed',
+          ageRange: [60, 75],
+          gender: 'Male',
+          description: 'Canonically dead mentor',
+          narrativeImportance: 'supporting',
+          recurrencePotential: 50,
+          status: 'deceased',
+          appearances: ['p-1'],
+        },
+      ],
+    };
+
+    const gameState = makeBaseGameState({ franchises: [franchise] });
+    const script = makeBaseScript({
+      sourceType: 'franchise',
+      franchiseId: franchise.id,
+      characters: [],
+    });
+
+    const imported = importRolesForScript(script, gameState);
+
+    expect(imported.some((c) => c.franchiseCharacterId === 'active-hero' && c.name === 'Mara Vale')).toBe(true);
+    expect(imported.some((c) => c.franchiseCharacterId === 'dead-mentor')).toBe(false);
+  });
 });

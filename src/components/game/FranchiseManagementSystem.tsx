@@ -69,7 +69,24 @@ export const FranchiseManagementSystem: React.FC<FranchiseManagementSystemProps>
       status: 'active',
       franchiseTags: [],
       culturalWeight: newFranchise.culturalWeight,
-      cost: 0 // Original franchise costs nothing to use once created
+      cost: 0, // Original franchise costs nothing to use once created
+      characterLibrary: [],
+      talentLibrary: [],
+      continuity: {
+        timelineEvents: [],
+        characterAppearances: {},
+        deaths: {},
+        relationships: [],
+        locations: [],
+        plotThreads: [],
+        warnings: [],
+      },
+      franchiseBible: {
+        worldbuilding: newFranchise.description ? [newFranchise.description] : [],
+        relationshipMap: [],
+        sequelHooks: ['Introduce franchise-defining characters before greenlighting a continuation.'],
+        plannedArc: 'trilogy',
+      },
     };
 
     onCreateFranchise(franchise);

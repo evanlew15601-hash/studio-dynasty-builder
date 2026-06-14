@@ -28,6 +28,58 @@ export interface Franchise {
   criticalFatigue?: number; // 0-100, increases with poor sequels
   description?: string; // Bio/background for player familiarity
   cost: number; // Cost to license/use franchise based on cultural weight
+  /** Permanent cast bible for this IP. Characters should persist across sequels/spin-offs. */
+  characterLibrary?: FranchiseCharacterLibraryEntry[];
+  /** Talent continuity memory for returning cast/crew and replacement warnings. */
+  talentLibrary?: FranchiseTalentLibraryEntry[];
+  /** Canon/continuity database for cross-entry validation and dashboard display. */
+  continuity?: FranchiseContinuityDatabase;
+  /** Long-term franchise planning data for original IPs and acquired properties. */
+  franchiseBible?: FranchiseBible;
+}
+
+export interface FranchiseCharacterLibraryEntry {
+  characterId: string;
+  name: string;
+  ageRange: [number, number];
+  gender: Gender;
+  description: string;
+  narrativeImportance: 'lead' | 'supporting' | 'recurring' | 'minor' | 'cameo';
+  recurrencePotential: number; // 0-100
+  status: 'active' | 'retired' | 'deceased' | 'unavailable';
+  traits?: string[];
+  relationships?: { characterId: string; relationship: string }[];
+  firstAppearanceProjectId?: string;
+  appearances: string[];
+  popularity?: number;
+}
+
+export interface FranchiseTalentLibraryEntry {
+  talentId: string;
+  name?: string;
+  role: 'actor' | 'director' | 'writer' | 'producer' | 'crew';
+  characterId?: string;
+  projectIds: string[];
+  continuityPreference: 'return' | 'recast-ok' | 'replace-ok';
+  status: 'available' | 'busy' | 'contract-conflict' | 'retired' | 'unknown';
+  warning?: string;
+}
+
+export interface FranchiseContinuityDatabase {
+  timelineEvents: Array<{ id: string; projectId?: string; date?: string; description: string; type: 'appearance' | 'death' | 'relationship' | 'location' | 'plot' | 'retcon' }>;
+  characterAppearances: Record<string, string[]>;
+  deaths: Record<string, { projectId?: string; description: string }>;
+  relationships: Array<{ characterId: string; relatedCharacterId: string; relationship: string; projectId?: string }>;
+  locations: Array<{ id: string; name: string; appearances: string[] }>;
+  plotThreads: Array<{ id: string; description: string; status: 'active' | 'resolved' | 'retconned'; appearances: string[] }>;
+  warnings?: string[];
+}
+
+export interface FranchiseBible {
+  worldbuilding: string[];
+  relationshipMap: Array<{ fromCharacterId: string; toCharacterId: string; relationship: string }>;
+  sequelHooks: string[];
+  plannedArc?: 'standalone' | 'trilogy' | 'saga' | 'tv-adaptation';
 }
 
 // Public Domain System Types

@@ -271,7 +271,24 @@ export const SequelManagement: React.FC<SequelManagementProps> = ({
           status: 'active',
           franchiseTags: ['sequel-ready', 'successful'],
           culturalWeight: Math.min(90, 50 + ((selectedProject.metrics?.criticsScore || 0) / 2)),
-          cost: 0
+          cost: 0,
+          characterLibrary: [],
+          talentLibrary: [],
+          continuity: {
+            timelineEvents: [],
+            characterAppearances: {},
+            deaths: {},
+            relationships: [],
+            locations: [],
+            plotThreads: [],
+            warnings: [],
+          },
+          franchiseBible: {
+            worldbuilding: [`Built from ${selectedProject.title}.`],
+            relationshipMap: [],
+            sequelHooks: ['Carry forward returning cast and unresolved story threads.'],
+            plannedArc: 'saga',
+          },
         };
         
         // Add franchise to game state and update original project if callback provided

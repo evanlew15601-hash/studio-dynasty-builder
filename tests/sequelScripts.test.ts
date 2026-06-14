@@ -73,4 +73,21 @@ describe('createSequelScript', () => {
     expect(script.estimatedRuntime).toBe(130);
     expect(script.characteristics.pacing).toBe('fast-paced');
   });
+
+  it('automatically carries forward established cast when no manual returning cast list is supplied', () => {
+    const script = createSequelScript({
+      id: 's-4',
+      title: 'Original III',
+      description: 'Continuation',
+      budget: 35_000_000,
+      franchiseId: 'f-1',
+      medium: 'film',
+      originalProject: baseProject,
+      returningCast: [],
+      getCharacterKey: (c) => c.id,
+    });
+
+    expect(script.characters?.find((c: any) => c.id === 'c-1')?.assignedTalentId).toBe('a-1');
+    expect(script.characters?.find((c: any) => c.id === 'c-2')?.assignedTalentId).toBe('a-2');
+  });
 });

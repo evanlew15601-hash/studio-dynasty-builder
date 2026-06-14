@@ -145,7 +145,24 @@ export const EnhancedFranchiseSystem: React.FC<EnhancedFranchiseSystemProps> = (
       status: 'active',
       franchiseTags: [`${project.script.genre}`, 'original'],
       culturalWeight: Math.min(90, 40 + (project.metrics?.criticsScore || 0) / 2),
-      cost: 0 // No ongoing costs for owned franchise
+      cost: 0, // No ongoing costs for owned franchise
+      characterLibrary: [],
+      talentLibrary: [],
+      continuity: {
+        timelineEvents: [],
+        characterAppearances: {},
+        deaths: {},
+        relationships: [],
+        locations: [],
+        plotThreads: [],
+        warnings: [],
+      },
+      franchiseBible: {
+        worldbuilding: [`Originated with ${project.title}.`],
+        relationshipMap: [],
+        sequelHooks: ['Protect original cast continuity before greenlighting a sequel.'],
+        plannedArc: 'saga',
+      },
     };
 
     // Update the original project to be part of the franchise
@@ -198,7 +215,24 @@ export const EnhancedFranchiseSystem: React.FC<EnhancedFranchiseSystemProps> = (
       status: 'active',
       franchiseTags: ['original', 'studio-created'],
       culturalWeight: newFranchise.culturalWeight,
-      cost: 0
+      cost: 0,
+      characterLibrary: [],
+      talentLibrary: [],
+      continuity: {
+        timelineEvents: [],
+        characterAppearances: {},
+        deaths: {},
+        relationships: [],
+        locations: [],
+        plotThreads: [],
+        warnings: [],
+      },
+      franchiseBible: {
+        worldbuilding: newFranchise.description ? [newFranchise.description] : [],
+        relationshipMap: [],
+        sequelHooks: ['Build the character library before launching the first sequel.'],
+        plannedArc: 'trilogy',
+      },
     };
 
     upsertFranchise(franchise);

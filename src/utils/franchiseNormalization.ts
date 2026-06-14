@@ -1,4 +1,5 @@
 import type { Franchise, GameState, Project, Script } from '@/types/game';
+import { buildCharacterLibrary, buildTalentLibrary, namedCharacterForRole } from '@/utils/franchiseContinuity';
 
 function uniqStrings(values: unknown): string[] {
   if (!Array.isArray(values)) return [];
@@ -220,6 +221,31 @@ export function normalizeFranchisesState(state: GameState): GameState {
 
   if (!projectsTouched) nextProjects = inputProjects;
 
+  let characterAuditTouched = false;
+  nextProjects = nextProjects.map((p) => {
+    const fid = (p as any)?.script?.franchiseId || (p as any)?.franchiseId;
+    const chars = (p as any)?.script?.characters;
+    if (!fid || !Array.isArray(chars) || chars.length === 0) return p;
+
+    let changed = false;
+    const auditedCharacters = chars.map((c) => {
+      const audited = namedCharacterForRole(c, `${fid}|${p.id}|normalize`);
+      if (audited !== c) changed = true;
+      return audited;
+    });
+
+    if (!changed) return p;
+    characterAuditTouched = true;
+    projectsTouched = true;
+    return {
+      ...(p as any),
+      script: {
+        ...(p as any).script,
+        characters: auditedCharacters,
+      },
+    } as Project;
+  });
+
   let scriptsTouched = false;
   const inputScripts = (state.scripts || []) as Script[];
   let nextScripts: Script[] = inputScripts.map((s) => {
@@ -242,14 +268,43 @@ export function normalizeFranchisesState(state: GameState): GameState {
   }
 
   let entriesTouched = false;
+  let libraryTouched = false;
   const nextFranchisesWithEntries = nextFranchises.map((f) => {
     const fromProjects = entriesFromProjects.get(f.id) || [];
     const merged = uniqStrings([...(f.entries || []), ...fromProjects]);
-    if (merged.length === (f.entries || []).length && merged.every((v, i) => v === (f.entries || [])[i])) {
-      return f;
-    }
-    entriesTouched = true;
-    return { ...f, entries: merged };
+    const projectsForFranchise = nextProjects.filter((p) => merged.includes(p.id));
+    const characterLibrary = buildCharacterLibrary(f, projectsForFranchise);
+    const talentLibrary = buildTalentLibrary(f, projectsForFranchise, state);
+    const continuity = {
+      ...(f.continuity || {}),
+      characterAppearances: Object.fromEntries(characterLibrary.map((c) => [c.characterId, c.appearances])),
+      timelineEvents: [
+        ...((f.continuity?.timelineEvents || []).filter((e) => e.type !== 'appearance')),
+        ...projectsForFranchise.map((p) => ({
+          id: `appearance-${p.id}`,
+          projectId: p.id,
+          description: `${p.title} entered the ${f.title} canon.`,
+          type: 'appearance' as const,
+        })),
+      ],
+      deaths: f.continuity?.deaths || {},
+      relationships: f.continuity?.relationships || [],
+      locations: f.continuity?.locations || [],
+      plotThreads: f.continuity?.plotThreads || [],
+      warnings: f.continuity?.warnings || [],
+    };
+    const bible = f.franchiseBible || {
+      worldbuilding: f.description ? [f.description] : [],
+      relationshipMap: characterLibrary.flatMap((c) => (c.relationships || []).map((r) => ({ fromCharacterId: c.characterId, toCharacterId: r.characterId, relationship: r.relationship }))),
+      sequelHooks: [`Track returning audience favorites from ${f.title}.`],
+      plannedArc: 'saga' as const,
+    };
+    const entriesChanged = merged.length !== (f.entries || []).length || !merged.every((v, i) => v === (f.entries || [])[i]);
+    const librariesChanged = characterLibrary.length !== (f.characterLibrary || []).length || talentLibrary.length !== (f.talentLibrary || []).length || !f.continuity || !f.franchiseBible;
+    if (entriesChanged) entriesTouched = true;
+    if (librariesChanged) libraryTouched = true;
+    if (!entriesChanged && !librariesChanged) return f;
+    return { ...f, entries: merged, characterLibrary, talentLibrary, continuity, franchiseBible: bible };
   });
 
   const inputFranchises = (state.franchises || []) as Franchise[];
@@ -258,7 +313,7 @@ export function normalizeFranchisesState(state: GameState): GameState {
     baseFranchises.length !== inputFranchises.length ||
     baseFranchises.some((f, i) => inputFranchises[i]?.id !== f.id);
 
-  const franchisesTouched = dedupeChanged || mergedByTitle || entriesTouched || canonicalizedParodySource;
+  const franchisesTouched = dedupeChanged || mergedByTitle || entriesTouched || libraryTouched || canonicalizedParodySource;
 
   if (!franchisesTouched && !projectsTouched && !scriptsTouched) return state;
 
