@@ -10,7 +10,7 @@ import { Label } from '@/components/ui/label';
 import { Textarea } from '@/components/ui/textarea';
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from '@/components/ui/dialog';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
-import { Crown, Edit3, TrendingUp, Users, DollarSign, Star, Calendar } from 'lucide-react';
+import { AlertTriangle, BookOpen, Calendar, Crown, Edit3, GitBranch, Skull, Star, TrendingUp, Users, UserX } from 'lucide-react';
 import { useToast } from '@/hooks/use-toast';
 import { FinancialEngine } from './FinancialEngine';
 
@@ -36,6 +36,7 @@ export const OwnedFranchiseManager: React.FC<OwnedFranchiseManagerProps> = ({
     description: '',
     status: 'active' as 'active' | 'dormant' | 'rebooted' | 'retired'
   });
+  const [selectedDashboardId, setSelectedDashboardId] = useState<string | null>(null);
 
   if (!gameState) {
     return <div className="p-6 text-sm text-muted-foreground">Loading franchises...</div>;
@@ -116,6 +117,65 @@ export const OwnedFranchiseManager: React.FC<OwnedFranchiseManagerProps> = ({
     });
 
     setEditingFranchise(null);
+  };
+
+  const updateCharacterStatus = (franchise: Franchise, characterId: string, status: 'active' | 'retired' | 'deceased' | 'unavailable') => {
+    const currentContinuity = franchise.continuity || {
+      timelineEvents: [],
+      characterAppearances: {},
+      deaths: {},
+      relationships: [],
+      locations: [],
+      plotThreads: [],
+      warnings: [],
+    };
+
+    updateFranchise(franchise.id, {
+      characterLibrary: (franchise.characterLibrary || []).map((character) =>
+        character.characterId === characterId ? { ...character, status } : character
+      ),
+      continuity: {
+        ...currentContinuity,
+        deaths: status === 'deceased'
+          ? {
+              ...currentContinuity.deaths,
+              [characterId]: { description: 'Marked deceased in franchise canon.' },
+            }
+          : currentContinuity.deaths,
+        warnings: Array.from(new Set([
+          ...(currentContinuity.warnings || []),
+          status === 'deceased' ? `${franchise.characterLibrary?.find((c) => c.characterId === characterId)?.name || characterId} is deceased in canon.` : '',
+          status === 'unavailable' ? `${franchise.characterLibrary?.find((c) => c.characterId === characterId)?.name || characterId} is unavailable for new entries.` : '',
+        ].filter(Boolean))),
+      },
+    });
+  };
+
+  const promoteCharacter = (franchise: Franchise, characterId: string) => {
+    updateFranchise(franchise.id, {
+      characterLibrary: (franchise.characterLibrary || []).map((character) =>
+        character.characterId === characterId
+          ? { ...character, narrativeImportance: 'lead', recurrencePotential: Math.max(character.recurrencePotential, 90) }
+          : character
+      ),
+    });
+  };
+
+  const getFranchiseIntelligence = (franchise: Franchise, metrics: ReturnType<typeof getFranchiseMetrics>): string[] => {
+    const recommendations: string[] = [];
+    const topCharacter = [...(franchise.characterLibrary || [])].sort((a, b) => (b.popularity || b.recurrencePotential) - (a.popularity || a.recurrencePotential))[0];
+    const returningDirector = franchise.talentLibrary?.find((t) => t.role === 'director' && t.continuityPreference === 'return');
+    const unavailableTalent = franchise.talentLibrary?.find((t) => t.status === 'busy' || t.status === 'contract-conflict');
+    const activeThreads = franchise.continuity?.plotThreads?.filter((thread) => thread.status === 'active') || [];
+
+    if (topCharacter) recommendations.push(`Audience interest strongly favors ${topCharacter.name} returning.`);
+    if (returningDirector) recommendations.push('Previous director continuity is available and should be considered before replacement.');
+    if (unavailableTalent) recommendations.push(`${unavailableTalent.name || unavailableTalent.talentId} has a ${unavailableTalent.status === 'busy' ? 'scheduling' : 'contract'} conflict; plan buyout, recasting, or replacement explicitly.`);
+    if (metrics.projectCount >= 2 && metrics.avgCriticsScore >= 80) recommendations.push('Recent entries are critically strong; preserve the core creative team.');
+    if (activeThreads.length > 0) recommendations.push(`${activeThreads.length} active story arc${activeThreads.length === 1 ? '' : 's'} can anchor the next installment.`);
+    if (metrics.projectCount > 0 && metrics.profitability < 0) recommendations.push('Box office trend is weak; consider a lower-budget spin-off or TV adaptation.');
+
+    return recommendations.length > 0 ? recommendations : ['No major continuity risks detected; the franchise is ready for a new entry.'];
   };
 
   if (ownedFranchises.length === 0) {
@@ -232,6 +292,134 @@ export const OwnedFranchiseManager: React.FC<OwnedFranchiseManagerProps> = ({
                     <span>Avg Critics: {metrics.avgCriticsScore.toFixed(0)}/100</span>
                   </div>
                 </div>
+
+                <Button
+                  variant="secondary"
+                  size="sm"
+                  onClick={() => setSelectedDashboardId(selectedDashboardId === franchise.id ? null : franchise.id)}
+                >
+                  <BookOpen className="h-4 w-4 mr-2" />
+                  {selectedDashboardId === franchise.id ? 'Hide' : 'Open'} Franchise Dashboard
+                </Button>
+
+                {selectedDashboardId === franchise.id && (
+                  <div className="space-y-4 rounded-lg border bg-muted/20 p-4">
+                    <div>
+                      <h4 className="font-medium mb-2 flex items-center gap-2">
+                        <AlertTriangle className="h-4 w-4" />
+                        Franchise Intelligence
+                      </h4>
+                      <div className="grid gap-2">
+                        {getFranchiseIntelligence(franchise, metrics).map((recommendation) => (
+                          <div key={recommendation} className="rounded border bg-background p-2 text-sm">
+                            {recommendation}
+                          </div>
+                        ))}
+                      </div>
+                    </div>
+
+                    <div className="grid gap-4 lg:grid-cols-2">
+                      <div>
+                        <h4 className="font-medium mb-2 flex items-center gap-2">
+                          <Users className="h-4 w-4" />
+                          Character Library ({franchise.characterLibrary?.length || 0})
+                        </h4>
+                        <div className="grid gap-2">
+                          {(franchise.characterLibrary || []).map((character) => (
+                            <div key={character.characterId} className="rounded border bg-background p-3">
+                              <div className="flex items-start justify-between gap-2">
+                                <div>
+                                  <div className="font-medium">{character.name}</div>
+                                  <div className="text-xs text-muted-foreground">
+                                    {character.gender}, {character.ageRange[0]}-{character.ageRange[1]} • {character.narrativeImportance} • recurrence {character.recurrencePotential}/100
+                                  </div>
+                                  <p className="text-sm text-muted-foreground mt-1">{character.description}</p>
+                                  <div className="text-xs text-muted-foreground mt-1">
+                                    Appearances: {character.appearances.length || 0} • Popularity: {character.popularity || 0}/100
+                                  </div>
+                                </div>
+                                <Badge variant={character.status === 'active' ? 'default' : 'secondary'}>{character.status}</Badge>
+                              </div>
+                              <div className="mt-2 flex flex-wrap gap-2">
+                                <Button size="sm" variant="outline" onClick={() => promoteCharacter(franchise, character.characterId)}>
+                                  Promote
+                                </Button>
+                                <Button size="sm" variant="outline" onClick={() => updateCharacterStatus(franchise, character.characterId, 'retired')}>
+                                  <UserX className="h-3 w-3 mr-1" />
+                                  Retire
+                                </Button>
+                                <Button size="sm" variant="outline" onClick={() => updateCharacterStatus(franchise, character.characterId, 'deceased')}>
+                                  <Skull className="h-3 w-3 mr-1" />
+                                  Deceased
+                                </Button>
+                                <Button size="sm" variant="outline" onClick={() => updateCharacterStatus(franchise, character.characterId, 'unavailable')}>
+                                  Unavailable
+                                </Button>
+                                {character.status !== 'active' && (
+                                  <Button size="sm" variant="outline" onClick={() => updateCharacterStatus(franchise, character.characterId, 'active')}>
+                                    Restore
+                                  </Button>
+                                )}
+                              </div>
+                            </div>
+                          ))}
+                          {(franchise.characterLibrary || []).length === 0 && (
+                            <div className="rounded border bg-background p-3 text-sm text-muted-foreground">
+                              No library entries yet. Release or attach a franchise project to audit characters automatically.
+                            </div>
+                          )}
+                        </div>
+                      </div>
+
+                      <div className="space-y-4">
+                        <div>
+                          <h4 className="font-medium mb-2 flex items-center gap-2">
+                            <Star className="h-4 w-4" />
+                            Talent Library ({franchise.talentLibrary?.length || 0})
+                          </h4>
+                          <div className="grid gap-2">
+                            {(franchise.talentLibrary || []).map((talent) => (
+                              <div key={`${talent.talentId}-${talent.characterId || talent.role}`} className="rounded border bg-background p-2 text-sm">
+                                <div className="flex items-center justify-between">
+                                  <span>{talent.name || talent.talentId} • {talent.role}</span>
+                                  <Badge variant={talent.status === 'available' ? 'default' : 'secondary'}>{talent.status}</Badge>
+                                </div>
+                                {talent.warning && <div className="mt-1 text-xs text-amber-600">{talent.warning}</div>}
+                              </div>
+                            ))}
+                          </div>
+                        </div>
+
+                        <div>
+                          <h4 className="font-medium mb-2 flex items-center gap-2">
+                            <GitBranch className="h-4 w-4" />
+                            Canon & Continuity
+                          </h4>
+                          <div className="rounded border bg-background p-3 text-sm space-y-2">
+                            <div>Timeline events: {franchise.continuity?.timelineEvents?.length || 0}</div>
+                            <div>Active story arcs: {franchise.continuity?.plotThreads?.filter((thread) => thread.status === 'active').length || 0}</div>
+                            <div>Returning locations: {franchise.continuity?.locations?.length || 0}</div>
+                            {(franchise.continuity?.warnings || []).map((warning) => (
+                              <div key={warning} className="text-amber-600">{warning}</div>
+                            ))}
+                          </div>
+                        </div>
+
+                        <div>
+                          <h4 className="font-medium mb-2 flex items-center gap-2">
+                            <BookOpen className="h-4 w-4" />
+                            Franchise Bible
+                          </h4>
+                          <div className="rounded border bg-background p-3 text-sm space-y-2">
+                            <div>Planned arc: {franchise.franchiseBible?.plannedArc || 'standalone'}</div>
+                            <div>Worldbuilding notes: {franchise.franchiseBible?.worldbuilding?.length || 0}</div>
+                            <div>Future hooks: {(franchise.franchiseBible?.sequelHooks || []).join(' • ') || 'None yet'}</div>
+                          </div>
+                        </div>
+                      </div>
+                    </div>
+                  </div>
+                )}
 
                 {/* Franchise Projects */}
                 {metrics.projects.length > 0 && (

@@ -134,4 +134,45 @@ describe('normalizeFranchisesState', () => {
     expect(normalized.franchises).toHaveLength(1);
     expect(normalized.franchises[0].parodySource).toBe('Voidborne');
   });
+
+  it('audits franchise entries into persistent character, talent, bible, and continuity libraries', () => {
+    const base = {
+      universeSeed: 1,
+      rngState: 1,
+      studio: { id: 'studio-1', name: 'You' },
+      currentYear: 2000,
+      currentWeek: 1,
+      currentQuarter: 1,
+      talent: [{ id: 'talent-1', name: 'Star Performer', contractStatus: 'available' }],
+      projects: [{
+        id: 'p1',
+        title: 'Origin',
+        franchiseId: 'f-a',
+        contractedTalent: [],
+        script: {
+          id: 's1',
+          title: 'Origin',
+          franchiseId: 'f-a',
+          characters: [
+            { id: 'hero', name: 'Hero', importance: 'lead', requiredType: 'actor', requiredGender: 'Male', assignedTalentId: 'talent-1' },
+            { id: 'cameo', name: 'Background Extra', importance: 'minor', requiredType: 'actor', requiredGender: 'Female' },
+          ],
+        },
+      }],
+      scripts: [],
+      franchises: [{ id: 'f-a', title: 'My Universe', creatorStudioId: 'studio-1', entries: ['p1'] }],
+    } as any;
+
+    const normalized = normalizeFranchisesState(base);
+    const franchise = normalized.franchises[0] as any;
+
+    expect(franchise.characterLibrary).toHaveLength(1);
+    expect(franchise.characterLibrary[0].name).not.toBe('Hero');
+    expect((normalized.projects[0] as any).script.characters[0].name).not.toBe('Hero');
+    expect(franchise.characterLibrary[0].ageRange).toEqual([25, 45]);
+    expect(franchise.characterLibrary[0].recurrencePotential).toBeGreaterThan(90);
+    expect(franchise.talentLibrary[0].talentId).toBe('talent-1');
+    expect(franchise.continuity.characterAppearances[franchise.characterLibrary[0].characterId]).toEqual(['p1']);
+    expect(franchise.franchiseBible.sequelHooks.length).toBeGreaterThan(0);
+  });
 });

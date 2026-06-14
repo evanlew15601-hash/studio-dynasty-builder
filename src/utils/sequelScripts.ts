@@ -34,6 +34,16 @@ export function createSequelScript(params: {
 
   const pacing = isTv ? 'episodic' : 'fast-paced';
 
+  const confirmedReturning = returningCast.length > 0
+    ? returningCast
+    : (base?.characters || [])
+        .filter((char) => char.assignedTalentId && (char.importance === 'lead' || char.importance === 'supporting' || char.importance === 'crew'))
+        .map((char) => ({ characterId: getCharacterKey(char), talentId: char.assignedTalentId!, confirmed: true }));
+
+  const continuityNotes = (originalProject.contractedTalent || [])
+    .filter((t) => ['Director', 'Writer', 'Producer'].includes(t.role))
+    .map((t) => `Returning ${t.role} hold: ${t.talentId}`);
+
   return {
     id,
     title,
@@ -44,7 +54,6 @@ export function createSequelScript(params: {
     quality: Math.max(60, (base?.quality || 70) - 5),
     budget,
     developmentStage: 'concept',
-    themes: base?.themes || ['adventure', 'friendship'],
     targetAudience: base?.targetAudience || 'general',
     estimatedRuntime,
     characteristics: {
@@ -60,9 +69,10 @@ export function createSequelScript(params: {
     characters: (base?.characters || []).map((char) => ({
       ...char,
       assignedTalentId:
-        returningCast.find((cast) => cast.characterId === getCharacterKey(char) && cast.confirmed)?.talentId ||
+        confirmedReturning.find((cast) => cast.characterId === getCharacterKey(char) && cast.confirmed)?.talentId ||
         undefined,
     })),
+    themes: Array.from(new Set([...(base?.themes || ['adventure', 'friendship']), ...continuityNotes])),
     franchiseId,
     sourceType: 'franchise',
   };

@@ -4,6 +4,7 @@ import { RoleDatabase } from '@/data/RoleDatabase';
 import { getEffectiveParodyCharacterNameMap } from '@/data/ParodyCharacterNames';
 import { stablePick } from '@/utils/stablePick';
 import { getRoleRequiredType } from '@/utils/scriptRoles';
+import { namedCharacterForRole } from '@/utils/franchiseContinuity';
 
 function toScriptCharacter(def: FranchiseCharacterDef, franchiseId?: string, parodySource?: string): ScriptCharacter {
   // Prefer recognizable names from parody source mapping when available
@@ -92,15 +93,36 @@ export function importRolesForScript(script: Script, gameState: GameState): Scri
         }
       }
     } else {
+      const library = franchise?.characterLibrary?.filter((c) => c.status === 'active') || [];
+      if (library.length > 0) {
+        library.forEach((entry) => {
+          const incoming: ScriptCharacter = {
+            id: entry.characterId,
+            name: entry.name,
+            description: entry.description,
+            importance: entry.narrativeImportance === 'lead' ? 'lead' : entry.narrativeImportance === 'supporting' || entry.narrativeImportance === 'recurring' ? 'supporting' : 'minor',
+            traits: entry.traits,
+            relationships: entry.relationships,
+            requiredType: 'actor',
+            ageRange: entry.ageRange,
+            requiredGender: entry.gender,
+            franchiseId: script.franchiseId,
+            franchiseCharacterId: entry.characterId,
+            locked: entry.narrativeImportance !== 'minor' && entry.narrativeImportance !== 'cameo',
+          };
+          const match = existing.find(c => c.franchiseCharacterId === incoming.franchiseCharacterId || (c.name === incoming.name && c.requiredType === incoming.requiredType));
+          if (!match) characters.push(incoming); else characters.push(mergeWithOverrides(match, incoming));
+        });
+      }
       // Fallback to curated role database
-      const fallback = RoleDatabase.getRolesForSource('franchise', script.franchiseId, gameState);
+      const fallback = library.length > 0 ? [] : RoleDatabase.getRolesForSource('franchise', script.franchiseId, gameState);
       fallback.forEach(role => {
-        const incoming: ScriptCharacter = {
+        const incoming: ScriptCharacter = namedCharacterForRole({
           ...role,
           franchiseId: script.franchiseId,
           franchiseCharacterId: role.id,
           locked: role.requiredType === 'director' ? true : (role.importance !== 'minor'),
-        };
+        }, `${script.franchiseId}|${script.id}`);
         const match = existing.find(c => c.franchiseCharacterId === incoming.franchiseCharacterId || (c.name === incoming.name && c.requiredType === incoming.requiredType));
         if (!match) characters.push(incoming); else characters.push(mergeWithOverrides(match, incoming));
       });
@@ -152,6 +174,7 @@ export function importRolesForScript(script: Script, gameState: GameState): Scri
   // Actor roles must always have a gender requirement.
   // (Imported roles often lack it, and casting filters now require it.)
   return finalList.map((role) => {
+    role = namedCharacterForRole(role, `${script.franchiseId || script.publicDomainId || script.id}|import`);
     const requiredType = getRoleRequiredType(role);
 
     if (requiredType === 'director') {
