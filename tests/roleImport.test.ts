@@ -318,4 +318,73 @@ describe('importRolesForScript', () => {
     expect(imported.some((c) => c.franchiseCharacterId === 'active-hero' && c.name === 'Mara Vale')).toBe(true);
     expect(imported.some((c) => c.franchiseCharacterId === 'dead-mentor')).toBe(false);
   });
+
+  it('keeps curated franchise roles in sync with the character library and imports added canon characters', () => {
+    const franchise: Franchise = {
+      id: 'f-library-db',
+      title: 'Space Saga',
+      originDate: '2024-01-01',
+      creatorStudioId: 'studio-1',
+      genre: ['sci-fi'],
+      tone: 'epic',
+      parodySource: 'Star Saga',
+      entries: [],
+      status: 'active',
+      franchiseTags: [],
+      culturalWeight: 50,
+      cost: 0,
+      characterLibrary: [
+        {
+          characterId: 'char_hero_pilot',
+          name: 'Captain Mara Vale',
+          ageRange: [35, 45],
+          gender: 'Female',
+          description: 'Library-updated franchise lead.',
+          narrativeImportance: 'lead',
+          recurrencePotential: 99,
+          status: 'active',
+          appearances: ['p-1'],
+        },
+        {
+          characterId: 'char_wise_mentor',
+          name: 'Retired Mentor',
+          ageRange: [65, 80],
+          gender: 'Male',
+          description: 'Retired from the franchise.',
+          narrativeImportance: 'supporting',
+          recurrencePotential: 30,
+          status: 'retired',
+          appearances: ['p-1'],
+        },
+        {
+          characterId: 'char_new_ally',
+          name: 'Nora Cross',
+          ageRange: [28, 38],
+          gender: 'Female',
+          description: 'Original ally introduced in the previous installment.',
+          narrativeImportance: 'supporting',
+          recurrencePotential: 85,
+          status: 'active',
+          appearances: ['p-1'],
+        },
+      ],
+    };
+
+    const gameState = makeBaseGameState({ franchises: [franchise] });
+    const script = makeBaseScript({
+      sourceType: 'franchise',
+      franchiseId: franchise.id,
+      characters: [],
+    });
+
+    const imported = importRolesForScript(script, gameState);
+
+    const hero = imported.find((c) => c.franchiseCharacterId === 'char_hero_pilot');
+    expect(hero?.name).toBe('Captain Mara Vale');
+    expect(hero?.description).toBe('Library-updated franchise lead.');
+    expect(hero?.requiredGender).toBe('Female');
+    expect(imported.some((c) => c.franchiseCharacterId === 'char_wise_mentor')).toBe(false);
+    expect(imported.some((c) => c.franchiseCharacterId === 'char_new_ally' && c.name === 'Nora Cross')).toBe(true);
+    expect(imported.some((c) => c.requiredType === 'director')).toBe(true);
+  });
 });

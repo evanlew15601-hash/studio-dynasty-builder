@@ -149,6 +149,7 @@ describe('normalizeFranchisesState', () => {
         title: 'Origin',
         franchiseId: 'f-a',
         contractedTalent: [],
+        metrics: { audienceScore: 92, criticsScore: 88, boxOfficeTotal: 300_000_000 },
         script: {
           id: 's1',
           title: 'Origin',
@@ -171,6 +172,7 @@ describe('normalizeFranchisesState', () => {
     expect((normalized.projects[0] as any).script.characters[0].name).not.toBe('Hero');
     expect(franchise.characterLibrary[0].ageRange).toEqual([25, 45]);
     expect(franchise.characterLibrary[0].recurrencePotential).toBeGreaterThan(90);
+    expect(franchise.characterLibrary[0].popularity).toBeGreaterThan(60);
     expect(franchise.talentLibrary[0].talentId).toBe('talent-1');
     expect(franchise.continuity.characterAppearances[franchise.characterLibrary[0].characterId]).toEqual(['p1']);
     expect(franchise.franchiseBible.sequelHooks.length).toBeGreaterThan(0);

@@ -1,4 +1,4 @@
-import { GameState, Script, ScriptCharacter, Gender } from '@/types/game';
+import type { GameState, Script, ScriptCharacter, Gender, FranchiseCharacterLibraryEntry } from '@/types/game';
 import { FranchiseCharacterDef, getEffectiveFranchiseCharacterDB } from '@/data/FranchiseCharacterDB';
 import { RoleDatabase } from '@/data/RoleDatabase';
 import { getEffectiveParodyCharacterNameMap } from '@/data/ParodyCharacterNames';
@@ -27,6 +27,38 @@ function toScriptCharacter(def: FranchiseCharacterDef, franchiseId?: string, par
     franchiseCharacterId: def.character_id,
     roleTemplateId: def.role_template_id,
     locked: true,
+  };
+}
+
+function toScriptCharacterFromLibrary(entry: FranchiseCharacterLibraryEntry, franchiseId: string): ScriptCharacter {
+  return {
+    id: entry.characterId,
+    name: entry.name,
+    description: entry.description,
+    importance: entry.narrativeImportance === 'lead' ? 'lead' : entry.narrativeImportance === 'supporting' || entry.narrativeImportance === 'recurring' ? 'supporting' : 'minor',
+    traits: entry.traits,
+    relationships: entry.relationships,
+    requiredType: 'actor',
+    ageRange: entry.ageRange,
+    requiredGender: entry.gender,
+    franchiseId,
+    franchiseCharacterId: entry.characterId,
+    locked: entry.narrativeImportance !== 'minor' && entry.narrativeImportance !== 'cameo',
+  };
+}
+
+function applyLibraryContinuity(incoming: ScriptCharacter, entry?: FranchiseCharacterLibraryEntry): ScriptCharacter {
+  if (!entry) return incoming;
+
+  return {
+    ...incoming,
+    name: entry.name || incoming.name,
+    description: entry.description || incoming.description,
+    traits: entry.traits || incoming.traits,
+    relationships: entry.relationships || incoming.relationships,
+    ageRange: entry.ageRange || incoming.ageRange,
+    requiredGender: entry.gender || incoming.requiredGender,
+    locked: entry.narrativeImportance !== 'minor' && entry.narrativeImportance !== 'cameo',
   };
 }
 
@@ -82,9 +114,17 @@ export function importRolesForScript(script: Script, gameState: GameState): Scri
       defs = characterDb[franchise.parodySource];
     }
 
+    const activeLibrary = franchise?.characterLibrary?.filter((c) => c.status === 'active') || [];
+    const libraryById = new Map(activeLibrary.map((entry) => [entry.characterId, entry]));
+    const importedCharacterIds = new Set<string>();
+
     if (defs && defs.length > 0) {
       for (const def of defs) {
-        const incoming = toScriptCharacter(def, script.franchiseId, franchise?.parodySource);
+        const libraryEntry = libraryById.get(def.character_id);
+        if (franchise?.characterLibrary?.some((entry) => entry.characterId === def.character_id && entry.status !== 'active')) continue;
+
+        const incoming = applyLibraryContinuity(toScriptCharacter(def, script.franchiseId, franchise?.parodySource), libraryEntry);
+        importedCharacterIds.add(def.character_id);
         const match = existing.find(c => c.franchiseCharacterId === def.character_id || (c.name === incoming.name && c.requiredType === def.requiredType));
         if (!match) {
           characters.push(incoming);
@@ -92,24 +132,18 @@ export function importRolesForScript(script: Script, gameState: GameState): Scri
           characters.push(mergeWithOverrides(match, incoming));
         }
       }
+
+      for (const entry of activeLibrary) {
+        if (importedCharacterIds.has(entry.characterId)) continue;
+        const incoming = toScriptCharacterFromLibrary(entry, script.franchiseId);
+        const match = existing.find(c => c.franchiseCharacterId === incoming.franchiseCharacterId || (c.name === incoming.name && c.requiredType === incoming.requiredType));
+        if (!match) characters.push(incoming); else characters.push(mergeWithOverrides(match, incoming));
+      }
     } else {
-      const library = franchise?.characterLibrary?.filter((c) => c.status === 'active') || [];
+      const library = activeLibrary;
       if (library.length > 0) {
         library.forEach((entry) => {
-          const incoming: ScriptCharacter = {
-            id: entry.characterId,
-            name: entry.name,
-            description: entry.description,
-            importance: entry.narrativeImportance === 'lead' ? 'lead' : entry.narrativeImportance === 'supporting' || entry.narrativeImportance === 'recurring' ? 'supporting' : 'minor',
-            traits: entry.traits,
-            relationships: entry.relationships,
-            requiredType: 'actor',
-            ageRange: entry.ageRange,
-            requiredGender: entry.gender,
-            franchiseId: script.franchiseId,
-            franchiseCharacterId: entry.characterId,
-            locked: entry.narrativeImportance !== 'minor' && entry.narrativeImportance !== 'cameo',
-          };
+          const incoming = toScriptCharacterFromLibrary(entry, script.franchiseId);
           const match = existing.find(c => c.franchiseCharacterId === incoming.franchiseCharacterId || (c.name === incoming.name && c.requiredType === incoming.requiredType));
           if (!match) characters.push(incoming); else characters.push(mergeWithOverrides(match, incoming));
         });
