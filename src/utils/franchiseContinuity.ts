@@ -27,6 +27,34 @@ export function namedCharacterForRole(role: ScriptCharacter, seed: string): Scri
   };
 }
 
+function clampScore(value: number): number {
+  return Math.max(0, Math.min(100, Math.round(value)));
+}
+
+function projectAudienceSignal(project: Project): number {
+  const metrics = project.metrics;
+  const audienceScore = typeof metrics?.audienceScore === 'number' ? metrics.audienceScore : 50;
+  const criticsScore = typeof metrics?.criticsScore === 'number' ? metrics.criticsScore : 50;
+  const boxOfficeTotal = typeof metrics?.boxOfficeTotal === 'number' ? metrics.boxOfficeTotal : 0;
+  const boxOfficeBonus = Math.min(12, boxOfficeTotal / 50_000_000);
+
+  return ((audienceScore * 0.65) + (criticsScore * 0.35) + boxOfficeBonus) - 50;
+}
+
+function nextPopularity(
+  prev: FranchiseCharacterLibraryEntry | undefined,
+  character: ScriptCharacter,
+  project: Project,
+  appearances: string[],
+): number {
+  const baseline = prev?.popularity ?? (character.importance === 'lead' ? 62 : character.importance === 'supporting' ? 50 : 42);
+  const importanceBonus = character.importance === 'lead' ? 8 : character.importance === 'supporting' ? 4 : 1;
+  const recurrenceBonus = Math.min(10, appearances.length * 2);
+  const audienceSignal = projectAudienceSignal(project) * (character.importance === 'lead' ? 0.35 : 0.2);
+
+  return clampScore((baseline * 0.72) + importanceBonus + recurrenceBonus + audienceSignal);
+}
+
 function characterIdFor(c: ScriptCharacter): string {
   return c.franchiseCharacterId || c.roleTemplateId || c.id || c.name.toLowerCase().replace(/[^a-z0-9]+/g, '-');
 }
@@ -54,7 +82,7 @@ export function buildCharacterLibrary(franchise: Franchise, projects: Project[] 
         relationships: c.relationships || prev?.relationships,
         firstAppearanceProjectId: prev?.firstAppearanceProjectId || project.id,
         appearances,
-        popularity: prev?.popularity,
+        popularity: nextPopularity(prev, c, project, appearances),
       });
     }
   }
