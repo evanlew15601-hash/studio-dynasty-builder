@@ -8,15 +8,15 @@ import { determineCareerStage } from '@/utils/careerStage';
 const idForSlug = (slug: string) => `core:${slug}`;
 
 function generateMarketValue(age: number, experience: number, reputation: number, type: 'actor' | 'director'): number {
-  let baseValue = type === 'director' ? 2_000_000 : 1_000_000;
-  baseValue *= Math.pow(1.15, Math.max(0, experience));
-  baseValue *= (Math.max(10, reputation) / 50);
+  let baseValue = type === 'director' ? 600_000 : 300_000;
+  baseValue += Math.max(0, experience) * 140_000;
+  baseValue += Math.max(0, reputation - 20) * 9_000;
 
   const optimalAge = type === 'director' ? 45 : 35;
-  const ageFactor = 1 - Math.abs(age - optimalAge) * 0.01;
-  baseValue *= Math.max(0.3, ageFactor);
+  const ageFactor = 1 - Math.abs(age - optimalAge) * 0.008;
+  baseValue *= Math.max(0.6, ageFactor);
 
-  return Math.min(baseValue, type === 'director' ? 15_000_000 : 20_000_000);
+  return Math.min(baseValue, type === 'director' ? 10_000_000 : 6_000_000);
 }
 
 function awardToTalentAward(talentId: string, a: NonNullable<WorldTalentBlueprint['awards']>[number]): TalentAward {

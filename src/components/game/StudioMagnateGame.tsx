@@ -110,10 +110,8 @@ import { GameEventModal } from './GameEventModal';
 import { InboxDialog } from './InboxDialog';
 import { NextActionsBar } from './NextActionsBar';
 import { EnhancedFinancialAccuracy, applyEnhancedFinancialAccuracy } from './EnhancedFinancialAccuracy';
-import { EnhancedFranchiseSystem } from './EnhancedFranchiseSystem';
 import { FranchiseManager } from './FranchiseManager';
 import { OwnedFranchiseManager } from './OwnedFranchiseManager';
-import { FranchiseProjectCreator } from './FranchiseProjectCreator';
 
 import { EnhancedMarketingSystem } from './EnhancedMarketingSystem';
 import { PlayerCirclePanel } from './PlayerCirclePanel';
@@ -3290,30 +3288,6 @@ export const StudioMagnateGame: React.FC<StudioMagnateGameProps> = ({
                 setSelectedFranchise(franchiseId);
                 setSelectedPublicDomain(null);
                 handlePhaseChange('television');
-              }}
-            />
-            <EnhancedFranchiseSystem />
-            <FranchiseProjectCreator
-              onProjectCreate={(script) => {
-                const finalized = finalizeScriptForSave(script, gameState);
-
-                setSelectedFranchise(finalized.franchiseId || null);
-                setSelectedPublicDomain(finalized.publicDomainId || null);
-
-                const isTVScript =
-                  finalized.characteristics?.pacing === 'episodic' ||
-                  (finalized.estimatedRuntime && finalized.estimatedRuntime <= 60);
-
-                // Route to the appropriate development workspace
-                handlePhaseChange(isTVScript ? 'television' : 'scripts');
-
-                upsertScript(finalized);
-                toast({
-                  title: 'Script Draft Created',
-                  description: isTVScript
-                    ? `"${finalized.title}" is ready in TV Show Development to customize roles before greenlighting.`
-                    : `"${finalized.title}" is ready in Script Development to customize roles before greenlighting.`,
-                });
               }}
             />
             <FranchiseManager

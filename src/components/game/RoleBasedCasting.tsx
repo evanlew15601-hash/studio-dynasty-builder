@@ -3,12 +3,13 @@ import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
 import { useToast } from '@/hooks/use-toast';
-import { Project, TalentPerson, ScriptCharacter } from '@/types/game';
+import { Project, TalentPerson, ScriptCharacter, type Gender, type Race } from '@/types/game';
 import { getTalentRoleFitScore, talentMatchesRole, talentMatchesRoleExceptAge } from '@/utils/castingEligibility';
 import { Users, User, Crown, Star, CheckCircle } from 'lucide-react';
 import { importRolesForScript } from '@/utils/roleImport';
 import { useGameStore } from '@/game/store';
 import { describeTalentInterest, recordStudioNegotiationOutcome } from '@/utils/talentNegotiation';
+import { filterTalentByPrice } from '@/utils/castingFilters';
 import { TalentNegotiationDialog } from './TalentNegotiationDialog';
 
 interface RoleBasedCastingProps {
@@ -25,8 +26,9 @@ export const RoleBasedCasting: React.FC<RoleBasedCastingProps> = ({
   const { toast } = useToast();
   const [negotiationTarget, setNegotiationTarget] = React.useState<{ role: ScriptCharacter; talent: TalentPerson } | null>(null);
   const [editingRoleId, setEditingRoleId] = React.useState<string | null>(null);
-  const [requirementDraft, setRequirementDraft] = React.useState({ minAge: '', maxAge: '', gender: '', race: '', nationality: '' });
+  const [requirementDraft, setRequirementDraft] = React.useState<{ minAge: string; maxAge: string; gender: Gender | ''; race: Race | ''; nationality: string }>({ minAge: '', maxAge: '', gender: '', race: '', nationality: '' });
   const [overrideRoleIds, setOverrideRoleIds] = React.useState<Set<string>>(() => new Set());
+  const [maxTalentPrice, setMaxTalentPrice] = React.useState<number | null>(null);
 
   // Import roles when project changes or script updates (auto-add mandatory TV roles)
   React.useEffect(() => {
@@ -106,20 +108,22 @@ export const RoleBasedCasting: React.FC<RoleBasedCastingProps> = ({
       return talent.type === resolveRequiredType(role);
     });
 
+    const withinBudget = filterTalentByPrice(availableOfType, maxTalentPrice);
+
     if (overrideRoleIds.has(role.id)) {
       return {
-        candidates: [...availableOfType].sort((a, b) => getTalentRoleFitScore(b, role) - getTalentRoleFitScore(a, role)),
+        candidates: [...withinBudget].sort((a, b) => getTalentRoleFitScore(b, role) - getTalentRoleFitScore(a, role)),
         mode: 'override' as const,
-        strictCount: availableOfType.filter(talent => talentMatchesRole(talent, role)).length,
+        strictCount: withinBudget.filter(talent => talentMatchesRole(talent, role)).length,
       };
     }
 
-    const strict = availableOfType.filter(talent => talentMatchesRole(talent, role));
+    const strict = withinBudget.filter(talent => talentMatchesRole(talent, role));
     if (strict.length > 0) return { candidates: strict, mode: 'strict' as const, strictCount: strict.length };
 
-    const ageOnlyIssue = !!role.ageRange && availableOfType.some(talent => talentMatchesRoleExceptAge(talent, role));
+    const ageOnlyIssue = !!role.ageRange && withinBudget.some(talent => talentMatchesRoleExceptAge(talent, role));
     if (ageOnlyIssue) {
-      const flexibleAge = availableOfType.filter(talent => talentMatchesRole(talent, role, { ageFlexYears: 5 }));
+      const flexibleAge = withinBudget.filter(talent => talentMatchesRole(talent, role, { ageFlexYears: 5 }));
       if (flexibleAge.length > 0) return { candidates: flexibleAge, mode: 'age-flex' as const, strictCount: 0 };
     }
 
@@ -158,10 +162,13 @@ export const RoleBasedCasting: React.FC<RoleBasedCastingProps> = ({
     const updatedCharacters = (project.script?.characters || []).map(c => {
       if (c.id !== role.id) return c;
 
+      const nextGender: Gender | undefined = requirementDraft.gender === '' ? undefined : requirementDraft.gender;
+      const nextRace: Race | undefined = requirementDraft.race === '' ? undefined : requirementDraft.race;
+
       const updates: Partial<typeof c> = {
         ageRange: nextAgeRange,
-        requiredGender: requirementDraft.gender || undefined,
-        requiredRace: requirementDraft.race || undefined,
+        requiredGender: nextGender,
+        requiredRace: nextRace,
         requiredNationality: requirementDraft.nationality || undefined,
       };
 
@@ -450,10 +457,24 @@ export const RoleBasedCasting: React.FC<RoleBasedCastingProps> = ({
           </CardTitle>
         </CardHeader>
         <CardContent>
-          <div className="flex gap-2">
+          <div className="flex flex-wrap gap-2">
             <Button onClick={importRolesFromSource} variant="outline">
               Import Predefined Roles
             </Button>
+            <div className="flex items-center gap-2 rounded-md border bg-background px-3 py-2">
+              <label className="text-sm font-medium" htmlFor="max-talent-price">Max Price</label>
+              <input
+                id="max-talent-price"
+                type="number"
+                min="0"
+                step="100000"
+                value={maxTalentPrice ?? ''}
+                onChange={(event) => setMaxTalentPrice(event.target.value === '' ? null : Number(event.target.value))}
+                className="w-28 rounded border bg-background px-2 py-1 text-sm"
+                placeholder="No limit"
+              />
+              <span className="text-xs text-muted-foreground">(currency)</span>
+            </div>
             <Button 
               onClick={() => {
                 const newRole: ScriptCharacter = {
@@ -569,7 +590,7 @@ export const RoleBasedCasting: React.FC<RoleBasedCastingProps> = ({
                         </label>
                         <label className="text-xs font-medium">
                           Gender
-                          <select className="mt-1 w-full rounded border bg-background px-2 py-1 text-sm" value={requirementDraft.gender} onChange={(e) => setRequirementDraft(d => ({ ...d, gender: e.target.value }))}>
+                          <select className="mt-1 w-full rounded border bg-background px-2 py-1 text-sm" value={requirementDraft.gender} onChange={(e) => setRequirementDraft(d => ({ ...d, gender: e.target.value as Gender | '' }))}>
                             <option value="">Any</option>
                             <option value="Male">Male</option>
                             <option value="Female">Female</option>
@@ -577,7 +598,7 @@ export const RoleBasedCasting: React.FC<RoleBasedCastingProps> = ({
                         </label>
                         <label className="text-xs font-medium">
                           Race
-                          <input className="mt-1 w-full rounded border bg-background px-2 py-1 text-sm" value={requirementDraft.race} onChange={(e) => setRequirementDraft(d => ({ ...d, race: e.target.value }))} placeholder="Any" />
+                          <input className="mt-1 w-full rounded border bg-background px-2 py-1 text-sm" value={requirementDraft.race} onChange={(e) => setRequirementDraft(d => ({ ...d, race: e.target.value as Race | '' }))} placeholder="Any" />
                         </label>
                         <label className="text-xs font-medium">
                           Nationality

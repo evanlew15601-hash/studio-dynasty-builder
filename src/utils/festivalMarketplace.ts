@@ -71,11 +71,26 @@ export function createPurchasePatch(
     studioId: buyerStudioId,
     studioName: buyerStudioName,
     status: 'ready-for-release',
+    currentPhase: 'release',
+    releaseStrategy: {
+      type: 'wide',
+      theatersCount: 0,
+      premiereDate: new Date(Date.UTC(year, 0, 1 + Math.max(0, week - 1) * 7)),
+      rolloutPlan: [],
+      specialEvents: [],
+      pressStrategy: {
+        reviewScreenings: 2,
+        pressJunkets: 2,
+        interviews: 2,
+        expectedCriticalReception: project.script?.quality ?? 60,
+      },
+    },
     distributionStrategy: project.distributionStrategy || {},
     metrics: {
       ...(project.metrics || {}),
       acquiredAtWeek: week,
       acquiredAtYear: year,
+      acquiredFromFestival: true,
     },
   } as any;
 

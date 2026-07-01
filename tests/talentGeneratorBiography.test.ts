@@ -20,7 +20,17 @@ describe('TalentGenerator biographies (system data)', () => {
     expect(withRandomSequence([0.1, 0.5], () => generator.generateActorAge())).toBe(21);
     expect(withRandomSequence([0.3, 0.5], () => generator.generateActorAge())).toBe(30);
     expect(withRandomSequence([0.6, 0.5], () => generator.generateActorAge())).toBe(40);
-    expect(withRandomSequence([0.95, 0.5], () => generator.generateActorAge())).toBe(60);
+    expect(withRandomSequence([0.95, 0.5], () => generator.generateActorAge())).toBe(50);
+  });
+
+  it('keeps early-career talent market values affordable', () => {
+    const generator = new TalentGenerator();
+
+    const lowEndActor = generator.generateMarketValue(24, 2, 35, 'actor');
+    const lowEndDirector = generator.generateMarketValue(35, 3, 40, 'director');
+
+    expect(lowEndActor).toBeLessThan(750_000);
+    expect(lowEndDirector).toBeLessThan(1_500_000);
   });
 
   it('generates multiple biography structures (not just one repetitive template)', () => {

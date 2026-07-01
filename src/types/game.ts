@@ -553,6 +553,11 @@ export interface ProjectMetrics {
   criticsScore?: number;
   audienceScore?: number;
   awards?: string[];
+  festivalProcessed?: boolean;
+  festivalOutcome?: string;
+  festivalOutcomeScore?: number;
+  festivalAwardsBoost?: number;
+  festivalId?: string;
   socialMediaMentions?: number;
   internationalSales?: number;
   inTheaters?: boolean;
@@ -573,6 +578,9 @@ export interface ProjectMetrics {
 
   /** Absolute week index when the player expanded a festival premiere into a platform rollout. */
   expandedFromFestivalAbs?: number;
+
+  /** True when the project was acquired from the festival marketplace and should use standard distribution instead of festival-only rollout. */
+  acquiredFromFestival?: boolean;
 
   // Enhanced financial tracking
   financials?: ProjectFinancials;
@@ -726,7 +734,7 @@ export type Genre =
   | 'action' | 'adventure' | 'comedy' | 'drama' | 'horror' | 'thriller'
   | 'romance' | 'sci-fi' | 'fantasy' | 'documentary' | 'animation'
   | 'musical' | 'western' | 'war' | 'biography' | 'crime' | 'mystery'
-  | 'superhero' | 'family' | 'sports' | 'historical';
+  | 'superhero' | 'family' | 'sports' | 'historical' | 'romcom' | 'coming-of-age';
 
 export type ProductionPhase = 
   | 'development' | 'pre-production' | 'production' | 'post-production' | 'marketing' | 'release' | 'distribution';
@@ -1296,6 +1304,8 @@ export interface MarketingImpact {
 export interface ReleaseStrategy {
   type: 'wide' | 'limited' | 'platform' | 'festival' | 'streaming';
   theatersCount?: number;
+  festivalId?: string;
+  festivalName?: string;
   /** For direct-to-streaming premieres, identifies the platform selected via a premiere deal. */
   streamingProviderId?: string;
   streamingPlatformId?: string;

@@ -339,24 +339,17 @@ export class TalentGenerator {
   }
 
   generateMarketValue(age: number, experience: number, reputation: number, type: 'actor' | 'director'): number {
-    let baseValue = type === 'director' ? 2000000 : 1000000;
-    
-    // Experience multiplier
-    baseValue *= Math.pow(1.15, experience);
-    
-    // Reputation multiplier
-    baseValue *= (reputation / 50);
-    
-    // Age factor (peak earning years 25-45 for actors, 35-55 for directors)
+    let baseValue = type === 'director' ? 350000 : 180000;
+
+    baseValue += Math.max(0, experience) * 120000;
+    baseValue += Math.max(0, reputation - 20) * 8000;
+
     const optimalAge = type === 'director' ? 45 : 35;
-    const ageFactor = 1 - Math.abs(age - optimalAge) * 0.01;
-    baseValue *= Math.max(0.3, ageFactor);
-    
-    // Add randomness
-    baseValue *= (0.8 + Math.random() * 0.4);
-    
-    // Cap values
-    return Math.min(baseValue, type === 'director' ? 15000000 : 20000000);
+    const ageFactor = 1 - Math.abs(age - optimalAge) * 0.008;
+    baseValue *= Math.max(0.55, ageFactor);
+    baseValue *= (0.8 + Math.random() * 0.3);
+
+    return Math.min(baseValue, type === 'director' ? 8000000 : 5000000);
   }
 
   generateAwards(careerStage: typeof CAREER_STAGES[number], reputation: number): string[] {
@@ -398,14 +391,12 @@ export class TalentGenerator {
   generateActorAge(): number {
     const roll = Math.random();
 
-    // Increase weighting toward younger performers so studios can reliably cast
-    // teen/young-adult leads and supporting roles across all save games.
-    // New distribution favors ages 18-34 (~80% of actors).
-    if (roll < 0.30) return 18 + Math.floor(Math.random() * 7); // 18-24 (30%)
-    if (roll < 0.80) return 25 + Math.floor(Math.random() * 10); // 25-34 (50%)
-    if (roll < 0.90) return 35 + Math.floor(Math.random() * 10); // 35-44 (10%)
-    if (roll < 0.97) return 45 + Math.floor(Math.random() * 10); // 45-54 (7%)
-    return 55 + Math.floor(Math.random() * 11); // 55-65 (3%)
+    // Keep the roster varied while slightly favoring experienced early-to-mid career actors.
+    if (roll < 0.24) return 18 + Math.floor(Math.random() * 7); // 18-24 (24%)
+    if (roll < 0.58) return 25 + Math.floor(Math.random() * 10); // 25-34 (34%)
+    if (roll < 0.88) return 35 + Math.floor(Math.random() * 10); // 35-44 (30%)
+    if (roll < 0.96) return 45 + Math.floor(Math.random() * 10); // 45-54 (8%)
+    return 55 + Math.floor(Math.random() * 11); // 55-65 (4%)
   }
 
   generateActor(): TalentPerson {

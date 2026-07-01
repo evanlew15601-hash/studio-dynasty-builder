@@ -201,7 +201,7 @@ export const OwnedFranchiseManager: React.FC<OwnedFranchiseManagerProps> = ({
             Your Franchises ({ownedFranchises.length})
           </h2>
           <p className="text-muted-foreground">
-            Manage and expand your owned intellectual properties
+            Track library continuity, arc planning, and new entries in one place
           </p>
         </div>
       </div>
@@ -299,7 +299,7 @@ export const OwnedFranchiseManager: React.FC<OwnedFranchiseManagerProps> = ({
                   onClick={() => setSelectedDashboardId(selectedDashboardId === franchise.id ? null : franchise.id)}
                 >
                   <BookOpen className="h-4 w-4 mr-2" />
-                  {selectedDashboardId === franchise.id ? 'Hide' : 'Open'} Franchise Dashboard
+                  {selectedDashboardId === franchise.id ? 'Hide' : 'Open'} Library & Arc Dashboard
                 </Button>
 
                 {selectedDashboardId === franchise.id && (

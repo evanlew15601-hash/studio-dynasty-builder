@@ -8,6 +8,7 @@ import { Slider } from '@/components/ui/slider';
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
 import { FilterIcon, X } from 'lucide-react';
+import { filterTalentByPrice } from '@/utils/castingFilters';
 
 export interface CastingFilters {
   talentType: 'all' | 'actor' | 'director';
@@ -16,6 +17,7 @@ export interface CastingFilters {
   reputationRange: [number, number];
   experienceRange: [number, number];
   marketValueRange: [number, number];
+  maxPrice: number | null;
   hasAwards: boolean | null;
   searchQuery: string;
 }
@@ -50,6 +52,7 @@ export const CastingBoardFilters: React.FC<CastingBoardFiltersProps> = ({
       reputationRange: [0, 100],
       experienceRange: [0, 50],
       marketValueRange: [0, 50000000],
+      maxPrice: null,
       hasAwards: null,
       searchQuery: ''
     });
@@ -63,6 +66,7 @@ export const CastingBoardFilters: React.FC<CastingBoardFiltersProps> = ({
       if (t.reputation < filters.reputationRange[0] || t.reputation > filters.reputationRange[1]) return false;
       if (t.experience < filters.experienceRange[0] || t.experience > filters.experienceRange[1]) return false;
       if (t.marketValue < filters.marketValueRange[0] || t.marketValue > filters.marketValueRange[1]) return false;
+      if (!filterTalentByPrice([t], filters.maxPrice).length) return false;
       if (filters.hasAwards !== null && (t.awards?.length > 0) !== filters.hasAwards) return false;
       if (filters.searchQuery && !t.name.toLowerCase().includes(filters.searchQuery.toLowerCase())) return false;
       return true;
@@ -139,6 +143,21 @@ export const CastingBoardFilters: React.FC<CastingBoardFiltersProps> = ({
                 ))}
               </SelectContent>
             </Select>
+          </div>
+
+          {/* Max Price Filter */}
+          <div>
+            <Label htmlFor="max-price">Max Price</Label>
+            <Input
+              id="max-price"
+              type="number"
+              min="0"
+              step="100000"
+              placeholder="No limit"
+              value={filters.maxPrice ?? ''}
+              onChange={(e) => updateFilter('maxPrice', e.target.value === '' ? null : Number(e.target.value))}
+              className="mt-1"
+            />
           </div>
 
           {/* Awards Filter */}

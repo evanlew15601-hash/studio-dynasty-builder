@@ -1,7 +1,7 @@
 import { describe, expect, it } from 'vitest';
 import type { GameState, TalentPerson } from '@/types/game';
 import { FestivalIndieSupplySystem, seedFestivalIndieProjectsForWeek } from '@/game/systems/festivalIndieSupplySystem';
-import { listAvailableFestivalIndieProjects } from '@/utils/festivalMarketplace';
+import { createPurchasePatch, listAvailableFestivalIndieProjects } from '@/utils/festivalMarketplace';
 import { createRng } from '@/game/core/rng';
 import type { TickContext } from '@/game/core/types';
 
@@ -81,6 +81,22 @@ describe('FestivalIndieSupplySystem', () => {
     expect(available.length).toBeGreaterThan(0);
     expect(available.every((project) => project.releaseStrategy?.type === 'festival')).toBe(true);
     expect((available[0].releaseStrategy as any)?.festivalId).toBe('cannes-like');
+  });
+
+  it('marks festival-acquired projects as ready for standard distribution', () => {
+    const project = {
+      id: 'festival-acquired-1',
+      title: 'Acquired Indie',
+      status: 'draft',
+      budget: { total: 5_000_000 },
+      script: { quality: 60, genre: 'drama', characteristics: { commercialAppeal: 5 } },
+    } as any;
+
+    const patch = createPurchasePatch(project, 'studio-1', 'Test Studio', 1_000_000, 10, 2025);
+
+    expect(patch.status).toBe('ready-for-release');
+    expect((patch as any).releaseStrategy?.type).toBe('wide');
+    expect((patch as any).metrics?.acquiredFromFestival).toBe(true);
   });
 
   it('does not duplicate projects when run again for the same festival year', () => {

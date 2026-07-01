@@ -313,12 +313,12 @@ export const useGameStore: import('zustand').UseBoundStore<import('zustand').Sto
       const gameSeed = seed ?? derivedRngState;
 
       set((s) => {
-        let next = {
+        let next: GameState = {
           ...state,
           universeSeed: typeof state.universeSeed === 'number' ? state.universeSeed : derivedUniverseSeed,
           rngState: typeof state.rngState === 'number' ? state.rngState : derivedRngState,
           aiStudioProjects: state.aiStudioProjects ?? [],
-        };
+        } as GameState;
 
         if (typeof next.currentWeek === 'number' && typeof next.currentYear === 'number') {
           next = seedFestivalIndieProjectsForWeek(next as GameState, next.currentWeek, next.currentYear);

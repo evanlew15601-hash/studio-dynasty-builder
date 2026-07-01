@@ -22,7 +22,7 @@ import { useToast } from '@/hooks/use-toast';
 import { useGameStore } from '@/game/store';
 import { getStreamingProviders } from '@/data/ProviderDealsDatabase';
 import { getModBundle } from '@/utils/moddingStore';
-import { getFestivalByWeek, getFestivalOptions } from '@/data/Festivals';
+import { getFestivalById, getFestivalByWeek, getFestivalOptions } from '@/data/Festivals';
 import FestivalMarketplaceModal from '@/components/game/FestivalMarketplaceModal';
 import { FinancialEngine } from './FinancialEngine';
 
@@ -73,7 +73,8 @@ export const ReleaseStrategyModal: React.FC<ReleaseStrategyModalProps> = ({
     }
 
     if (project.type !== 'series' && project.type !== 'limited-series') {
-      setSelectedReleaseType(project.releaseStrategy?.type || 'wide');
+      const fallbackType = isFestivalAcquired ? 'wide' : (project.releaseStrategy?.type || 'wide');
+      setSelectedReleaseType(fallbackType);
     }
 
     setSelectedStreamingProviderId(project.streamingPremiereDeal?.providerId || '');
@@ -87,17 +88,21 @@ export const ReleaseStrategyModal: React.FC<ReleaseStrategyModalProps> = ({
 
   const mods = useMemo(() => getModBundle(), []);
   const streamingProviders = useMemo(() => getStreamingProviders(mods), [mods]);
+  const isFestivalAcquired = Boolean(project?.metrics?.acquiredFromFestival);
 
   const releaseTypeOptions = useMemo(
-    () =>
-      [
+    () => {
+      const options = [
         { type: 'wide' as const, label: 'Wide', description: 'Big opening with thousands of screens.' },
         { type: 'limited' as const, label: 'Limited', description: 'Selective rollout for buzz and word-of-mouth.' },
         { type: 'platform' as const, label: 'Platform', description: 'Start small, expand if reviews land.' },
         { type: 'festival' as const, label: 'Festival', description: 'Premiere on the circuit, prestige-first.' },
         { type: 'streaming' as const, label: 'Direct-to-Streaming', description: 'Premiere on a platform from day one.' },
-      ],
-    []
+      ];
+
+      return isFestivalAcquired ? options.filter((option) => option.type !== 'festival') : options;
+    },
+    [isFestivalAcquired]
   );
 
   if (!project || !gameState) return null;
@@ -309,8 +314,8 @@ export const ReleaseStrategyModal: React.FC<ReleaseStrategyModalProps> = ({
     return {
       type: selectedReleaseType,
       theatersCount,
-      festivalId: selectedReleaseType === 'festival' ? selectedFestivalId : undefined,
-      festivalName: selectedReleaseType === 'festival' ? (selectedFestivalId || undefined) : undefined,
+      festivalId: selectedReleaseType === 'festival' && !isFestivalAcquired ? selectedFestivalId : undefined,
+      festivalName: selectedReleaseType === 'festival' && !isFestivalAcquired ? (selectedFestivalId || undefined) : undefined,
       streamingProviderId: streamingPlatformId,
       streamingPlatformId,
       streamingExclusive: selectedReleaseType === 'streaming' ? true : undefined,
@@ -544,6 +549,16 @@ export const ReleaseStrategyModal: React.FC<ReleaseStrategyModalProps> = ({
             </CardContent>
           </Card>
 
+          {!isTV && isFestivalAcquired && (
+            <Card className="border-blue-500/20 bg-blue-500/5">
+              <CardContent className="pt-6">
+                <p className="text-sm text-muted-foreground">
+                  This title was acquired through the festival marketplace and is already set up for standard distribution. Festival release is intentionally disabled to avoid redundant release paths.
+                </p>
+              </CardContent>
+            </Card>
+          )}
+
           {/* Release Type (Films) */}
           {!isTV && (
             <Card>
@@ -572,7 +587,7 @@ export const ReleaseStrategyModal: React.FC<ReleaseStrategyModalProps> = ({
           )}
 
                 {/* Festival Selector */}
-                {!isTV && selectedReleaseType === 'festival' && (
+                {!isTV && selectedReleaseType === 'festival' && !isFestivalAcquired && (
                   <Card>
                     <CardHeader>
                       <CardTitle className="text-lg">Festival</CardTitle>
@@ -603,7 +618,7 @@ export const ReleaseStrategyModal: React.FC<ReleaseStrategyModalProps> = ({
                   </Card>
                 )}
 
-                {!isTV && selectedReleaseType === 'festival' && (
+                {!isTV && selectedReleaseType === 'festival' && !isFestivalAcquired && (
                   <div className="space-y-3">
                     <p className="text-sm text-muted-foreground">
                       Festival release unlocks a prestige premiere path and gives you access to the marketplace for indie film acquisitions.

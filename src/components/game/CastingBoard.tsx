@@ -14,6 +14,7 @@ import { TalentPortrait } from '@/components/ui/talent-portrait';
 import { useToast } from '@/hooks/use-toast';
 import { isDirectorRole } from '@/utils/scriptRoles';
 import { describeTalentInterest, recordStudioNegotiationOutcome } from '@/utils/talentNegotiation';
+import { filterTalentByPrice } from '@/utils/castingFilters';
 import { TalentNegotiationDialog } from './TalentNegotiationDialog';
 import { CastingBoardFilters, CastingFilters } from './CastingBoardFilters';
 import { 
@@ -51,6 +52,7 @@ const { toast } = useToast();
     reputationRange: [0, 100],
     experienceRange: [0, 50],
     marketValueRange: [0, 50000000],
+    maxPrice: null,
     hasAwards: null,
     searchQuery: ''
   });
@@ -71,6 +73,7 @@ const { toast } = useToast();
       if (talent.reputation < filters.reputationRange[0] || talent.reputation > filters.reputationRange[1]) return false;
       if (talent.experience < filters.experienceRange[0] || talent.experience > filters.experienceRange[1]) return false;
       if (talent.marketValue < filters.marketValueRange[0] || talent.marketValue > filters.marketValueRange[1]) return false;
+      if (!filterTalentByPrice([talent], filters.maxPrice).length) return false;
       if (filters.hasAwards !== null && (talent.awards?.length > 0) !== filters.hasAwards) return false;
       if (filters.searchQuery && !talent.name.toLowerCase().includes(filters.searchQuery.toLowerCase())) return false;
       

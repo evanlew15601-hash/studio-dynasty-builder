@@ -4,15 +4,15 @@ import { stablePick } from '@/utils/stablePick';
 import { determineCareerStage } from '@/utils/careerStage';
 
 function generateMarketValue(age: number, experience: number, reputation: number, type: 'actor' | 'director'): number {
-  let baseValue = type === 'director' ? 2_000_000 : 1_000_000;
-  baseValue *= Math.pow(1.15, Math.max(0, experience));
-  baseValue *= (Math.max(10, reputation) / 50);
+  let baseValue = type === 'director' ? 400_000 : 220_000;
+  baseValue += Math.max(0, experience) * 110_000;
+  baseValue += Math.max(0, reputation - 20) * 6_500;
 
   const optimalAge = type === 'director' ? 45 : 35;
-  const ageFactor = 1 - Math.abs(age - optimalAge) * 0.01;
-  baseValue *= Math.max(0.3, ageFactor);
+  const ageFactor = 1 - Math.abs(age - optimalAge) * 0.008;
+  baseValue *= Math.max(0.58, ageFactor);
 
-  return Math.min(baseValue, type === 'director' ? 15_000_000 : 20_000_000);
+  return Math.min(baseValue, type === 'director' ? 8_000_000 : 4_500_000);
 }
 
 function mustPick<T>(items: T[], seed: string): T {
