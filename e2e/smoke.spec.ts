@@ -50,5 +50,5 @@ test('festival page always shows at least one available indie film', async ({ pa
 
   await expect(page.getByText(/Available Indie Films/i)).toBeVisible();
   await expect(page.getByText(/No eligible festival indie films are available/i)).toHaveCount(0);
-  await expect(page.getByRole('button', { name: /^Select$/ })).toBeVisible();
+  await expect(page.getByRole('button', { name: /^Select$/ }).first()).toBeVisible();
 });
