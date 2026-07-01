@@ -7,7 +7,7 @@ import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Badge } from '@/components/ui/badge';
 import { getFestivalById, getFestivalByWeek, getFestivalOptions } from '@/data/Festivals';
-import { listAvailableFestivalIndieProjects, createPurchasePatch, runFestivalAuctionRounds } from '@/utils/festivalMarketplace';
+import { listAvailableFestivalIndieProjects, createPurchasePatch, runFestivalAuctionRounds, parseFestivalBidAmount, formatFestivalBidAmount } from '@/utils/festivalMarketplace';
 import { FinancialEngine } from './FinancialEngine';
 import type { Project } from '@/types/game';
 
@@ -29,14 +29,14 @@ export const FestivalManagement: React.FC = () => {
     currentFestival?.id ?? festivalOptions[0]?.id ?? ''
   );
   const [selectedProjectId, setSelectedProjectId] = useState<string | null>(null);
-  const [bidAmount, setBidAmount] = useState<number>(0);
+  const [bidInput, setBidInput] = useState<string>('');
   const [auctionPreview, setAuctionPreview] = useState<any | null>(null);
 
   useEffect(() => {
     if (currentFestival?.id && currentFestival.id !== selectedFestivalId) {
       setSelectedFestivalId(currentFestival.id);
       setSelectedProjectId(null);
-      setBidAmount(0);
+      setBidInput('');
       setAuctionPreview(null);
     }
   }, [currentFestival?.id, selectedFestivalId]);
@@ -58,6 +58,7 @@ export const FestivalManagement: React.FC = () => {
     () => projects.find((project) => project.id === selectedProjectId) || null,
     [projects, selectedProjectId]
   );
+  const bidAmount = parseFestivalBidAmount(bidInput);
 
   const handleAuctionPreview = () => {
     if (!selected || !gameState) return;
@@ -91,7 +92,7 @@ export const FestivalManagement: React.FC = () => {
 
     toast({ title: 'Acquired Rights', description: `You acquired ${selected.title} for ${(bidAmount / 1000000).toFixed(2)}M.` });
     setSelectedProjectId(null);
-    setBidAmount(0);
+    setBidInput('');
     setAuctionPreview(null);
   };
 
@@ -116,7 +117,7 @@ export const FestivalManagement: React.FC = () => {
                     onClick={() => {
                       setSelectedFestivalId(fest.id);
                       setSelectedProjectId(null);
-                      setBidAmount(0);
+                      setBidInput('');
                       setAuctionPreview(null);
                     }}
                   >
@@ -195,7 +196,17 @@ export const FestivalManagement: React.FC = () => {
 
                 <div>
                   <label className="text-sm text-muted-foreground">Bid Amount</label>
-                  <Input type="number" value={bidAmount || ''} onChange={(event) => setBidAmount(Number(event.target.value) || 0)} />
+                  <Input
+                    type="text"
+                    inputMode="decimal"
+                    placeholder="$2.5M or 2500000"
+                    value={bidInput}
+                    onChange={(event) => { setBidInput(event.target.value); setAuctionPreview(null); }}
+                  />
+                  <div className="mt-1 text-xs text-muted-foreground">
+                    Enter dollars exactly, or use shorthand: <span className="font-medium">$2.5M</span>, <span className="font-medium">2.5 million</span>, or <span className="font-medium">2500000</span>.
+                    {bidAmount > 0 && <> Parsed offer: {formatFestivalBidAmount(bidAmount)}.</>}
+                  </div>
                 </div>
 
                 <div className="grid gap-2">
@@ -246,6 +257,11 @@ export const FestivalManagement: React.FC = () => {
                     <div className="mt-2 text-xs text-muted-foreground">
                       {auctionPreview.userWins ? 'Your current offer would win.' : 'Your current offer would be outbid.'}
                     </div>
+                    {!auctionPreview.userWins && (
+                      <Button size="sm" variant="outline" className="mt-3" onClick={() => setBidInput(formatFestivalBidAmount(auctionPreview.requiredToWin))}>
+                        Use minimum winning bid
+                      </Button>
+                    )}
                   </div>
                 </div>
               </CardContent>

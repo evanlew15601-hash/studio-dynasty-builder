@@ -5,7 +5,7 @@ import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { useToast } from '@/hooks/use-toast';
 import { useGameStore } from '@/game/store';
-import { listAvailableFestivalIndieProjects, createPurchasePatch, runFestivalAuctionRounds } from '@/utils/festivalMarketplace';
+import { listAvailableFestivalIndieProjects, createPurchasePatch, runFestivalAuctionRounds, parseFestivalBidAmount, formatFestivalBidAmount } from '@/utils/festivalMarketplace';
 import { getFestivalById } from '@/data/Festivals';
 import { FinancialEngine } from './FinancialEngine';
 
@@ -26,7 +26,7 @@ export const FestivalMarketplaceModal: React.FC<Props> = ({ open, onOpenChange, 
 
   const { toast } = useToast();
   const [selectedProjectId, setSelectedProjectId] = useState<string | null>(null);
-  const [bidAmount, setBidAmount] = useState<number>(0);
+  const [bidInput, setBidInput] = useState<string>('');
   const [auctionPreview, setAuctionPreview] = useState<any | null>(null);
 
   const festival = getFestivalById(festivalId);
@@ -37,6 +37,7 @@ export const FestivalMarketplaceModal: React.FC<Props> = ({ open, onOpenChange, 
   }, [gameState, festivalId]);
 
   const selected = projects.find((p) => p.id === selectedProjectId) || null;
+  const bidAmount = parseFestivalBidAmount(bidInput);
 
   const handlePreview = () => {
     if (!selected || !gameState) return;
@@ -79,7 +80,7 @@ export const FestivalMarketplaceModal: React.FC<Props> = ({ open, onOpenChange, 
 
     toast({ title: 'Acquired Rights', description: `You acquired ${selected.title} for ${(bidAmount / 1000000).toFixed(2)}M` });
     setSelectedProjectId(null);
-    setBidAmount(0);
+    setBidInput('');
     setAuctionPreview(null);
     onOpenChange(false);
   };
@@ -145,7 +146,17 @@ export const FestivalMarketplaceModal: React.FC<Props> = ({ open, onOpenChange, 
                 <div className="grid grid-cols-1 sm:grid-cols-3 gap-3 items-end">
                   <div className="sm:col-span-2">
                     <label className="text-sm text-muted-foreground">Offer Amount (USD)</label>
-                    <Input type="number" value={String(bidAmount || '')} onChange={(e) => setBidAmount(Number(e.target.value) || 0)} />
+                    <Input
+                      type="text"
+                      inputMode="decimal"
+                      placeholder="$2.5M or 2500000"
+                      value={bidInput}
+                      onChange={(e) => { setBidInput(e.target.value); setAuctionPreview(null); }}
+                    />
+                    <div className="mt-1 text-xs text-muted-foreground">
+                      Enter dollars exactly, or use shorthand: <span className="font-medium">$2.5M</span>, <span className="font-medium">2.5 million</span>, or <span className="font-medium">2500000</span>.
+                      {bidAmount > 0 && <> Parsed offer: {formatFestivalBidAmount(bidAmount)}.</>}
+                    </div>
                   </div>
                   <div className="text-right">
                     <div className="flex flex-col gap-2">
@@ -188,6 +199,11 @@ export const FestivalMarketplaceModal: React.FC<Props> = ({ open, onOpenChange, 
                     <div className="text-sm">Final highest: ${(auctionPreview.finalHighest / 1000000).toFixed(3)}M</div>
                     <div className="text-sm">Minimum to win: ${(auctionPreview.requiredToWin / 1000000).toFixed(3)}M</div>
                     <div className="text-sm">You {auctionPreview.userWins ? 'would win' : 'would be outbid'} with your current offer.</div>
+                    {!auctionPreview.userWins && (
+                      <Button size="sm" variant="outline" className="mt-2" onClick={() => setBidInput(formatFestivalBidAmount(auctionPreview.requiredToWin))}>
+                        Use minimum winning bid
+                      </Button>
+                    )}
                   </div>
                 </div>
               </CardContent>

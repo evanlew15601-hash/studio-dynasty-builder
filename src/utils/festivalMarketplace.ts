@@ -97,6 +97,34 @@ export function createPurchasePatch(
   return patch;
 }
 
+export function parseFestivalBidAmount(value: string | number): number {
+  if (typeof value === 'number') return Number.isFinite(value) ? Math.max(0, Math.round(value)) : 0;
+
+  const normalized = value
+    .trim()
+    .toLowerCase()
+    .replace(/[$,\s]/g, '');
+
+  if (!normalized) return 0;
+
+  const match = normalized.match(/^(\d+(?:\.\d+)?)(m|million|k|thousand)?$/);
+  if (!match) return 0;
+
+  const amount = Number(match[1]);
+  if (!Number.isFinite(amount)) return 0;
+
+  const suffix = match[2];
+  const multiplier = suffix === 'm' || suffix === 'million' ? 1_000_000 : suffix === 'k' || suffix === 'thousand' ? 1_000 : 1;
+  return Math.max(0, Math.round(amount * multiplier));
+}
+
+export function formatFestivalBidAmount(amount: number): string {
+  if (!Number.isFinite(amount) || amount <= 0) return '';
+  if (amount >= 1_000_000) return `$${(amount / 1_000_000).toFixed(3)}M`;
+  if (amount >= 1_000) return `$${(amount / 1_000).toFixed(1)}K`;
+  return `$${Math.round(amount).toLocaleString()}`;
+}
+
 // Multi-round auction simulation with simple genre biasing. Returns round-by-round rival bids,
 // the final highest rival offer, whether the `userOffer` wins, and a suggested minimum to win.
 export function runFestivalAuctionRounds(
