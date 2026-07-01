@@ -3,6 +3,7 @@ import type { TickSystem } from '../core/types';
 import { FESTIVALS } from '@/data/Festivals';
 import { createRng, seedFromString } from '@/game/core/rng';
 import { attachBasicCastForAI } from '@/utils/attachBasicCastForAI';
+import { triggerDateFromWeekYear } from '@/utils/gameTime';
 
 function isProjectLike(value: any): value is Project {
   return !!value && typeof value === 'object' && typeof value.id === 'string' && 'script' in value;
@@ -128,10 +129,10 @@ function createFestivalIndieProject(
     cast: [],
     crew: [],
     timeline: {
-      preProduction: { start: new Date(), end: new Date() },
-      principalPhotography: { start: new Date(), end: new Date() },
-      postProduction: { start: new Date(), end: new Date() },
-      release: new Date(),
+      preProduction: { start: triggerDateFromWeekYear(year, week), end: triggerDateFromWeekYear(year, week) },
+      principalPhotography: { start: triggerDateFromWeekYear(year, week), end: triggerDateFromWeekYear(year, week) },
+      postProduction: { start: triggerDateFromWeekYear(year, week), end: triggerDateFromWeekYear(year, week) },
+      release: triggerDateFromWeekYear(year, week),
       milestones: [],
     },
     locations: [],
