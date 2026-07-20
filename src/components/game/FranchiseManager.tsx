@@ -6,20 +6,33 @@ import { Badge } from '@/components/ui/badge';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { Input } from '@/components/ui/input';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
-import { Search, Star, Crown, Clock, TrendingUp, BookOpen, Sparkles, DollarSign, Info } from 'lucide-react';
+import { Search, Star, Crown, Clock, TrendingUp, BookOpen, Sparkles, DollarSign, Info, PlusCircle } from 'lucide-react';
 import { Progress } from '@/components/ui/progress';
+import { Label } from '@/components/ui/label';
+import { Textarea } from '@/components/ui/textarea';
+import type { Franchise } from '@/types/game';
+import { nextNumericId } from '@/utils/idAllocator';
 
 interface FranchiseManagerProps {
   onCreateProject: (franchiseId?: string, publicDomainId?: string, cost?: number) => void;
+  onCreateFranchise: (franchise: Franchise, cost?: number) => void;
 }
 
 export const FranchiseManager: React.FC<FranchiseManagerProps> = ({
-  onCreateProject
+  onCreateProject,
+  onCreateFranchise
 }) => {
   const gameState = useGameStore((s) => s.game);
   const [searchTerm, setSearchTerm] = useState('');
   const [selectedGenre, setSelectedGenre] = useState<string>('all');
   const [selectedDomain, setSelectedDomain] = useState<string>('all');
+  const [newFranchise, setNewFranchise] = useState({
+    title: '',
+    description: '',
+    genre: 'drama',
+    tone: 'light' as Franchise['tone'],
+    culturalWeight: 25,
+  });
 
   if (!gameState) {
     return <div className="p-6 text-sm text-muted-foreground">Loading franchise marketplace...</div>;
@@ -86,6 +99,58 @@ export const FranchiseManager: React.FC<FranchiseManagerProps> = ({
         return true;
       });
   })();
+
+
+  const createOriginalFranchise = () => {
+    const title = newFranchise.title.trim();
+    if (!title) return;
+
+    const cost = Math.floor(newFranchise.culturalWeight * 100000);
+    const franchise: Franchise = {
+      id: nextNumericId('franchise', franchises.map((f) => f.id)),
+      title,
+      description: newFranchise.description.trim(),
+      originDate: `${gameState.currentYear}-01-01`,
+      creatorStudioId: gameState.studio.id,
+      genre: [newFranchise.genre as any],
+      tone: newFranchise.tone,
+      entries: [],
+      status: 'active',
+      franchiseTags: ['original-ip'],
+      culturalWeight: newFranchise.culturalWeight,
+      cost: 0,
+      characterLibrary: [],
+      talentLibrary: [],
+      continuity: {
+        timelineEvents: [],
+        characterAppearances: {},
+        deaths: {},
+        relationships: [],
+        locations: [],
+        plotThreads: [],
+        warnings: [],
+      },
+      franchiseBible: {
+        worldbuilding: newFranchise.description.trim() ? [newFranchise.description.trim()] : [],
+        relationshipMap: [],
+        sequelHooks: ['Establish franchise-defining characters and recurring hooks in the first entry.'],
+        plannedArc: 'standalone',
+      },
+    };
+
+    onCreateFranchise(franchise, cost);
+    setNewFranchise({ title: '', description: '', genre: 'drama', tone: 'light', culturalWeight: 25 });
+  };
+
+  const acquireFranchise = (franchise: Franchise) => {
+    onCreateFranchise({
+      ...franchise,
+      creatorStudioId: gameState.studio.id,
+      cost: 0,
+      status: 'active',
+      franchiseTags: Array.from(new Set([...(franchise.franchiseTags || []), 'licensed-ip'])),
+    }, franchise.cost);
+  };
 
   const getFranchiseStatusColor = (status: string) => {
     switch (status) {
@@ -168,8 +233,9 @@ export const FranchiseManager: React.FC<FranchiseManagerProps> = ({
 
       <Tabs defaultValue="franchises" className="space-y-4">
         <TabsList>
-          <TabsTrigger value="franchises">Available Franchises ({filteredFranchises.length})</TabsTrigger>
-          <TabsTrigger value="public-domain">Public Domain ({publicDomainIPs.length})</TabsTrigger>
+          <TabsTrigger value="franchises">Buy Franchises ({filteredFranchises.length})</TabsTrigger>
+          <TabsTrigger value="create">Create Original</TabsTrigger>
+          <TabsTrigger value="public-domain">Public Domain ({filteredPublicDomain.length})</TabsTrigger>
         </TabsList>
 
         <TabsContent value="franchises" className="space-y-4">
@@ -260,15 +326,37 @@ export const FranchiseManager: React.FC<FranchiseManagerProps> = ({
 
                   <Button 
                     className="w-full"
-                    onClick={() => onCreateProject(franchise.id, undefined, franchise.cost)}
+                    onClick={() => acquireFranchise(franchise)}
                     variant="default"
                   >
-                    {franchise.entries.length === 0 ? 'Start Franchise' : 'Create Sequel'}
+                    Purchase Rights
                   </Button>
                 </CardContent>
               </Card>
             ))}
           </div>
+        </TabsContent>
+
+
+        <TabsContent value="create" className="space-y-4">
+          <Card>
+            <CardHeader>
+              <CardTitle className="flex items-center gap-2"><PlusCircle className="h-5 w-5" />Create Original Franchise</CardTitle>
+              <CardDescription>One canonical path for new owned IP: establish the franchise here, then start films or TV entries from Your Franchises.</CardDescription>
+            </CardHeader>
+            <CardContent className="space-y-4">
+              <div className="grid gap-4 md:grid-cols-2">
+                <div className="space-y-2"><Label htmlFor="new-franchise-title">Title</Label><Input id="new-franchise-title" value={newFranchise.title} onChange={(e) => setNewFranchise((prev) => ({ ...prev, title: e.target.value }))} placeholder="e.g. Neon Guardians" /></div>
+                <div className="space-y-2"><Label>Genre</Label><Select value={newFranchise.genre} onValueChange={(value) => setNewFranchise((prev) => ({ ...prev, genre: value }))}><SelectTrigger><SelectValue /></SelectTrigger><SelectContent><SelectItem value="action">Action</SelectItem><SelectItem value="drama">Drama</SelectItem><SelectItem value="comedy">Comedy</SelectItem><SelectItem value="horror">Horror</SelectItem><SelectItem value="sci-fi">Sci-Fi</SelectItem><SelectItem value="fantasy">Fantasy</SelectItem><SelectItem value="thriller">Thriller</SelectItem><SelectItem value="romance">Romance</SelectItem></SelectContent></Select></div>
+              </div>
+              <div className="space-y-2"><Label htmlFor="new-franchise-description">Concept</Label><Textarea id="new-franchise-description" value={newFranchise.description} onChange={(e) => setNewFranchise((prev) => ({ ...prev, description: e.target.value }))} placeholder="Describe the franchise premise, world, and recurring hook..." rows={3} /></div>
+              <div className="grid gap-4 md:grid-cols-2">
+                <div className="space-y-2"><Label>Tone</Label><Select value={newFranchise.tone} onValueChange={(value) => setNewFranchise((prev) => ({ ...prev, tone: value as Franchise['tone'] }))}><SelectTrigger><SelectValue /></SelectTrigger><SelectContent><SelectItem value="light">Light</SelectItem><SelectItem value="dark">Dark</SelectItem><SelectItem value="pulpy">Pulpy</SelectItem><SelectItem value="serious">Serious</SelectItem><SelectItem value="comedic">Comedic</SelectItem><SelectItem value="epic">Epic</SelectItem></SelectContent></Select></div>
+                <div className="space-y-2"><Label htmlFor="new-franchise-weight">Launch Investment: ${(newFranchise.culturalWeight * 100000 / 1000000).toFixed(1)}M</Label><Input id="new-franchise-weight" type="range" min="5" max="80" value={newFranchise.culturalWeight} onChange={(e) => setNewFranchise((prev) => ({ ...prev, culturalWeight: Number(e.target.value) }))} /></div>
+              </div>
+              <Button onClick={createOriginalFranchise} disabled={!newFranchise.title.trim()} className="w-full">Create Franchise</Button>
+            </CardContent>
+          </Card>
         </TabsContent>
 
         <TabsContent value="public-domain" className="space-y-4">
