@@ -172,6 +172,10 @@ export interface ScriptCharacter {
     askWeeklyPay: number;
     negotiatedWeek: number;
     negotiatedYear: number;
+    contractScope?: 'project' | 'multi-picture' | 'exclusive';
+    sequelOptions?: number;
+    exclusivity?: boolean;
+    merchandising?: boolean;
   };
   // Franchise/IP linkage for imported roles
   franchiseId?: string; // Global franchise this role belongs to (immutable linkage)
@@ -686,6 +690,13 @@ export interface ContractedTalent {
   contractWeeks: number;
   weeksRemaining: number;
   startWeek: number;
+  projectId?: string;
+  characterId?: string;
+  roleType?: 'actor' | 'director' | 'writer' | 'producer' | 'crew';
+  contractScope?: 'project' | 'multi-picture' | 'exclusive';
+  sequelOptions?: number;
+  exclusivity?: boolean;
+  merchandising?: boolean;
 }
 
 export interface DevelopmentProgress {
