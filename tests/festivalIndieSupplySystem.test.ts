@@ -1,7 +1,7 @@
 import { describe, expect, it } from 'vitest';
 import type { GameState, TalentPerson } from '@/types/game';
 import { FestivalIndieSupplySystem, seedFestivalIndieProjectsForWeek } from '@/game/systems/festivalIndieSupplySystem';
-import { createPurchasePatch, listAvailableFestivalIndieProjects } from '@/utils/festivalMarketplace';
+import { createPurchasePatch, createPurchasedFestivalProject, listAvailableFestivalIndieProjects } from '@/utils/festivalMarketplace';
 import { createRng } from '@/game/core/rng';
 import type { TickContext } from '@/game/core/types';
 
@@ -94,9 +94,35 @@ describe('FestivalIndieSupplySystem', () => {
 
     const patch = createPurchasePatch(project, 'studio-1', 'Test Studio', 1_000_000, 10, 2025);
 
-    expect(patch.status).toBe('ready-for-release');
+    expect(patch.status).toBe('ready-for-marketing');
+    expect(patch.currentPhase).toBe('marketing');
     expect((patch as any).releaseStrategy?.type).toBe('wide');
     expect((patch as any).metrics?.acquiredFromFestival).toBe(true);
+  });
+
+
+  it('creates a player-owned project copy for festival auction acquisitions', () => {
+    const project = {
+      id: 'festival-ai-1',
+      title: 'Acquired Festival Film',
+      studioId: 'ai-studio',
+      studioName: 'Rival Indie',
+      status: 'draft',
+      currentPhase: 'development',
+      budget: { total: 5_000_000 },
+      script: { quality: 60, genre: 'drama', characteristics: { commercialAppeal: 5 } },
+      releaseStrategy: { type: 'festival', festivalId: 'cannes-like' },
+    } as any;
+
+    const purchased = createPurchasedFestivalProject(project, 'studio-1', 'Test Studio', 1_000_000, 10, 2025) as any;
+
+    expect(purchased.id).toBe(project.id);
+    expect(purchased.studioId).toBe('studio-1');
+    expect(purchased.studioName).toBe('Test Studio');
+    expect(purchased.status).toBe('ready-for-marketing');
+    expect(purchased.currentPhase).toBe('marketing');
+    expect(purchased.releaseStrategy.type).toBe('wide');
+    expect(purchased.metrics.acquiredFromFestival).toBe(true);
   });
 
   it('does not duplicate projects when run again for the same festival year', () => {

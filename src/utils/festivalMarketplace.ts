@@ -58,6 +58,20 @@ export function listAvailableFestivalIndieProjects(state: GameState, festivalId?
   return fallbackCandidates.length > 0 ? fallbackCandidates : candidates;
 }
 
+export function createPurchasedFestivalProject(
+  project: Project,
+  buyerStudioId: string,
+  buyerStudioName: string,
+  offerAmount: number,
+  week: number,
+  year: number
+): Project {
+  return {
+    ...project,
+    ...createPurchasePatch(project, buyerStudioId, buyerStudioName, offerAmount, week, year),
+  } as Project;
+}
+
 // Create an update patch for purchasing a film's rights at festival bidding.
 export function createPurchasePatch(
   project: Project,
@@ -70,8 +84,8 @@ export function createPurchasePatch(
   const patch: Partial<Project> = {
     studioId: buyerStudioId,
     studioName: buyerStudioName,
-    status: 'ready-for-release',
-    currentPhase: 'release',
+    status: 'ready-for-marketing',
+    currentPhase: 'marketing',
     releaseStrategy: {
       type: 'wide',
       theatersCount: 0,

@@ -3,6 +3,7 @@ import { Dialog, DialogContent, DialogHeader, DialogTitle } from '@/components/u
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
 import { Input } from '@/components/ui/input';
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { Label } from '@/components/ui/label';
 import type { Project, Studio, TalentPerson } from '@/types/game';
 import {
@@ -19,6 +20,10 @@ export interface TalentNegotiationDialogAccepted {
   askWeeklyPay: number;
   weeklyPay: number;
   contractWeeks: number;
+  contractScope: 'project' | 'multi-picture' | 'exclusive';
+  sequelOptions: number;
+  exclusivity: boolean;
+  merchandising: boolean;
 }
 
 interface TalentNegotiationDialogProps {
@@ -59,6 +64,10 @@ export const TalentNegotiationDialog: React.FC<TalentNegotiationDialogProps> = (
 
   const [contractWeeks, setContractWeeks] = useState<number>(defaultWeeks);
   const [offerWeeklyPay, setOfferWeeklyPay] = useState<number>(0);
+  const [contractScope, setContractScope] = useState<'project' | 'multi-picture' | 'exclusive'>('project');
+  const [sequelOptions, setSequelOptions] = useState<number>(importance === 'lead' ? 1 : 0);
+  const [exclusivity, setExclusivity] = useState<boolean>(requiredType === 'director' || importance === 'lead');
+  const [merchandising, setMerchandising] = useState<boolean>(importance === 'lead');
   const [counter, setCounter] = useState<number | null>(null);
 
   const displayAsk = useMemo(() => {
@@ -80,6 +89,10 @@ export const TalentNegotiationDialog: React.FC<TalentNegotiationDialogProps> = (
     if (!open) return;
     setContractWeeks(defaultWeeks);
     setCounter(null);
+    setContractScope('project');
+    setSequelOptions(importance === 'lead' ? 1 : 0);
+    setExclusivity(requiredType === 'director' || importance === 'lead');
+    setMerchandising(importance === 'lead');
 
     const initialAsk = computeTalentAgentAsk({
       talent,
@@ -112,7 +125,7 @@ export const TalentNegotiationDialog: React.FC<TalentNegotiationDialogProps> = (
     });
 
     if (res.status === 'accepted') {
-      onAccepted(res);
+      onAccepted({ ...res, contractScope, sequelOptions, exclusivity, merchandising });
       onOpenChange(false);
       return;
     }
@@ -192,6 +205,33 @@ export const TalentNegotiationDialog: React.FC<TalentNegotiationDialogProps> = (
               />
               <div className="text-xs text-muted-foreground">Suggested: {defaultWeeks}w</div>
             </div>
+          </div>
+
+          <div className="grid grid-cols-2 gap-3">
+            <div className="space-y-1">
+              <Label>Contract type</Label>
+              <Select value={contractScope} onValueChange={(value) => setContractScope(value as any)}>
+                <SelectTrigger><SelectValue /></SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="project">Per Movie</SelectItem>
+                  <SelectItem value="multi-picture">Multi-Picture Option</SelectItem>
+                  <SelectItem value="exclusive">Studio Exclusive</SelectItem>
+                </SelectContent>
+              </Select>
+            </div>
+            <div className="space-y-1">
+              <Label>Sequel options</Label>
+              <Input type="number" min={0} max={5} value={sequelOptions} onChange={(e) => setSequelOptions(Math.max(0, Math.min(5, Math.floor(Number(e.target.value) || 0))))} />
+            </div>
+          </div>
+
+          <div className="flex flex-wrap gap-2 text-xs">
+            <Button type="button" size="sm" variant={exclusivity ? 'default' : 'outline'} onClick={() => setExclusivity((v) => !v)}>
+              {exclusivity ? 'Exclusive during shoot' : 'Non-exclusive'}
+            </Button>
+            <Button type="button" size="sm" variant={merchandising ? 'default' : 'outline'} onClick={() => setMerchandising((v) => !v)}>
+              {merchandising ? 'Merchandising included' : 'No merchandising'}
+            </Button>
           </div>
 
           <div className={`text-xs ${insufficientRunway ? 'text-destructive' : 'text-muted-foreground'}`}>

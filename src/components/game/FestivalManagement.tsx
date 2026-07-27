@@ -7,16 +7,17 @@ import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Badge } from '@/components/ui/badge';
 import { getFestivalById, getFestivalByWeek, getFestivalOptions } from '@/data/Festivals';
-import { listAvailableFestivalIndieProjects, createPurchasePatch, runFestivalAuctionRounds, parseFestivalBidAmount, formatFestivalBidAmount } from '@/utils/festivalMarketplace';
+import { listAvailableFestivalIndieProjects, createPurchasePatch, createPurchasedFestivalProject, runFestivalAuctionRounds, parseFestivalBidAmount, formatFestivalBidAmount } from '@/utils/festivalMarketplace';
 import { FinancialEngine } from './FinancialEngine';
 import type { Project } from '@/types/game';
 
 export const FestivalManagement: React.FC = () => {
-  const { game: gameState, rng, updateProject, spendStudioFunds, updateReputation } = useGameStore(
+  const { game: gameState, rng, updateProject, addProject, spendStudioFunds, updateReputation } = useGameStore(
     useShallow((s) => ({
       game: s.game,
       rng: s.rng,
       updateProject: s.updateProject,
+      addProject: s.addProject,
       spendStudioFunds: s.spendStudioFunds,
       updateReputation: s.updateReputation,
     }))
@@ -84,8 +85,12 @@ export const FestivalManagement: React.FC = () => {
       return;
     }
 
-    const patch = createPurchasePatch(selected, gameState.studio.id, gameState.studio.name, bidAmount, gameState.currentWeek, gameState.currentYear);
-    updateProject(selected.id, patch as any);
+    const purchasedProject = createPurchasedFestivalProject(selected, gameState.studio.id, gameState.studio.name, bidAmount, gameState.currentWeek, gameState.currentYear);
+    if (gameState.projects.some((project) => project.id === selected.id)) {
+      updateProject(selected.id, createPurchasePatch(selected, gameState.studio.id, gameState.studio.name, bidAmount, gameState.currentWeek, gameState.currentYear) as any);
+    } else {
+      addProject(purchasedProject);
+    }
 
     FinancialEngine.recordTransaction('expense', 'licensing', bidAmount, gameState.currentWeek, gameState.currentYear, `Acquired ${selected.title} at ${festival?.name || 'Festival'}`, selected.id);
     updateReputation(1);

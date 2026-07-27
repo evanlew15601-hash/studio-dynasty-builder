@@ -317,6 +317,7 @@ export const SequelManagement: React.FC<SequelManagementProps> = ({
       franchiseId,
       medium: sequelPlan.medium,
       originalProject: selectedProject,
+      franchise: gameState.franchises.find((f) => f.id === franchiseId),
       returningCast: sequelPlan.returningCast,
       getCharacterKey,
     });

@@ -3291,6 +3291,29 @@ export const StudioMagnateGame: React.FC<StudioMagnateGameProps> = ({
               }}
             />
             <FranchiseManager
+              onCreateFranchise={(franchise, cost = 0) => {
+                if (cost > gameState.studio.budget) {
+                  toast({
+                    title: "Insufficient Budget",
+                    description: `Cannot afford this franchise - need ${(cost / 1000000).toFixed(1)}M`,
+                    variant: "destructive"
+                  });
+                  return;
+                }
+
+                if (cost > 0) {
+                  updateBudget(-cost);
+                }
+
+                handleCreateFranchise(franchise);
+
+                toast({
+                  title: cost > 0 ? "Franchise Rights Purchased" : "Original Franchise Created",
+                  description: cost > 0
+                    ? `Spent ${(cost / 1000000).toFixed(1)}M. Start entries from Your Franchises.`
+                    : `"${franchise.title}" is now available in Your Franchises.`,
+                });
+              }}
               onCreateProject={(franchiseId, publicDomainId, cost) => {
                 // Use existing handleCreateProject logic but adapted for the new interface
                 if (cost && cost > gameState.studio.budget) {

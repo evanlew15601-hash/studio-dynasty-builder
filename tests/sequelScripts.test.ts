@@ -90,4 +90,77 @@ describe('createSequelScript', () => {
     expect(script.characters?.find((c: any) => c.id === 'c-1')?.assignedTalentId).toBe('a-1');
     expect(script.characters?.find((c: any) => c.id === 'c-2')?.assignedTalentId).toBe('a-2');
   });
+
+  it('imports active franchise library characters and returning talent into sequel drafts', () => {
+    const script = createSequelScript({
+      id: 's-5',
+      title: 'Original: Legacy',
+      description: 'Library-driven sequel',
+      budget: 40_000_000,
+      franchiseId: 'f-1',
+      medium: 'film',
+      originalProject: baseProject,
+      returningCast: [],
+      getCharacterKey: (c) => c.franchiseCharacterId || c.id,
+      franchise: {
+        id: 'f-1',
+        title: 'Original Saga',
+        originDate: '2025-01-01',
+        creatorStudioId: 'studio-1',
+        genre: ['drama'],
+        tone: 'serious',
+        entries: ['p-1'],
+        status: 'active',
+        franchiseTags: [],
+        culturalWeight: 70,
+        cost: 0,
+        characterLibrary: [
+          {
+            characterId: 'c-1',
+            name: 'Avery Vale',
+            description: 'The established lead whose choices anchor the saga.',
+            ageRange: [35, 50],
+            gender: 'Male',
+            narrativeImportance: 'lead',
+            recurrencePotential: 95,
+            status: 'active',
+            appearances: ['p-1'],
+          },
+          {
+            characterId: 'c-3',
+            name: 'Mira Cross',
+            description: 'A recurring ally introduced in the franchise bible.',
+            ageRange: [30, 45],
+            gender: 'Female',
+            narrativeImportance: 'supporting',
+            recurrencePotential: 85,
+            status: 'active',
+            appearances: ['p-1'],
+          },
+        ],
+        talentLibrary: [
+          { talentId: 'a-3', name: 'Actor Three', role: 'actor', characterId: 'c-3', projectIds: ['p-1'], continuityPreference: 'return', status: 'available' },
+        ],
+        continuity: {
+          timelineEvents: [],
+          characterAppearances: { 'c-3': ['p-1'] },
+          deaths: {},
+          relationships: [],
+          locations: [],
+          plotThreads: [{ id: 'arc-1', description: 'The missing city is still unresolved.', status: 'active', appearances: ['p-1'] }],
+          warnings: [],
+        },
+      } as any,
+    });
+
+    const lead = script.characters?.find((c: any) => c.franchiseCharacterId === 'c-1') as any;
+    const recurring = script.characters?.find((c: any) => c.franchiseCharacterId === 'c-3') as any;
+
+    expect(lead.name).toBe('Avery Vale');
+    expect(lead.description).toContain('established lead');
+    expect(recurring.name).toBe('Mira Cross');
+    expect(recurring.assignedTalentId).toBe('a-3');
+    expect(script.themes).toContain('Active franchise arc: The missing city is still unresolved.');
+  });
+
 });

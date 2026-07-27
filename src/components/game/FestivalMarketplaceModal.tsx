@@ -5,7 +5,7 @@ import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { useToast } from '@/hooks/use-toast';
 import { useGameStore } from '@/game/store';
-import { listAvailableFestivalIndieProjects, createPurchasePatch, runFestivalAuctionRounds, parseFestivalBidAmount, formatFestivalBidAmount } from '@/utils/festivalMarketplace';
+import { listAvailableFestivalIndieProjects, createPurchasePatch, createPurchasedFestivalProject, runFestivalAuctionRounds, parseFestivalBidAmount, formatFestivalBidAmount } from '@/utils/festivalMarketplace';
 import { getFestivalById } from '@/data/Festivals';
 import { FinancialEngine } from './FinancialEngine';
 
@@ -16,10 +16,11 @@ interface Props {
 }
 
 export const FestivalMarketplaceModal: React.FC<Props> = ({ open, onOpenChange, festivalId }) => {
-  const { game: gameState, rng, updateProject, spendStudioFunds, updateReputation } = useGameStore((s) => ({
+  const { game: gameState, rng, updateProject, addProject, spendStudioFunds, updateReputation } = useGameStore((s) => ({
     game: s.game,
     rng: s.rng,
     updateProject: s.updateProject,
+    addProject: s.addProject,
     spendStudioFunds: s.spendStudioFunds,
     updateReputation: s.updateReputation,
   }));
@@ -68,9 +69,14 @@ export const FestivalMarketplaceModal: React.FC<Props> = ({ open, onOpenChange, 
       return;
     }
 
-    // Apply project patch
-    const patch = createPurchasePatch(selected, gameState.studio.id, gameState.studio.name, bidAmount, week, year);
-    updateProject(selected.id, patch as any);
+    // Apply project ownership. Festival listings often originate from the wider AI/fallback catalog,
+    // so add a canonical player project when the title is not already in the player's project list.
+    const purchasedProject = createPurchasedFestivalProject(selected, gameState.studio.id, gameState.studio.name, bidAmount, week, year);
+    if (gameState.projects.some((project) => project.id === selected.id)) {
+      updateProject(selected.id, createPurchasePatch(selected, gameState.studio.id, gameState.studio.name, bidAmount, week, year) as any);
+    } else {
+      addProject(purchasedProject);
+    }
 
     // Record transaction
     FinancialEngine.recordTransaction('expense', 'licensing', bidAmount, week, year, `Acquired ${selected.title} at ${festival?.name || 'Festival'}`, selected.id);
