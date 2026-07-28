@@ -30,7 +30,7 @@ jobs:
     runs-on: windows-latest
     steps:
       - name: Checkout code
-        uses: actions/checkout@v6
+        uses: actions/checkout@v7
 
       - name: Setup Go
         uses: actions/setup-go@v6
@@ -60,7 +60,7 @@ jobs:
     runs-on: macos-15-intel
     steps:
       - name: Checkout code
-        uses: actions/checkout@v6
+        uses: actions/checkout@v7
 
       - name: Setup Go
         uses: actions/setup-go@v6
@@ -90,7 +90,7 @@ jobs:
     runs-on: macos-15
     steps:
       - name: Checkout code
-        uses: actions/checkout@v6
+        uses: actions/checkout@v7
 
       - name: Setup Go
         uses: actions/setup-go@v6
@@ -128,7 +128,7 @@ jobs:
           git config --global --add safe.directory '*'
 
       - name: Checkout code
-        uses: actions/checkout@v6
+        uses: actions/checkout@v7
 
       - name: Setup Go
         uses: actions/setup-go@v6
@@ -166,7 +166,7 @@ jobs:
           git config --global --add safe.directory '*'
 
       - name: Checkout code
-        uses: actions/checkout@v6
+        uses: actions/checkout@v7
 
       - name: Setup Go
         uses: actions/setup-go@v6
@@ -419,7 +419,7 @@ jobs:
       BUTLER_API_KEY: ${{ secrets.BUTLER_API_KEY }}
     steps:
       - name: Checkout code
-        uses: actions/checkout@v6
+        uses: actions/checkout@v7
 
       - name: Setup Node.js
         uses: actions/setup-node@v6
