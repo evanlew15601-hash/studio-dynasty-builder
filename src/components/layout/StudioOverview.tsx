@@ -1,6 +1,9 @@
 import React from 'react';
+import type { Project } from '@/types/game';
 import { useShallow } from 'zustand/react/shallow';
 import { useGameStore } from '@/game/store';
+
+const EMPTY_PROJECTS: Project[] = [];
 
 const KPI: React.FC<{ label: string; value: React.ReactNode; accent?: boolean }> = ({ label, value, accent }) => (
   <div className="flex flex-col justify-center items-start text-left min-w-[160px]">
@@ -15,7 +18,7 @@ export const StudioOverview: React.FC = () => {
       studio: s.game?.studio,
       currentWeek: s.game?.currentWeek,
       currentYear: s.game?.currentYear,
-      projects: s.game?.projects ?? [],
+      projects: s.game?.projects ?? EMPTY_PROJECTS,
     }))
   );
 
