@@ -15,17 +15,17 @@ interface TalentPortraitProps {
 }
 
 const sizeClasses = {
-  sm: 'w-10 h-12',
-  md: 'w-16 h-20',
-  lg: 'w-24 h-32',
-  xl: 'w-32 h-44',
+  sm: 'w-8 h-10',
+  md: 'w-12 h-16',
+  lg: 'w-20 h-24',
+  xl: 'w-24 h-32',
 };
 
 const iconSizes = {
-  sm: 18,
-  md: 28,
-  lg: 40,
-  xl: 54,
+  sm: 14,
+  md: 22,
+  lg: 32,
+  xl: 44,
 };
 
 export const TalentPortrait = React.forwardRef<HTMLDivElement, TalentPortraitProps>(({ talent, className, size = 'md' }, ref) => {

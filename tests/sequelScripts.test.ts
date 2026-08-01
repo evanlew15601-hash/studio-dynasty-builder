@@ -163,4 +163,79 @@ describe('createSequelScript', () => {
     expect(script.themes).toContain('Active franchise arc: The missing city is still unresolved.');
   });
 
+  it('merges library characters using the same keying function as base characters', () => {
+    const script = createSequelScript({
+      id: 's-6',
+      title: 'Original: Franchise Merge',
+      description: 'Regression case for character key merge',
+      budget: 45_000_000,
+      franchiseId: 'f-1',
+      medium: 'film',
+      originalProject: {
+        ...baseProject,
+        script: {
+          ...baseProject.script,
+          characters: [
+            {
+              id: 'c-1',
+              name: 'Hero',
+              importance: 'lead',
+              requiredType: 'actor',
+              requiredGender: 'Male',
+              franchiseCharacterId: 'franchise-hero',
+              assignedTalentId: 'a-1',
+            },
+          ],
+        },
+      },
+      returningCast: [],
+      getCharacterKey: (c) => c.franchiseCharacterId || c.id,
+      franchise: {
+        id: 'f-1',
+        title: 'Original Saga',
+        originDate: '2025-01-01',
+        creatorStudioId: 'studio-1',
+        genre: ['drama'],
+        tone: 'serious',
+        entries: ['p-1'],
+        status: 'active',
+        franchiseTags: [],
+        culturalWeight: 70,
+        cost: 0,
+        characterLibrary: [
+          {
+            characterId: 'c-1',
+            franchiseCharacterId: 'franchise-hero',
+            name: 'Hero',
+            description: 'The lead from the franchise library.',
+            ageRange: [35, 50],
+            gender: 'Male',
+            narrativeImportance: 'lead',
+            recurrencePotential: 95,
+            status: 'active',
+            appearances: ['p-1'],
+          },
+        ],
+        talentLibrary: [],
+        continuity: {
+          timelineEvents: [],
+          characterAppearances: {},
+          deaths: {},
+          relationships: [],
+          locations: [],
+          plotThreads: [],
+          warnings: [],
+        },
+      } as any,
+    });
+
+    const mergedCharacters = script.characters?.filter((c: any) => c.id === 'c-1') ?? [];
+    const mergedCharacter = script.characters?.find((c: any) => c.franchiseCharacterId === 'franchise-hero') as any;
+
+    expect(mergedCharacters).toHaveLength(1);
+    expect(mergedCharacter).toBeDefined();
+    expect(mergedCharacter.name).toBe('Hero');
+    expect(mergedCharacter.assignedTalentId).toBe('a-1');
+  });
+
 });

@@ -187,7 +187,7 @@ const ProjectFinancialCard: React.FC<{ project: Project }> = ({ project }) => {
   if (!financials) return null;
 
   return (
-    <div className="p-3 rounded-lg border border-border/50 bg-card/50">
+    <div className="card-premium p-3">
       <div className="flex justify-between items-start mb-2">
         <div className="font-medium">{project.title}</div>
         <Badge variant={financials.netProfit >= 0 ? "default" : "destructive"}>
@@ -226,7 +226,7 @@ const ProjectFinancialRow: React.FC<{ project: Project }> = ({ project }) => {
 
   if (!financials) {
     return (
-      <div className="flex justify-between items-center p-3 rounded-lg bg-muted/20">
+      <div className="card-premium flex justify-between items-center p-3">
         <div className="font-medium">{project.title}</div>
         <Badge variant="outline">No Financial Data</Badge>
       </div>
@@ -234,7 +234,7 @@ const ProjectFinancialRow: React.FC<{ project: Project }> = ({ project }) => {
   }
 
   return (
-    <div className="flex justify-between items-center p-3 rounded-lg border border-border/50">
+    <div className="card-premium flex justify-between items-center p-3">
       <div className="flex-1">
         <div className="font-medium mb-1">{project.title}</div>
         <Progress value={Math.max(0, Math.min(100, financials.profitMargin + 50))} className="h-2" />

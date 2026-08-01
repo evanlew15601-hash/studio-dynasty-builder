@@ -263,14 +263,14 @@ export const MediaDashboard: React.FC<MediaDashboardProps> = ({
           <div className="mt-4 flex flex-wrap gap-2">
             <Button
               size="sm"
-              variant="outline"
+              variant="studio"
               onClick={() => navigatePhase('reputation')}
             >
               Open Reputation Panel
             </Button>
             <Button
               size="sm"
-              variant="outline"
+              variant="studio"
               onClick={() => navigatePhase('awards')}
             >
               Awards & Campaigns
@@ -289,15 +289,15 @@ export const MediaDashboard: React.FC<MediaDashboardProps> = ({
         </CardHeader>
         <CardContent>
           <div className="flex gap-4 mb-4">
-            <Button onClick={processQueuedEvents}>
+            <Button variant="studio" onClick={processQueuedEvents}>
               Refresh Media View
             </Button>
             {import.meta.env.DEV && (
-              <Button variant="outline" onClick={generateTestEvent}>
+              <Button variant="studio" onClick={generateTestEvent}>
                 Generate Test Event
               </Button>
             )}
-            <Button variant="outline" onClick={updateMediaData}>
+            <Button variant="studio" onClick={updateMediaData}>
               Refresh Data
             </Button>
           </div>
@@ -310,7 +310,7 @@ export const MediaDashboard: React.FC<MediaDashboardProps> = ({
                 {['all', 'positive', 'negative', 'player'].map(filter => (
                   <Button
                     key={filter}
-                    variant="outline"
+                    variant="studio"
                     size="sm"
                     onClick={() => setSelectedFilter(filter as any)}
                   >
@@ -348,7 +348,7 @@ export const MediaDashboard: React.FC<MediaDashboardProps> = ({
           <ScrollArea className="h-96">
             <div className="space-y-4">
               {getFilteredMedia().map(item => (
-                <div key={item.id} className="border rounded-lg p-4">
+                <div key={item.id} className="card-premium p-4">
                   <div className="flex items-start justify-between mb-2">
                     <div className="flex-1">
                       <div className="flex items-center gap-2 mb-1">

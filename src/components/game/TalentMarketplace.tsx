@@ -336,7 +336,7 @@ export const TalentMarketplace: React.FC<TalentMarketplaceProps> = ({
                   )}
                   <Button 
                     size="sm" 
-                    variant={status.status === 'available' ? 'default' : 'outline'}
+                    variant={status.status === 'available' ? 'studio' : 'outline'}
                     disabled={status.status === 'busy'}
                     onClick={() => onCastTalent?.(person.id, resolveCastRole(person))}
                     className="flex-1"

@@ -535,7 +535,7 @@ export const StudioDashboard: React.FC<StudioDashboardProps> = () => {
         <CardContent>
           <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
             <Button 
-              variant="outline" 
+              variant="studio" 
               className="h-auto p-6 flex flex-col items-center space-y-3 btn-ghost-premium hover:border-primary/50 group"
               onClick={() => setPhase('scripts')}
             >
@@ -545,7 +545,7 @@ export const StudioDashboard: React.FC<StudioDashboardProps> = () => {
               <span className="text-sm font-medium">Develop Script</span>
             </Button>
             <Button 
-              variant="outline" 
+              variant="studio" 
               className="h-auto p-6 flex flex-col items-center space-y-3 btn-ghost-premium hover:border-primary/50 group"
               onClick={() => {
                 const project = getBestProjectForCasting();
@@ -559,7 +559,7 @@ export const StudioDashboard: React.FC<StudioDashboardProps> = () => {
               <span className="text-sm font-medium">Scout Talent</span>
             </Button>
             <Button 
-              variant="outline" 
+              variant="studio" 
               className="h-auto p-6 flex flex-col items-center space-y-3 btn-ghost-premium hover:border-primary/50 group"
               onClick={() => setPhase('production')}
             >
@@ -569,7 +569,7 @@ export const StudioDashboard: React.FC<StudioDashboardProps> = () => {
               <span className="text-sm font-medium">Production</span>
             </Button>
             <Button 
-              variant="outline" 
+              variant="studio" 
               className="h-auto p-6 flex flex-col items-center space-y-3 btn-ghost-premium hover:border-primary/50 group"
               onClick={() => setPhase('distribution')}
             >
@@ -583,7 +583,7 @@ export const StudioDashboard: React.FC<StudioDashboardProps> = () => {
           {/* Financial Actions Row */}
           <div className="grid grid-cols-2 md:grid-cols-3 gap-4 mt-4 pt-4 border-t border-border/50">
             <Button 
-              variant="outline" 
+              variant="studio" 
               className="h-auto p-4 flex items-center space-x-3 btn-ghost-premium hover:border-primary/50 group"
               onClick={() => setPhase('finance')}
             >
@@ -593,7 +593,7 @@ export const StudioDashboard: React.FC<StudioDashboardProps> = () => {
               <span className="text-sm font-medium">Financial Center</span>
             </Button>
             <Button 
-              variant="outline" 
+              variant="studio" 
               className="h-auto p-4 flex items-center space-x-3 btn-ghost-premium hover:border-primary/50 group"
               onClick={() => setPhase('loans')}
             >
@@ -603,7 +603,7 @@ export const StudioDashboard: React.FC<StudioDashboardProps> = () => {
               <span className="text-sm font-medium">Manage Loans</span>
             </Button>
             <Button 
-              variant="outline" 
+              variant="studio" 
               className="h-auto p-4 flex items-center space-x-3 btn-ghost-premium hover:border-primary/50 group"
               onClick={() => setPhase('reputation')}
             >

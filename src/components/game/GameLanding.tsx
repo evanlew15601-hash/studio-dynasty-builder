@@ -205,7 +205,7 @@ export const GameLanding: React.FC<GameLandingProps> = ({
         {/* Main Menu */}
         {!showCustomization ? (
           <div className={cn('animate-scale-in', compactLanding ? 'space-y-4' : 'space-y-6')}>
-            <Card className="card-golden max-w-2xl mx-auto">
+            <Card className="card-premium max-w-2xl mx-auto">
               <CardHeader className={cn(compactLanding ? 'py-4' : '')}>
                 <CardTitle className={cn('text-foreground flex items-center', compactLanding ? 'text-lg' : 'text-xl')}>
                   <Sparkles className="mr-2 text-primary" />
@@ -334,7 +334,7 @@ export const GameLanding: React.FC<GameLandingProps> = ({
               </Card>
             )}
 
-            <Card className="card-golden max-w-2xl mx-auto">
+            <Card className="card-premium max-w-2xl mx-auto">
               <CardHeader className={cn(compactLanding ? 'py-4' : '')}>
                 <CardTitle className={cn('text-foreground flex items-center', compactLanding ? 'text-lg' : 'text-xl')}>
                   <Palette className="mr-2 text-primary" />
@@ -404,7 +404,7 @@ export const GameLanding: React.FC<GameLandingProps> = ({
             </Card>
 
             {streamingWarsSectionVisible && (
-              <Card className="card-golden max-w-2xl mx-auto">
+              <Card className="card-premium max-w-2xl mx-auto">
                 <CardHeader className={cn(compactLanding ? 'py-4' : '')}>
                   <CardTitle className={cn('text-foreground flex items-center', compactLanding ? 'text-lg' : 'text-xl')}>
                     <Sparkles className="mr-2 text-primary" />
@@ -433,8 +433,9 @@ export const GameLanding: React.FC<GameLandingProps> = ({
             <div className={cn('flex flex-col sm:flex-row justify-center', compactLanding ? 'gap-4' : 'gap-6')}>
               <Button
                 size="lg"
+                variant="studio"
                 className={cn(
-                  'btn-studio shadow-golden hover:shadow-golden/60 transition-all duration-500 hover:scale-[1.02]',
+                  'shadow-golden hover:shadow-golden/60 transition-all duration-500 hover:scale-[1.02]',
                   compactLanding ? 'px-10 py-5 text-base' : 'px-14 py-7 text-lg'
                 )}
                 onClick={handleStartGame}
@@ -742,13 +743,14 @@ export const GameLanding: React.FC<GameLandingProps> = ({
                   onChange={(icon) => setConfig(prev => ({ ...prev, studioIcon: icon }))}
                 />
 
-                <Separator className="bg-border" />
+                <Separator className="divider-thin" />
 
                 {/* Action Buttons */}
                 <div className="flex flex-col sm:flex-row gap-3">
                   <Button
                     size="lg"
-                    className="flex-1 btn-studio px-10 py-5 text-base shadow-golden hover:shadow-golden/60 transition-all duration-500 hover:scale-[1.02]"
+                    variant="studio"
+                    className="flex-1 px-10 py-5 text-base shadow-golden hover:shadow-golden/60 transition-all duration-500 hover:scale-[1.02]"
                     onClick={handleStartGame}
                     disabled={!config.studioName.trim() || (mode === 'online' && (!onlineLeagueCode?.trim() || !hasOnlineConfig))}
                   >

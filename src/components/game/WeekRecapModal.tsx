@@ -212,7 +212,7 @@ export const WeekRecapModal: React.FC<WeekRecapModalProps> = ({ open, onOpenChan
                   const TypeIcon = typeIcon(card);
 
                   return (
-                    <Card key={`${card.type}:${idx}`} className={cn(toneCardClass(tone))}>
+                    <Card key={`${card.type}:${idx}`} className={cn(toneCardClass(tone), 'card-premium')}>
                       <CardHeader className="pb-3">
                         <CardTitle className="text-base flex items-start justify-between gap-3">
                           <div className="flex items-start gap-2 min-w-0">
@@ -234,7 +234,7 @@ export const WeekRecapModal: React.FC<WeekRecapModalProps> = ({ open, onOpenChan
 
               {report?.systems && report.systems.length > 0 && (
                 <Collapsible open={timingsOpen} onOpenChange={setTimingsOpen}>
-                  <Card>
+                  <Card className="card-premium">
                     <CardHeader className="pb-3">
                       <CardTitle className="text-base flex items-center justify-between gap-3">
                         <div className="flex items-center gap-2">
@@ -246,7 +246,7 @@ export const WeekRecapModal: React.FC<WeekRecapModalProps> = ({ open, onOpenChan
                         </div>
 
                         <CollapsibleTrigger asChild>
-                          <Button variant="outline" size="sm" className="gap-2">
+                          <Button variant="studio" size="sm" className="gap-2">
                             {timingsOpen ? 'Hide' : 'Show'}
                             <ChevronDown className={cn('h-4 w-4 transition-transform', timingsOpen && 'rotate-180')} />
                           </Button>
@@ -255,7 +255,7 @@ export const WeekRecapModal: React.FC<WeekRecapModalProps> = ({ open, onOpenChan
                     </CardHeader>
 
                     <CollapsibleContent>
-                      <Separator />
+                      <Separator className="divider-thin" />
                       <CardContent className="pt-4">
                         <Table>
                           <TableHeader>
@@ -299,7 +299,7 @@ export const WeekRecapModal: React.FC<WeekRecapModalProps> = ({ open, onOpenChan
         </div>
 
         <DialogFooter>
-          <Button onClick={() => onOpenChange(false)}>Continue</Button>
+          <Button variant="studio" onClick={() => onOpenChange(false)}>Continue</Button>
         </DialogFooter>
       </DialogContent>
     </Dialog>

@@ -77,7 +77,7 @@ describe('Studio economy + revenue systems', () => {
       ctx as any
     );
 
-    expect(Math.round(withCosts.studio.budget)).toBe(719_500);
+    expect(Math.round(withCosts.studio.budget)).toBe(808_500);
     expect(Math.round(withCosts.studio.debt || 0)).toBe(0);
     expect(withCosts.studio.weeksSinceLastProject).toBe(1);
 
@@ -87,7 +87,7 @@ describe('Studio economy + revenue systems', () => {
     );
 
     expect(withDebt.studio.budget).toBe(0);
-    expect(Math.round(withDebt.studio.debt || 0)).toBe(180_536);
+    expect(Math.round(withDebt.studio.debt || 0)).toBe(91_518);
   });
 
   it('credits weekly theatrical + post-theatrical revenue to the studio budget', () => {
@@ -189,6 +189,6 @@ describe('Studio economy + revenue systems', () => {
     const result = advanceWeek(state, createRng(1), registry.getOrdered());
 
     expect(result.nextState.studio.debt || 0).toBe(0);
-    expect(Math.round(result.nextState.studio.budget || 0)).toBe(538_000);
+    expect(Math.round(result.nextState.studio.budget || 0)).toBe(542_000);
   });
 });

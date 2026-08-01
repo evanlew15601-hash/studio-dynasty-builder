@@ -198,7 +198,7 @@ export const ProductionManagement: React.FC<ProductionManagementProps> = ({
                         </div>
                         <Button
                           size="sm"
-                          variant="outline"
+                          variant="studio"
                           onClick={() => setSelectedDevProject(project)}
                         >
                           View Details
@@ -255,7 +255,7 @@ export const ProductionManagement: React.FC<ProductionManagementProps> = ({
                 ) : (
                   <div className="space-y-3">
                     {projects.map(project => (
-                      <Card key={project.id} className="bg-muted/50">
+                      <Card key={project.id} className="card-premium">
                         <CardContent className="p-4">
                           <div className="flex justify-between items-start mb-2">
                             <h4 className="font-medium">{project.title}</h4>
@@ -268,7 +268,7 @@ export const ProductionManagement: React.FC<ProductionManagementProps> = ({
                           </p>
                           <Button
                             size="sm"
-                            variant="outline"
+                            variant="studio"
                             className="w-full"
                             onClick={() => advanceProductionPhase(project)}
                             disabled={project.phaseDuration > 1 && project.phaseDuration !== -1}

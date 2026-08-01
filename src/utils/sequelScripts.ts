@@ -71,9 +71,15 @@ export function createSequelScript(params: {
   }
 
   for (const character of libraryCharacters) {
-    if (charactersByKey.has(character.characterId)) {
-      const existing = charactersByKey.get(character.characterId)!;
-      charactersByKey.set(character.characterId, {
+    const libraryKey = getCharacterKey({
+      id: character.characterId,
+      franchiseCharacterId: character.franchiseCharacterId || character.characterId,
+      roleTemplateId: undefined,
+    });
+
+    if (charactersByKey.has(libraryKey)) {
+      const existing = charactersByKey.get(libraryKey)!;
+      charactersByKey.set(libraryKey, {
         ...existing,
         name: character.name || existing.name,
         description: character.description || existing.description,
@@ -83,12 +89,12 @@ export function createSequelScript(params: {
         traits: character.traits || existing.traits,
         relationships: character.relationships || existing.relationships,
         locked: true,
-        assignedTalentId: returningByCharacter.get(character.characterId) || existing.assignedTalentId,
+        assignedTalentId: returningByCharacter.get(libraryKey) || existing.assignedTalentId,
       });
       continue;
     }
 
-    charactersByKey.set(character.characterId, {
+    charactersByKey.set(libraryKey, {
       id: character.characterId,
       name: character.name,
       description: character.description,
@@ -99,9 +105,9 @@ export function createSequelScript(params: {
       traits: character.traits,
       relationships: character.relationships,
       franchiseId,
-      franchiseCharacterId: character.characterId,
+      franchiseCharacterId: character.franchiseCharacterId || libraryKey,
       locked: true,
-      assignedTalentId: returningByCharacter.get(character.characterId),
+      assignedTalentId: returningByCharacter.get(libraryKey),
     });
   }
 

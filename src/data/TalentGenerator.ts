@@ -339,17 +339,19 @@ export class TalentGenerator {
   }
 
   generateMarketValue(age: number, experience: number, reputation: number, type: 'actor' | 'director'): number {
-    let baseValue = type === 'director' ? 350000 : 180000;
+    const baseFloor = type === 'director' ? 220_000 : 140_000;
+    let baseValue = type === 'director' ? 280_000 : 170_000;
 
-    baseValue += Math.max(0, experience) * 120000;
-    baseValue += Math.max(0, reputation - 20) * 8000;
+    baseValue += Math.max(0, experience) * 70_000;
+    baseValue += Math.max(0, reputation - 20) * 5_000;
 
     const optimalAge = type === 'director' ? 45 : 35;
-    const ageFactor = 1 - Math.abs(age - optimalAge) * 0.008;
-    baseValue *= Math.max(0.55, ageFactor);
-    baseValue *= (0.8 + Math.random() * 0.3);
+    const ageFactor = 1 - Math.abs(age - optimalAge) * 0.009;
+    baseValue *= Math.max(0.6, ageFactor);
+    baseValue *= (0.75 + Math.random() * 0.25);
 
-    return Math.min(baseValue, type === 'director' ? 8000000 : 5000000);
+    const affordabilityFloor = type === 'director' ? 1_100_000 : 700_000;
+    return Math.max(baseFloor, Math.min(baseValue, type === 'director' ? 4_500_000 : 3_000_000)) + (type === 'director' ? 150_000 : 80_000);
   }
 
   generateAwards(careerStage: typeof CAREER_STAGES[number], reputation: number): string[] {
@@ -403,7 +405,8 @@ export class TalentGenerator {
     const gender = Math.random() < 0.5 ? 'male' : 'female';
     const age = this.generateActorAge();
     const experience = Math.min(age - 16, Math.floor(Math.random() * 25));
-    const reputation = Math.max(10, Math.floor(Math.random() * 90) + (experience * 2));
+    const baseReputation = Math.max(10, Math.floor(Math.random() * 90) + (experience * 2));
+    const reputation = Math.min(85, Math.max(12, Math.round(baseReputation * 0.85)) + (experience < 4 ? 4 : 0));
     const careerStage = this.determineCareerStage(age, experience, reputation);
 
     const name = this.generateName(gender);
@@ -460,7 +463,8 @@ export class TalentGenerator {
     const gender = Math.random() < 0.7 ? 'male' : 'female'; // Industry reality
     const age = 25 + Math.floor(Math.random() * 35); // 25-60
     const experience = Math.min(age - 20, Math.floor(Math.random() * 30));
-    const reputation = Math.max(20, Math.floor(Math.random() * 80) + (experience * 3));
+    const baseReputation = Math.max(20, Math.floor(Math.random() * 80) + (experience * 3));
+    const reputation = Math.min(88, Math.max(22, Math.round(baseReputation * 0.8)) + (experience < 4 ? 4 : 0));
     const careerStage = this.determineCareerStage(age, experience, reputation);
 
     const name = this.generateName(gender);

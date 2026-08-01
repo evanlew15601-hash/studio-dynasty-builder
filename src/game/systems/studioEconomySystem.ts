@@ -1,19 +1,19 @@
 import type { GameState, Project } from '@/types/game';
 import type { TickSystem } from '../core/types';
 
-const BASE_OPERATIONAL_COST = 12_000;
-const ACTIVE_PROJECT_OVERHEAD = 6_000;
+const BASE_OPERATIONAL_COST = 8_000;
+const ACTIVE_PROJECT_OVERHEAD = 3_500;
 
 // Model production cash flow as staged vendor/payroll draws so first films
 // remain difficult but do not force mandatory survival loans before release.
 const PRODUCTION_WEEKS = 16;
-const PRODUCTION_BUDGET_FRACTION = 0.35;
+const PRODUCTION_BUDGET_FRACTION = 0.24;
 // Draw remaining budget across pre-/post-production so full project budget is
 // eventually paid rather than only charging production week draws.
 const PRE_PRODUCTION_WEEKS = PRODUCTION_WEEKS;
 const POST_PRODUCTION_WEEKS = PRODUCTION_WEEKS;
-const PRE_PRODUCTION_BUDGET_FRACTION = 0.25;
-const POST_PRODUCTION_BUDGET_FRACTION = 0.40;
+const PRE_PRODUCTION_BUDGET_FRACTION = 0.16;
+const POST_PRODUCTION_BUDGET_FRACTION = 0.24;
 
 const DEBT_AUTO_PAYDOWN_THRESHOLD = 1_000_000;
 const DEBT_AUTO_PAYDOWN_FRACTION = 0.05;

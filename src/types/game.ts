@@ -40,6 +40,7 @@ export interface Franchise {
 
 export interface FranchiseCharacterLibraryEntry {
   characterId: string;
+  franchiseCharacterId?: string;
   name: string;
   ageRange: [number, number];
   gender: Gender;

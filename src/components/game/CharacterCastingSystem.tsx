@@ -3,6 +3,7 @@ import { Project, TalentPerson, ScriptCharacter } from '@/types/game';
 import { useGameStore } from '@/game/store';
 import { useUiStore } from '@/game/uiStore';
 import { talentMatchesRole } from '@/utils/castingEligibility';
+import { filterAndSortTalentForRole } from '@/utils/castingFilters';
 import { isDirectorRole } from '@/utils/scriptRoles';
 import { describeTalentInterest, recordStudioNegotiationOutcome } from '@/utils/talentNegotiation';
 import { TalentNegotiationDialog } from './TalentNegotiationDialog';
@@ -84,33 +85,22 @@ export const CharacterCastingSystem: React.FC<CharacterCastingSystemProps> = ({
   };
 
   const getEligibleTalent = (character: ScriptCharacter): TalentPerson[] => {
-    return gameState.talent.filter(talent => {
-      // Must be available
-      if (talent.contractStatus !== 'available') return false;
+    const alreadyAssigned = (project.script?.characters || []).filter((c) => c.id !== character.id && c.assignedTalentId);
+    const assignedTalentIds = new Set(alreadyAssigned.map((c) => c.assignedTalentId));
 
-      // Type/age/demographic matching
-      if (!talentMatchesRole(talent, character)) return false;
-
-      // Genre compatibility (prefer matching genres)
-      if (project.script?.genre && talent.genres?.length > 0) {
-        // Don't filter out, but this will be used for sorting
+    return filterAndSortTalentForRole(
+      gameState.talent.filter((talent) => {
+        if (talent.contractStatus !== 'available') return false;
+        if (assignedTalentIds.has(talent.id)) return false;
+        return talentMatchesRole(talent, character);
+      }),
+      character,
+      {
+        projectGenre: project.script?.genre,
+        availabilityOnly: true,
+        maxPrice: character.importance === 'lead' ? 12_000_000 : 8_000_000,
       }
-
-      // Check if already cast in this project
-      const alreadyCast = (project.script?.characters || []).some(c => 
-        c.assignedTalentId === talent.id && c.id !== character.id
-      );
-      if (alreadyCast) return false;
-
-      return true;
-    }).sort((a, b) => {
-      // Sort by genre match first, then reputation
-      const aGenreMatch = project.script?.genre && a.genres?.includes(project.script?.genre) ? 1 : 0;
-      const bGenreMatch = project.script?.genre && b.genres?.includes(project.script?.genre) ? 1 : 0;
-
-      if (aGenreMatch !== bGenreMatch) return bGenreMatch - aGenreMatch;
-      return b.reputation - a.reputation;
-    });
+    );
   };
 
   const handleCastTalent = (character: ScriptCharacter, talent: TalentPerson) => {
@@ -502,7 +492,7 @@ const updatedProject: Project = {
       )}
 
       {/* Header with Progress and Controls */}
-      <Card>
+      <Card className="card-premium">
         <CardHeader>
           <CardTitle className="flex items-center justify-between">
             <div className="flex items-center gap-3">
@@ -528,8 +518,9 @@ const updatedProject: Project = {
               </Badge>
 <Button 
   onClick={handleConfirmCasting}
-  variant={progress.canProceed && !project.castingConfirmed ? "default" : "outline"}
+  variant={progress.canProceed && !project.castingConfirmed ? "studio" : "outline"}
   disabled={!progress.canProceed || project.castingConfirmed}
+  className={progress.canProceed && !project.castingConfirmed ? 'btn-studio' : ''}
 >
   {project.castingConfirmed ? 'Casting Confirmed' : 'Confirm Casting'}
 </Button>
@@ -661,11 +652,11 @@ const CastingSlotCard: React.FC<CastingSlotCardProps> = ({
   return (
     <Card 
       key={slot.character.id} 
-      className={`transition-colors ${
-        slot.talent ? 'border-green-500/30 bg-green-50/50 dark:bg-green-950/20 dark:border-green-400/30' : 
-        slot.isRequired ? 'border-red-500/30 bg-red-50/50 dark:bg-red-950/20 dark:border-red-400/30' : 
-        'border-amber-500/30 bg-amber-50/50 dark:bg-amber-950/20 dark:border-amber-400/30'
-      } bg-card`}
+      className={`card-premium transition-colors ${
+        slot.talent ? 'border-green-500/30' : 
+        slot.isRequired ? 'border-red-500/30' : 
+        'border-amber-500/30'
+      }`}
     >
       <CardHeader className="pb-3">
         <div className="flex items-center justify-between">
@@ -719,10 +710,10 @@ const CastingSlotCard: React.FC<CastingSlotCardProps> = ({
             <div className="flex gap-2">
               <Dialog>
                 <DialogTrigger asChild>
-                  <Button variant="outline" size="sm" disabled={project.castingConfirmed}>
-                    Change
-                  </Button>
-                </DialogTrigger>
+                    <Button variant="studio" size="sm" disabled={project.castingConfirmed} className="btn-studio">
+                      Change
+                    </Button>
+                  </DialogTrigger>
                 <DialogContent className="max-w-4xl max-h-[80vh] overflow-y-auto">
                   <DialogHeader>
                     <DialogTitle>{isDirector ? 'Assign Director' : `Cast ${slot.character.name}`}</DialogTitle>
@@ -763,7 +754,7 @@ const CastingSlotCard: React.FC<CastingSlotCardProps> = ({
 
             <Dialog>
               <DialogTrigger asChild>
-                <Button className="w-full" variant={slot.isRequired ? "default" : "outline"} disabled={project.castingConfirmed}>
+                <Button className="w-full" variant={slot.isRequired ? "studio" : "outline"} disabled={project.castingConfirmed}>
                   <UserCheck className="h-4 w-4 mr-2" />
                   {isDirector ? 'Assign Director' : 'Cast Role'} ({candidates.length} candidates)
                 </Button>
@@ -806,6 +797,23 @@ const CastingCandidatesList: React.FC<CastingCandidatesListProps> = ({
 }) => {
   const openTalentProfile = useUiStore((s) => s.openTalentProfile);
 
+  // Lightweight virtualization for long candidate lists
+  const containerRef = React.useRef<HTMLDivElement | null>(null);
+  const ITEM_HEIGHT = 76; // px, approximate per candidate row
+  const [scrollTop, setScrollTop] = React.useState(0);
+  const height = 384; // max visible height
+
+  const onScroll = (e: React.UIEvent<HTMLDivElement>) => {
+    setScrollTop(e.currentTarget.scrollTop);
+  };
+
+  const total = candidates.length;
+  const startIndex = Math.max(0, Math.floor(scrollTop / ITEM_HEIGHT) - 2);
+  const visibleCount = Math.min(total - startIndex, Math.ceil(height / ITEM_HEIGHT) + 4);
+  const endIndex = Math.min(total, startIndex + visibleCount);
+  const topPad = startIndex * ITEM_HEIGHT;
+  const bottomPad = Math.max(0, (total - endIndex) * ITEM_HEIGHT);
+
   return (
     <div className="space-y-4">
       {candidates.length === 0 ? (
@@ -814,69 +822,80 @@ const CastingCandidatesList: React.FC<CastingCandidatesListProps> = ({
           <p className="text-muted-foreground">No eligible talent available for this role</p>
         </div>
       ) : (
-        <div className="grid gap-3 max-h-96 overflow-y-auto">
-          {candidates.map((talent) => {
-            const isGenreMatch = projectGenre && talent.genres?.includes(projectGenre as any);
-            const isCurrent = currentTalent?.id === talent.id;
-            
-            return (
-              <div 
-                key={talent.id} 
-                className={`flex items-center justify-between p-3 border rounded-lg transition-colors ${
-                  isCurrent ? 'border-green-500 bg-green-50 dark:bg-green-950/20 dark:border-green-400' : 
-                  isGenreMatch ? 'border-blue-500 bg-blue-50 dark:bg-blue-950/20 dark:border-blue-400' : 
-                  'border-border hover:border-accent'
-                } bg-card`}
-              >
-                <div className="flex items-center gap-3">
-                  <TalentPortrait talent={talent} size="sm" />
-                  <div>
-                    <div className="flex items-center gap-2">
-                      <button
-                        type="button"
-                        className="font-medium text-foreground hover:underline text-left"
-                        onClick={() => openTalentProfile(talent.id)}
-                      >
-                        {talent.name}
-                      </button>
-                      {isGenreMatch && <Badge variant="outline" className="text-xs border-blue-300 text-blue-700 dark:border-blue-600 dark:text-blue-300">Genre Match</Badge>}
-                      {isCurrent && <Badge variant="default" className="text-xs bg-green-600 text-white dark:bg-green-700">Current</Badge>}
+        <div
+          ref={containerRef}
+          onScroll={onScroll}
+          className="relative overflow-y-auto"
+          style={{ maxHeight: `${height}px` }}
+        >
+          <div style={{ height: total * ITEM_HEIGHT, position: 'relative' }}>
+            <div style={{ transform: `translateY(${topPad}px)` }}>
+              {candidates.slice(startIndex, endIndex).map((talent) => {
+                const isGenreMatch = projectGenre && talent.genres?.includes(projectGenre as any);
+                const isCurrent = currentTalent?.id === talent.id;
+
+                return (
+                  <div
+                      key={talent.id}
+                      className={`flex items-center justify-between p-3 border rounded-lg transition-colors ${
+                        isCurrent ? 'border-green-500' :
+                        isGenreMatch ? 'border-blue-500' :
+                        'border-border'
+                      } card-premium hover:shadow-golden`}
+                      style={{ height: ITEM_HEIGHT - 8 }}
+                    >
+                    <div className="flex items-center gap-3">
+                      <TalentPortrait talent={talent} size="sm" />
+                      <div>
+                        <div className="flex items-center gap-2">
+                          <button
+                            type="button"
+                            className="font-medium text-foreground hover:underline text-left"
+                            onClick={() => openTalentProfile(talent.id)}
+                          >
+                            {talent.name}
+                          </button>
+                          {isGenreMatch && <Badge variant="outline" className="text-xs border-blue-300 text-blue-700 dark:border-blue-600 dark:text-blue-300">Genre Match</Badge>}
+                          {isCurrent && <Badge variant="default" className="text-xs bg-green-600 text-white dark:bg-green-700">Current</Badge>}
+                        </div>
+                        <p className="text-sm text-muted-foreground">
+                          ${(talent.marketValue / 1000000).toFixed(1)}M • Rep: {Math.round(talent.reputation)} • Age: {talent.age}
+                          {talent.gender && ` • ${talent.gender}`}
+                          {talent.race && ` • ${talent.race}`}
+                          {talent.nationality && ` • ${talent.nationality}`}
+                        </p>
+                        <div className="flex flex-wrap gap-1 mt-1">
+                          {talent.genres?.slice(0, 3).map(genre => (
+                            <Badge key={genre} variant="secondary" className="text-xs bg-secondary/80 text-secondary-foreground">
+                              {genre}
+                            </Badge>
+                          ))}
+                        </div>
+                      </div>
                     </div>
-                    <p className="text-sm text-muted-foreground">
-                      ${(talent.marketValue / 1000000).toFixed(1)}M • Rep: {Math.round(talent.reputation)} • Age: {talent.age}
-                      {talent.gender && ` • ${talent.gender}`}
-                      {talent.race && ` • ${talent.race}`}
-                      {talent.nationality && ` • ${talent.nationality}`}
-                    </p>
-                    <div className="flex flex-wrap gap-1 mt-1">
-                      {talent.genres?.slice(0, 3).map(genre => (
-                        <Badge key={genre} variant="secondary" className="text-xs bg-secondary/80 text-secondary-foreground">
-                          {genre}
-                        </Badge>
-                      ))}
-                    </div>
+                    <Button
+                      size="sm"
+                      variant={isCurrent ? 'outline' : 'studio'}
+                      onClick={() => {
+                        onCast(character, talent);
+                        setTimeout(() => {
+                          const dialog = document.querySelector('[role="dialog"]');
+                          if (dialog) {
+                            const backdrop = dialog.parentElement?.querySelector('[data-radix-dialog-overlay]') as HTMLElement;
+                            if (backdrop) backdrop.click();
+                          }
+                        }, 100);
+                      }}
+                      disabled={isCurrent}
+                      className={isCurrent ? 'opacity-50' : 'btn-studio'}
+                    >
+                      {isCurrent ? 'Current' : 'Cast'}
+                    </Button>
                   </div>
-                </div>
-                <Button 
-                  size="sm"
-                  onClick={() => {
-                    onCast(character, talent);
-                    setTimeout(() => {
-                      const dialog = document.querySelector('[role="dialog"]');
-                      if (dialog) {
-                        const backdrop = dialog.parentElement?.querySelector('[data-radix-dialog-overlay]') as HTMLElement;
-                        if (backdrop) backdrop.click();
-                      }
-                    }, 100);
-                  }}
-                  disabled={isCurrent}
-                  className={isCurrent ? 'opacity-50' : ''}
-                >
-                  {isCurrent ? 'Current' : 'Cast'}
-                </Button>
-              </div>
-            );
-          })}
+                );
+              })}
+            </div>
+          </div>
         </div>
       )}
     </div>

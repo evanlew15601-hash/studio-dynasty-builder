@@ -19,6 +19,8 @@ export interface CastingFilters {
   marketValueRange: [number, number];
   maxPrice: number | null;
   hasAwards: boolean | null;
+  sortBy: 'fit' | 'price' | 'reputation' | 'age';
+  includeUnavailable: boolean;
   searchQuery: string;
 }
 
@@ -54,6 +56,8 @@ export const CastingBoardFilters: React.FC<CastingBoardFiltersProps> = ({
       marketValueRange: [0, 50000000],
       maxPrice: null,
       hasAwards: null,
+      sortBy: 'fit',
+      includeUnavailable: false,
       searchQuery: ''
     });
   };
@@ -82,18 +86,18 @@ export const CastingBoardFilters: React.FC<CastingBoardFiltersProps> = ({
             Talent Filters
           </div>
           <div className="flex items-center space-x-2">
-            <Badge variant="outline">
+            <Badge variant="outline" className="muted-label">
               {getFilteredCount()} results
             </Badge>
-            <Button variant="outline" size="sm" onClick={clearFilters}>
+            <Button variant="studio" size="sm" onClick={clearFilters} className="btn-studio">
               <X size={14} className="mr-1" />
               Clear
             </Button>
           </div>
         </CardTitle>
       </CardHeader>
-      <CardContent className="space-y-6">
-        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
+      <CardContent className="space-y-4">
+          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-3">
           {/* Search */}
           <div>
             <Label htmlFor="search">Search Talent</Label>
@@ -177,10 +181,41 @@ export const CastingBoardFilters: React.FC<CastingBoardFiltersProps> = ({
               </SelectContent>
             </Select>
           </div>
+
+          {/* Sort Mode */}
+          <div>
+            <Label>Sort By</Label>
+            <Select
+              value={filters.sortBy}
+              onValueChange={(value) => updateFilter('sortBy', value)}
+            >
+              <SelectTrigger className="mt-1">
+                <SelectValue />
+              </SelectTrigger>
+              <SelectContent>
+                <SelectItem value="fit">Best Fit</SelectItem>
+                <SelectItem value="price">Lowest Cost</SelectItem>
+                <SelectItem value="reputation">Highest Reputation</SelectItem>
+                <SelectItem value="age">Youngest First</SelectItem>
+              </SelectContent>
+            </Select>
+          </div>
+
+          {/* Availability toggle */}
+          <div className="flex items-center gap-2 pt-5">
+            <input
+              id="include-unavailable"
+              type="checkbox"
+              checked={filters.includeUnavailable}
+              onChange={(e) => updateFilter('includeUnavailable', e.target.checked)}
+              className="h-4 w-4"
+            />
+            <Label htmlFor="include-unavailable">Include unavailable talent</Label>
+          </div>
         </div>
 
         {/* Range Filters */}
-        <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+          <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
           {/* Age Range */}
           <div>
             <Label>Age Range: {filters.ageRange[0]} - {filters.ageRange[1]}</Label>

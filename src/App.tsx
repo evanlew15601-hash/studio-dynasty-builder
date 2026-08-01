@@ -5,6 +5,7 @@ import { ErrorBoundary } from "@/components/ui/error-boundary";
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
 import { Suspense, lazy } from "react";
 import { HashRouter, Routes, Route } from "react-router-dom";
+import StudioOverview from '@/components/layout/StudioOverview';
 
 const Index = lazy(() => import("./pages/Index"));
 const Online = lazy(() => import("./pages/Online"));
@@ -17,8 +18,9 @@ const queryClient = new QueryClient();
 const App = () => (
   <QueryClientProvider client={queryClient}>
     <TooltipProvider>
-      <Toaster />
+    <Toaster />
       <Sonner />
+    <StudioOverview />
       <ErrorBoundary>
         <HashRouter
           

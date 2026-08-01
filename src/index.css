@@ -133,6 +133,55 @@ All colors MUST be HSL.
     --sidebar-ring: var(--ring);
   }
 
+    /* Global presentation rules for the premium theme */
+    body {
+      font-family: var(--font-body);
+      background-color: hsl(var(--background));
+      color: hsl(var(--foreground));
+      background-image: var(--app-bg-image);
+      background-size: cover;
+      background-repeat: no-repeat;
+      -webkit-font-smoothing: antialiased;
+      -moz-osx-font-smoothing: grayscale;
+    }
+
+    /* Premium card utility used across the app for elevated surfaces */
+    .card-premium {
+      background: var(--card-premium-bg);
+      background-clip: padding-box;
+      border: 1px solid hsl(var(--border) / 0.45);
+      box-shadow: var(--shadow-studio);
+      color: hsl(var(--card-foreground));
+    }
+
+    /* Primary studio action button used for important CTAs */
+    .btn-studio {
+      display: inline-flex;
+      align-items: center;
+      justify-content: center;
+      gap: 0.5rem;
+      padding: 0.45rem 0.9rem;
+      border-radius: calc(var(--radius) - 2px);
+      background-image: var(--gradient-golden);
+      color: hsl(var(--primary-foreground));
+      box-shadow: var(--shadow-golden);
+      font-weight: 600;
+      border: 1px solid hsl(var(--primary) / 0.12);
+    }
+
+    /* Thin dividers for understated separation */
+    .divider-thin {
+      height: 1px;
+      background: linear-gradient(90deg, hsl(var(--border) / 0.6), transparent);
+    }
+
+    /* Muted subtle label for high-density UIs */
+    .muted-label {
+      color: hsl(var(--muted-foreground));
+      font-size: 0.78rem;
+      letter-spacing: 0.2px;
+    }
+
   :root[data-skin="noir"] {
     --background: 220 10% 6%;
     --foreground: 40 10% 92%;
@@ -433,6 +482,37 @@ All colors MUST be HSL.
 
     --radius: 0.4rem;
   }
+
+  /* Global base styles for Studio Magnate UI */
+  html, body, #root {
+    height: 100%;
+  }
+
+  body {
+    font-family: var(--font-body);
+    background-color: hsl(var(--background));
+    color: hsl(var(--foreground));
+    -webkit-font-smoothing: antialiased;
+    -moz-osx-font-smoothing: grayscale;
+    line-height: var(--ui-leading);
+    font-weight: var(--ui-body-weight);
+  }
+
+  h1, h2, h3, h4 {
+    font-family: var(--font-title);
+    color: hsl(var(--foreground));
+    margin: 0;
+  }
+
+  /* Thin dividers */
+  .divider-thin { border-color: hsl(var(--border) / 0.35); border-width: 0 0 1px 0; }
+
+  /* Compact card variant for information-dense displays */
+  .card-compact { padding: 0.5rem 0.75rem; border-radius: 0.25rem; }
+
+  /* Buttons - restrained */
+  .btn-gold { background-color: hsl(var(--primary)); color: hsl(var(--primary-foreground)); padding: 6px 10px; border-radius: 3px; }
+
 
   :root[data-skin="art-deco"] {
     --background: 38 28% 92%;

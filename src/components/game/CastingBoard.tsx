@@ -54,6 +54,8 @@ const { toast } = useToast();
     marketValueRange: [0, 50000000],
     maxPrice: null,
     hasAwards: null,
+    sortBy: 'fit',
+    includeUnavailable: false,
     searchQuery: ''
   });
 
@@ -63,22 +65,35 @@ const { toast } = useToast();
   const [negotiationTarget, setNegotiationTarget] = useState<{ talent: TalentPerson; role: string } | null>(null);
 
   const availableTalent = useMemo(() => {
-    return allTalent.filter(talent => {
-      if (talent.contractStatus !== 'available') return false;
-      
-      // Apply filters
-      if (filters.talentType !== 'all' && talent.type !== filters.talentType) return false;
-      if (filters.genre !== 'all' && !talent.genres.includes(filters.genre)) return false;
-      if (talent.age < filters.ageRange[0] || talent.age > filters.ageRange[1]) return false;
-      if (talent.reputation < filters.reputationRange[0] || talent.reputation > filters.reputationRange[1]) return false;
-      if (talent.experience < filters.experienceRange[0] || talent.experience > filters.experienceRange[1]) return false;
-      if (talent.marketValue < filters.marketValueRange[0] || talent.marketValue > filters.marketValueRange[1]) return false;
-      if (!filterTalentByPrice([talent], filters.maxPrice).length) return false;
-      if (filters.hasAwards !== null && (talent.awards?.length > 0) !== filters.hasAwards) return false;
-      if (filters.searchQuery && !talent.name.toLowerCase().includes(filters.searchQuery.toLowerCase())) return false;
-      
-      return true;
-    });
+    const baseTalent = filters.includeUnavailable ? allTalent : allTalent.filter((talent) => talent.contractStatus === 'available');
+
+    return baseTalent
+      .filter((talent) => {
+        if (filters.talentType !== 'all' && talent.type !== filters.talentType) return false;
+        if (filters.genre !== 'all' && !talent.genres.includes(filters.genre)) return false;
+        if (talent.age < filters.ageRange[0] || talent.age > filters.ageRange[1]) return false;
+        if (talent.reputation < filters.reputationRange[0] || talent.reputation > filters.reputationRange[1]) return false;
+        if (talent.experience < filters.experienceRange[0] || talent.experience > filters.experienceRange[1]) return false;
+        if (talent.marketValue < filters.marketValueRange[0] || talent.marketValue > filters.marketValueRange[1]) return false;
+        if (!filterTalentByPrice([talent], filters.maxPrice).length) return false;
+        if (filters.hasAwards !== null && (talent.awards?.length > 0) !== filters.hasAwards) return false;
+        if (filters.searchQuery && !talent.name.toLowerCase().includes(filters.searchQuery.toLowerCase())) return false;
+
+        return true;
+      })
+      .sort((a, b) => {
+        switch (filters.sortBy) {
+          case 'price':
+            return (a.marketValue ?? 0) - (b.marketValue ?? 0);
+          case 'reputation':
+            return (b.reputation ?? 0) - (a.reputation ?? 0);
+          case 'age':
+            return (a.age ?? 0) - (b.age ?? 0);
+          case 'fit':
+          default:
+            return (b.reputation ?? 0) - (a.reputation ?? 0);
+        }
+      });
   }, [allTalent, filters]);
 
   const paginatedTalent = useMemo(() => {
@@ -339,11 +354,11 @@ const { toast } = useToast();
                     <TalentIcon className="mr-2" size={16} />
                     Current Cast
                   </h4>
-                  <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
+                  <div className="grid grid-cols-1 md:grid-cols-2 gap-2">
                     {selectedProject.cast.map((role, index) => {
                       const talent = allTalent.find(t => t.id === role.talentId);
                       return talent ? (
-                        <div key={index} className="flex items-center space-x-3 p-3 rounded-lg bg-card border">
+                        <div key={index} className="flex items-center space-x-2 p-2 rounded-sm bg-card border">
                           <TalentPortrait talent={talent} size="sm" />
                           <div className="flex-1">
                             <button
@@ -374,17 +389,17 @@ const { toast } = useToast();
         <Card className="card-premium">
           <CardHeader>
             <div className="flex items-center gap-2">
-              <h3 className="font-bold text-lg">Shortlist ({shortlistedTalentIds.length})</h3>
-              <Button
-                size="sm"
-                variant="outline"
-                onClick={() => useGameStore.getState().clearShortlist()}
-              >
-                Clear All
-              </Button>
+                <h3 className="font-semibold text-base">Shortlist ({shortlistedTalentIds.length})</h3>
+                <Button
+                  size="sm"
+                  variant="studio"
+                  onClick={() => useGameStore.getState().clearShortlist()}
+                >
+                  Clear All
+                </Button>
             </div>
           </CardHeader>
-          <CardContent className="grid grid-cols-3 md:grid-cols-4 lg:grid-cols-5 gap-2 p-4">
+          <CardContent className="grid grid-cols-3 md:grid-cols-4 lg:grid-cols-5 gap-2 p-2">
             {shortlistedTalentIds.slice(0, 20).map((id) => {
               const talent = allTalent.find(t => t.id === id);
               if (!talent) return null;
@@ -445,15 +460,15 @@ const { toast } = useToast();
         <div className="grid grid-cols-1 lg:grid-cols-2 xl:grid-cols-3 gap-6">
           {paginatedTalent.map((talent) => (
             <Card key={talent.id} className="card-premium hover:shadow-golden transition-all duration-300">
-              <CardHeader className="pb-3">
+              <CardHeader className="pb-2">
                 <div className="flex items-start justify-between">
-                  <div className="flex items-center space-x-3">
+                  <div className="flex items-center space-x-2">
                     <TalentPortrait talent={talent} size="md" />
                   <div className="flex-1">
                     <div className="flex items-center gap-2">
                       <button
                         type="button"
-                        className="font-bold text-lg hover:underline"
+                        className="font-semibold text-base hover:underline"
                         onClick={() => openTalentProfile(talent.id)}
                       >
                         {talent.name}
@@ -472,7 +487,7 @@ const { toast } = useToast();
                       {talent.type}
                     </Badge>
                     {shortlistedTalentIds.includes(talent.id) ? (
-                      <Badge variant="default" className="mt-1 bg-primary">
+                      <Badge variant="default" className="mt-1">
                         Shortlisted
                       </Badge>
                     ) : (
@@ -496,7 +511,7 @@ const { toast } = useToast();
               </div>
             </CardHeader>
             
-            <CardContent className="space-y-4">
+            <CardContent className="space-y-3">
               <div className="space-y-2">
                 <div className="flex justify-between text-sm">
                   <span className="text-muted-foreground">Market Value:</span>
