@@ -257,19 +257,19 @@ export const SequelManagement: React.FC<SequelManagementProps> = ({
         franchiseId = existing.id;
         appendFranchiseEntry(existing.id, selectedProject.id);
       } else {
-        // Create franchise from successful original
+        // Create a franchise from any released original.
         franchiseId = nextNumericId('franchise', gameState.franchises.map((f) => f.id));
         const newFranchise: Franchise = {
           id: franchiseId,
           title: expectedTitle,
-          description: `Franchise based on the successful release "${selectedProject.title}"`,
+          description: `Franchise based on the released film "${selectedProject.title}"`,
           originDate: triggerDateFromWeekYear(gameState.currentYear, gameState.currentWeek).toISOString().split('T')[0],
           creatorStudioId: gameState.studio.id,
           genre: selectedProject.script?.genre ? [selectedProject.script.genre] : ['action'],
           tone: 'light', // Convert to valid franchise tone
           entries: [selectedProject.id],
           status: 'active',
-          franchiseTags: ['sequel-ready', 'successful'],
+          franchiseTags: ['sequel-ready'],
           culturalWeight: Math.min(90, 50 + ((selectedProject.metrics?.criticsScore || 0) / 2)),
           cost: 0,
           characterLibrary: [],
@@ -587,9 +587,9 @@ export const SequelManagement: React.FC<SequelManagementProps> = ({
         <Card>
           <CardContent className="text-center py-8">
             <Film className="mx-auto h-12 w-12 text-muted-foreground mb-4" />
-            <h3 className="text-lg font-medium mb-2">No Films Ready for Sequels</h3>
+            <h3 className="text-lg font-medium mb-2">No Released Films Yet</h3>
             <p className="text-muted-foreground">
-              Create successful films (1.3x+ box office return, 55+ critic or 60+ audience score) to unlock sequel opportunities.
+              Release a film to make it eligible for a sequel, franchise continuation, or standalone follow-up.
             </p>
           </CardContent>
         </Card>

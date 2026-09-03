@@ -496,8 +496,8 @@ export const EnhancedFranchiseSystem: React.FC<EnhancedFranchiseSystemProps> = (
             <Crown className="mx-auto h-12 w-12 text-muted-foreground mb-4" />
             <h3 className="text-lg font-medium mb-2">No Franchises Yet</h3>
             <p className="text-muted-foreground mb-4">
-              Create successful films (1.5x+ box office return, 60+ critic score) to establish franchises,
-              or create original intellectual property from scratch.
+              Any released film can establish a franchise, continue as a sequel, or stand on its own.
+              You can also create original intellectual property from scratch.
             </p>
             <Button onClick={() => setIsCreating(true)}>
               <Plus className="h-4 w-4 mr-2" />
