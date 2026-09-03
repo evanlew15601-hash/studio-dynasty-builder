@@ -266,9 +266,12 @@ jobs:
           fi
 
           if [ "${{ matrix.channel }}" = "linux" ]; then
-            appimages=(src-tauri/target/release/bundle/appimage/*.AppImage)
+            appimages=()
+            while IFS= read -r -d '' appimage; do
+              appimages+=("$appimage")
+            done < <(find src-tauri/target/release/bundle -type f -iname '*.AppImage' -print0 2>/dev/null)
             if [ ${#appimages[@]} -lt 1 ]; then
-              echo "No AppImage bundle found at src-tauri/target/release/bundle/appimage/*.AppImage" >&2
+              echo "No AppImage bundle found under src-tauri/target/release/bundle" >&2
               exit 1
             fi
 
@@ -280,7 +283,10 @@ jobs:
           fi
 
           if [ "${{ matrix.channel }}" = "mac" ]; then
-            dmgs=(src-tauri/target/release/bundle/dmg/*.dmg)
+            dmgs=()
+            while IFS= read -r -d '' dmg; do
+              dmgs+=("$dmg")
+            done < <(find src-tauri/target/release/bundle -type f -iname '*.dmg' -print0 2>/dev/null)
             if [ ${#dmgs[@]} -ge 1 ]; then
               OUT_PATH="studio-magnate-mac-${APP_VERSION}.dmg"
               cp -p "${dmgs[0]}" "$OUT_PATH"
@@ -289,9 +295,12 @@ jobs:
               exit 0
             fi
 
-            apps=(src-tauri/target/release/bundle/macos/*.app)
+            apps=()
+            while IFS= read -r -d '' app; do
+              apps+=("$app")
+            done < <(find src-tauri/target/release/bundle -type d -iname '*.app' -print0 2>/dev/null)
             if [ ${#apps[@]} -lt 1 ]; then
-              echo "No dmg or .app bundle found." >&2
+              echo "No DMG or .app bundle found under src-tauri/target/release/bundle" >&2
               exit 1
             fi
 
