@@ -2884,9 +2884,11 @@ export const StudioMagnateGame: React.FC<StudioMagnateGameProps> = ({
                   {gameConfig?.studioIcon ? (
                     <StudioIconRendererLazy config={gameConfig.studioIcon} size={32} />
                   ) : (
-                    <div className="p-0.5 bg-gradient-golden rounded-md">
-                      <ClapperboardIcon className="text-primary-foreground" size={24} />
-                    </div>
+                    <img
+                      src="/studio-magnate-icon.png"
+                      alt="Studio Magnate"
+                      className="h-8 w-8 rounded-md object-contain"
+                    />
                   )}
                 </div>
                 <div>
@@ -3327,6 +3329,30 @@ export const StudioMagnateGame: React.FC<StudioMagnateGameProps> = ({
 
                 const franchise = franchiseId ? gameState.franchises.find(f => f.id === franchiseId) : null;
                 const publicDomain = publicDomainId ? gameState.publicDomainIPs.find(ip => ip.id === publicDomainId) : null;
+                const publicDomainFranchiseId = publicDomain ? `public-domain-franchise-${publicDomain.id}` : undefined;
+                const scriptFranchiseId = franchiseId || publicDomainFranchiseId;
+
+                if (publicDomain && publicDomainFranchiseId && !gameState.franchises.some((f) => f.id === publicDomainFranchiseId)) {
+                  handleCreateFranchise({
+                    id: publicDomainFranchiseId,
+                    title: publicDomain.name,
+                    originDate: `${gameState.currentYear}-01-01`,
+                    creatorStudioId: gameState.studio.id,
+                    genre: publicDomain.genreFlexibility.slice(0, 3),
+                    tone: 'pulpy',
+                    originMedium: publicDomain.domainType === 'literature' ? 'novel' : 'other',
+                    entries: [],
+                    status: 'active',
+                    franchiseTags: ['public-domain-ip', publicDomain.domainType],
+                    culturalWeight: publicDomain.culturalRelevance || publicDomain.reputationScore,
+                    cost: 0,
+                    description: publicDomain.description || publicDomain.coreElements.join(', '),
+                    characterLibrary: [],
+                    talentLibrary: [],
+                    continuity: { timelineEvents: [], characterAppearances: {}, deaths: {}, relationships: [], locations: [], plotThreads: [], warnings: [] },
+                    franchiseBible: { worldbuilding: publicDomain.coreElements, relationshipMap: [], sequelHooks: [`Build recurring audience favorites from ${publicDomain.name}.`], plannedArc: 'saga' },
+                  });
+                }
                 
                 const script: Script = {
                   id: nextNumericId('script', gameState.scripts.map((s) => s.id)),
@@ -3341,7 +3367,7 @@ export const StudioMagnateGame: React.FC<StudioMagnateGameProps> = ({
                   genre: 'drama',
                   targetAudience: 'general',
                   estimatedRuntime: 120,
-                  franchiseId,
+                  franchiseId: scriptFranchiseId,
                   publicDomainId,
                   characteristics: {
                     tone: 'light',
@@ -3371,7 +3397,7 @@ export const StudioMagnateGame: React.FC<StudioMagnateGameProps> = ({
                 }
 
                 // Route to Script Development instead of directly greenlighting
-                setSelectedFranchise(franchiseId || null);
+                setSelectedFranchise(scriptFranchiseId || null);
                 setSelectedPublicDomain(publicDomainId || null);
                 handlePhaseChange('scripts');
                 upsertScript(finalized);

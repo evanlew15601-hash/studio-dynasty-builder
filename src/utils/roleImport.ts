@@ -170,8 +170,8 @@ export function importRolesForScript(script: Script, gameState: GameState): Scri
     pdRoles.forEach(role => {
       const incoming: ScriptCharacter = {
         ...role,
-        franchiseId: undefined,
-        franchiseCharacterId: role.id,
+        franchiseId: script.franchiseId,
+        franchiseCharacterId: role.franchiseCharacterId || role.id,
         locked: role.requiredType === 'director',
       };
       const match = existing.find(c => c.franchiseCharacterId === incoming.franchiseCharacterId || (c.name === incoming.name && c.requiredType === incoming.requiredType));

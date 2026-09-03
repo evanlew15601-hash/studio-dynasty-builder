@@ -967,9 +967,16 @@ All colors MUST be HSL.
     font-size: 0.95em;
   }
 
+  .btn-studio > * {
+    position: relative;
+    z-index: 1;
+  }
+
   .btn-studio::before {
     content: '';
     position: absolute;
+    z-index: 0;
+    pointer-events: none;
     top: 0;
     left: -100%;
     width: 100%;
@@ -998,9 +1005,16 @@ All colors MUST be HSL.
     box-shadow: 0 10px 25px hsl(var(--primary) / 0.3);
   }
 
+  .btn-ghost-premium > * {
+    position: relative;
+    z-index: 1;
+  }
+
   .btn-ghost-premium::before {
     content: '';
     position: absolute;
+    z-index: 0;
+    pointer-events: none;
     top: 0;
     left: -100%;
     width: 100%;

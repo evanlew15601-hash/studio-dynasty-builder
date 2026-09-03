@@ -1,5 +1,6 @@
 import type { Franchise, GameState, Project, Script } from '@/types/game';
-import { buildCharacterLibrary, buildTalentLibrary, namedCharacterForRole } from '@/utils/franchiseContinuity';
+import { buildCharacterLibrary, buildTalentLibrary, characterLibraryFromDefinitions, characterLibraryFromPublicDomain, namedCharacterForRole } from '@/utils/franchiseContinuity';
+import { getEffectiveFranchiseCharacterDB } from '@/data/FranchiseCharacterDB';
 
 function uniqStrings(values: unknown): string[] {
   if (!Array.isArray(values)) return [];
@@ -267,19 +268,37 @@ export function normalizeFranchisesState(state: GameState): GameState {
     entriesFromProjects.set(fid, [...existing, p.id]);
   }
 
+  const characterDb = getEffectiveFranchiseCharacterDB();
+  const publicDomainByName = new Map((state.publicDomainIPs || []).map((ip) => [ip.name.trim().toLowerCase(), ip]));
+
   let entriesTouched = false;
   let libraryTouched = false;
   const nextFranchisesWithEntries = nextFranchises.map((f) => {
     const fromProjects = entriesFromProjects.get(f.id) || [];
     const merged = uniqStrings([...(f.entries || []), ...fromProjects]);
     const projectsForFranchise = nextProjects.filter((p) => merged.includes(p.id));
-    const characterLibrary = buildCharacterLibrary(f, projectsForFranchise);
+    let seededFranchise = f;
+    const definitions = characterDb[f.id] || (f.parodySource ? characterDb[f.parodySource] : undefined);
+    if (definitions?.length) {
+      seededFranchise = { ...seededFranchise, characterLibrary: characterLibraryFromDefinitions(seededFranchise, definitions) };
+    }
+
+    if ((f.franchiseTags || []).includes('public-domain-ip')) {
+      const publicDomain = publicDomainByName.get(f.title.trim().toLowerCase());
+      if (publicDomain) {
+        const seeded = characterLibraryFromPublicDomain(publicDomain, f.id);
+        const current = seededFranchise.characterLibrary || [];
+        seededFranchise = { ...seededFranchise, characterLibrary: [...current, ...seeded.filter((entry) => !current.some((existing) => existing.characterId === entry.characterId))] };
+      }
+    }
+
+    const characterLibrary = buildCharacterLibrary(seededFranchise, projectsForFranchise);
     const talentLibrary = buildTalentLibrary(f, projectsForFranchise, state);
     const continuity = {
-      ...(f.continuity || {}),
+      ...(seededFranchise.continuity || {}),
       characterAppearances: Object.fromEntries(characterLibrary.map((c) => [c.characterId, c.appearances])),
       timelineEvents: [
-        ...((f.continuity?.timelineEvents || []).filter((e) => e.type !== 'appearance')),
+        ...((seededFranchise.continuity?.timelineEvents || []).filter((e) => e.type !== 'appearance')),
         ...projectsForFranchise.map((p) => ({
           id: `appearance-${p.id}`,
           projectId: p.id,
@@ -287,13 +306,13 @@ export function normalizeFranchisesState(state: GameState): GameState {
           type: 'appearance' as const,
         })),
       ],
-      deaths: f.continuity?.deaths || {},
-      relationships: f.continuity?.relationships || [],
-      locations: f.continuity?.locations || [],
-      plotThreads: f.continuity?.plotThreads || [],
-      warnings: f.continuity?.warnings || [],
+      deaths: seededFranchise.continuity?.deaths || {},
+      relationships: seededFranchise.continuity?.relationships || [],
+      locations: seededFranchise.continuity?.locations || [],
+      plotThreads: seededFranchise.continuity?.plotThreads || [],
+      warnings: seededFranchise.continuity?.warnings || [],
     };
-    const bible = f.franchiseBible || {
+    const bible = seededFranchise.franchiseBible || {
       worldbuilding: f.description ? [f.description] : [],
       relationshipMap: characterLibrary.flatMap((c) => (c.relationships || []).map((r) => ({ fromCharacterId: c.characterId, toCharacterId: r.characterId, relationship: r.relationship }))),
       sequelHooks: [`Track returning audience favorites from ${f.title}.`],
@@ -304,7 +323,7 @@ export function normalizeFranchisesState(state: GameState): GameState {
     if (entriesChanged) entriesTouched = true;
     if (librariesChanged) libraryTouched = true;
     if (!entriesChanged && !librariesChanged) return f;
-    return { ...f, entries: merged, characterLibrary, talentLibrary, continuity, franchiseBible: bible };
+    return { ...seededFranchise, entries: merged, characterLibrary, talentLibrary, continuity, franchiseBible: bible };
   });
 
   const inputFranchises = (state.franchises || []) as Franchise[];

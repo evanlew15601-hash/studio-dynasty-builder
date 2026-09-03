@@ -5,11 +5,11 @@ describe('world generator (core universe)', () => {
   it('includes a large core roster with seeded history + relationships', () => {
     const pool = generateInitialTalentPool({ currentYear: 2026 });
 
-    // Cornellverse defaults to core-only (no procedural filler).
-    expect(pool.some((t) => t.isNotable === false)).toBe(false);
+    const affordableYoung = pool.filter((t) => t.isNotable === false && t.age < 30 && t.marketValue <= 1_000_000);
+    expect(affordableYoung.length).toBeGreaterThanOrEqual(30);
+    expect(affordableYoung.some((t) => t.type === 'director')).toBe(true);
 
-    // Core roster should be substantial.
-    expect(pool.length).toBeGreaterThanOrEqual(110);
+    expect(pool.length).toBeGreaterThanOrEqual(140);
 
     const eleanor = pool.find((t) => t.name === 'Eleanor Vale');
     const jonah = pool.find((t) => t.name === 'Jonah Pike');

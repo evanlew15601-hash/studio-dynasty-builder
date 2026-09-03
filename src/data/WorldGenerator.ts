@@ -423,6 +423,60 @@ export function buildCoreTalentDebutsForYear(year: number): TalentPerson[] {
   );
 }
 
+function buildAffordableEmergingTalent(currentYear: number): TalentPerson[] {
+  const genres: Genre[] = ['action', 'comedy', 'drama', 'horror', 'thriller', 'romance', 'sci-fi', 'fantasy', 'family', 'crime'];
+  const firstNames = ['Ari', 'Mina', 'Theo', 'Jules', 'Nico', 'Lena', 'Kai', 'Maya', 'Owen', 'Sofia', 'Remy', 'Talia'];
+  const lastNames = ['Park', 'Reed', 'Stone', 'Vale', 'Brooks', 'Chen', 'Rivera', 'Shaw', 'Hayes', 'Cole', 'Singh', 'Morgan'];
+
+  return Array.from({ length: 32 }, (_, index) => {
+    const type: 'actor' | 'director' = index % 5 === 0 ? 'director' : 'actor';
+    const age = stableInt(`affordable-emerging|${currentYear}|${index}|age`, 19, 29);
+    const experience = Math.max(0, Math.min(6, age - stableInt(`affordable-emerging|${index}|start-age`, 18, 23)));
+    const reputation = stableInt(`affordable-emerging|${index}|rep`, 18, 38);
+    const primaryGenre = stablePick(genres, `affordable-emerging|${index}|genre1`) || 'drama';
+    const secondaryGenre = stablePick(genres.filter((genre) => genre !== primaryGenre), `affordable-emerging|${index}|genre2`) || 'comedy';
+    const first = stablePick(firstNames, `affordable-emerging|${index}|first`) || 'Ari';
+    const last = stablePick(lastNames, `affordable-emerging|${index}|last`) || 'Park';
+    const marketValue = type === 'director'
+      ? stableInt(`affordable-emerging|${index}|director-value`, 180_000, 900_000)
+      : stableInt(`affordable-emerging|${index}|actor-value`, 90_000, 650_000);
+
+    return {
+      id: `emerging:${currentYear}:${index}`,
+      name: `${first} ${last}${index + 1}`,
+      type,
+      age,
+      gender: stablePick(['Male', 'Female'], `affordable-emerging|${index}|gender`) || 'Female',
+      race: stablePick(['White', 'Black', 'Asian', 'Latino', 'Middle Eastern', 'Indigenous', 'Mixed'], `affordable-emerging|${index}|race`) || 'Mixed',
+      nationality: stablePick(['American', 'Canadian', 'British', 'Mexican', 'Korean', 'Indian', 'Australian'], `affordable-emerging|${index}|nationality`) || 'American',
+      experience,
+      reputation,
+      marketValue,
+      contractStatus: 'available',
+      genres: [primaryGenre, secondaryGenre],
+      specialties: [primaryGenre],
+      awards: [],
+      traits: ['emerging', 'affordable', type === 'director' ? 'indie-ready' : 'breakout-potential'],
+      careerStage: 'rising',
+      availability: { start: new Date(Date.UTC(currentYear, 0, 1)), end: new Date(Date.UTC(currentYear + 1, 0, 1)) },
+      burnoutLevel: 5,
+      studioLoyalty: {},
+      chemistry: {},
+      futureHolds: [],
+      recentProjects: [],
+      biography: `${first} ${last}${index + 1} is an affordable emerging ${type} looking for a breakout studio opportunity.`,
+      archetype: type === 'director' ? 'Scrappy new director' : 'Affordable breakout performer',
+      narratives: ['Affordable hire', 'Under-30 upside', 'Small-studio friendly'],
+      movementTags: ['Emerging Talent Pipeline'],
+      quirks: ['Flexible schedule'],
+      isNotable: false,
+      publicImage: reputation,
+      fame: type === 'actor' ? Math.max(8, reputation - 8) : undefined,
+      filmography: [],
+    };
+  });
+}
+
 export function generateInitialTalentPool(options: {
   currentYear: number;
   actorCount?: number;
@@ -433,7 +487,7 @@ export function generateInitialTalentPool(options: {
   // Core: 100-200 anchor figures.
   const core = buildCoreTalent(currentYear);
 
-  // Procedural filler: optional (Cornellverse defaults to core-only).
+  // Procedural filler remains optional; the emerging pipeline is always present.
   const fillerActorCount = Math.max(0, (options.actorCount ?? 0));
   const fillerDirectorCount = Math.max(0, (options.directorCount ?? 0));
 
@@ -445,7 +499,7 @@ export function generateInitialTalentPool(options: {
     narratives: t.narratives || [],
   }));
 
-  return [...core, ...filler];
+  return [...core, ...buildAffordableEmergingTalent(currentYear), ...filler];
 }
 
 /**

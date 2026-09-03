@@ -253,13 +253,16 @@ describe('importRolesForScript', () => {
 
     const script = makeBaseScript({
       sourceType: 'public-domain',
+      franchiseId: 'public-domain-franchise-pd-1',
       publicDomainId: 'pd-1',
       characters: [],
     });
 
     const imported = importRolesForScript(script, gameState);
 
-    expect(imported.some((c) => c.franchiseCharacterId === 'detective' && c.importance === 'lead')).toBe(true);
+    const detective = imported.find((c) => c.franchiseCharacterId === 'detective');
+    expect(detective?.importance).toBe('lead');
+    expect(detective?.franchiseId).toBe('public-domain-franchise-pd-1');
     expect(imported.some((c) => c.requiredType === 'director')).toBe(true);
     expect(imported.some((c) => c.importance === 'minor')).toBe(true);
 

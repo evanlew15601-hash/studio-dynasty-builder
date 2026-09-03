@@ -37,6 +37,31 @@ describe('normalizeFranchises', () => {
     expect(normalizeFranchises(undefined)).toEqual([]);
     expect(normalizeFranchises(null)).toEqual([]);
   });
+
+  it('seeds acquired franchise character libraries before any project exists', () => {
+    const state = {
+      universeSeed: 1, rngState: 1, currentYear: 2026, currentWeek: 1, currentQuarter: 1,
+      studio: { id: 'studio-1', name: 'You' }, talent: [], projects: [], scripts: [], publicDomainIPs: [],
+      franchises: [{ id: 'owned-star-saga', title: 'Star Enforcers', parodySource: 'Star Saga', entries: [], creatorStudioId: 'studio-1' }],
+    } as any;
+
+    const franchise = normalizeFranchisesState(state).franchises[0] as any;
+    expect(franchise.characterLibrary.some((character: any) => character.characterId === 'char_hero_pilot')).toBe(true);
+    expect(franchise.continuity.characterAppearances.char_hero_pilot).toEqual([]);
+  });
+
+  it('seeds public-domain franchise libraries from suggested characters', () => {
+    const state = {
+      universeSeed: 1, rngState: 1, currentYear: 2026, currentWeek: 1, currentQuarter: 1,
+      studio: { id: 'studio-1', name: 'You' }, talent: [], projects: [], scripts: [],
+      publicDomainIPs: [{ id: 'pd-detective', name: 'Great Detective', suggestedCharacters: [{ id: 'detective', name: 'Great Detective', importance: 'lead', requiredType: 'actor' }] }],
+      franchises: [{ id: 'public-domain-franchise-pd-detective', title: 'Great Detective', entries: [], creatorStudioId: 'studio-1', franchiseTags: ['public-domain-ip'] }],
+    } as any;
+
+    const franchise = normalizeFranchisesState(state).franchises[0] as any;
+    expect(franchise.characterLibrary).toHaveLength(1);
+    expect(franchise.characterLibrary[0].characterId).toBe('detective');
+  });
 });
 
 describe('normalizeFranchisesState', () => {

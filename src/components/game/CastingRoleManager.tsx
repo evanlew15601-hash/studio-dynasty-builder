@@ -17,6 +17,7 @@ const EMPTY_SHORTLISTED_IDS: string[] = [];
 import { useToast } from '@/hooks/use-toast';
 import { CastingIcon, TalentIcon } from '@/components/ui/icons';
 import { Search, Star as StarIcon } from 'lucide-react';
+import { filterTalentByPrice } from '@/utils/castingFilters';
 
 interface RoleCast {
   characterId: string;
@@ -50,6 +51,7 @@ export const CastingRoleManager: React.FC<CastingRoleManagerProps> = ({
   const toggleShortlist = useGameStore((s) => s.toggleShortlist);
   const [tab, setTab] = useState<'shortlist' | 'browse'>('shortlist');
   const [talentFilter, setTalentFilter] = useState('');
+  const [maxTalentPrice, setMaxTalentPrice] = useState<number | null>(null);
 
   // Initialize roles from script characters and current cast
   const initializeRoles = (): RoleCast[] => {
@@ -135,6 +137,8 @@ export const CastingRoleManager: React.FC<CastingRoleManagerProps> = ({
         return true;
       });
     }
+
+    talentPool = filterTalentByPrice(talentPool, maxTalentPrice);
 
     // Filter by search query
     if (talentFilter) {
@@ -461,6 +465,18 @@ export const CastingRoleManager: React.FC<CastingRoleManagerProps> = ({
                   className="pl-10"
                 />
               </div>
+            </div>
+            <div className="w-full sm:w-44">
+              <Label htmlFor="casting-role-max-price">Max Price</Label>
+              <Input
+                id="casting-role-max-price"
+                type="number"
+                min="0"
+                step="100000"
+                placeholder="No limit"
+                value={maxTalentPrice ?? ''}
+                onChange={(event) => setMaxTalentPrice(event.target.value === '' ? null : Number(event.target.value))}
+              />
             </div>
           </div>
 

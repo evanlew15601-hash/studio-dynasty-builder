@@ -1,6 +1,7 @@
-import type { Franchise, FranchiseCharacterLibraryEntry, FranchiseTalentLibraryEntry, GameState, Project, ScriptCharacter } from '@/types/game';
+import type { Franchise, FranchiseCharacterLibraryEntry, FranchiseTalentLibraryEntry, GameState, Project, PublicDomainIP, ScriptCharacter } from '@/types/game';
 import { stablePick } from '@/utils/stablePick';
 import { isDirectorRole } from '@/utils/scriptRoles';
+import type { FranchiseCharacterDef } from '@/data/FranchiseCharacterDB';
 
 const GENERIC_MAJOR_ROLE_NAMES = new Set([
   'hero', 'lead', 'lead character', 'main character', 'main protagonist', 'protagonist',
@@ -57,6 +58,74 @@ function nextPopularity(
 
 function characterIdFor(c: ScriptCharacter): string {
   return c.franchiseCharacterId || c.roleTemplateId || c.id || c.name.toLowerCase().replace(/[^a-z0-9]+/g, '-');
+}
+
+function libraryEntryFromCharacter(role: ScriptCharacter, franchiseId: string, seed: string, appearances: string[] = []): FranchiseCharacterLibraryEntry | null {
+  if (isDirectorRole(role) || role.importance === 'minor' || role.importance === 'crew') return null;
+
+  const character = namedCharacterForRole(role, seed);
+  const characterId = characterIdFor(character);
+  const importance = character.importance === 'lead' ? 'lead' : character.importance === 'supporting' ? 'supporting' : 'recurring';
+
+  return {
+    characterId,
+    franchiseCharacterId: character.franchiseCharacterId || characterId,
+    name: character.name,
+    ageRange: character.ageRange || [25, 45],
+    gender: character.requiredGender || stablePick(['Male', 'Female'], `${franchiseId}|${characterId}|gender`),
+    description: character.description || 'Franchise character.',
+    narrativeImportance: importance,
+    recurrencePotential: importance === 'lead' ? 92 : 72,
+    status: 'active',
+    traits: character.traits,
+    relationships: character.relationships,
+    firstAppearanceProjectId: appearances[0],
+    appearances,
+    popularity: importance === 'lead' ? 62 : 50,
+  };
+}
+
+export function characterLibraryFromDefinitions(franchise: Franchise, definitions: FranchiseCharacterDef[] = []): FranchiseCharacterLibraryEntry[] {
+  const existing = new Map((franchise.characterLibrary || []).map((entry) => [entry.characterId, entry]));
+
+  for (const definition of definitions) {
+    if (definition.requiredType === 'director' || definition.importance === 'crew' || definition.importance === 'minor') continue;
+
+    const entry = libraryEntryFromCharacter({
+      id: definition.character_id,
+      name: definition.name,
+      description: definition.description,
+      importance: definition.importance,
+      traits: definition.traits,
+      requiredType: definition.requiredType || 'actor',
+      ageRange: definition.ageRange,
+      franchiseId: franchise.id,
+      franchiseCharacterId: definition.character_id,
+      roleTemplateId: definition.role_template_id,
+      locked: true,
+    }, franchise.id, `${franchise.id}|definition|${definition.character_id}`);
+
+    if (entry && !existing.has(entry.characterId)) existing.set(entry.characterId, entry);
+  }
+
+  return Array.from(existing.values());
+}
+
+export function characterLibraryFromPublicDomain(publicDomain: PublicDomainIP, franchiseId: string): FranchiseCharacterLibraryEntry[] {
+  const existing = new Map<string, FranchiseCharacterLibraryEntry>();
+
+  for (const role of publicDomain.suggestedCharacters || []) {
+    const entry = libraryEntryFromCharacter({
+      ...role,
+      franchiseId,
+      franchiseCharacterId: role.franchiseCharacterId || role.id,
+      locked: role.requiredType === 'director' ? true : role.importance !== 'minor',
+    }, franchiseId, `${franchiseId}|public-domain|${publicDomain.id}|${role.id}`);
+
+    if (entry && !existing.has(entry.characterId)) existing.set(entry.characterId, entry);
+  }
+
+  return Array.from(existing.values());
 }
 
 export function buildCharacterLibrary(franchise: Franchise, projects: Project[] = []): FranchiseCharacterLibraryEntry[] {
