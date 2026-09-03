@@ -2880,21 +2880,19 @@ export const StudioMagnateGame: React.FC<StudioMagnateGameProps> = ({
           <div className="flex flex-col gap-4 lg:flex-row lg:items-center lg:justify-between">
             <div className="flex items-center space-x-6">
               <div className="flex items-center space-x-3">
-                <div className="p-1.5 rounded-lg shadow-golden animate-glow">
+                <div className="flex h-10 w-[148px] items-center justify-center rounded-sm shadow-golden animate-glow">
                   {gameConfig?.studioIcon ? (
                     <StudioIconRendererLazy config={gameConfig.studioIcon} size={32} />
                   ) : (
                     <img
                       src="/studio-magnate-icon.png"
                       alt="Studio Magnate"
-                      className="h-8 w-8 rounded-md object-contain"
+                      className="h-10 w-auto object-contain"
                     />
                   )}
                 </div>
                 <div>
-                  <div className="text-2xl font-bold studio-title bg-gradient-to-r from-primary to-accent bg-clip-text text-transparent">
-                    {gameState.studio.name}
-                  </div>
+                  <div className="text-2xl font-bold studio-title text-primary">{gameState.studio.name}</div>
                   <div className="text-sm text-muted-foreground studio-mono">
                     Week {gameState.currentWeek}, Q{gameState.currentQuarter} {gameState.currentYear} • Est. {gameState.studio.founded}
                   </div>

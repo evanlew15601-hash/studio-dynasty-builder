@@ -164,31 +164,14 @@ export const GameLanding: React.FC<GameLandingProps> = ({
         {/* Main Title */}
         <div className={cn('text-center animate-fade-in', compactLanding ? 'mb-8' : 'mb-16')}>
           <div className={cn('relative', compactLanding ? 'mb-5' : 'mb-8')}>
-            <h1
+            <img
+              src="/studio-magnate-icon.png"
+              alt="Studio Magnate"
               className={cn(
-                'font-black bg-gradient-golden bg-clip-text text-transparent drop-shadow-2xl mb-2 tracking-[0.15em] leading-none studio-title',
-                compactLanding ? 'text-5xl md:text-6xl lg:text-7xl' : 'text-7xl md:text-8xl lg:text-9xl'
+                'mx-auto h-auto object-contain drop-shadow-2xl',
+                compactLanding ? 'w-[min(82vw,300px)]' : 'w-[min(82vw,420px)]'
               )}
-            >
-              STUDIO
-            </h1>
-            <h1
-              className={cn(
-                'font-black bg-gradient-golden bg-clip-text text-transparent drop-shadow-2xl tracking-[0.15em] leading-none studio-title',
-                compactLanding ? 'text-5xl md:text-6xl lg:text-7xl' : 'text-7xl md:text-8xl lg:text-9xl'
-              )}
-            >
-              MAGNATE
-            </h1>
-            
-            {/* Elegant underline with glow */}
-            <div className={cn('flex justify-center', compactLanding ? 'mt-4 mb-4' : 'mt-8 mb-8')}>
-              <div className="relative">
-                <div className={cn('h-[2px] bg-gradient-to-r from-transparent via-primary to-transparent', compactLanding ? 'w-36' : 'w-48')} />
-                <div className={cn('absolute inset-0 h-[2px] bg-gradient-to-r from-transparent via-primary to-transparent blur-sm', compactLanding ? 'w-36' : 'w-48')} />
-                <div className={cn('absolute inset-0 h-[4px] bg-gradient-to-r from-transparent via-accent/50 to-transparent blur-md', compactLanding ? 'w-36' : 'w-48')} />
-              </div>
-            </div>
+            />
           </div>
           
           <p

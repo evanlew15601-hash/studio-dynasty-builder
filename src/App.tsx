@@ -20,10 +20,7 @@ const App = () => (
     <Toaster />
       <Sonner />
       <ErrorBoundary>
-        <HashRouter
-          
-          future={{ v7_startTransition: true, v7_relativeSplatPath: true }}
-        >
+        <HashRouter>
           <Suspense fallback={
             <div style={{
               display: 'flex',
