@@ -1,6 +1,7 @@
 // Comprehensive Talent Generation System
 import { TalentPerson, Genre, TalentAgent, Race } from '@/types/game';
 import { NATIONALITY_OPTIONS, RACE_OPTIONS } from '@/utils/demographics';
+import { buildTalentSkills } from '@/utils/talentSkills';
 
 interface BiographyTemplate {
   careerPath: string;
@@ -432,6 +433,7 @@ export class TalentGenerator {
       marketValue,
       contractStatus: 'available',
       genres,
+      actingSkills: buildTalentSkills('actor', { reputation, experience, genres, specialties: genres, traits }, name),
       awards,
       traits,
       careerStage,
@@ -476,6 +478,9 @@ export class TalentGenerator {
     const template = BIOGRAPHY_TEMPLATES[Math.floor(Math.random() * BIOGRAPHY_TEMPLATES.length)];
 
     const fame = Math.min(100, Math.round(reputation * 0.6 + (awards.length * 4)));
+    const directingStyle = this.selectDirectingStyle();
+    const temperament = this.selectTemperament();
+    const budgetApproach = this.selectBudgetApproach();
 
     const director: TalentPerson = {
       id: `director-${Date.now()}-${Math.random().toString(36).substr(2, 9)}`,
@@ -490,6 +495,16 @@ export class TalentGenerator {
       marketValue,
       contractStatus: 'available',
       genres,
+      directingSkills: buildTalentSkills('director', {
+        reputation,
+        experience,
+        genres,
+        specialties: genres,
+        traits,
+        directingStyle,
+        temperament,
+        budgetApproach,
+      }, name),
       awards,
       traits,
       careerStage,
@@ -510,9 +525,9 @@ export class TalentGenerator {
     };
     
     director.biography = this.generateBiography(director, template);
-    director.directingStyle = this.selectDirectingStyle();
-    director.temperament = this.selectTemperament();
-    director.budgetApproach = this.selectBudgetApproach();
+    director.directingStyle = directingStyle;
+    director.temperament = temperament;
+    director.budgetApproach = budgetApproach;
     
     return director;
   }

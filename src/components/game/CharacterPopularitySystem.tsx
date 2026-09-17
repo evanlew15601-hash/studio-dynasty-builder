@@ -4,6 +4,7 @@ import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
 import { Progress } from '@/components/ui/progress';
 import { Star, TrendingUp, Users, Award, Crown } from 'lucide-react';
+import { calculateActingPerformanceScore } from '@/utils/actingPerformance';
 
 interface CharacterPopularityProps {
   gameState: GameState;
@@ -77,12 +78,8 @@ export const CharacterPopularitySystem: React.FC<CharacterPopularityProps> = ({
     talent: TalentPerson,
     project: Project
   ): CharacterPerformance => {
-    const basePerformance = talent.reputation || 50;
-    const projectSuccess = (project.metrics?.boxOffice?.profit || 0) > 0 ? 75 : 50;
     const screenTime = calculateScreenTime(character, project);
-    const screenTimeBonus = Math.min(20, screenTime / 10); // Up to 20 point bonus
-    
-    const performanceScore = Math.min(100, basePerformance + (projectSuccess * 0.3) + screenTimeBonus);
+    const performanceScore = calculateActingPerformanceScore(project, character, talent);
     const popularityGain = Math.round(performanceScore * (screenTime / 100) * 2);
     
     return {

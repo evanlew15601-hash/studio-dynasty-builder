@@ -4,6 +4,7 @@ import { CORE_TALENT_BIBLE, WorldTalentBlueprint } from '@/data/WorldBible';
 import { stableInt } from '@/utils/stableRandom';
 import { stablePick } from '@/utils/stablePick';
 import { determineCareerStage } from '@/utils/careerStage';
+import { buildTalentSkills } from '@/utils/talentSkills';
 
 const idForSlug = (slug: string) => `core:${slug}`;
 
@@ -499,7 +500,14 @@ export function generateInitialTalentPool(options: {
     narratives: t.narratives || [],
   }));
 
-  return [...core, ...buildAffordableEmergingTalent(currentYear), ...filler];
+  return [...core, ...buildAffordableEmergingTalent(currentYear), ...filler].map((talent) => ({
+    ...talent,
+    ...(talent.type === 'actor'
+      ? { actingSkills: talent.actingSkills || buildTalentSkills('actor', talent, talent.id) }
+      : talent.type === 'director'
+        ? { directingSkills: talent.directingSkills || buildTalentSkills('director', talent, talent.id) }
+        : {}),
+  }));
 }
 
 /**

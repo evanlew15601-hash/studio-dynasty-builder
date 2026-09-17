@@ -201,6 +201,8 @@ export interface TalentPerson {
   traits?: string[];
   specialties?: Genre[];
   genres: Genre[];
+  actingSkills?: ActingSkills;
+  directingSkills?: DirectingSkills;
   contractStatus: 'available' | 'contracted' | 'exclusive' | 'retired' | 'busy';
   /**
    * When contractStatus is temporarily set to 'busy', this stores the prior status
@@ -347,6 +349,36 @@ export interface TalentTrait {
   description: string;
   type: 'positive' | 'negative' | 'neutral';
   impact: TraitImpact;
+}
+
+export interface ActingSkills {
+  dramaticRange: number;
+  emotionalDepth: number;
+  subtlety: number;
+  comedicTiming: number;
+  physicality: number;
+  improvisation: number;
+  voiceAndDiction: number;
+  chemistry: number;
+  screenPresence: number;
+  consistency: number;
+  professionalism: number;
+  genreVersatility: number;
+}
+
+export interface DirectingSkills {
+  visualStorytelling: number;
+  performanceDirection: number;
+  blocking: number;
+  pacing: number;
+  toneControl: number;
+  shotDesign: number;
+  editingRhythm: number;
+  productionManagement: number;
+  budgetDiscipline: number;
+  collaboration: number;
+  genreFluency: number;
+  consistency: number;
 }
 
 export interface TraitImpact {
@@ -557,6 +589,7 @@ export interface ProjectMetrics {
   streamingViews?: number;
   criticsScore?: number;
   audienceScore?: number;
+  talentPerformanceApplied?: boolean;
   awards?: string[];
   festivalProcessed?: boolean;
   festivalOutcome?: string;

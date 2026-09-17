@@ -1,7 +1,8 @@
-import type { Genre, Race, TalentPerson } from '@/types/game';
+import type { ActingSkills, DirectingSkills, Genre, Race, TalentPerson } from '@/types/game';
 import { stableInt } from '@/utils/stableRandom';
 import { stablePick } from '@/utils/stablePick';
 import { determineCareerStage } from '@/utils/careerStage';
+import { buildTalentSkills } from '@/utils/talentSkills';
 
 function generateMarketValue(age: number, experience: number, reputation: number, type: 'actor' | 'director'): number {
   let baseValue = type === 'director' ? 400_000 : 220_000;
@@ -232,6 +233,9 @@ export function generateProceduralDebuts(options: {
         marketValue,
         contractStatus: 'available',
         genres,
+        ...(type === 'actor'
+          ? { actingSkills: buildTalentSkills('actor', { reputation, experience, genres, specialties: genres }, seed) as ActingSkills }
+          : { directingSkills: buildTalentSkills('director', { reputation, experience, genres, specialties: genres }, seed) as DirectingSkills }),
         specialties: genres.slice(0, Math.min(3, genres.length)),
         careerStage,
         availability: availabilityForYear(options.year),
@@ -288,6 +292,9 @@ export function generateProceduralDebuts(options: {
       marketValue: generateMarketValue(age, experience, reputation, type),
       contractStatus: 'available',
       genres,
+      ...(type === 'actor'
+        ? { actingSkills: buildTalentSkills('actor', { reputation, experience, genres, specialties: genres }, seed) as ActingSkills }
+        : { directingSkills: buildTalentSkills('director', { reputation, experience, genres, specialties: genres }, seed) as DirectingSkills }),
       specialties: genres.slice(0, Math.min(3, genres.length)),
       careerStage,
       availability: availabilityForYear(options.year),

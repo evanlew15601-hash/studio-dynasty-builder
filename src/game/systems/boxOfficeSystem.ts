@@ -10,6 +10,7 @@ import {
   shouldShowPlatformExpansionStatus,
 } from '@/utils/festivalMomentum';
 import { getFestivalById } from '@/data/Festivals';
+import { getProjectTalentPerformance } from '@/utils/talentSkills';
 
 function absWeek(week: number, year: number): number {
   return year * 52 + week;
@@ -41,12 +42,20 @@ function getReleaseWeekYear(project: Project): { week: number; year: number } | 
 
 
 
-function ensureReleaseScores(project: Project, releaseWeek: number, releaseYear: number): Project {
+function ensureReleaseScores(project: Project, releaseWeek: number, releaseYear: number, talentPool: GameState['talent'] = []): Project {
   const baseCritics = stableInt(`${project.id}|critics|${releaseYear}|${releaseWeek}`, 50, 90);
   const baseAudience = stableInt(`${project.id}|audience|${releaseYear}|${releaseWeek}`, 50, 90);
 
   let criticsScore = project.metrics?.criticsScore ?? clampScore(baseCritics + getFestivalCriticsBonus(project));
   let audienceScore = project.metrics?.audienceScore ?? clampScore(baseAudience);
+
+  if (!project.metrics?.talentPerformanceApplied) {
+    const talentPerformance = getProjectTalentPerformance(project, talentPool || []);
+    const actingDelta = (talentPerformance.acting - 50) * 0.14;
+    const directingDelta = (talentPerformance.directing - 50) * 0.24;
+    criticsScore = clampScore(criticsScore + actingDelta + directingDelta);
+    audienceScore = clampScore(audienceScore + actingDelta * 0.8 + directingDelta * 0.45);
+  }
 
   const festivalPremiered = project.metrics?.festivalPremiered === true || project.releaseStrategy?.type === 'festival';
 
@@ -101,6 +110,7 @@ function ensureReleaseScores(project: Project, releaseWeek: number, releaseYear:
         ...prevMetrics,
         criticsScore,
         audienceScore,
+        talentPerformanceApplied: true,
         festivalPremiered: true,
         festivalProcessed: true,
         festivalOutcome: outcome,
@@ -117,6 +127,7 @@ function ensureReleaseScores(project: Project, releaseWeek: number, releaseYear:
       ...(project.metrics || {}),
       criticsScore,
       audienceScore,
+      talentPerformanceApplied: true,
       ...(festivalPremiered ? { festivalPremiered: true } : {}),
     },
   };
@@ -372,7 +383,7 @@ export const BoxOfficeSystem: TickSystem = {
 
       const expectedWeeksSinceRelease = Math.max(0, currentAbs - releaseAbs);
 
-      let project = ensureReleaseScores(project0, rel.week, rel.year);
+      let project = ensureReleaseScores(project0, rel.week, rel.year, state.talent || []);
 
       const hasExistingTotal = typeof project.metrics?.boxOfficeTotal === 'number' && project.metrics.boxOfficeTotal > 0;
       const prevWeeks = typeof project.metrics?.weeksSinceRelease === 'number' ? project.metrics.weeksSinceRelease : null;
